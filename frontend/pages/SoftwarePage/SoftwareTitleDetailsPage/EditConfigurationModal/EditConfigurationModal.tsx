@@ -4,9 +4,11 @@ import React, { useCallback, useState } from "react";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import { notify } from "components/ToastNotification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import {
   IAppStoreApp,
   ISoftwarePackage,
@@ -49,6 +51,7 @@ const EditConfigurationModal = ({
   refetchSoftwareTitle,
   onExit,
 }: IEditConfigurationModalProps) => {
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const isInHouseApp = isSoftwarePackage(softwareInstaller);
 
   const XML_EMPTY = "<dict>\n  \n</dict>";
@@ -60,9 +63,11 @@ const EditConfigurationModal = ({
     return validateJson(curFormData);
   };
 
-  const getInitialValue = () => {
+  const getInitialValue = (): string => {
     if (isApplePlatform) {
-      return softwareInstaller.configuration || XML_EMPTY;
+      // iOS/iPadOS config is always a string on the wire; the union includes
+      // Record for Android. Cast narrows to the apple branch.
+      return (softwareInstaller.configuration as string) || XML_EMPTY;
     }
     return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
   };
@@ -212,6 +217,7 @@ const EditConfigurationModal = ({
       onChange={onInputChange}
       onLoad={onEditorLoad}
       readOnly={isUpdatingConfiguration}
+      disabled={gitOpsModeEnabled}
       error={formError}
       label="Configuration"
     />
@@ -245,6 +251,24 @@ const EditConfigurationModal = ({
     );
   };
 
+  const renderSaveButton = () => (
+    <GitOpsModeTooltipWrapper
+      position="top"
+      tipOffset={8}
+      entityType="software"
+      renderChildren={(gitOpsDisabled) => (
+        <Button
+          type="submit"
+          onClick={onEditConfiguration}
+          isLoading={isUpdatingConfiguration}
+          disabled={!canSaveForm || isUpdatingConfiguration || !!gitOpsDisabled}
+        >
+          Save
+        </Button>
+      )}
+    />
+  );
+
   const renderFooter = () => {
     if (isApplePlatform) {
       return (
@@ -254,33 +278,13 @@ const EditConfigurationModal = ({
               <Button onClick={onExit} variant="secondary">
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                onClick={onEditConfiguration}
-                isLoading={isUpdatingConfiguration}
-                disabled={!canSaveForm || isUpdatingConfiguration}
-              >
-                Save
-              </Button>
+              {renderSaveButton()}
             </>
           }
         />
       );
     }
-    return (
-      <ModalFooter
-        primaryButtons={
-          <Button
-            type="submit"
-            onClick={onEditConfiguration}
-            isLoading={isUpdatingConfiguration}
-            disabled={!canSaveForm || isUpdatingConfiguration}
-          >
-            Save
-          </Button>
-        }
-      />
-    );
+    return <ModalFooter primaryButtons={renderSaveButton()} />;
   };
 
   return (

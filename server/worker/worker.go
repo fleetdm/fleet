@@ -119,23 +119,29 @@ func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interfa
 // QueueJobWithDelay is like QueueJob but does not make the job available
 // before a specified delay (or no delay if delay is <= 0).
 func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, args interface{}, delay time.Duration) (*fleet.Job, error) {
-	argsJSON, err := json.Marshal(args)
+	job, err := newJob(name, args, delay)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshal args")
+	}
+	return ds.NewJob(ctx, job)
+}
+
+func newJob(name string, args any, delay time.Duration) (*fleet.Job, error) {
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
 	}
 
 	var notBefore time.Time
 	if delay > 0 {
 		notBefore = time.Now().UTC().Add(delay)
 	}
-	job := &fleet.Job{
+	return &fleet.Job{
 		Name:      name,
 		Args:      (*json.RawMessage)(&argsJSON),
 		State:     fleet.JobStateQueued,
 		NotBefore: notBefore,
-	}
-
-	return ds.NewJob(ctx, job)
+	}, nil
 }
 
 // defaultDelayPerRetry defines the delays to add between retries (i.e. how

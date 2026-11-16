@@ -1,14 +1,12 @@
-<Add>
+<Replace>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
-      <Type>text/plain</Type>
     </Meta>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Chrome/Policy/ChromeAdmxFile</LocURI>
     </Target>
-    <Data><![CDATA[
-      <?xml version="1.0" ?>
+    <Data><![CDATA[<?xml version="1.0" ?>
 <policyDefinitions revision="1.0" schemaVersion="1.0">
   <!--chrome version: 149.0.7827.54-->
   <policyNamespaces>
@@ -7652,6 +7650,18 @@
     </policy>
   </policies>
 </policyDefinitions>
-    ]]></Data>
+]]></Data>
   </Item>
-</Add>
+</Replace>
+
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/RelaunchNotification</LocURI>
+    </Target>
+    <Data>&lt;enabled/&gt;&lt;data id=&quot;RelaunchNotification&quot; value=&quot;2&quot;/&gt;</Data>
+  </Item>
+</Replace>

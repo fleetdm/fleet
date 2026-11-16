@@ -1,0 +1,300 @@
+import { fireEvent, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
+
+import { createCustomRenderer } from "test/test-utils";
+
+import FileUploader from "./FileUploader";
+
+const render = createCustomRenderer();
+
+const findDropZone = (container: HTMLElement) =>
+  container.querySelector(".file-uploader__wrapper") as HTMLElement;
+
+const makeFile = (name: string, type = "application/octet-stream") =>
+  new File(["x"], name, { type });
+
+describe("FileUploader", () => {
+  it("fires onFileUpload with the dropped files", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    const file = makeFile("thing.pkg");
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [file] },
+    });
+
+    expect(onFileUpload).toHaveBeenCalledTimes(1);
+    expect((onFileUpload.mock.calls[0][0] as FileList)[0]).toBe(file);
+  });
+
+  it("does not fire onFileUpload when disabled", async () => {
+    const onFileUpload = jest.fn();
+    const { container, user } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        disabled
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.pkg")] },
+    });
+    await user.upload(
+      container.querySelector('input[type="file"]') as HTMLInputElement,
+      makeFile("thing.pkg")
+    );
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("does not fire onFileUpload while isLoading", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        isLoading
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.pkg")] },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("does not fire onFileUpload when GitOps mode suppresses the uploader", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        gitopsCompatible
+        gitOpsModeEnabled
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.pkg")] },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("rejects a drop when any file falls outside the accept filter", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("not-a-cert.txt")] },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an inline error when a drop is rejected by the accept filter", () => {
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,.msi,.exe"
+        onFileUpload={noop}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.txt")] },
+    });
+
+    expect(
+      screen.getByText("File type must be .pkg, .msi, or .exe")
+    ).toBeInTheDocument();
+  });
+
+  it("clears the drop-rejection error on the next drag over", () => {
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={noop}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("nope.txt")] },
+    });
+    expect(screen.getByText("File type must be .pem")).toBeInTheDocument();
+
+    fireEvent.dragOver(findDropZone(container), {
+      dataTransfer: { files: [makeFile("cert.pem")] },
+    });
+
+    expect(
+      screen.queryByText("File type must be .pem")
+    ).not.toBeInTheDocument();
+  });
+
+  it("accepts a drop whose file matches the accept filter", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("cert.pem")] },
+    });
+
+    expect(onFileUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a dropped .tar.gz when accept lists application/gzip", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,application/gzip,.tgz"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    // macOS Chrome often reports .tar.gz as application/x-gzip (or empty),
+    // which won't exact-match the application/gzip spec.
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: {
+        files: [makeFile("bundle-1.0.0.tar.gz", "application/x-gzip")],
+      },
+    });
+
+    expect(onFileUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a dropped bare .gz even when accept lists application/gzip", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,application/gzip,.tgz"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    // The package flow doesn't support bare .gz; the alias list intentionally
+    // omits it so the drop fails here instead of surfacing a script-mapping
+    // error further downstream.
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: {
+        files: [makeFile("archive.gz", "application/x-gzip")],
+      },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
+  });
+
+  it("still renders the message so existing click-to-upload callers are untouched", () => {
+    render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        onFileUpload={noop}
+      />
+    );
+    expect(screen.getByText("drop a package")).toBeInTheDocument();
+  });
+
+  describe("error placement", () => {
+    it("keeps the label and shows the error inside the card by default", () => {
+      render(
+        <FileUploader
+          label="Client certificate"
+          graphicName="file-certificate"
+          message="Upload a .p12"
+          internalError="Invalid certificate"
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.getByText("Client certificate")).toBeInTheDocument();
+      expect(screen.getAllByText("Invalid certificate")).toHaveLength(1);
+    });
+
+    it("doesn't repeat the error above the card when a selected file shows it", () => {
+      render(
+        <FileUploader
+          label="Client certificate"
+          graphicName="file-certificate"
+          message="Upload a .p12"
+          internalError="Invalid certificate"
+          fileDetails={{ name: "cert.p12", description: "Invalid certificate" }}
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.getByText("Client certificate")).toBeInTheDocument();
+      expect(screen.getAllByText("Invalid certificate")).toHaveLength(1);
+    });
+
+    it("replaces the label with the error when errorInLabel is set", () => {
+      render(
+        <FileUploader
+          label="Okta certificate"
+          graphicName="file-pem"
+          message="Upload a .pem"
+          internalError="Upload only the Okta certificate"
+          errorInLabel
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.queryByText("Okta certificate")).not.toBeInTheDocument();
+      expect(
+        screen.getAllByText("Upload only the Okta certificate")
+      ).toHaveLength(1);
+    });
+
+    it("shows the error in the label slot with errorInLabel once a file is selected", () => {
+      render(
+        <FileUploader
+          label="Okta certificate"
+          graphicName="file-pem"
+          message="Upload a .pem"
+          internalError="Upload only the Okta certificate"
+          errorInLabel
+          fileDetails={{ name: "okta.pem" }}
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.queryByText("Okta certificate")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Upload only the Okta certificate")
+      ).toBeInTheDocument();
+    });
+  });
+});

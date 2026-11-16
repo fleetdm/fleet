@@ -54,6 +54,9 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 		rerr := redisc.ParseRedir(err)
 		require.Error(t, rerr)
 		require.Equal(t, "MOVED", rerr.Type)
+		require.True(t, redis.IsRedirect(fmt.Errorf("wrapped: %w", err)))
+		require.False(t, redis.IsRedirect(redigo.ErrNil))
+		require.False(t, redis.IsRedirect(nil))
 
 		// configured conn gets the nil value, it redirected automatically
 		_, err = redigo.String(c2.Do("GET", prefix+"{a}"))

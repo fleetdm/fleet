@@ -1,12 +1,10 @@
 import yaml from "js-yaml";
 
-interface IYAMLError {
-  name: string;
-  reason: string;
-  line: string;
-}
+import { IValidateYamlError } from "components/forms/validators";
 
-export const constructErrorString = (yamlError: IYAMLError) => {
+export const constructErrorString = (yamlError: IValidateYamlError) => {
+  if (yamlError === null) return "";
+  if (typeof yamlError === "string") return yamlError;
   return `${yamlError.name}: ${yamlError.reason} at line ${yamlError.line}`;
 };
 

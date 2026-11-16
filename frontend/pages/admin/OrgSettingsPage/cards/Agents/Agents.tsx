@@ -3,8 +3,7 @@ import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
+import { validateYaml } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import PageDescription from "components/PageDescription";
@@ -52,7 +51,9 @@ const Agents = ({
     const errors: IAgentOptionsFormErrors = {};
 
     if (agentOptions) {
-      const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
+      const { error: yamlError, isValid: yamlValid } = validateYaml(
+        agentOptions
+      );
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }

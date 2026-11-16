@@ -93,6 +93,26 @@ func (q nopLiveQuery) ClearQueryReportsClipped([]uint) error {
 	return nil
 }
 
+func (q nopLiveQuery) RecordQueryResultsLastFetched([]uint, time.Time) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	return map[uint]time.Time{}, nil
+}
+
+func (q nopLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	return nil
+}
+
+func (q nopLiveQuery) AcquireQueryReportWriteSlot(string, int, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (q nopLiveQuery) ReleaseQueryReportWriteSlot(string) error {
+	return nil
+}
+
 func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
 	return q
 }
@@ -144,7 +164,7 @@ func TestLiveQueryAuth(t *testing.T) {
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
 		return nil, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
 		return nil, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -335,8 +355,8 @@ func TestLiveQueryLabelValidation(t *testing.T) {
 		return query, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		return map[string]uint{"label1": uint(1)}, nil
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+		return map[string][]uint{"label1": {1}}, nil
 	}
 
 	testCases := []struct {
@@ -471,6 +491,22 @@ func (c *captureAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hos
 	c.hostIDs = hostIDs
 	c.campaignID = campaignID
 	return c.err
+}
+
+func (c *captureAgentNotifier) NotifyOrbitConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOrbitConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
 }
 
 func TestNewDistributedQueryCampaignNotifiesAgents(t *testing.T) {

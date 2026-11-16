@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -37,17 +38,20 @@ type Service struct {
 	mdmAppleCommander      fleet.MDMAppleCommandIssuer
 	ssoSessionStore        sso.SessionStore
 	depService             *apple_mdm.DEPService
-	profileMatcher         fleet.ProfileMatcher
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	stagedUploadStore      fleet.StagedUploadStore
 	distributedLock        fleet.Lock
 	keyValueStore          fleet.KeyValueStore
 	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
 	scepConfigService      fleet.SCEPConfigService
+	scepEnrollmentClient   fleet.SCEPEnrollmentClient
 	digiCertService        fleet.DigiCertService
+	ejbcaService           fleet.EJBCAService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	googleCASService       fleet.GoogleCASService
 	msGraphClientFactory   msgraph.ClientFactory
 }
 
@@ -61,17 +65,19 @@ func NewService(
 	depStorage storage.AllDEPStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	sso sso.SessionStore,
-	profileMatcher fleet.ProfileMatcher,
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	distributedLock fleet.Lock,
 	keyValueStore fleet.KeyValueStore,
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	googleCASService fleet.GoogleCASService,
 	pssoNonceStore fleet.PSSONonceStore,
 	msGraphClientFactory msgraph.ClientFactory,
 ) (*Service, error) {
@@ -96,17 +102,20 @@ func NewService(
 		mdmAppleCommander:      mdmAppleCommander,
 		ssoSessionStore:        sso,
 		depService:             apple_mdm.NewDEPService(ds, depStorage, logger),
-		profileMatcher:         profileMatcher,
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
+		stagedUploadStore:      stagedUploadStore,
 		distributedLock:        distributedLock,
 		keyValueStore:          keyValueStore,
 		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
+		scepEnrollmentClient:   scep.NewEnrollmentClient(logger),
 		digiCertService:        digiCertService,
+		ejbcaService:           ejbcaService,
 		androidModule:          androidService,
 		estService:             estService,
+		googleCASService:       googleCASService,
 		pssoNonceStore:         pssoNonceStore,
 		msGraphClientFactory:   msGraphClientFactory,
 	}
@@ -127,8 +136,9 @@ func NewService(
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
-		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
+		CheckCanInstallVPPApps:            eeservice.CheckCanInstallVPPApps,
 		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
+		VerifyAppleAccountProvisioning:    eeservice.verifyAppleAccountProvisioning,
 	})
 
 	return eeservice, nil

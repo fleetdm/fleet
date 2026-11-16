@@ -1,21 +1,68 @@
 name: software_update
-description: The `software_update` table displays the number of updates available from Apple's Software Update service on a Mac.
+description: The `software_update` table lists the updates available from Apple's Software Update service on a Mac, one row per available update. When no updates are available, the table returns a single row with `software_update_required` set to `0` and every other column empty.
 platforms:
   - darwin
 examples: |-
-  Basic query:
+  List every available update:
 
   ```
-  SELECT * FROM software_update;
+  SELECT label, title, version, size_kib, recommended, action FROM software_update WHERE software_update_required = 1;
+  ```
+
+  Check whether the Mac is fully up to date. This is the check used by Fleet's CIS benchmark policies:
+
+  ```
+  SELECT 1 FROM software_update WHERE software_update_required = 0;
+  ```
+
+  List pending updates while ignoring upgrades to a newer major version of macOS, which Software Update offers alongside regular updates:
+
+  ```
+  SELECT label, title, version
+  FROM software_update
+  WHERE software_update_required = 1
+    AND NOT (title LIKE 'macOS %' AND CAST(version AS INTEGER) > (SELECT major FROM os_version));
   ```
 columns:
   - name: software_update_required
     type: integer
     required: false
     description: |-
-      A value of 0 means no updates are available. Any other integer represents the number of updates available.
+      `1` if at least one update is available, otherwise `0`. Every row carries the same value.
+  - name: label
+    type: text
+    required: false
+    description: |-
+      Identifier Software Update uses for the update (for example `macOS Tahoe 26.7-25G229`). This is the value `softwareupdate --install` expects. Empty when no updates are available.
+  - name: title
+    type: text
+    required: false
+    description: |-
+      Human-readable name of the update (for example `macOS Tahoe 26.7`).
+  - name: version
+    type: text
+    required: false
+    description: |-
+      Version of the update (for example `26.7`).
+  - name: size_kib
+    type: integer
+    required: false
+    description: |-
+      Download size of the update in KiB, as reported by Software Update.
+  - name: recommended
+    type: integer
+    required: false
+    description: |-
+      `1` if Apple marks the update as recommended, otherwise `0`.
+  - name: action
+    type: text
+    required: false
+    description: |-
+      Follow-up action the update requires, such as `restart`. Empty when none is required.
 notes: |-
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+
+  Querying this table runs `softwareupdate --list`, which scans Apple's update catalog over the network and typically takes about 10 seconds. fleetd reuses the result of a successful scan for up to 5 minutes, and queries that arrive while a scan is running wait for that scan instead of starting another. If the scan fails (for example, when the Mac is offline) the query returns an error, and if its output can't be interpreted `software_update_required` is reported as `1`, so a compliance check never passes because of a scan that didn't complete.
 
   Available updates on a Mac can be displayed in the macOS Graphical User Interface (GUI) by clicking on the Apple menu and then selecting “System Settings”. In the System Settings.app, click General > Software Update.
 

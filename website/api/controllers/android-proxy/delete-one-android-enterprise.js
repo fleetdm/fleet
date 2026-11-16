@@ -62,6 +62,11 @@ module.exports = {
         let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
         // Delete the android enterprise.
         sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+        if (!sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
+        sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;
+        let _rtKey = androidEnterpriseId + ':delete_enterprise';
+        if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'delete_enterprise'}; }
+        sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
         await androidManagementConnection.enterprises.delete({
           name: `enterprises/${androidEnterpriseId}`,
         });

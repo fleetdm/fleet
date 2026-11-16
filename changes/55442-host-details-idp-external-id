@@ -1,0 +1,1 @@
+- Added the end user's IdP external ID (SCIM `externalId`) to the User card on the host details page.

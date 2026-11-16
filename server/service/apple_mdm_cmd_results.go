@@ -124,7 +124,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Used to mark the install as failed
 			failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 			// Used to get the activity data for an install
-			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
+			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool, fromConfigurationResend bool) (*fleet.User, fleet.ActivityDetails, error)
 		}
 
 		// The requireXcodeSpecialCase is used to identify if we need to poll the list of apps
@@ -137,9 +137,9 @@ func NewInstalledApplicationListResultsHandler(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
 		) error {
-			fromAutoUpdate, err := ds.IsAutoUpdateVPPInstall(ctx, expectedInstall.InstallCommandUUID)
+			fromAutoUpdate, fromConfigurationResend, err := ds.GetVPPInstallAutomationReasons(ctx, expectedInstall.InstallCommandUUID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
+				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update or a configuration re-send")
 			}
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult, appWasReported := installsByBundleID[expectedInstall.BundleIdentifier]
@@ -187,7 +187,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate)
+			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate, fromConfigurationResend)
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't an MDM-based install, so no activity generated
@@ -201,6 +201,16 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 
+			// Count only installs the verification command settles, an install command that finished but was never verified
+			// isn't counted. In-house app installs have no policy_id, so only VPP installs are counted.
+			if expectedInstall.PolicyID != nil {
+				installVerified := terminalStatus == fleet.MDMAppleStatusAcknowledged
+				err = ds.IncrementHostPolicyAutomationRunCount(ctx, *expectedInstall.PolicyID, expectedInstall.HostID, fleet.ActivityInstalledAppStoreApp{}, installVerified)
+				if err != nil {
+					logger.ErrorContext(ctx, "increment host policy automation run count for vpp install", "host_id", expectedInstall.HostID, "command_uuid", expectedInstall.InstallCommandUUID, "err", err)
+				}
+			}
+
 			return nil
 		}
 
@@ -208,7 +218,7 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetVPPInstallAsVerified,
 				ds.SetVPPInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool, fromConfigurationResend bool) (*fleet.User, fleet.ActivityDetails, error) {
 					user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, results)
 					if err != nil {
 						return nil, nil, err
@@ -216,6 +226,7 @@ func NewInstalledApplicationListResultsHandler(
 
 					act.FromSetupExperience = fromSetupExp
 					act.FromAutoUpdate = fromAutoUpdate
+					act.FromConfigurationResend = fromConfigurationResend
 
 					return user, act, nil
 				},
@@ -232,7 +243,7 @@ func NewInstalledApplicationListResultsHandler(
 				ds.SetInHouseAppInstallAsFailed,
 				// fromAutoUpdate is ignored: in-house apps have no auto-update flow
 				// and ActivityTypeInstalledSoftware has no field for it.
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
 					user, act, err := ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
 					if err != nil {
 						return nil, nil, err

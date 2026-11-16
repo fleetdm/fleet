@@ -3,6 +3,7 @@ export type { ISeverityFilterValue } from "./SeverityFilter";
 export {
   ANY_SEVERITY_VALUE,
   getSeverityBand,
+  parseSeverityScore,
   SEVERITY_RANGE_INVALID_MSG,
   SEVERITY_SCORE_RANGE_ERROR,
   severityFilters,

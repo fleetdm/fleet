@@ -18,6 +18,7 @@ import decodeBase64Utf8 from "utilities/base64";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 import formatJsonForDisplay from "utilities/json_format";
+import decodePlistDataForDisplay from "utilities/plist_format";
 
 const baseClass = "command-details-modal";
 
@@ -31,11 +32,11 @@ export const getIconName = (status: string): IconNames => {
       return "success";
     case "Pending":
     case "NotNow":
-      return "pending-outline";
+      return "pending";
     // sentinel used when the command results API returns a 200 with no
     // results (e.g. the host it was sent to was wiped and re-enrolled since)
     case "Deleted":
-      return "info-outline";
+      return "info";
     default:
       break;
   }
@@ -44,7 +45,7 @@ export const getIconName = (status: string): IconNames => {
   if (!Number.isNaN(code)) {
     if (code >= 400) return "error";
     if (code >= 200) return "success";
-    return "pending-outline";
+    return "pending";
   }
   return "warning";
 };
@@ -56,7 +57,7 @@ export const getVerbForCommandStatus = (status: string): string => {
       return "failed to run";
     case "success":
       return "ran";
-    case "pending-outline":
+    case "pending":
       return "sent";
     default:
       // unknown status
@@ -216,7 +217,9 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={formatJsonForDisplay(result.payload)}
+          value={formatJsonForDisplay(
+            decodePlistDataForDisplay(result.payload)
+          )}
           readOnly
           enableCopy
           disableResize

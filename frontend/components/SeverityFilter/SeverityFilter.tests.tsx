@@ -67,6 +67,32 @@ describe("SeverityFilter", () => {
     ).toBeInTheDocument();
   });
 
+  it("always shows Min score and Max score, for every severity selection", async () => {
+    const { user } = renderWithSetup(<ControlledSeverityFilter />);
+
+    expect(getMinInput()).toBeInTheDocument();
+    expect(getMaxInput()).toBeInTheDocument();
+
+    await selectSeverity(user, "Critical severity");
+    expect(getMinInput()).toBeInTheDocument();
+    expect(getMaxInput()).toBeInTheDocument();
+
+    await selectSeverity(user, "Any severity");
+    expect(getMinInput()).toBeInTheDocument();
+    expect(getMaxInput()).toBeInTheDocument();
+  });
+
+  it("does not offer Custom severity as a selectable menu option", async () => {
+    const { user } = renderWithSetup(<ControlledSeverityFilter />);
+
+    await user.click(screen.getByRole("combobox", { name: "Severity" }));
+
+    const options = screen
+      .getAllByTestId("dropdown-option")
+      .map((el) => el.textContent);
+    expect(options.some((text) => text?.startsWith("Custom"))).toBe(false);
+  });
+
   describe("option labels", () => {
     it("shows the plain label for the active selection", () => {
       const { rerender } = render(
@@ -96,6 +122,28 @@ describe("SeverityFilter", () => {
       expect(screen.queryByText("Custom (2.5 to 6)")).not.toBeInTheDocument();
     });
 
+    // Custom severity is a derived value (see severityForRange) rather than a
+    // choice a user clicks, but the dropdown still has to display it as the
+    // current value once a parent hands it in — e.g. after Apply + reopen
+    // with a range that matches no preset.
+    it("shows Custom severity as the current value without listing it as an option", async () => {
+      const { user } = renderWithSetup(
+        <ControlledSeverityFilter
+          severity="custom"
+          minScore="4.5"
+          maxScore="8.5"
+        />
+      );
+
+      expect(screen.getByText("Custom severity")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("combobox", { name: "Severity" }));
+      const options = screen
+        .getAllByTestId("dropdown-option")
+        .map((el) => el.textContent);
+      expect(options.some((text) => text?.startsWith("Custom"))).toBe(false);
+    });
+
     it("opens the menu focused on the current selection, not the first row", async () => {
       const onChange = jest.fn();
       const { user } = renderWithSetup(
@@ -118,29 +166,6 @@ describe("SeverityFilter", () => {
     });
   });
 
-  it("hides the score inputs for every preset and shows them only for Custom", async () => {
-    const { user } = renderWithSetup(<ControlledSeverityFilter />);
-
-    expect(screen.queryByLabelText(/Min score/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Max score/i)).not.toBeInTheDocument();
-
-    await selectSeverity(user, "Critical severity");
-    expect(screen.queryByLabelText(/Min score/i)).not.toBeInTheDocument();
-
-    await selectSeverity(user, "High severity");
-    expect(screen.queryByLabelText(/Min score/i)).not.toBeInTheDocument();
-
-    await selectSeverity(user, "Medium severity");
-    expect(screen.queryByLabelText(/Min score/i)).not.toBeInTheDocument();
-
-    await selectSeverity(user, "Low severity");
-    expect(screen.queryByLabelText(/Min score/i)).not.toBeInTheDocument();
-
-    await selectSeverity(user, "Custom severity");
-    expect(getMinInput()).toBeInTheDocument();
-    expect(getMaxInput()).toBeInTheDocument();
-  });
-
   it("populates min/max from the selected preset", async () => {
     const onChange = jest.fn();
     const { user } = renderWithSetup(
@@ -154,26 +179,6 @@ describe("SeverityFilter", () => {
       minScore: "7",
       maxScore: "8.9",
     });
-
-    await selectSeverity(user, "Custom severity");
-    expect(onChange).toHaveBeenLastCalledWith({
-      severity: "custom",
-      minScore: "",
-      maxScore: "",
-    });
-    expect(getMinInput()).toHaveValue(null);
-    expect(getMaxInput()).toHaveValue(null);
-  });
-
-  it("starts Custom empty from a preset that was seeded, not clicked", async () => {
-    const { user } = renderWithSetup(
-      <ControlledSeverityFilter severity="medium" minScore="4" maxScore="6.9" />
-    );
-
-    await selectSeverity(user, "Custom severity");
-
-    expect(getMinInput()).toHaveValue(null);
-    expect(getMaxInput()).toHaveValue(null);
   });
 
   it("clears min/max when Any severity is selected", async () => {
@@ -194,13 +199,38 @@ describe("SeverityFilter", () => {
       minScore: "",
       maxScore: "",
     });
-
-    await selectSeverity(user, "Custom severity");
-    expect(getMinInput()).toHaveValue(null);
-    expect(getMaxInput()).toHaveValue(null);
   });
 
-  describe("typing never changes the dropdown", () => {
+  // The dropdown re-derives when a score field loses focus, not per keystroke.
+  it("keeps the selected preset's label while typing, then switches to Custom on blur", async () => {
+    const { user } = renderWithSetup(
+      <ControlledSeverityFilter severity="medium" minScore="4" maxScore="6.9" />
+    );
+
+    await user.clear(getMinInput());
+    await user.type(getMinInput(), "5");
+
+    expect(screen.getByText("Medium severity")).toBeInTheDocument();
+    expect(getMinInput()).toHaveValue(5);
+
+    await user.tab();
+
+    expect(screen.getByText("Custom severity")).toBeInTheDocument();
+  });
+
+  it("switches back to a preset on blur when the range matches one", async () => {
+    const { user } = renderWithSetup(
+      <ControlledSeverityFilter severity="custom" minScore="5" maxScore="6.9" />
+    );
+
+    await user.clear(getMinInput());
+    await user.type(getMinInput(), "4");
+    await user.tab();
+
+    expect(screen.getByText("Medium severity")).toBeInTheDocument();
+  });
+
+  describe("typing alone never changes the dropdown", () => {
     const renderCustom = () =>
       renderWithSetup(<ControlledSeverityFilter severity="custom" />);
 

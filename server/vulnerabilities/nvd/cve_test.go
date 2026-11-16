@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/google/go-github/v37/github"
 	"github.com/stretchr/testify/assert"
@@ -1142,6 +1143,48 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestCheckVersionTrailingZeros(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    *schema.NVDCVEFeedJSON10DefCPEMatch
+		version string
+		want    string
+	}{
+		{
+			name:    "equal to end excluding with fewer parts",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionEndExcluding: "157.0.0"},
+			version: "157.0",
+			want:    "",
+		},
+		{
+			name:    "below end excluding",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionEndExcluding: "157.0.0"},
+			version: "156.0.1",
+			want:    "157.0.0",
+		},
+		{
+			name:    "equal to start including with fewer parts",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionStartIncluding: "154.0.0", VersionEndExcluding: "157.0.0"},
+			version: "154.0",
+			want:    "157.0.0",
+		},
+		{
+			name:    "equal to end excluding in a range with fewer parts",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionStartIncluding: "154.0.0", VersionEndExcluding: "157.0.0"},
+			version: "157.0",
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := checkVersion(tt.rule, tt.version)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
 		})
 	}
 }

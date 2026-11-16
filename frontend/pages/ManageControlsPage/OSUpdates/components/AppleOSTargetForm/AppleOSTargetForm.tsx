@@ -8,7 +8,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isPresent } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
@@ -82,7 +82,7 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
   // can be at fault — validating the hidden fields would block the save on an
   // error the user can't see.
   if (formData.target === "latest") {
-    if (!validatePresence(formData.deadlineDays)) {
+    if (!isPresent(formData.deadlineDays)) {
       errors.deadlineDays = "The days after release is required.";
     } else if (!validateDeadlineDays(formData.deadlineDays)) {
       errors.deadlineDays =
@@ -94,13 +94,13 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
   // Both fields are required for a custom version: "No updates enforced" is
   // how enforcement is turned off, so an empty form here isn't a way to clear
   // the settings.
-  if (!validatePresence(formData.minOsVersion)) {
+  if (!isPresent(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
   } else if (!validateMinVersion(formData.minOsVersion)) {
     errors.minOsVersion = "Minimum version must meet criteria below.";
   }
 
-  if (!validatePresence(formData.deadline)) {
+  if (!isPresent(formData.deadline)) {
     errors.deadline = "The deadline is required.";
   } else if (!validateDeadline(formData.deadline)) {
     errors.deadline = "Deadline must meet criteria below.";
@@ -293,6 +293,7 @@ const AppleOSTargetForm = ({
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <DropdownWrapper
+        ariaLabel="OS update target"
         name="target"
         options={TARGET_OPTIONS}
         value={target}

@@ -2,6 +2,7 @@ package redis_nonces_store
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 func TestRedisNoncesStore(t *testing.T) {
 	for _, f := range []func(*testing.T, *RedisNoncesStore){
 		testStoreConsume,
+		testMarkLoginAssertionUsed,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -75,4 +77,35 @@ func testStoreConsume(t *testing.T, store *RedisNoncesStore) {
 	ok, err = store.Consume(ctx, "once")
 	require.NoError(t, err)
 	require.False(t, ok)
+}
+
+func testMarkLoginAssertionUsed(t *testing.T, store *RedisNoncesStore) {
+	ctx := context.Background()
+
+	firstUse, err := store.MarkLoginAssertionUsed(ctx, "foo", 5*time.Second)
+	require.NoError(t, err)
+	require.True(t, firstUse)
+
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "foo", 5*time.Second)
+	require.NoError(t, err)
+	require.False(t, firstUse)
+
+	// consuming a nonce named like the record, or its key, doesn't remove it
+	for _, nonce := range []string{"foo", usedLoginAssertionPrefix + "foo", strings.TrimPrefix(usedLoginAssertionPrefix+"foo", prefix)} {
+		ok, err := store.Consume(ctx, nonce)
+		require.NoError(t, err)
+		require.False(t, ok)
+	}
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "foo", 5*time.Second)
+	require.NoError(t, err)
+	require.False(t, firstUse)
+
+	// recorded again once it expires
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "bar", time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, firstUse)
+	time.Sleep(2 * time.Millisecond)
+	firstUse, err = store.MarkLoginAssertionUsed(ctx, "bar", time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, firstUse)
 }

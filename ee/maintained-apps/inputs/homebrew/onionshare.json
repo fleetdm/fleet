@@ -1,9 +1,12 @@
 {
   "name": "OnionShare",
-  "unique_identifier": "org.onionshare.onionshare",
+  "unique_identifier": "OnionShare",
   "token": "onionshare",
   "installer_format": "dmg",
   "slug": "onionshare/darwin",
+  "post_uninstall_scripts": [
+    "trash \"$LOGGED_IN_USER\" '~/Library/Preferences/OnionShare.plist'"
+  ],
   "default_categories": [
     "Communication"
   ]

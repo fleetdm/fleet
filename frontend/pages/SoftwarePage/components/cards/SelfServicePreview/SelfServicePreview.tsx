@@ -21,7 +21,7 @@ import Icon from "components/Icon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import SelfServiceHeader from "pages/hosts/details/cards/Software/SelfService/components/SelfServiceHeader";
 
-import PreviewSelfServiceMobileIcon from "../../../../../../assets/images/preview-self-service-mobile-icon.png";
+import PreviewSelfServiceMobileIcon from "../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "self-service-preview";
 

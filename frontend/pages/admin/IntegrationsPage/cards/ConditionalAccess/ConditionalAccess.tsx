@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { IconNames } from "components/icons";
 import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -12,6 +13,7 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -28,8 +30,18 @@ import SectionCard from "../MdmSettings/components/SectionCard";
 
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
+import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
+
+const troubleshootLink = (
+  <CustomLink
+    text="Learn more"
+    url="https://fleetdm.com/guides/entra-conditional-access-integration#troubleshooting"
+    newTab
+    variant="flash-message-link"
+  />
+);
 
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
@@ -45,11 +57,21 @@ const DeleteConditionalAccessModal = ({
   config,
 }: IDeleteConditionalAccessModal) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const providerName =
     provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
 
+  // Okta deletion writes to AppConfig (GitOps-managed). If GitOps flips on
+  // while this confirmation is open, block the write here so a stale open
+  // modal can't bypass the card-level gate. Entra deletion hits a separate
+  // table, not AppConfig, so leave it alone.
+  const oktaBlockedByGitOps = provider === "okta" && gitOpsModeEnabled;
+
   const handleDelete = async () => {
+    if (oktaBlockedByGitOps) {
+      return;
+    }
     setIsDeleting(true);
     try {
       let updatedConfig;
@@ -131,7 +153,7 @@ const DeleteConditionalAccessModal = ({
           variant="alert"
           onClick={handleDelete}
           isLoading={isDeleting}
-          disabled={isDeleting}
+          disabled={isDeleting || oktaBlockedByGitOps}
         >
           Delete
         </Button>
@@ -167,6 +189,7 @@ const ConditionalAccess = () => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
+  const [showOktaProfilesModal, setShowOktaProfilesModal] = useState(false);
   const [providerToDelete, setProviderToDelete] = useState<
     "microsoft-entra" | "okta" | null
   >(null);
@@ -201,20 +224,50 @@ const ConditionalAccess = () => {
           // IT admin did not complete the consent.
           !setup_error ||
           // IT admin clicked "Cancel" in the consent dialog.
-          setup_error.includes(
-            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
-          )
+          setup_error.includes("A Microsoft Entra admin did not consent")
         ) {
           notify.error(
-            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+            <>
+              Couldn&apos;t connect. Fleet didn&apos;t get permissions for
+              Entra. Please try again and accept the permissions.{" "}
+              {troubleshootLink}
+            </>
           );
         } else if (
-          setup_error.includes(
-            'No "Fleet conditional access" Entra ID group was found'
-          )
+          // Covers both the empty (HTTP 204) and unexpected-shape responses.
+          setup_error.includes("PartnerCompliancePolicies API returned")
         ) {
           notify.error(
-            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+            <>
+              Couldn&apos;t connect. Entra didn&apos;t create Fleet&apos;s
+              compliance policy. Have an Entra admin who&apos;s also a Fleet
+              admin select <b>Connect</b> and approve permissions in one
+              session. {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes('No "Fleet conditional access" Entra ID group')
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Create a group named &quot;Fleet
+              conditional access&quot; in Entra and try again.{" "}
+              <CustomLink
+                text="Learn how"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/create-entra-conditional-access-group`}
+                newTab
+                variant="flash-message-link"
+              />
+            </>
+          );
+        } else if (
+          setup_error.includes("Error occurred when retrieving API tokens")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Fleet couldn&apos;t access your Entra
+              tenant. Please try again. {troubleshootLink}
+            </>
           );
         } else {
           // For other kind of errors we just show a generic error.
@@ -226,7 +279,9 @@ const ConditionalAccess = () => {
           //  - The Fleet server logs the error.
           //  - The MS proxy stores the error in its database.
           notify.error(
-            "Couldn't connect. Please contact your Fleet administrator."
+            <>
+              Couldn&apos;t connect. Entra returned an error. {troubleshootLink}
+            </>
           );
         }
       }
@@ -313,6 +368,10 @@ const ConditionalAccess = () => {
     setShowOktaModal(!showOktaModal);
   };
 
+  const toggleOktaProfilesModal = () => {
+    setShowOktaProfilesModal(!showOktaProfilesModal);
+  };
+
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
     setShowOktaModal(false);
     setConfig(updatedConfig);
@@ -358,24 +417,44 @@ const ConditionalAccess = () => {
   // RENDER
 
   const renderOktaContent = () => {
+    let oktaCta: React.JSX.Element;
+    if (oktaConfigured) {
+      oktaCta = (
+        <div className={`${baseClass}__card-actions`}>
+          <Button
+            variant="subdued"
+            onClick={toggleOktaProfilesModal}
+            icon="settings"
+          >
+            Profiles
+          </Button>
+          <Button variant="subdued" onClick={toggleOktaModal} icon="pencil">
+            Edit
+          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="subdued"
+                onClick={handleOktaDelete}
+                icon="trash"
+                disabled={disableChildren}
+              >
+                Delete
+              </Button>
+            )}
+          />
+        </div>
+      );
+    } else {
+      // Connect stays enabled; the modal gates its own Save.
+      oktaCta = <Button onClick={toggleOktaModal}>Connect</Button>;
+    }
+
     return (
       <SectionCard
         header={oktaConfigured ? undefined : "Okta"}
         iconName={oktaConfigured ? "success" : undefined}
-        cta={
-          oktaConfigured ? (
-            <Button
-              variant="subdued"
-              onClick={handleOktaDelete}
-              icon="trash"
-              iconPosition="right"
-            >
-              Delete
-            </Button>
-          ) : (
-            <Button onClick={toggleOktaModal}>Connect</Button>
-          )
-        }
+        cta={oktaCta}
       >
         {oktaConfigured ? (
           <span>
@@ -429,11 +508,13 @@ const ConditionalAccess = () => {
     if (entraIsConfigured) {
       entraIconName = "success";
     } else if (entraIsAwaitingOAuth) {
-      entraIconName = "pending-outline";
+      entraIconName = "pending";
     }
 
     let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
+      // Entra setup is DB-backed (POST/DELETE /conditional-access/microsoft),
+      // not AppConfig. GitOps YAML can't manage it, so delete isn't gated.
       entraCta = (
         <Button
           variant="subdued"
@@ -517,6 +598,9 @@ const ConditionalAccess = () => {
             onSuccess={handleOktaModalSuccess}
           />
         )}
+        {showOktaProfilesModal && (
+          <OktaProfilesModal onExit={toggleOktaProfilesModal} />
+        )}
         {providerToDelete && (
           <DeleteConditionalAccessModal
             onDelete={onDeleteConditionalAccess}
@@ -530,38 +614,53 @@ const ConditionalAccess = () => {
         <div className={`${baseClass}__end-user-experience`}>
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
-            <Checkbox
-              onChange={() => setBypassDisabled(!bypassDisabled)}
-              name="bypassDisabled"
-              value={!bypassDisabled}
-            >
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.
-                    <br />
-                    <i>
-                      (Default: <strong>On</strong>)
-                    </i>
-                  </>
-                }
-                showArrow={false}
-              >
-                Bypass for non-critical policies
-              </TooltipWrapper>
-            </Checkbox>
-            <Button
-              type="submit"
-              isLoading={isUpdatingBypass}
-              disabled={
-                bypassDisabled ===
-                  (config?.conditional_access?.bypass_disabled ?? false) ||
-                !config
-              }
-            >
-              Save
-            </Button>
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  onChange={() => setBypassDisabled(!bypassDisabled)}
+                  name="bypassDisabled"
+                  value={!bypassDisabled}
+                  disabled={disableChildren}
+                >
+                  {disableChildren ? (
+                    "Bypass for non-critical policies"
+                  ) : (
+                    <TooltipWrapper
+                      tipContent={
+                        <>
+                          Bypassing is valid for a single login attempt and is
+                          tracked in audit logs. Critical policies can never be
+                          bypassed.
+                          <br />
+                          <i>
+                            (Default: <strong>On</strong>)
+                          </i>
+                        </>
+                      }
+                      showArrow={false}
+                    >
+                      Bypass for non-critical policies
+                    </TooltipWrapper>
+                  )}
+                </Checkbox>
+              )}
+            />
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  type="submit"
+                  isLoading={isUpdatingBypass}
+                  disabled={
+                    disableChildren ||
+                    bypassDisabled ===
+                      (config?.conditional_access?.bypass_disabled ?? false) ||
+                    !config
+                  }
+                >
+                  Save
+                </Button>
+              )}
+            />
           </form>
         </div>
       )}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
@@ -41,7 +42,10 @@ func (t *Table) generate(
 	queryContext table.QueryContext,
 ) ([]map[string]string, error) {
 
-	cmd := `Get-BitlockerVolume | ForEach-Object {
+	// Get-BitLockerVolume only exists where BitLocker is installed, which is optional on Windows Server. Without it there
+	// are no protectors, so emit nothing instead.
+	cmd := `if (-not (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue)) { exit 0 }
+	Get-BitlockerVolume | ForEach-Object {
 		$vol = $_
 		$vol.KeyProtector | ForEach-Object {
 			[PSCustomObject]@{

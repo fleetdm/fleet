@@ -1,0 +1,10 @@
+{
+  "name": "Superhuman Docs",
+  "unique_identifier": "com.superhuman.CodaApp.Desktop",
+  "token": "superhuman-docs",
+  "installer_format": "dmg",
+  "slug": "superhuman-docs/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,6 +1,6 @@
 cask "microsoft-defender" do
-  version "101.26062.0012"
-  sha256 "ceb615d5b436694a4897769fdc15a25961fc4845d21db6a07ef1c61f35211eb7"
+  version "101.26072.0017"
+  sha256 "4f2670eb11eb080e864605ff41310277228991f4ebe16a651880cb3435e4f8b7"
 
   url "https://go.microsoft.com/fwlink/?linkid=2097502"
   name "Microsoft Defender"

@@ -11,7 +11,7 @@ For more MDM commands and detailed guidance, see [MDM commands](https://fleetdm.
 
 - A Fleet API token with write access
 - The device's serial number
-- The device must be enrolled in Fleet's MDM
+- The device must be enrolled to Fleet with MDM turned on
 
 
 ## Get the host UUID

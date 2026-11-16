@@ -123,7 +123,7 @@ func CreateHostVPPAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, h
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: adamID,
 	}
-	_, err := ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	_, err := ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 	execID = uuid.NewString()
 	err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, execID, "event-id-1", fleet.HostSoftwareInstallOptions{})

@@ -1,0 +1,1495 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="110" viewBox="0 0 1200 110">
+<!-- A stretch of the cloud city (domes, towers, wind turbines, trees, lakes), reflected in the announcement banner's glass (see layout.ejs).  Trees sway in their own irregular wind; turbines turn. -->
+<defs><linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3E6470"/><stop offset="1" stop-color="#12303D"/></linearGradient>
+<linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9C3C9"/><stop offset="1" stop-color="#7FA0A8"/></linearGradient>
+<g id="crown0">
+<animateTransform attributeName="transform" type="translate" values="0 0;0 0;0.3 0.1;-0.6 -0.2;-0.1 -0;0 0" keyTimes="0;0.370;0.640;0.675;0.814;1" dur="4.9s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="5.9" cy="-0.9" r="1.7"/>
+<circle cx="3.6" cy="-1.4" r="1.6"/>
+<circle cx="6.9" cy="-1.9" r="2.2"/>
+<circle cx="3.6" cy="2.6" r="1.6"/>
+<circle cx="-4.3" cy="2.6" r="1.6"/>
+<circle cx="1.6" cy="1.3" r="2.4"/>
+<circle cx="-4.1" cy="-4.4" r="1.5"/>
+<circle cx="4.5" cy="-4.2" r="1.8"/>
+<circle cx="-5.4" cy="0.4" r="1.7"/>
+<circle cx="1.6" cy="-3.2" r="1.9"/>
+<circle cx="-5.9" cy="2.6" r="1.4"/>
+<circle cx="-1.9" cy="-5.6" r="2.5"/>
+<circle cx="-0.8" cy="-6.4" r="2.5"/>
+<circle cx="-2.3" cy="-1.4" r="1.7"/>
+<circle cx="-0.1" cy="2.5" r="2.4"/>
+<circle cx="8.2" cy="0.1" r="1.5"/>
+<circle cx="-0.4" cy="-1.3" r="1.6"/>
+<circle cx="6.6" cy="-2.7" r="1.8"/>
+<circle cx="1.2" cy="3.1" r="2.2"/>
+<circle cx="5.2" cy="-1.1" r="1.5"/>
+<circle cx="0.7" cy="0.8" r="1.8"/>
+<circle cx="-0.5" cy="-0.2" r="1.5"/>
+<circle cx="-0.1" cy="-4.7" r="1.6"/>
+<circle cx="-0.8" cy="-3.5" r="1.5"/>
+<circle cx="-4.3" cy="0.9" r="1.9"/>
+<circle cx="-2.3" cy="0.2" r="2.4"/>
+</g>
+<g id="crown1">
+<animateTransform attributeName="transform" type="translate" values="0 0;-0.2 -0;0.5 0.2;0.2 0.1;0 0" keyTimes="0;0.332;0.674;0.923;1" dur="5.9s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="-2.4" cy="-1.4" r="2.2"/>
+<circle cx="1.5" cy="-2.1" r="2.6"/>
+<circle cx="2.7" cy="-1.1" r="1.6"/>
+<circle cx="-7.5" cy="2.4" r="1.8"/>
+<circle cx="-3.2" cy="0.3" r="2.2"/>
+<circle cx="-1.5" cy="1.9" r="2.3"/>
+<circle cx="-0.4" cy="2.2" r="2.4"/>
+<circle cx="7.4" cy="-1.9" r="2"/>
+<circle cx="-1.6" cy="2" r="2.4"/>
+<circle cx="-0.9" cy="-3.4" r="2.3"/>
+<circle cx="-6.2" cy="-3.5" r="2"/>
+<circle cx="1.1" cy="2.1" r="2.4"/>
+<circle cx="0.3" cy="-1.1" r="1.6"/>
+<circle cx="0.8" cy="-2.6" r="2.3"/>
+<circle cx="-3.3" cy="-1.2" r="2"/>
+<circle cx="-0.2" cy="3.1" r="1.5"/>
+<circle cx="-6.3" cy="-0.2" r="1.9"/>
+<circle cx="-2" cy="1.5" r="2.1"/>
+<circle cx="-3.2" cy="-3.3" r="1.8"/>
+<circle cx="2.8" cy="-3.2" r="2.2"/>
+<circle cx="3.4" cy="-1.1" r="1.8"/>
+<circle cx="-1.9" cy="-1.1" r="2.1"/>
+<circle cx="1.5" cy="-2.7" r="2.4"/>
+<circle cx="-1.2" cy="-0.2" r="1.9"/>
+<circle cx="7.3" cy="-2.4" r="2.1"/>
+<circle cx="1.8" cy="-3.2" r="1.9"/>
+</g>
+<g id="crown2">
+<animateTransform attributeName="transform" type="translate" values="0 0;-0 -0;-0 -0;0.1 0;0.4 0.1;0 0" keyTimes="0;0.339;0.536;0.559;0.846;1" dur="4s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="-3.4" cy="1.6" r="2.4"/>
+<circle cx="-2.7" cy="1.1" r="1.7"/>
+<circle cx="-3.2" cy="-2.3" r="1.7"/>
+<circle cx="-2.6" cy="-5.7" r="2"/>
+<circle cx="-9.3" cy="-0.3" r="2.5"/>
+<circle cx="2.4" cy="0.9" r="1.7"/>
+<circle cx="-4.3" cy="-0.5" r="1.4"/>
+<circle cx="-3.9" cy="4.2" r="2.1"/>
+<circle cx="4.2" cy="0.8" r="2.2"/>
+<circle cx="3.3" cy="-1.3" r="1.4"/>
+<circle cx="-7.9" cy="-2.2" r="2.5"/>
+<circle cx="-0.4" cy="-3.5" r="2"/>
+<circle cx="1.2" cy="-5" r="2.3"/>
+<circle cx="0.3" cy="-1.1" r="1.9"/>
+<circle cx="-3.3" cy="-0.5" r="1.8"/>
+<circle cx="-6.3" cy="-2.4" r="2"/>
+<circle cx="-4.3" cy="1.1" r="2"/>
+<circle cx="2.8" cy="1.5" r="2.4"/>
+<circle cx="0.4" cy="0.1" r="2.3"/>
+<circle cx="4.6" cy="0.7" r="1.5"/>
+<circle cx="1.5" cy="4" r="2.5"/>
+<circle cx="3" cy="-3.1" r="1.9"/>
+<circle cx="-4.9" cy="-5.1" r="1.6"/>
+<circle cx="-0.1" cy="-2.4" r="1.9"/>
+<circle cx="0.1" cy="3.8" r="1.5"/>
+<circle cx="-2.2" cy="-1.1" r="1.9"/>
+</g>
+<g id="blades"><path d="M0 0L-1 -11L0 -13L1 -11Z"/><path d="M0 0L-1 -11L0 -13L1 -11Z" transform="rotate(120)"/><path d="M0 0L-1 -11L0 -13L1 -11Z" transform="rotate(240)"/></g>
+</defs>
+<g fill="#D3E3E6" opacity=".55">
+<ellipse cx="412.3" cy="36.5" rx="11.2" ry="1.5"/>
+<ellipse cx="363.1" cy="37.1" rx="17.4" ry="1.7"/>
+<ellipse cx="388.3" cy="37.1" rx="14.1" ry="1.4"/>
+<ellipse cx="369.6" cy="37.4" rx="17.6" ry="0.9"/>
+<ellipse cx="368.3" cy="36.5" rx="20.6" ry="1"/>
+<ellipse cx="398.2" cy="37.2" rx="11.6" ry="1.5"/>
+<ellipse cx="108" cy="29.2" rx="18.6" ry="1.1"/>
+<ellipse cx="145.9" cy="27.1" rx="22.3" ry="0.9"/>
+<ellipse cx="102" cy="29.3" rx="21.6" ry="1"/>
+<ellipse cx="99.6" cy="29.4" rx="21.4" ry="1.6"/>
+<ellipse cx="101.2" cy="28.5" rx="16.7" ry="1"/>
+<ellipse cx="114.4" cy="28.5" rx="16.6" ry="1.2"/>
+<ellipse cx="199.9" cy="40.8" rx="25.3" ry="1.3"/>
+<ellipse cx="184.8" cy="41.1" rx="23.5" ry="1.2"/>
+<ellipse cx="149.6" cy="39.8" rx="15" ry="0.8"/>
+<ellipse cx="205.9" cy="40.9" rx="23.8" ry="0.8"/>
+<ellipse cx="176.1" cy="41.9" rx="21.6" ry="1.2"/>
+<ellipse cx="175.8" cy="40" rx="14.3" ry="1"/>
+<ellipse cx="425.5" cy="32.4" rx="19.1" ry="1"/>
+<ellipse cx="436.8" cy="32.3" rx="22.9" ry="0.8"/>
+<ellipse cx="490" cy="32.6" rx="31.3" ry="1.5"/>
+<ellipse cx="469.1" cy="32.9" rx="31.5" ry="0.9"/>
+<ellipse cx="468.7" cy="32.4" rx="26.4" ry="1.5"/>
+<ellipse cx="426.4" cy="32.2" rx="14.4" ry="1"/>
+<ellipse cx="98.7" cy="32.8" rx="24" ry="1.1"/>
+<ellipse cx="131.3" cy="33.7" rx="18" ry="1"/>
+<ellipse cx="126" cy="34.3" rx="27.5" ry="1.2"/>
+<ellipse cx="152.8" cy="32" rx="16" ry="1.6"/>
+<ellipse cx="102.8" cy="32.1" rx="25.6" ry="1.8"/>
+<ellipse cx="112.4" cy="32.9" rx="16.6" ry="0.9"/>
+<ellipse cx="1024" cy="34.2" rx="15.4" ry="1.2"/>
+<ellipse cx="1024.5" cy="34.3" rx="22.3" ry="1.1"/>
+<ellipse cx="1023.8" cy="33.7" rx="33.1" ry="1"/>
+<ellipse cx="1063.3" cy="34.6" rx="24.6" ry="0.9"/>
+<ellipse cx="1046.5" cy="33.9" rx="24.8" ry="1.7"/>
+<ellipse cx="1071.1" cy="35.7" rx="18.5" ry="0.8"/>
+<ellipse cx="637.7" cy="35.1" rx="21.9" ry="1.7"/>
+<ellipse cx="633.1" cy="34.6" rx="23.4" ry="1"/>
+<ellipse cx="620.3" cy="34.3" rx="12.4" ry="1.6"/>
+<ellipse cx="667.3" cy="34.3" rx="13.1" ry="0.9"/>
+<ellipse cx="628.9" cy="33.8" rx="17.5" ry="1.4"/>
+<ellipse cx="629" cy="33.7" rx="21.6" ry="0.8"/>
+<ellipse cx="229.3" cy="31" rx="13.3" ry="1.6"/>
+<ellipse cx="255" cy="32.1" rx="17.5" ry="1.6"/>
+<ellipse cx="256" cy="31" rx="19.6" ry="1.5"/>
+<ellipse cx="277.4" cy="31.7" rx="18.1" ry="1.1"/>
+<ellipse cx="269.4" cy="30.9" rx="11" ry="0.9"/>
+<ellipse cx="233.3" cy="30.6" rx="17.8" ry="1.1"/>
+<ellipse cx="62.5" cy="38.7" rx="12.9" ry="1.2"/>
+<ellipse cx="117.5" cy="40.8" rx="20" ry="1"/>
+<ellipse cx="89" cy="39.4" rx="15.9" ry="0.8"/>
+<ellipse cx="99.3" cy="40.5" rx="21.7" ry="0.9"/>
+<ellipse cx="95.7" cy="39" rx="21.4" ry="1.2"/>
+<ellipse cx="122.7" cy="40.5" rx="12.8" ry="1.1"/>
+</g>
+<path d="M-10 70L-10 66.1Q-10 66.1 -6 65.7Q-2 65.4 2 64.8Q6 64.3 10 63.8Q14 63.2 18 62.9Q22 62.5 26 62.4Q30 62.4 34 62.5Q38 62.7 42 62.8Q46 63 50 63Q54 63.1 58 63Q62 62.9 66 62.7Q70 62.6 74 62.5Q78 62.5 82 62.6Q86 62.7 90 62.8Q94 63 98 63Q102 63 106 62.8Q110 62.6 114 62.2Q118 61.8 122 61.4Q126 61 130 60.7Q134 60.5 138 60.6Q142 60.6 146 60.9Q150 61.2 154 61.6Q158 62 162 62.3Q166 62.6 170 62.8Q174 63 178 63.2Q182 63.3 186 63.6Q190 63.8 194 64.2Q198 64.6 202 65Q206 65.5 210 65.8Q214 66.1 218 66.1Q222 66.1 226 65.9Q230 65.6 234 65.3Q238 64.9 242 64.6Q246 64.3 250 64.2Q254 64.1 258 64.2Q262 64.3 266 64.5Q270 64.6 274 64.7Q278 64.8 282 64.7Q286 64.7 290 64.5Q294 64.4 298 64.4Q302 64.3 306 64.5Q310 64.6 314 64.8Q318 65 322 65.2Q326 65.3 330 65.2Q334 65 338 64.6Q342 64.2 346 63.6Q350 63 354 62.5Q358 62 362 61.7Q366 61.3 370 61.3Q374 61.2 378 61.2Q382 61.2 386 61.2Q390 61.2 394 61.1Q398 61.1 402 61Q406 60.9 410 60.9Q414 61 418 61.3Q422 61.6 426 62.1Q430 62.5 434 63Q438 63.4 442 63.7Q446 63.9 450 63.9Q454 63.9 458 63.6Q462 63.4 466 63.2Q470 63 474 62.9Q478 62.8 482 63Q486 63.1 490 63.3Q494 63.5 498 63.6Q502 63.8 506 63.8Q510 63.9 514 63.8Q518 63.8 522 63.9Q526 64 530 64.3Q534 64.6 538 65Q542 65.5 546 65.9Q550 66.4 554 66.6Q558 66.9 562 66.8Q566 66.8 570 66.4Q574 66.1 578 65.7Q582 65.3 586 65Q590 64.6 594 64.5Q598 64.3 602 64.2Q606 64.1 610 63.9Q614 63.7 618 63.4Q622 63 626 62.7Q630 62.3 634 62Q638 61.8 642 61.8Q646 61.8 650 62Q654 62.2 658 62.6Q662 62.9 666 63.1Q670 63.4 674 63.4Q678 63.3 682 63.1Q686 62.8 690 62.5Q694 62.2 698 62Q702 61.8 706 61.8Q710 61.7 714 61.8Q718 61.8 722 61.8Q726 61.8 730 61.7Q734 61.6 738 61.4Q742 61.2 746 61.1Q750 61.1 754 61.2Q758 61.4 762 61.9Q766 62.4 770 63Q774 63.6 778 64.1Q782 64.7 786 65Q790 65.3 794 65.4Q798 65.4 802 65.4Q806 65.3 810 65.3Q814 65.3 818 65.3Q822 65.4 826 65.5Q830 65.6 834 65.6Q838 65.6 842 65.4Q846 65.2 850 64.8Q854 64.5 858 64.1Q862 63.8 866 63.7Q870 63.6 874 63.7Q878 63.9 882 64.2Q886 64.5 890 64.8Q894 65.1 898 65.2Q902 65.2 906 65.1Q910 64.9 914 64.7Q918 64.4 922 64.2Q926 63.9 930 63.8Q934 63.7 938 63.6Q942 63.5 946 63.4Q950 63.2 954 62.9Q958 62.5 962 62Q966 61.5 970 61.1Q974 60.6 978 60.3Q982 60.1 986 60.2Q990 60.3 994 60.6Q998 60.9 1002 61.3Q1006 61.7 1010 62Q1014 62.3 1018 62.4Q1022 62.6 1026 62.6Q1030 62.6 1034 62.7Q1038 62.8 1042 63Q1046 63.3 1050 63.6Q1054 63.8 1058 64Q1062 64.2 1066 64.2Q1070 64.2 1074 64Q1078 63.7 1082 63.4Q1086 63.1 1090 63Q1094 62.8 1098 63Q1102 63.1 1106 63.5Q1110 63.8 1114 64.3Q1118 64.7 1122 65Q1126 65.3 1130 65.5Q1134 65.6 1138 65.6Q1142 65.6 1146 65.6Q1150 65.7 1154 65.8Q1158 65.9 1162 66.1Q1166 66.2 1170 66.3Q1174 66.3 1178 66.1Q1182 65.9 1186 65.5Q1190 65 1194 64.4Q1198 63.8 1202 63.3L1210 70Z" fill="url(#haze)"/>
+<g fill="#7FA0A8">
+<animateTransform attributeName="transform" type="rotate" values="0 600.0 67;-0.1 600.0 67;0.1 600.0 67;-0.1 600.0 67;-0.1 600.0 67;-0 600.0 67;-0.1 600.0 67;-0.1 600.0 67;0 600.0 67" keyTimes="0;0.041;0.085;0.188;0.198;0.475;0.492;0.655;1" dur="17.7s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<use href="#crown1" transform="translate(-8 62.3) scale(0.9 1)"/>
+<use href="#crown1" transform="translate(-1.2 59.4) scale(1.6 1.6)"/>
+<use href="#crown0" transform="translate(7.6 59.5) scale(-1.3 1.3)"/>
+<use href="#crown2" transform="translate(16.3 61.3) scale(1.3 1.4)"/>
+<use href="#crown2" transform="translate(23.2 62.4) scale(-0.9 0.9)"/>
+<use href="#crown2" transform="translate(29.9 62) scale(0.8 0.8)"/>
+<use href="#crown2" transform="translate(36.2 62.4) scale(0.8 0.7)"/>
+<use href="#crown2" transform="translate(40.7 62.8) scale(-0.7 0.7)"/>
+<use href="#crown0" transform="translate(46.4 63.5) scale(0.8 0.8)"/>
+<use href="#crown2" transform="translate(52.6 61.6) scale(1 1)"/>
+<use href="#crown2" transform="translate(58.1 63.3) scale(0.7 0.7)"/>
+<use href="#crown0" transform="translate(62.7 61.4) scale(-0.9 0.9)"/>
+<use href="#crown2" transform="translate(68 61.4) scale(0.9 1)"/>
+<use href="#crown2" transform="translate(73.4 63.4) scale(0.8 0.7)"/>
+<use href="#crown2" transform="translate(78.5 63) scale(-0.7 0.7)"/>
+<use href="#crown1" transform="translate(83.4 62.6) scale(0.8 0.9)"/>
+<use href="#crown2" transform="translate(90.4 61.2) scale(1.1 1)"/>
+<use href="#crown1" transform="translate(97.1 62.9) scale(0.7 0.8)"/>
+<use href="#crown1" transform="translate(101.2 59.9) scale(1.3 1.4)"/>
+<use href="#crown0" transform="translate(110.3 62.5) scale(0.9 0.8)"/>
+<use href="#crown2" transform="translate(116.3 62.4) scale(-0.8 0.9)"/>
+<use href="#crown2" transform="translate(122.5 61.9) scale(0.9 0.9)"/>
+<use href="#crown0" transform="translate(129.5 63.1) scale(0.7 0.7)"/>
+<use href="#crown1" transform="translate(135.6 59.6) scale(1.6 1.6)"/>
+<use href="#crown2" transform="translate(148.4 56.9) scale(1.7 1.5)"/>
+<use href="#crown1" transform="translate(160.4 62.9) scale(-0.8 0.9)"/>
+<use href="#crown1" transform="translate(166.1 60.1) scale(1.3 1.3)"/>
+<use href="#crown2" transform="translate(173.6 62.3) scale(0.8 0.8)"/>
+<use href="#crown2" transform="translate(178.2 62) scale(0.8 0.7)"/>
+<use href="#crown1" transform="translate(183.5 57) scale(1.7 1.5)"/>
+<use href="#crown0" transform="translate(194.8 62) scale(0.8 0.9)"/>
+<use href="#crown2" transform="translate(200.2 60.2) scale(1.3 1.1)"/>
+<use href="#crown2" transform="translate(208.5 61.3) scale(0.9 0.8)"/>
+<use href="#crown1" transform="translate(214.7 61.4) scale(-0.9 0.8)"/>
+<use href="#crown1" transform="translate(221.8 62.7) scale(-0.7 0.8)"/>
+<use href="#crown0" transform="translate(225.9 63.1) scale(-0.8 0.8)"/>
+<use href="#crown1" transform="translate(230.2 62.9) scale(-0.9 0.8)"/>
+<use href="#crown2" transform="translate(236 62.7) scale(-0.7 0.7)"/>
+<use href="#crown2" transform="translate(240.1 63.6) scale(0.7 0.8)"/>
+<use href="#crown1" transform="translate(244.4 62.8) scale(0.7 0.7)"/>
+<use href="#crown1" transform="translate(250.1 62.5) scale(-1 0.9)"/>
+<use href="#crown0" transform="translate(256.4 61.8) scale(0.8 0.8)"/>
+<use href="#crown2" transform="translate(262.2 60.1) scale(1.5 1.6)"/>
+<use href="#crown1" transform="translate(272.1 63.2) scale(0.8 0.7)"/>
+<use href="#crown1" transform="translate(277.6 61.3) scale(1.2 1.4)"/>
+<use href="#crown2" transform="translate(285.5 61.8) scale(-0.8 0.8)"/>
+<use href="#crown2" transform="translate(290.5 59.3) scale(-1.6 1.4)"/>
+<use href="#crown1" transform="translate(301.5 62.5) scale(-0.9 0.8)"/>
+<use href="#crown0" transform="translate(306.6 63.1) scale(0.9 0.8)"/>
+<use href="#crown1" transform="translate(313.4 62.7) scale(0.8 0.8)"/>
+<use href="#crown1" transform="translate(318.3 62.5) scale(0.9 1)"/>
+<use href="#crown0" transform="translate(325.1 61.7) scale(1 1.1)"/>
+<use href="#crown2" transform="translate(331.3 62.8) scale(-0.7 0.7)"/>
+<use href="#crown1" transform="translate(336.5 63.1) scale(-0.7 0.7)"/>
+<use href="#crown2" transform="translate(340.6 59.2) scale(1.4 1.2)"/>
+<use href="#crown2" transform="translate(350.1 61.7) scale(-0.9 0.8)"/>
+<use href="#crown0" transform="translate(356.9 62.4) scale(-0.8 0.8)"/>
+<use href="#crown0" transform="translate(363 61.9) scale(-0.8 0.9)"/>
+<use href="#crown0" transform="translate(368 63.1) scale(-0.7 0.7)"/>
+<use href="#crown2" transform="translate(373.1 60.6) scale(-1.2 1.3)"/>
+<use href="#crown2" transform="translate(380 62.3) scale(0.8 0.8)"/>
+<use href="#crown1" transform="translate(385.6 62.9) scale(0.8 0.7)"/>
+<use href="#crown1" transform="translate(391 61.7) scale(0.9 1.1)"/>
+<use href="#crown0" transform="translate(396.5 61.4) scale(-0.9 1)"/>
+<use href="#crown1" transform="translate(403.1 63.7) scale(-0.7 0.7)"/>
+<use href="#crown0" transform="translate(407.3 62.9) scale(-0.8 0.9)"/>
+<use href="#crown0" transform="translate(412.6 60.2) scale(1.5 1.6)"/>
+<use href="#crown0" transform="translate(424.6 59.9) scale(-1.3 1.4)"/>
+<use href="#crown0" transform="translate(434.6 62.9) scale(0.8 0.7)"/>
+<use href="#crown2" transform="translate(439.4 58.8) scale(-1.5 1.3)"/>
+<use href="#crown0" transform="translate(448.9 63) scale(0.8 0.8)"/>
+<use href="#crown2" transform="translate(454.9 61.7) scale(1 0.9)"/>
+<use href="#crown2" transform="translate(462.6 61.6) scale(-0.9 0.8)"/>
+<use href="#crown2" transform="translate(469.3 62.8) scale(0.8 0.8)"/>
+<use href="#crown1" transform="translate(474.4 60.8) scale(1 0.9)"/>
+<use href="#crown1" transform="translate(481.6 61.5) scale(0.9 1)"/>
+<use href="#crown2" transform="translate(487.8 63.1) scale(0.8 0.8)"/>
+<use href="#crown1" transform="translate(493.2 60) scale(-1.2 1.4)"/>
+<use href="#crown0" transform="translate(501.9 61.7) scale(0.9 0.9)"/>
+<use href="#crown1" transform="translate(507.3 62.5) scale(0.8 0.7)"/>
+<use href="#crown2" transform="translate(513.8 63.1) scale(-0.8 0.7)"/>
+<use href="#crown2" transform="translate(519.7 62.1) scale(0.8 0.7)"/>
+<use href="#crown1" transform="translate(525.5 63) scale(0.7 0.6)"/>
+<use href="#crown0" transform="translate(529.1 60.8) scale(1 1)"/>
+<use href="#crown0" transform="translate(535.6 63) scale(0.7 0.6)"/>
+<use href="#crown1" transform="translate(539.9 63.4) scale(-0.7 0.6)"/>
+<use href="#crown1" transform="translate(543.8 62) scale(0.9 1)"/>
+<use href="#crown1" transform="translate(549.7 64) scale(0.7 0.6)"/>
+<use href="#crown1" transform="translate(554.3 62.9) scale(0.8 0.7)"/>
+<use href="#crown2" transform="translate(560.6 61.8) scale(0.9 0.8)"/>
+<use href="#crown0" transform="translate(568 61.3) scale(1 0.9)"/>
+<use href="#crown0" transform="translate(574.5 63.8) scale(0.7 0.7)"/>
+<use href="#crown0" transform="translate(579.8 62.1) scale(0.8 0.7)"/>
+<use href="#crown0" transform="translate(585.1 62.9) scale(0.8 0.9)"/>
+<use href="#crown0" transform="translate(591.6 61.5) scale(-0.9 1)"/>
+<use href="#crown2" transform="translate(598.8 62.5) scale(0.9 0.8)"/>
+<use href="#crown0" transform="translate(604.9 62.6) scale(0.9 0.9)"/>
+<use href="#crown0" transform="translate(610.1 62.1) scale(0.9 0.7)"/>
+<use href="#crown2" transform="translate(615.1 60.9) scale(-1.1 1.2)"/>
+<use href="#crown0" transform="translate(624.3 62.2) scale(-0.8 0.9)"/>
+<use href="#crown1" transform="translate(629.9 61.8) scale(-0.9 0.8)"/>
+<use href="#crown0" transform="translate(636.2 62.6) scale(0.8 0.9)"/>
+<use href="#crown2" transform="translate(640.8 62.2) scale(-0.8 0.7)"/>
+<use href="#crown0" transform="translate(647.2 62.9) scale(0.8 0.9)"/>
+<use href="#crown2" transform="translate(653.7 61.8) scale(0.9 0.9)"/>
+<use href="#crown1" transform="translate(661.1 63.3) scale(-0.7 0.8)"/>
+<use href="#crown0" transform="translate(667.2 62.3) scale(0.8 0.9)"/>
+<use href="#crown1" transform="translate(672.5 63.7) scale(-0.7 0.8)"/>
+<use href="#crown1" transform="translate(677 63.4) scale(-0.7 0.7)"/>
+<use href="#crown1" transform="translate(682.7 62.7) scale(-0.9 0.9)"/>
+<use href="#crown1" transform="translate(687.6 62.2) scale(-0.8 0.9)"/>
+<use href="#crown0" transform="translate(692.5 63.5) scale(-0.7 0.7)"/>
+<use href="#crown1" transform="translate(698.1 62.3) scale(1 1.1)"/>
+<use href="#crown1" transform="translate(705.9 63.2) scale(-0.7 0.7)"/>
+<use href="#crown2" transform="translate(710 62.9) scale(-0.8 0.9)"/>
+<use href="#crown1" transform="translate(715.9 61) scale(0.9 0.8)"/>
+<use href="#crown2" transform="translate(723.6 62.1) scale(-0.8 0.8)"/>
+<use href="#crown2" transform="translate(728.9 59.8) scale(-1.4 1.2)"/>
+<use href="#crown1" transform="translate(740.3 63.7) scale(0.7 0.7)"/>
+<use href="#crown0" transform="translate(745.1 63) scale(0.8 0.9)"/>
+<use href="#crown2" transform="translate(750.1 63.2) scale(0.8 0.9)"/>
+<use href="#crown0" transform="translate(755.4 62.3) scale(0.8 0.7)"/>
+<use href="#crown0" transform="translate(760.8 62.3) scale(-0.8 0.8)"/>
+<use href="#crown0" transform="translate(765.4 61.4) scale(-1.2 1.1)"/>
+<use href="#crown2" transform="translate(775 62.1) scale(-0.9 1)"/>
+<use href="#crown0" transform="translate(780.5 63.2) scale(0.7 0.8)"/>
+<use href="#crown0" transform="translate(785.4 63) scale(0.7 0.6)"/>
+<use href="#crown1" transform="translate(790.2 61.5) scale(1.2 1.3)"/>
+<use href="#crown0" transform="translate(797.6 62.5) scale(0.7 0.8)"/>
+<use href="#crown2" transform="translate(802.4 63.1) scale(-0.8 0.8)"/>
+<use href="#crown0" transform="translate(808.3 62.2) scale(0.9 0.8)"/>
+<use href="#crown1" transform="translate(813.5 61.7) scale(0.9 0.8)"/>
+<use href="#crown2" transform="translate(820.8 62.8) scale(-0.7 0.6)"/>
+<use href="#crown2" transform="translate(825.5 63.3) scale(-0.8 0.8)"/>
+<use href="#crown2" transform="translate(831.1 62.2) scale(0.9 0.8)"/>
+<use href="#crown1" transform="translate(837.5 62.5) scale(-0.9 1)"/>
+<use href="#crown2" transform="translate(843.7 62.7) scale(0.8 0.8)"/>
+<use href="#crown0" transform="translate(849.4 62.2) scale(0.9 0.9)"/>
+<use href="#crown1" transform="translate(856.5 63.5) scale(-0.8 0.7)"/>
+<use href="#crown1" transform="translate(860.9 62.6) scale(-0.7 0.7)"/>
+<use href="#crown0" transform="translate(865.5 62.7) scale(-0.8 0.9)"/>
+<use href="#crown2" transform="translate(870.1 62.4) scale(-1 0.9)"/>
+<use href="#crown2" transform="translate(877.5 62.5) scale(0.8 0.9)"/>
+<use href="#crown0" transform="translate(883.5 62) scale(0.9 0.8)"/>
+<use href="#crown2" transform="translate(891 63.1) scale(-0.8 0.8)"/>
+<use href="#crown0" transform="translate(896.5 62.5) scale(0.9 1)"/>
+<use href="#crown2" transform="translate(901.5 61.7) scale(0.9 1)"/>
+<use href="#crown2" transform="translate(906.9 63.1) scale(0.8 0.9)"/>
+<use href="#crown0" transform="translate(913.4 62.7) scale(0.7 0.7)"/>
+<use href="#crown2" transform="translate(918.7 62.1) scale(-0.8 0.9)"/>
+<use href="#crown2" transform="translate(925.8 61.9) scale(-0.8 0.7)"/>
+<use href="#crown0" transform="translate(932.6 63.2) scale(-0.8 0.7)"/>
+<use href="#crown2" transform="translate(937.5 62.7) scale(-0.9 1)"/>
+<use href="#crown1" transform="translate(943.9 62.9) scale(-0.8 0.7)"/>
+<use href="#crown1" transform="translate(948.4 62.5) scale(-0.8 0.7)"/>
+<use href="#crown2" transform="translate(953.9 63.3) scale(0.8 0.8)"/>
+<use href="#crown0" transform="translate(959.9 63.2) scale(0.7 0.7)"/>
+<use href="#crown1" transform="translate(965.7 63.5) scale(0.7 0.6)"/>
+<use href="#crown0" transform="translate(971.4 62.9) scale(-0.9 0.9)"/>
+<use href="#crown1" transform="translate(976.6 61.3) scale(-0.9 0.8)"/>
+<use href="#crown2" transform="translate(982.7 56.9) scale(-1.6 1.4)"/>
+<use href="#crown0" transform="translate(994 63.8) scale(0.7 0.7)"/>
+<use href="#crown2" transform="translate(998.8 62.5) scale(-0.8 0.7)"/>
+<use href="#crown1" transform="translate(1004.8 64) scale(-0.7 0.6)"/>
+<use href="#crown0" transform="translate(1008.9 63.2) scale(-0.8 0.8)"/>
+<use href="#crown2" transform="translate(1013.2 63.2) scale(-0.7 0.6)"/>
+<use href="#crown0" transform="translate(1018.8 62.2) scale(1 0.9)"/>
+<use href="#crown0" transform="translate(1024.8 63.6) scale(-0.7 0.7)"/>
+<use href="#crown1" transform="translate(1030.3 62.6) scale(-0.8 0.8)"/>
+<use href="#crown2" transform="translate(1037.1 62.2) scale(0.8 0.7)"/>
+<use href="#crown2" transform="translate(1041.9 62.2) scale(-0.9 0.9)"/>
+<use href="#crown1" transform="translate(1048.8 62.1) scale(-0.9 0.9)"/>
+<use href="#crown2" transform="translate(1056.3 62.4) scale(0.7 0.7)"/>
+<use href="#crown1" transform="translate(1060.4 61.6) scale(-0.9 1)"/>
+<use href="#crown1" transform="translate(1065.7 62.3) scale(1 1)"/>
+<use href="#crown1" transform="translate(1072.1 63.3) scale(-0.7 0.7)"/>
+<use href="#crown0" transform="translate(1076.5 61.4) scale(-1 0.9)"/>
+<use href="#crown1" transform="translate(1083.5 63.3) scale(-0.8 0.8)"/>
+<use href="#crown1" transform="translate(1088.9 62.3) scale(-0.9 1)"/>
+<use href="#crown2" transform="translate(1095.4 62.2) scale(0.9 0.8)"/>
+<use href="#crown1" transform="translate(1100.4 63.1) scale(0.7 0.7)"/>
+<use href="#crown2" transform="translate(1105.8 62.1) scale(0.9 0.9)"/>
+<use href="#crown2" transform="translate(1111 60.8) scale(-1 0.9)"/>
+<use href="#crown0" transform="translate(1119 62.1) scale(-0.9 0.8)"/>
+<use href="#crown1" transform="translate(1125.3 62.4) scale(0.9 1)"/>
+<use href="#crown2" transform="translate(1132.1 62.9) scale(0.8 0.9)"/>
+<use href="#crown2" transform="translate(1136.7 63.1) scale(-0.7 0.8)"/>
+<use href="#crown1" transform="translate(1141.6 62.9) scale(-0.8 0.7)"/>
+<use href="#crown2" transform="translate(1148.2 62.9) scale(0.8 0.8)"/>
+<use href="#crown2" transform="translate(1155.1 62.9) scale(0.7 0.7)"/>
+<use href="#crown0" transform="translate(1159.6 62.6) scale(-0.7 0.8)"/>
+<use href="#crown0" transform="translate(1164 63.3) scale(0.7 0.7)"/>
+<use href="#crown0" transform="translate(1169.4 62.9) scale(-0.8 0.9)"/>
+<use href="#crown2" transform="translate(1176.2 62.9) scale(-0.9 0.9)"/>
+<use href="#crown1" transform="translate(1181.2 63.7) scale(-0.7 0.7)"/>
+<use href="#crown0" transform="translate(1185.8 62.8) scale(-0.8 0.8)"/>
+<use href="#crown2" transform="translate(1192.6 56.9) scale(1.7 1.6)"/>
+<use href="#crown1" transform="translate(1206.2 62.7) scale(-0.8 1)"/>
+</g>
+<g fill="#3E6470">
+<animateTransform attributeName="transform" type="rotate" values="0 600.0 69;-0.1 600.0 69;0.1 600.0 69;0.1 600.0 69;0.1 600.0 69;0 600.0 69" keyTimes="0;0.107;0.111;0.514;0.658;1" dur="17.1s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<use href="#crown2" transform="translate(-8 56.6) scale(2.5 2.6)"/>
+<use href="#crown2" transform="translate(11.9 62.8) scale(1.2 1.2)"/>
+<use href="#crown0" transform="translate(19 62.9) scale(-1 1.1)"/>
+<use href="#crown0" transform="translate(26 62.4) scale(-1.2 1)"/>
+<use href="#crown0" transform="translate(35.1 63.7) scale(-0.9 1)"/>
+<use href="#crown0" transform="translate(40.4 63.7) scale(1 1)"/>
+<use href="#crown0" transform="translate(48.2 63.2) scale(1.3 1.3)"/>
+<use href="#crown2" transform="translate(56.8 63.4) scale(1.1 1)"/>
+<use href="#crown0" transform="translate(63.1 61) scale(-1.4 1.4)"/>
+<use href="#crown1" transform="translate(70.6 62.4) scale(1.4 1.2)"/>
+<use href="#crown1" transform="translate(81 60.5) scale(-1.4 1.2)"/>
+<use href="#crown0" transform="translate(90.7 62.5) scale(-1.3 1.1)"/>
+<use href="#crown1" transform="translate(99.2 64.4) scale(-1 1.1)"/>
+<use href="#crown0" transform="translate(107 62.4) scale(1.4 1.3)"/>
+<use href="#crown0" transform="translate(117.8 63) scale(-1.1 1.1)"/>
+<use href="#crown2" transform="translate(124.2 63.8) scale(1 1.1)"/>
+<use href="#crown1" transform="translate(130.9 64.4) scale(0.9 1)"/>
+<use href="#crown1" transform="translate(136 62.4) scale(1.2 1.3)"/>
+<use href="#crown2" transform="translate(144.9 63.7) scale(-1.1 1.3)"/>
+<use href="#crown1" transform="translate(153.1 60.6) scale(1.3 1.5)"/>
+<use href="#crown1" transform="translate(161.7 63.5) scale(-1.1 1.2)"/>
+<use href="#crown1" transform="translate(168.7 57.7) scale(2 2.3)"/>
+<use href="#crown2" transform="translate(183 61.9) scale(-1.2 1.3)"/>
+<use href="#crown1" transform="translate(190 63.4) scale(1.1 0.9)"/>
+<use href="#crown2" transform="translate(198.8 63.6) scale(-1.1 1)"/>
+<use href="#crown0" transform="translate(205.9 62.3) scale(-1.3 1.2)"/>
+<use href="#crown2" transform="translate(214.4 61.9) scale(-1.3 1.1)"/>
+<use href="#crown2" transform="translate(224.5 60.1) scale(-1.8 1.8)"/>
+<use href="#crown2" transform="translate(234.8 63.3) scale(1.1 1)"/>
+<use href="#crown2" transform="translate(242.1 63.2) scale(1.1 1.1)"/>
+<use href="#crown0" transform="translate(250.4 63) scale(1 1)"/>
+<use href="#crown0" transform="translate(257.6 63) scale(1.1 1.3)"/>
+<use href="#crown0" transform="translate(264.3 61.3) scale(1.3 1.4)"/>
+<use href="#crown2" transform="translate(275.2 61.5) scale(1.2 1.1)"/>
+<use href="#crown0" transform="translate(283.5 61.6) scale(-1.3 1.4)"/>
+<use href="#crown0" transform="translate(292.8 63.4) scale(-0.9 0.9)"/>
+<use href="#crown2" transform="translate(299.9 63.8) scale(-1.1 1.2)"/>
+<use href="#crown1" transform="translate(308.9 58.6) scale(1.7 1.6)"/>
+<use href="#crown1" transform="translate(322.1 61.2) scale(1.3 1.3)"/>
+<use href="#crown0" transform="translate(331 64.1) scale(-1.1 1)"/>
+<use href="#crown1" transform="translate(339.7 57.4) scale(2.4 2.4)"/>
+<use href="#crown0" transform="translate(358.7 62.7) scale(-1.2 1.2)"/>
+<use href="#crown0" transform="translate(366 60.9) scale(1.3 1.3)"/>
+<use href="#crown2" transform="translate(375.8 61.6) scale(-1.4 1.3)"/>
+<use href="#crown1" transform="translate(384.5 61.7) scale(-1.3 1.2)"/>
+<use href="#crown2" transform="translate(391.6 63.1) scale(-1 1.1)"/>
+<use href="#crown1" transform="translate(397 58.4) scale(2 1.9)"/>
+<use href="#crown1" transform="translate(410.3 62.5) scale(1 1.1)"/>
+<use href="#crown2" transform="translate(418.1 62.3) scale(1.3 1.4)"/>
+<use href="#crown1" transform="translate(426.3 62.7) scale(1.3 1.4)"/>
+<use href="#crown1" transform="translate(436.2 63.3) scale(1.1 1)"/>
+<use href="#crown2" transform="translate(445.2 60) scale(1.9 1.7)"/>
+<use href="#crown1" transform="translate(459 62.8) scale(-1.1 1.1)"/>
+<use href="#crown0" transform="translate(468.2 62.7) scale(-1.3 1.4)"/>
+<use href="#crown0" transform="translate(477.3 61.9) scale(1.3 1.2)"/>
+<use href="#crown1" transform="translate(484.8 61.2) scale(-1.3 1.1)"/>
+<use href="#crown0" transform="translate(495.1 62.9) scale(-1 0.9)"/>
+<use href="#crown2" transform="translate(501.1 62.7) scale(-1.1 1.2)"/>
+<use href="#crown2" transform="translate(509 61.5) scale(1.3 1.5)"/>
+<use href="#crown2" transform="translate(518.7 62.4) scale(-1.2 1.2)"/>
+<use href="#crown0" transform="translate(526.9 62.6) scale(-1 1)"/>
+<use href="#crown1" transform="translate(533.7 62.8) scale(1.2 1.3)"/>
+<use href="#crown1" transform="translate(543.1 61.2) scale(1.3 1.1)"/>
+<use href="#crown0" transform="translate(552.8 63.7) scale(1 1)"/>
+<use href="#crown2" transform="translate(558.7 63.4) scale(1 1)"/>
+<use href="#crown2" transform="translate(564.8 62.2) scale(1.2 1.2)"/>
+<use href="#crown0" transform="translate(572.4 61.1) scale(1.3 1.3)"/>
+<use href="#crown1" transform="translate(582.5 62.5) scale(-1.2 1.1)"/>
+<use href="#crown2" transform="translate(592.2 62.8) scale(-1.2 1.3)"/>
+<use href="#crown2" transform="translate(601.1 63.5) scale(-0.9 0.9)"/>
+<use href="#crown1" transform="translate(606.5 62.9) scale(1 0.9)"/>
+<use href="#crown1" transform="translate(613.1 62.9) scale(1 0.9)"/>
+<use href="#crown1" transform="translate(621.7 64.2) scale(0.9 0.9)"/>
+<use href="#crown0" transform="translate(628.3 64.7) scale(-0.9 1)"/>
+<use href="#crown2" transform="translate(635.8 63.9) scale(1 1)"/>
+<use href="#crown1" transform="translate(643.6 60.6) scale(1.3 1.4)"/>
+<use href="#crown1" transform="translate(652 61.8) scale(-1.1 1.1)"/>
+<use href="#crown2" transform="translate(660.9 62.1) scale(1.2 1.3)"/>
+<use href="#crown2" transform="translate(667.9 62.3) scale(-1.2 1.3)"/>
+<use href="#crown2" transform="translate(676.8 61.1) scale(-1.4 1.4)"/>
+<use href="#crown2" transform="translate(685.4 61.7) scale(-1.4 1.3)"/>
+<use href="#crown1" transform="translate(693 62.6) scale(-1.1 1)"/>
+<use href="#crown0" transform="translate(699.2 64) scale(1 1)"/>
+<use href="#crown2" transform="translate(705.7 61.7) scale(1.3 1.3)"/>
+<use href="#crown2" transform="translate(712.6 61.5) scale(-1.3 1.4)"/>
+<use href="#crown0" transform="translate(720.6 64.5) scale(-0.9 0.8)"/>
+<use href="#crown2" transform="translate(727.4 62.5) scale(1.3 1.1)"/>
+<use href="#crown2" transform="translate(736.4 63) scale(-1 1)"/>
+<use href="#crown2" transform="translate(742 61.6) scale(1.4 1.3)"/>
+<use href="#crown0" transform="translate(752.8 63.8) scale(1 0.9)"/>
+<use href="#crown0" transform="translate(758.4 62.3) scale(1.2 1.1)"/>
+<use href="#crown1" transform="translate(766.3 61.4) scale(-1.2 1.2)"/>
+<use href="#crown0" transform="translate(775 60.6) scale(-1.4 1.5)"/>
+<use href="#crown0" transform="translate(785.1 64.4) scale(-0.9 0.9)"/>
+<use href="#crown2" transform="translate(791.7 62.4) scale(-1.1 1.2)"/>
+<use href="#crown2" transform="translate(797.7 64) scale(1 1)"/>
+<use href="#crown0" transform="translate(804.8 56.2) scale(2.2 2)"/>
+<use href="#crown1" transform="translate(818.4 63.6) scale(-0.9 0.9)"/>
+<use href="#crown1" transform="translate(826.2 58.4) scale(-1.8 1.7)"/>
+<use href="#crown0" transform="translate(840.7 60.4) scale(1.4 1.5)"/>
+<use href="#crown0" transform="translate(850.5 63.2) scale(1.1 1)"/>
+<use href="#crown1" transform="translate(857.7 62.9) scale(1 0.9)"/>
+<use href="#crown0" transform="translate(863.3 62.6) scale(-1.2 1.4)"/>
+<use href="#crown2" transform="translate(871.9 60.5) scale(1.7 1.8)"/>
+<use href="#crown1" transform="translate(886.3 61) scale(-1.8 1.5)"/>
+<use href="#crown0" transform="translate(900.6 57.5) scale(-2 1.8)"/>
+<use href="#crown0" transform="translate(912.4 63.6) scale(0.9 1)"/>
+<use href="#crown2" transform="translate(919.1 56.5) scale(2.1 1.9)"/>
+<use href="#crown1" transform="translate(935.8 62.9) scale(1.1 1.1)"/>
+<use href="#crown2" transform="translate(942.9 63.7) scale(-1 1.1)"/>
+<use href="#crown2" transform="translate(950.5 60.1) scale(-1.8 1.9)"/>
+<use href="#crown2" transform="translate(960.7 64.2) scale(1 1)"/>
+<use href="#crown2" transform="translate(966.8 63.8) scale(-1.1 1.1)"/>
+<use href="#crown2" transform="translate(973.9 56.8) scale(2 2.2)"/>
+<use href="#crown2" transform="translate(986.7 62.5) scale(1.2 1.1)"/>
+<use href="#crown1" transform="translate(996.2 63.1) scale(-1.1 1.2)"/>
+<use href="#crown0" transform="translate(1002.9 63.4) scale(1.1 1)"/>
+<use href="#crown2" transform="translate(1009.3 64.1) scale(1 1.1)"/>
+<use href="#crown1" transform="translate(1017 63.3) scale(1.2 1.3)"/>
+<use href="#crown0" transform="translate(1024.4 62.8) scale(1.2 1.2)"/>
+<use href="#crown2" transform="translate(1034.4 63.2) scale(-0.9 0.9)"/>
+<use href="#crown0" transform="translate(1041.1 60.8) scale(1.3 1.5)"/>
+<use href="#crown1" transform="translate(1049.2 61.8) scale(1.2 1.1)"/>
+<use href="#crown0" transform="translate(1058.4 58.6) scale(-2.1 1.8)"/>
+<use href="#crown1" transform="translate(1072 64.4) scale(0.9 0.9)"/>
+<use href="#crown1" transform="translate(1077.1 60.1) scale(-1.7 1.5)"/>
+<use href="#crown1" transform="translate(1089.7 62.3) scale(-1.1 0.9)"/>
+<use href="#crown2" transform="translate(1097.1 62.8) scale(1 1)"/>
+<use href="#crown2" transform="translate(1103.7 61.4) scale(-1.3 1.3)"/>
+<use href="#crown0" transform="translate(1113.5 63.6) scale(-1 1)"/>
+<use href="#crown1" transform="translate(1121.2 63.6) scale(0.9 1)"/>
+<use href="#crown1" transform="translate(1128.5 62) scale(1.3 1.2)"/>
+<use href="#crown0" transform="translate(1137 61.7) scale(1.4 1.4)"/>
+<use href="#crown0" transform="translate(1147.3 62.7) scale(1.3 1.4)"/>
+<use href="#crown1" transform="translate(1156.3 62.4) scale(1.1 1.2)"/>
+<use href="#crown0" transform="translate(1165.3 57.7) scale(2 2)"/>
+<use href="#crown1" transform="translate(1179.1 61.3) scale(-1.2 1.3)"/>
+<use href="#crown0" transform="translate(1187 62.5) scale(-1.1 1.2)"/>
+<use href="#crown2" transform="translate(1194.5 61.3) scale(-1.3 1.4)"/>
+<use href="#crown2" transform="translate(1201.4 61.8) scale(1.5 1.6)"/>
+</g>
+<rect x="38.6" y="38" width="7.4" height="32" rx="3.7" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M39.6 43.2Q42.3 44.7 45.1 43.2" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M39.6 48.3Q42.3 49.8 45.1 48.3" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M39.6 54.1Q42.3 55.6 45.1 54.1" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M39.6 59.8Q42.3 61.3 45.1 59.8" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M39.6 64.6Q42.3 66.1 45.1 64.6" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<rect x="140.7" y="32.1" width="9.1" height="37.9" rx="4.6" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M141.7 38.5Q145.3 40 148.9 38.5" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M141.7 43.4Q145.3 44.9 148.9 43.4" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M141.7 48.2Q145.3 49.7 148.9 48.2" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M141.7 53.7Q145.3 55.2 148.9 53.7" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M141.7 57.7Q145.3 59.2 148.9 57.7" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M141.7 62Q145.3 63.5 148.9 62" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<g>
+<path d="M150.4 68A7 6 0 0 1 164.5 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M157.5 62Q152.2 64.5 153.2 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M157.5 62Q155.7 64.5 156 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M157.5 62Q159.2 64.5 158.9 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M157.5 62Q162.7 64.5 161.7 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M150.9 65.9H164.1" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M152.1 64.1H162.8" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<g>
+<path d="M221.8 68A17 14.4 0 0 1 255.8 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M238.8 53.6Q226 59.5 228.6 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M238.8 53.6Q234.5 59.5 235.4 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M238.8 53.6Q243 59.5 242.2 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M238.8 53.6Q251.5 59.5 249 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M222.9 62.9H254.7" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M225.9 58.6H251.7" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<g>
+<path d="M323.9 68A14.4 12.2 0 0 1 352.7 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M338.3 55.8Q327.5 60.8 329.7 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M338.3 55.8Q334.7 60.8 335.5 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M338.3 55.8Q341.9 60.8 341.2 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M338.3 55.8Q349.1 60.8 347 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M324.9 63.7H351.8" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M327.4 60H349.3" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<path d="M397.1 66L397.1 41.1" stroke="#6E929B" stroke-width="1"/>
+<g fill="#6E929B" transform="translate(397.1 41.1) scale(1.1)"><g><animateTransform attributeName="transform" type="rotate" from="110.1" to="416.9" dur="11.8s" repeatCount="indefinite"/><use href="#blades"/></g></g>
+<g>
+<path d="M487.8 68A19.7 16.8 0 0 1 527.2 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M507.5 51.2Q492.7 58.1 495.7 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M507.5 51.2Q502.6 58.1 503.6 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M507.5 51.2Q512.4 58.1 511.5 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M507.5 51.2Q522.3 58.1 519.4 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M489 62.1H526" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M492.5 57.1H522.5" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<rect x="594.2" y="36.5" width="9" height="33.5" rx="4.5" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M595.2 42.8Q598.7 44.3 602.2 42.8" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M595.2 48.5Q598.7 50 602.2 48.5" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M595.2 52.7Q598.7 54.2 602.2 52.7" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M595.2 56.9Q598.7 58.4 602.2 56.9" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M595.2 62.6Q598.7 64.1 602.2 62.6" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M598.7 36.5V25.5" stroke="#24495A" stroke-width=".9"/>
+<path d="M703.3 66L703.3 37.4" stroke="#6E929B" stroke-width="1"/>
+<g fill="#6E929B" transform="translate(703.3 37.4) scale(1.3)"><g><animateTransform attributeName="transform" type="rotate" from="24.5" to="471.4" dur="9.7s" repeatCount="indefinite"/><use href="#blades"/></g></g>
+<g>
+<path d="M797.1 68A19.4 16.5 0 0 1 835.9 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M816.5 51.5Q802 58.3 804.9 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M816.5 51.5Q811.7 58.3 812.6 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M816.5 51.5Q821.4 58.3 820.4 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M816.5 51.5Q831 58.3 828.1 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M798.4 62.2H834.7" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M801.8 57.3H831.2" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<g>
+<path d="M873.3 68A12.3 10.5 0 0 1 897.9 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M885.6 57.5Q876.4 61.8 878.2 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M885.6 57.5Q882.6 61.8 883.2 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M885.6 57.5Q888.7 61.8 888.1 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M885.6 57.5Q894.9 61.8 893 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M874.1 64.3H897.2" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M876.3 61.2H895" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<rect x="988.7" y="36.3" width="10.9" height="33.7" rx="5.5" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M989.7 44Q994.2 45.5 998.6 44" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M989.7 49.7Q994.2 51.2 998.6 49.7" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M989.7 55.5Q994.2 57 998.6 55.5" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M989.7 60.4Q994.2 61.9 998.6 60.4" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<g>
+<path d="M1004.5 68A7.4 6.2 0 0 1 1019.2 68Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M1011.9 61.8Q1006.4 64.3 1007.5 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M1011.9 61.8Q1010 64.3 1010.4 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M1011.9 61.8Q1013.7 64.3 1013.3 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M1011.9 61.8Q1017.4 64.3 1016.3 68" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M1005 65.8H1018.8" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M1006.3 63.9H1017.5" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<rect x="1077.3" y="37.8" width="7.7" height="32.2" rx="3.8" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M1078.3 43.2Q1081.1 44.7 1084 43.2" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M1078.3 47.2Q1081.1 48.7 1084 47.2" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M1078.3 52Q1081.1 53.5 1084 52" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M1078.3 56.8Q1081.1 58.3 1084 56.8" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M1078.3 62.2Q1081.1 63.7 1084 62.2" stroke="#D3E3E6" stroke-width=".6" fill="none"/>
+<path d="M1081.1 37.8V27.2" stroke="#24495A" stroke-width=".9"/>
+<g>
+<path d="M600 48.6V37.8" stroke="#24495A" stroke-width="1"/><circle cx="600" cy="37.8" r="1" fill="#24495A"/>
+<path d="M576 69A24 20.4 0 0 1 624 69Z" fill="#A9C3C9" stroke="#24495A" stroke-width=".8"/>
+<path d="M600 48.6Q582 57 585.6 69" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M600 48.6Q594 57 595.2 69" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M600 48.6Q606 57 604.8 69" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M600 48.6Q618 57 614.4 69" stroke="#D3E3E6" stroke-width=".5" fill="none"/>
+<path d="M577.5 61.9H622.5" stroke="#D3E3E6" stroke-width=".5"/>
+<path d="M581.8 55.7H618.2" stroke="#D3E3E6" stroke-width=".5"/>
+</g>
+<rect x="-10" y="69.5" width="1220" height="110" fill="url(#ground)"/>
+<g fill="#24495A">
+<use href="#crown1" transform="translate(50.8 67.2) scale(0.5)"/>
+<use href="#crown0" transform="translate(28.3 66.3) scale(0.8)"/>
+<use href="#crown1" transform="translate(34.2 66.2) scale(0.8)"/>
+<use href="#crown2" transform="translate(159.4 66.7) scale(0.6)"/>
+<use href="#crown0" transform="translate(165.7 66.1) scale(0.8)"/>
+<use href="#crown1" transform="translate(128 66.8) scale(0.6)"/>
+<use href="#crown2" transform="translate(152 67.1) scale(0.5)"/>
+<use href="#crown0" transform="translate(245.8 67.2) scale(0.5)"/>
+<use href="#crown0" transform="translate(230.7 66.6) scale(0.7)"/>
+<use href="#crown2" transform="translate(225.6 67.1) scale(0.5)"/>
+<use href="#crown0" transform="translate(351.9 66.3) scale(0.7)"/>
+<use href="#crown1" transform="translate(357.6 66.3) scale(0.7)"/>
+<use href="#crown0" transform="translate(318.7 66) scale(0.8)"/>
+<use href="#crown2" transform="translate(425.6 67.1) scale(0.5)"/>
+<use href="#crown1" transform="translate(419.7 67.1) scale(0.5)"/>
+<use href="#crown1" transform="translate(430.8 66.4) scale(0.7)"/>
+<use href="#crown2" transform="translate(514.8 66.1) scale(0.8)"/>
+<use href="#crown0" transform="translate(490.5 66.1) scale(0.8)"/>
+<use href="#crown0" transform="translate(505.4 67.1) scale(0.5)"/>
+<use href="#crown1" transform="translate(486.3 66.2) scale(0.8)"/>
+<use href="#crown0" transform="translate(617.3 66.2) scale(0.8)"/>
+<use href="#crown2" transform="translate(578.2 66.6) scale(0.7)"/>
+<use href="#crown1" transform="translate(587.5 66.6) scale(0.7)"/>
+<use href="#crown0" transform="translate(593.5 66.3) scale(0.8)"/>
+<use href="#crown0" transform="translate(722.1 66.9) scale(0.6)"/>
+<use href="#crown1" transform="translate(728 66.9) scale(0.6)"/>
+<use href="#crown0" transform="translate(709.7 66.5) scale(0.7)"/>
+<use href="#crown2" transform="translate(717.9 66.1) scale(0.8)"/>
+<use href="#crown0" transform="translate(821.1 67) scale(0.6)"/>
+<use href="#crown0" transform="translate(797.1 66.1) scale(0.8)"/>
+<use href="#crown1" transform="translate(797.8 66.3) scale(0.8)"/>
+<use href="#crown2" transform="translate(819.1 66.8) scale(0.6)"/>
+<use href="#crown2" transform="translate(872 66.5) scale(0.7)"/>
+<use href="#crown2" transform="translate(875.5 66.7) scale(0.6)"/>
+<use href="#crown0" transform="translate(885.9 66.7) scale(0.6)"/>
+<use href="#crown2" transform="translate(898.6 67.1) scale(0.5)"/>
+<use href="#crown2" transform="translate(972.4 66.3) scale(0.8)"/>
+<use href="#crown2" transform="translate(977.1 66.4) scale(0.7)"/>
+<use href="#crown1" transform="translate(1096.8 67.1) scale(0.5)"/>
+<use href="#crown0" transform="translate(1094.9 66.4) scale(0.7)"/>
+<use href="#crown2" transform="translate(1070 67) scale(0.6)"/>
+<use href="#crown1" transform="translate(1067.4 66.5) scale(0.7)"/>
+<use href="#crown1" transform="translate(579.7 67.1) scale(0.5)"/>
+<use href="#crown1" transform="translate(610.9 66) scale(0.8)"/>
+</g>
+<path d="M682.8 74Q714.7 71.7 773.6 74Q714.7 77.8 673.2 74Z" fill="#6E929B" opacity=".8"/>
+<path d="M364.8 74Q409 71.9 464.3 74Q409 79.6 356.7 74Z" fill="#6E929B" opacity=".8"/>
+<path d="M627.2 74Q676 72.3 724.2 74Q676 77.1 633.6 74Z" fill="#6E929B" opacity=".8"/>
+<path d="M295 74Q350.3 72.3 396.7 74Q350.3 79.7 320.3 74Z" fill="#6E929B" opacity=".8"/>
+<g>
+<animateTransform attributeName="transform" type="rotate" values="0 103.8 70.8;-0.4 103.8 70.8;-0.4 103.8 70.8;0.6 103.8 70.8;0.2 103.8 70.8;0.6 103.8 70.8;0.6 103.8 70.8;0 103.8 70.8" keyTimes="0;0.072;0.137;0.151;0.228;0.261;0.436;1" dur="14.2s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<path d="M103.8 71.8C104.2 61.2 104.9 50.5 103.4 38.6" stroke="#12303D" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+<g fill="#12303D">
+<animateTransform attributeName="transform" type="translate" values="0 0;0.4 0.1;0.2 0.1;0.2 0.1;-0.3 -0.1;0 0" keyTimes="0;0.204;0.368;0.389;0.741;1" dur="4.6s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="99.3" cy="36.5" r="2.4"/>
+<circle cx="96.4" cy="37.9" r="3.7"/>
+<circle cx="94.8" cy="33" r="2.5"/>
+<circle cx="113.5" cy="46.7" r="2.6"/>
+<circle cx="107.5" cy="46.5" r="4"/>
+<circle cx="112.8" cy="38.2" r="3.6"/>
+<circle cx="113.9" cy="24.1" r="3.9"/>
+<circle cx="107.3" cy="31.4" r="4"/>
+<circle cx="95.5" cy="28" r="3.9"/>
+<circle cx="117.6" cy="43.2" r="2.4"/>
+<circle cx="107.8" cy="38.4" r="3"/>
+<circle cx="96.1" cy="31.7" r="2.6"/>
+<circle cx="99.3" cy="40.2" r="3"/>
+<circle cx="106" cy="45.4" r="3.4"/>
+<circle cx="109.6" cy="47.2" r="4"/>
+<circle cx="100.5" cy="35.8" r="2.9"/>
+<circle cx="103.3" cy="31.2" r="2.4"/>
+<circle cx="109.8" cy="38.7" r="2.8"/>
+<circle cx="86.8" cy="42.8" r="3"/>
+<circle cx="101.4" cy="38.4" r="2.8"/>
+<circle cx="119.2" cy="39.5" r="2.8"/>
+<circle cx="110.7" cy="46.4" r="3.9"/>
+<circle cx="105" cy="45.2" r="2.9"/>
+<circle cx="96.2" cy="49.2" r="2.4"/>
+<circle cx="109.8" cy="46.2" r="2.8"/>
+<circle cx="105.1" cy="52.1" r="2.8"/>
+<circle cx="97.7" cy="51.2" r="2.7"/>
+<circle cx="113.9" cy="42.5" r="3"/>
+<circle cx="113.7" cy="49.6" r="3.8"/>
+<circle cx="111.1" cy="41.9" r="3.8"/>
+<circle cx="98.1" cy="40" r="3.6"/>
+<circle cx="94.5" cy="33.9" r="3.3"/>
+<circle cx="108" cy="34.2" r="2.9"/>
+<circle cx="102.7" cy="35.2" r="2.8"/>
+<circle cx="111.9" cy="34.3" r="2.6"/>
+<circle cx="103" cy="33.5" r="3.7"/>
+<circle cx="107" cy="50.1" r="2.8"/>
+<circle cx="107.4" cy="45.3" r="3"/>
+<circle cx="109.4" cy="50.3" r="2.9"/>
+<circle cx="111.3" cy="47.4" r="4"/>
+<circle cx="101.5" cy="35.5" r="2.6"/>
+<circle cx="84.9" cy="46.1" r="3.3"/>
+<circle cx="88.7" cy="47.5" r="3.9"/>
+<circle cx="111.1" cy="38.4" r="3.7"/>
+<circle cx="105.4" cy="39.2" r="3.2"/>
+<circle cx="119.6" cy="30" r="3.5"/>
+<circle cx="100.7" cy="38" r="4"/>
+<circle cx="121.6" cy="41.5" r="2.4"/>
+<circle cx="114.4" cy="40.3" r="2.9"/>
+<circle cx="106.7" cy="38.4" r="2.6"/>
+<circle cx="100.3" cy="36.2" r="4"/>
+<circle cx="94.8" cy="34.3" r="3.3"/>
+<circle cx="100.1" cy="37.9" r="2.6"/>
+<circle cx="102.7" cy="35.2" r="2.9"/>
+<circle cx="109.3" cy="34.1" r="3.7"/>
+<circle cx="119.7" cy="38" r="2.9"/>
+<circle cx="104.9" cy="37.2" r="2.5"/>
+<circle cx="111.1" cy="49.2" r="3.1"/>
+<circle cx="92.4" cy="44.9" r="3.7"/>
+<circle cx="106.9" cy="31" r="3.6"/>
+<circle cx="116.4" cy="39.5" r="3.5"/>
+<circle cx="117.7" cy="39.9" r="3.1"/>
+<circle cx="104.4" cy="43.5" r="3"/>
+<circle cx="100.1" cy="48.1" r="3"/>
+<circle cx="114.9" cy="47.1" r="3"/>
+<circle cx="112.5" cy="28.6" r="3"/>
+<circle cx="103.9" cy="41.5" r="2.8"/>
+<circle cx="108.2" cy="41.4" r="3.5"/>
+<circle cx="120.7" cy="41.4" r="3.9"/>
+<circle cx="100" cy="44.9" r="3.6"/>
+<circle cx="106.5" cy="55.8" r="2.5"/>
+<circle cx="116.1" cy="36.4" r="3.9"/>
+<circle cx="105.2" cy="37.6" r="3.3"/>
+<circle cx="109.6" cy="41.6" r="3.3"/>
+<circle cx="106.5" cy="41" r="4"/>
+<circle cx="110.1" cy="49.2" r="3.7"/>
+<circle cx="108.4" cy="50.3" r="2.7"/>
+<circle cx="100.4" cy="36.3" r="3.9"/>
+<circle cx="102.1" cy="29.4" r="2.4"/>
+<circle cx="113.7" cy="29.5" r="2.8"/>
+<circle cx="106.6" cy="51.6" r="3.3"/>
+<circle cx="114.1" cy="37.5" r="2.9"/>
+<circle cx="109.7" cy="40.9" r="3.8"/>
+<circle cx="110.9" cy="47.4" r="2.5"/>
+<circle cx="107.8" cy="45.7" r="3.7"/>
+<circle cx="113.6" cy="46.6" r="2.5"/>
+<circle cx="104.3" cy="28.8" r="2.8"/>
+<circle cx="122.6" cy="46.9" r="3.1"/>
+<circle cx="115.6" cy="38.3" r="3.1"/>
+<circle cx="109.5" cy="48.9" r="3.9"/>
+<circle cx="109.5" cy="43.2" r="2.6"/>
+<circle cx="110.1" cy="27.9" r="2.5"/>
+<circle cx="111.8" cy="40.7" r="2.8"/>
+<circle cx="108.8" cy="38.3" r="3.3"/>
+<circle cx="102" cy="39.5" r="2.5"/>
+<circle cx="115" cy="38.6" r="3.1"/>
+<circle cx="121.5" cy="34" r="2.5"/>
+<circle cx="112.9" cy="47.4" r="3.8"/>
+<circle cx="88.6" cy="36.8" r="3.3"/>
+<circle cx="112.1" cy="33" r="3.9"/>
+<circle cx="106.3" cy="47.2" r="3.2"/>
+<circle cx="96.7" cy="31.2" r="3"/>
+<circle cx="102.1" cy="46.9" r="4"/>
+<circle cx="101.7" cy="44.2" r="3.5"/>
+<circle cx="106" cy="38.2" r="4"/>
+<circle cx="99.9" cy="42.2" r="3.2"/>
+<circle cx="96.1" cy="29.9" r="3.5"/>
+<circle cx="103.9" cy="51.1" r="3.4"/>
+<circle cx="96.2" cy="41" r="2.8"/>
+<circle cx="104.9" cy="35.9" r="2.8"/>
+<circle cx="116.5" cy="38.7" r="3.7"/>
+<circle cx="118" cy="48.1" r="2.5"/>
+<circle cx="103.9" cy="42" r="2.5"/>
+<circle cx="107.5" cy="46.3" r="3.7"/>
+<circle cx="88.3" cy="45.4" r="2.7"/>
+<circle cx="105.7" cy="48.9" r="2.6"/>
+<circle cx="94.8" cy="44.2" r="3.9"/>
+<circle cx="118.6" cy="44.4" r="2.9"/>
+<circle cx="98.3" cy="36.2" r="2.9"/>
+<circle cx="108" cy="29.1" r="3.5"/>
+<circle cx="92.7" cy="47.5" r="3.1"/>
+<circle cx="99.5" cy="39.5" r="2.5"/>
+<circle cx="94.2" cy="44.3" r="2.5"/>
+<circle cx="110.5" cy="49.5" r="3.1"/>
+<circle cx="113.2" cy="36.2" r="2.5"/>
+<circle cx="108.8" cy="43.8" r="2.4"/>
+<circle cx="103.1" cy="39.7" r="3.8"/>
+<circle cx="110.2" cy="52.3" r="3.6"/>
+<circle cx="116.2" cy="43.7" r="4"/>
+<circle cx="102.9" cy="32.8" r="3.2"/>
+<circle cx="114.1" cy="46.7" r="3.9"/>
+<circle cx="95.5" cy="51.1" r="2.7"/>
+<circle cx="109.6" cy="33.1" r="3.7"/>
+<circle cx="104.7" cy="26.8" r="3.6"/>
+<circle cx="114.8" cy="27.1" r="2.5"/>
+<circle cx="113.8" cy="52" r="3.6"/>
+<circle cx="107.9" cy="41.1" r="2.7"/>
+<circle cx="115.2" cy="29.7" r="3.8"/>
+<circle cx="120.1" cy="40.1" r="3.7"/>
+<circle cx="107.9" cy="26.8" r="2.4"/>
+<circle cx="99.2" cy="51.4" r="3.7"/>
+<circle cx="84.6" cy="34.2" r="2.7"/>
+<circle cx="94.9" cy="42.7" r="3.9"/>
+<circle cx="111.5" cy="35.1" r="3.1"/>
+<circle cx="109.9" cy="27.3" r="2.6"/>
+<circle cx="114.9" cy="43.1" r="2.5"/>
+<circle cx="104.7" cy="42.5" r="3.5"/>
+<circle cx="120.5" cy="43.1" r="3.6"/>
+<circle cx="105.3" cy="32.9" r="3.3"/>
+<circle cx="96.3" cy="57.1" r="2.8"/>
+<circle cx="94.7" cy="44.4" r="2.4"/>
+<circle cx="101.4" cy="36.2" r="3.2"/>
+<circle cx="111.4" cy="46.8" r="3.3"/>
+<circle cx="116.4" cy="42.8" r="2.9"/>
+<circle cx="109.9" cy="34.1" r="2.5"/>
+<circle cx="93.7" cy="33" r="3.3"/>
+<circle cx="119.2" cy="32.7" r="3.9"/>
+<circle cx="92.6" cy="48.4" r="3.6"/>
+<circle cx="115.2" cy="36.8" r="3.5"/>
+<circle cx="108.1" cy="41.4" r="3"/>
+<circle cx="114.9" cy="24.5" r="3.6"/>
+<circle cx="97.5" cy="54.2" r="3.7"/>
+<circle cx="110.8" cy="56" r="3.9"/>
+<circle cx="104.9" cy="55.2" r="3.3"/>
+<circle cx="106.9" cy="39.5" r="2.9"/>
+<circle cx="119.6" cy="42.1" r="3.4"/>
+<circle cx="105.1" cy="42.2" r="3.5"/>
+<circle cx="100.7" cy="37.8" r="3.9"/>
+<circle cx="110.8" cy="45.6" r="3.1"/>
+<circle cx="91.4" cy="44.5" r="3.9"/>
+<circle cx="101.6" cy="35.5" r="2.9"/>
+<circle cx="108.7" cy="43.7" r="2.9"/>
+<circle cx="96.6" cy="39.4" r="3.2"/>
+<circle cx="105.9" cy="36.2" r="3.3"/>
+<circle cx="123.1" cy="44.1" r="3.2"/>
+<circle cx="107.8" cy="39.9" r="3.4"/>
+<circle cx="112.5" cy="37.8" r="2.8"/>
+<circle cx="111.9" cy="45.7" r="3.6"/>
+<circle cx="121.1" cy="41.3" r="3.6"/>
+<circle cx="107.7" cy="47.5" r="3.7"/>
+<circle cx="99.7" cy="47.4" r="2.8"/>
+<circle cx="90.5" cy="45.3" r="3.1"/>
+<circle cx="108.3" cy="43" r="2.4"/>
+<circle cx="117.7" cy="34.6" r="3.4"/>
+<circle cx="126.2" cy="48" r="3.6"/>
+<circle cx="106.4" cy="32.5" r="2.4"/>
+<circle cx="100.9" cy="48.2" r="2.6"/>
+<circle cx="113.9" cy="45.8" r="4"/>
+<circle cx="90.1" cy="40.3" r="3.8"/>
+<circle cx="117.5" cy="28" r="3.7"/>
+<circle cx="110" cy="47.4" r="3.2"/>
+<circle cx="93.9" cy="36" r="3.1"/>
+<circle cx="116.2" cy="34.5" r="2.8"/>
+<circle cx="112.1" cy="47.4" r="2.6"/>
+<circle cx="100.7" cy="42.8" r="3.2"/>
+<circle cx="105.7" cy="49.4" r="3.3"/>
+<circle cx="95.2" cy="31.9" r="3.3"/>
+<circle cx="102.8" cy="35.3" r="2.5"/>
+<circle cx="99.6" cy="48.5" r="3.8"/>
+<circle cx="122.5" cy="31.6" r="2.9"/>
+<circle cx="94.6" cy="40.6" r="3.6"/>
+<circle cx="112.8" cy="27.3" r="3.8"/>
+<circle cx="118.8" cy="37.8" r="3.9"/>
+<circle cx="111" cy="38" r="3.3"/>
+<circle cx="114.7" cy="35.2" r="3.8"/>
+<circle cx="115.2" cy="43.5" r="3.1"/>
+<circle cx="83.5" cy="41.7" r="2.7"/>
+<circle cx="110.6" cy="44" r="2.5"/>
+<circle cx="108.8" cy="47.4" r="4"/>
+<circle cx="121" cy="41.8" r="3.2"/>
+<circle cx="115.2" cy="43.2" r="3.1"/>
+<circle cx="112.4" cy="42" r="3.7"/>
+<circle cx="94.3" cy="44.6" r="4"/>
+<circle cx="90.4" cy="47.9" r="3.6"/>
+<circle cx="95.1" cy="45.5" r="2.4"/>
+<circle cx="121.3" cy="43.1" r="2.5"/>
+<circle cx="112.2" cy="41.9" r="3.3"/>
+<circle cx="98.8" cy="57.9" r="2.7"/>
+<circle cx="119.1" cy="47.2" r="3.4"/>
+<circle cx="108.7" cy="44" r="3.4"/>
+<circle cx="93.4" cy="32.1" r="3"/>
+<circle cx="106.7" cy="49.3" r="3.8"/>
+<circle cx="109.7" cy="44.6" r="2.6"/>
+<circle cx="111.5" cy="41.1" r="2.5"/>
+<circle cx="116.3" cy="47.4" r="3.9"/>
+<circle cx="102.3" cy="44.6" r="3.7"/>
+<circle cx="86.8" cy="46.7" r="3.8"/>
+<circle cx="102.9" cy="36.8" r="3.7"/>
+<circle cx="109" cy="39.1" r="3.9"/>
+<circle cx="108.4" cy="42.2" r="2.4"/>
+<circle cx="100.5" cy="37" r="3.8"/>
+<circle cx="125" cy="41.7" r="2.9"/>
+<circle cx="115.9" cy="31.2" r="3.2"/>
+<circle cx="104.5" cy="44" r="3.5"/>
+<circle cx="91.5" cy="42.1" r="2.4"/>
+<circle cx="110" cy="45.7" r="3.4"/>
+<circle cx="100.4" cy="51.9" r="2.7"/>
+<circle cx="98.8" cy="44.1" r="3.4"/>
+<circle cx="111.7" cy="28.6" r="2.9"/>
+<circle cx="105.9" cy="28.1" r="4"/>
+<circle cx="107.4" cy="31.9" r="3.9"/>
+<circle cx="121.1" cy="47.3" r="3.6"/>
+<circle cx="106.5" cy="38" r="3.9"/>
+<circle cx="94.8" cy="45.5" r="3.9"/>
+<circle cx="108.2" cy="53.5" r="2.7"/>
+<circle cx="107.1" cy="54.8" r="3.6"/>
+<circle cx="112.3" cy="33" r="4"/>
+<circle cx="108" cy="48.2" r="3.9"/>
+<circle cx="101" cy="45.5" r="3.3"/>
+<circle cx="108.7" cy="43.3" r="2.8"/>
+<circle cx="91.5" cy="28.7" r="2.7"/>
+<circle cx="103.5" cy="46.5" r="3.1"/>
+<circle cx="124.7" cy="48.5" r="2.5"/>
+<circle cx="100.3" cy="38.8" r="3.3"/>
+<circle cx="108.2" cy="54.7" r="3.9"/>
+<circle cx="109.6" cy="47.2" r="3.4"/>
+<circle cx="105.8" cy="52.6" r="3.7"/>
+<circle cx="99.8" cy="41.1" r="3.3"/>
+<circle cx="95.5" cy="48.3" r="3.5"/>
+<circle cx="92.4" cy="32.8" r="3"/>
+</g>
+<g fill="#24495A">
+<animateTransform attributeName="transform" type="translate" values="0 0;0.3 0.1;-0.2 -0.1;0 0" keyTimes="0;0.054;0.954;1" dur="4.6s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="92.8" cy="33.8" r="2.5"/>
+<circle cx="101.8" cy="43.1" r="2.5"/>
+<circle cx="101.5" cy="28.9" r="2.2"/>
+<circle cx="108.7" cy="34.6" r="2.3"/>
+<circle cx="96.2" cy="37.4" r="2.4"/>
+<circle cx="100.1" cy="39.2" r="2.1"/>
+<circle cx="90.8" cy="43.6" r="3"/>
+<circle cx="104" cy="24.4" r="2.4"/>
+<circle cx="121.3" cy="39" r="3"/>
+<circle cx="104.1" cy="33.7" r="3"/>
+<circle cx="120.4" cy="48.3" r="1.9"/>
+<circle cx="114.5" cy="37" r="2.8"/>
+<circle cx="104.8" cy="29.3" r="2.3"/>
+<circle cx="100.8" cy="51.1" r="3"/>
+<circle cx="116.2" cy="33.6" r="2.2"/>
+<circle cx="118.7" cy="43.9" r="2.4"/>
+<circle cx="121.3" cy="27.7" r="3.1"/>
+<circle cx="111.3" cy="25.5" r="2.7"/>
+<circle cx="100.1" cy="23.5" r="2.6"/>
+<circle cx="98" cy="37.2" r="2.2"/>
+<circle cx="110" cy="52.6" r="2.6"/>
+<circle cx="102.4" cy="50.7" r="3"/>
+<circle cx="112.6" cy="44.9" r="2.1"/>
+<circle cx="106.6" cy="22" r="2.6"/>
+<circle cx="99.5" cy="39.5" r="2.8"/>
+<circle cx="106.3" cy="35.4" r="2.8"/>
+<circle cx="105.2" cy="34.7" r="2.1"/>
+<circle cx="98.7" cy="24.1" r="3"/>
+<circle cx="81.5" cy="34.8" r="2.3"/>
+<circle cx="82.8" cy="27.2" r="2.8"/>
+<circle cx="97.4" cy="33.7" r="2"/>
+<circle cx="102.5" cy="33.8" r="2.3"/>
+<circle cx="116" cy="48.7" r="2.1"/>
+<circle cx="90.8" cy="40.3" r="2.3"/>
+<circle cx="102.4" cy="44.5" r="3.1"/>
+<circle cx="81.3" cy="33.2" r="2.3"/>
+<circle cx="107.1" cy="29.1" r="2.5"/>
+<circle cx="103.1" cy="43.6" r="2.6"/>
+<circle cx="107.3" cy="35" r="2.4"/>
+<circle cx="91.8" cy="35.2" r="2.5"/>
+<circle cx="99" cy="42.3" r="2"/>
+<circle cx="106" cy="28" r="2.6"/>
+<circle cx="98.5" cy="25.2" r="2.3"/>
+<circle cx="110.1" cy="44.1" r="2.7"/>
+<circle cx="92.3" cy="33.1" r="3.1"/>
+<circle cx="113.8" cy="31.1" r="1.9"/>
+<circle cx="107.5" cy="23.7" r="3.1"/>
+<circle cx="89.4" cy="33.7" r="2.8"/>
+<circle cx="108.7" cy="28" r="1.9"/>
+<circle cx="105.2" cy="33.3" r="2"/>
+<circle cx="88.9" cy="33.7" r="2.8"/>
+<circle cx="87.1" cy="40.9" r="2.3"/>
+<circle cx="96.7" cy="45.5" r="2.2"/>
+<circle cx="119.9" cy="24.7" r="2.8"/>
+<circle cx="82.4" cy="39.5" r="2.1"/>
+<circle cx="116.9" cy="52.7" r="2"/>
+<circle cx="87.2" cy="24.7" r="2.9"/>
+<circle cx="85.2" cy="38.3" r="2.2"/>
+<circle cx="105" cy="37.9" r="3.1"/>
+<circle cx="82.1" cy="39.1" r="2.4"/>
+<circle cx="115" cy="26.8" r="2"/>
+<circle cx="106.2" cy="26.9" r="1.9"/>
+<circle cx="92.2" cy="38.6" r="2.2"/>
+<circle cx="100" cy="32.2" r="2.1"/>
+<circle cx="87.5" cy="24" r="2.4"/>
+<circle cx="104.2" cy="34.2" r="2.4"/>
+<circle cx="118.4" cy="42.7" r="3"/>
+<circle cx="111.8" cy="37.7" r="2"/>
+<circle cx="108.2" cy="33.2" r="2.3"/>
+<circle cx="94.7" cy="32.1" r="2.8"/>
+<circle cx="103.3" cy="41.4" r="2.4"/>
+<circle cx="117.9" cy="26.8" r="2.3"/>
+<circle cx="114.2" cy="37.9" r="2.7"/>
+<circle cx="106.6" cy="41" r="2.6"/>
+<circle cx="111.7" cy="33" r="2.3"/>
+<circle cx="118.8" cy="47.9" r="1.9"/>
+<circle cx="112.4" cy="49.6" r="2.1"/>
+<circle cx="107.5" cy="41.2" r="2.3"/>
+</g>
+<g fill="#4F7A86">
+<animateTransform attributeName="transform" type="translate" values="0 0;-0.4 -0.1;-0.2 -0.1;0.5 0.2;-0.5 -0.1;0 0" keyTimes="0;0.231;0.381;0.397;0.477;1" dur="3.1s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="87.4" cy="30.2" r="2.3"/>
+<circle cx="105.2" cy="29.9" r="2.1"/>
+<circle cx="103.3" cy="29.1" r="2.3"/>
+<circle cx="114.4" cy="27.1" r="2.1"/>
+<circle cx="111.5" cy="36.4" r="2.4"/>
+<circle cx="102.9" cy="45.8" r="2.4"/>
+<circle cx="82.3" cy="36" r="2"/>
+<circle cx="104.6" cy="27.9" r="1.5"/>
+<circle cx="120.4" cy="27" r="2"/>
+<circle cx="90.1" cy="32.9" r="2.2"/>
+<circle cx="86.5" cy="40.1" r="2.1"/>
+<circle cx="103.1" cy="38.8" r="1.8"/>
+<circle cx="109.5" cy="35.5" r="1.9"/>
+<circle cx="90.8" cy="41.2" r="1.6"/>
+<circle cx="93.6" cy="23.5" r="2"/>
+<circle cx="96.2" cy="36.5" r="2.1"/>
+<circle cx="113" cy="31.1" r="1.9"/>
+<circle cx="107.6" cy="31.4" r="1.7"/>
+<circle cx="109.6" cy="24" r="1.6"/>
+<circle cx="99" cy="27.8" r="1.9"/>
+</g>
+</g>
+<g>
+<animateTransform attributeName="transform" type="rotate" values="0 453.4 71.3;1.2 453.4 71.3;0.1 453.4 71.3;-0.2 453.4 71.3;0.7 453.4 71.3;0 453.4 71.3" keyTimes="0;0.152;0.274;0.460;0.465;1" dur="18.6s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<path d="M453.4 72.3C452.9 65.5 454.5 59 453.3 51.8" stroke="#12303D" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+<g fill="#12303D">
+<animateTransform attributeName="transform" type="translate" values="0 0;-0.3 -0.1;-0.3 -0.1;0.2 0.1;0 0;0 0" keyTimes="0;0.262;0.422;0.542;0.769;1" dur="3.9s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="450.9" cy="46.1" r="1.6"/>
+<circle cx="446.4" cy="47.1" r="2.2"/>
+<circle cx="454.2" cy="48.8" r="2.1"/>
+<circle cx="444.6" cy="59.1" r="2.3"/>
+<circle cx="446" cy="50.2" r="1.6"/>
+<circle cx="457.8" cy="50.8" r="2.1"/>
+<circle cx="453" cy="52.7" r="2.4"/>
+<circle cx="456.1" cy="53.2" r="2.4"/>
+<circle cx="448.2" cy="44.9" r="2.2"/>
+<circle cx="452.3" cy="54.3" r="2"/>
+<circle cx="450.5" cy="51" r="2"/>
+<circle cx="455.1" cy="49.6" r="1.9"/>
+<circle cx="447.4" cy="52.3" r="2.3"/>
+<circle cx="451.2" cy="52.3" r="1.8"/>
+<circle cx="451.6" cy="55.1" r="2"/>
+<circle cx="454.1" cy="57.5" r="2"/>
+<circle cx="449.4" cy="50.5" r="1.5"/>
+<circle cx="448.1" cy="53.3" r="1.6"/>
+<circle cx="447.3" cy="48.5" r="1.8"/>
+<circle cx="450.7" cy="51.4" r="2.1"/>
+<circle cx="444.6" cy="57.4" r="1.6"/>
+<circle cx="455.3" cy="48" r="2"/>
+<circle cx="450.8" cy="48.3" r="1.7"/>
+<circle cx="448.1" cy="47" r="1.6"/>
+<circle cx="444.7" cy="53.8" r="1.5"/>
+<circle cx="461.6" cy="49.4" r="1.6"/>
+<circle cx="457.5" cy="53.4" r="2.2"/>
+<circle cx="462.2" cy="50.3" r="1.5"/>
+<circle cx="457.5" cy="49" r="2.3"/>
+<circle cx="446.7" cy="46.5" r="2.4"/>
+<circle cx="448.3" cy="42" r="2.1"/>
+<circle cx="443" cy="50.1" r="1.6"/>
+<circle cx="452.3" cy="45.9" r="1.7"/>
+<circle cx="446.5" cy="45.7" r="2"/>
+<circle cx="445.9" cy="56.7" r="2.2"/>
+<circle cx="446.7" cy="61.5" r="1.9"/>
+<circle cx="449.2" cy="59" r="1.8"/>
+<circle cx="459.6" cy="53.2" r="1.6"/>
+<circle cx="457.6" cy="48.8" r="2"/>
+<circle cx="449.7" cy="52.1" r="1.8"/>
+<circle cx="462.4" cy="47.9" r="1.5"/>
+<circle cx="460.1" cy="59.6" r="1.8"/>
+<circle cx="448" cy="56" r="2.2"/>
+<circle cx="444.8" cy="47.6" r="1.6"/>
+<circle cx="455.6" cy="58.2" r="1.5"/>
+<circle cx="443.7" cy="46.4" r="2.3"/>
+<circle cx="448.8" cy="44" r="2"/>
+<circle cx="445.4" cy="48" r="2.2"/>
+<circle cx="452" cy="61.5" r="1.7"/>
+<circle cx="452.4" cy="55.3" r="2"/>
+<circle cx="457.7" cy="57.4" r="2"/>
+<circle cx="460.3" cy="56.3" r="2.2"/>
+<circle cx="448.7" cy="52.4" r="2.4"/>
+<circle cx="448.6" cy="50" r="2.4"/>
+<circle cx="453.6" cy="50.5" r="1.6"/>
+<circle cx="447.2" cy="57.9" r="2.4"/>
+<circle cx="447.4" cy="49.4" r="2"/>
+<circle cx="455.9" cy="57.2" r="1.8"/>
+<circle cx="459.4" cy="50.9" r="1.5"/>
+<circle cx="450.7" cy="53.9" r="1.8"/>
+<circle cx="451.1" cy="48.1" r="1.7"/>
+<circle cx="459.9" cy="54.2" r="1.9"/>
+<circle cx="449.4" cy="47.9" r="2.4"/>
+<circle cx="452.4" cy="43.8" r="2.3"/>
+<circle cx="455.2" cy="52.6" r="2.4"/>
+<circle cx="462.3" cy="54.3" r="1.6"/>
+<circle cx="449.8" cy="43.2" r="2.3"/>
+<circle cx="458.7" cy="46.7" r="2.3"/>
+<circle cx="460.3" cy="51.1" r="2.1"/>
+<circle cx="459.3" cy="54.2" r="1.6"/>
+<circle cx="448.1" cy="49.6" r="2.1"/>
+<circle cx="445.7" cy="48.4" r="1.6"/>
+<circle cx="454.7" cy="53.2" r="1.9"/>
+<circle cx="446.4" cy="52.3" r="2"/>
+<circle cx="454.5" cy="52.9" r="1.9"/>
+<circle cx="444.7" cy="47.2" r="1.7"/>
+<circle cx="446" cy="46" r="2.3"/>
+<circle cx="455.3" cy="54.9" r="1.8"/>
+<circle cx="449.4" cy="54.3" r="2.1"/>
+<circle cx="444.9" cy="48.8" r="1.6"/>
+<circle cx="449.2" cy="52.9" r="1.8"/>
+<circle cx="456.3" cy="48.1" r="2.1"/>
+<circle cx="452.6" cy="47.5" r="1.6"/>
+<circle cx="452.8" cy="52.1" r="1.9"/>
+<circle cx="463.4" cy="51.4" r="1.7"/>
+<circle cx="453.3" cy="43.5" r="2.1"/>
+<circle cx="445.1" cy="46.6" r="2"/>
+<circle cx="445" cy="44.3" r="1.6"/>
+<circle cx="448.6" cy="49.6" r="1.8"/>
+<circle cx="445.9" cy="52.8" r="2.2"/>
+<circle cx="458.5" cy="58.7" r="2.2"/>
+<circle cx="451.4" cy="48.2" r="2.1"/>
+<circle cx="449.3" cy="49.5" r="2.3"/>
+<circle cx="449.1" cy="50.5" r="1.8"/>
+<circle cx="452.2" cy="54.7" r="1.5"/>
+<circle cx="452.7" cy="55.2" r="1.9"/>
+<circle cx="453.1" cy="51.1" r="1.8"/>
+<circle cx="457.9" cy="51.7" r="2.4"/>
+<circle cx="453.8" cy="56.2" r="2.3"/>
+<circle cx="456.8" cy="44.5" r="1.9"/>
+<circle cx="450.9" cy="52.2" r="1.7"/>
+<circle cx="453.5" cy="55.9" r="2.2"/>
+<circle cx="451.8" cy="55.4" r="1.6"/>
+<circle cx="450.3" cy="51.7" r="1.6"/>
+<circle cx="455.1" cy="49.2" r="1.9"/>
+<circle cx="462.2" cy="55.6" r="2"/>
+<circle cx="464.9" cy="49.3" r="2.3"/>
+<circle cx="453.6" cy="44.5" r="2.2"/>
+<circle cx="451.4" cy="43.1" r="2"/>
+<circle cx="457.9" cy="56.6" r="2.4"/>
+<circle cx="455" cy="51.9" r="2.2"/>
+<circle cx="447.9" cy="46.3" r="2.3"/>
+<circle cx="454.2" cy="55.6" r="1.5"/>
+<circle cx="446.9" cy="48.6" r="1.6"/>
+<circle cx="446.8" cy="53" r="2.3"/>
+<circle cx="456.6" cy="61" r="1.8"/>
+<circle cx="457.5" cy="50.2" r="1.8"/>
+<circle cx="446.4" cy="46" r="1.6"/>
+<circle cx="449" cy="44.7" r="1.7"/>
+<circle cx="453.4" cy="44.8" r="2.4"/>
+<circle cx="457.6" cy="54.4" r="1.6"/>
+<circle cx="452.4" cy="50.4" r="2.3"/>
+<circle cx="452.6" cy="53.7" r="1.8"/>
+<circle cx="454.7" cy="60.5" r="2.4"/>
+<circle cx="449.9" cy="54.9" r="2.1"/>
+<circle cx="450.6" cy="57.3" r="2.1"/>
+<circle cx="453.5" cy="55.6" r="2"/>
+<circle cx="452.4" cy="43.2" r="1.5"/>
+<circle cx="456" cy="47.8" r="1.7"/>
+<circle cx="449.9" cy="58.9" r="1.6"/>
+<circle cx="453.6" cy="54.3" r="1.8"/>
+<circle cx="444.9" cy="50.2" r="1.6"/>
+<circle cx="448.7" cy="58.8" r="1.8"/>
+<circle cx="448.5" cy="46.5" r="2.1"/>
+<circle cx="444.3" cy="55.3" r="1.7"/>
+<circle cx="446.7" cy="50.6" r="1.8"/>
+<circle cx="456.4" cy="48.2" r="2"/>
+<circle cx="448.6" cy="52.5" r="1.6"/>
+<circle cx="448.6" cy="46.5" r="1.6"/>
+<circle cx="453.1" cy="44.5" r="1.8"/>
+<circle cx="455.9" cy="51.1" r="2.4"/>
+<circle cx="456" cy="42.5" r="2"/>
+<circle cx="464.4" cy="51.6" r="2.4"/>
+<circle cx="455.9" cy="61.3" r="2.1"/>
+<circle cx="461.3" cy="57.1" r="2"/>
+</g>
+<g fill="#24495A">
+<animateTransform attributeName="transform" type="translate" values="0 0;0.6 0.2;0.1 0;0 0" keyTimes="0;0.117;0.405;1" dur="4.4s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="455.3" cy="46.5" r="1.2"/>
+<circle cx="461.1" cy="53" r="1.3"/>
+<circle cx="451.3" cy="44.8" r="1.3"/>
+<circle cx="445.5" cy="46.5" r="1.2"/>
+<circle cx="459.9" cy="50.6" r="1.3"/>
+<circle cx="448.5" cy="51.7" r="1.3"/>
+<circle cx="445.4" cy="48.3" r="1.5"/>
+<circle cx="446.2" cy="39.2" r="1.5"/>
+<circle cx="445.9" cy="45.4" r="1.9"/>
+<circle cx="448.8" cy="57.3" r="1.7"/>
+<circle cx="455.1" cy="45.5" r="1.2"/>
+<circle cx="453.2" cy="46.3" r="1.3"/>
+<circle cx="450.9" cy="50.5" r="1.7"/>
+<circle cx="452.1" cy="42.6" r="1.8"/>
+<circle cx="455.4" cy="40.7" r="1.4"/>
+<circle cx="453.4" cy="40.1" r="1.7"/>
+<circle cx="454.7" cy="52.4" r="1.4"/>
+<circle cx="446" cy="45" r="1.2"/>
+<circle cx="454.8" cy="45.1" r="1.6"/>
+<circle cx="452.6" cy="50.7" r="1.6"/>
+<circle cx="441.7" cy="53.5" r="1.3"/>
+<circle cx="445.1" cy="42.7" r="1.8"/>
+<circle cx="446.8" cy="53.8" r="1.5"/>
+<circle cx="449" cy="41.8" r="1.6"/>
+<circle cx="453.1" cy="46" r="1.3"/>
+<circle cx="450.6" cy="47" r="1.8"/>
+<circle cx="459.1" cy="54" r="1.4"/>
+<circle cx="463.8" cy="49.6" r="1.4"/>
+<circle cx="451.6" cy="59.6" r="1.3"/>
+<circle cx="455.5" cy="50.7" r="1.8"/>
+<circle cx="444.2" cy="47.9" r="1.8"/>
+<circle cx="455.2" cy="40.4" r="1.3"/>
+<circle cx="446.4" cy="45.5" r="1.6"/>
+<circle cx="457.4" cy="51.6" r="1.5"/>
+<circle cx="449.2" cy="51.8" r="1.7"/>
+<circle cx="453.1" cy="50.8" r="1.2"/>
+<circle cx="455.6" cy="45" r="1.6"/>
+<circle cx="441.8" cy="48.2" r="1.5"/>
+<circle cx="455.1" cy="51" r="1.7"/>
+<circle cx="452.9" cy="51.6" r="1.7"/>
+<circle cx="448.2" cy="46.9" r="1.8"/>
+<circle cx="450.6" cy="57.2" r="1.6"/>
+<circle cx="458.1" cy="49.5" r="1.5"/>
+</g>
+<g fill="#4F7A86">
+<animateTransform attributeName="transform" type="translate" values="0 0;0.1 0;-0.5 -0.2;-0.1 -0;0.2 0;0 0" keyTimes="0;0.070;0.264;0.561;0.819;1" dur="3.3s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="451.9" cy="44.2" r="1.4"/>
+<circle cx="449" cy="53.7" r="1.2"/>
+<circle cx="449.6" cy="40.9" r="1.1"/>
+<circle cx="454.2" cy="42.1" r="1.4"/>
+<circle cx="447.7" cy="57.1" r="1.4"/>
+<circle cx="449.3" cy="42.8" r="1"/>
+<circle cx="449.5" cy="40.6" r="1.1"/>
+<circle cx="444.5" cy="51.1" r="1.3"/>
+<circle cx="456.5" cy="44.7" r="1.3"/>
+<circle cx="446.4" cy="49" r="1.4"/>
+<circle cx="455.9" cy="45" r="1.2"/>
+</g>
+</g>
+<g>
+<animateTransform attributeName="transform" type="rotate" values="0 953 71.3;-0.3 953 71.3;-0.1 953 71.3;0.2 953 71.3;-0 953 71.3;0 953 71.3;-0.2 953 71.3;0.4 953 71.3;0 953 71.3" keyTimes="0;0.082;0.186;0.270;0.318;0.345;0.400;0.452;1" dur="14.3s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<path d="M953 72.3C952.3 64.7 952.2 57.4 953.3 49.2" stroke="#12303D" stroke-width="2.7" stroke-linecap="round" fill="none"/>
+<g fill="#12303D">
+<animateTransform attributeName="transform" type="translate" values="0 0;0.4 0.1;-0.2 -0;-0.2 -0;-0.3 -0.1;0 0" keyTimes="0;0.436;0.491;0.511;0.934;1" dur="4.5s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="948.5" cy="51.6" r="1.9"/>
+<circle cx="961.8" cy="49.1" r="1.8"/>
+<circle cx="949.9" cy="46.2" r="2"/>
+<circle cx="958.1" cy="55.4" r="2.4"/>
+<circle cx="946.5" cy="49.1" r="2.1"/>
+<circle cx="962" cy="56.3" r="2.1"/>
+<circle cx="957.2" cy="48.3" r="2.3"/>
+<circle cx="950.2" cy="47.8" r="2.2"/>
+<circle cx="956" cy="42.6" r="2.2"/>
+<circle cx="947.9" cy="50.4" r="2.1"/>
+<circle cx="955" cy="51.1" r="2.5"/>
+<circle cx="949.7" cy="59.4" r="2.3"/>
+<circle cx="957.5" cy="52.1" r="2.6"/>
+<circle cx="957.4" cy="51.7" r="2.7"/>
+<circle cx="949.1" cy="46.1" r="1.7"/>
+<circle cx="954.1" cy="47.2" r="2.1"/>
+<circle cx="947.4" cy="58.7" r="2.7"/>
+<circle cx="944.3" cy="62.9" r="1.8"/>
+<circle cx="951.9" cy="55.3" r="1.7"/>
+<circle cx="953.1" cy="55.6" r="2.7"/>
+<circle cx="954" cy="55.9" r="2.3"/>
+<circle cx="958.5" cy="52.3" r="2.1"/>
+<circle cx="950.2" cy="53.4" r="2.3"/>
+<circle cx="951" cy="59.8" r="2.7"/>
+<circle cx="950.2" cy="55.9" r="2.3"/>
+<circle cx="949.1" cy="47.3" r="2.4"/>
+<circle cx="947.8" cy="51.8" r="2.2"/>
+<circle cx="947.7" cy="60.4" r="2.4"/>
+<circle cx="954.3" cy="50.5" r="1.8"/>
+<circle cx="950.8" cy="56.3" r="1.7"/>
+<circle cx="959" cy="45.3" r="2.5"/>
+<circle cx="960.5" cy="49" r="2.2"/>
+<circle cx="958.4" cy="50.5" r="2.4"/>
+<circle cx="949.1" cy="51.7" r="2.6"/>
+<circle cx="951.1" cy="56.6" r="2.2"/>
+<circle cx="958.8" cy="57.2" r="2.6"/>
+<circle cx="950.2" cy="53" r="1.7"/>
+<circle cx="940.4" cy="52" r="2.3"/>
+<circle cx="947.6" cy="49.2" r="1.9"/>
+<circle cx="949.6" cy="51.9" r="2.3"/>
+<circle cx="948.8" cy="49.4" r="2.7"/>
+<circle cx="952.2" cy="56" r="2.6"/>
+<circle cx="954.3" cy="61.3" r="2.2"/>
+<circle cx="958.9" cy="54.9" r="2.5"/>
+<circle cx="947.8" cy="53.1" r="2.6"/>
+<circle cx="946.6" cy="50.7" r="1.6"/>
+<circle cx="962.6" cy="54.2" r="1.8"/>
+<circle cx="955.6" cy="46.5" r="1.6"/>
+<circle cx="954.2" cy="59.2" r="2.1"/>
+<circle cx="960.4" cy="54" r="2.8"/>
+<circle cx="945.9" cy="57.1" r="2.2"/>
+<circle cx="951" cy="58.4" r="2.7"/>
+<circle cx="958.1" cy="55.8" r="2.4"/>
+<circle cx="941.6" cy="50.3" r="1.8"/>
+<circle cx="947.3" cy="57.7" r="2.7"/>
+<circle cx="954.9" cy="49.6" r="2.5"/>
+<circle cx="953.3" cy="54.6" r="2.1"/>
+<circle cx="962" cy="47.2" r="1.7"/>
+<circle cx="947.6" cy="56" r="1.9"/>
+<circle cx="947.3" cy="49.5" r="1.8"/>
+<circle cx="953.3" cy="40.7" r="2.3"/>
+<circle cx="950.5" cy="43.1" r="2.3"/>
+<circle cx="950.4" cy="46.4" r="2.6"/>
+<circle cx="956.8" cy="42.4" r="1.8"/>
+<circle cx="955" cy="54.8" r="1.9"/>
+<circle cx="950.4" cy="55.6" r="2.2"/>
+<circle cx="954.3" cy="45.8" r="1.9"/>
+<circle cx="954.2" cy="55.3" r="1.6"/>
+<circle cx="954.5" cy="59.3" r="2.1"/>
+<circle cx="955.2" cy="47.4" r="2.6"/>
+<circle cx="965.4" cy="46" r="1.9"/>
+<circle cx="950.4" cy="41.4" r="2"/>
+<circle cx="957.4" cy="53.4" r="1.7"/>
+<circle cx="953.6" cy="48.1" r="1.7"/>
+<circle cx="955.5" cy="54.7" r="1.9"/>
+<circle cx="949.2" cy="48.6" r="2.5"/>
+<circle cx="949.5" cy="43.3" r="2"/>
+<circle cx="962.7" cy="48.6" r="2.7"/>
+<circle cx="958.7" cy="57.8" r="2.5"/>
+<circle cx="940.1" cy="57.3" r="2"/>
+<circle cx="953.4" cy="60.5" r="2.6"/>
+<circle cx="947" cy="64.1" r="1.7"/>
+<circle cx="954.7" cy="59.2" r="2.3"/>
+<circle cx="947.1" cy="58" r="2.1"/>
+<circle cx="946" cy="57.7" r="1.9"/>
+<circle cx="948.7" cy="54.5" r="2.2"/>
+<circle cx="953.4" cy="53.4" r="2.7"/>
+<circle cx="958.2" cy="55.1" r="1.8"/>
+<circle cx="956.6" cy="47.2" r="2.4"/>
+<circle cx="956.3" cy="49.4" r="2.7"/>
+<circle cx="945.9" cy="57.8" r="2.8"/>
+<circle cx="947.6" cy="49.7" r="2.6"/>
+<circle cx="950.9" cy="50.8" r="2.6"/>
+<circle cx="948.5" cy="61.8" r="2.4"/>
+<circle cx="950.7" cy="60.9" r="2.4"/>
+<circle cx="944.7" cy="52.4" r="1.7"/>
+<circle cx="950" cy="53.8" r="2.4"/>
+<circle cx="955.8" cy="55" r="2.6"/>
+<circle cx="958" cy="59.7" r="2.4"/>
+<circle cx="952.8" cy="55.1" r="1.9"/>
+<circle cx="954.6" cy="50.3" r="2.2"/>
+<circle cx="943.7" cy="50.4" r="2.4"/>
+<circle cx="952.8" cy="48.6" r="2.4"/>
+<circle cx="956" cy="52.4" r="1.8"/>
+<circle cx="960.7" cy="46.5" r="2.4"/>
+<circle cx="951.3" cy="45.3" r="2.6"/>
+<circle cx="949.9" cy="48.6" r="1.9"/>
+<circle cx="948" cy="46.3" r="1.7"/>
+<circle cx="956.6" cy="49.1" r="2.4"/>
+<circle cx="955.9" cy="52.9" r="1.9"/>
+<circle cx="959.6" cy="42.1" r="1.7"/>
+<circle cx="960.7" cy="57.8" r="2.6"/>
+<circle cx="960.4" cy="57.5" r="2.3"/>
+<circle cx="943.7" cy="59.4" r="2.3"/>
+<circle cx="945.4" cy="57.9" r="2.2"/>
+<circle cx="963.2" cy="52.4" r="2.5"/>
+<circle cx="955.2" cy="54.1" r="2.2"/>
+<circle cx="960.4" cy="55.1" r="2.5"/>
+<circle cx="946.8" cy="62" r="2.7"/>
+<circle cx="959.2" cy="58.2" r="2.3"/>
+<circle cx="957.8" cy="50.1" r="2.7"/>
+<circle cx="950.4" cy="49.8" r="1.8"/>
+<circle cx="953.6" cy="59.2" r="1.9"/>
+<circle cx="952.4" cy="49.7" r="2"/>
+<circle cx="945.9" cy="60.1" r="2.2"/>
+<circle cx="945" cy="51.8" r="2"/>
+<circle cx="954" cy="49.8" r="1.8"/>
+<circle cx="956.9" cy="44.7" r="1.7"/>
+<circle cx="955.6" cy="46.1" r="2.1"/>
+<circle cx="947.8" cy="51.9" r="1.8"/>
+<circle cx="957.9" cy="48" r="2.5"/>
+<circle cx="961.3" cy="54.5" r="2.4"/>
+<circle cx="942.6" cy="51.1" r="1.8"/>
+<circle cx="954.2" cy="42.8" r="2.4"/>
+<circle cx="948.2" cy="48.5" r="2.5"/>
+<circle cx="959.8" cy="43.1" r="1.7"/>
+<circle cx="960.7" cy="51.7" r="2.1"/>
+<circle cx="950.4" cy="53.8" r="2.1"/>
+<circle cx="953.7" cy="61.5" r="2.7"/>
+<circle cx="949.8" cy="46.5" r="2.2"/>
+<circle cx="952.8" cy="50" r="2.5"/>
+<circle cx="947.8" cy="48.9" r="2.2"/>
+<circle cx="941.1" cy="49.8" r="2.1"/>
+<circle cx="953.9" cy="50.6" r="1.9"/>
+<circle cx="943.4" cy="54.8" r="2.2"/>
+<circle cx="945.6" cy="54.8" r="2.6"/>
+<circle cx="945.3" cy="56.1" r="2"/>
+<circle cx="950.7" cy="46.4" r="2.6"/>
+<circle cx="962.6" cy="41.7" r="2.4"/>
+<circle cx="956.3" cy="57.7" r="2.8"/>
+<circle cx="954" cy="45.3" r="1.7"/>
+<circle cx="961.7" cy="52.5" r="1.9"/>
+<circle cx="961.7" cy="44.5" r="2.5"/>
+<circle cx="949.5" cy="54.2" r="1.8"/>
+<circle cx="952.4" cy="54.2" r="2"/>
+<circle cx="948.8" cy="49.5" r="2.1"/>
+<circle cx="959.1" cy="40.8" r="2.5"/>
+<circle cx="951.5" cy="47.9" r="2.2"/>
+<circle cx="960.4" cy="40.9" r="2.3"/>
+<circle cx="939" cy="51.4" r="2.3"/>
+<circle cx="951.4" cy="42.6" r="1.7"/>
+<circle cx="947.6" cy="48.6" r="2.1"/>
+<circle cx="958.5" cy="43.3" r="2.4"/>
+<circle cx="949.3" cy="46.3" r="1.8"/>
+<circle cx="945.3" cy="57.5" r="1.9"/>
+<circle cx="957.9" cy="47.8" r="2.3"/>
+<circle cx="946.7" cy="58.8" r="2.6"/>
+<circle cx="951.9" cy="50.5" r="2.3"/>
+<circle cx="949.9" cy="51" r="2"/>
+<circle cx="948.7" cy="46.5" r="1.8"/>
+<circle cx="960" cy="49.7" r="2.6"/>
+<circle cx="956.1" cy="59" r="1.7"/>
+<circle cx="948.3" cy="51" r="2.4"/>
+<circle cx="954.9" cy="49.1" r="2.7"/>
+<circle cx="949.7" cy="58" r="2.1"/>
+<circle cx="954.5" cy="48.5" r="1.7"/>
+<circle cx="955.5" cy="40.7" r="1.7"/>
+</g>
+<g fill="#24495A">
+<animateTransform attributeName="transform" type="translate" values="0 0;-0.3 -0.1;0.2 0.1;0.3 0.1;0.1 0;0 0" keyTimes="0;0.043;0.195;0.505;0.530;1" dur="3.6s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="955.8" cy="40.5" r="1.5"/>
+<circle cx="959.2" cy="43.3" r="1.6"/>
+<circle cx="960.9" cy="42.9" r="1.3"/>
+<circle cx="946.9" cy="46.3" r="1.7"/>
+<circle cx="951.1" cy="37.5" r="1.6"/>
+<circle cx="953.1" cy="46.4" r="2"/>
+<circle cx="946.2" cy="41.9" r="1.7"/>
+<circle cx="950.7" cy="52.1" r="1.4"/>
+<circle cx="949.4" cy="44.1" r="1.7"/>
+<circle cx="945.8" cy="52.5" r="1.5"/>
+<circle cx="950.5" cy="45.3" r="1.8"/>
+<circle cx="950.5" cy="42.7" r="2.1"/>
+<circle cx="953.1" cy="42.1" r="2"/>
+<circle cx="957.3" cy="47.1" r="1.9"/>
+<circle cx="954" cy="44.2" r="1.4"/>
+<circle cx="952.9" cy="52.5" r="1.4"/>
+<circle cx="959.9" cy="52.5" r="2.1"/>
+<circle cx="946.5" cy="42.6" r="1.6"/>
+<circle cx="957.9" cy="47.3" r="1.6"/>
+<circle cx="946" cy="47.9" r="2"/>
+<circle cx="952.6" cy="42.9" r="1.6"/>
+<circle cx="950.9" cy="36" r="1.9"/>
+<circle cx="956.8" cy="45.3" r="1.5"/>
+<circle cx="954.4" cy="42.7" r="1.4"/>
+<circle cx="952.2" cy="47" r="1.5"/>
+<circle cx="950.3" cy="47.6" r="1.8"/>
+<circle cx="953.7" cy="38.2" r="1.7"/>
+<circle cx="954.6" cy="49.6" r="1.6"/>
+<circle cx="954" cy="49" r="1.9"/>
+<circle cx="949.7" cy="49.2" r="1.4"/>
+<circle cx="955.3" cy="52.2" r="1.4"/>
+<circle cx="949.5" cy="44.5" r="1.4"/>
+<circle cx="950.9" cy="46.4" r="1.4"/>
+<circle cx="949.6" cy="42.7" r="1.7"/>
+<circle cx="947.3" cy="56.2" r="1.4"/>
+<circle cx="954.7" cy="50.1" r="1.6"/>
+<circle cx="952.2" cy="48.8" r="1.9"/>
+<circle cx="957.5" cy="49.9" r="1.6"/>
+<circle cx="941.4" cy="47.7" r="2"/>
+<circle cx="953" cy="50.1" r="1.8"/>
+<circle cx="956" cy="53.3" r="1.7"/>
+<circle cx="961.2" cy="47.6" r="1.6"/>
+<circle cx="947.3" cy="37.6" r="1.7"/>
+<circle cx="948.7" cy="55.1" r="1.3"/>
+<circle cx="958.5" cy="44.9" r="1.3"/>
+<circle cx="947.4" cy="48.7" r="2"/>
+<circle cx="953.5" cy="50.5" r="1.9"/>
+<circle cx="955.9" cy="46.8" r="1.9"/>
+<circle cx="944.5" cy="49.3" r="2.1"/>
+<circle cx="950.1" cy="50.7" r="1.6"/>
+<circle cx="956.3" cy="50.3" r="2"/>
+<circle cx="946" cy="53" r="1.6"/>
+<circle cx="947.5" cy="45.4" r="1.8"/>
+</g>
+<g fill="#4F7A86">
+<animateTransform attributeName="transform" type="translate" values="0 0;0.1 0;0.3 0.1;0.3 0.1;0 0" keyTimes="0;0.290;0.404;0.758;1" dur="5.3s" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1" repeatCount="indefinite"/>
+<circle cx="940.9" cy="41.5" r="1.5"/>
+<circle cx="952.3" cy="47.6" r="1.6"/>
+<circle cx="958" cy="43.1" r="1.5"/>
+<circle cx="954.9" cy="44.9" r="1.5"/>
+<circle cx="944.6" cy="45.3" r="1.1"/>
+<circle cx="962.9" cy="42.1" r="1.6"/>
+<circle cx="940.3" cy="47.3" r="1.6"/>
+<circle cx="951.6" cy="46.5" r="1.6"/>
+<circle cx="948.7" cy="49.2" r="1.1"/>
+<circle cx="949.3" cy="42" r="1"/>
+<circle cx="962" cy="42.7" r="1.4"/>
+<circle cx="952.1" cy="35" r="1.6"/>
+<circle cx="952.9" cy="48.4" r="1.1"/>
+<circle cx="956.2" cy="40.9" r="1.1"/>
+</g>
+</g>
+</svg>

@@ -1,0 +1,1 @@
+- Added support for `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` in DigiCert certificate authority common name, seat ID, and user principal name fields.

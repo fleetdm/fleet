@@ -36,10 +36,10 @@ interface IMutuallyExclusiveHostParams {
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
   lowDiskSpaceHosts?: number;
-  softwareId?: number;
   softwareVersionId?: number;
   softwareTitleId?: number;
   softwareStatus?: string;
+  appStoreAppVersionId?: number;
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
@@ -133,19 +133,19 @@ export const getPathWithQueryParams = <T>(
   return queryString ? `${endpoint}?${queryString}` : endpoint;
 };
 
-export const reconcileSoftwareParams = ({
+export const getSoftwareFilterParams = ({
   teamId,
-  softwareId,
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
+  appStoreAppVersionId,
 }: Pick<
   IMutuallyExclusiveHostParams,
   | "teamId"
-  | "softwareId"
   | "softwareVersionId"
   | "softwareTitleId"
   | "softwareStatus"
+  | "appStoreAppVersionId"
 >) => {
   if (
     isValidSoftwareAggregateStatus(softwareStatus) &&
@@ -155,6 +155,7 @@ export const reconcileSoftwareParams = ({
     return {
       software_title_id: softwareTitleId,
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
+      app_store_app_version_id: appStoreAppVersionId,
       fleet_id: teamId,
     };
   }
@@ -165,10 +166,6 @@ export const reconcileSoftwareParams = ({
 
   if (softwareVersionId) {
     return { software_version_id: softwareVersionId };
-  }
-
-  if (softwareId) {
-    return { software_id: softwareId };
   }
 
   return {};
@@ -212,10 +209,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
   mdmEnrollmentStatus,
   munkiIssueId,
   lowDiskSpaceHosts,
-  softwareId,
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
+  appStoreAppVersionId,
   osVersionId,
   osName,
   osVersion,
@@ -233,7 +230,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
     // (label + mdm enrollment status) OR (label + os settings) OR (label +
-    // disk encryption). all other params are still mutually exclusive.
+    // disk encryption) OR (label + DEP profile status). all other params are
+    // still mutually exclusive.
     if (mdmId) {
       return { mdm_id: mdmId };
     }
@@ -249,6 +247,12 @@ export const reconcileMutuallyExclusiveHostParams = ({
     if (diskEncryptionStatus) {
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     }
+    if (depProfileError) {
+      return { dep_profile_error: true };
+    }
+    if (depAssignProfileResponse) {
+      return { dep_assign_profile_response: depAssignProfileResponse };
+    }
     return {};
   }
 
@@ -261,16 +265,13 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
-    case !!softwareStatus ||
-      !!softwareTitleId ||
-      !!softwareVersionId ||
-      !!softwareId: {
-      const params: Record<string, unknown> = reconcileSoftwareParams({
+    case !!softwareStatus || !!softwareTitleId || !!softwareVersionId: {
+      const params: Record<string, unknown> = getSoftwareFilterParams({
         teamId,
-        softwareId,
         softwareVersionId,
         softwareTitleId,
         softwareStatus,
+        appStoreAppVersionId,
       });
       // Software version can be combined with os name and os version
       // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)

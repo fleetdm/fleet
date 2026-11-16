@@ -13,6 +13,11 @@
     gap: $pad-large;
   }
 
+  &__card-actions {
+    display: flex;
+    gap: $pad-medium;
+  }
+
   &__success {
     .info-banner__info {
       display: flex;

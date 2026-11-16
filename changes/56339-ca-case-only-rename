@@ -1,0 +1,1 @@
+- Fixed the certificate authorities batch API (`POST /api/v1/fleet/spec/certificate_authorities`) deleting a certificate authority when a request changed only the letter case of its name. The certificate authority is now renamed, and two certificate authorities of the same type whose names differ only in case are rejected as duplicates.

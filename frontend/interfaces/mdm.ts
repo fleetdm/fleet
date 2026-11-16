@@ -1,3 +1,5 @@
+import { formatCountry } from "utilities/country";
+
 import { IConfigServerSettings, IMdmConfig } from "./config";
 import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
 import { isAndroid, isAppleDevice, isWindows } from "./platform";
@@ -10,17 +12,12 @@ export interface IMdmApple {
 }
 
 export interface IMdmAppleBm {
-  default_team?: string;
+  default_fleet?: string;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
 }
-
-export type ITokenTeam = {
-  team_id: number;
-  name: string;
-};
 
 export type ITokenFleet = {
   fleet_id: number;
@@ -53,8 +50,28 @@ export interface IMdmVppToken {
    */
   country_code: string;
   renew_date: string;
-  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
+  fleets: ITokenFleet[] | null; // null means token isn't configured to a fleet; empty array means all fleets
+  /** Null for rows the backend can't date. Renders "---". */
+  created_at: string | null;
 }
+
+/** VPP token snapshot on software titles (with org_name) and activities (without). */
+export interface IVppTokenSummary {
+  id: number;
+  location: string;
+  country_code: string;
+  org_name?: string;
+}
+
+/** "<location> • <flag> <country>" */
+export const formatVppTokenLabel = (token: {
+  location: string;
+  country_code: string;
+}) =>
+  // Legacy tokens have no country until the backfill runs.
+  [token.location, formatCountry(token.country_code)]
+    .filter(Boolean)
+    .join(" • ");
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
@@ -190,7 +207,7 @@ export const isMDMConfiguredForPlatform = (
   }
 
   if (isWindows(platform)) {
-    return mdmConfig.windows_enabled_and_configured;
+    return mdmConfig.windows_mdm_enabled;
   }
 
   if (isAppleDevice(platform)) {
@@ -204,6 +221,14 @@ export const isMDMConfiguredForPlatform = (
   // Other platform types do not have MDM.
   return false;
 };
+
+/** Whether MDM is on for at least one platform, which is what managing
+ * configuration profiles needs. */
+export const isAnyMDMConfigured = (mdmConfig: IMdmConfig | undefined) =>
+  !!mdmConfig &&
+  (mdmConfig.enabled_and_configured ||
+    mdmConfig.windows_mdm_enabled ||
+    mdmConfig.android_enabled_and_configured);
 
 export const platformToMDMLabel = (platform: ProfilePlatform) => {
   switch (platform) {
@@ -228,8 +253,12 @@ export interface IProfileLabel {
 
 export interface IMdmProfile {
   profile_uuid: string;
-  team_id: number;
+  fleet_id: number;
   name: string;
+  description?: string;
+  /** The PayloadDisplayName inside a .mobileconfig, which can differ from
+   * name once the profile is renamed. Absent for other profile types. */
+  payload_display_name?: string;
   platform: ProfilePlatform;
   identifier: string | null; // null for windows profiles
   created_at: string;
@@ -242,6 +271,10 @@ export interface IMdmProfile {
   // otherwise. Note this differs from the host details endpoint, which reports
   // the derived channel as lowercase "user"/"device" (see ProfileScope).
   scope?: PayloadScope | null;
+  /** Only ever true for .mobileconfig profiles. */
+  self_service: boolean;
+  /** Never true together with self_service. */
+  hidden: boolean;
 }
 
 /** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */
@@ -360,7 +393,7 @@ export interface IMdmSSOResponse {
 
 export interface IBootstrapPackageMetadata {
   name: string;
-  team_id: number;
+  fleet_id: number;
   sha256: string;
   token: string;
   created_at: string;

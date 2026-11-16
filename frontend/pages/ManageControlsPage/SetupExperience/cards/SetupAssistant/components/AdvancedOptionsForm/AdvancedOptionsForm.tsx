@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -57,15 +58,17 @@ const AdvancedOptionsForm = ({
       />
       {showAdvancedOptions && (
         <form onSubmit={handleSubmit}>
-          <Checkbox
-            value={releaseDevice}
-            onChange={() => setReleaseDevice(!releaseDevice)}
-          >
-            <TooltipWrapper tipContent={tooltip}>
-              Release device manually
-            </TooltipWrapper>
-          </Checkbox>
-          <Button type="submit">Save</Button>
+          <Card className={`${baseClass}__settings-card`} color="white">
+            <Checkbox
+              value={releaseDevice}
+              onChange={() => setReleaseDevice(!releaseDevice)}
+            >
+              <TooltipWrapper tipContent={tooltip}>
+                Release device manually
+              </TooltipWrapper>
+            </Checkbox>
+            <Button type="submit">Save</Button>
+          </Card>
         </form>
       )}
     </div>

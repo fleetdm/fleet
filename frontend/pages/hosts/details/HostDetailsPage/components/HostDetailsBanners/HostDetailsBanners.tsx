@@ -46,9 +46,10 @@ export interface IHostBannersBaseProps {
   onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
- * Handles the displaying of banners on the host details page
+ * Returns the banner to show on the host details page, or null if none applies.
+ * The page uses this to know whether it has a banner before rendering.
  */
-const HostDetailsBanners = ({
+export const useHostDetailsBanner = ({
   mdmEnrollmentStatus,
   hostPlatform,
   hostOsVersion,
@@ -62,7 +63,7 @@ const HostDetailsBanners = ({
   detailUpdatedAt,
   depAssignedToFleet,
   onlyAllowAppleBusinessEnrollment,
-}: IHostBannersBaseProps) => {
+}: IHostBannersBaseProps): JSX.Element | null => {
   const { config } = useContext(AppContext);
 
   const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
@@ -221,5 +222,11 @@ const HostDetailsBanners = ({
 
   return null;
 };
+
+/**
+ * Handles the displaying of banners on the host details page
+ */
+const HostDetailsBanners = (props: IHostBannersBaseProps) =>
+  useHostDetailsBanner(props);
 
 export default HostDetailsBanners;

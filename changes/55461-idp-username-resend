@@ -1,0 +1,1 @@
+- Fixed configuration profiles and certificates that use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` or `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` not being resent when a host's IdP username was set to a value that doesn't match a SCIM user.

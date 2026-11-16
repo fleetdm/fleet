@@ -2,6 +2,8 @@
 
 This guide details which API endpoints to make publicly accessible.
 
+These are inbound endpoints, on your Fleet server. For the routes your Fleet server needs to reach (outbound), see the [reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#using-a-proxy).
+
 ## Managing hosts that can travel outside VPN or intranet
 
 If you would like to manage hosts that can travel outside your VPN or intranet, we recommend only exposing the osquery endpoints to the public internet:
@@ -30,7 +32,7 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 If you would like to use Fleet's macOS MDM features, the following endpoints need to be exposed:
 
 - `/mdm/apple/scep`: Allows hosts to obtain a SCEP certificate.
-- `/api/mdm/apple/acme/*`: Allows hosts to obtain an ACME certificate(required if Hardware Attestation is enabled)
+- `/api/mdm/acme/*`: Allows hosts to obtain an ACME certificate (required if Hardware Attestation is enabled)
 - `/mdm/apple/mdm`: Allows hosts to reach the server using the MDM protocol.
 - `/api/mdm/apple/enroll`: If you use automatic enrollment, allows hosts to get an enrollment profile.
 - `/api/*/fleet/device/*`: Provides end users access to their **My device** page.
@@ -63,6 +65,7 @@ If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoint
 
 - `/enroll`: Allows end users to access the enrollment page on which they download an enrollment profile to enroll their iOS/iPadOS host.
 - `/api/*/fleet/enrollment_profiles/ota`:  Allows hosts to download an enrollment profile.
+- `/api/*/fleet/ota_enrollment`: Allows hosts to complete over-the-air (OTA) profile enrollment.
 - `/api/*/fleet/software/titles/*/in_house_app`: Allows deloying in-house (`.ipa`) apps.
 
 If you use [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account#basic-article) for personal iPhones and iPads (BYOD), the following endpoints also need to be exposed:

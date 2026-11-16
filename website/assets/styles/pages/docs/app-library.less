@@ -23,7 +23,7 @@
     }
   }
   .header-hidden { // For scrolling the sidebars with the sticky header
-    transform: translateY(-81px);
+    transform: translateY(~'calc(-81px - var(--announcement-banner-height, 0px))');
   }
   [purpose='platform-filters'] {
     &.detected-windows {
@@ -33,7 +33,7 @@
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
     position: sticky;
-    top: 81px;
+    top: ~'calc(81px + var(--announcement-banner-height, 0px))';
     background: #FFF;
     z-index: 4;
     transition-property: all;
@@ -159,7 +159,7 @@
 
 
   [purpose='feature-cards'] {
-    margin-top: 64px;
+    margin-bottom: 64px;
   }
   [purpose='feature-card'] {
     width: 50%;
@@ -217,7 +217,7 @@
       padding-bottom: 0px;
     }
     [purpose='feature-cards'] {
-      margin-top: 52px;
+      margin-bottom: 52px;
     }
     [purpose='feature-card'] {
       width: 100%;

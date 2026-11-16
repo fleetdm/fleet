@@ -9,6 +9,8 @@
 			<string>CIS 2.6.3.2 - Siri data sharing</string>
 			<key>PayloadType</key>
 			<string>com.apple.assistant.support</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-2.6.3.2.siri-opt-in</string>
 			<key>PayloadUUID</key>
@@ -21,6 +23,8 @@
 			<string>CIS 2.6.3.1 - Share Mac Analytics (AutoSubmit)</string>
 			<key>PayloadType</key>
 			<string>com.apple.SubmitDiagInfo</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-2.6.3.2.autosubmit</string>
 			<key>PayloadUUID</key>
@@ -33,6 +37,8 @@
 			<string>CIS 2.6.3.4 - allowDiagnosticSubmission</string>
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-2.6.3.2.diag-submission</string>
 			<key>PayloadUUID</key>
@@ -45,6 +51,8 @@
 			<string>CIS 2.6.3.3 - Assistive voice donation</string>
 			<key>PayloadType</key>
 			<string>com.apple.Accessibility</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-2.6.3.2.assistive-voice</string>
 			<key>PayloadUUID</key>

@@ -24,7 +24,6 @@ var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages"}
 var SupportedGovalPlatforms = []string{
 	"amzn_01",
 	"amzn_02",
-	"amzn_2022",
 	"amzn_2023",
 	"rhel_07",
 	"rhel_08",
@@ -79,6 +78,22 @@ func format(platform string, major string, minor string) string {
 			return "ubuntu_2204"
 		case "18":
 			return "ubuntu_2404"
+		}
+	}
+	if platform == "parrot" {
+		// Parrot OS is Debian-based; map to the underlying Debian OVAL feed.
+		// getMajorMinorVer zero-pads single-digit majors, so "6" arrives as "06".
+		// Unknown versions fall through to "parrot_<major>", which IsSupported()
+		// rejects so vuln scanning is skipped rather than served stale data.
+		switch major {
+		case "04":
+			return "debian_10"
+		case "05":
+			return "debian_11"
+		case "06":
+			return "debian_12"
+		case "07":
+			return "debian_13"
 		}
 	}
 	if platform == "ubuntu" {

@@ -67,8 +67,10 @@ jobs:
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          # Fallbacks: each registry throttles anonymous pulls per source IP, which
+          # GitHub-hosted runners share with every other tenant.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db,mirror.gcr.io/aquasec/trivy-java-db,ghcr.io/aquasecurity/trivy-java-db
         run: |
           mkdir trivy-download
           cd trivy-download
@@ -106,6 +108,11 @@ jobs:
               | unique_by(.VulnerabilityID + "|" + (.PkgName // ""))
               | sort_by(.Severity, .VulnerabilityID)
               | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              # Slack rejects section text over 3000 chars (invalid_blocks), so cap the list.
+              | (reduce .[] as $l ({kept: [], len: 0, full: false};
+                  if .full or (.len + ($l | length) + 2 > 2500) then .full = true
+                  else .kept += [$l] | .len += ($l | length) + 2 end)) as $r
+              | $r.kept + (if length > ($r.kept | length) then ["…and \(length - ($r.kept | length)) more — see job logs"] else [] end)
               | join("\\n")
             ' trivy-results.json)
           fi

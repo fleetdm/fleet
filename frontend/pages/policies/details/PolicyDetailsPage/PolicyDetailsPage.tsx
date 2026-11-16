@@ -71,9 +71,9 @@ const getPolicyFleetName = (
   teamData: ILoadTeamResponse | undefined
 ): string | null => {
   if (!policy) return null;
-  if (policy.team_id === null) return APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
-  if (policy.team_id === 0) return APP_CONTEXT_NO_TEAM_SUMMARY.name;
-  return teamData?.team?.name ?? null;
+  if (policy.fleet_id === null) return APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
+  if (policy.fleet_id === 0) return APP_CONTEXT_NO_TEAM_SUMMARY.name;
+  return teamData?.fleet?.name ?? null;
 };
 
 export const getLabelModalData = (policy: IPolicy): ILabelModalData => {
@@ -157,11 +157,11 @@ const PolicyDetailsPage = ({
     onError: (error) => handlePageError(error),
   });
 
-  // Drive the team display from the policy's own team_id rather than the URL's
+  // Drive the team display from the policy's own fleet_id rather than the URL's
   // fleet_id: a user can land here from another team's list (e.g. clicking an
   // inherited policy from team 42's view), and the displayed Fleet must reflect
   // the policy's owner, not the navigation context.
-  const policyTeamId = storedPolicy?.team_id;
+  const policyTeamId = storedPolicy?.fleet_id;
 
   const { data: teamData } = useQuery<ILoadTeamResponse>(
     ["team", policyTeamId],
@@ -180,7 +180,7 @@ const PolicyDetailsPage = ({
     state: ticketOrWebhookState,
     policyIds: currentAutomatedPolicies,
   } = getTicketOrWebhookInfo(
-    storedPolicy?.team_id == null ? config ?? undefined : teamData?.team
+    storedPolicy?.fleet_id == null ? config ?? undefined : teamData?.fleet
   );
   const otherAutomationType: OtherAutomationType | undefined =
     ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
@@ -193,7 +193,7 @@ const PolicyDetailsPage = ({
     }
   }, [location.pathname, storedPolicy?.name]);
 
-  const isInheritedPolicy = storedPolicy?.team_id === null;
+  const isInheritedPolicy = storedPolicy?.fleet_id === null;
 
   const canEditPolicy =
     (isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin) &&

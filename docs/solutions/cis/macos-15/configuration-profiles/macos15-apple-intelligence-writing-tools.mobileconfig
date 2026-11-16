@@ -9,6 +9,8 @@
 			<string>Disable Apple Intelligence writing tools</string>
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-apple-intelligence-writing-tools.check</string>
 			<key>PayloadUUID</key>

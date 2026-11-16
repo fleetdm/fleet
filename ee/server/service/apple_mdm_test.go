@@ -1068,12 +1068,34 @@ func TestHandleSelfServiceConfigurationProfile(t *testing.T) {
 		uninstall bool
 		host      *fleet.Host
 		optedIn   bool
+		mdmOff    bool
+		hostRow   *fleet.HostMDMAppleProfile
 		profile   *fleet.AppleProfileForReconcile
 		members   []uint
 		queueErr  error
 		wantErr   error
 	}{
 		{name: "install non-macOS", host: &fleet.Host{UUID: "h", Platform: "windows"}, wantErr: &fleet.BadRequestError{}},
+		{name: "install MDM off", host: macHost, mdmOff: true, profile: selfService(), wantErr: &fleet.BadRequestError{}},
+		{
+			name: "install while removal pending", host: macHost, profile: selfService(),
+			hostRow: &fleet.HostMDMAppleProfile{ProfileUUID: "prof-uuid", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			wantErr: &fleet.ConflictError{},
+		},
+		{
+			name: "uninstall while install pending", uninstall: true, host: macHost, optedIn: true, profile: selfService(),
+			hostRow: &fleet.HostMDMAppleProfile{ProfileUUID: "prof-uuid", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			wantErr: &fleet.ConflictError{},
+		},
+		{
+			name: "uninstall while removal pending", uninstall: true, host: macHost, optedIn: true, profile: selfService(),
+			hostRow: &fleet.HostMDMAppleProfile{ProfileUUID: "prof-uuid", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			wantErr: &fleet.ConflictError{},
+		},
+		{
+			name: "uninstall after install verified", uninstall: true, host: macHost, optedIn: true, profile: selfService(),
+			hostRow: &fleet.HostMDMAppleProfile{ProfileUUID: "prof-uuid", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+		},
 		{name: "install already opted in", host: macHost, optedIn: true, profile: selfService(), wantErr: &fleet.ConflictError{}},
 		{name: "install profile not found", host: macHost, wantErr: &fleet.BadRequestError{}},
 		{name: "install not self-service", host: macHost, profile: &fleet.AppleProfileForReconcile{ProfileUUID: "prof-uuid"}, wantErr: &fleet.BadRequestError{}},
@@ -1138,8 +1160,17 @@ func TestHandleSelfServiceConfigurationProfile(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
 			svc := newTestService(t, ds)
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return !c.mdmOff, nil
+			}
 			ds.HasHostMDMProfileOptInFunc = func(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
 				return c.optedIn, nil
+			}
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+				if c.hostRow == nil {
+					return nil, nil
+				}
+				return []fleet.HostMDMAppleProfile{*c.hostRow}, nil
 			}
 			ds.GetAppleProfileForReconcileFunc = func(ctx context.Context, teamID uint, profileUUID string) (*fleet.AppleProfileForReconcile, error) {
 				return c.profile, nil

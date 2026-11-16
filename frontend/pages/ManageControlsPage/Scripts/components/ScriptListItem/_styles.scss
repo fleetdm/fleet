@@ -20,20 +20,10 @@
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
-  }
 
-  &__title-button {
-    max-width: 100%;
-    // children-wrapper is a flex item of the inline-flex Button and needs
-    // min-width: 0 to actually shrink to the parent's max-width. Without it,
-    // overflow: hidden on children-wrapper just visually clips while the
-    // computed width still tracks the content — meaning TooltipTruncatedText's
-    // ref'd __text-value div sees clientWidth == scrollWidth, so
-    // useCheckTruncatedElement returns false and the tooltip never enables.
-    .children-wrapper {
-      max-width: 100%;
-      min-width: 0;
-      overflow: hidden;
+    // Override TooltipWrapper's cursor: default (I-beam suppression on prose).
+    .component__tooltip-wrapper__element {
+      cursor: pointer;
     }
   }
 

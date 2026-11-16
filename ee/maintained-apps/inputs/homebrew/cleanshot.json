@@ -1,6 +1,6 @@
 {
   "name": "CleanShot X",
-  "unique_identifier": "com.getcleanshot.app",
+  "unique_identifier": "pl.maketheweb.cleanshotx",
   "token": "cleanshot",
   "installer_format": "dmg",
   "slug": "cleanshot/darwin",

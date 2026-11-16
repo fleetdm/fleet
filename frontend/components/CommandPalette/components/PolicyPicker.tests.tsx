@@ -33,13 +33,13 @@ const renderPickerInCommand = (
   ui: React.ReactElement
 ): ReturnType<typeof renderInClient> => renderInClient(<Command>{ui}</Command>);
 
-// Minimal IPolicyStats — the picker only reads id, name, type, team_id,
+// Minimal IPolicyStats — the picker only reads id, name, type, fleet_id,
 // and critical. Cast through `unknown` to skip the full shape.
 const policyWith = (
   fields: Partial<IPolicyStats> & Pick<IPolicyStats, "id" | "name">
 ): IPolicyStats =>
   (({
-    team_id: null,
+    fleet_id: null,
     type: "",
     critical: false,
     ...fields,

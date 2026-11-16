@@ -188,7 +188,7 @@ export const generateCustomDropdownStyles = (
             color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-75"],
+            fill: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
             fill: COLORS["ui-fleet-black-75"],
@@ -201,7 +201,7 @@ export const generateCustomDropdownStyles = (
             ? COLORS["core-fleet-black"]
             : COLORS["ui-fleet-black-25"],
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-75"],
+            fill: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
             fill: COLORS["ui-fleet-black-75"],
@@ -212,7 +212,7 @@ export const generateCustomDropdownStyles = (
             color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-75"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         }),
         ...(state.isDisabled && {
@@ -220,7 +220,7 @@ export const generateCustomDropdownStyles = (
             color: COLORS["ui-fleet-black-50"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-50"],
+            fill: COLORS["ui-fleet-black-50"],
           },
           ".filter-icon path": {
             fill: COLORS["ui-fleet-black-50"],
@@ -231,7 +231,7 @@ export const generateCustomDropdownStyles = (
             color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["ui-fleet-black-75"],
+            fill: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
             fill: COLORS["ui-fleet-black-75"],

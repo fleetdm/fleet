@@ -12,6 +12,7 @@ import TablePrivacyPreferences from "./tables/privacy_preferences";
 import TableScreenLock from "./tables/screenlock";
 import TableSystemInfo from "./tables/system_info";
 import TableSystemState from "./tables/system_state";
+import TableUptime from "./tables/uptime";
 import TableUsers from "./tables/users";
 
 interface ChromeWarning {
@@ -59,6 +60,7 @@ export default class VirtualDatabase {
     VirtualDatabase.register(sqlite3, db, new TableSystemState(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableOSVersion(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableOsqueryInfo(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableUptime(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableUsers(sqlite3, db));
   }
 

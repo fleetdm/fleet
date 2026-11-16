@@ -6,12 +6,16 @@ import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import useDeepEffect from "hooks/useDeepEffect";
 import paths from "router/paths";
+import { setUnauthorizedHandler } from "services";
 import authToken from "utilities/auth_token";
 import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
   location: {
+    pathname: string;
+    search: string;
     hash: string;
   };
   router: InjectedRouter;
@@ -24,6 +28,7 @@ export const AuthenticatedRoutes = ({
 }: IAppProps) => {
   // used to ensure single pendo intialization
   const isPendoIntialized = useRef(false);
+  const hasSessionExpired = useRef(false);
 
   const { setRedirectLocation } = useContext(RoutingContext);
   const { currentUser, config, isSandboxMode } = useContext(AppContext);
@@ -48,6 +53,28 @@ export const AuthenticatedRoutes = ({
 
     return router.push(API_ONLY_USER);
   };
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      // Skipped on /logout: LogoutPage recovers from a failed logout with
+      // router.goBack(), which would bounce back here in a loop.
+      if (
+        hasSessionExpired.current ||
+        location.pathname.startsWith(paths.LOGOUT)
+      ) {
+        return;
+      }
+      hasSessionExpired.current = true;
+
+      authToken.remove();
+      setRedirectLocation(`${location.pathname}${location.search}`);
+      router.push(
+        getPathWithQueryParams(paths.LOGIN, { session_expired: true })
+      );
+    });
+
+    return () => setUnauthorizedHandler(undefined);
+  }, [location.pathname, location.search, router, setRedirectLocation]);
 
   // used for pendo intialisation.
   // run only on sandbox mode when pendo has not been initialized

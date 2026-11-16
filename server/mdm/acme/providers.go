@@ -3,6 +3,7 @@ package acme
 import (
 	"context"
 	"crypto/x509"
+	"crypto/x509/pkix"
 
 	redigo "github.com/gomodule/redigo/redis"
 )
@@ -16,14 +17,14 @@ type RedisPool interface {
 // CSRSigner signs x509 certificate requests. This is the ACME-specific
 // interface for certificate signing, decoupled from the SCEP protocol types.
 type CSRSigner interface {
-	SignCSR(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error)
+	SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error)
 }
 
 // CSRSignerFunc is an adapter to allow use of ordinary functions as CSRSigner.
-type CSRSignerFunc func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error)
+type CSRSignerFunc func(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error)
 
-func (f CSRSignerFunc) SignCSR(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return f(ctx, csr)
+func (f CSRSignerFunc) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error) {
+	return f(csr, subject, callback)
 }
 
 // DataProviders combines all external dependency interfaces for the ACME

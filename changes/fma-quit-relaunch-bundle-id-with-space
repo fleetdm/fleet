@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained apps on macOS not relaunching an app after an update when its bundle identifier contains a character other than a letter, digit, dot, dash, or underscore. Pale Moon, whose bundle identifier contains a space, was quit during an update and never reopened.

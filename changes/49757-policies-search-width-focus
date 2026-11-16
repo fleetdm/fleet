@@ -1,0 +1,1 @@
+- Fixed the Policies page search field not spanning the full width at narrower screen sizes, and the Automations column showing the browser's default focus outline instead of Fleet's when navigating with the keyboard.

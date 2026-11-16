@@ -292,7 +292,15 @@ type windowsMDMSyncConfigReceiver struct {
 	// Held for the duration of the async sync goroutine so only one sync runs at a time; also protects lastRun.
 	mu      sync.Mutex
 	lastRun time.Time
+
+	// attempts counts the syncs started while the server kept requesting one; reset when it stops. Not protected by mu, which is held
+	// for the whole sync.
+	attempts atomic.Int32
 }
+
+// windowsMDMSyncFastAttempts is how many syncs are attempted at the default config poll interval while the server keeps requesting one.
+// Past it, attempts follow the slower poll that orbit config nudges allow: newly queued commands are nudged anyway.
+const windowsMDMSyncFastAttempts = 3
 
 func ApplyWindowsMDMSyncFetcherMiddleware(frequency time.Duration) fleet.OrbitConfigReceiver {
 	return &windowsMDMSyncConfigReceiver{Frequency: frequency}
@@ -301,10 +309,20 @@ func ApplyWindowsMDMSyncFetcherMiddleware(frequency time.Duration) fleet.OrbitCo
 // Run starts an on-demand Windows MDM sync when the server sets WindowsMDMSyncRequest, so queued commands are delivered promptly even when
 // the device's OMA-DM poll schedule has been relaxed. It returns immediately; the sync itself runs in the background (see attemptSync).
 func (w *windowsMDMSyncConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
-	if cfg.Notifications.WindowsMDMSyncRequest {
-		w.attemptSync()
+	if !cfg.Notifications.WindowsMDMSyncRequest {
+		w.attempts.Store(0)
+		return nil
 	}
+	w.attemptSync()
 	return nil
+}
+
+// QuietNotifications stops WindowsMDMSyncRequest from holding the config poll at its default interval once several syncs haven't cleared
+// it, e.g. a failing deviceenroller or a command the device never acks (see client.NotificationQuieter).
+func (w *windowsMDMSyncConfigReceiver) QuietNotifications(n *fleet.OrbitConfigNotifications) {
+	if w.attempts.Load() >= windowsMDMSyncFastAttempts {
+		n.WindowsMDMSyncRequest = false
+	}
 }
 
 func (w *windowsMDMSyncConfigReceiver) attemptSync() {
@@ -324,6 +342,7 @@ func (w *windowsMDMSyncConfigReceiver) attemptSync() {
 	if fn == nil {
 		fn = TriggerWindowsMDMSync
 	}
+	w.attempts.Add(1)
 
 	// Run the sync in the background so deviceenroller latency never gates the config-receiver loop
 	go func() {
@@ -601,6 +620,17 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		execEnableProtectionFn:       comWorker.EnableProtection,
 		execSetTPMAndPINProtectorFn:  comWorker.SetTPMAndPINProtector,
 	}
+}
+
+// NeedsFrequentPolling reports whether a PIN outcome or recovery key is held for retry on later config runs (see
+// client.FrequentPoller).
+func (w *windowsMDMBitlockerConfigReceiver) NeedsFrequentPolling() bool {
+	if !w.mu.TryLock() {
+		// Busy with an operation whose result may need retrying.
+		return true
+	}
+	defer w.mu.Unlock()
+	return w.heldPINOutcome != nil || w.pendingRecoveryKey != ""
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet

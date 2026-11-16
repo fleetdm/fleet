@@ -7,20 +7,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	_ "embed"
 	"io"
-	"log/slog"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
-	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,9 +98,7 @@ func TestNewClientValidation(t *testing.T) {
 
 // TestClient_FetchCert tests the successful retrieval of a certificate using SCEP.
 func TestClient_FetchCert(t *testing.T) {
-	// Start a test SCEP server
-	scepServer := StartTestSCEPServer(t)
-	defer scepServer.Close()
+	scepServer := sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(challengePassword))
 
 	// Create a logger for testing
 	logger := zerolog.New(zerolog.NewTestWriter(t))
@@ -162,63 +152,30 @@ func TestClient_FetchCert(t *testing.T) {
 		)
 		require.NoError(t, err, "NewClient should succeed with all required parameters")
 		_, err = client.FetchCert(t.Context())
-		assert.ErrorContains(t, err, "PKIMessage CSR request failed", "FetchAndSaveCert should fail with bad challenge password")
+		require.ErrorContains(t, err, "status FAILURE with fail info badRequest", "FetchAndSaveCert should fail with bad challenge password")
 	})
-}
 
-//go:embed testdata/ca.crt
-var caCert []byte
-
-//go:embed testdata/ca.key
-var caKey []byte
-
-//go:embed testdata/ca.pem
-var caPem []byte
-
-func StartTestSCEPServer(t *testing.T) *httptest.Server {
-	caDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(caDir, "ca.crt"), caCert, 0o644); err != nil {
-		t.Fatalf("failed to write ca.crt: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(caDir, "ca.key"), caKey, 0o644); err != nil {
-		t.Fatalf("failed to write ca.key: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(caDir, "ca.pem"), caPem, 0o644); err != nil {
-		t.Fatalf("failed to write ca.pem: %v", err)
+	newClient := func(t *testing.T, url string) *Client {
+		signingKey, err := newSigningKey()
+		require.NoError(t, err)
+		client, err := NewClient(
+			WithSigningKey(signingKey),
+			WithURL(url),
+			WithChallenge(challengePassword),
+			WithLogger(logger),
+			WithTimeout(new(5*time.Second)),
+			WithCommonName("test-device"),
+		)
+		require.NoError(t, err)
+		return client
 	}
 
-	newSCEPServer := func(t *testing.T) *httptest.Server {
-		var server *httptest.Server
-		t.Cleanup(func() {
-			if server != nil {
-				server.Close()
-			}
-		})
-
-		certDepot, err := filedepot.NewFileDepot(caDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		crt, key, err := certDepot.CA([]byte{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		signer := scepserver.StaticChallengeMiddleware(challengePassword, scepserver.SignCSRAdapter(depot.NewSigner(certDepot)))
-		svc, err := scepserver.NewService(crt[0], key, signer)
-		if err != nil {
-			t.Fatal(err)
-		}
-		logger := slog.New(slog.DiscardHandler)
-		e := scepserver.MakeServerEndpoints(svc)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-		r := mux.NewRouter()
-		r.Handle("/scep", scepHandler)
-		server = httptest.NewServer(r)
-		return server
-	}
-	scepServer := newSCEPServer(t)
-	return scepServer
+	t.Run("GetCACert serving a PKCS7 chain", func(t *testing.T) {
+		srv := sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(challengePassword), sceptest.WithRAChain())
+		cert, err := newClient(t, srv.URL+"/scep").FetchCert(t.Context())
+		require.NoError(t, err)
+		require.Equal(t, "test-device", cert.Subject.CommonName)
+	})
 }
 
 // testKey implements the SigningKey interface for testing.

@@ -1025,6 +1025,32 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
+
+	t.Run("global spec rejects software_title_id", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		s := spec("", nil)
+		s.SoftwareTitleID = new(uint(1))
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s})
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.ErrorContains(t, err, errPolicyAllFleetsForSoftware)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+
+		s.SoftwareTitleID = new(uint(0))
+		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+
+		// "No team" is not "All fleets", so it keeps its automations.
+		noTeam := spec("No team", new(uint(1)))
+		noTeam.SoftwareTitleID = new(uint(1))
+		ds.ApplyPolicySpecsFuncInvoked = false
+		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
 }
 
 func TestApplyPolicySpecsResendConfigProfile(t *testing.T) {
@@ -1148,13 +1174,19 @@ func TestApplyPolicySpecsHidden(t *testing.T) {
 	testAdmin := fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
 	premium := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
 
-	t.Run("free tier rejected", func(t *testing.T) {
+	t.Run("free tier ignored", func(t *testing.T) {
 		ds := newDS()
+		var applied []*fleet.PolicySpec
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			applied = specs
+			return nil
+		}
 		svc, ctx := newTestService(t, ds, nil, nil)
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
 		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{hiddenSpec()})
-		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+		require.NoError(t, err)
+		require.Len(t, applied, 1)
+		require.False(t, applied[0].Hidden)
 	})
 
 	t.Run("premium accepted", func(t *testing.T) {

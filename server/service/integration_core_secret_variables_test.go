@@ -25,7 +25,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	u := &fleet.User{
 		Name:  "GitOps",
 		Email: "gitops1@example.com",
-		// GitOps role is premium only, so we use the global admin role.
+		// The test asserts on activities, which the GitOps role can't read.
 		GlobalRole: new(fleet.RoleAdmin),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
@@ -276,7 +276,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.Contains(
 		t,
 		errorMsg,
-		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"No team\" team. Please delete the configuration profile and try again.",
+		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"Unassigned\" fleet. Please delete the configuration profile and try again.",
 	)
 
 	err = s.ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
@@ -296,7 +296,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.Contains(
 		t,
 		errorMsg,
-		"Couldn't delete. NAME1 is used by the \"decl-1\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
+		"Couldn't delete. NAME1 is used by the \"decl-1\" configuration profile in the \"Foobar\" fleet. Please delete the configuration profile and try again.",
 	)
 
 	err = s.ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
@@ -315,7 +315,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.Contains(
 		t,
 		errorMsg,
-		"Couldn't delete. NAME1 is used by the \"zoo\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
+		"Couldn't delete. NAME1 is used by the \"zoo\" configuration profile in the \"Foobar\" fleet. Please delete the configuration profile and try again.",
 	)
 
 	err = s.ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
@@ -333,7 +333,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.Contains(
 		t,
 		errorMsg,
-		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"No team\" team. Please edit or delete the script and try again.",
+		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"Unassigned\" fleet. Please edit or delete the script and try again.",
 	)
 
 	err = s.ds.DeleteScript(ctx, script.ID)

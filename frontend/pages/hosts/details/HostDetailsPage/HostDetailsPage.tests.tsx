@@ -1,10 +1,13 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { ErrorBoundary, FallbackProps } from "react-error-boundary";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockConfig from "__mocks__/configMock";
-import createMockHost from "__mocks__/hostMock";
+import createMockHost, {
+  createMockGetHostSoftwareResponse,
+} from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
 import { ActivityType } from "interfaces/activity";
@@ -105,7 +108,7 @@ const stubQueries = (host: IHost) => {
     count: 0,
     meta: { has_next_results: false, has_previous_results: false },
   });
-  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ teams: [] });
+  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ fleets: [] });
   (commandAPI.getCommands as jest.Mock).mockResolvedValue({
     results: [],
     count: 0,
@@ -118,12 +121,14 @@ const renderHostDetails = (overrides?: {
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   location?: typeof mockLocation;
+  hostId?: string;
 }) => {
   const {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
     location = mockLocation,
+    hostId = "1",
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -139,12 +144,19 @@ const renderHostDetails = (overrides?: {
     },
   });
 
+  // App.tsx wraps every page in an ErrorBoundary; its overlay reads the status.
+  const ErrorStatus = ({ error }: FallbackProps) => (
+    <div>error status {(error as Error & { status?: number }).status}</div>
+  );
+
   return render(
-    <HostDetailsPage
-      router={createMockRouter()}
-      location={location}
-      params={{ host_id: "1" }}
-    />
+    <ErrorBoundary FallbackComponent={ErrorStatus}>
+      <HostDetailsPage
+        router={createMockRouter()}
+        location={location}
+        params={{ host_id: hostId }}
+      />
+    </ErrorBoundary>
   );
 };
 
@@ -264,9 +276,7 @@ describe("HostDetailsPage - pending hosts", () => {
     // Give the poll timer (2s) room to fire if it was scheduled.
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    expect(
-      screen.queryByText(/fetching fresh vitals/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/refetching\.\.\./i)).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
   }, 15000);
 
@@ -332,13 +342,13 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
         currentUser: ADMIN,
         isGlobalAdmin: true,
       });
-      await screen.findByText(/fetching fresh vitals/i);
+      await screen.findByText(/refetching\.\.\./i);
       elapsedMs = pollMs;
       // The spinner clears only once the next response has gone through the toast decision.
       await waitFor(
         () =>
           expect(
-            screen.queryByText(/fetching fresh vitals/i)
+            screen.queryByText(/refetching\.\.\./i)
           ).not.toBeInTheDocument(),
         { timeout: 5000 }
       );
@@ -385,6 +395,58 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
 
     expect(await screen.findByText("No activity")).toBeInTheDocument();
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+});
+
+describe("HostDetailsPage - software library", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("shows the unsupported empty state on NixOS hosts, explaining that software is installed outside of Fleet", async () => {
+    const host = createMockHost({ platform: "nixos", status: "online" });
+    stubQueries(host);
+
+    renderHostDetails({
+      location: { ...mockLocation, pathname: "/hosts/1/software/library" },
+    });
+
+    expect(
+      await screen.findByText(
+        /Installing software on NixOS hosts happens outside of Fleet./
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Software library is currently not supported on this host"
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/nixos-package-management"
+    );
+    expect(hostAPI.getHostSoftware).not.toHaveBeenCalled();
+  });
+
+  it("doesn't apply the Inventory tab's filters to the Library", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.getHostSoftware as jest.Mock).mockResolvedValue(
+      createMockGetHostSoftwareResponse()
+    );
+
+    renderHostDetails({
+      location: {
+        ...mockLocation,
+        pathname: "/hosts/1/software/library",
+        query: { types: "windows_app", ai_tool: "true" },
+      },
+    });
+
+    await waitFor(() => expect(hostAPI.getHostSoftware).toHaveBeenCalled());
+    const params = (hostAPI.getHostSoftware as jest.Mock).mock.calls[0][0];
+    expect(params.available_for_install).toBe(true);
+    expect(params).not.toHaveProperty("types");
+    expect(params).not.toHaveProperty("ai_tool");
   });
 });
 
@@ -479,6 +541,108 @@ describe("HostDetailsPage - disk encryption key rotation", () => {
   });
 });
 
+describe("HostDetailsPage - refetch cycle on tab switch", () => {
+  const mockOnlineStuckHost = (): IHost =>
+    createMockHost({
+      id: 1,
+      platform: "darwin",
+      status: "online",
+      refetch_requested: true,
+    });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    jest.resetAllMocks();
+  });
+
+  // Each tab-focus re-entry into onSuccess used to schedule a fresh setTimeout
+  // next to the one already pending, so polling sped up.
+  it("does not stack polling loops when the tab regains focus mid-refetch", async () => {
+    stubQueries(mockOnlineStuckHost());
+
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    const start = 1_700_000_000_000;
+    let now = start;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    renderHostDetails();
+    await screen.findByText("Vitals");
+
+    // Dispatch three window-focus events (react-query's refetchOnWindowFocus
+    // trigger). Each one re-enters onSuccess.
+    for (let i = 0; i < 3; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+        window.dispatchEvent(new Event("visibilitychange"));
+        await jest.advanceTimersByTimeAsync(0);
+      });
+    }
+
+    const callsBeforeAdvance = (hostAPI.loadHostDetails as jest.Mock).mock.calls
+      .length;
+
+    // One polling interval. With the fix, exactly one scheduled poll fires in
+    // this window. Without it, each stacked timer fires an extra request.
+    now += 2000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+
+    const pollsInOneInterval =
+      (hostAPI.loadHostDetails as jest.Mock).mock.calls.length -
+      callsBeforeAdvance;
+    expect(pollsInOneInterval).toBe(1);
+  });
+
+  // After give-up, the server still reports refetch_requested: true, so a
+  // focus-triggered onSuccess used to re-enter the "timer just started" branch
+  // and run a fresh 60s cycle (new toast 60s later).
+  it("doesn't restart the refetch window after a timeout when the tab regains focus", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    const start = 1_700_000_000_000;
+    let now = start;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+
+    stubQueries(mockOnlineStuckHost());
+    (hostAPI.loadHostDetails as jest.Mock).mockResolvedValue({
+      host: mockOnlineStuckHost(),
+    });
+
+    renderHostDetails();
+    await screen.findByText("Vitals");
+
+    // Advance past the 60s give-up window so the next polling tick fires the toast.
+    now += 61000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
+      );
+    });
+    expect(notify.error).toHaveBeenCalledTimes(1);
+
+    // Simulate a tab switch and let a full fresh 60s + 2s poll interval pass.
+    // Without the fix, this re-enters the "timer just started" branch, opens a
+    // new 60s cycle, and 60s later shows the toast a second time.
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("visibilitychange"));
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    now += 65000;
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(notify.error).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("HostDetailsPage - enrollment rejection details", () => {
   afterEach(() => {
     jest.resetAllMocks();
@@ -511,4 +675,22 @@ describe("HostDetailsPage - enrollment rejection details", () => {
     expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
     expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
   });
+});
+
+describe("HostDetailsPage - invalid host id", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it.each(["abc", "0", "1abc", "1.5"])(
+    "shows the not found page for /hosts/%s",
+    async (id) => {
+      stubQueries(createMockHost());
+
+      renderHostDetails({ hostId: id });
+
+      expect(await screen.findByText("error status 404")).toBeInTheDocument();
+      expect(hostAPI.loadHostDetails).not.toHaveBeenCalled();
+    }
+  );
 });

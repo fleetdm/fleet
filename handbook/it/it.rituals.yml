@@ -8,15 +8,6 @@
   autoIssue:
     labels: [":help-it"]
     repo: "confidential"
-- task: "Vanta check"
-  startedOn: "2025-06-09"
-  frequency: "Weekly"
-  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
-  moreInfoUrl: "https://fleetdm.com/handbook/it#monitor-compliance-tests"
-  dri: "lppepper2"
-  autoIssue:
-    labels: [":help-it"]
-    repo: "confidential"
 - task: "Quarterly access review"
   startedOn: "2026-04-01"
   frequency: "Quarterly"

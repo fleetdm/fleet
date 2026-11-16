@@ -1,0 +1,1 @@
+- Fixed `fleetctl package --type msi --arch arm64` ignoring `--outfile`.

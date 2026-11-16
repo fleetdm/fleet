@@ -1,0 +1,1 @@
+- Added API endpoints that use AI to generate a configuration profile, or its name and description, from plain-language instructions, checking the profile the way Fleet does when it is added.

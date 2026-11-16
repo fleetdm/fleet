@@ -124,6 +124,13 @@ export const generateHostSWLibraryTableHeaders = ({
 
         const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
 
+        // BE gates presence of version_name.
+        const deliveredVersionName =
+          (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
+          app_store_app?.version_name
+            ? app_store_app.version_name
+            : undefined;
+
         return (
           <SoftwareNameCell
             name={name}
@@ -142,6 +149,7 @@ export const generateHostSWLibraryTableHeaders = ({
             autoUpdateEnabled={auto_update_enabled}
             autoUpdateWindowStart={auto_update_window_start}
             autoUpdateWindowEnd={auto_update_window_end}
+            deliveredVersionName={deliveredVersionName}
           />
         );
       },

@@ -85,7 +85,7 @@ func (svc *Service) SearchTargets(ctx context.Context, matchQuery string, queryI
 
 	results := &fleet.TargetSearchResults{}
 
-	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, targets.HostIDs...)
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, true, targets.HostIDs...)
 	if err != nil {
 		return nil, err
 	}

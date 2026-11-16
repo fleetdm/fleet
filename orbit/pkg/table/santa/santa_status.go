@@ -23,6 +23,11 @@ import (
 // declare execCommandContext for testing
 var execCommandContext = exec.CommandContext
 
+// santactlPath is the binary inside the root-owned app bundle. The installer's
+// /usr/local/bin/santactl symlink is not used: osquery runs this as root, and
+// /usr/local/bin can be user-writable (e.g. Homebrew on Intel Macs).
+const santactlPath = "/Applications/Santa.app/Contents/MacOS/santactl"
+
 type santaStatus struct {
 	Daemon struct {
 		FileLogging       bool    `json:"file_logging"`
@@ -128,7 +133,7 @@ func StatusColumns() []table.ColumnDefinition {
 }
 
 func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]string, error) {
-	cmd := execCommandContext(ctx, "/usr/local/bin/santactl", "status", "--json")
+	cmd := execCommandContext(ctx, santactlPath, "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		// santactl exits non-zero when the Santa daemon is unreachable (e.g. Full Disk

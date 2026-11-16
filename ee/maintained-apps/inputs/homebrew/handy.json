@@ -1,0 +1,10 @@
+{
+  "name": "Handy",
+  "unique_identifier": "com.pais.handy",
+  "token": "handy",
+  "installer_format": "dmg",
+  "slug": "handy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

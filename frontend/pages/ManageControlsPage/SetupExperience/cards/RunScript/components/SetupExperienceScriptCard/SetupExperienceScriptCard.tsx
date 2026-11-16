@@ -24,7 +24,7 @@ const SetupExperienceScriptCard = ({
 }: ISetupExperienceScriptCardProps) => {
   const onDownload = async () => {
     try {
-      const teamId = script.team_id ?? API_NO_TEAM_ID;
+      const teamId = script.fleet_id ?? API_NO_TEAM_ID;
       const data = await mdmAPI.downloadSetupExperienceScript(teamId);
       const date = new Date();
       const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${

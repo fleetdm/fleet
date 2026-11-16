@@ -92,6 +92,7 @@ export const parseSelfServiceQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   category_id?: string;
+  mobile?: string;
 }) => {
   const searchQuery =
     queryParams?.query ?? DEFAULT_SELF_SERVICE_CONFIG.ui.search_query;
@@ -115,6 +116,9 @@ export const parseSelfServiceQueryParams = (queryParams: {
     order_direction: sortDirection,
     per_page: pageSize,
     category_id: categoryId,
+    // DeviceUserPage dev override. Threaded through so SelfService
+    // navigations preserve it in the URL across refreshes and sharing.
+    mobile: queryParams?.mobile,
   };
 };
 

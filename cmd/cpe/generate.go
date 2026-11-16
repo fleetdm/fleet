@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -36,10 +37,12 @@ func panicIf(err error) {
 }
 
 func main() {
+	ctx := context.Background()
 	apiKey := os.Getenv(apiKeyEnvVar)
 
 	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
-	slog.SetDefault(slog.New(logHandler))
+	logger := slog.New(logHandler)
+	slog.SetDefault(logger)
 
 	if apiKey == "" {
 		log.Fatalf("Must set %v environment variable", apiKeyEnvVar)
@@ -47,23 +50,23 @@ func main() {
 
 	cwd, err := os.Getwd()
 	panicIf(err)
-	slog.Info(fmt.Sprintf("CWD: %v", cwd))
+	logger.InfoContext(ctx, fmt.Sprintf("CWD: %v", cwd))
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(httpClientTimeout))
-	dbPath := getCPEs(client, apiKey, cwd)
+	dbPath := getCPEs(ctx, logger, client, apiKey, cwd)
 
-	slog.Info(fmt.Sprintf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath)))
+	logger.InfoContext(ctx, fmt.Sprintf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath)))
 
-	slog.Info("Compressing DB...")
-	compressedPath, err := compress(dbPath)
+	logger.InfoContext(ctx, "Compressing DB...")
+	compressedPath, err := compress(ctx, logger, dbPath)
 	panicIf(err)
 
-	slog.Info("Calculating SHA256...")
-	compressedPath, err = addSHA256(compressedPath)
+	logger.InfoContext(ctx, "Calculating SHA256...")
+	compressedPath, err = addSHA256(ctx, logger, compressedPath)
 	panicIf(err)
 
-	slog.Info(fmt.Sprintf("Final compressed file %s size: %.2f MB\n", compressedPath, getSizeMB(compressedPath)))
-	slog.Info("Done.")
+	logger.InfoContext(ctx, fmt.Sprintf("Final compressed file %s size: %.2f MB\n", compressedPath, getSizeMB(compressedPath)))
+	logger.InfoContext(ctx, "Done.")
 }
 
 func getSizeMB(path string) float64 {
@@ -72,8 +75,8 @@ func getSizeMB(path string) float64 {
 	return float64(info.Size()) / 1024.0 / 1024.0
 }
 
-func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string {
-	slog.Info("Fetching CPEs from NVD...")
+func getCPEs(ctx context.Context, logger *slog.Logger, client common.HTTPClient, apiKey string, resultPath string) string {
+	logger.InfoContext(ctx, "Fetching CPEs from NVD...")
 
 	nvdClient, err := nvdapi.NewNVDClient(client, apiKey)
 	panicIf(err)
@@ -88,14 +91,14 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 			if retryAttempts > maxRetryAttempts {
 				panicIf(err)
 			}
-			slog.Warn(fmt.Sprintf("NVD request returned error:'%v' Retrying in %v", err.Error(), waitTimeForRetry.String()))
+			logger.WarnContext(ctx, fmt.Sprintf("NVD request returned error:'%v' Retrying in %v", err.Error(), waitTimeForRetry.String()))
 			retryAttempts++
 			time.Sleep(waitTimeForRetry)
 			continue
 		}
 		retryAttempts = 0
 		totalResults = cpeResponse.TotalResults
-		slog.Info(fmt.Sprintf("Got %v results", cpeResponse.ResultsPerPage))
+		logger.InfoContext(ctx, fmt.Sprintf("Got %v results", cpeResponse.ResultsPerPage))
 		startIndex += cpeResponse.ResultsPerPage
 		for _, product := range cpeResponse.Products {
 			cpes = append(cpes, convertToCPEItem(product.CPE))
@@ -103,7 +106,7 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 		if startIndex < totalResults {
 			// NVD API recommendation to sleep between requests: https://nvd.nist.gov/developers/api-workflows
 			time.Sleep(waitTimeBetweenRequests)
-			slog.Info(fmt.Sprintf("Fetching index %v out of %v", startIndex, totalResults))
+			logger.InfoContext(ctx, fmt.Sprintf("Fetching index %v out of %v", startIndex, totalResults))
 		}
 	}
 
@@ -112,7 +115,7 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
 	}
 
-	slog.Info("Generating CPE sqlite DB...")
+	logger.InfoContext(ctx, "Generating CPE sqlite DB...")
 
 	dbPath := filepath.Join(resultPath, "cpe.sqlite")
 	err = nvd.GenerateCPEDB(dbPath, cpes)
@@ -163,25 +166,25 @@ func convertToCPEItem(in nvdapi.CPE) (out cpedict.CPEItem) {
 	return out
 }
 
-func compress(path string) (string, error) {
+func compress(ctx context.Context, logger *slog.Logger, path string) (string, error) {
 	compressedPath := fmt.Sprintf("%s.gz", path)
 	compressedDB, err := os.Create(compressedPath)
 	if err != nil {
 		return "", err
 	}
-	defer closeFile(compressedDB)
+	defer closeFile(ctx, logger, compressedDB)
 
 	db, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer closeFile(db)
+	defer closeFile(ctx, logger, db)
 
 	w := gzip.NewWriter(compressedDB)
 	defer func(w *gzip.Writer) {
 		err := w.Close()
 		if err != nil {
-			slog.Error(fmt.Sprintf("Could not close gzip.Writer: %v", err.Error()))
+			logger.ErrorContext(ctx, fmt.Sprintf("Could not close gzip.Writer: %v", err.Error()))
 		}
 	}(w)
 
@@ -193,12 +196,12 @@ func compress(path string) (string, error) {
 }
 
 // addSHA256 adds the file's SHA256 checksum to its name
-func addSHA256(path string) (string, error) {
+func addSHA256(ctx context.Context, logger *slog.Logger, path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer closeFile(file)
+	defer closeFile(ctx, logger, file)
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
@@ -223,9 +226,9 @@ func replaceLast(s, oldVal, newVal string) (string, error) {
 	return s[:i] + newVal + s[i+len(oldVal):], nil
 }
 
-func closeFile(file *os.File) {
+func closeFile(ctx context.Context, logger *slog.Logger, file *os.File) {
 	err := file.Close()
 	if err != nil {
-		slog.Error(fmt.Sprintf("Could not close file %v: %v", file.Name(), err.Error()))
+		logger.ErrorContext(ctx, fmt.Sprintf("Could not close file %v: %v", file.Name(), err.Error()))
 	}
 }

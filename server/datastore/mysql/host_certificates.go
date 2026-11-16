@@ -481,9 +481,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 
 		// Backstop: a proxied Windows SCEP profile that never gets its certificate would otherwise sit in
-		// "verifying" forever. Once the grace period has elapsed and this report proves we could read the store
-		// where the certificate belongs but it isn't there, fail it. Runs after the flip above, so anything still
-		// "verifying" here has no observed certificate.
+		// "verifying" forever, and one the device reported as installed would stay "verified" even though Fleet can't
+		// match the certificate for renewal. Once the grace period has elapsed and this report proves we could read the
+		// store where the certificate belongs but no matching certificate is there, fail it. Runs after the flip above,
+		// so no row it considers has an observed certificate.
 		failedRows, err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail stuck windows scep profiles")
@@ -500,9 +501,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	})
 }
 
-// windowsSCEPVerificationGracePeriod is how long a proxied Windows SCEP profile may stay in "verifying" (measured from
-// the host's ACK of the profile, i.e. host_mdm_windows_profiles.updated_at) before an ingest that proves the relevant
-// certificate store was readable, yet lacks the certificate, is treated as a failure.
+// windowsSCEPVerificationGracePeriod is how long a proxied Windows SCEP profile may stay "verifying", or "verified" by the
+// device's SCEP status, without osquery matching its certificate (measured from host_mdm_windows_profiles.updated_at)
+// before an ingest that proves the relevant certificate store was readable, yet lacks the certificate, is treated as a
+// failure.
 const windowsSCEPVerificationGracePeriod = time.Hour
 
 // windowsSCEPCertNotFoundDetail is the failure detail recorded when the verification backstop fires.
@@ -518,6 +520,10 @@ const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate
 //     can read only while that user is logged in. We act only when this report includes at least one user
 //     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
 //     ./User Windows profile targets, so we assume the device has one primary user.
+//
+// It also covers a profile the device's SCEP status reported as installed (verified) whose certificate osquery has never
+// matched to the profile's renewal ID, which happens when the CA rewrites the requested subject. The certificate is on
+// the host, but Fleet can't renew it, so it is treated as missing like any other.
 //
 // A certificate that never arrives is a delivery failure like any other, so it spends the profile's retries before it
 // becomes terminal: while retries are left the profile goes back to pending and the profile manager redelivers it with
@@ -537,10 +543,13 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 	where := `
 			WHERE hwmp.host_uuid = ?
 				AND hwmp.operation_type = ?
-				AND hwmp.status = ?
+				AND hwmp.status IN (?, ?)
 				AND hmmc.type IN (?)
+				AND hmmc.not_valid_after IS NULL
 				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)`
-	whereArgs := []any{hostUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds}
+	whereArgs := []any{
+		hostUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified, caTypeStrs, graceSeconds,
+	}
 	if !anyUserCertObserved {
 		// Only the LocalMachine store is provably readable this run. Restrict to device-scoped profiles (SyncML
 		// without a ./User SCEP node); a user-scoped certificate may just be waiting for its user to log in.
@@ -913,10 +922,8 @@ func downgradeHostCertsOriginToOsqueryDB(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
+// softDeleteHostCertsDB soft-deletes certs; CleanupSoftDeletedHostCertificates hard-deletes them after the retention window.
 func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, toDelete []uint) error {
-	// TODO: consider whether we should hard delete certs after a certain period of time if we are seeing
-	// the table grow too large with soft deleted records
-
 	if len(toDelete) == 0 {
 		return nil
 	}
@@ -981,6 +988,86 @@ func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context
 		}
 	}
 	return total, nil
+}
+
+// See the Datastore interface for contract.
+func (ds *Datastore) CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k certificates per origin per tick
+	)
+	return cleanupSoftDeletedHostCertsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+// cleanupSoftDeletedHostCertsDB selects ids on the replica, then deletes them by primary key. Each origin is walked with a
+// (deleted_at, id) cursor in idx_host_certs_origin_deleted order, so every batch reads only its own index entries and a lagging
+// replica that still returns already-deleted rows can't make the loop select them again. The DELETE re-checks deleted_at, so stale
+// replica data can't remove a live cert. maxBatches applies per origin, so a large backlog in one can't hold back the other.
+func cleanupSoftDeletedHostCertsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	const (
+		firstSelectStmt = `
+SELECT id, deleted_at FROM host_certificates
+WHERE origin = ? AND deleted_at < ?
+ORDER BY deleted_at, id
+LIMIT ?`
+		nextSelectStmt = `
+SELECT id, deleted_at FROM host_certificates
+WHERE origin = ? AND deleted_at < ? AND (deleted_at > ? OR (deleted_at = ? AND id > ?))
+ORDER BY deleted_at, id
+LIMIT ?`
+		// host_certificate_sources rows go with their certificate via ON DELETE CASCADE.
+		deleteStmt = `DELETE FROM host_certificates WHERE id IN (?) AND deleted_at < ?`
+	)
+	type softDeletedCert struct {
+		ID        uint      `db:"id"`
+		DeletedAt time.Time `db:"deleted_at"`
+	}
+
+	var totalDeleted int64
+	for _, origin := range []fleet.HostCertificateOrigin{fleet.HostCertificateOriginOsquery, fleet.HostCertificateOriginMDM} {
+		var cursor *softDeletedCert
+		for batches := 0; ; batches++ {
+			if batches == maxBatches {
+				ds.logger.WarnContext(ctx, "cleanup soft-deleted host certificates hit its batch cap, any remaining rows are cleaned on the next run",
+					"origin", origin, "deleted", totalDeleted, "max_batches", maxBatches)
+				break
+			}
+			var certs []softDeletedCert
+			var err error
+			if cursor == nil {
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &certs, firstSelectStmt, origin, olderThan, batchSize)
+			} else {
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &certs, nextSelectStmt,
+					origin, olderThan, cursor.DeletedAt, cursor.DeletedAt, cursor.ID, batchSize)
+			}
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "select soft-deleted host certificates")
+			}
+			if len(certs) == 0 {
+				break
+			}
+			cursor = &certs[len(certs)-1]
+
+			ids := make([]uint, 0, len(certs))
+			for _, c := range certs {
+				ids = append(ids, c.ID)
+			}
+			stmt, args, err := sqlx.In(deleteStmt, ids, olderThan)
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "build delete soft-deleted host certificates")
+			}
+			res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "delete soft-deleted host certificates")
+			}
+			n, _ := res.RowsAffected()
+			totalDeleted += n
+			if len(certs) < batchSize {
+				break
+			}
+		}
+	}
+	return totalDeleted, nil
 }
 
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {

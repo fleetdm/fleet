@@ -73,7 +73,8 @@ if [ -n "$GENERATE_PKG" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         --update-url=$PKG_TUF_URL \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
-        --disable-keystore
+        --disable-keystore \
+        --outfile=fleet-macos.pkg
 fi
 
 if [ -n "$GENERATE_DEB" ]; then
@@ -300,5 +301,5 @@ fi
 echo "Packages generated."
 
 if [[ $OSTYPE == 'darwin'* && -n "$INSTALL_PKG" ]]; then
-    sudo installer -pkg fleet-osquery.pkg -target /
+    sudo installer -pkg fleet-macos.pkg -target /
 fi

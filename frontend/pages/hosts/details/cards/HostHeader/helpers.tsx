@@ -17,7 +17,7 @@ type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
   "unlocked"
 >;
 
-// We exclude "unlocked" as we dont display any device status tag for it
+// We exclude "unlocked" as we dont display any device status tag for it.
 type DeviceStatusTagConfig = Record<
   HostMdmDeviceStatusUIStateNoUnlock,
   IDeviceStatusTag
@@ -122,6 +122,13 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Passcode will clear when the host comes online. If the host is online, it will clear the next time it checks in to Fleet.",
   },
+  /** Android BYOD only: Unenroll and Wipe both remove the work profile. */
+  unenrolling: {
+    title: "Unenroll pending",
+    tagType: "warning",
+    generateTooltip: () =>
+      "Host will unenroll when it comes online. If the host is online, it will unenroll the next time it checks in to Fleet.",
+  },
 };
 
 // We exclude "unlocked" as we dont display a tooltip for it.
@@ -170,12 +177,17 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
       You can&apos;t fetch data from <br /> a host that is clearing passcode.
     </>
   ),
+  unenrolling: (
+    <>
+      You can&apos;t fetch data from <br /> an unenrolling host.
+    </>
+  ),
 } as const;
 
 export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
   <>
-    There&apos;s no manual <b>Refetch</b> button because Android hosts sync data
-    automatically when they change. If changes aren&apos;t appearing,{" "}
+    Refetch is disabled because Android hosts sync data automatically when they
+    change. If changes aren&apos;t appearing,{" "}
     <CustomLink
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-manual-sync`}
       text="learn how to sync manually."

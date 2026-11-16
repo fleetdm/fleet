@@ -65,8 +65,8 @@ const getTargets = async (
         ({ label_type: type }) => type === "regular"
       ).map((label) => ({ ...label, uuid: uniqueId() }));
 
-      const teams = targets.teams.map((team) => ({
-        ...team,
+      const teams = targets.fleets.map((fleet) => ({
+        ...fleet,
         uuid: uniqueId(),
       }));
 

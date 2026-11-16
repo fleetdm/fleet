@@ -2,11 +2,11 @@
 
 ![Fleet’s SAML integration for macOS Setup image](../website/assets/images/articles/fleet-saml-integration-for-macOS-Setup-1600x900@2x.png)
 
-Fleet MDM server simplifies the macOS setup experience. With Fleet, organizations can automate device enrollment, configure system settings, and provide compliance with minimal user intervention. With single sign-on (SSO) integration, the end user's username and name can be automatically populated in the local macOS account, allowing for a secure and efficient onboarding process. This article goes under the hood and dives into the technical details of how this end-user authentication integration works.
+Fleet simplifies the macOS setup experience. With Fleet, organizations can automate device enrollment, configure system settings, and provide compliance with minimal user intervention. With single sign-on (SSO) integration, the end user's username and name can be automatically populated in the local macOS account, allowing for a secure and efficient onboarding process. This article goes under the hood and dives into the technical details of how this end-user authentication integration works.
 
 ## Prerequisites
 
-To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business (AB)](https://business.apple.com/) linked to our Fleet MDM server.
+To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business (AB)](https://business.apple.com/) linked to Fleet.
 
 ### What is Apple Business?
 
@@ -40,7 +40,7 @@ The web view shows the EULA (End User License Agreement) if needed. Afterward, t
 
 At this point, the user is authenticated and proceeds with other parts of the setup experience, such as installing software.
 
-After installing the enrollment profile, the macOS device sends a `TokenUpdate` message to the Fleet MDM server.
+After installing the enrollment profile, the macOS device sends a `TokenUpdate` message to Fleet.
 
 ![Waiting for management server](../website/assets/images/articles/end-user-authentication-mac-waiting-for-management-server-1782x1334@2x.png "Waiting for management server")
 
@@ -62,7 +62,7 @@ For additional technical details, including a sequence diagram, see [Fleet's con
 
 ## Summary
 
-Integrating your Fleet MDM server with your IdP is essential for IT professionals managing a fleet of devices. This deep dive into the details of IdP authentication provides you with the necessary insights to optimize your IT flows. We encourage you to apply these insights to your Fleet usage, and as always, we welcome your feedback and experiences in the [Fleet community Slack channels](https://fleetdm.com/support).
+Integrating Fleet with your IdP is essential for IT professionals managing a fleet of devices. This deep dive into the details of IdP authentication provides you with the necessary insights to optimize your IT flows. We encourage you to apply these insights to your Fleet usage, and as always, we welcome your feedback and experiences in the [Fleet community Slack channels](https://fleetdm.com/support).
 
 ## Watch us demo SAML integration for macOS Setup
 

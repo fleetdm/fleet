@@ -4,5 +4,6 @@
   "unique_identifier": "org.mozilla.firefox",
   "token": "firefox",
   "installer_format": "dmg",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/firefox-install.sh",
   "default_categories": ["Browsers"]
 }

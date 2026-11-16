@@ -73,8 +73,12 @@
     min-width: 0;
 
     // Prevent the error icon from shrinking
+    // and keep it on the first line when the value wraps
     .icon {
       flex-shrink: 0;
+      align-self: flex-start;
+      align-items: center;
+      height: 1lh;
     }
   }
 
@@ -122,6 +126,11 @@
       gap: $pad-xsmall;
       margin: -6px; // See underline under link and border with keyboard nav
       padding: 6px; // See underline under link and border with keyboard nav
+    }
+
+    // <button> centers wrapped text by default
+    .button--link {
+      text-align: left;
     }
   }
 

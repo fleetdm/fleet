@@ -1,0 +1,1 @@
+- Fixed the `POST /api/v1/fleet/configuration_profiles/batch` and `POST /api/v1/fleet/mdm/profiles/batch` endpoints deleting every configuration profile when the request body had no profile list. They now return a validation error.

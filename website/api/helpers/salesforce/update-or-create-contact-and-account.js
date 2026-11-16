@@ -274,6 +274,11 @@ module.exports = {
         // If the medium is set to an "Event" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
         attributionDetails.sourceChannel = 'Event';
+      } else if(marketingAttributionCookie.gclid) {
+        // If no recognized medium was provided, but the user arrived with a Google click ID (gclid), they came from a Google Ads click (auto-tagged ads don't include utm parameters).
+        attributionDetails.sourceChannel = 'Digital';
+        attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName['ps'];
+        attributionDetails.campaign = marketingAttributionCookie.campaign ? marketingAttributionCookie.campaign : `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
       } else {
         // If no medium was provided via utm parameter, set the source channel to "Organic".
         attributionDetails.sourceChannel = 'Organic';

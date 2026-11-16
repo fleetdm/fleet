@@ -64,13 +64,13 @@ export const formatAlreadyAvailableInstallMessage = (msg: string) => {
   }
 
   const limitMatch = cleaned.match(
-    /^(.+?) already has (\d+) packages\. Before adding, delete one you no longer use\./
+    /^(.+?) already has (\d+) versions\. Before adding, delete one you no longer use\./
   );
   if (limitMatch) {
     return (
       <>
         {ADD_SOFTWARE_ERROR_PREFIX} <b>{limitMatch[1]}</b> already has{" "}
-        {limitMatch[2]} packages. Before adding, delete one you no longer use.
+        {limitMatch[2]} versions. Before adding, delete one you no longer use.
       </>
     );
   }

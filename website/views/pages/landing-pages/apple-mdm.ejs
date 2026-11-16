@@ -6,26 +6,25 @@
           <div purpose="page-hero-content">
             <div purpose="page-hero-headings">
               <h4>Apple Device Management</h4>
-              <h1>Open source Apple MDM for modern IT and security teams</h1>
+              <h1>AI-native Apple MDM for modern IT and security teams</h1>
             </div>
             <div purpose="page-hero-text">
-              <p>Enroll, configure, and secure Mac, iPhone, and iPad at enterprise scale. Manage Apple alongside Windows, Linux, Android, and ChromeOS in one place.</p>
+              <p>Enroll, configure, and secure Mac, iPhone, and iPad at enterprise scale. Say what you need done, approve the change, and Fleet handles the rest. Manage Apple alongside Windows, Linux, Android, and ChromeOS in one place.</p>
             </div>
             <div purpose="button-row">
               <a purpose="cta-button" class="btn btn-primary" href="/contact?talkToUs">Get a demo</a>
-              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
             </div>
           </div>
-          <a purpose="hero-quote" href="https://www.linkedin.com/in/jckwhet/" target="_blank" no-icon>
+          <div purpose="hero-quote">
             <div purpose="hero-quote-profile-image">
-              <img alt="Wes Whetstone, Client Platform Engineer at Stripe" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
+              <img alt="Robbie Trencheny" src="/images/robbie-trencheny-120x120@2x.png">
             </div>
             <div purpose="quote-author-info">
-              <p purpose="quote-text">“I just moved 10,000 Macs to Fleet”</p>
-              <p purpose="quote-author-name">Wes Whetstone</p>
-              <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
+              <p purpose="quote-text">“Someone’s up and running on their laptop in about 20 minutes, with the right software and the right identity groups. In Jamf that was a day or two of lost productivity.”</p>
+              <p purpose="quote-author-name">Robbie Trencheny</p>
+              <p purpose="quote-author-title">Head of Infrastructure and IT</p>
             </div>
-          </a>
+          </div>
         </div>
         <div purpose="hero-logos">
           <logo-carousel></logo-carousel>
@@ -43,8 +42,8 @@
             <p>Proprietary tools trap configurations behind GUIs, with steep renewals and limited export.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Manual ClickOps</h5>
-            <p>Changes happen in a console with no version history. One bad profile breaks Wi-Fi for everyone.</p>
+            <h5>Slow, risky changes</h5>
+            <p>Changes happen by hand in a console, with no review and no history. One bad profile breaks Wi-Fi for everyone.</p>
           </div>
           <div purpose="feature-item">
             <h5>Apple-only silos</h5>
@@ -59,15 +58,33 @@
 
       <div purpose="landing-page-section">
         <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h3>Get AI working for you</h3>
+            <p>Fleet works natively with your team’s AI tools, like Claude, Copilot, or any AI harness. Say what you need done. AI proposes the change, and a person on your team approves it before it touches a device. Practice it live at a <a href="/workshops">free workshop</a> and get certified.</p>
+            <div purpose="checklist">
+              <p>Generate configuration profiles and DDM declarations with prompts like “Block iCloud Drive on company Macs.”</p>
+              <p>Ask your Macs what’s patched and what’s compliant, and get answers in seconds.</p>
+              <p>Review every change before it ships, and undo any mistake.</p>
+              <p>Change Mac and <a href="/windows">Windows</a> settings together, in one request.</p>
+            </div>
+          </div>
+          <div purpose="feature-demo">
+            <ai-tool-graphic :hide-tool-switcher="true"></ai-tool-graphic>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
           <div purpose="feature-image">
             <img alt="A screenshot of Fleet showing Apple devices being managed at scale." src="/images/fleet-mdm-hero-1006x595@2x.png">
           </div>
           <div purpose="feature-text">
             <h3>Manage Macs with the visibility and control modern IT teams need</h3>
-            <p>Fleet is open source Apple device management built on Apple's native MDM protocol, Declarative Device Management (DDM), and Apple Business Manager. Configure, secure, and patch every Mac in your fleet without giving up transparency or cross-platform support.</p>
+            <p>Fleet is <a href="/apple">AI-native, open source Apple device management</a> built on Apple's native MDM protocol, Declarative Device Management (DDM), and Apple Business Manager. Configure, secure, and patch every Mac without giving up transparency or cross-platform support.</p>
             <div purpose="checklist">
               <p>Zero-touch enrollment through Apple Business Manager and Automated Device Enrollment.</p>
-              <p>Enforce FileVault, configuration profiles, and DDM declarations from version-controlled YAML.</p>
+              <p>Enforce FileVault, configuration profiles, and DDM declarations with prompts like “Block iCloud Drive on company Macs.”</p>
               <p>Patch macOS, install Fleet-maintained apps, and run remediation scripts on demand.</p>
               <p>Continuously evaluate CIS Benchmarks for macOS and surface vulnerabilities in real time.</p>
             </div>
@@ -77,18 +94,14 @@
 
       <div purpose="landing-page-section">
         <div purpose="section-quote">
-          <div purpose="quote-image">
-            <img alt="Foursquare logo" src="/images/social-proof-logo-foursquare-170x32@2x.png">
-          </div>
-          <p purpose="quote-text">"Thanks for a great run Jamf. Foursquare has officially completed the migration to Fleet as our new device management platform. We're excited about how this move positions us to better support our teams."</p>
+          <p purpose="quote-text">“Before Fleet, a misconfiguration could hit every Mac in the company and be very hard to roll back safely. Not any more.”</p>
           <div purpose="quote-author-info">
             <div purpose="quote-author-image">
-              <img alt="Mike Meyer" src="/images/testimonial-author-mike-meyer-48x48@2x.png">
+              <img alt="Adam Anklewicz" src="/images/adam-anklewicz-120x120@2x.png">
             </div>
             <div purpose="name-and-title">
-              <p purpose="author-name">Mike Meyer</p>
-              <p purpose="author-title">Senior systems engineer & Technical lead</p>
-              <p purpose="author-title">Foursquare</p>
+              <p purpose="author-name">Adam Anklewicz</p>
+              <p purpose="author-title">Manager, IT Systems Engineering, Thumbtack</p>
             </div>
           </div>
         </div>
@@ -140,24 +153,6 @@
       </div>
 
       <div purpose="landing-page-section">
-        <div purpose="feature-with-image">
-          <div purpose="feature-text">
-            <h3>GitOps and AI-ready Apple device management</h3>
-            <p>Every Fleet configuration is a file. Store your profiles, policies, scripts, and software in your own Git repository. Review device changes the way you review code, ship them through CI, and roll back with a single revert.</p>
-            <div purpose="checklist">
-              <p>Version-controlled configuration profiles, DDM declarations, and policies in YAML.</p>
-              <p>Peer-review device changes in pull requests before they reach production.</p>
-              <p>Generate Fleet config with any LLM, from ChatGPT and Claude to private models.</p>
-              <p>Audit history, rollback, and CI/CD for your entire Apple estate.</p>
-            </div>
-          </div>
-          <div purpose="feature-image">
-            <img alt="A screenshot of Fleet running scripts and reports on a Mac." src="/images/linux-management-feature-image-scripts-504x378@2x.png">
-          </div>
-        </div>
-      </div>
-
-      <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h2>Self-hosted, Fleet-hosted, or air-gapped</h2>
           <p>Run Fleet wherever your security and compliance teams need it, with the same features either way. Your device data stays inside your network.</p>
@@ -173,21 +168,180 @@
           </div>
           <div purpose="feature-item">
             <h5>One console, every platform</h5>
-            <p>See macOS, iOS, iPadOS, Windows, Linux, Android, and ChromeOS in one inventory and one policy engine.</p>
+            <p>See macOS, iOS, iPadOS, <a href="/windows">Windows</a>, <a href="/linux">Linux</a>, Android, and ChromeOS in one inventory and one policy engine. Set up new Windows PCs with zero touch and no Microsoft license.</p>
           </div>
           <div purpose="feature-item">
             <h5>API-first by design</h5>
             <p>Every feature in the Fleet UI is available over the REST API. Integrate with Okta, Jira, Slack, Snowflake, and your SIEM.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Smooth migration from Jamf</h5>
-            <p>Use Apple's native MDM migration so users keep working. Fleet offers free migration support for qualifying teams.</p>
+            <h5>Move off Jamf without a wipe</h5>
+            <p>Apple’s built-in migration moves Macs to Fleet without a wipe, so users keep working. Fleet offers free migration support for qualifying teams.</p>
           </div>
           <div purpose="feature-item">
             <h5>Built with the Mac admin community</h5>
             <p>Fleet's contributors are practicing Mac admins. New macOS releases are supported on day one.</p>
           </div>
         </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Apple MDM frequently asked questions</h2>
+        </div>
+        <div purpose="faq" class="d-flex flex-column">
+          <div purpose="accordion" class="d-flex flex-column justify-content-start">
+            <div purpose="accordion-body">
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body1" aria-controls="apple-faq__body1">
+                  Does Fleet replace Jamf?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body1" class="collapse" aria-labelledby="apple-faq__header1">
+                  Yes. Fleet manages Macs, iPhones, and iPads with Apple’s MDM and declarative device management, and manages <a href="/windows">Windows</a>, <a href="/linux">Linux</a>, and Android from the same place. Many teams replace Jamf and the second tool they use for everything else.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body2" aria-controls="apple-faq__body2">
+                  Can I move off Jamf without wiping Macs?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body2" class="collapse" aria-labelledby="apple-faq__header2">
+                  Yes. Apple’s built-in migration moves devices to Fleet without a wipe. Self-host or use Fleet cloud, with every feature either way.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body3" aria-controls="apple-faq__body3">
+                  Which Apple platforms does Fleet support?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body3" class="collapse" aria-labelledby="apple-faq__header3">
+                  macOS, iOS, and iPadOS. iOS and iPadOS are supported only with MDM turned on. To learn more, check out the <a href="/docs/get-started/faq#what-host-operating-systems-does-fleet-support">supported OS versions</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body4" aria-controls="apple-faq__body4">
+                  Can employees enroll personal iPhones and iPads?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body4" class="collapse" aria-labelledby="apple-faq__header4">
+                  Yes. User Enrollment with a Managed Apple Account keeps work data separate. To learn more, check out the <a href="/guides/enroll-byod-ios-ipados-hosts">BYOD enrollment guide</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body5" aria-controls="apple-faq__body5">
+                  How do I deploy apps to iPhones and iPads?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body5" class="collapse" aria-labelledby="apple-faq__header5">
+                  See the guides to <a href="/guides/install-app-store-apps">installing App Store apps</a> and <a href="/guides/deploy-software-packages">deploying in-house apps</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body6" aria-controls="apple-faq__body6">
+                  Can I manage Macs that aren’t in Apple Business?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body6" class="collapse" aria-labelledby="apple-faq__header6">
+                  Yes. Hosts not in Apple Business can be enrolled manually. To learn more, check out the <a href="/guides/apple-mdm-setup#host-isnt-in-ab">Apple MDM setup guide</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body7" aria-controls="apple-faq__body7">
+                  Can Fleet work with Munki, Puppet, or Chef?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body7" class="collapse" aria-labelledby="apple-faq__header7">
+                  Yes, via a bootstrap package. To learn more, check out the <a href="/guides/setup-experience#bootstrap-package">setup experience guide</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="apple-faq__header8" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#apple-faq__body8" aria-controls="apple-faq__body8">
+                  Can I manage multiple Apple Business accounts?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="apple-faq__body8" class="collapse" aria-labelledby="apple-faq__header8">
+                  Yes, for MSPs and subsidiaries. To learn more, check out the <a href="/guides/apple-mdm-setup#best-practice">Apple MDM setup guide</a>.
+                </p>
+              </div>
+            </div>
+            <div class="d-flex flex-row justify-content-start">
+              <p purpose="contact-note">Have another question? <a href="/docs/get-started/faq">Read the full FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
+            </div>
+          </div>
+        </div>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Does Fleet replace Jamf?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet manages Macs, iPhones, and iPads with Apple's MDM and declarative device management, and manages Windows, Linux, and Android from the same place. Many teams replace Jamf and the second tool they use for everything else."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I move off Jamf without wiping Macs?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Apple's built-in migration moves devices to Fleet without a wipe. Self-host or use Fleet cloud, with every feature either way."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which Apple platforms does Fleet support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "macOS, iOS, and iPadOS. iOS and iPadOS are supported only with MDM turned on. To learn more, check out the supported OS versions."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can employees enroll personal iPhones and iPads?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. User Enrollment with a Managed Apple Account keeps work data separate. To learn more, check out the BYOD enrollment guide."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do I deploy apps to iPhones and iPads?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "See the guides to installing App Store apps and deploying in-house apps."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I manage Macs that aren't in Apple Business?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Hosts not in Apple Business can be enrolled manually. To learn more, check out the Apple MDM setup guide."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can Fleet work with Munki, Puppet, or Chef?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, via a bootstrap package. To learn more, check out the setup experience guide."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I manage multiple Apple Business accounts?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, for MSPs and subsidiaries. To learn more, check out the Apple MDM setup guide."
+              }
+            }
+          ]
+        }
+        </script>
       </div>
 
     </div>
@@ -203,15 +357,12 @@
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
         <h4>Apple Device Management</h4>
-        <h2>Modern, open source MDM for every Mac</h2>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" class="btn btn-primary" href="/contact?talkToUs">Get a demo</a>
-          <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
-        </div>
+        <h2>AI-native, open source MDM for every Mac</h2>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
+  <demo-request-form></demo-request-form>
   <cloud-city></cloud-city>
   <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>

@@ -40,6 +40,26 @@ func SelfSignedRSAKeypair(cn string, days int) (*rsa.PrivateKey, *x509.Certifica
 	return key, cert, err
 }
 
+// SelfSignedCertForKey self-signs a certificate for an existing key with the given serial number, so tests can
+// model a certificate renewed on the same key.
+func SelfSignedCertForKey(key *rsa.PrivateKey, cn string, serial int64) (*x509.Certificate, error) {
+	timeNow := time.Now()
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(serial),
+		Subject: pkix.Name{
+			CommonName: cn,
+		},
+		NotBefore: timeNow.Add(time.Minute * -10),
+		NotAfter:  timeNow.Add(24 * time.Hour),
+		KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	}
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	return x509.ParseCertificate(certBytes)
+}
+
 // PEMRSAPrivateKey returns key as a PEM block.
 func PEMRSAPrivateKey(key *rsa.PrivateKey) []byte {
 	block := &pem.Block{

@@ -5,23 +5,20 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	cryptorand "crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
-	"math/big"
 	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/remitly-oss/httpsig-go"
-	"github.com/smallstep/scep"
 )
 
 // Config holds the configuration needed for host identity certificate requests
@@ -49,40 +46,6 @@ func NewClient(config Config, useHTTPSignatures bool, httpMessageSignatureP384Pr
 		useHTTPSignatures:            useHTTPSignatures,
 		httpMessageSignatureP384Prob: httpMessageSignatureP384Prob,
 	}
-}
-
-// createTempRSAKeyAndCert creates a temporary RSA key and certificate for SCEP protocol
-func createTempRSAKeyAndCert(hostIdentifier string) (*rsa.PrivateKey, *x509.Certificate, error) {
-	// Generate temporary RSA key for SCEP protocol
-	tempRSAKey, err := rsa.GenerateKey(cryptorand.Reader, 2048)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate temp RSA key: %w", err)
-	}
-
-	// Create temporary certificate for SCEP
-	certTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			CommonName: hostIdentifier,
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certDER, err := x509.CreateCertificate(cryptorand.Reader, &certTemplate, &certTemplate, &tempRSAKey.PublicKey, tempRSAKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create temp certificate: %w", err)
-	}
-
-	cert, err := x509.ParseCertificate(certDER)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse temp certificate: %w", err)
-	}
-
-	return tempRSAKey, cert, nil
 }
 
 // RequestCertificate requests a host identity certificate from Fleet via SCEP
@@ -116,28 +79,15 @@ func (c *Client) RequestCertificate() error {
 		return err
 	}
 
-	// Get CA certificate with 30-second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 	start := time.Now()
-	resp, _, err := scepClient.GetCACert(ctx, "")
+	caCerts, err := enrollment.FetchCACerts(ctx, scepClient)
 	if err != nil {
 		log.Printf("Agent %d: Failed to get CA cert: %v", c.config.AgentIndex, err)
 		return err
 	}
 	log.Printf("Agent %d: GetCACert duration: %s", c.config.AgentIndex, time.Since(start))
-
-	start = time.Now()
-	caCerts, err := x509.ParseCertificates(resp)
-	if err != nil {
-		log.Printf("Agent %d: Failed to parse CA cert: %v", c.config.AgentIndex, err)
-		return err
-	}
-	if len(caCerts) == 0 {
-		log.Printf("Agent %d: No CA certificates received", c.config.AgentIndex)
-		return errors.New("no CA certificates received")
-	}
-	log.Printf("Agent %d: parse CA certificates duration: %s", c.config.AgentIndex, time.Since(start))
 
 	// Create host identifier using UUID
 	hostIdentifier := c.config.HostUUID
@@ -166,73 +116,28 @@ func (c *Client) RequestCertificate() error {
 	}
 	log.Printf("Agent %d: create and parse CSR duration: %s", c.config.AgentIndex, time.Since(start))
 
-	// Create temporary RSA key and cert for SCEP protocol
+	// Temporary RSA key and cert for the SCEP envelope, since the CSR key is ECC
 	start = time.Now()
-	tempRSAKey, deviceCert, err := createTempRSAKeyAndCert(hostIdentifier)
+	signerKey, signerCert, err := enrollment.NewEphemeralSigner(csr.Subject)
 	if err != nil {
 		log.Printf("Agent %d: %v", c.config.AgentIndex, err)
 		return err
 	}
+	log.Printf("Agent %d: create temp RSA key and cert: %s", c.config.AgentIndex, time.Since(start))
 
-	// Create SCEP PKI message
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   tempRSAKey, // Use RSA key for SCEP protocol
-		SignerCert:  deviceCert,
-	}
-
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq)
-	if err != nil {
-		log.Printf("Agent %d: Failed to create SCEP message: %v", c.config.AgentIndex, err)
-		return err
-	}
-	log.Printf("Agent %d: create temp RSA key and CSR request: %s", c.config.AgentIndex, time.Since(start))
-
-	// Send PKI operation request
 	start = time.Now()
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
+	cert, err := enrollment.Enroll(ctx, scepClient, caCerts, enrollment.Request{
+		CSR:        csr,
+		SignerKey:  signerKey,
+		SignerCert: signerCert,
+	})
 	if err != nil {
-		log.Printf("Agent %d: SCEP PKI operation failed: %v", c.config.AgentIndex, err)
+		log.Printf("Agent %d: SCEP enrollment failed: %v", c.config.AgentIndex, err)
 		return err
 	}
-	log.Printf("Agent %d: PKIOperation duration: %s", c.config.AgentIndex, time.Since(start))
-
-	// Parse response
-	start = time.Now()
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithCACerts(msg.Recipients))
-	if err != nil {
-		log.Printf("Agent %d: Failed to parse SCEP response: %v", c.config.AgentIndex, err)
-		return err
-	}
-
-	// Verify successful response
-	if pkiMsgResp.PKIStatus != scep.SUCCESS {
-		log.Printf("Agent %d: SCEP request failed with status: %v", c.config.AgentIndex, pkiMsgResp.PKIStatus)
-		return fmt.Errorf("SCEP request failed with status: %v", pkiMsgResp.PKIStatus)
-	}
-
-	// Decrypt PKI envelope using RSA key
-	err = pkiMsgResp.DecryptPKIEnvelope(deviceCert, tempRSAKey)
-	if err != nil {
-		log.Printf("Agent %d: Failed to decrypt SCEP response: %v", c.config.AgentIndex, err)
-		return err
-	}
-
-	// Extract the certificate
-	certRepMsg := pkiMsgResp.CertRepMessage
-	if certRepMsg == nil {
-		log.Printf("Agent %d: No certificate in SCEP response", c.config.AgentIndex)
-		return errors.New("no certificate in SCEP response")
-	}
-
-	cert := certRepMsg.Certificate
-	if cert == nil {
-		log.Printf("Agent %d: No certificate in CertRepMessage", c.config.AgentIndex)
-		return errors.New("no certificate in CertRepMessage")
-	}
+	log.Printf("Agent %d: PKIOperation and decrypt duration: %s", c.config.AgentIndex, time.Since(start))
 
 	// Store the certificate and private key
 	c.hostIdentityCert = cert
@@ -257,7 +162,6 @@ func (c *Client) RequestCertificate() error {
 	}
 	c.httpSigner = signer
 
-	log.Printf("Agent %d: parse PKIMessage and decrypt duration: %s", c.config.AgentIndex, time.Since(start))
 	log.Printf("Agent %d: Successfully obtained host identity certificate with serial %X", c.config.AgentIndex, cert.SerialNumber)
 	return nil
 }

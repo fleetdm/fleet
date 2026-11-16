@@ -6,5 +6,6 @@
   "slug": "meetingbar/darwin",
   "default_categories": [
     "Communication"
-  ]
+  ],
+  "frozen": true
 }

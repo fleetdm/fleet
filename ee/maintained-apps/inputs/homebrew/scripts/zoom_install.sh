@@ -1,5 +1,13 @@
 #!/bin/bash
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
 quit_application() {
   local bundle_id="$1"
   local console_user="$2"
@@ -13,21 +21,32 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        ZOOM_WAS_RUNNING=false
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
         echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
       fi
+      quit_success=true
+      break
     fi
+    quit_sent=true
     sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -51,7 +70,7 @@ ZOOM_WAS_RUNNING=false
 ZOOM_RUNNING=$(osascript -e "application id \"us.zoom.xos\" is running" 2>/dev/null)
 if [[ "$ZOOM_RUNNING" == "true" ]]; then
   ZOOM_WAS_RUNNING=true
-  quit_application 'us.zoom.xos' "$CONSOLE_USER"
+  quit_application 'us.zoom.xos' "$CONSOLE_USER" || exit 1
 fi
 
 installer -pkg "$INSTALLER_PATH" -target / || exit $?

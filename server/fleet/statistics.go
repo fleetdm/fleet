@@ -100,6 +100,12 @@ type StatisticsPayload struct {
 	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
 	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
 
+	// Num*AiGeneratedProfiles are cumulative counts of configuration profiles generated with AI on this
+	// server. Android profiles can't be generated yet, so NumAndroidAiGeneratedProfiles is always 0.
+	NumAppleAiGeneratedProfiles   int `json:"numAppleAiGeneratedProfiles"`
+	NumWindowsAiGeneratedProfiles int `json:"numWindowsAiGeneratedProfiles"`
+	NumAndroidAiGeneratedProfiles int `json:"numAndroidAiGeneratedProfiles"`
+
 	// The *LogDestination fields are the configured server-side log plugins
 	// (osquery.result_log_plugin, osquery.status_log_plugin, activity.audit_log_plugin),
 	// e.g. "filesystem" or "firehose". They come from the server config, not the app config.

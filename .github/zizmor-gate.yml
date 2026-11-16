@@ -6,6 +6,14 @@
 # .github/zizmor.yml, so a plain `zizmor .` run still reports the full backlog locally.
 
 rules:
+  # dogfood-gitops.yml uses pull_request_target deliberately, so the workflow, composite actions and
+  # gitops.sh always run from main rather than from the PR while secrets are in the environment. The
+  # PR head is checked out to a separate path and only read as data by `fleetctl gitops --dry-run`,
+  # fork PRs are skipped by the job `if:`, and GITHUB_TOKEN is read-only with credentials not
+  # persisted. Any other workflow adopting a dangerous trigger still fails the gate.
+  dangerous-triggers:
+    ignore:
+      - dogfood-gitops.yml
   # The misfeature rule stays ENABLED so new workflows are still checked; we only waive the
   # specific Windows signing/build workflows below. Their findings are all `shell: cmd` notices:
   # zizmor cannot introspect CMD scripts, so it emits a Low-severity analysis-limitation note
@@ -21,8 +29,9 @@ rules:
       - goreleaser-fleet.yaml
   # The template-injection rule stays ENABLED so new workflows are checked, and we waive only the
   # workflows that carry the existing backlog (listed below). We audited every current finding by
-  # trigger and source: none are reachable by untrusted input. There are no pull_request_target /
-  # workflow_run / issue_comment workflows; the one issues-triggered workflow
+  # trigger and source: none are reachable by untrusted input. There are no workflow_run /
+  # issue_comment workflows, and the one pull_request_target workflow (dogfood-gitops.yml) has no
+  # template-injection findings; the one issues-triggered workflow
   # (auto-tag-unreleased-bugs.yml) reads the issue body via actions/github-script's context object,
   # never interpolated into a shell. The remaining findings draw only from maintainer-/runner-
   # controlled sources (static matrix values, workflow_dispatch inputs gated behind write access,

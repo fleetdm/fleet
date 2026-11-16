@@ -27,6 +27,8 @@ controls:
     deadline_days: null
     grace_period_days: null
   scripts:
+    - path: ../lib/linux/scripts/remediate-php2shell-linux.sh
+    - path: ../lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh
 policies:
 reports:
 software:

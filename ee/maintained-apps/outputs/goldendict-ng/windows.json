@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.8.0",
+      "version": "26.11.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GoldenDict-ng';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoldenDict-ng' AND version_compare(version, '26.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoldenDict-ng' AND version_compare(version, '26.11.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'goldendict-ng.exe');"
       },
-      "installer_url": "https://github.com/xiaoyifang/goldendict-ng/releases/download/v26.8.0/GoldenDict-ng-26.8.0-Qt6.8.3-Windows-installer.exe",
+      "installer_url": "https://github.com/xiaoyifang/goldendict-ng/releases/download/v26.11.0/GoldenDict-ng-26.11.0-Qt6.8.3-Windows-installer.exe",
       "install_script_ref": "cfd3838e",
       "uninstall_script_ref": "ae5457ec",
-      "sha256": "354bdce2509a6b73eef60fd5cf49770dbc3824e52b3c25f8dcef8ae48307b865",
+      "sha256": "4c11e911009b77ff3bac7ba8c8dae69dc0e17034bde8aca78a5d511c7ad94edf",
       "default_categories": [
         "Productivity"
       ]

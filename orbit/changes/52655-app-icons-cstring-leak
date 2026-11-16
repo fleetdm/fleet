@@ -1,0 +1,1 @@
+- Fixed memory leaks in the macOS `app_icons` table that grew orbit's memory use on each query, and a crash when an app's icon image could not be loaded.

@@ -114,18 +114,17 @@ type JSONKeyRewriteReader struct {
 
 	// Tracks which deprecated keys have been used (old key -> true).
 	usedDeprecated map[string]bool
+
+	// Removed keys, rejected with a *RemovedKeyError wherever they appear as an object key in scope.
+	removed []RemovedKeyRule
 }
 
 // NewJSONKeyRewriteReader creates a new JSONKeyRewriteReader that wraps the
 // given reader and applies the provided alias rules. It reads JSON tokens
-// from src, handles bidirectional key aliasing, detects conflicts, and
-// writes the result to an internal buffer.
-func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule) *JSONKeyRewriteReader {
-	rw := &JSONKeyRewriteReader{
-		oldKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.OldKey }),
-		newKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.NewKey }),
-		usedDeprecated: make(map[string]bool),
-	}
+// from src, handles bidirectional key aliasing, detects conflicts, rejects
+// removed keys, and writes the result to an internal buffer.
+func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule, removed ...RemovedKeyRule) *JSONKeyRewriteReader {
+	rw := newJSONKeyRewriter(rules, removed, "")
 
 	var buf bytes.Buffer
 	if err := rw.rewrite(src, &buf); err != nil {
@@ -165,6 +164,16 @@ func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
+func newJSONKeyRewriter(rules []AliasRule, removed []RemovedKeyRule, rootKey string) *JSONKeyRewriteReader {
+	return &JSONKeyRewriteReader{
+		oldKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.OldKey }),
+		newKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.NewKey }),
+		removed:        removed,
+		rootKey:        rootKey,
+		usedDeprecated: make(map[string]bool),
+	}
+}
+
 // RewriteDeprecatedKeys handles JSON key aliasing in data using
 // the provided alias rules. It rewrites NewKey→OldKey (so the struct can
 // deserialize), passes through OldKey as-is, and returns an error if both
@@ -184,12 +193,7 @@ func rewriteDeprecatedKeysIn(data []byte, rules []AliasRule, rootKey string) ([]
 	if len(rules) == 0 || len(data) == 0 {
 		return data, nil, nil
 	}
-	rw := &JSONKeyRewriteReader{
-		oldKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.OldKey }),
-		newKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.NewKey }),
-		rootKey:        rootKey,
-		usedDeprecated: make(map[string]bool),
-	}
+	rw := newJSONKeyRewriter(rules, nil, rootKey)
 	var buf bytes.Buffer
 	if err := rw.rewrite(bytes.NewReader(data), &buf); err != nil {
 		return nil, nil, err
@@ -335,6 +339,12 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 
 			if isKey {
 				keyName := tok.String()
+
+				for _, rule := range r.removed {
+					if rule.matches(keyName, currentEnclosing()) {
+						return &RemovedKeyError{Key: keyName}
+					}
+				}
 
 				// Inside the `software` subtree, all inner keys are literal —
 				// most notably each item's `setup_experience` is a bool

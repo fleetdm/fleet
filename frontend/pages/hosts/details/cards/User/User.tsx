@@ -63,6 +63,10 @@ const User = ({
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
+  const userExternalId = [];
+  if (endUser?.idp_id) {
+    userExternalId.push(endUser.idp_id);
+  }
 
   return (
     <Card className={classNames} paddingSize="xlarge">
@@ -123,6 +127,10 @@ const User = ({
             </TooltipWrapper>
           }
           value={<UserValue values={userDepartment} />}
+        />
+        <DataSet
+          title="External ID (IdP)"
+          value={<UserValue values={userExternalId} />}
         />
         {showChromeProfiles && (
           <DataSet

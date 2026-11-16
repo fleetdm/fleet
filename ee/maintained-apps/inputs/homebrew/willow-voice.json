@@ -1,0 +1,8 @@
+{
+  "name": "Willow Voice",
+  "unique_identifier": "com.seewillow.WillowMac",
+  "token": "willow-voice",
+  "installer_format": "dmg",
+  "slug": "willow-voice/darwin",
+  "default_categories": ["Productivity"]
+}

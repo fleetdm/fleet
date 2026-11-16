@@ -5,11 +5,15 @@ package http
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/redis_nonces_store"
@@ -370,6 +374,9 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	}
 	// Note: req.Identifier is set from the mux path variable by the framework
 	// (via the `url:"identifier"` struct tag), so we don't set it here.
+	if err := precheckJWSBody(jwsBytes); err != nil {
+		return ctxerr.Wrap(ctx, types.MalformedError("Failed to parse JWS body"))
+	}
 	jws, err := jose.ParseJWS(string(jwsBytes))
 	if err != nil {
 		err = types.MalformedError("Failed to parse JWS body")
@@ -413,6 +420,59 @@ func (req *JWSRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u u
 	}
 	req.JWSHeaderURL = headerURL
 
+	return nil
+}
+
+// precheckJWSBody validates the flattened JWS with encoding/json before go.step.sm/crypto/jose parses it. That
+// package uses go-jose v3, which has no nesting limit and validates embedded RSA private keys at a cost cubic in the
+// key size, in the unprotected header and general-serialization signatures as well as the protected header. Only EC
+// public keys in the protected header are accepted (see acceptableSignatureAlgorithms), so anything else is rejected.
+// Maps are used instead of structs because encoding/json matches struct fields case-insensitively and go-jose doesn't.
+func precheckJWSBody(body []byte) error {
+	var flattened map[string]json.RawMessage
+	if err := json.Unmarshal(body, &flattened); err != nil {
+		return err
+	}
+	for key := range flattened {
+		// go-jose strips Unicode whitespace from the raw body, even inside member names, so "hea der" reaches it as "header".
+		if strings.IndexFunc(key, unicode.IsSpace) >= 0 {
+			return errors.New("JWS member names must not contain whitespace")
+		}
+	}
+	// RFC 8555 section 6.2 forbids the unprotected header and the general serialization.
+	if _, ok := flattened["header"]; ok {
+		return errors.New("JWS must not have an unprotected header")
+	}
+	if _, ok := flattened["signatures"]; ok {
+		return errors.New("JWS must use the flattened serialization")
+	}
+	var protected string
+	if err := json.Unmarshal(flattened["protected"], &protected); err != nil {
+		return err
+	}
+	headerJSON, err := base64.RawURLEncoding.DecodeString(protected)
+	if err != nil {
+		return err
+	}
+	var header map[string]json.RawMessage
+	if err := json.Unmarshal(headerJSON, &header); err != nil {
+		return err
+	}
+	rawJWK, ok := header["jwk"]
+	if !ok {
+		return nil
+	}
+	var jwk map[string]json.RawMessage
+	if err := json.Unmarshal(rawJWK, &jwk); err != nil {
+		return err
+	}
+	var kty string
+	if err := json.Unmarshal(jwk["kty"], &kty); err != nil || kty != "EC" {
+		return errors.New("jwk must be an EC key")
+	}
+	if _, ok := jwk["d"]; ok {
+		return errors.New("jwk must be a public key")
+	}
 	return nil
 }
 

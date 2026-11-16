@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"uuid"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
@@ -117,4 +118,14 @@ func VersionToSemverVersion(version string) (*semver.Version, error) {
 		return nil, err
 	}
 	return ver, nil
+}
+
+// ParseNonNilUUID parses s in any form uuid.Parse accepts, and reports false when it is not a UUID or is the all-zero UUID,
+// which callers such as Microsoft Graph use to mean "none".
+func ParseNonNilUUID(s string) (uuid.UUID, bool) {
+	parsed, err := uuid.Parse(s)
+	if err != nil || parsed == uuid.Nil() {
+		return uuid.Nil(), false
+	}
+	return parsed, true
 }

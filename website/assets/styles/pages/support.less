@@ -38,20 +38,25 @@
 
   [purpose='support-cards'] {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    // 6 columns so the first row (professional support + Fast Track) can hold 2 cards while later rows hold 3.
+    grid-template-columns: repeat(6, 1fr);
     gap: 24px;
     margin: 0 auto;
 
     a {
       text-decoration: none;
       min-width: 0px;
+      grid-column: span 2;
       &:hover {
         color: @core-fleet-black-75;
       }
-      &:nth-child(-n+3) [purpose='support-card'] {
+      &:nth-child(-n+2) {
+        grid-column: span 3;
+      }
+      &:nth-child(-n+5) [purpose='support-card'] {
         min-height: 221px;
       }
-      &:nth-child(n+4) [purpose='support-card'] {
+      &:nth-child(n+6) [purpose='support-card'] {
         min-height: 200px;
       }
     }
@@ -152,6 +157,9 @@
   @media (max-width: 991px) {
     [purpose='support-cards'] {
       grid-template-columns: repeat(2, 1fr);
+      a, a:nth-child(-n+2) {
+        grid-column: auto;
+      }
     }
     [purpose='support-card'] {
       height: 100%;

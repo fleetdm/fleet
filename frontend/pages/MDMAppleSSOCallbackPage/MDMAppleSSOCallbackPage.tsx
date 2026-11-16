@@ -17,7 +17,6 @@ const RedirectTo = ({ url }: { url: string }) => {
 interface IEnrollmentGateProps {
   profileToken?: string;
   eulaToken?: string;
-  enrollmentReference?: string;
   initiator?: string;
   error?: boolean;
   reason?: string;
@@ -26,7 +25,6 @@ interface IEnrollmentGateProps {
 const EnrollmentGate = ({
   profileToken,
   eulaToken,
-  enrollmentReference,
   initiator,
   error,
   reason,
@@ -73,7 +71,6 @@ const EnrollmentGate = ({
     <RedirectTo
       url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(
         profileToken as string,
-        enrollmentReference,
         deviceinfo
       )}
     />
@@ -83,7 +80,6 @@ const EnrollmentGate = ({
 interface IMDMSSOCallbackQuery {
   eula_token?: string;
   profile_token?: string;
-  enrollment_reference?: string;
   initiator?: string;
   error?: boolean;
   reason?: string;
@@ -95,7 +91,6 @@ const MDMAppleSSOCallbackPage = (
   const {
     eula_token,
     profile_token,
-    enrollment_reference,
     initiator,
     error,
     reason,
@@ -105,7 +100,6 @@ const MDMAppleSSOCallbackPage = (
       <EnrollmentGate
         eulaToken={eula_token}
         profileToken={profile_token}
-        enrollmentReference={enrollment_reference}
         initiator={initiator}
         error={error}
         reason={reason}

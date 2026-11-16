@@ -42,7 +42,7 @@ func (a *FleetViewerAdapter) ViewerScope(ctx context.Context) (bool, []uint, err
 		return false, nil, errors.New("chart: no authenticated viewer in context")
 	}
 	u := vc.User
-	if u.GlobalRole != nil && *u.GlobalRole != "" {
+	if u.HasAnyGlobalRole() {
 		return true, nil, nil
 	}
 	ids := make([]uint, 0, len(u.Teams))

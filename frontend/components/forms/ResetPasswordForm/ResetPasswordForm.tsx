@@ -2,9 +2,11 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validatePassword from "components/forms/validators/valid_password";
-import validateEquality from "components/forms/validators/validate_equality";
-import validatePresence from "components/forms/validators/validate_presence";
+import {
+  validatePassword,
+  isEqual,
+  isPresent,
+} from "components/forms/validators";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { IResetPasswordForm } from "interfaces/user";
 
@@ -32,7 +34,7 @@ const validate = (formData: IFormData): IFormErrors => {
     new_password_confirmation: newPasswordConfirmation,
   } = formData;
 
-  if (!validatePresence(newPassword)) {
+  if (!isPresent(newPassword)) {
     errors.new_password = "Enter a new password";
   } else {
     const { error_code: errorCode, error } = validatePassword(newPassword);
@@ -41,12 +43,9 @@ const validate = (formData: IFormData): IFormErrors => {
     }
   }
 
-  if (!validatePresence(newPasswordConfirmation)) {
+  if (!isPresent(newPasswordConfirmation)) {
     errors.new_password_confirmation = "Confirm your new password";
-  } else if (
-    newPassword &&
-    !validateEquality(newPassword, newPasswordConfirmation)
-  ) {
+  } else if (newPassword && !isEqual(newPassword, newPasswordConfirmation)) {
     errors.new_password_confirmation = "Match the password above";
   }
 
@@ -57,11 +56,7 @@ const ResetPasswordForm = ({
   handleSubmit,
 }: IResetPasswordFormProps): JSX.Element => {
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IResetPasswordForm>({
@@ -76,15 +71,10 @@ const ResetPasswordForm = ({
   return (
     <form className={baseClass} onSubmit={onSubmit(handleSubmit)}>
       <InputFieldWithIcon
-        error={getError("new_password")}
+        {...getTextFieldProps("new_password")}
         autofocus
-        name="new_password"
         label="New password"
         placeholder="New password"
-        onChange={(value) => setField("new_password", value)}
-        onFocus={() => clearFieldError("new_password")}
-        onBlur={() => validateField("new_password")}
-        value={formData.new_password}
         className={`${baseClass}__input`}
         type="password"
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
@@ -92,14 +82,9 @@ const ResetPasswordForm = ({
         disabled={isSubmitting}
       />
       <InputFieldWithIcon
-        error={getError("new_password_confirmation")}
-        name="new_password_confirmation"
+        {...getTextFieldProps("new_password_confirmation")}
         label="Confirm password"
         placeholder="Confirm password"
-        onChange={(value) => setField("new_password_confirmation", value)}
-        onFocus={() => clearFieldError("new_password_confirmation")}
-        onBlur={() => validateField("new_password_confirmation")}
-        value={formData.new_password_confirmation}
         className={`${baseClass}__input`}
         type="password"
         ignore1Password={false}

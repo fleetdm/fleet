@@ -30,6 +30,7 @@ func TestUsers(t *testing.T) {
 		{"Delete", testUsersDelete},
 		{"Save", testUsersSave},
 		{"Has", testUsersHas},
+		{"NewInitialUser", testUsersNewInitialUser},
 		{"List", testUsersList},
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
@@ -262,6 +263,33 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	var ferr *fleet.Error
 	require.True(t, errors.As(err, &ferr))
 	assert.Equal(t, "Cannot specify both global and fleet-scoped roles", ferr.Message)
+}
+
+func testUsersNewInitialUser(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	first, err := ds.NewInitialUser(ctx, &fleet.User{
+		Name:       "first",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "first@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	require.NotZero(t, first.ID)
+
+	_, err = ds.NewInitialUser(ctx, &fleet.User{
+		Name:       "second",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "second@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	var existsErr *existsError
+	require.ErrorAs(t, err, &existsErr)
+
+	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+	assert.Equal(t, first.ID, users[0].ID)
 }
 
 func testUsersHas(t *testing.T, ds *Datastore) {

@@ -1,0 +1,8 @@
+{
+  "name": "Grok Bot",
+  "slug": "grok-bot/darwin",
+  "unique_identifier": "com.anysphere.sand",
+  "token": "grok-bot",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

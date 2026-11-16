@@ -564,6 +564,46 @@ func TestWriteBrowserSecurityHeadersCSPAndNonce(t *testing.T) {
 	)
 }
 
+func TestBrowserSecurityHeadersHandlerCSPNonce(t *testing.T) {
+	serve := func(serveCSP bool, h http.HandlerFunc) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		endpointer.BrowserSecurityHeadersHandler(serveCSP, h).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		return rec
+	}
+
+	t.Run("not requested", func(t *testing.T) {
+		rec := serve(true, func(w http.ResponseWriter, r *http.Request) {})
+		require.NotEmpty(t, rec.Header().Get("Content-Security-Policy"))
+		require.NotContains(t, rec.Header().Get("Content-Security-Policy"), "nonce-")
+	})
+
+	t.Run("requested", func(t *testing.T) {
+		var nonce, again string
+		var err, errAgain error
+		rec := serve(true, func(w http.ResponseWriter, r *http.Request) {
+			nonce, err = endpointer.CSPNonce(r.Context())
+			again, errAgain = endpointer.CSPNonce(r.Context())
+		})
+		require.NoError(t, err)
+		require.NoError(t, errAgain)
+		require.Equal(t, nonce, again)
+		require.NotEqual(t, "disabled", nonce)
+		require.Contains(t, rec.Header().Get("Content-Security-Policy"), "style-src 'self' 'nonce-"+nonce+"'")
+		require.Contains(t, rec.Header().Get("Content-Security-Policy"), "script-src 'self' 'nonce-"+nonce+"'")
+	})
+
+	t.Run("CSP disabled", func(t *testing.T) {
+		var nonce string
+		var err error
+		rec := serve(false, func(w http.ResponseWriter, r *http.Request) {
+			nonce, err = endpointer.CSPNonce(r.Context())
+		})
+		require.NoError(t, err)
+		require.Equal(t, "disabled", nonce)
+		require.Empty(t, rec.Header().Get("Content-Security-Policy"))
+	})
+}
+
 // newMultipartRequest creates an *http.Request with multipart/form-data body
 // containing the given field key/value pairs.
 func newMultipartRequest(t *testing.T, fields map[string]string) *http.Request {

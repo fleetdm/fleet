@@ -10,6 +10,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// mobilePlatformsSQLList lists the platforms that don't run osquery and so
+// can't be targeted by live reports.
+const mobilePlatformsSQLList = "('ios','ipados','android')"
+
 func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
@@ -23,13 +27,8 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "h")
 
 	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts.
-	// Mobile hosts are excluded here (WHERE platform NOT IN ...) because they
-	// can't respond to a live report, and counting them as "online" would
-	// overstate what a run would actually reach. SearchHosts and
-	// HostIDsInTargets apply the same filter so the picker hides mobile and a
-	// mobile-inclusive team target still drops mobile before the campaign
-	// fires. Desktop online/offline uses the osquery interval; the mobile
-	// CASE arm and its joins are absent since no mobile rows pass the filter.
+	// Mobile hosts are excluded because they don't run osquery and can't respond
+	// to a live report; kept in lockstep with HostIDsInTargets.
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
@@ -39,7 +38,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 			COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`+hostMDMSeenTimeJoin+`
-		WHERE h.platform NOT IN ('ios','ipados','android') AND %s AND %s`,
+		WHERE h.platform NOT IN `+mobilePlatformsSQLList+` AND %s AND %s`,
 		fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
@@ -139,15 +138,12 @@ func (ds *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilt
 
 	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "hosts")
 
-	// Live-query targets are desktop-only: mobile hosts don't run osquery, so
-	// forwarding them here would fire a campaign that never gets a response.
-	// Kept in lockstep with CountHostsInTargets and SearchHosts so a
-	// mobile-only target rejects at the "no hosts targeted" gate in
-	// NewDistributedQueryCampaign.
+	// Mobile hosts don't run osquery, so a mobile-only target must hit the
+	// "no hosts targeted" gate in NewDistributedQueryCampaign.
 	sql := fmt.Sprintf(`
 			SELECT DISTINCT id
 			FROM hosts
-			WHERE hosts.platform NOT IN ('ios','ipados','android') AND %s AND %s
+			WHERE hosts.platform NOT IN `+mobilePlatformsSQLList+` AND %s AND %s
 			ORDER BY id ASC
 		`,
 		queryTargetLogicCondition,

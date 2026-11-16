@@ -18,24 +18,33 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// NixOS keeps the setuid sudo outside the store, in a directory that is not on
+// the minimal PATH systemd gives services, so it is resolved by its fixed path.
+var (
+	nixosMarkerFile = "/etc/NIXOS"
+	nixosSudoPath   = "/run/wrappers/bin/sudo"
+)
+
+func sudoCommand() string {
+	if _, err := os.Stat(nixosMarkerFile); err != nil {
+		return "sudo"
+	}
+	if _, err := os.Stat(nixosSudoPath); err != nil {
+		return "sudo"
+	}
+	return nixosSudoPath
+}
+
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	if opts.user == "" {
 		return nil, errors.New("missing user")
 	}
 
-	args, env, err := getConfigForCommand(opts.user, path)
+	args, env, err := getConfigForCommand(opts.user, path, opts.xdgSessionEnv)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
-
-	env = append(env,
-		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
-		//
-		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
-		// keep this to support older versions of Fleet Desktop.
-		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
-	)
 
 	for _, nv := range opts.env {
 		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
@@ -60,7 +69,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	args = append(args, cmdArgs...)
 
 	// Use sudo to run the command as the login user.
-	args = append([]string{"sudo"}, args...)
+	args = append([]string{sudoCommand()}, args...)
 
 	// If a timeout is set, prefix the command with "timeout".
 	if opts.timeout > 0 {
@@ -242,7 +251,7 @@ func getDisplayVariableForSession(userID string, displaySessionType userpkg.GuiS
 	return waylandDisplay
 }
 
-func getConfigForCommand(user string, path string) (args []string, env []string, err error) {
+func getConfigForCommand(user string, path string, xdgSessionEnv bool) (args []string, env []string, err error) {
 	// Get user ID
 	userID, err := getUserID(user)
 	if err != nil {
@@ -292,6 +301,17 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 	}
 	env = make([]string, 0)
 
+	// sudo resets the environment. Without XDG_RUNTIME_DIR a relative WAYLAND_DISPLAY
+	// can't be resolved to a socket, and without XDG_SESSION_TYPE Chromium-based
+	// browsers fall back to X11, which Xwayland rejects without the session's
+	// XAUTHORITY ("Missing X server or $DISPLAY").
+	if xdgSessionEnv {
+		env = append(env,
+			"XDG_RUNTIME_DIR=/run/user/"+userID,
+			"XDG_SESSION_TYPE="+userDisplaySession.Type.String(),
+		)
+	}
+
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
 		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
@@ -309,6 +329,11 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
 		// (because it's already part of the user).
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus", userID),
+		// sudo's env_reset drops XDG_RUNTIME_DIR, and libwayland resolves a relative
+		// WAYLAND_DISPLAY against it. On compositors whose socket isn't wayland-0
+		// (Hyprland uses wayland-1) GTK and Qt then fall back to an X11 display that
+		// doesn't exist, so zenity and kdialog fail with "Failed to open display".
+		"XDG_RUNTIME_DIR=/run/user/"+userID,
 	)
 
 	return args, env, nil

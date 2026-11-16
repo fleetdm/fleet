@@ -79,7 +79,6 @@ locals {
     FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
     FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
-    FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     FLEET_OSQUERY_POLICY_UPDATE_INTERVAL       = "30m"
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
@@ -92,9 +91,11 @@ locals {
     FLEET_MDM_ALLOW_ALL_DECLARATIONS     = "true"
     FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS   = "true"
     FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
     FLEET_OSQUERY_CONFIG_ETAGS           = "true"
     FLEET_OSQUERY_REDIS_CONFIG_ETAGS     = "true"
     FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE = "true"
+    # FLEET_SERVER_ENABLE_CSP              = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path

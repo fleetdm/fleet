@@ -8,6 +8,22 @@
     min-width: 0;
   }
 
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+
+    .component__tooltip-wrapper {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .tag {
+      flex-shrink: 0;
+    }
+  }
+
   &__details {
     display: flex;
     align-items: center;

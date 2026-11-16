@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` rejecting macOS disk encryption for a fleet when Apple MDM is off. It's now accepted, the same as the disk encryption API.

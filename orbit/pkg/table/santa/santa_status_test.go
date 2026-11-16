@@ -44,6 +44,25 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
 }
 
+// TestGenerateStatus_RunsBundleBinary guards against running santactl from a
+// possibly user-writable directory such as /usr/local/bin, since osquery runs
+// it as root.
+func TestGenerateStatus_RunsBundleBinary(t *testing.T) {
+	t.Cleanup(func() { execCommandContext = exec.CommandContext })
+	fake := fakeExecCommandContext(t, sampleStatusJSON())
+	var gotName string
+	var gotArgs []string
+	execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		gotName, gotArgs = name, args
+		return fake(ctx, name, args...)
+	}
+
+	_, err := GenerateStatus(t.Context(), table.QueryContext{})
+	require.NoError(t, err)
+	require.Equal(t, "/Applications/Santa.app/Contents/MacOS/santactl", gotName)
+	require.Equal(t, []string{"status", "--json"}, gotArgs)
+}
+
 func TestGenerateStatus_DaemonUnreachableReturnsRowWithError(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
 	const daemonErr = "An error occurred communicating with the Santa daemon"

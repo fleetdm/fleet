@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained app endpoints returning a 500 instead of a clear error message when Fleet couldn't fetch the app's manifest.

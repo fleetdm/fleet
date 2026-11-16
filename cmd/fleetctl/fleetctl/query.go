@@ -93,9 +93,8 @@ be run on the union of the hosts and hosts with matching labels.
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "ID of the fleet where the named report belongs to (0 means global)",
+				Name:  fleetFlagName,
+				Usage: "ID of the fleet where the named report belongs to (0 means global)",
 			},
 			configFlag(),
 			contextFlag(),
@@ -109,7 +108,9 @@ be run on the union of the hosts and hosts with matching labels.
 				return err
 			}
 
-			if flHosts == "" && flLabels == "" {
+			hostIdentifiers := splitCommaSeparated(flHosts)
+			labels := splitCommaSeparated(flLabels)
+			if len(hostIdentifiers) == 0 && len(labels) == 0 {
 				return errors.New("No hosts or labels targeted. Please provide either --hosts or --labels.")
 			}
 
@@ -148,9 +149,6 @@ be run on the union of the hosts and hosts with matching labels.
 			} else {
 				output = newJsonWriter(c.App.Writer)
 			}
-
-			hostIdentifiers := strings.Split(flHosts, ",")
-			labels := strings.Split(flLabels, ",")
 
 			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
@@ -255,4 +253,14 @@ be run on the union of the hosts and hosts with matching labels.
 			}
 		},
 	}
+}
+
+func splitCommaSeparated(s string) []string {
+	var parts []string
+	for part := range strings.SplitSeq(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }

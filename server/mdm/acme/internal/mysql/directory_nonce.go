@@ -21,7 +21,9 @@ SELECT
 	path_identifier,
 	host_identifier,
 	not_valid_after,
-	revoked
+	revoked,
+	purpose,
+	enrollment_id
 FROM
 	acme_enrollments
 WHERE

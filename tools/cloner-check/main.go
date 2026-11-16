@@ -42,8 +42,6 @@ import (
 // If you add a new cacheable struct, make sure to add it to this list.
 var cacheableItems = []fleet.Cloner{
 	&fleet.AppConfig{},
-	&fleet.Pack{},
-	&fleet.ScheduledQuery{},
 	&fleet.Features{},
 	&fleet.TeamMDM{},
 	&fleet.TeamConfig{},
@@ -52,6 +50,7 @@ var cacheableItems = []fleet.Cloner{
 	&fleet.MDMConfigAsset{},
 	&fleet.YaraRule{},
 	&fleet.WindowsEnrollmentDefaultFleet{},
+	&fleet.MDMEULAMetadataLookup{},
 	// TeamAgentOptions is not in the list because it is a json.RawMessage, no fields can change.
 	// Same for ResultCountForQuery, it's just an int, and for QueriesPerHost, a []uint.
 }

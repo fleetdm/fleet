@@ -20,7 +20,7 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	User           *User          `json:"user,omitempty"`
-	AvailableTeams []*TeamSummary `json:"available_teams" renameto:"available_fleets"`
+	AvailableTeams []*TeamSummary `json:"available_fleets"`
 	Token          string         `json:"token,omitempty"`
 	TokenExpiresAt *time.Time     `json:"token_expires_at,omitempty"`
 	Err            error          `json:"error,omitempty"`

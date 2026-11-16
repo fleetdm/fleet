@@ -1,15 +1,21 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -17,6 +23,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,13 +31,17 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	scepx509util "github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	googlecas_mock "github.com/fleetdm/fleet/v4/server/mock/googlecas"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/smallstep/pkcs7"
@@ -174,6 +185,7 @@ func TestRequestCertificate(t *testing.T) {
 	hydrantSimpleEnrollResponse := defaultHydrantSimpleEnrollResponse
 	hydrantSimpleEnrollStatus := http.StatusOK
 	var hydrantSimpleEnrollCalls atomic.Int64
+	var hydrantSimpleEnrollBody atomic.Pointer[string]
 
 	mockHydrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -193,6 +205,8 @@ func TestRequestCertificate(t *testing.T) {
 			return
 		}
 		hydrantSimpleEnrollCalls.Add(1)
+		body, _ := io.ReadAll(r.Body)
+		hydrantSimpleEnrollBody.Store(new(string(body)))
 
 		if hydrantSimpleEnrollStatus != http.StatusOK {
 			w.WriteHeader(hydrantSimpleEnrollStatus)
@@ -230,6 +244,63 @@ func TestRequestCertificate(t *testing.T) {
 		Password: ptr.String("test-password"),
 	}
 
+	const ndesChallenge = "8CE317021F690069"
+	var ndesCAs []*fleet.CertificateAuthority
+	newNDESCA := func(scepURL *string) *fleet.CertificateAuthority {
+		ca := &fleet.CertificateAuthority{
+			ID:       uint(100 + len(ndesCAs)),
+			Name:     new("NDES"),
+			Type:     string(fleet.CATypeNDESSCEPProxy),
+			URL:      scepURL,
+			AdminURL: new("https://ndes.example.com/certsrv/mscep_admin/"),
+			Username: new("ndes-user"),
+			Password: new("ndes-password"),
+		}
+		ndesCAs = append(ndesCAs, ca)
+		return ca
+	}
+	ndesCA := newNDESCA(new(sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(ndesChallenge)).URL + "/scep"))
+	raNDESCA := newNDESCA(new(sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(ndesChallenge), sceptest.WithRAChain()).URL + "/scep"))
+	unreachableSCEPServer := httptest.NewServer(http.NotFoundHandler())
+	unreachableSCEPServer.Close()
+	unreachableNDESCA := newNDESCA(new(unreachableSCEPServer.URL + "/scep"))
+	noURLNDESCA := newNDESCA(nil)
+
+	googleCASCA := &fleet.CertificateAuthority{
+		ID:                  200,
+		Name:                new("GOOGLE_WIFI"),
+		Type:                string(fleet.CATypeGoogleCAS),
+		URL:                 new(""),
+		GoogleCASProject:    new("my-project"),
+		GoogleCASLocation:   new("us-central1"),
+		GoogleCASCAPool:     new("my-pool"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account"}`),
+	}
+	googleCASNoKeyCA := &fleet.CertificateAuthority{
+		ID: 201, Name: new("GOOGLE_NO_KEY"), Type: string(fleet.CATypeGoogleCAS), URL: new(""),
+		GoogleCASProject: new("my-project"), GoogleCASLocation: new("us-central1"), GoogleCASCAPool: new("my-pool"),
+	}
+	googleCASIssuerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	googleCASIssuer := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "Test Google CAS"}}
+	// googleCASIssueWith stands in for Google CAS issuing from a CSR, with the given extensions.
+	googleCASIssueWith := func(req *x509.CertificateRequest, extensions []pkix.Extension) (*x509.Certificate, error) {
+		der, err := x509.CreateCertificate(rand.Reader, &x509.Certificate{
+			SerialNumber: big.NewInt(42), Subject: req.Subject, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+			ExtraExtensions: extensions,
+		}, googleCASIssuer, req.PublicKey, googleCASIssuerKey)
+		if err != nil {
+			return nil, err
+		}
+		return x509.ParseCertificate(der)
+	}
+	// googleCASIssue issues like Google: the certificate carries the CSR's subject, key and extensions.
+	googleCASIssue := func(req *x509.CertificateRequest) (*x509.Certificate, error) {
+		return googleCASIssueWith(req, req.Extensions)
+	}
+	// googleCAS stands in for Google CAS; baseSetupForTests resets it to issue with googleCASIssue.
+	googleCAS := &googlecas_mock.Service{}
+
 	useDefaultAuthContext := true
 
 	// Reset by baseSetupForTests; mutated by the allowlist and host-binding subtests.
@@ -240,7 +311,7 @@ func TestRequestCertificate(t *testing.T) {
 		// Setup DS mocks
 		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 			require.True(t, includeSecrets, "RequestCertificate should always fetch secrets")
-			for _, ca := range []*fleet.CertificateAuthority{hydrantCA, digicertCA, customESTCA} {
+			for _, ca := range append([]*fleet.CertificateAuthority{hydrantCA, digicertCA, customESTCA, googleCASCA, googleCASNoKeyCA}, ndesCAs...) {
 				if ca.ID == id {
 					return ca, nil
 				}
@@ -271,7 +342,13 @@ func TestRequestCertificate(t *testing.T) {
 				est.WithTimeout(2*time.Second),
 				est.WithLogger(logger),
 			),
+			scepEnrollmentClient: scep.NewEnrollmentClient(logger),
+			googleCASService:     googleCAS,
 		}
+		googleCAS.IssueCertificateFunc = func(ctx context.Context, ca fleet.GoogleCASCA, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+			return googleCASIssue(csr)
+		}
+		googleCAS.IssueCertificateFuncInvoked = false
 
 		authCtx := &authz_ctx.AuthorizationContext{}
 		ctx := authz_ctx.NewContext(context.Background(), authCtx)
@@ -286,6 +363,7 @@ func TestRequestCertificate(t *testing.T) {
 		hydrantSimpleEnrollResponse = defaultHydrantSimpleEnrollResponse
 		hydrantSimpleEnrollStatus = http.StatusOK
 		hydrantSimpleEnrollCalls.Store(0)
+		hydrantSimpleEnrollBody.Store(nil)
 
 		return svc, ds, ctx
 	}
@@ -399,15 +477,18 @@ func TestRequestCertificate(t *testing.T) {
 		oauthIntrospectResponse = map[string]interface{}{
 			"active": false,
 		}
-		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
-			ID:          hydrantCA.ID,
-			CSR:         goodCSR,
-			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
-			IDPToken:    ptr.String("test-idp-token"),
-			IDPClientID: ptr.String("test-client-id"), // Missing client ID
-		})
-		require.ErrorAs(t, err, &invalidIDP)
-		require.Nil(t, cert)
+		// The token is checked before the CSR's email and UPN are compared, so a bad token is reported as such either way.
+		for _, csr := range []string{goodCSR, badCSR} {
+			cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+				ID:          hydrantCA.ID,
+				CSR:         csr,
+				IDPOauthURL: new(mockOauthServer.URL + "/oauth2/v1/introspect"),
+				IDPToken:    new("test-idp-token"),
+				IDPClientID: new("test-client-id"),
+			})
+			require.ErrorAs(t, err, &invalidIDP)
+			require.Nil(t, cert)
+		}
 	})
 
 	t.Run("Request a certificate - IDP introspection does not return a username", func(t *testing.T) {
@@ -456,7 +537,7 @@ func TestRequestCertificate(t *testing.T) {
 		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
-	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {
+	t.Run("Request certificate - unsupported CA type", func(t *testing.T) {
 		svc, _, ctx := baseSetupForTests()
 		setAllowlist(t, introspectURL, "test-client-id")
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
@@ -466,7 +547,9 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-idp-client-id"),
 		})
-		require.ErrorContains(t, err, "This API currently only supports Hydrant and EST Certificate Authorities.")
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.Equal(t, "This API currently only supports Hydrant, EST, NDES, and Google CAS Certificate Authorities.", badRequest.Message)
 	})
 
 	t.Run("Request certificate - nonexistent CA", func(t *testing.T) {
@@ -579,14 +662,29 @@ func TestRequestCertificate(t *testing.T) {
 		require.ErrorAs(t, err, &invalidCSR)
 	})
 
-	t.Run("Request a certificate - CSR is not a CSR, no IDP provided", func(t *testing.T) {
+	t.Run("Request a certificate - CA receives the CSR re-encoded from its DER, whatever the PEM label", func(t *testing.T) {
 		svc, _, ctx := baseSetupForTests()
+
+		csr := strings.ReplaceAll(goodCSR, "CERTIFICATE REQUEST-----", "NEW CERTIFICATE REQUEST-----")
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: hydrantCA.ID, CSR: csr})
+		require.NoError(t, err)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
+
+		block, _ := pem.Decode([]byte(goodCSR))
+		require.NotNil(t, block)
+		require.Equal(t, string(wrapBase64(block.Bytes)), *hydrantSimpleEnrollBody.Load())
+	})
+
+	t.Run("Request a certificate - CSR is not a CSR, no IDP provided, rejected before any datastore call", func(t *testing.T) {
+		svc, ds, ctx := baseSetupForTests()
 
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
 			CSR: "I am not a CSR",
 		})
 		require.ErrorAs(t, err, &invalidCSR)
+		require.False(t, ds.GetCertificateAuthorityByIDFuncInvoked)
+		require.False(t, ds.AppConfigFuncInvoked)
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true", func(t *testing.T) {
@@ -1055,18 +1153,397 @@ func TestRequestCertificate(t *testing.T) {
 		require.NotNil(t, cert)
 	})
 
-	t.Run("Request a certificate - return_pem_certificate false preserves PKCS7 wrapping", func(t *testing.T) {
+	t.Run("Request a certificate - NDES", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			ca            *fleet.CertificateAuthority
+			csr           string
+			returnPEM     bool
+			wantBlockType string
+		}{
+			"default PKCS7 output": {ca: ndesCA, csr: newNDESTestCSR(t, ndesChallenge), wantBlockType: "PKCS7"},
+			"return_pem_certificate, CSR with escaped newlines": {
+				ca: ndesCA, csr: strings.ReplaceAll(newNDESTestCSR(t, ndesChallenge), "\n", `\n`), returnPEM: true, wantBlockType: "CERTIFICATE",
+			},
+			"CA chain with an RA certificate": {ca: raNDESCA, csr: newNDESTestCSR(t, ndesChallenge), returnPEM: true, wantBlockType: "CERTIFICATE"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: tc.ca.ID, CSR: tc.csr, ReturnPEMCertificate: tc.returnPEM})
+				require.NoError(t, err)
+				require.NotNil(t, cert)
+
+				block, rest := pem.Decode([]byte(*cert))
+				require.NotNil(t, block)
+				require.Empty(t, rest)
+				require.Equal(t, tc.wantBlockType, block.Type)
+				issued := block.Bytes
+				if block.Type == "PKCS7" {
+					p7, err := pkcs7.Parse(block.Bytes)
+					require.NoError(t, err)
+					require.Len(t, p7.Certificates, 1)
+					issued = p7.Certificates[0].Raw
+				}
+				parsed := parseDERCert(t, issued)
+				require.NoError(t, parsed.CheckSignatureFrom(sceptest.CACertificate(t)))
+				require.Equal(t, "test-host managementAttestation", parsed.Subject.CommonName)
+			})
+		}
+	})
+
+	t.Run("Request a certificate - NDES, unreachable SCEP URL is a 503 with Retry-After", func(t *testing.T) {
 		svc, _, ctx := baseSetupForTests()
 
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: unreachableNDESCA.ID, CSR: newNDESTestCSR(t, ndesChallenge)})
+		transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+		require.True(t, ok, "got %v", err)
+		require.Equal(t, http.StatusServiceUnavailable, transient.StatusCode())
+		require.Equal(t, 30, transient.RetryAfter())
+		// The response carries the innermost message; the full chain is for the logs.
+		require.True(t, strings.HasPrefix(transient.Message, "getting CA certificates from SCEP URL: "), transient.Message)
+		require.Contains(t, err.Error(), "SCEP certificate request failed: getting CA certificates from SCEP URL: ")
+		require.NotContains(t, err.Error(), "getting CA certificates from SCEP URL: getting CA certificates")
+		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - NDES failures are bad requests", func(t *testing.T) {
+		// A missing challenge and a wrong one are the same rejection from the CA's side.
+		for name, tc := range map[string]struct {
+			ca          *fleet.CertificateAuthority
+			challenge   string
+			wantMessage string
+		}{
+			"CSR without a challenge": {
+				ca: ndesCA, wantMessage: "SCEP server rejected the request: status FAILURE with fail info badRequest (2); " +
+					"if this certificate authority requires a challenge, include it as the CSR's challengePassword attribute",
+			},
+			"CA without a SCEP URL": {ca: noURLNDESCA, challenge: ndesChallenge, wantMessage: "Certificate authority does not have a SCEP URL configured."},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: tc.ca.ID, CSR: newNDESTestCSR(t, tc.challenge)})
+				var badRequest *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequest)
+				require.Contains(t, badRequest.Message, tc.wantMessage)
+				require.Nil(t, cert)
+			})
+		}
+	})
+	t.Run("Request a certificate - Google CAS", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+		csr := newGoogleCASTestCSR(t, upnSAN("fleetie@example.com"))
+		var gotCA fleet.GoogleCASCA
+		var gotCSR, issuedDER []byte
+		googleCAS.IssueCertificateFunc = func(ctx context.Context, ca fleet.GoogleCASCA, req *x509.CertificateRequest) (*x509.Certificate, error) {
+			gotCA, gotCSR = ca, req.Raw
+			issued, err := googleCASIssue(req)
+			if err == nil {
+				issuedDER = issued.Raw
+			}
+			return issued, err
+		}
+
+		// By default the certificate comes back as a PKCS7 envelope, like every other CA's.
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: csr})
+		require.NoError(t, err)
+		block, _ := pem.Decode([]byte(*cert))
+		require.Equal(t, "PKCS7", block.Type)
+		envelope, err := pkcs7.Parse(block.Bytes)
+		require.NoError(t, err)
+		require.Len(t, envelope.Certificates, 1)
+		require.Equal(t, issuedDER, envelope.Certificates[0].Raw)
+		require.Equal(t, "projects/my-project/locations/us-central1/caPools/my-pool", gotCA.CAPoolResourceName())
+		require.JSONEq(t, `{"type":"service_account"}`, string(gotCA.APIKeyJSON))
+		csrBlock, _ := pem.Decode([]byte(csr))
+		require.Equal(t, csrBlock.Bytes, gotCSR)
+
+		cert, err = svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: csr, ReturnPEMCertificate: true})
+		require.NoError(t, err)
+		require.Equal(t, string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: issuedDER})), *cert)
+	})
+
+	t.Run("Request a certificate - Google CAS accepts only the request script's UPN-only CSR, whatever the identity checks", func(t *testing.T) {
+		upnOID, err := asn1.Marshal(asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3})
+		require.NoError(t, err)
+		kerberosOID, err := asn1.Marshal(asn1.ObjectIdentifier{1, 3, 6, 1, 5, 2, 2})
+		require.NoError(t, err)
+		der := func(class, tag int, compound bool, content ...[]byte) []byte {
+			b, err := asn1.Marshal(asn1.RawValue{Class: class, Tag: tag, IsCompound: compound, Bytes: bytes.Join(content, nil)})
+			require.NoError(t, err)
+			return b
+		}
+		utf8String := func(v string) []byte { return der(asn1.ClassUniversal, asn1.TagUTF8String, false, []byte(v)) }
+		explicit := func(content ...[]byte) []byte { return der(asn1.ClassContextSpecific, 0, true, content...) }
+		otherName := func(content ...[]byte) sanEntry {
+			return asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: bytes.Join(content, nil)}
+		}
+		fleetie := upnSAN("fleetie@example.com")
+		extension := func(oid asn1.ObjectIdentifier, value []byte) []pkix.Extension {
+			return []pkix.Extension{{Id: oid, Critical: true, Value: value}}
+		}
+		subject := func(name pkix.Name) string { return newGoogleCASTestCSRWith(t, name, nil, fleetie) }
+		sanExtension := func(sans ...sanEntry) []byte {
+			value, err := asn1.Marshal(sans)
+			require.NoError(t, err)
+			ext, err := asn1.Marshal(pkix.Extension{Id: asn1.ObjectIdentifier{2, 5, 29, 17}, Value: value})
+			require.NoError(t, err)
+			return ext
+		}
+		extensions := func(exts ...[]byte) []byte { return der(asn1.ClassUniversal, asn1.TagSequence, true, exts...) }
+		attribute := func(oid asn1.ObjectIdentifier, values ...[]byte) []byte {
+			id, err := asn1.Marshal(oid)
+			require.NoError(t, err)
+			return der(asn1.ClassUniversal, asn1.TagSequence, true, id, der(asn1.ClassUniversal, asn1.TagSet, true, values...))
+		}
+		extensionRequest := asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
+		cn := func(tag int, value []byte) []byte {
+			id, err := asn1.Marshal(asn1.ObjectIdentifier{2, 5, 4, 3})
+			require.NoError(t, err)
+			name := der(asn1.ClassUniversal, asn1.TagSequence, true, id, der(asn1.ClassUniversal, tag, false, value))
+			return der(asn1.ClassUniversal, asn1.TagSet, true, name)
+		}
+		rdns := func(sets ...[]byte) []byte { return der(asn1.ClassUniversal, asn1.TagSequence, true, sets...) }
+		fleetieRequest := attribute(extensionRequest, extensions(sanExtension(fleetie)))
+		sanOID, err := asn1.Marshal(asn1.ObjectIdentifier{2, 5, 29, 17})
+		require.NoError(t, err)
+		fleetieSAN, err := asn1.Marshal([]sanEntry{fleetie})
+		require.NoError(t, err)
+		explicitlyNotCritical := der(asn1.ClassUniversal, asn1.TagSequence, true, sanOID, []byte{0x01, 0x01, 0x00},
+			der(asn1.ClassUniversal, asn1.TagOctetString, false, fleetieSAN))
+		rsaPSS, err := asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 10})
+		require.NoError(t, err)
+		cnOID, err := asn1.Marshal(asn1.ObjectIdentifier{2, 5, 4, 3})
+		require.NoError(t, err)
+		withTrailingData := func(csr string) string {
+			block, _ := pem.Decode([]byte(csr))
+			var outer asn1.RawValue
+			_, err := asn1.Unmarshal(block.Bytes, &outer)
+			require.NoError(t, err)
+			return string(pem.EncodeToMemory(&pem.Block{Type: block.Type,
+				Bytes: der(asn1.ClassUniversal, asn1.TagSequence, true, outer.Bytes, der(asn1.ClassUniversal, asn1.TagNull, false))}))
+		}
+		for name, csr := range map[string]string{
+			"email and UPN": goodCSR,
+			"DNS and UPN":   noEmailCSR,
+			"DNS only":      newGoogleCASTestCSR(t, dnsSAN("example.com")),
+			"two UPNs":      newGoogleCASTestCSR(t, upnSAN("fleetie@example.com"), upnSAN("other@example.com")),
+			"empty UPN":     newGoogleCASTestCSR(t, upnSAN("")),
+			"no SANs":       newGoogleCASTestCSR(t),
+			"URI and UPN":   newGoogleCASTestCSR(t, upnSAN("fleetie@example.com"), uriSAN("https://example.com")),
+			"Kerberos principal and UPN": newGoogleCASTestCSR(t, upnSAN("fleetie@example.com"),
+				otherNameSAN(asn1.ObjectIdentifier{1, 3, 6, 1, 5, 2, 2}, "other@EXAMPLE.COM")),
+			"another otherName only": newGoogleCASTestCSR(t, otherNameSAN(asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 8, 9}, "fleetie@example.com")),
+			"directory name and UPN": newGoogleCASTestCSR(t, upnSAN("fleetie@example.com"), directoryNameSAN(t, "other")),
+			"UPN followed by a second pair": newGoogleCASTestCSR(t, otherName(upnOID, explicit(utf8String("fleetie@example.com")),
+				kerberosOID, explicit(utf8String("other@EXAMPLE.COM")))),
+			"UPN holding two strings": newGoogleCASTestCSR(t, otherName(upnOID, explicit(utf8String("fleetie@example.com"),
+				utf8String("other@example.com")))),
+			"UPN as an IA5String": newGoogleCASTestCSR(t, otherName(upnOID, explicit(der(asn1.ClassUniversal, asn1.TagIA5String, false,
+				[]byte("fleetie@example.com"))))),
+			"UPN with a control character": newGoogleCASTestCSRWith(t, pkix.Name{}, nil, upnSAN("fleetie\x00@example.com")),
+			"UPN that isn't UTF-8":         newGoogleCASTestCSRWith(t, pkix.Name{}, nil, otherName(upnOID, explicit(utf8String("fleetie\xff@example.com")))),
+			"extension other than the SAN (basic constraints)": newGoogleCASTestCSRWith(t, pkix.Name{},
+				extension(asn1.ObjectIdentifier{2, 5, 29, 19}, []byte{0x30, 0x03, 0x01, 0x01, 0xff}), fleetie),
+			"extension other than the SAN (key usage)": newGoogleCASTestCSRWith(t, pkix.Name{},
+				extension(asn1.ObjectIdentifier{2, 5, 29, 15}, []byte{0x03, 0x02, 0x01, 0x06}), fleetie),
+			"extension other than the SAN (private)": newGoogleCASTestCSRWith(t, pkix.Name{},
+				extension(asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 32473, 1}, []byte{0x05, 0x00}), fleetie),
+			"challenge password attribute": rawGoogleCASTestCSR(t, nil, rdns(), fleetieRequest,
+				attribute(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 7}, der(asn1.ClassUniversal, asn1.TagUTF8String, false, []byte("password")))),
+			"SAN marked not critical explicitly": rawGoogleCASTestCSR(t, nil, rdns(), attribute(extensionRequest, extensions(explicitlyNotCritical))),
+			"unsupported public key algorithm": rawGoogleCASTestCSR(t, der(asn1.ClassUniversal, asn1.TagSequence, true,
+				der(asn1.ClassUniversal, asn1.TagSequence, true, rsaPSS), der(asn1.ClassUniversal, asn1.TagBitString, false, []byte{0, 1, 2, 3})),
+				rdns(), fleetieRequest),
+			"data after the signature": withTrailingData(rawGoogleCASTestCSR(t, nil, rdns(), fleetieRequest)),
+			"common name with a trailing value": rawGoogleCASTestCSR(t, nil, rdns(der(asn1.ClassUniversal, asn1.TagSet, true,
+				der(asn1.ClassUniversal, asn1.TagSequence, true, cnOID, utf8String("fleetie@example.com"), utf8String("other@example.com")))),
+				fleetieRequest),
+			"common name that isn't the UPN":                      subject(pkix.Name{CommonName: "other@example.com"}),
+			"prefixed common name that isn't the UPN":             subject(pkix.Name{CommonName: "CustomerUserNetworkAccess:other@example.com"}),
+			"prefix with an @":                                    subject(pkix.Name{CommonName: "other@example.com:fleetie@example.com"}),
+			"prefix with a control character":                     subject(pkix.Name{CommonName: "Wifi\n:fleetie@example.com"}),
+			"prefix with a non-ASCII character":                   subject(pkix.Name{CommonName: "Wifi\uff20:fleetie@example.com"}),
+			"subject with more than a common name (organization)": subject(pkix.Name{CommonName: "fleetie@example.com", Organization: []string{"Fleet"}}),
+			"subject with more than a common name (email address)": subject(pkix.Name{CommonName: "fleetie@example.com", ExtraNames: []pkix.AttributeTypeAndValue{
+				{Type: asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "other@example.com"},
+			}}),
+			"common name of another string type": rawGoogleCASTestCSR(t, nil, rdns(cn(asn1.TagT61String, []byte("fleetie@example.com"))), fleetieRequest),
+			"empty name before the common name": rawGoogleCASTestCSR(t, nil, rdns(der(asn1.ClassUniversal, asn1.TagSet, true), cn(asn1.TagUTF8String,
+				[]byte("fleetie@example.com"))), fleetieRequest),
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: csr})
+				require.ErrorIs(t, err, invalidCSR)
+				require.Nil(t, cert)
+				require.False(t, googleCAS.IssueCertificateFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("Request a certificate - Google CAS, UPN matches the IdP username regardless of case", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+		setAllowlist(t, introspectURL, "test-client-id")
+
 		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
-			ID:                   hydrantCA.ID,
-			CSR:                  goodCSR,
-			ReturnPEMCertificate: false,
+			ID:          googleCASCA.ID,
+			CSR:         newGoogleCASTestCSR(t, upnSAN("Fleetie@Example.com")),
+			IDPOauthURL: new(introspectURL),
+			IDPToken:    new("test-idp-token"),
+			IDPClientID: new("test-client-id"),
 		})
 		require.NoError(t, err)
 		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
+		require.EqualValues(t, 1, oauthIntrospectCalls.Load())
 	})
+
+	t.Run("Request a certificate - Google CAS accepts an empty subject or a common name naming the UPN", func(t *testing.T) {
+		for name, subject := range map[string]pkix.Name{
+			"empty subject":                          {},
+			"the UPN":                                {CommonName: "fleetie@example.com"},
+			"the UPN in another case after a prefix": {CommonName: "Wifi:FLEETIE@example.com"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+					ID: googleCASCA.ID, CSR: newGoogleCASTestCSRWith(t, subject, nil, upnSAN("fleetie@example.com")),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, cert)
+			})
+		}
+	})
+
+	t.Run("Request a certificate - Google CAS, UPN naming another user than the IdP token is rejected", func(t *testing.T) {
+		for name, tc := range map[string]struct{ upn, idpUsername string }{
+			"another user": {upn: "other@example.com", idpUsername: "fleetie@example.com"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+				setAllowlist(t, introspectURL, "test-client-id")
+				oauthIntrospectResponse = map[string]any{"active": true, "username": tc.idpUsername}
+
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+					ID:          googleCASCA.ID,
+					CSR:         googleCASTestCSRFor(t, tc.upn),
+					IDPOauthURL: new(introspectURL),
+					IDPToken:    new("test-idp-token"),
+					IDPClientID: new("test-client-id"),
+				})
+				require.ErrorIs(t, err, invalidIDP)
+				require.Nil(t, cert)
+				require.False(t, googleCAS.IssueCertificateFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("Request a certificate - Google CAS, host binding on, UPN is bound to the host's end user", func(t *testing.T) {
+		const mismatch = "does not match the end user identity recorded for this host"
+		for name, tc := range map[string]struct {
+			upn, endUser, wantErr string
+		}{
+			"recorded end user, different case": {upn: "FLEETIE@example.com", endUser: "fleetie@example.com"},
+			"non-ASCII letter, different case":  {upn: "\u00c9milie@example.com", endUser: "\u00e9milie@example.com", wantErr: mismatch},
+			"another user":                      {upn: "other@example.com", endUser: "fleetie@example.com", wantErr: mismatch},
+			"local part only":                   {upn: "fleetie", endUser: "fleetie@example.com", wantErr: mismatch},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, ds, ctx := deviceSetup(t, new(uint(1)))
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{{HostID: hostID, Email: tc.endUser, Source: fleet.DeviceMappingIDP}}, nil
+				}
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: googleCASTestCSRFor(t, tc.upn)})
+				if tc.wantErr == "" {
+					require.NoError(t, err)
+					require.NotNil(t, cert)
+					return
+				}
+				require.ErrorContains(t, err, tc.wantErr)
+				require.Nil(t, cert)
+				require.False(t, googleCAS.IssueCertificateFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("Request a certificate - Google CAS failures", func(t *testing.T) {
+		csr := newGoogleCASTestCSR(t, upnSAN("fleetie@example.com"))
+
+		t.Run("transient failure is a 503 with Retry-After", func(t *testing.T) {
+			svc, _, ctx := baseSetupForTests()
+			googleCAS.IssueCertificateFunc = func(ctx context.Context, ca fleet.GoogleCASCA, req *x509.CertificateRequest) (*x509.Certificate, error) {
+				return nil, fleet.CertificateAuthorityTransientError{Message: "Google CAS couldn't issue the certificate (HTTP 503). Try again later.", RetryAfterSeconds: 30}
+			}
+			_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: csr})
+			transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+			require.True(t, ok, err)
+			require.Equal(t, http.StatusServiceUnavailable, transient.StatusCode())
+		})
+
+		t.Run("rejection is a bad request with the reason", func(t *testing.T) {
+			svc, _, ctx := baseSetupForTests()
+			googleCAS.IssueCertificateFunc = func(ctx context.Context, ca fleet.GoogleCASCA, req *x509.CertificateRequest) (*x509.Certificate, error) {
+				return nil, errors.New("Google CAS rejected the certificate request.")
+			}
+			_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: csr})
+			var badRequest *fleet.BadRequestError
+			require.ErrorAs(t, err, &badRequest)
+			require.Contains(t, badRequest.Message, "Google CAS rejected the certificate request.")
+		})
+
+		t.Run("an issued certificate naming more than the requested UPN is refused", func(t *testing.T) {
+			san := func(sans ...sanEntry) pkix.Extension {
+				value, err := asn1.Marshal(sans)
+				require.NoError(t, err)
+				return pkix.Extension{Id: asn1.ObjectIdentifier{2, 5, 29, 17}, Value: value}
+			}
+			for name, exts := range map[string][]pkix.Extension{
+				"another UPN":           {san(upnSAN("other@example.com"))},
+				"a DNS name too":        {san(upnSAN("fleetie@example.com"), dnsSAN("example.com"))},
+				"an identity extension": {san(upnSAN("fleetie@example.com")), {Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 25, 2}, Value: []byte{0x30, 0x00}}},
+				"no SAN":                nil,
+			} {
+				t.Run(name, func(t *testing.T) {
+					svc, _, ctx := baseSetupForTests()
+					googleCAS.IssueCertificateFunc = func(ctx context.Context, ca fleet.GoogleCASCA, req *x509.CertificateRequest) (*x509.Certificate, error) {
+						return googleCASIssueWith(req, exts)
+					}
+					cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASCA.ID, CSR: csr})
+					var badRequest *fleet.BadRequestError
+					require.ErrorAs(t, err, &badRequest)
+					require.Contains(t, badRequest.Message, "Check the CA pool's issuance policy.")
+					require.Nil(t, cert)
+				})
+			}
+		})
+
+		t.Run("CA without a key", func(t *testing.T) {
+			svc, _, ctx := baseSetupForTests()
+			_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: googleCASNoKeyCA.ID, CSR: csr})
+			var badRequest *fleet.BadRequestError
+			require.ErrorAs(t, err, &badRequest)
+			require.Equal(t, "Certificate authority does not have a service account key configured.", badRequest.Message)
+			require.False(t, googleCAS.IssueCertificateFuncInvoked)
+		})
+	})
+}
+
+// Generated once; nothing needs distinct keys.
+var ndesTestCSRKey = sync.OnceValues(func() (*rsa.PrivateKey, error) {
+	return rsa.GenerateKey(rand.Reader, 2048)
+})
+
+// newNDESTestCSR returns a PEM CSR with challenge as its challengePassword, when non-empty.
+func newNDESTestCSR(t *testing.T, challenge string) string {
+	t.Helper()
+	key, err := ndesTestCSRKey()
+	require.NoError(t, err)
+	der, err := scepx509util.CreateCertificateRequest(rand.Reader, &scepx509util.CertificateRequest{
+		Subject:           pkix.Name{CommonName: "test-host managementAttestation"},
+		ChallengePassword: challenge,
+	}, key)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: der}))
 }
 
 // parseDERCert parses DER-encoded certificate bytes for use as input to PKCS7 SignedData.
@@ -1092,4 +1569,88 @@ func generateTestCertDER(t *testing.T) []byte {
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	require.NoError(t, err)
 	return der
+}
+
+// sanEntry is one GeneralName for newGoogleCASTestCSR.
+type sanEntry = asn1.RawValue
+
+func upnSAN(upn string) sanEntry {
+	return otherNameSAN(asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}, upn)
+}
+
+func otherNameSAN(typeID asn1.ObjectIdentifier, value string) sanEntry {
+	utf8, _ := asn1.Marshal(asn1.RawValue{Class: asn1.ClassUniversal, Tag: asn1.TagUTF8String, Bytes: []byte(value)})
+	oid, _ := asn1.Marshal(typeID)
+	explicit, _ := asn1.Marshal(asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: utf8})
+	return asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: append(oid, explicit...)}
+}
+
+func directoryNameSAN(t *testing.T, commonName string) sanEntry {
+	name, err := asn1.Marshal(pkix.Name{CommonName: commonName}.ToRDNSequence())
+	require.NoError(t, err)
+	return asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 4, IsCompound: true, Bytes: name}
+}
+
+func dnsSAN(name string) sanEntry {
+	return asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 2, Bytes: []byte(name)}
+}
+
+func uriSAN(uri string) sanEntry {
+	return asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 6, Bytes: []byte(uri)}
+}
+
+// newGoogleCASTestCSR returns a PEM CSR whose SAN extension holds exactly the given entries, which is
+// how the Google CAS request script builds one: openssl with only an otherName:msUPN SAN.
+func newGoogleCASTestCSR(t *testing.T, sans ...sanEntry) string {
+	t.Helper()
+	return newGoogleCASTestCSRWith(t, pkix.Name{CommonName: "CustomerUserNetworkAccess:fleetie@example.com"}, nil, sans...)
+}
+
+// googleCASTestCSRFor returns the request script's CSR for upn: the UPN as the only SAN, and in the common name.
+func googleCASTestCSRFor(t *testing.T, upn string) string {
+	t.Helper()
+	return newGoogleCASTestCSRWith(t, pkix.Name{CommonName: "CustomerUserNetworkAccess:" + upn}, nil, upnSAN(upn))
+}
+
+// rawGoogleCASTestCSR signs a CSR assembled from DER parts, for encodings x509.CreateCertificateRequest doesn't produce. A nil spki
+// uses the signing key's.
+func rawGoogleCASTestCSR(t *testing.T, spki, subject []byte, attributes ...[]byte) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	if spki == nil {
+		spki, err = x509.MarshalPKIXPublicKey(&key.PublicKey)
+		require.NoError(t, err)
+	}
+	der := func(class, tag int, compound bool, content ...[]byte) []byte {
+		b, err := asn1.Marshal(asn1.RawValue{Class: class, Tag: tag, IsCompound: compound, Bytes: bytes.Join(content, nil)})
+		require.NoError(t, err)
+		return b
+	}
+	tbs := der(asn1.ClassUniversal, asn1.TagSequence, true, []byte{0x02, 0x01, 0x00}, subject, spki,
+		der(asn1.ClassContextSpecific, 0, true, attributes...))
+	digest := sha256.Sum256(tbs)
+	signature, err := ecdsa.SignASN1(rand.Reader, key, digest[:])
+	require.NoError(t, err)
+	algorithm, err := asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2})
+	require.NoError(t, err)
+	csr := der(asn1.ClassUniversal, asn1.TagSequence, true, tbs, der(asn1.ClassUniversal, asn1.TagSequence, true, algorithm),
+		der(asn1.ClassUniversal, asn1.TagBitString, false, append([]byte{0}, signature...)))
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csr}))
+}
+
+// newGoogleCASTestCSRWith returns a PEM CSR with the given subject and extra extensions, and the given entries in its SAN extension.
+func newGoogleCASTestCSRWith(t *testing.T, subject pkix.Name, extra []pkix.Extension, sans ...sanEntry) string {
+	t.Helper()
+	key, err := ndesTestCSRKey()
+	require.NoError(t, err)
+	template := &x509.CertificateRequest{Subject: subject, ExtraExtensions: extra}
+	if len(sans) > 0 {
+		value, err := asn1.Marshal(sans)
+		require.NoError(t, err)
+		template.ExtraExtensions = append(template.ExtraExtensions, pkix.Extension{Id: asn1.ObjectIdentifier{2, 5, 29, 17}, Value: value})
+	}
+	der, err := x509.CreateCertificateRequest(rand.Reader, template, key)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: der}))
 }

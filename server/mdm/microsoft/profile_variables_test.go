@@ -23,6 +23,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		GivenName:  ptr.String("First"),
 		FamilyName: ptr.String("Last"),
 		Department: ptr.String("Department"),
+		ExternalID: new("external-id"),
 		Groups: []fleet.ScimUserGroup{
 			{
 				ID:          1,
@@ -315,8 +316,8 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:             "all idp variables",
 			hostUUID:         "idp-host-uuid",
-			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,
-			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last</Data></Item></Replace>`,
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME - $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last - external-id</Data></Item></Replace>`,
 		},
 		{
 			name:            "missing groups on idp user",
@@ -339,6 +340,19 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			processingError: "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
 			setup: func() {
 				scimUser.Department = nil
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+		{
+			name:            "missing external ID on idp user",
+			hostUUID:        "no-external-id-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID.",
+			setup: func() {
+				scimUser.ExternalID = nil
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					return scimUser, nil
 				}
@@ -435,6 +449,30 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			transientError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
 		},
 		{
+			// The URL variable alone marks the profile as a conditional access certificate. The challenge is the admin's
+			// global enroll secret and passes through untouched.
+			name:     "conditional access scep url replaced and certificate tracked",
+			hostUUID: "condaccess-host-uuid",
+			profileContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
+				`<Data>aB3+/= secret</Data></Item></Add>`,
+			expectedContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/` + profileUUID + `/Install/ServerURL</LocURI></Target>` +
+				`<Data>https://test-fleet.com/api/fleet/conditional_access/scep</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/` + profileUUID + `/Install/Challenge</LocURI></Target>` +
+				`<Data>aB3+/= secret</Data></Item></Add>`,
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, fleet.ConditionalAccessManagedCertificateCAName, managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigConditionalAccess, managedCerts[0].Type)
+				require.Equal(t, "condaccess-host-uuid", managedCerts[0].HostUUID)
+				require.Equal(t, profileUUID, managedCerts[0].ProfileUUID)
+				require.NotNil(t, managedCerts[0].ChallengeRetrievedAt)
+				require.Nil(t, managedCerts[0].Serial)
+				require.Nil(t, managedCerts[0].NotValidAfter)
+			},
+		},
+		{
 			name:            "ndes not configured",
 			hostUUID:        "ndes-noconfig-host",
 			profileContents: `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
@@ -520,6 +558,9 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					var processingErr *MicrosoftProfileProcessingError
 					require.NotErrorAs(t, err, &processingErr)
 				}
+				if tt.expect != nil {
+					tt.expect(t, *managedCertificates)
+				}
 				return // do not verify profile contents if an error is expected
 			}
 
@@ -532,5 +573,5 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		})
 	}
 
-	require.Len(t, hostIDForUUIDCache, 3) // make sure cache is populated by IdP var host UUID lookups
+	require.Len(t, hostIDForUUIDCache, 4) // make sure cache is populated by IdP var host UUID lookups
 }

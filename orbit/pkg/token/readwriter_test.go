@@ -181,7 +181,11 @@ func TestRotator(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return atomic.LoadInt32(&numUpdates) >= 2
 	}, 5*time.Second, 10*time.Millisecond)
-	require.Equal(t, int32(1), atomic.LoadInt32(&numRemoteChecks)) // Atomic read
+	// The remote check ticker fires at the same time as the second local check,
+	// so the remote check may run after the second rotation.
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&numRemoteChecks) >= 1
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// Reset the mtime one more time.
 	rw.mu.Lock()

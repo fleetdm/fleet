@@ -22,6 +22,7 @@ func TestResolveHostNameIDPVars(t *testing.T) {
 			GivenName:  new("Jane"),
 			FamilyName: new("Doe"),
 			Department: new("Eng"),
+			ExternalID: new("ext-1"),
 			Groups:     []fleet.ScimUserGroup{{DisplayName: "Admins"}, {DisplayName: "Eng"}},
 		}, nil
 	}
@@ -35,11 +36,11 @@ func TestResolveHostNameIDPVars(t *testing.T) {
 		// longer _USERNAME_LOCAL_PART sibling, to exercise the longest-first
 		// substitution order.
 		name, detail, err := resolveHostNameIDPVars(t.Context(), ds,
-			"u=$FLEET_VAR_HOST_END_USER_IDP_USERNAME;lp=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART};d=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT;g=$FLEET_VAR_HOST_END_USER_IDP_GROUPS",
+			"u=$FLEET_VAR_HOST_END_USER_IDP_USERNAME;lp=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART};d=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT;g=$FLEET_VAR_HOST_END_USER_IDP_GROUPS;x=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID",
 			42)
 		require.NoError(t, err)
 		require.Empty(t, detail)
-		require.Equal(t, "u=jdoe@corp.com;lp=jdoe;d=Eng;g=Admins,Eng", name)
+		require.Equal(t, "u=jdoe@corp.com;lp=jdoe;d=Eng;g=Admins,Eng;x=ext-1", name)
 		require.Equal(t, 1, scimCalls, "end users must be fetched once regardless of the number of IdP variables")
 	})
 
@@ -55,12 +56,18 @@ func TestResolveHostNameIDPVars(t *testing.T) {
 
 	t.Run("missing IdP field fails with the profile-style detail", func(t *testing.T) {
 		ds.ScimUserByHostIDFunc = func(_ context.Context, _ uint) (*fleet.ScimUser, error) {
-			return &fleet.ScimUser{ID: 1, UserName: "jdoe@corp.com"}, nil // no department
+			// no department and no external id
+			return &fleet.ScimUser{ID: 1, UserName: "jdoe@corp.com"}, nil
 		}
 		name, detail, err := resolveHostNameIDPVars(t.Context(), ds, "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", 42)
 		require.NoError(t, err)
 		require.Empty(t, name)
 		require.Contains(t, detail, "no IdP department for this host")
+
+		name, detail, err = resolveHostNameIDPVars(t.Context(), ds, "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", 42)
+		require.NoError(t, err)
+		require.Empty(t, name)
+		require.Contains(t, detail, "no IdP external ID for this host")
 	})
 
 	t.Run("no IdP user fails with the username detail", func(t *testing.T) {
@@ -124,7 +131,7 @@ func TestReconcileHostDeviceNamesExpandsCustomHostVitals(t *testing.T) {
 	t.Run("host's value is substituted and a matching name verifies without a command", func(t *testing.T) {
 		ds.ListHostsPendingDeviceNameCommandFunc = func(_ context.Context, _ int) ([]fleet.HostDeviceNamePending, error) {
 			return []fleet.HostDeviceNamePending{
-				{HostID: 2, HostUUID: "host-2", HardwareSerial: "SERIAL2", Platform: "darwin", ComputerName: "WS-engineering"},
+				{HostID: 2, HostUUID: "host-2", HardwareSerial: "SERIAL2", Platform: "darwin", ComputerName: "WS-engineering", NameReportedSinceEnrollment: true},
 			}, nil
 		}
 		ds.ExpandCustomHostVitalsFunc = func(_ context.Context, hostID uint, document string) (string, error) {

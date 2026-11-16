@@ -1,0 +1,1 @@
+- Fixed the "transferred hosts" activity listing a host once per time it appeared in the transfer request, and, for transfers by filter made by users on more than one fleet, pairing host IDs with the wrong host names.

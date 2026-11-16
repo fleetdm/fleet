@@ -15,12 +15,12 @@ import {
 } from "interfaces/software";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import {
+  getAutoUpdateTooltip,
   getDisplayedSoftwareName,
   getSelfServiceTooltip,
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -45,6 +45,12 @@ interface ISoftwareSummaryCard {
    * (Library accordion rows show per-package icons instead) and collapses
    * the Actions dropdown into a single pencil-icon Edit-appearance button. */
   canActivateMultiplePackages?: boolean;
+  /** Parallel of `canActivateMultiplePackages` for multi-version iOS/iPadOS/
+   * Android App Store app titles. When true: hides title-level chips whose
+   * state is now per-version (Self service, Auto update), swaps the Versions
+   * data value to the admin-added version count, and collapses the Actions
+   * dropdown into a single pencil-icon Edit (appearance) button. */
+  canActivateMultipleVersions?: boolean;
 }
 
 const baseClass = "software-summary-card";
@@ -71,6 +77,7 @@ const SoftwareSummaryCard = ({
   refetchSoftwareTitle,
   onClickVersions,
   canActivateMultiplePackages = false,
+  canActivateMultipleVersions = false,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
@@ -126,8 +133,9 @@ const SoftwareSummaryCard = ({
   // render and bust the cache (and cascade into `headerPills` below).
   const packageAutoInstallPolicies =
     softwareTitle.software_package?.automatic_install_policies;
+  const firstAppStoreApp = softwareTitle.app_store_apps?.[0];
   const appStoreAutoInstallPolicies =
-    softwareTitle.app_store_app?.automatic_install_policies;
+    firstAppStoreApp?.automatic_install_policies;
   const patchPolicy = softwareTitle.software_package?.patch_policy;
   const mergedPolicies = useMemo(
     () =>
@@ -140,7 +148,7 @@ const SoftwareSummaryCard = ({
   );
   const isSelfService =
     !!softwareTitle.software_package?.self_service ||
-    !!softwareTitle.app_store_app?.self_service;
+    !!firstAppStoreApp?.self_service;
   // Show the Auto install pill whenever the title has any linked policy —
   // patch-only policies live under `software_package.patch_policy` (not in
   // `automatic_install_policies`), so we key off the merged set.
@@ -175,7 +183,6 @@ const SoftwareSummaryCard = ({
     ? ([
         [isFleetMaintainedApp, "Fleet-maintained"],
         [isAppleVpp, "App Store (VPP)"],
-        [isAndroidPlayStoreApp, "Play Store"],
         [isCustomPackage, customPackageChipLabel],
       ] as const).find(([flag]) => flag)?.[1]
     : undefined;
@@ -189,20 +196,26 @@ const SoftwareSummaryCard = ({
   // On "All fleets" the backend returns state from an arbitrary team, so hide
   // the chips rather than mislabel it as an all-fleets fact.
   const showSelfServiceChip =
-    hasValidTeamId && isSelfService && !canActivateMultiplePackages;
+    hasValidTeamId &&
+    isSelfService &&
+    !canActivateMultiplePackages &&
+    !canActivateMultipleVersions;
   const showAutoInstallChip =
     hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
-  // Gates on `app_store_app` directly since `isAppleVpp` flips false when
-  // a co-existing custom package hides the VPP installer.
+  // Gates on `app_store_apps` directly since `isAppleVpp` flips false when
+  // a co-existing custom package hides the VPP installer. Suppressed on
+  // multi-version titles because auto-update is a per-version setting there.
+  const hasAppStoreApp = !!softwareTitle.app_store_apps?.length;
   const showAutoUpdateChip =
     hasValidTeamId &&
-    !!softwareTitle.app_store_app &&
+    hasAppStoreApp &&
     isIosOrIpadosApp &&
+    !canActivateMultipleVersions &&
     !!softwareTitle.auto_update_enabled &&
     !!softwareTitle.auto_update_window_start &&
     !!softwareTitle.auto_update_window_end;
   const canEditAutoUpdateConfig =
-    !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
+    hasAppStoreApp && isIosOrIpadosApp && canManageSoftware;
 
   const showHeaderPills =
     !!installerKindLabel ||
@@ -219,7 +232,7 @@ const SoftwareSummaryCard = ({
         {installerKindLabel && <Chip text={installerKindLabel} />}
         {showSelfServiceChip && (
           <Chip
-            icon="user"
+            icon="self-service"
             text="Self service"
             tooltip={getSelfServiceTooltip(
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
@@ -230,7 +243,7 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoInstallChip && (
           <Chip
-            icon={isPatchPolicyOnly ? undefined : "refresh"}
+            icon={isPatchPolicyOnly ? undefined : "install-auto"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
@@ -254,26 +267,17 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoUpdateChip && (
           <Chip
-            icon="refresh"
+            icon="install-auto"
             text="Auto updates"
             onClick={
               canEditAutoUpdateConfig
                 ? () => setShowEditAutoUpdateConfigModal(true)
                 : undefined
             }
-            tooltip={
-              <>
-                Between{" "}
-                {internationalTimeOnlyFormat(
-                  softwareTitle.auto_update_window_start ?? ""
-                )}{" "}
-                and{" "}
-                {internationalTimeOnlyFormat(
-                  softwareTitle.auto_update_window_end ?? ""
-                )}{" "}
-                (host local time).
-              </>
-            }
+            tooltip={getAutoUpdateTooltip(
+              softwareTitle.auto_update_window_start ?? "",
+              softwareTitle.auto_update_window_end ?? ""
+            )}
           />
         )}
       </>
@@ -302,6 +306,13 @@ const SoftwareSummaryCard = ({
     />
   );
 
+  // Multi-version App Store titles show the admin-added version count (the
+  // number of versions on the title's `app_store_apps` array) rather than
+  // the inventory version count.
+  const versionsCount = canActivateMultipleVersions
+    ? softwareTitle.app_store_apps?.length ?? 0
+    : softwareTitle.versions?.length ?? 0;
+
   if (!installerResult) {
     return (
       <>
@@ -309,7 +320,7 @@ const SoftwareSummaryCard = ({
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
+            versions={versionsCount}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
             queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
@@ -325,7 +336,24 @@ const SoftwareSummaryCard = ({
     );
   }
 
-  const { softwareInstaller, isAndroidPlayStoreWebApp } = installerResult.meta;
+  const {
+    softwareInstaller,
+    isAndroidPlayStoreWebApp,
+    androidPlayStoreId,
+  } = installerResult.meta;
+
+  const fleetMaintainedAppSlug =
+    isPremiumTier &&
+    isFleetMaintainedApp &&
+    "fleet_maintained_app_slug" in softwareInstaller
+      ? softwareInstaller.fleet_maintained_app_slug
+      : undefined;
+  const appStoreId =
+    isPremiumTier && isAppleVpp && "app_store_id" in softwareInstaller
+      ? softwareInstaller.app_store_id
+      : undefined;
+  const googlePlayId =
+    isPremiumTier && !isAndroidPlayStoreWebApp ? androidPlayStoreId : undefined;
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
@@ -347,13 +375,20 @@ const SoftwareSummaryCard = ({
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
 
+  // Collapse the Actions dropdown into a single pencil-icon Edit (appearance)
+  // button when per-X controls move to the Library accordion rows: custom
+  // multi-package titles have per-package controls, multi-version App Store
+  // titles (iOS/iPadOS/Android) have per-version controls.
+  const useSingleEditAppearanceButton =
+    canActivateMultiplePackages || canActivateMultipleVersions;
+
   return (
     <>
       <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions?.length ?? 0}
+          versions={versionsCount}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
@@ -369,16 +404,16 @@ const SoftwareSummaryCard = ({
             canEditAppearance ? onClickEditAppearance : undefined
           }
           onClickEditSoftware={
-            // Multi-package titles move per-installer editing to the Library
-            // accordion row; the page-level Edit button collapses to a single
-            // pencil-icon Edit-appearance button below. Single-package types
-            // (FMA, VPP, Google Play, iOS in-house .ipa) keep the Actions
-            // dropdown.
-            canEditSoftware && !canActivateMultiplePackages
+            // Multi-package AND multi-version titles move per-installer /
+            // per-version editing to the Library accordion row; the page-
+            // level Edit button collapses to a single pencil-icon Edit
+            // (appearance) button below. Single-slot types (FMA, macOS VPP,
+            // iOS in-house .ipa) keep the Actions dropdown.
+            canEditSoftware && !useSingleEditAppearanceButton
               ? onClickEditSoftware
               : undefined
           }
-          useSingleEditAppearanceButton={canActivateMultiplePackages}
+          useSingleEditAppearanceButton={useSingleEditAppearanceButton}
           onClickDeploy={canDeploySoftware ? onClickDeploy : undefined}
           onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={
@@ -388,7 +423,14 @@ const SoftwareSummaryCard = ({
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
           headerPills={headerPills}
-          isAppleVpp={isAppleVpp}
+          fleetMaintainedAppSlug={fleetMaintainedAppSlug}
+          appStoreId={appStoreId}
+          vppToken={
+            isPremiumTier && isAppleVpp
+              ? firstAppStoreApp?.vpp_token ?? undefined
+              : undefined
+          }
+          googlePlayId={googlePlayId}
         />
       </Card>
       {showEditIconModal && softwareInstallerOnTeam && (

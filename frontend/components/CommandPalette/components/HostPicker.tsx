@@ -104,7 +104,7 @@ const HostPicker = ({
             </span>
             {showTeamColumn && (
               <span className={`${baseClass}__host-team`}>
-                <UprightEmoji text={host.team_name || "Unassigned"} />
+                <UprightEmoji text={host.fleet_name || "Unassigned"} />
               </span>
             )}
           </Command.Item>

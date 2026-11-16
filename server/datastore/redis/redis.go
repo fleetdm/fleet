@@ -194,6 +194,12 @@ func EachNode(pool fleet.RedisPool, replicas bool, fn func(conn redis.Conn) erro
 	return fn(conn)
 }
 
+// IsRedirect reports whether err, possibly wrapped, is a Redis Cluster MOVED or ASK redirection.
+func IsRedirect(err error) bool {
+	var redisErr redis.Error
+	return errors.As(err, &redisErr) && redisc.ParseRedir(redisErr) != nil
+}
+
 // BindConn binds the connection to the redis node that serves those keys.
 // In a Redis Cluster setup, all keys must hash to the same slot, otherwise
 // an error is returned. In a Redis Standalone setup, it is a no-op and never

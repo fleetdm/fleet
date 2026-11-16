@@ -66,7 +66,7 @@ The Software and Other Fleet Materials are collectively referred to herein as th
 
 6.1 This Agreement shall continue until terminated in accordance with this Section 6\. Either party may terminate this Agreement upon 15 days’ written notice to the other party hereto in the event that Customer has no then-current subscription and license key with respect to the Licensed Materials.
 
-6.2 Customer may terminate this Agreement at any time upon written notice to Fleet. Either party may terminate this Agreement immediately upon 15 days’ written notice to the other party in the event of any material breach of this Agreement (including without limitation, any breach of Section 2.2 and/or failure to pay any amounts when due hereunder) by such party where such material breach is not cured during such notice period.
+6.2 Either party may terminate this Agreement immediately upon 15 days’ written notice to the other party in the event of any material breach of this Agreement (including without limitation, any breach of Section 2.2 and/or failure to pay any amounts when due hereunder) by such party where such material breach is not cured during such notice period.
 
 6.3 Either party may terminate this Agreement, without notice, (i) upon the institution by or against the other party of insolvency, receivership or bankruptcy proceedings (provided such proceedings are not dismissed within one hundred twenty (120) days of such institution), (ii) upon the other party's making an assignment for the benefit of creditors, or (iii) upon the other party's dissolution or ceasing to do business without a successor.
 

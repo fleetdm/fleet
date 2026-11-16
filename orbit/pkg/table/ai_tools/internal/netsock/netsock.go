@@ -39,14 +39,14 @@ func Collect(snap *proc.Snapshot) []Socket {
 	}
 	var out []Socket
 
-	for _, c := range snap.Conns {
+	for _, c := range snap.Connections() {
 		p := snap.Procs[c.PID]
 		sock := Socket{
 			PID:           c.PID,
 			ProcessName:   p.Name,
-			ProcessPath:   p.Exe,
+			ProcessPath:   p.ExePath(),
 			Cmdline:       p.Cmdline,
-			Username:      p.Username,
+			Username:      p.User(),
 			Protocol:      protoOf(c.Type),
 			LocalAddress:  c.LocalIP,
 			LocalPort:     c.LocalPort,

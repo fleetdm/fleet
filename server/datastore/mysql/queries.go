@@ -2,9 +2,11 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -23,6 +26,7 @@ var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":         "q.id",
 	"name":       "q.name",
 	"team_id":    "q.team_id",
+	"fleet_id":   "q.team_id",
 	"created_at": "q.created_at",
 	"updated_at": "q.updated_at",
 }
@@ -35,20 +39,8 @@ const (
 var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
+	if err := ds.applyQueriesInTx(ctx, authorID, queries, queriesToDiscardResults); err != nil {
 		return ctxerr.Wrap(ctx, err, "apply queries in tx")
-	}
-
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
-	for queryID := range queriesToDiscardResults {
-		queryIDs = append(queryIDs, queryID)
-	}
-	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete query_results")
 	}
 	return nil
 }
@@ -57,6 +49,7 @@ func (ds *Datastore) applyQueriesInTx(
 	ctx context.Context,
 	authorID uint,
 	queries []*fleet.Query,
+	queriesToDiscardResults map[uint]struct{},
 ) (err error) {
 	// First, verify all 'queries' are valid.
 	for _, q := range queries {
@@ -171,6 +164,16 @@ func (ds *Datastore) applyQueriesInTx(
 				return ctxerr.Wrap(ctx, err, "closing query rows")
 			}
 
+			var discardIDs []uint
+			for _, q := range batch {
+				if _, ok := queriesToDiscardResults[q.ID]; ok {
+					discardIDs = append(discardIDs, q.ID)
+				}
+			}
+			if err := markQueryResultsStale(ctx, tx, discardIDs); err != nil {
+				return err
+			}
+
 			return ds.updateQueryLabelsInTx(ctx, batch, tx)
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating query labels")
@@ -180,12 +183,30 @@ func (ds *Datastore) applyQueriesInTx(
 	return nil
 }
 
-// deleteMultipleQueryResults deletes all stored results of the given queries.
-func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) error {
-	for _, queryID := range queryIDs {
-		if err := ds.deleteQueryResults(ctx, queryID); err != nil {
-			return err
-		}
+// Deleting a large report's rows can outlast the request, so they're hidden when the edit commits
+// and deleted later by CleanupStaleQueryResults.
+func markQueryResultsStale(ctx context.Context, tx sqlx.ExtContext, queryIDs []uint) error {
+	if len(queryIDs) == 0 {
+		return nil
+	}
+	// The table-wide max is read from the end of the primary key, where a per-query max would
+	// scan every row of the report.
+	var maxID sql.NullInt64
+	if err := sqlx.GetContext(ctx, tx, &maxID, `SELECT MAX(id) FROM query_results`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
+	}
+	if !maxID.Valid {
+		return nil
+	}
+	stmt, args, err := sqlx.In(
+		`UPDATE queries SET results_valid_from_id = ?, results_cleanup_pending = 1 WHERE id IN (?)`,
+		maxID.Int64+1, queryIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building mark query results stale statement")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking query results stale")
 	}
 	return nil
 }
@@ -211,10 +232,6 @@ func (ds *Datastore) QueryByName(
 			return nil, ctxerr.Wrap(ctx, notFound("Report").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
-	}
-
-	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{&query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for query")
 	}
 
 	return &query, nil
@@ -248,10 +265,7 @@ var queriesByNameBatchSize = 1000
 
 // QueriesByName resolves multiple (team, name) pairs in one or more batched
 // lookups. The returned map is keyed by TeamScopedQueryName.Key() and contains
-// only the pairs that exist. It does NOT populate Query.Packs (callers needing
-// packs must load them separately); the result path that uses this only reads
-// query id/logging fields, and skipping the pack join keeps the lookup a single
-// indexed read per batch.
+// only the pairs that exist.
 func (ds *Datastore) QueriesByName(
 	ctx context.Context,
 	names []fleet.TeamScopedQueryName,
@@ -447,8 +461,6 @@ func (ds *Datastore) NewQuery(
 	if err != nil {
 		return nil, err
 	}
-	query.Packs = []fleet.Pack{}
-
 	return query, nil
 }
 
@@ -481,80 +493,67 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "deleting old query labels")
 	}
 
-	lblNamesMap := make(map[string]struct{})
+	// Names are resolved once per fleet, since a fleet's report sees global labels plus its own fleet's, and a global
+	// report sees all labels.
+	type labelScope struct {
+		fleetID uint
+		global  bool
+	}
+	scopeOf := func(q *fleet.Query) labelScope {
+		return labelScope{fleetID: ptr.ValOrZero(q.TeamID), global: q.TeamID == nil}
+	}
+	namesByScope := make(map[labelScope][]string)
+	numLabels := 0
 	for _, q := range queries {
-		for _, lbl := range q.LabelsIncludeAny {
-			lblNamesMap[lbl.LabelName] = struct{}{}
-		}
-		for _, lbl := range q.LabelsIncludeAll {
-			lblNamesMap[lbl.LabelName] = struct{}{}
+		for _, lbl := range slices.Concat(q.LabelsIncludeAny, q.LabelsIncludeAll) {
+			namesByScope[scopeOf(q)] = append(namesByScope[scopeOf(q)], lbl.LabelName)
+			numLabels++
 		}
 	}
-	numLabelNames := len(lblNamesMap)
-	if numLabelNames == 0 {
+	if numLabels == 0 {
 		return nil
 	}
-
-	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-
-	rows, err := tx.QueryxContext(ctx, stm, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-	defer rows.Close()
-
-	lblNameToID := make(map[string]uint)
-	for rows.Next() {
-		var id uint
-		var name string
-		if err := rows.Scan(&id, &name); err != nil {
-			return ctxerr.Wrap(ctx, err, "scan existing query")
+	idsByScope := make(map[labelScope]map[string]uint, len(namesByScope))
+	for scope, names := range namesByScope {
+		var fleetID *uint
+		if !scope.global {
+			fleetID = &scope.fleetID
 		}
-		lblNameToID[name] = id
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching query IDs")
-	}
-	if err := rows.Close(); err != nil { //nolint:sqlclosecheck
-		return ctxerr.Wrap(ctx, err, "closing query IDs")
-	}
-
-	if len(lblNameToID) < numLabelNames {
-		return ctxerr.New(ctx, "not all labels found for query")
+		ids, err := resolveLabelNamesTx(ctx, tx, names, fleetID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolving report labels")
+		}
+		idsByScope[scope] = ids
 	}
 
 	// Each query has at most one non-empty scope (mutex enforced above).
 	// Populate IDs back onto the query struct for each bucket.
-	params := make([]string, 0, numLabelNames)
-	insertArgs := make([]any, 0, numLabelNames*3)
+	params := make([]string, 0, numLabels)
+	insertArgs := make([]any, 0, numLabels*3)
 
-	resolve := func(qID uint, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
+	resolve := func(q *fleet.Query, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
 		if len(src) == 0 {
 			return src
 		}
+		ids := idsByScope[scopeOf(q)]
+		inserted := make(map[uint]struct{}, len(src))
 		out := make([]fleet.LabelIdent, 0, len(src))
 		for _, lbl := range src {
-			lblID, ok := lblNameToID[lbl.LabelName]
-			if !ok {
+			lblID := ids[lbl.LabelName]
+			if _, ok := inserted[lblID]; ok {
 				continue
 			}
+			inserted[lblID] = struct{}{}
 			params = append(params, "(?, ?, ?)")
-			insertArgs = append(insertArgs, qID, lblID, requireAll)
+			insertArgs = append(insertArgs, q.ID, lblID, requireAll)
 			out = append(out, fleet.LabelIdent{LabelID: lblID, LabelName: lbl.LabelName})
-		}
-		if len(out) == 0 {
-			return src
 		}
 		return out
 	}
 
 	for _, q := range queries {
-		q.LabelsIncludeAny = resolve(q.ID, q.LabelsIncludeAny, false)
-		q.LabelsIncludeAll = resolve(q.ID, q.LabelsIncludeAll, true)
+		q.LabelsIncludeAny = resolve(q, q.LabelsIncludeAny, false)
+		q.LabelsIncludeAll = resolve(q, q.LabelsIncludeAll, true)
 	}
 
 	if len(params) == 0 {
@@ -627,6 +626,11 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		if err := ds.updateQueryLabelsInTx(ctx, []*fleet.Query{q}, tx); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating query labels")
 		}
+		if shouldDiscardResults {
+			if err := markQueryResultsStale(ctx, tx, []uint{q.ID}); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -638,30 +642,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{q.ID})
 	}
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if shouldDiscardResults {
-		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting query_results")
-		}
-	}
-
 	return nil
-}
-
-// deleteQueryResults deletes all stored results of a query in primary key batches. Rows that
-// hosts write while it runs are kept, since they may already come from the updated query.
-func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
-	var maxID sql.NullInt64
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &maxID, `SELECT MAX(id) FROM query_results WHERE query_id = ?`, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
-	}
-	if !maxID.Valid {
-		return nil
-	}
-	return ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
@@ -697,14 +678,6 @@ func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string)
 	// Delete any associated stats asynchronously.
 	go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{queryID})
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if err := ds.deleteQueryResults(ctx, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting query_results")
-	}
-
 	return nil
 }
 
@@ -719,13 +692,6 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 	// Delete any associated stats asynchronously.
 	go ds.deleteQueryStats(context.WithoutCancel(ctx), ids)
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if err := ds.deleteMultipleQueryResults(ctx, ids); err != nil {
-		return deleted, ctxerr.Wrap(ctx, err, "delete multiple query_results")
-	}
 	return deleted, nil
 }
 
@@ -733,20 +699,15 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 // Errors are logged and not returned.
 func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	// Delete stats for each host.
-	stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
-	stmt, args, err := sqlx.In(stmt, queryIDs)
-	if err != nil {
-		ds.logger.ErrorContext(ctx, "error creating delete query stats statement", "err", err)
-	} else {
-		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		if err != nil {
+	for _, queryID := range queryIDs {
+		if err := ds.deleteQueryStatsInBatches(ctx, queryID); err != nil {
 			ds.logger.ErrorContext(ctx, "error deleting query stats", "err", err)
 		}
 	}
 
 	// Delete aggregated stats
-	stmt = fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
-	stmt, args, err = sqlx.In(stmt, queryIDs)
+	stmt := fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
+	stmt, args, err := sqlx.In(stmt, queryIDs)
 	if err != nil {
 		ds.logger.ErrorContext(ctx, "error creating delete aggregated stats statement", "err", err)
 	} else {
@@ -802,10 +763,6 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 			return nil, ctxerr.Wrap(ctx, notFound("Report").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
-	}
-
-	if err := loadPacksForQueries(ctx, db, []*fleet.Query{query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
 	if err := loadLabelsForQueries(ctx, db, []*fleet.Query{query}); err != nil {
@@ -914,10 +871,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	if err = ds.loadPacksForQueries(ctx, queries); err != nil {
-		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
-	}
-
 	if err = ds.loadLabelsForQueries(ctx, queries); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
 	}
@@ -933,58 +886,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	}
 
 	return queries, counts.Total, counts.Inherited, metadata, nil
-}
-
-// loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
-func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
-	return loadPacksForQueries(ctx, ds.reader(ctx), queries)
-}
-
-func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
-	if len(queries) == 0 {
-		return nil
-	}
-
-	// packs.pack_type is NULL for user created packs (aka 2017 packs).
-	sql := `
-		SELECT p.*, sq.query_name AS query_name
-		FROM packs p
-		JOIN scheduled_queries sq
-			ON p.id = sq.pack_id
-		WHERE query_name IN (?) AND p.pack_type IS NULL
-	`
-
-	// Used to map the results
-	name_queries := map[string]*fleet.Query{}
-	// Used for the IN clause
-	names := []string{}
-	for _, q := range queries {
-		q.Packs = make([]fleet.Pack, 0)
-		names = append(names, q.Name)
-		name_queries[q.Name] = q
-	}
-
-	query, args, err := sqlx.In(sql, names)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query in load packs for queries")
-	}
-
-	rows := []struct {
-		QueryName string `db:"query_name"`
-		fleet.Pack
-	}{}
-
-	err = sqlx.SelectContext(ctx, db, &rows, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
-	}
-
-	for _, row := range rows {
-		q := name_queries[row.QueryName]
-		q.Packs = append(q.Packs, row.Pack)
-	}
-
-	return nil
 }
 
 func (ds *Datastore) loadLabelsForQueries(ctx context.Context, queries []*fleet.Query) error {
@@ -1139,6 +1040,67 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error) {
+	// Agent eligibility (automations_enabled, discard_data, logging_type) also
+	// depends on the app config, so its inputs are included rather than
+	// filtered on.
+	queriesStmt := `
+		SELECT
+			q.name,
+			q.query,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.discard_data
+		FROM queries q
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name`
+	labelsStmt := `
+		SELECT q.name, ql.label_id, ql.require_all
+		FROM queries q
+		JOIN query_labels ql ON ql.query_id = q.id
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name, ql.label_id`
+	var args []any
+	teamSQL := "q.team_id IS NULL"
+	if teamID != nil {
+		teamSQL = "q.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	var digest struct {
+		Queries []struct {
+			Name               string `db:"name"`
+			Query              string `db:"query"`
+			Interval           uint   `db:"schedule_interval"`
+			Platform           string `db:"platform"`
+			MinOsqueryVersion  string `db:"min_osquery_version"`
+			AutomationsEnabled bool   `db:"automations_enabled"`
+			Logging            string `db:"logging_type"`
+			DiscardData        bool   `db:"discard_data"`
+		}
+		Labels []struct {
+			Name       string `db:"name"`
+			LabelID    uint   `db:"label_id"`
+			RequireAll bool   `db:"require_all"`
+		}
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Queries, fmt.Sprintf(queriesStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled queries for digest")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Labels, fmt.Sprintf(labelsStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled query labels for digest")
+	}
+	b, err := json.Marshal(digest)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal scheduled queries digest")
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {

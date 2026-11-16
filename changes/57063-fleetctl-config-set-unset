@@ -1,0 +1,1 @@
+- `fleetctl config set` now accepts an explicit `--tls-skip-verify=false` and `--rootca ""`, so a context can turn certificate verification back on or clear its custom root CA without editing the config file by hand.

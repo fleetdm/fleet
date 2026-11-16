@@ -12,8 +12,8 @@ import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
-import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
+import IpadLockPreview from "../../../../../../assets/images/ipad-lock-preview.png";
+import IphoneLockPreview from "../../../../../../assets/images/iphone-lock-preview.png";
 
 const baseClass = "lock-modal";
 

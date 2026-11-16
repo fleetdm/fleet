@@ -1,7 +1,9 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
-import React from "react";
+import React, { useState } from "react";
+
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 import Modal from "./Modal";
 
@@ -188,5 +190,306 @@ describe("Modal", () => {
     await clickBackground(background);
     act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("ignores Enter while hidden and handles it once shown", () => {
+    const onEnter = jest.fn();
+    const { rerender } = render(
+      <Modal title="Test" onExit={noop} onEnter={onEnter} isHidden>
+        <div>content</div>
+      </Modal>
+    );
+
+    fireEvent.keyDown(document, { code: "Enter" });
+    expect(onEnter).not.toHaveBeenCalled();
+
+    rerender(
+      <Modal title="Test" onExit={noop} onEnter={onEnter} isHidden={false}>
+        <div>content</div>
+      </Modal>
+    );
+
+    fireEvent.keyDown(document, { code: "Enter" });
+    expect(onEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Enter that a child control already handled", async () => {
+    const onEnter = jest.fn();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(
+      <Modal title="Test" onExit={noop} onEnter={onEnter}>
+        <input
+          aria-label="picker"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+        />
+        <input aria-label="plain" />
+      </Modal>
+    );
+
+    await user.click(screen.getByLabelText("picker"));
+    await user.keyboard("{Enter}");
+    expect(onEnter).not.toHaveBeenCalled();
+
+    await user.click(screen.getByLabelText("plain"));
+    await user.keyboard("{Enter}");
+    expect(onEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores auto-repeated Enter keydowns", () => {
+    const onEnter = jest.fn();
+    render(
+      <Modal title="Test" onExit={noop} onEnter={onEnter}>
+        <div>content</div>
+      </Modal>
+    );
+
+    fireEvent.keyDown(document, { code: "Enter", repeat: true });
+    expect(onEnter).not.toHaveBeenCalled();
+  });
+
+  it("ignores Escape while hidden and closes once shown", () => {
+    const onExit = jest.fn();
+    const { rerender } = render(
+      <Modal title="Test" onExit={onExit} isHidden>
+        <div>content</div>
+      </Modal>
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    act(() => jest.runAllTimers());
+    expect(onExit).not.toHaveBeenCalled();
+
+    rerender(
+      <Modal title="Test" onExit={onExit} isHidden={false}>
+        <div>content</div>
+      </Modal>
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    act(() => jest.runAllTimers());
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  describe("Escape with a dropdown", () => {
+    const options = [
+      { label: "Option 1", value: "option1" },
+      { label: "Option 2", value: "option2" },
+    ];
+    const renderDropdownModal = (onExit: () => void) =>
+      render(
+        <Modal title="Test" onExit={onExit}>
+          <DropdownWrapper
+            options={options}
+            value="option1"
+            onChange={noop}
+            name="picker"
+            label="Picker"
+          />
+        </Modal>
+      );
+
+    it("closes only the menu when the menu is open", async () => {
+      const onExit = jest.fn();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      renderDropdownModal(onExit);
+
+      await user.click(screen.getByRole("combobox"));
+      expect(screen.getByText("Option 2")).toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+      act(() => jest.runAllTimers());
+
+      expect(screen.queryByText("Option 2")).not.toBeInTheDocument();
+      expect(onExit).not.toHaveBeenCalled();
+    });
+
+    it("closes the modal when the menu is closed and the dropdown has focus", async () => {
+      const onExit = jest.fn();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      renderDropdownModal(onExit);
+
+      screen.getByRole("combobox").focus();
+      await user.keyboard("{Escape}");
+      act(() => jest.runAllTimers());
+
+      expect(onExit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("stays open when a child stops Escape propagation", () => {
+    const onExit = jest.fn();
+    render(
+      <Modal title="Test" onExit={onExit}>
+        <input aria-label="child" />
+      </Modal>
+    );
+    const input = screen.getByLabelText("child");
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") e.stopPropagation();
+    });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    act(() => jest.runAllTimers());
+
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("reads the open menu state before a child closes its menu on Escape", () => {
+    const onExit = jest.fn();
+    render(
+      <Modal title="Test" onExit={onExit}>
+        <input
+          role="combobox"
+          aria-controls="menu"
+          aria-label="child"
+          aria-expanded="true"
+        />
+      </Modal>
+    );
+    const input = screen.getByLabelText("child");
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") input.setAttribute("aria-expanded", "false");
+    });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    act(() => jest.runAllTimers());
+
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("closes on Escape when an expanded control outside the modal has focus", () => {
+    const onExit = jest.fn();
+    render(
+      <>
+        <button type="button" aria-expanded="true">
+          Details
+        </button>
+        <Modal title="Test" onExit={onExit}>
+          <div>content</div>
+        </Modal>
+      </>
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Details" }), {
+      key: "Escape",
+    });
+    act(() => jest.runAllTimers());
+
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a focused button handle Enter instead of calling onEnter", async () => {
+    const onEnter = jest.fn();
+    const onClick = jest.fn();
+    render(
+      <Modal title="Test" onExit={noop} onEnter={onEnter}>
+        <button type="button" onClick={onClick}>
+          Cancel
+        </button>
+      </Modal>
+    );
+
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    screen.getByRole("button", { name: "Cancel" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(onEnter).not.toHaveBeenCalled();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onEnter when focus is still on a button outside the modal", async () => {
+    const onEnter = jest.fn();
+    const onOpenerClick = jest.fn();
+    render(
+      <>
+        <button type="button" onClick={onOpenerClick}>
+          Opener
+        </button>
+        <Modal title="Test" onExit={noop} onEnter={onEnter}>
+          <div>content</div>
+        </Modal>
+      </>
+    );
+
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    screen.getByRole("button", { name: "Opener" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(onEnter).toHaveBeenCalledTimes(1);
+    expect(onOpenerClick).not.toHaveBeenCalled();
+  });
+
+  describe("page scroll lock", () => {
+    const PAGE_SCROLLBAR_WIDTH = 15;
+    let clientWidthSpy: jest.SpyInstance;
+
+    const getBodyPaddingRight = () => document.body.style.paddingRight;
+
+    beforeEach(() => {
+      clientWidthSpy = jest
+        .spyOn(document.documentElement, "clientWidth", "get")
+        .mockReturnValue(window.innerWidth - PAGE_SCROLLBAR_WIDTH);
+    });
+    afterEach(() => clientWidthSpy.mockRestore());
+
+    it("locks page scroll and pads the page by its scrollbar's width until the modal closes", () => {
+      const ClosableModal = () => {
+        const [isOpen, setIsOpen] = useState(true);
+        return isOpen ? (
+          <Modal title="Test" onExit={() => setIsOpen(false)}>
+            <div>content</div>
+          </Modal>
+        ) : null;
+      };
+      render(<ClosableModal />);
+
+      expect(document.body).toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe(`${PAGE_SCROLLBAR_WIDTH}px`);
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      act(() => jest.runAllTimers());
+
+      expect(screen.queryByText("content")).not.toBeInTheDocument();
+      expect(document.body).not.toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe("");
+    });
+
+    it("adds no padding when the page has no scrollbar", () => {
+      clientWidthSpy.mockReturnValue(window.innerWidth);
+      render(
+        <Modal title="Test" onExit={noop}>
+          <div>content</div>
+        </Modal>
+      );
+
+      expect(document.body).toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe("0px");
+    });
+
+    it("keeps the first modal's padding while a second modal is stacked on it", () => {
+      const firstModal = render(
+        <Modal title="First" onExit={noop}>
+          <div>first</div>
+        </Modal>
+      );
+      // The first modal already hid the page scrollbar.
+      clientWidthSpy.mockReturnValue(window.innerWidth);
+      const secondModal = render(
+        <Modal title="Second" onExit={noop}>
+          <div>second</div>
+        </Modal>
+      );
+      expect(getBodyPaddingRight()).toBe(`${PAGE_SCROLLBAR_WIDTH}px`);
+
+      secondModal.unmount();
+      expect(document.body).toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe(`${PAGE_SCROLLBAR_WIDTH}px`);
+
+      firstModal.unmount();
+      expect(document.body).not.toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe("");
+    });
   });
 });

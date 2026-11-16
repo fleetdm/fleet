@@ -233,7 +233,7 @@ const PolicyAutomationsActivitiesTable = ({
               <Button
                 variant="subdued"
                 onClick={onClickResetPolicy}
-                icon="refresh"
+                icon="retry"
                 iconPosition="right"
               >
                 Reset policy
@@ -242,6 +242,7 @@ const PolicyAutomationsActivitiesTable = ({
             {showControls && (
               <>
                 <DropdownWrapper
+                  ariaLabel="Filter by automation status"
                   name="automation-status-filter"
                   className={`${baseClass}__status-filter`}
                   options={STATUS_FILTER_OPTIONS}

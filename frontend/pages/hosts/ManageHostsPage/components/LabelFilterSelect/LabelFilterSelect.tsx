@@ -196,7 +196,7 @@ const LabelFilterSelect = ({
     return (
       components.ValueContainer && (
         <components.ValueContainer {...props}>
-          {!!children && <Icon name="filter-alt" className="filter-icon" />}
+          {!!children && <Icon name="tag" className="filter-icon" />}
           {children}
         </components.ValueContainer>
       )

@@ -3,6 +3,7 @@ package nanopush
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -239,6 +240,32 @@ func TestPushHeaders(t *testing.T) {
 		headers := push(t, time.Hour, newPushInfo(""))
 		require.Empty(t, headers.Values("apns-topic"))
 	})
+}
+
+func TestPushMagicEncoding(t *testing.T) {
+	const token = "c2732227a1d8021cfaf781d71fb2f908c61f5861079a00954a5453f1d0281433" // nolint:gosec // test device token
+	const pushMagic = `a"b\c`
+
+	var body []byte
+	var readErr error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr = io.ReadAll(r.Body)
+	}))
+	defer server.Close()
+
+	pushInfo := &mdm.Push{PushMagic: pushMagic}
+	require.NoError(t, pushInfo.SetTokenString(token))
+	prov := &Provider{baseURL: server.URL, client: http.DefaultClient}
+	resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
+	require.NoError(t, err)
+	tokenResp := resp[token]
+	require.NotNil(t, tokenResp)
+	require.NoError(t, tokenResp.Err)
+	require.NoError(t, readErr)
+
+	var payload map[string]string
+	require.NoError(t, json.Unmarshal(body, &payload))
+	require.Equal(t, map[string]string{"mdm": pushMagic}, payload)
 }
 
 type errorDoer struct{}

@@ -7,5 +7,6 @@
   "default_categories": [
     "Productivity"
   ],
-  "frozen": true
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/i1profiler-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/i1profiler-uninstall.sh"
 }

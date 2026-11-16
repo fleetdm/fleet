@@ -1,4 +1,4 @@
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { IFormErrors, trimFormData } from "hooks/useFormValidation";
 import { IConfig } from "interfaces/config";
 
@@ -25,22 +25,6 @@ export const newSsoFormData = (appConfig: IConfig): ISsoFormData => ({
     appConfig.sso_settings?.enable_jit_provisioning ?? false,
 });
 
-export type SsoTextField =
-  | "idpName"
-  | "entityId"
-  | "idpImageUrl"
-  | "metadata"
-  | "metadataUrl";
-
-/**
- * Either field satisfies the metadata requirement, so they share one error
- * message. Only `metadataUrl` can also hold a URL-format error.
- */
-export const METADATA_SIBLING: Partial<Record<SsoTextField, SsoTextField>> = {
-  metadata: "metadataUrl",
-  metadataUrl: "metadata",
-};
-
 export const validateSsoForm = (formData: ISsoFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
@@ -61,7 +45,7 @@ export const validateSsoForm = (formData: ISsoFormData): IFormErrors => {
     return errors;
   }
 
-  if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
+  if (idpImageUrl && !isValidURL({ url: idpImageUrl })) {
     errors.idpImageUrl = "Enter a valid IdP image URL";
   }
 
@@ -71,9 +55,11 @@ export const validateSsoForm = (formData: ISsoFormData): IFormErrors => {
   } else if (metadataUrl) {
     // Checked whenever it has a value: when both are set the URL is the one
     // that gets used, so an invalid one can't ride along on valid metadata.
-    if (!validUrl({ url: metadataUrl })) {
+    if (!isValidURL({ url: metadataUrl })) {
       errors.metadataUrl = "Enter a valid metadata URL";
-    } else if (!validUrl({ url: metadataUrl, protocols: ["http", "https"] })) {
+    } else if (
+      !isValidURL({ url: metadataUrl, protocols: ["http", "https"] })
+    ) {
       errors.metadataUrl =
         "Enter a metadata URL starting with https:// or http://";
     }

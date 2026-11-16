@@ -119,7 +119,11 @@ func TestHandlerNotifyDelivery(t *testing.T) {
 	assert.Equal(t, "host-key-1", snap[0].Hostname)
 	assert.Equal(t, "darwin", snap[0].Platform)
 	assert.Equal(t, int64(1), snap[0].NotifiedCount)
-	assert.Equal(t, int64(0), snap[0].DroppedCount)
+	assert.Equal(t, int64(0), snap[0].CoalescedCount)
+	assert.Equal(t, map[string]int64{fleet.AgentWSMessageTypeDistributedRead: 1}, snap[0].NotifiedByType)
+	assert.Equal(t, map[string]map[string]int64{
+		fleet.AgentWSMessageTypeDistributedRead: {fleet.AgentWSReasonDetail: 1},
+	}, hub.NotifyCounts())
 	assert.NotNil(t, snap[0].LastNotifiedAt)
 	assert.Equal(t, fleet.AgentWSReasonDetail, snap[0].LastNotifyReason)
 	assert.False(t, snap[0].ConnectedAt.IsZero())

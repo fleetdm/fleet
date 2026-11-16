@@ -1,1 +1,0 @@
-- Fixed the "Hosts online" and "Vulnerability exposure" charts returning no data when filtered by the Linux platform.

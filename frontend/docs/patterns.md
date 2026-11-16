@@ -286,30 +286,32 @@ sandbox expiry message with more to come).
 
 ```typescript
 /** An example of a top level page utilising MainConent and SidePanel content */
-const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
+const AccountPage = ({ router }: IAccountPageProps): JSX.Element => {
   // ...
 
   return (
     <SidePanelPage>
       <>
         <MainContent className={baseClass}>
-          <PackForm
-            className={`${baseClass}__pack-form`}
+          <UserSettingsForm
+            formData={currentUser}
             handleSubmit={handleSubmit}
-            onFetchTargets={onFetchTargets}
-            selectedTargetsCount={selectedTargetsCount}
-            isPremiumTier={isPremiumTier}
+            onCancel={onCancel}
           />
         </MainContent>
         <SidePanelContent>
-          <PackInfoSidePanel />
-      </SidePanelContent>
-    </>
-  </SidePanelPage>
+          <AccountSidePanel
+            currentUser={currentUser}
+            onChangePassword={onShowPasswordModal}
+            onGetApiToken={onShowApiTokenModal}
+          />
+        </SidePanelContent>
+      </>
+    </SidePanelPage>
   );
 };
 
-export default PackComposerPage;
+export default AccountPage;
 ```
 
 ## Forms
@@ -357,12 +359,14 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 
 The `useFormValidation` hook in `frontend/hooks/useFormValidation.ts` implements every rule below — dirty tracking, clear-on-focus, blur-validates-one-field, submit-as-checkpoint, server errors, trimming, in-flight state. Pass it `initialFormData` and a `validate` function and wire the handlers it returns; don't hand-roll the state management. `UserForm` and `ApiUserForm` (`frontend/pages/admin/ManageUsersPage/components/`) are the reference migrations. The hook deliberately exposes no `isValid` — see [Submit button state](#submit-button-state).
 
+Spread `getTextFieldProps("fieldName")` onto text inputs (`InputField`, `InputFieldWithIcon`) instead of wiring `name`, `value`, `error`, `onChange`, `onFocus` and `onBlur` by hand. A field that needs extra work on change passes its own `onChange` after the spread and calls `setField` from it. Checkboxes, radios, dropdowns and other controls that commit on change call `commitFields` directly.
+
 #### When errors appear
 
 A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
 
 - Never show a field's error before the field is dirty.
-- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
+- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Never add errors to other fields (but see [When errors clear](#when-errors-clear) for removing them).
 - On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
@@ -370,7 +374,8 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 - On focus of a field that has an error (via click, tab, or programmatic focus), clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
 - Re-validate on blur, not on keystroke.
-- Typing in one field never clears errors on other fields. Clearing is per-field.
+- Typing in one field never clears errors on other fields.
+- On blur, clear any other field's error that the new value made irrelevant — e.g. filling **Metadata** clears the shared "Enter metadata or a metadata URL" error on **Metadata URL**. Errors that still apply, and server-set errors, stay.
 - When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
 
 #### Error priority
@@ -395,7 +400,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 #### Conditional / dependent validation
 
-- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field after the mismatch error is set does not re-run the cross-field check; the error stays until the confirmation field is edited or re-blurred.
+- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field never adds a mismatch error, but if the edit makes the two match, the mismatch error clears on blur of the source field.
 - Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
 - When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
 - Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
@@ -945,18 +950,6 @@ The three chip helpers:
 
 Each returns `undefined` when no switch will actually happen, so you can pass it straight to `teamName` without guarding.
 
-### Search-only items
-
-Some entries are gated on the search string itself (e.g., the "Packs" page only appears when searching for `packs`). Use the `search` field from `ICommandPaletteContext` and a regex test:
-
-```ts
-.../packs|create new pack/.test(search.toLowerCase())
-  ? [/* the item */]
-  : []
-```
-
-Use this pattern sparingly — it bypasses the normal Best match ranking and should be reserved for legacy / deprecated features users only reach by name.
-
 ### Tests
 
 Extend `frontend/components/CommandPalette/helpers.tests.ts` when adding a meaningful item:
@@ -1014,6 +1007,31 @@ The icon should now be available to use with the `Icon` component from the given
 ```tsx
 // using a new icon with the given key name 'chevron`
 <Icon name="chevron" />
+```
+
+### Icon rules
+
+Figma is the source of truth for icons. If an icon in code doesn't match Figma, update the code.
+
+- **Size:** 16px minimum (`size="medium"`, the default). Don't use 12px icons. The only exception is
+  `external-link` with `size="small"`, which has its own 12px drawing for links in 12px text. If an
+  icon needs another size, draw it separately in Figma instead of scaling the 16px icon.
+- **Grid and stroke:** icons are drawn on a 16px grid with a 1.5px stroke.
+- **Status icons:** use the outlined versions (`success`, `error`, `pending`, `info`).
+  The one exception is the OS settings "Verified" status, which uses `success-filled`.
+- **Names:** use simple names (`error`, `pending`, `info`, `success`, `close`). Before adding an
+  icon, check `ICON_MAP` for an existing one instead of adding a variant.
+- **Buttons:** pass the icon with the `icon` prop instead of an `<Icon>` child, so the button handles
+  icon color, spacing, and icon-only sizing.
+
+```tsx
+// good
+<Button variant="secondary" icon="filter">Filter</Button>
+
+// bad
+<Button variant="secondary">
+  <Icon name="filter" /> Filter
+</Button>
 ```
 
 ### File size

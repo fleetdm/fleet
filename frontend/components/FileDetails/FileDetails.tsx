@@ -137,6 +137,7 @@ const FileDetails = ({
             className={`${baseClass}__delete-button`}
             variant="subdued"
             onClick={onDeleteFile}
+            disabled={disabled || (gitOpsModeEnabled && gitopsCompatible)}
           >
             <label htmlFor="delete-file">
               <Icon name="trash" color="ui-fleet-black-75" />

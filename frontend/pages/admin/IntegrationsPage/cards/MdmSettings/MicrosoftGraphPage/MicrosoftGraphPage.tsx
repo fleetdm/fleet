@@ -7,7 +7,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import DataSet from "components/DataSet";
 import InputField from "components/forms/fields/InputField";
-import isUUID from "components/forms/validators/valid_uuid";
+import { isValidUuid } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
@@ -199,12 +199,12 @@ const MicrosoftGraphPage = () => {
     const errs: IFormErrors = {};
     if (tenantId.trim() === "") {
       errs.tenantId = "Enter a tenant ID";
-    } else if (!isUUID(tenantId.trim())) {
+    } else if (!isValidUuid(tenantId.trim())) {
       errs.tenantId = "Enter a tenant ID in GUID format";
     }
     if (clientId.trim() === "") {
       errs.clientId = "Enter a client ID";
-    } else if (!isUUID(clientId.trim())) {
+    } else if (!isValidUuid(clientId.trim())) {
       errs.clientId = "Enter a client ID in GUID format";
     }
     if (secretRequired && !secretChanged) {

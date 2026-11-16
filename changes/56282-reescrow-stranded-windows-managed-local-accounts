@@ -1,0 +1,1 @@
+- Fixed Windows hosts showing the managed local account as not created after their UUID changed. On upgrade, affected hosts are asked to create the account again, which resets its password and escrows it under the host's current UUID.

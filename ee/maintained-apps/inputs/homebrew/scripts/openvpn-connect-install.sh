@@ -8,13 +8,21 @@ APPDIR="/Applications"
 BUNDLE_ID="org.openvpn.client.app"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
 quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
@@ -33,27 +41,38 @@ quit_and_track_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  local quit_success=false
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
         echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
       fi
+      quit_success=true
+      break
     fi
+    quit_sent=true
     sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
 relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   eval "was_running=\$$var_name"
@@ -91,47 +110,12 @@ if [ -z "${INSTALLER_PATH:-}" ] || [ ! -f "$INSTALLER_PATH" ]; then
   exit 1
 fi
 
-MOUNT_POINT=$(mktemp -d /tmp/openvpn_connect_dmg.XXXXXX)
-cleanup() {
-  hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
-  rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
+quit_and_track_application "$BUNDLE_ID" || exit 1
 
-if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null; then
-  echo "Failed to mount DMG at $INSTALLER_PATH"
+if ! sudo installer -pkg "$INSTALLER_PATH" -target /; then
+  echo "installer -pkg failed for $INSTALLER_PATH"
   exit 1
 fi
-
-# Locate the arm64 installer pkg. We only support Apple Silicon for this FMA,
-# so deliberately skip the x86_64 pkg shipped in the same DMG. Use a glob so
-# parentheses and version/build numbers in the file name don't have to be
-# hard-coded here.
-PKG=""
-for candidate in "$MOUNT_POINT"/*_arm64_Installer_signed.pkg; do
-  if [ -e "$candidate" ]; then
-    PKG="$candidate"
-    break
-  fi
-done
-
-if [ -z "$PKG" ] || [ ! -e "$PKG" ]; then
-  echo "Could not find an arm64 OpenVPN Connect installer pkg in the DMG. Contents:"
-  ls -la "$MOUNT_POINT"
-  exit 1
-fi
-
-echo "Installing $PKG..."
-
-quit_and_track_application "$BUNDLE_ID"
-
-if ! sudo installer -pkg "$PKG" -target /; then
-  echo "installer -pkg failed for $PKG"
-  exit 1
-fi
-
-cleanup
-trap - EXIT
 
 # OpenVPN Connect 3.8+ places the .app inside a wrapper directory rather than
 # directly under /Applications/. osquery's apps table doesn't recurse into

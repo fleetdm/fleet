@@ -1,0 +1,2 @@
+- Added `PUT` and `DELETE /api/v1/fleet/hosts/:id/google_device_id` endpoints (Fleet Premium) to bind an iOS, iPadOS, or Android host to its device ID in Google and to remove that binding. Once set, a host's Google device ID can only be removed with `DELETE`, and each ID can only be bound to one host.
+- Added a `google_device_id` field to the host details response for iOS, iPadOS, and Android hosts. The Google device ID is shown on the host details page once set.

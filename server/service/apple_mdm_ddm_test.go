@@ -55,6 +55,39 @@ func TestReplaceDeclarationFleetVariablesExpandsVitalsLast(t *testing.T) {
 	require.JSONEq(t, `{"vital":"tag-$FLEET_VAR_HOST_HARDWARE_SERIAL","serial":"SERIAL123"}`, out)
 }
 
+func TestReplaceDeclarationFleetVariablesIdPExternalID(t *testing.T) {
+	ctx := t.Context()
+	ds := mysqltest.CreateMySQLDS(t)
+	svc := MDMAppleDDMService{
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		UUID:            "idp-external-id-uuid",
+		Hostname:        "idp-external-id-host",
+		OsqueryHostID:   new("idp-external-id"),
+		NodeKey:         new("idp-external-id"),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user@example.com", ExternalID: new("00u1abcd2EFGH3ijk4x7")})
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+	require.NoError(t, err)
+
+	const contents = `{"id":"$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID"}`
+	out, err := svc.replaceDeclarationFleetVariables(ctx, contents, host.UUID)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"id":"00u1abcd2EFGH3ijk4x7"}`, out)
+
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "user@example.com"})
+	require.NoError(t, err)
+	_, err = svc.replaceDeclarationFleetVariables(ctx, contents, host.UUID)
+	require.ErrorContains(t, err, "There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID.")
+}
+
 func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	ctx := t.Context()
 	ds := mysqltest.CreateMySQLDS(t)

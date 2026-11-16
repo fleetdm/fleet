@@ -95,7 +95,7 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	cfg.Server.PrivateKey = "test-private-key"
-	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	// Mock valid certificate
 	certPEM := generateTestCertPEM(t)
@@ -192,11 +192,21 @@ func generateTestCertPEM(t *testing.T) []byte {
 func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 	certPEM := generateTestCertPEM(t)
 
+	t.Run("free license", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(test.UserContext(ctx, test.UserAdmin))
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.Nil(t, profileData)
+	})
+
 	t.Run("missing server private key", func(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "" // Not configured
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
@@ -210,7 +220,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -280,7 +290,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -297,7 +307,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -319,7 +329,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		// Valid PEM structure but invalid DER content
@@ -347,7 +357,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -382,7 +392,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -413,7 +423,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -443,7 +453,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {

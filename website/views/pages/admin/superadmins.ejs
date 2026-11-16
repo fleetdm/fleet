@@ -1,0 +1,50 @@
+<div id="superadmins" v-cloak>
+  <div class="container pt-4">
+    <h3>Superadmins</h3>
+    <p>Users with superadmin access to the Fleet website. Revoking access does not delete the user's account.</p>
+
+    <div purpose="grant-form" class="card card-body">
+      <ajax-form :syncing.sync="syncingGrant" :cloud-error.sync="grantCloudError" :form-errors.sync="grantFormErrors" :form-data="grantFormData" :form-rules="grantFormRules" action="grantSuperadmin" @submitted="submittedGrantForm($event)">
+        <div class="form-group mb-3">
+          <label for="emailAddress">Grant superadmin access to an existing user</label>
+          <input class="form-control" id="emailAddress" type="text" placeholder="name@example.com" :class="[grantFormErrors.emailAddress ? 'is-invalid' : '' ]" v-model.trim="grantFormData.emailAddress">
+          <div class="invalid-feedback" v-if="grantFormErrors.emailAddress">Please enter an email address associated with an account.</div>
+        </div>
+        <cloud-error purpose="cloud-error" v-if="grantCloudError === 'userNotFound'">No user was found with that email address.</cloud-error>
+        <cloud-error purpose="cloud-error" v-else-if="grantCloudError === 'alreadySuperAdmin'">That user is already a superadmin.</cloud-error>
+        <cloud-error purpose="cloud-error" v-else-if="grantCloudError"></cloud-error>
+        <ajax-button spinner="true" purpose="grant-button" :syncing="syncingGrant" class="btn btn-sm btn-info">Grant superadmin</ajax-button>
+      </ajax-form>
+    </div>
+
+    <cloud-error purpose="cloud-error" v-if="revokeCloudError === 'cannotRevokeOwnAccess'">You cannot remove your own superadmin access.</cloud-error>
+    <cloud-error purpose="cloud-error" v-else-if="revokeCloudError === 'lastSuperAdmin'">This is the last remaining superadmin, so their access cannot be removed.</cloud-error>
+    <cloud-error purpose="cloud-error" v-else-if="revokeCloudError === 'notSuperAdmin'">That user is no longer a superadmin. Refresh the page to see the current list.</cloud-error>
+    <cloud-error purpose="cloud-error" v-else-if="revokeCloudError === 'userNotFound'">That user could not be found. Refresh the page to see the current list.</cloud-error>
+    <cloud-error purpose="cloud-error" v-else-if="revokeCloudError"></cloud-error>
+
+    <div purpose="table-container" v-if="superAdmins.length > 0">
+      <table class="table" purpose="superadmins-table">
+        <thead><tr>
+          <td>Name</td>
+          <td>Email</td>
+          <td>Last seen</td>
+          <td></td>
+        </tr></thead>
+        <tbody>
+          <tr v-for="user in superAdmins" :key="user.id">
+            <td>{{user.firstName}} {{user.lastName}}<span purpose="you-badge" v-if="user.id === currentUserId"> (you)</span></td>
+            <td>{{user.emailAddress}}</td>
+            <td><span v-if="user.lastSeenAt">{{formatIsoDate(user.lastSeenAt)}}</span><span v-else>Never</span></td>
+            <td><ajax-button purpose="revoke-button" :syncing="syncingRevoke" class="btn btn-sm btn-danger ml-auto" v-if="user.id !== currentUserId" @click="clickRevokeSuperadmin(user)">Revoke</ajax-button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div purpose="table-container" v-else>
+      <h4>There are no superadmins.</h4>
+    </div>
+
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

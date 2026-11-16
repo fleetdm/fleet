@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -232,7 +233,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 
 func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error) {
 	// Query hosts that:
-	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
+	// - Have macos_recovery_lock_password_enabled = true (from team config or appconfig for no-team hosts)
 	// - Are Apple Silicon (ARM CPU)
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
 	// - Are NOT personally-owned (BYOD) enrollments. Personal enrollments have the
@@ -257,10 +258,10 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[str
 		  AND hm.is_personal_enrollment = 0
 		  AND (
 		      -- Team hosts: check team config
-		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		      OR
 		      -- No-team hosts: check appconfig
-		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		  )
 		  AND (rkp.host_uuid IS NULL OR rkp.status IS NULL)
 		  AND rkp.pending_set_command_uuid IS NULL
@@ -315,9 +316,9 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 		  AND rkp.operation_type = '%s'
 		  AND (rkp.status = '%s' OR rkp.status IS NULL)
 		  AND (
-		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		      OR
-		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		  )
 	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -451,9 +452,9 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 		      (rkp.operation_type = '%s' AND rkp.status IS NULL)
 		  )
 		  AND (
-		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = false)
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.macos_recovery_lock_password_enabled') = false)
 		      OR
-		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = false)
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.macos_recovery_lock_password_enabled') = false)
 		  )
 		LIMIT 500
 		FOR UPDATE
@@ -497,6 +498,52 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 	}
 
 	return hostUUIDs, nil
+}
+
+func (ds *Datastore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+	// Every result handler that moves a row to verifying also records its verify command, so
+	// only the upgrade repair (migration 20261029055700) leaves one without. Unlike the set and
+	// clear claims there are no enrollment checks: these rows already passed them, and the cron
+	// soft-deletes rows of unenrolled hosts before this runs.
+	selectStmt := fmt.Sprintf(`
+		SELECT host_uuid, operation_type
+		FROM host_recovery_key_passwords
+		WHERE deleted = 0
+		  AND status = '%s'
+		  AND pending_verify_command_uuid IS NULL
+		LIMIT 500
+		FOR UPDATE
+	`, fleet.MDMDeliveryVerifying)
+
+	var claims []fleet.HostRecoveryLockVerifyClaim
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		claims = nil
+		if err := sqlx.SelectContext(ctx, tx, &claims, selectStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts for recovery lock verify")
+		}
+		for i := range claims {
+			claims[i].VerifyCommandUUID = uuid.NewString()
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE host_recovery_key_passwords SET pending_verify_command_uuid = ?
+				WHERE host_uuid = ? AND deleted = 0`,
+				claims[i].VerifyCommandUUID, claims[i].HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "claim host for recovery lock verify")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
+
+func (ds *Datastore) UnclaimHostForRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords SET pending_verify_command_uuid = NULL
+		WHERE host_uuid = ? AND pending_verify_command_uuid = ? AND deleted = 0`,
+		hostUUID, verifyCommandUUID)
+	return ctxerr.Wrap(ctx, err, "unclaim host for recovery lock verify")
 }
 
 // DeleteHostRecoveryLockPassword hard deletes the host's recovery lock password row from the database.

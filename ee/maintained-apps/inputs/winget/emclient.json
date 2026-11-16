@@ -3,9 +3,13 @@
   "slug": "emclient/windows",
   "package_identifier": "eMClient.eMClient",
   "unique_identifier": "eM Client",
+  "open_process_names": ["mailclient.exe"],
+  "exists_query": "SELECT 1 FROM programs WHERE name IN ('eM Client (Updater)', 'eM Client') AND publisher = 'eM Client s.r.o.';",
   "installer_arch": "x86",
-  "installer_type": "msi",
-  "installer_scope": "machine",
-  "program_publisher": "eM Client s.r.o.",
-  "default_categories": ["Communication"]
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/emclient_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/emclient_uninstall.ps1",
+  "default_categories": ["Communication"],
+  "frozen": true
 }

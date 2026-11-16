@@ -1,13 +1,18 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import {
   activityHandlerHasMoreActivities,
   activityHandlerHasPreviousActivities,
 } from "test/handlers/activity-handlers";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  renderWithSetup,
+} from "test/test-utils";
 
 import ActivityFeed from "./ActivityFeed";
 
@@ -99,5 +104,33 @@ describe("Activity Feed", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
+  });
+
+  it("shows the card title when activities come from a fresh cache on return to the page", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const renderFeed = (setShowActivityFeedTitle: (show: boolean) => void) =>
+      renderWithSetup(
+        <QueryClientProvider client={client}>
+          <ActivityFeed
+            setShowActivityFeedTitle={setShowActivityFeedTitle}
+            setRefetchActivities={noop}
+            isPremiumTier
+            router={createMockRouter()}
+          />
+        </QueryClientProvider>
+      );
+
+    const firstVisit = renderFeed(noop);
+    await screen.findByText("Test User");
+    firstVisit.unmount();
+
+    const setShowActivityFeedTitle = jest.fn();
+    renderFeed(setShowActivityFeedTitle);
+
+    await waitFor(() =>
+      expect(setShowActivityFeedTitle).toHaveBeenCalledWith(true)
+    );
   });
 });

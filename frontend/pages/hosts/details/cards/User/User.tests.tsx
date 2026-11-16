@@ -11,8 +11,10 @@ describe("User card", () => {
   const render = createCustomRenderer();
 
   describe("IdP data", () => {
-    it("renders the username, full name, groups, and department fields", () => {
-      const endUsers = [createMockHostEndUser()];
+    it("renders the username, full name, groups, department, and external ID fields", () => {
+      const endUsers = [
+        createMockHostEndUser({ idp_id: "00u1abcd2EFGH3ijk4x7" }),
+      ];
       render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
 
       expect(screen.getByText("Username (IdP)")).toBeInTheDocument();
@@ -27,6 +29,17 @@ describe("User card", () => {
 
       expect(screen.getByText("Department (IdP)")).toBeInTheDocument();
       expect(screen.getByText("Engineering")).toBeInTheDocument();
+
+      expect(screen.getByText("External ID (IdP)")).toBeInTheDocument();
+      expect(screen.getByText("00u1abcd2EFGH3ijk4x7")).toBeInTheDocument();
+    });
+
+    it("renders an empty external ID when the end user has none", () => {
+      const endUsers = [createMockHostEndUser({ idp_id: undefined })];
+      render(<User endUsers={endUsers} onClickUpdateUser={noop} />);
+
+      expect(screen.getByText("External ID (IdP)")).toBeInTheDocument();
+      expect(screen.getByText("---")).toBeInTheDocument();
     });
 
     it("does not render the 'Add user' button without write permission even when there is an existing IdP username", () => {
@@ -107,6 +120,25 @@ describe("User card", () => {
     expect(screen.getByText("Google Chrome profiles")).toBeInTheDocument();
     expect(screen.getByText("Profile1")).toBeInTheDocument();
     expect(screen.getAllByText("+ 1 more")).toHaveLength(2); // one for groups, one for Chrome profiles
+  });
+
+  it("shows every chrome profile in the tooltip when hovering the first profile", async () => {
+    const endUsers = [
+      createMockHostEndUser({
+        other_emails: [
+          { email: "Profile1", source: "google_chrome_profiles" },
+          { email: "Profile2", source: "google_chrome_profiles" },
+        ],
+      }),
+    ];
+    const { user } = render(
+      <User endUsers={endUsers} onClickUpdateUser={noop} />
+    );
+
+    await user.hover(screen.getByText("Profile1"));
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip").textContent).toBe("Profile1Profile2");
+    });
   });
 
   it("renders other emails field when has other email values", () => {

@@ -1,3 +1,5 @@
+import { getAutoUpdateWindowDurationMinutes } from "pages/SoftwarePage/helpers";
+
 import { ISoftwareAutoUpdateConfigFormData } from "./EditAutoUpdateConfigModal";
 
 export interface ISoftwareAutoUpdateConfigInputValidation {
@@ -59,18 +61,11 @@ const validateWindowLength = (
   ) {
     return true; // Skip this validation if startTime is invalid
   }
-  const [startHours, startMinutes] = formData.autoUpdateStartTime
-    .split(":")
-    .map(Number);
-  const [endHours, endMinutes] = formData.autoUpdateEndTime
-    .split(":")
-    .map(Number);
-  const startTotalMinutes = startHours * 60 + startMinutes;
-  const endTotalMinutes = endHours * 60 + endMinutes;
-  return (
-    endTotalMinutes < startTotalMinutes ||
-    endTotalMinutes - startTotalMinutes >= 60
+  const durationMinutes = getAutoUpdateWindowDurationMinutes(
+    formData.autoUpdateStartTime,
+    formData.autoUpdateEndTime
   );
+  return durationMinutes !== null && durationMinutes >= 60;
 };
 
 const FORM_VALIDATIONS: IFormValidations = {

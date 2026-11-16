@@ -1,0 +1,15 @@
+{
+  "provider": "Any OAuth 2.0 IdP (RFC 6749 section 5.2 error responses)",
+  "cases": [
+    {"name": "test user rejected", "status": 400, "body": "{\"error\":\"invalid_grant\"}", "want": "ok"},
+    {"name": "bad client credentials", "status": 401, "body": "{\"error\":\"invalid_client\"}", "want": "client_credentials"},
+    {"name": "client not allowed the password grant", "status": 400, "body": "{\"error\":\"unauthorized_client\"}", "want": "app_setup"},
+    {"name": "password grant not supported", "status": 400, "body": "{\"error\":\"unsupported_grant_type\"}", "want": "app_setup"},
+    {"name": "scope rejected", "status": 400, "body": "{\"error\":\"invalid_scope\"}", "want": "app_setup"},
+    {"name": "unlisted error code", "status": 400, "body": "{\"error\":\"invalid_request\",\"error_description\":\"Missing parameter\"}", "want": "unexpected"},
+    {"name": "token issued for the test user", "status": 200, "body": "{\"access_token\":\"x\",\"id_token\":\"y\"}", "want": "token_url_token"},
+    {"name": "JSON error without an OAuth error code", "status": 500, "body": "{}", "want": "token_url_status"},
+    {"name": "error field that isn't a string", "status": 400, "body": "{\"error\":{\"code\":1}}", "want": "token_url"},
+    {"name": "not a token endpoint (HTML page)", "status": 404, "content_type": "text/html", "body": "<html><body>Not Found</body></html>", "want": "token_url"}
+  ]
+}

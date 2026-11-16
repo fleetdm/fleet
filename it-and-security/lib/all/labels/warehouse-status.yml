@@ -1,0 +1,9 @@
+# custom_host_vital_id 6 is "Warehouse status" in default.yml. If that vital is
+# ever deleted and recreated, it gets a new ID and this must be updated.
+- name: "Warehouse: Ready for deployment"
+  description: Hosts stored at Retriever that are ready to ship to a Fleetie (Warehouse status is "Ready For Deployment")
+  label_membership_type: host_vitals
+  criteria:
+    vital: custom_host_vital
+    custom_host_vital_id: 6
+    value: Ready For Deployment

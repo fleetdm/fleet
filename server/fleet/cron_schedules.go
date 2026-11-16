@@ -60,6 +60,10 @@ const (
 	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
 	// policy per host. This job only runs once after upgrading to v4.77.0.
 	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
+	// CronReencryptWindowsDiskEncryptionKeys re-encrypts legacy Windows BitLocker recovery keys, stored by older
+	// releases under the WSTEP certificate, with the server private key, and marks the ones it cannot read so the
+	// host escrows a new key. First run is ten minutes after startup, then hourly.
+	CronReencryptWindowsDiskEncryptionKeys CronScheduleName = "reencrypt_windows_disk_encryption_keys"
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.
 	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
@@ -84,6 +88,9 @@ const (
 	// CronEndUserNotifications queues end user notifications that are due and gives up on expired
 	// ones. Runs every 1 minute, which is what a reminder timed to the minute needs.
 	CronEndUserNotifications CronScheduleName = "end_user_notifications"
+	// CronAppStoreAppConfigurationReconciler installs iOS and iPadOS App Store apps again on hosts whose latest install didn't send
+	// the configuration of the version they should have. Runs every 1 minute.
+	CronAppStoreAppConfigurationReconciler CronScheduleName = "app_store_app_configuration_reconciler"
 )
 
 type CronSchedulesService interface {

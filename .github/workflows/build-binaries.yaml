@@ -4,7 +4,19 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "handbook/**"
+      - "website/**"
+      - "mdm-profiles/**"
+      - "articles/**"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "handbook/**"
+      - "website/**"
+      - "mdm-profiles/**"
+      - "articles/**"
+      - "docs/**"
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs

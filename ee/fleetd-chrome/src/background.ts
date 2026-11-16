@@ -1,6 +1,10 @@
 import VirtualDatabase from "./db";
 import {E_ALREADY_LOCKED, Mutex, tryAcquire, withTimeout} from 'async-mutex';
 
+chrome.runtime.onStartup.addListener(async () => {
+  await chrome.storage.local.set({ lastRebootTimestamp: Date.now() });
+});
+
 // ENV Vars
 declare var FLEET_URL: string;
 declare var FLEET_ENROLL_SECRET: string;

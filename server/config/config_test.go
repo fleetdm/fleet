@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -49,8 +51,8 @@ func TestConfigRoundtrip(t *testing.T) {
 	// true.
 	original := &FleetConfig{}
 	v := reflect.ValueOf(original)
-	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
-		conf_v := v.Elem().Field(conf_index)
+	var populate func(conf_v reflect.Value, name string, conf_index int)
+	populate = func(conf_v reflect.Value, name string, conf_index int) {
 		conf_t := conf_v.Type()
 		for key_index := 0; key_index < conf_v.NumField(); key_index++ {
 			// ignore unexported fields
@@ -61,17 +63,11 @@ func TestConfigRoundtrip(t *testing.T) {
 			key_v := conf_v.Field(key_index)
 			switch key_v.Interface().(type) {
 			case string:
-				switch conf_v.Type().Field(key_index).Name {
+				switch conf_t.Field(key_index).Name {
 				case "TLSProfile":
 					// we have to explicitly set value for this key as it will only
 					// accept intermediate or modern
 					key_v.SetString(TLSProfileModern)
-				case "EnableAsyncHostProcessing":
-					// supports a bool or per-task config
-					key_v.SetString("true")
-				case "AsyncHostCollectInterval", "AsyncHostCollectLockTimeout":
-					// supports a duration or per-task config
-					key_v.SetString("30s")
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "Bucket", "Prefix", "Region", "EndpointURL", "AccessKeyID", "SecretAccessKey", "StsAssumeRoleArn", "StsExternalID":
 					key_v.SetString("")
@@ -79,12 +75,12 @@ func TestConfigRoundtrip(t *testing.T) {
 				case "GlobalEnrollSecret":
 					key_v.SetString("")
 				default:
-					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
+					key_v.SetString(name + "_" + conf_t.Field(key_index).Name)
 				}
 			case int:
 				key_v.SetInt(int64(conf_index*100 + key_index))
 			case bool:
-				switch conf_v.Type().Field(key_index).Name {
+				switch conf_t.Field(key_index).Name {
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "DisableSSL", "ForceS3PathStyle":
 					key_v.SetBool(false)
@@ -94,8 +90,14 @@ func TestConfigRoundtrip(t *testing.T) {
 			case time.Duration:
 				d := time.Duration(conf_index*100 + key_index)
 				key_v.Set(reflect.ValueOf(d))
+			case AzureConfig:
+				// nested under CloudStorage
+				populate(key_v, name+"_"+conf_t.Field(key_index).Name, conf_index)
 			}
 		}
+	}
+	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
+		populate(v.Elem().Field(conf_index), v.Elem().Type().Field(conf_index).Name, conf_index)
 	}
 
 	// Marshal the generated config
@@ -109,227 +111,9 @@ func TestConfigRoundtrip(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure the read config is the same as the original
-	actual := man.LoadConfig()
+	actual, err := man.LoadConfig()
+	require.NoError(t, err)
 	assert.Equal(t, *original, actual)
-}
-
-func TestConfigOsqueryAsync(t *testing.T) {
-	cases := []struct {
-		desc         string
-		yaml         string
-		envVars      []string
-		panics       bool
-		wantLabelCfg AsyncProcessingConfig
-	}{
-		{
-			desc: "default",
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 false,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled true",
-			yaml: `
-osquery:
-  enable_async_host_processing: true`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled invalid",
-			yaml: `
-osquery:
-  enable_async_host_processing: nope`,
-			panics: true,
-		},
-		{
-			desc: "yaml set enabled per-task",
-			yaml: `
-osquery:
-  enable_async_host_processing: label_membership=true&policy_membership=false`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set invalid per-task",
-			yaml: `
-osquery:
-  enable_async_host_processing: label_membership=nope&policy_membership=false`,
-			panics: true,
-		},
-		{
-			desc:    "envvar set enabled",
-			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=true"},
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc:    "envvar set enabled on",
-			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=on"}, // on/off, yes/no is only valid in yaml
-			panics:  true,
-		},
-		{
-			desc:    "envvar set enabled per task",
-			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=policy_membership=false&label_membership=true"},
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml collect interval lock timeout",
-			yaml: `
-osquery:
-  enable_async_host_processing: true
-  async_host_collect_interval: 10s
-  async_host_collect_lock_timeout: 20s`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         10 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      20 * time.Second,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml collect interval lock timeout per task",
-			yaml: `
-osquery:
-  enable_async_host_processing: true
-  async_host_collect_interval: label_membership=10s
-  async_host_collect_lock_timeout: policy_membership=20s`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         10 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml env var override",
-			yaml: `
-osquery:
-  enable_async_host_processing: false
-  async_host_collect_interval: label_membership=10s
-  async_host_collect_lock_timeout: policy_membership=20s
-  async_host_insert_batch: 10`,
-			envVars: []string{
-				"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=policy_membership=false&label_membership=true",
-				"FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL=policy_membership=30s&label_membership=50s",
-				"FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT=40s",
-			},
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         50 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      40 * time.Second,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             10,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			var cmd cobra.Command
-			// Leaving this flag unset means that no attempt will be made to load
-			// the config file
-			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			man := NewManager(&cmd)
-
-			// load the yaml config
-			man.viper.SetConfigType("yaml")
-			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
-
-			// TODO: tried to test command-line flags too by using cmd.SetArgs to
-			// test-case values, but that didn't seem to work, not sure how it can
-			// be done in our particular setup.
-
-			// save the current env before clearing it.
-			testutils.SaveEnv(t)
-
-			os.Clearenv()
-			for _, env := range c.envVars {
-				kv := strings.SplitN(env, "=", 2)
-				t.Setenv(kv[0], kv[1])
-			}
-
-			var loadedCfg FleetConfig
-			if c.panics {
-				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
-				})
-			} else {
-				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
-				})
-				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
-				require.Equal(t, c.wantLabelCfg, got)
-			}
-		})
-	}
 }
 
 // TestOsqueryConfigETagDefaults pins both config ETag flags off. The feature
@@ -380,7 +164,7 @@ func TestOsqueryConfigETagDefaults(t *testing.T) {
 
 			var loadedCfg FleetConfig
 			require.NotPanics(t, func() {
-				loadedCfg = man.LoadConfig()
+				loadedCfg = mustLoadConfig(t, man)
 			})
 			require.Equal(t, c.wantConfigETags, loadedCfg.Osquery.ConfigETags)
 			require.Equal(t, c.wantRedisETags, loadedCfg.Osquery.RedisConfigETags)
@@ -497,11 +281,11 @@ server:
 			var loadedCfg FleetConfig
 			if c.panics {
 				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg, _ = man.LoadConfig()
 				})
 			} else {
 				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg = mustLoadConfig(t, man)
 				})
 				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
 			}
@@ -555,7 +339,7 @@ ses:
 				t.Setenv(kv[0], kv[1])
 			}
 
-			loadedCfg := man.LoadConfig()
+			loadedCfg := mustLoadConfig(t, man)
 			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
 		})
 	}
@@ -1069,16 +853,26 @@ func TestAppleCommandCleanupValidate(t *testing.T) {
 			c.AppleCommandCleanupMaxRowDeletionsPerRun = 0
 			c.AppleCommandCleanupMaxCmdDeletionsPerRun = 0
 		}, ""},
-		{"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
-			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
-			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
-			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
-			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)"},
-		{"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
-			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)"},
+		{
+			"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
+			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)",
+		},
+		{
+			"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -1116,7 +910,7 @@ func loadConfigWithOverrides(t *testing.T, yaml string, envVars []string) FleetC
 		t.Setenv(kv[0], kv[1])
 	}
 
-	return man.LoadConfig()
+	return mustLoadConfig(t, man)
 }
 
 func TestAppleCommandCleanupConfig(t *testing.T) {
@@ -1395,10 +1189,37 @@ func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
 
 	testutils.SaveEnv(t)
 	os.Clearenv()
-	require.False(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+	require.False(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
 
 	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
-	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+	require.True(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
+}
+
+func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
+	load := func(yaml string) OsqueryConfig {
+		var cmd cobra.Command
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(&cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return mustLoadConfig(t, man).Osquery
+	}
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	cfg := load("")
+	require.Equal(t, 40, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 20, cfg.MaxConcurrentQueryReportWrites)
+
+	cfg = load("osquery:\n  max_concurrent_query_report_reads: 80\n  max_concurrent_query_report_writes: 0\n")
+	require.Equal(t, 80, cfg.MaxConcurrentQueryReportReads)
+	require.Zero(t, cfg.MaxConcurrentQueryReportWrites)
+
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS", "5")
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES", "7")
+	cfg = load("")
+	require.Equal(t, 5, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 7, cfg.MaxConcurrentQueryReportWrites)
 }
 
 func TestOsqueryConfigValidate(t *testing.T) {
@@ -1539,6 +1360,13 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		PongTimeout:      30 * time.Second,
 		CheckInterval:    30 * time.Second,
 		CheckBatchSize:   500,
+
+		OrbitConfigEnabled:      true,
+		OrbitConfigPollInterval: 5 * time.Minute,
+		OrbitConfigSpread:       30 * time.Second,
+
+		OsqueryConfigEnabled:      true,
+		OsqueryConfigPollInterval: 10 * time.Minute,
 	}
 
 	t.Run("valid", func(t *testing.T) {
@@ -1546,7 +1374,7 @@ func TestValidateWebSocketConfig(t *testing.T) {
 	})
 
 	t.Run("invalid values ignored when transport disabled", func(t *testing.T) {
-		cfg := WebSocketConfig{TransportEnabled: false}
+		cfg := WebSocketConfig{TransportEnabled: false, OrbitConfigPollInterval: -1}
 		cfg.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
 	})
 
@@ -1558,6 +1386,18 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		{"negative pong_timeout", func(c *WebSocketConfig) { c.PongTimeout = -time.Second }},
 		{"zero check_interval", func(c *WebSocketConfig) { c.CheckInterval = 0 }},
 		{"zero check_batch_size", func(c *WebSocketConfig) { c.CheckBatchSize = 0 }},
+		{"orbit_config_enabled without transport", func(c *WebSocketConfig) { c.TransportEnabled = false }},
+		{"orbit_config_poll_interval below 30s", func(c *WebSocketConfig) { c.OrbitConfigPollInterval = 10 * time.Second }},
+		{"negative orbit_config_spread", func(c *WebSocketConfig) { c.OrbitConfigSpread = -time.Second }},
+		{"osquery_config_enabled without transport", func(c *WebSocketConfig) {
+			c.TransportEnabled = false
+			c.OrbitConfigEnabled = false
+		}},
+		{"osquery_config_poll_interval below 1m", func(c *WebSocketConfig) { c.OsqueryConfigPollInterval = 30 * time.Second }},
+		{"negative orbit_config_spread with only osquery config", func(c *WebSocketConfig) {
+			c.OrbitConfigEnabled = false
+			c.OrbitConfigSpread = -time.Second
+		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			cfg := valid
@@ -1565,6 +1405,222 @@ func TestValidateWebSocketConfig(t *testing.T) {
 			called := false
 			cfg.Validate(func(err error, msg string) { called = true })
 			require.True(t, called)
+		})
+	}
+}
+
+func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
+	for _, c := range []struct {
+		env  string
+		want bool
+	}{
+		{"", false},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL", true},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL", true},
+	} {
+		t.Run(c.env, func(t *testing.T) {
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			if c.env != "" {
+				t.Setenv(c.env, "true")
+			}
+			cmd := &cobra.Command{}
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			require.Equal(t, c.want, mustLoadConfig(t, NewManager(cmd)).S3.SoftwareInstallersSignedURL)
+		})
+	}
+}
+
+func TestSoftwareInstallersBackend(t *testing.T) {
+	s3Cfg := S3Config{SoftwareInstallersBucket: "bucket"}
+	azureCfg := AzureConfig{SoftwareInstallersContainer: "container"}
+
+	cases := []struct {
+		name    string
+		cfg     FleetConfig
+		want    StorageBackend
+		wantErr string
+	}{
+		{name: "local", cfg: FleetConfig{}, want: StorageBackendLocal},
+		{name: "s3 only", cfg: FleetConfig{S3: s3Cfg}, want: StorageBackendS3},
+		{name: "azure only", cfg: FleetConfig{CloudStorage: CloudStorageConfig{Azure: azureCfg}}, want: StorageBackendAzure},
+		{
+			name:    "both",
+			cfg:     FleetConfig{S3: s3Cfg, CloudStorage: CloudStorageConfig{Azure: azureCfg}},
+			wantErr: "Couldn't configure. `s3_software_installers_bucket` and `cloud_storage.azure.files_container` cannot both be set; choose one storage backend for software installers.",
+		},
+		{
+			// the carves bucket does not select the software installers backend
+			name: "s3 carves only", cfg: FleetConfig{S3: S3Config{CarvesBucket: "carves"}}, want: StorageBackendLocal,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.cfg.SoftwareInstallersBackend()
+			if c.wantErr != "" {
+				require.EqualError(t, err, c.wantErr)
+				require.Equal(t, StorageBackendLocal, got)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.want, got)
+			}
+
+			var fatalErr error
+			c.cfg.ValidateSoftwareInstallersBackend(func(err error, _ string) { fatalErr = err })
+			if c.wantErr != "" {
+				require.EqualError(t, fatalErr, c.wantErr)
+			} else {
+				require.NoError(t, fatalErr)
+			}
+		})
+	}
+}
+
+func TestSoftwareInstallersSignedURLAndStagedUpload(t *testing.T) {
+	cases := []struct {
+		name             string
+		cfg              FleetConfig
+		wantSigned       bool
+		wantStagedUpload bool
+	}{
+		{name: "default", cfg: FleetConfig{}},
+		{
+			name:       "s3 cloudfront signer",
+			cfg:        FleetConfig{S3: S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersCloudFrontSigner: &testSigner{}}},
+			wantSigned: true,
+		},
+		{
+			name:             "s3 signed url with bucket",
+			cfg:              FleetConfig{S3: S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersSignedURL: true}},
+			wantSigned:       true,
+			wantStagedUpload: true,
+		},
+		{
+			// S3 is only selected when a bucket is set, so its signing settings are ignored otherwise
+			name: "s3 signed url without bucket",
+			cfg:  FleetConfig{S3: S3Config{SoftwareInstallersSignedURL: true}},
+		},
+		{
+			name: "s3 cloudfront signer without bucket",
+			cfg:  FleetConfig{S3: S3Config{SoftwareInstallersCloudFrontSigner: &testSigner{}}},
+		},
+		{
+			name: "s3 signed url ignored when azure is selected",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersSignedURL: true},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c"}},
+			},
+		},
+		{
+			name: "azure signed url ignored when s3 is selected",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b"},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersSignedURL: true}},
+			},
+			wantStagedUpload: false,
+		},
+		{
+			name: "both backends configured",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersSignedURL: true},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c", SoftwareInstallersSignedURL: true}},
+			},
+			wantStagedUpload: true,
+		},
+		{
+			name: "azure signed url",
+			cfg: FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{
+				SoftwareInstallersContainer: "c", SoftwareInstallersSignedURL: true,
+			}}},
+			wantSigned: true,
+		},
+		{
+			name: "azure without signed url",
+			cfg:  FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c"}}},
+		},
+		{
+			name: "azure signed url without container",
+			cfg:  FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersSignedURL: true}}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.wantSigned, c.cfg.SoftwareInstallersSignedURLEnabled())
+			require.Equal(t, c.wantStagedUpload, c.cfg.StagedUploadAvailable())
+		})
+	}
+}
+
+type testSigner struct{}
+
+func (*testSigner) Public() crypto.PublicKey { return nil }
+
+func (*testSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
+
+func mustLoadConfig(t *testing.T, man Manager) FleetConfig {
+	t.Helper()
+	cfg, err := man.LoadConfig()
+	require.NoError(t, err)
+	return cfg
+}
+
+func TestRemovedConfigKeys(t *testing.T) {
+	newManager := func(t *testing.T, yaml string) (*cobra.Command, Manager) {
+		cmd := &cobra.Command{Use: "serve", Run: func(*cobra.Command, []string) {}}
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return cmd, man
+	}
+	// removedMessage builds the expected message with the old and new names in the form the user set them.
+	removedMessage := func(e removednames.Entry, convert func(string) string) string {
+		newName := e.New
+		if newName != "" {
+			newName = convert(newName)
+		}
+		return removednames.Message(convert(e.Old), newName)
+	}
+
+	for _, removedKey := range removednames.Filter(removednames.KindConfigKey, 0) {
+		t.Run(removedKey.Old, func(t *testing.T) {
+			t.Run("file", func(t *testing.T) {
+				// Nest the dotted key as YAML, the way it appears in a config file.
+				var yaml strings.Builder
+				parts := strings.Split(removedKey.Old, ".")
+				for i, part := range parts {
+					yaml.WriteString(strings.Repeat("  ", i))
+					yaml.WriteString(part)
+					yaml.WriteString(":")
+					if i < len(parts)-1 {
+						yaml.WriteString("\n")
+					}
+				}
+				yaml.WriteString(" value\n")
+
+				_, man := newManager(t, yaml.String())
+				want := removedMessage(removedKey, func(s string) string { return s })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("env", func(t *testing.T) {
+				t.Setenv(envNameFromConfigKey(removedKey.Old), "value")
+
+				_, man := newManager(t, "")
+				want := removedMessage(removedKey, envNameFromConfigKey)
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("flag", func(t *testing.T) {
+				cmd, man := newManager(t, "")
+				require.NoError(t, cmd.ParseFlags([]string{"--" + flagNameFromConfigKey(removedKey.Old) + "=value"}))
+
+				want := removedMessage(removedKey, func(s string) string { return "--" + flagNameFromConfigKey(s) })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
 		})
 	}
 }

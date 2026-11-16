@@ -59,10 +59,9 @@ const OSSettings = ({
 
   const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 
-  // The "assets" route renders the Configuration profiles card's Assets
-  // sub-tab, so it resolves to (and keeps the side nav on) that same section.
-  const isAssetsSubTab = section === "assets";
-  const effectiveSection = isAssetsSubTab ? "configuration-profiles" : section;
+  // Assets used to have their own route; keep old links working.
+  const effectiveSection =
+    section === "assets" ? "configuration-profiles" : section;
 
   const currentFormSection =
     filteredNavItems.find((item) => item.urlSection === effectiveSection) ??
@@ -118,7 +117,6 @@ const OSSettings = ({
             onMutation={refetchAggregateProfileStatus}
             router={router}
             currentPage={currentPage}
-            activeTab={isAssetsSubTab ? "assets" : "profiles"}
             urlPlatformParam={urlPlatformParam}
           />
         }

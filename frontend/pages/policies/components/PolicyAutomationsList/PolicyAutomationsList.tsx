@@ -58,7 +58,7 @@ export const mapAutomationRows = (
         PATHS.SOFTWARE_TITLE_DETAILS(
           storedPolicy.install_software.software_title_id.toString()
         ),
-        { fleet_id: storedPolicy.team_id }
+        { fleet_id: storedPolicy.fleet_id }
       ),
       sortOrder: 0,
       sortName: displayedName.toLowerCase(),

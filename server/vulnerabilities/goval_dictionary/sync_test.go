@@ -24,13 +24,21 @@ func TestSync(t *testing.T) {
 					Platform:   "amzn",
 					Name:       "Amazon Linux 2.0.0",
 				},
+				{
+					HostsCount: 1,
+					Platform:   "amzn",
+					Name:       "Amazon Linux 2022.0.20221207",
+				},
+				{
+					HostsCount: 1,
+					Platform:   "amzn",
+					Name:       "Amazon Linux 2023.5.20240624",
+				},
 			},
 		}
 
 		result := whatToDownload(&osVersions)
-		require.Len(t, result, 1)
-		require.Contains(t, result, oval.NewPlatform("amzn", "Amazon Linux 2.0.0"))
-		require.NotContains(t, result, oval.NewPlatform("ubuntu", "Ubuntu 20.4.0"))
+		require.ElementsMatch(t, []oval.Platform{"amzn_02", "amzn_2023"}, result)
 	})
 
 	t.Run("#whatToDownload skips host-supplied traversal platforms", func(t *testing.T) {

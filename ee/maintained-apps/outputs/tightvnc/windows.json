@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.8.88",
+      "version": "2.8.89",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TightVNC' AND publisher = 'GlavSoft LLC.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TightVNC' AND publisher = 'GlavSoft LLC.' AND version_compare(version, '2.8.88') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TightVNC' AND publisher = 'GlavSoft LLC.' AND version_compare(version, '2.8.89') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tightvnc.exe');"
       },
-      "installer_url": "https://www.tightvnc.com/download/2.8.88/tightvnc-2.8.88-gpl-setup-64bit.msi",
+      "installer_url": "https://www.tightvnc.com/download/2.8.89/tightvnc-2.8.89-gpl-setup-64bit.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "45f53fb6",
-      "sha256": "fa86d817ac29c5ffe1e8e7095e738d9ba5ca28aa62304ac234580916622a8ca2",
+      "sha256": "dff8d7e40a81e0b86ba1d9d5cc0d4f22d08354c50c9cbdc0825bbb6ccfb1073c",
       "default_categories": [
         "Developer tools"
       ],

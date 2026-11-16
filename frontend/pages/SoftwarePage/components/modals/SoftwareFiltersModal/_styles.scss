@@ -9,6 +9,18 @@
     gap: $pad-medium;
   }
 
+  &__section-title {
+    font-size: $x-small;
+  }
+
+  &__kev {
+    @include flex-column-8px-gap;
+  }
+
+  &__advanced-toggle {
+    width: auto;
+  }
+
   .Select-menu {
     padding-bottom: $pad-medium;
   }

@@ -3,6 +3,7 @@
   "slug": "audacity/windows",
   "package_identifier": "Audacity.Audacity",
   "unique_identifier": "Audacity",
+  "open_process_names": ["audacity.exe", "audacity4.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/audacity_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/audacity_uninstall.ps1",

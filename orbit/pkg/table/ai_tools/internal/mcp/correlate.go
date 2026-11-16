@@ -20,9 +20,11 @@ var mcpProcessMarkers = []string{
 }
 
 // Correlate reconciles declared servers against a process snapshot: it fills
-// Running/PID/ListeningPort on stdio servers it can match to a live process,
-// and appends heuristic rows (source="process") for running MCP servers that
-// no config declared.
+// Running/PID on stdio servers it can match to a live process, and appends
+// heuristic rows (source="process") for running MCP servers that no config
+// declared. A declared stdio server talks over its pipes, so its port isn't
+// looked up; that keeps an inventory query from enumerating the host's
+// connections.
 func Correlate(declared []Server, snap *proc.Snapshot) []Server {
 	if snap == nil {
 		return declared
@@ -48,8 +50,10 @@ func Correlate(declared []Server, snap *proc.Snapshot) []Server {
 				if s.Source == "config" {
 					s.Source = "both"
 				}
-				if port := snap.ListenPort(pid); port != 0 {
-					s.ListeningPort = port
+				if s.Transport != "stdio" && s.Transport != "" {
+					if port := snap.ListenPort(pid); port != 0 {
+						s.ListeningPort = port
+					}
 				}
 				matched[pid] = struct{}{}
 				break
@@ -72,7 +76,7 @@ func Correlate(declared []Server, snap *proc.Snapshot) []Server {
 			Source:     "process",
 			Running:    1,
 			PID:        pid,
-			Username:   p.Username,
+			Username:   p.User(),
 			Enabled:    -1,
 		}
 		if port := snap.ListenPort(pid); port != 0 {
@@ -92,8 +96,8 @@ func Correlate(declared []Server, snap *proc.Snapshot) []Server {
 // arguments once joined. Falling back to strings.Fields(p.Cmdline) is only
 // safe when the platform couldn't supply CmdlineSlice at all.
 func processArgv(p proc.Process) []string {
-	if len(p.CmdlineSlice) > 0 {
-		return p.CmdlineSlice
+	if argv := p.Argv(); len(argv) > 0 {
+		return argv
 	}
 	return strings.Fields(p.Cmdline)
 }

@@ -1,6 +1,6 @@
 {
   "name": "Twine",
-  "unique_identifier": "com.electron.twine",
+  "unique_identifier": "org.twinery.twine",
   "token": "twine-app",
   "installer_format": "dmg",
   "slug": "twine-app/darwin",

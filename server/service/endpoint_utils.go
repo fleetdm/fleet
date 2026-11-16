@@ -309,6 +309,7 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opt
 	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
 	// Add the capabilities reported by Orbit to the request context
 	opts = append(opts, capabilitiesContextFunc())
+	opts = append(opts, kithttp.ServerBefore(orbitConfigFallbackChangesContext))
 
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &fleetEndpointer{
