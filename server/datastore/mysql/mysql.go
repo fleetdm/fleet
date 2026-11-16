@@ -71,10 +71,6 @@ type Datastore struct {
 	// nil if no read replica
 	readReplicaConfig *common_mysql.MysqlConfig
 
-	// minimum interval between software last_opened_at timestamp to update the
-	// database (see file software.go).
-	minLastOpenedAtDiff time.Duration
-
 	writeCh chan itemToWrite
 
 	// stmtCacheMu protects access to stmtCache.
@@ -255,9 +251,8 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 // that share the same underlying database connections.
 func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.DBConnections, error) {
 	options := &common_mysql.DBOptions{
-		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-		MaxAttempts:         defaultMaxAttempts,
-		Logger:              slog.New(slog.DiscardHandler),
+		MaxAttempts: defaultMaxAttempts,
+		Logger:      slog.New(slog.DiscardHandler),
 	}
 
 	for _, setOpt := range opts {
@@ -348,19 +343,18 @@ func newHealthCheckDB(conf config.MysqlConfig, opts common_mysql.DBOptions) (*sq
 // Use this when you need to share database connections with other bounded context datastores.
 func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             conns.Primary,
-		replica:             conns.Replica,
-		healthPrimary:       conns.HealthPrimary,
-		healthReplica:       conns.HealthReplica,
-		logger:              conns.Options.Logger,
-		clock:               c,
-		config:              cfg,
-		readReplicaConfig:   conns.Options.ReplicaConfig,
-		writeCh:             make(chan itemToWrite),
-		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
-		serverPrivateKey:    conns.Options.PrivateKey,
-		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
+		primary:           conns.Primary,
+		replica:           conns.Replica,
+		healthPrimary:     conns.HealthPrimary,
+		healthReplica:     conns.HealthReplica,
+		logger:            conns.Options.Logger,
+		clock:             c,
+		config:            cfg,
+		readReplicaConfig: conns.Options.ReplicaConfig,
+		writeCh:           make(chan itemToWrite),
+		stmtCache:         make(map[string]*sqlx.Stmt),
+		serverPrivateKey:  conns.Options.PrivateKey,
+		Datastore:         NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()

@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the `osquery_min_software_last_opened_at_diff` server configuration option. Fleet now updates a software item's last opened time when a host reports a time at least 5 seconds later than the stored one. Fleet now fails to start if the option is still set.

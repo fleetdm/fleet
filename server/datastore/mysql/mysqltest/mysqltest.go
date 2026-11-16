@@ -49,9 +49,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// defaultMinLastOpenedAtDiff mirrors the constant in package mysql.
-const defaultMinLastOpenedAtDiff = time.Hour
-
 // fromCommonMysqlConfig mirrors the same-named helper in package mysql.
 func fromCommonMysqlConfig(conf *common_mysql.MysqlConfig) *config.MysqlConfig {
 	if conf == nil {
@@ -111,11 +108,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		replicaOpt = mysql.Replica(&replicaConf)
 	}
 
-	// For use with WithFleetConfig. Note that since we're setting up the DB in a different way
-	// than in production, we have to reset the MinSoftwareLastOpenedAtDiff field to its default so
-	// it's not overwritten here.
 	tc := config.TestConfig()
-	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
 
 	var dslogger *slog.Logger
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -135,10 +128,9 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	}
 	if opts.RealReplica {
 		replicaOpts := &common_mysql.DBOptions{
-			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-			MaxAttempts:         1,
-			Logger:              slog.New(slog.DiscardHandler),
-			SqlMode:             common_mysql.TestSQLMode,
+			MaxAttempts: 1,
+			Logger:      slog.New(slog.DiscardHandler),
+			SqlMode:     common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}

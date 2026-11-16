@@ -289,9 +289,8 @@ type OsqueryConfig struct {
 	// TODO(lucas): We should at least add a warning if this field is populated.
 	ResultLogFile string `yaml:"result_log_file"`
 
-	EnableLogRotation           bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent            int           `yaml:"max_jitter_percent"`
-	MinSoftwareLastOpenedAtDiff time.Duration `yaml:"min_software_last_opened_at_diff"`
+	EnableLogRotation bool `yaml:"enable_log_rotation"`
+	MaxJitterPercent  int  `yaml:"max_jitter_percent"`
 
 	// MaxLogWriteBodySize overrides the default request body size limit
 	// for the /api/osquery/log endpoint. A value of 0 means use the
@@ -1927,8 +1926,6 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
-		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
@@ -2508,7 +2505,6 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			DetailUpdateInterval:           man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:              man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:               man.getConfigInt("osquery.max_jitter_percent"),
-			MinSoftwareLastOpenedAtDiff:    man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:            man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:    man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:          man.getConfigBool("osquery.allow_body_auth_fallback"),

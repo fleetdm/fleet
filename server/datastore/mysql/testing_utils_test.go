@@ -55,11 +55,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		replicaOpt = Replica(&replicaConf)
 	}
 
-	// For use with WithFleetConfig. Note that since we're setting up the DB in a different way
-	// than in production, we have to reset the MinSoftwareLastOpenedAtDiff field to its default so
-	// it's not overwritten here.
 	tc := config.TestConfig()
-	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
 
 	// TODO: for some reason we never log datastore messages when running integration tests, why?
 	//
@@ -82,10 +78,9 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	}
 	if opts.RealReplica {
 		replicaOpts := &common_mysql.DBOptions{
-			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-			MaxAttempts:         1,
-			Logger:              slog.New(slog.DiscardHandler),
-			SqlMode:             common_mysql.TestSQLMode,
+			MaxAttempts: 1,
+			Logger:      slog.New(slog.DiscardHandler),
+			SqlMode:     common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}

@@ -55,6 +55,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"UpdateHostSoftwareLastOpenedAtMinDiff", testUpdateHostSoftwareLastOpenedAtMinDiff},
 		{"GoBinaries", testSoftwareGoBinaries},
 		{"AITool", testSoftwareAITool},
 		{"UpdateHostSoftwarePreserveSources", testUpdateHostSoftwarePreserveSources},
@@ -415,6 +416,7 @@ func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
+	lastOpened := time.Now()
 	cases := []struct {
 		desc     string
 		current  []fleet.Software
@@ -479,6 +481,30 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 			true,
 		},
 		{
+			"last open 4 seconds later",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(4 * time.Second))}},
+			true,
+		},
+		{
+			"last open 5 seconds later",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(5 * time.Second))}},
+			false,
+		},
+		{
+			"same last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			true,
+		},
+		{
+			"earlier last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(-time.Hour))}},
+			true,
+		},
+		{
 			"identical with duplicates incoming",
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "A", Version: "1.0", Source: "ASD"}},
@@ -497,7 +523,7 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			current, incoming, got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
+			current, incoming, got := nothingChanged(c.current, c.incoming)
 			if c.want {
 				assert.True(t, got)
 				assert.Equal(t, len(current), len(incoming))
@@ -2345,6 +2371,57 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	require.NotContains(t, buf.String(), "bar_app")
 
 	ds.logger = oldLogger
+}
+
+func testUpdateHostSoftwareLastOpenedAtMinDiff(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+
+	// MySQL stores last_opened_at with second precision.
+	opened := time.Now().UTC().Truncate(time.Second).Add(-24 * time.Hour)
+	app := func(lastOpenedAt time.Time) fleet.Software {
+		return fleet.Software{Name: "app", Version: "1.0", Source: "apps", LastOpenedAt: &lastOpenedAt}
+	}
+	// Each report also changes the package list, so ingestion doesn't skip the update
+	// path because the last opened time is the only change.
+	packages := func(names ...string) []fleet.Software {
+		var sw []fleet.Software
+		for _, n := range names {
+			sw = append(sw, fleet.Software{Name: n, Version: "1.0", Source: "deb_packages"})
+		}
+		return sw
+	}
+	report := func(appLastOpenedAt time.Time, pkgs ...string) {
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, append([]fleet.Software{app(appLastOpenedAt)}, packages(pkgs...)...))
+		require.NoError(t, err)
+	}
+	storedLastOpenedAt := func() time.Time {
+		sw, err := ds.ListSoftwareByHostIDShort(ctx, host.ID)
+		require.NoError(t, err)
+		for _, s := range sw {
+			if s.Name == "app" {
+				require.NotNil(t, s.LastOpenedAt)
+				return s.LastOpenedAt.UTC()
+			}
+		}
+		require.FailNow(t, "app not found in host software")
+		return time.Time{}
+	}
+
+	report(opened)
+	require.Equal(t, opened, storedLastOpenedAt())
+
+	report(opened.Add(4*time.Second), "pkg1")
+	assert.Equal(t, opened, storedLastOpenedAt(), "4 seconds later isn't saved")
+
+	report(opened.Add(5*time.Second), "pkg1", "pkg2")
+	assert.Equal(t, opened.Add(5*time.Second), storedLastOpenedAt(), "5 seconds later is saved")
+
+	report(opened.Add(5*time.Second), "pkg1")
+	assert.Equal(t, opened.Add(5*time.Second), storedLastOpenedAt(), "same time is a no-op")
+
+	report(opened.Add(-time.Hour), "pkg1", "pkg2")
+	assert.Equal(t, opened.Add(5*time.Second), storedLastOpenedAt(), "earlier time isn't saved")
 }
 
 // Test edge case: Software with same bundle identifier but different names
