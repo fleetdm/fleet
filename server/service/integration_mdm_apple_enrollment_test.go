@@ -406,7 +406,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
 			  "macos_fleet": %q,
 			  "ios_fleet": %q,
@@ -417,7 +417,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -440,7 +440,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 
@@ -596,7 +596,7 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_business_manager": [
+				"apple_business": [
 					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""},
 					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""}
 				]
@@ -620,7 +620,7 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_business_manager": [
+				"apple_business": [
 					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""}
 				]
 			}
@@ -1189,7 +1189,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
 			  "macos_fleet": %q,
 			  "ios_fleet": %q,
@@ -1200,7 +1200,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})

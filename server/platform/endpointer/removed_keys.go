@@ -87,7 +87,7 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 		visited[t] = struct{}{}
 		for sf := range t.Fields() {
 			newKey, _, _ := strings.Cut(sf.Tag.Get("json"), ",")
-			if removed := sf.Tag.Get("removedkey"); removed != "" && newKey != "" {
+			if removed := sf.Tag.Get("removedkey"); removed != "" {
 				scope := parseRenameScope(sf.Tag)
 				for oldKey := range strings.SplitSeq(removed, ",") {
 					oldKey = strings.TrimSpace(oldKey)

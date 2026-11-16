@@ -4485,51 +4485,10 @@ software:
 		tokens           []*fleet.ABMToken
 	}{
 		{
-			name: "backwards compat",
-			cfgs: []string{
-				global("apple_bm_default_team: 💻 Workstations"),
-				workstations,
-			},
-			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.Contains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Equal(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam, "💻 Workstations")
-				assert.Contains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
-			name: "deprecated config with two tokens in the db fails",
-			cfgs: []string{
-				global("apple_bm_default_team: 💻 Workstations"),
-				workstations,
-			},
-			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				t.Logf("got: %s", out)
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.NotContains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.NotContains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
 			name: "new key all valid",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4543,12 +4502,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4569,7 +4526,7 @@ software:
 			name: "renamed new key all valid",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4583,12 +4540,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4609,7 +4564,7 @@ software:
 			name: "new key multiple elements",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Foo Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4628,12 +4583,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4658,35 +4611,10 @@ software:
 			},
 		},
 		{
-			name: "both keys errors",
+			name: "using an undefined fleet errors",
 			cfgs: []string{
 				global(`
-                                  apple_bm_default_team: "💻 Workstations"
-                                  apple_business_manager:
-                                    - organization_name: Fleet Device Management Inc.
-                                      byod_fleet: "📱🔐 Personal mobile devices"
-                                      macos_fleet: "💻 Workstations"
-                                      ios_fleet: "📱🏢 Company-owned iPhones"
-                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
-				workstations,
-				iosTeam,
-				ipadTeam,
-				byodTeam,
-			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.NotContains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.NotContains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
-			name: "using an undefined team errors",
-			cfgs: []string{
-				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4695,17 +4623,17 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business fleet \"📱🏢 Company-owned iPhones\" not found in fleet configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business fleet \"📱🏢 Company-owned iPhones\" not found in fleet configs")
 			},
 		},
 		{
 			name: "no team is supported",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "No team"
                                       macos_fleet: "No team"
@@ -4715,12 +4643,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4741,7 +4667,7 @@ software:
 			name: "not provided teams defaults to no team",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"
                                       ios_fleet: ""`),
@@ -4749,12 +4675,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4775,7 +4699,7 @@ software:
 			name: "non existent org name fails",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Does not exist
                                       macos_fleet: "No team"`),
 			},
@@ -4783,13 +4707,11 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.ErrorContains(t, err, "token with organization name Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.ErrorContains(t, err, "token with organization name Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 		},
@@ -4800,7 +4722,7 @@ software:
 			name: "org name in a different unicode form matches",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: "Café Inc."
                                       macos_fleet: "No team"`),
 			},
@@ -4818,7 +4740,7 @@ software:
 			name: "default on one token applies",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"
                                     - organization_name: Foo Inc.
@@ -4851,7 +4773,7 @@ software:
 			name: "two defaults fails",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       default: true
                                       macos_fleet: "No team"
@@ -4880,7 +4802,7 @@ software:
 			name: "no default on multiple tokens clears it",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"
                                     - organization_name: Foo Inc.
@@ -4910,7 +4832,7 @@ software:
 			name: "single token with no default key stays default",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"`),
 			},

@@ -38,15 +38,14 @@ spec:
   mdm:
     android_enabled_and_configured: false
     apple_business:
-    apple_business_manager:
     apple_account_provisioning:
       oauth_idp_token_url: null
       oauth_idp_client_id: null
       oauth_idp_client_secret: null
     apple_server_url: ""
     volume_purchasing_program:
-    apple_bm_enabled_and_configured: false
-    apple_bm_terms_expired: false
+    apple_business_enabled_and_configured: false
+    apple_business_terms_expired: false
     enabled_and_configured: true
     windows_mdm_enabled: false
     enable_disk_encryption: false
