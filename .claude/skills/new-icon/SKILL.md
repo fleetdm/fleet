@@ -9,7 +9,7 @@ effort: medium
 
 Icon to add or change: $ARGUMENTS
 
-The source of truth is the **Icons (new) - available from Fleet 5.0** page in the [🧩 Design system (current)](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/?node-id=3514-52) Figma file. Its **Icon guidelines** spec has the full design rules. The code rules live in `frontend/docs/patterns.md` under "Icon rules". The "Icons (deprecated in Fleet 5)" page is the old set; don't use it.
+The source of truth is the **Icons (new) - available from Fleet 5.0** page in the [🧩 Product design system](https://www.figma.com/design/gxvU745LfOdkE9AuRg64wi/?node-id=8901-7) Figma file. Its **Icon guidelines** spec has the full design rules. The code rules live in `frontend/docs/patterns.md` under "Icon rules". The "Icons (deprecated in Fleet 5)" page is the old set; don't use it.
 
 ## 0. Find out who you're helping
 
