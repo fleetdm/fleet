@@ -14,6 +14,8 @@ Before you switch to Fleet, let your team know that there will be a gap in condi
 
 To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
 
+> This group name must exactly match "Fleet conditional access". If the group name does not exactly match (including addition of a prefix or suffix), the connection will fail.
+
 ## Step 2: Configure Fleet in Intune
 
 > For Windows, you can skip this step.

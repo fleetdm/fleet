@@ -1008,15 +1008,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
-	// windows_settings.enable_managed_local_account: like EnableDiskEncryption above, an explicit JSON null
-	// means "not provided": keep the old value rather than persisting an invalid optjson state.
-	if !oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	// Like EnableDiskEncryption above, an explicit JSON null means "not provided": keep the old value rather than
+	// persisting an invalid optjson state.
+	if !oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
-	if newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
+	if newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows
 	} else {
-		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows = oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -1623,7 +1623,7 @@ func (svc *Service) applyABMTokenAssignments(
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+	if appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid {
 		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
@@ -1676,7 +1676,7 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			return ctxerr.Wrap(ctx, err, "saving VPP token assignments")
 		}
 	}
 	return nil
@@ -1869,9 +1869,9 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value != appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value {
 		var act fleet.ActivityDetails
-		if appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value {
 			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
 		} else {
 			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
@@ -2326,9 +2326,13 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_enable_bootstrap_package_during_migration", ErrMissingLicense.Error())
 	}
-	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
-		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
-		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
+	if mdm.MacOSSetup.EnableManagedLocalAccount.Value &&
+		mdm.MacOSSetup.EnableManagedLocalAccount.Value != oldMdm.MacOSSetup.EnableManagedLocalAccount.Value && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_managed_local_account_enabled", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value &&
+		mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value != oldMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value && !lic.IsPremium() {
+		invalid.Append("setup_experience.windows_managed_local_account_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("mdm.windows_mdm_migration_enabled", ErrMissingLicense.Error())
@@ -2398,7 +2402,7 @@ func (svc *Service) validateMDM(
 		}
 
 		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
-			invalid.Append("setup_experience.enable_managed_local_account",
+			invalid.Append("setup_experience.macos_managed_local_account_enabled",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
@@ -2412,10 +2416,10 @@ func (svc *Service) validateMDM(
 				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 
-		if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
-			!oldMdm.WindowsSettings.EnableManagedLocalAccount.Value {
-			invalid.Append("windows_settings.enable_managed_local_account",
-				"Couldn’t enable windows_settings.enable_managed_local_account. "+fleet.WindowsMDMNotTurnedOnMessage)
+		if mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value &&
+			!oldMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value {
+			invalid.Append("setup_experience.windows_managed_local_account_enabled",
+				"Couldn’t enable setup_experience.windows_managed_local_account_enabled. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
@@ -2739,44 +2743,6 @@ func (svc *Service) validateABMAssignments(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (tokensToSave []*fleet.ABMToken, defaultTokenID *uint, err error) {
-	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
-		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-		return nil, nil, nil
-	}
-
-	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
-		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil, nil, nil
-		}
-		team, err := svc.ds.TeamByName(ctx, name)
-		if err != nil {
-			invalid.Append("mdm.apple_bm_default_team", "team name not found")
-			return nil, nil, nil
-		}
-		tokens, err := svc.ds.ListABMTokens(ctx)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if len(tokens) > 1 {
-			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-			return nil, nil, nil
-		}
-
-		if len(tokens) == 0 {
-			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
-			return nil, nil, nil
-		}
-
-		tok := tokens[0]
-		tok.MacOSDefaultTeamID = &team.ID
-		tok.IOSDefaultTeamID = &team.ID
-		tok.IPadOSDefaultTeamID = &team.ID
-		tok.BYODDefaultTeamID = &team.ID
-		return []*fleet.ABMToken{tok}, nil, nil
-	}
-
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())

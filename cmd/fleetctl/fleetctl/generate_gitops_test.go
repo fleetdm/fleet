@@ -331,11 +331,11 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:         1,
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "my-software.pkg",
 					Platform: "darwin",
 					Version:  "13.37",
-				},
+				}},
 			},
 			{
 				ID:           2,
@@ -359,56 +359,56 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:         8,
 				Name:       "My FMA",
 				HashSHA256: ptr.String("fma-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "my-fma.pkg",
 					Platform:             "darwin",
 					Version:              "1",
 					FleetMaintainedAppID: ptr.Uint(1),
-				},
+				}},
 			},
 			{
 				ID:         9,
 				Name:       "My Windows FMA",
 				HashSHA256: ptr.String("win-fma-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "my-fma.msi",
 					Platform:             "windows",
 					Version:              "1",
 					FleetMaintainedAppID: ptr.Uint(2),
-				},
+				}},
 			},
 			{
 				ID:         10,
 				Name:       "Version Locked Name 0.1",
 				HashSHA256: ptr.String("win-fma-3-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "my-fma.msi",
 					Platform:             "windows",
 					Version:              "1",
 					FleetMaintainedAppID: ptr.Uint(3),
-				},
+				}},
 			},
 			{
 				ID:         11,
 				Name:       "My Notify FMA",
 				HashSHA256: new("notify-fma-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "my-notify-fma.pkg",
 					Platform:             "darwin",
 					Version:              "1",
 					FleetMaintainedAppID: new(uint(4)),
-				},
+				}},
 			},
 			{
 				ID:         13,
 				Name:       "My Deadline FMA",
 				HashSHA256: new("deadline-fma-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "my-deadline-fma.pkg",
 					Platform:             "darwin",
 					Version:              "1",
 					FleetMaintainedAppID: new(uint(5)),
-				},
+				}},
 			},
 			{
 				ID:           12,
@@ -680,7 +680,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}
 		return &fleet.SoftwareTitle{
 			ID: 1,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label A",
 				}, {
@@ -694,7 +694,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Platform:          "darwin",
 				URL:               "https://example.com/download/my-software.pkg",
 				Categories:        []string{"Browsers"},
-			},
+			}},
 			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
 	case 2:
@@ -819,7 +819,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 	case 8:
 		return &fleet.SoftwareTitle{
 			ID: 8,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label A",
 				}, {
@@ -835,7 +835,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Categories:           []string{"Browsers"},
 				BundleIdentifier:     "com.my.fma",
 				FleetMaintainedAppID: ptr.Uint(1),
-			},
+			}},
 			IconUrl:          ptr.String("/api/icon1.png"),
 			BundleIdentifier: ptr.String("com.my.fma"),
 		}, nil
@@ -843,7 +843,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID:   9,
 			Name: "My Windows FMA",
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
 						LabelName: "Label A",
@@ -866,27 +866,27 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 					PatchWhenClosed:              true,
 					ContinuousAutomationsEnabled: true,
 				},
-			},
+			}},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
 	case 10:
 		return &fleet.SoftwareTitle{
 			ID:   9,
 			Name: "Version Locked Name 0.1",
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
 				PinnedVersion:        new("^123"),
-			},
+			}},
 		}, nil
 	case 11:
 		return &fleet.SoftwareTitle{
 			ID:   11,
 			Name: "My Notify FMA",
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
 				Platform:             "darwin",
@@ -900,13 +900,13 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
 				},
-			},
+			}},
 		}, nil
 	case 13:
 		return &fleet.SoftwareTitle{
 			ID:   13,
 			Name: "My Deadline FMA",
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
 				Platform:             "darwin",
@@ -919,7 +919,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 					PatchDeadline:                true,
 					ContinuousAutomationsEnabled: true,
 				},
-			},
+			}},
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -1023,12 +1023,12 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:         1,
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					InstallDuringSetup: new(true),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
-				},
+				}},
 			},
 			{
 				ID:           6,
@@ -1039,11 +1039,11 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 			{
 				ID:   8,
 				Name: "My FMA",
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					InstallDuringSetup: new(true),
 					Name:               "my-fma.pkg",
 					Platform:           "darwin",
-				},
+				}},
 			},
 			{
 				ID:           12,
@@ -1058,12 +1058,12 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:         1,
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					InstallDuringSetup: new(false),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
-				},
+				}},
 			},
 			{
 				ID:         2,
@@ -2217,35 +2217,34 @@ func TestGenerateControls(t *testing.T) {
 	// Check that the controls do not contain a setup_experience section
 	_, ok := controlsRaw["setup_experience"]
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
-	// The disabled Windows managed local account is not emitted (absent key means disabled).
-	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
-		require.NotContains(t, windowsSection, "enable_managed_local_account")
-	}
 
-	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
-	// and the Windows managed local account enabled.
+	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
 	mdmConfig = fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableEndUserAuthentication: true,
-		},
-		WindowsSettings: fleet.WindowsSettings{
-			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
-	// The enabled Windows managed local account is emitted.
-	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
-	require.True(t, ok, "expected a windows_settings section")
-	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
 
-	// The same key name is the deprecated spelling of the Apple toggle, so make sure it is correct.
-	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
-	require.NoError(t, err)
-	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
-	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
+	// The Windows managed local account alone needs the placeholder too, also with only Windows MDM on.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableManagedLocalAccountWindows: optjson.SetBool(true),
+		},
+	}
+	for _, appleMDM := range []bool{true, false} {
+		cmd.AppConfig.MDM.EnabledAndConfigured = appleMDM
+		controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+		require.NoError(t, err)
+		verifyControlsHasMacosSetup(t, controlsRaw)
+		controlsYaml, err := yamlMarshalRenamed(controlsRaw)
+		require.NoError(t, err)
+		require.NotContains(t, string(controlsYaml), "enable_managed_local_account")
+	}
+	cmd.AppConfig.MDM.EnabledAndConfigured = true
 
 	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	require.NoError(t, err)
@@ -2616,41 +2615,41 @@ func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.
 				ID:         3,
 				Name:       "My Script",
 				HashSHA256: ptr.String("script-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "my-script.sh",
 					Platform: "linux",
 					Version:  "1.0",
-				},
+				}},
 			},
 			{
 				ID:         4,
 				Name:       "Regular Package",
 				HashSHA256: ptr.String("regular-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "regular-package.deb",
 					Platform: "linux",
 					Version:  "2.0",
-				},
+				}},
 			},
 			{
 				ID:         5,
 				Name:       "PowerShell Script",
 				HashSHA256: ptr.String("ps1-script-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "setup.ps1",
 					Platform: "windows",
 					Version:  "1.5",
-				},
+				}},
 			},
 			{
 				ID:         6,
 				Name:       "Python Script",
 				HashSHA256: new("py-script-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "install.py",
 					Platform: "linux",
 					Version:  "1.2",
-				},
+				}},
 			},
 		}, nil
 	default:
@@ -2668,7 +2667,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 		// should NOT be output in GitOps YAML
 		return &fleet.SoftwareTitle{
 			ID: 3,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:     "#!/bin/bash\necho 'This is the script content'",
 				PostInstallScript: "",
 				UninstallScript:   "",
@@ -2677,7 +2676,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 				Platform:          "linux",
 				URL:               "https://example.com/download/my-script.sh",
 				Name:              "my-script.sh",
-			},
+			}},
 		}, nil
 	case 4:
 		if *teamID != 2 {
@@ -2685,7 +2684,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 		}
 		return &fleet.SoftwareTitle{
 			ID: 4,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:     "install script content",
 				PostInstallScript: "post-install script content",
 				UninstallScript:   "uninstall script content",
@@ -2694,7 +2693,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 				Platform:          "linux",
 				URL:               "https://example.com/download/regular-package.deb",
 				Name:              "regular-package.deb",
-			},
+			}},
 		}, nil
 	case 5:
 		if *teamID != 2 {
@@ -2704,7 +2703,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 		// should NOT be output in GitOps YAML
 		return &fleet.SoftwareTitle{
 			ID: 5,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:     "Write-Host 'This is the PowerShell script content'",
 				PostInstallScript: "",
 				UninstallScript:   "",
@@ -2713,7 +2712,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 				Platform:          "windows",
 				URL:               "https://example.com/download/setup.ps1",
 				Name:              "setup.ps1",
-			},
+			}},
 		}, nil
 	case 6:
 		if *teamID != 2 {
@@ -2723,7 +2722,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 		// should NOT be output in GitOps YAML
 		return &fleet.SoftwareTitle{
 			ID: 6,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:     "#!/usr/bin/env python3\nprint('This is the Python script content')",
 				PostInstallScript: "",
 				UninstallScript:   "",
@@ -2732,7 +2731,7 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 				Platform:          "linux",
 				URL:               "https://example.com/download/install.py",
 				Name:              "install.py",
-			},
+			}},
 		}, nil
 	default:
 		return c.MockClient.GetSoftwareTitleByID(id, teamID)
@@ -2757,21 +2756,21 @@ func (c *MockClientPlatformPackages) ListSoftwareTitles(query string) ([]fleet.S
 				ID:         8,
 				Name:       "Linux Package",
 				HashSHA256: new("linux-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "linux-package.deb",
 					Platform: "linux",
 					Version:  "1.0",
-				},
+				}},
 			},
 			{
 				ID:         9,
 				Name:       "Windows Package",
 				HashSHA256: new("windows-package-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:     "windows-package.msi",
 					Platform: "windows",
 					Version:  "2.0",
-				},
+				}},
 			},
 		}, nil
 	}
@@ -2783,24 +2782,24 @@ func (c *MockClientPlatformPackages) GetSoftwareTitleByID(id uint, teamID *uint)
 	case 8:
 		return &fleet.SoftwareTitle{
 			ID: 8,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:     "linux install",
 				PostInstallScript: "linux post-install",
 				UninstallScript:   "linux uninstall",
 				Platform:          "linux",
 				Name:              "linux-package.deb",
-			},
+			}},
 		}, nil
 	case 9:
 		return &fleet.SoftwareTitle{
 			ID: 9,
-			SoftwarePackage: &fleet.SoftwareInstaller{
+			Packages: []fleet.SoftwareInstaller{{
 				InstallScript:     "windows install",
 				PostInstallScript: "windows post-install",
 				UninstallScript:   "windows uninstall",
 				Platform:          "windows",
 				Name:              "windows-package.msi",
-			},
+			}},
 		}, nil
 	default:
 		return c.MockClient.GetSoftwareTitleByID(id, teamID)
@@ -2855,16 +2854,16 @@ func (c *MockClientInHouseApp) ListSoftwareTitles(query string) ([]fleet.Softwar
 	if query == "available_for_install=1&fleet_id=9&order_key=name" {
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID:              20,
-				Name:            "Acme",
-				HashSHA256:      new("acme-ipa-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0"},
+				ID:         20,
+				Name:       "Acme",
+				HashSHA256: new("acme-ipa-hash"),
+				Packages:   []fleet.SoftwarePackageListItem{{Name: "acme.ipa", Platform: "ios", Version: "1.0"}},
 			},
 			{
-				ID:              21,
-				Name:            "Acme",
-				HashSHA256:      new("acme-ipa-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0"},
+				ID:         21,
+				Name:       "Acme",
+				HashSHA256: new("acme-ipa-hash"),
+				Packages:   []fleet.SoftwarePackageListItem{{Name: "acme.ipa", Platform: "ipados", Version: "1.0"}},
 			},
 		}, nil
 	}
@@ -2875,15 +2874,15 @@ func (c *MockClientInHouseApp) GetSoftwareTitleByID(id uint, teamID *uint) (*fle
 	switch id {
 	case 20:
 		return &fleet.SoftwareTitle{
-			ID:              20,
-			Name:            "Acme",
-			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ios", URL: "https://example.com/acme.ipa"},
+			ID:       20,
+			Name:     "Acme",
+			Packages: []fleet.SoftwareInstaller{{Name: "acme.ipa", Platform: "ios", URL: "https://example.com/acme.ipa"}},
 		}, nil
 	case 21:
 		return &fleet.SoftwareTitle{
-			ID:              21,
-			Name:            "Acme",
-			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ipados", URL: "https://example.com/acme.ipa"},
+			ID:       21,
+			Name:     "Acme",
+			Packages: []fleet.SoftwareInstaller{{Name: "acme.ipa", Platform: "ipados", URL: "https://example.com/acme.ipa"}},
 		}, nil
 	default:
 		return c.MockClient.GetSoftwareTitleByID(id, teamID)
@@ -2900,16 +2899,16 @@ func (c *MockClientInHouseApp) GetSetupExperienceSoftware(platform string, teamI
 	if strings.Contains(platform, "ios") {
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID:              20,
-				Name:            "Acme",
-				HashSHA256:      new("acme-ipa-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0", InstallDuringSetup: new(false)},
+				ID:         20,
+				Name:       "Acme",
+				HashSHA256: new("acme-ipa-hash"),
+				Packages:   []fleet.SoftwarePackageListItem{{Name: "acme.ipa", Platform: "ios", Version: "1.0", InstallDuringSetup: new(false)}},
 			},
 			{
-				ID:              21,
-				Name:            "Acme",
-				HashSHA256:      new("acme-ipa-hash"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0", InstallDuringSetup: new(true)},
+				ID:         21,
+				Name:       "Acme",
+				HashSHA256: new("acme-ipa-hash"),
+				Packages:   []fleet.SoftwarePackageListItem{{Name: "acme.ipa", Platform: "ipados", Version: "1.0", InstallDuringSetup: new(true)}},
 			},
 		}, nil
 	}
@@ -2957,10 +2956,10 @@ type MockClientMultiPackage struct {
 func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	if query == "available_for_install=1&fleet_id=2&order_key=name" {
 		return []fleet.SoftwareTitleListResult{{
-			ID:              7,
-			Name:            "Santa",
-			HashSHA256:      new(santaHashA),
-			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "santa-2026.2.pkg", Platform: "darwin", Version: "2026.2"},
+			ID:         7,
+			Name:       "Santa",
+			HashSHA256: new(santaHashA),
+			Packages:   []fleet.SoftwarePackageListItem{{Name: "santa-2026.2.pkg", Platform: "darwin", Version: "2026.2"}},
 		}}, nil
 	}
 	return c.MockClient.ListSoftwareTitles(query)

@@ -65,6 +65,7 @@ func TestScripts(t *testing.T) {
 		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
 		{"CleanupHostScriptResults", testCleanupHostScriptResults},
 		{"CleanupHostScriptResultsQueryPlan", testCleanupHostScriptResultsQueryPlan},
+		{"BatchScriptCancelWithLateResults", testBatchScriptCancelWithLateResults},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3878,4 +3879,90 @@ func testCleanupHostScriptResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, deleted)
 	assert.False(t, exists(deletedHostPending))
+}
+
+func testBatchScriptCancelWithLateResults(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.3", "host3key", "host3uuid", time.Now())
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "script1.sh", ScriptContents: "echo hi"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name             string
+		cancelWholeBatch bool
+	}{
+		{"cancel the whole batch while host2 and host3 are running", true},
+		{"cancel only the runs on host2 and host3 while they are running", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID})
+			require.NoError(t, err)
+			err = ds.RunScheduledBatchActivity(ctx, execID)
+			require.NoError(t, err)
+			hostExecutionIDs := map[uint]string{}
+			for _, h := range []*fleet.Host{host1, host2, host3} {
+				upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, h.ID, false)
+				require.NoError(t, err)
+				require.Len(t, upcoming, 1)
+				hostExecutionIDs[h.ID] = upcoming[0].ExecutionID
+			}
+
+			// report a successful result for host1, cancel host2 and host3, then report a failed result for host2
+			// and a successful result for host3, host2 and host3 should be counted and listed as canceled
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: host1.ID, ExecutionID: hostExecutionIDs[host1.ID], ExitCode: 0}, nil)
+			require.NoError(t, err)
+
+			if c.cancelWholeBatch {
+				err = ds.CancelBatchScript(ctx, execID)
+				require.NoError(t, err)
+			} else {
+				_, err = ds.CancelHostUpcomingActivity(ctx, host2.ID, hostExecutionIDs[host2.ID])
+				require.NoError(t, err)
+				_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, hostExecutionIDs[host3.ID])
+				require.NoError(t, err)
+			}
+
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: host2.ID, ExecutionID: hostExecutionIDs[host2.ID], ExitCode: 1}, nil)
+			require.NoError(t, err)
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: host3.ID, ExecutionID: hostExecutionIDs[host3.ID], ExitCode: 0}, nil)
+			require.NoError(t, err)
+
+			// host2 and host3 should count as canceled
+			summary, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID})
+			require.NoError(t, err)
+			require.Equal(t, uint(3), *summary[0].NumTargeted)
+			require.Equal(t, uint(0), *summary[0].NumPending)
+			require.Equal(t, uint(1), *summary[0].NumRan)
+			require.Equal(t, uint(0), *summary[0].NumErrored)
+			require.Equal(t, uint(2), *summary[0].NumCanceled)
+			require.Equal(t, uint(0), *summary[0].NumIncompatible)
+
+			// run what the batch completion cron runs, the batch should be finished with the same saved counts
+			err = ds.MarkActivitiesAsCompleted(ctx)
+			require.NoError(t, err)
+			summary, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID})
+			require.NoError(t, err)
+			require.Equal(t, fleet.ScheduledBatchExecutionFinished, summary[0].Status)
+			require.Equal(t, uint(3), *summary[0].NumTargeted)
+			require.Equal(t, uint(0), *summary[0].NumPending)
+			require.Equal(t, uint(1), *summary[0].NumRan)
+			require.Equal(t, uint(0), *summary[0].NumErrored)
+			require.Equal(t, uint(2), *summary[0].NumCanceled)
+			require.Equal(t, uint(0), *summary[0].NumIncompatible)
+
+			canceledHosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCanceled}, 2)
+			canceledHostIDs := []uint{canceledHosts[0].ID, canceledHosts[1].ID}
+			require.ElementsMatch(t, []uint{host2.ID, host3.ID}, canceledHostIDs)
+			ranHosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 1)
+			require.Equal(t, host1.ID, ranHosts[0].ID)
+			listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 0)
+		})
+	}
 }

@@ -41,18 +41,10 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Controls: android_settings children
 	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
 
-	// Controls: macos_setup -> setup_experience (parent first, then children)
-	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
-
 	// Org settings: server_settings
 	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
 	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
 	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
-
-	// org_settings.mdm.apple_business_manager -> apple_business (parent rename
-	// runs before the nested children below so they resolve against the new
-	// parent name).
-	{"org_settings.mdm.apple_business_manager", "org_settings.mdm.apple_business"},
 
 	// The following entries are renameto tags on struct fields that appear in serialized
 	// API output (fleetctl get and fleetctl apply) but are not gitops input keys. They are
@@ -86,11 +78,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 // that happens to use it.
 //
 // Keep in sync with the `renamescope` struct tags, which do the same job for the API request/response layer.
-var DeprecatedGitOpsKeyScopes = map[string][]string{
-	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
-	// windows_settings.
-	"enable_managed_local_account": {"setup_experience"},
-}
+var DeprecatedGitOpsKeyScopes = map[string][]string{}
 
 // RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated
 // (RejectRemovedKeys), and buildAliasRules also reads them, because the structs that fleetctl serializes still carry the old names.
@@ -106,7 +94,7 @@ var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 
 // removedKeyParents are the old spellings of a parent key in RemovedGitOpsKeys that ApplyDeprecatedKeyMappings renames, so a removed key
 // is found under either spelling, including in a file that ApplyDeprecatedKeyMappings never sees (a file-backed org_settings).
-var removedKeyParents = map[string][]string{"apple_business": {"apple_business", "apple_business_manager"}}
+var removedKeyParents = map[string][]string{}
 
 // RejectRemovedKeys returns an error naming the file and the removed key for every key of RemovedGitOpsKeys found in the YAML data map.
 func RejectRemovedKeys(data map[string]any, filePath string) error {

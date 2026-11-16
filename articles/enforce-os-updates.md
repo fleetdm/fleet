@@ -33,7 +33,7 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://f
    - **Custom version** — Set a specific **Minimum version** (e.g., `15.4.1`) and an absolute **Deadline** (date). Hosts below this version will be prompted to update by the deadline.
    - **Latest version (based on host hardware)** — Fleet automatically enforces the latest macOS version available for each host's hardware. Set **Days after release** to control how long hosts have to update after Apple publishes a new version.
 
-3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
+3. For Windows, select **Windows** and set a **Deadline** and **Grace period** (in days). Fleet also applies other [default settings](#windows-default-settings) that you can't change here.
 
 4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings. This is implicitly enabled when using the automatic enforcement option (latest version).
 
@@ -254,6 +254,21 @@ End users are encouraged to update Windows via the native Windows dialog.
 If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
 
 Fleet enforces OS updates for [quality and feature updates](https://github.com/fleetdm/fleet/blob/ca865af01312728997ea6526c548246ab98955fb/ee/server/service/mdm_profiles.go#L106). Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
+
+
+### Windows default settings
+
+When you enforce Windows updates with Fleet-managed settings, Fleet deploys a profile with these [Windows Update policies](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update):
+
+| Setting | Value | What it does |
+| ------- | ----- | ------------ |
+| `ConfigureDeadlineForQualityUpdates` and `ConfigureDeadlineForFeatureUpdates` | The **Deadline** you set | Number of days before quality and feature updates install automatically, regardless of active hours. |
+| `ConfigureDeadlineGracePeriod` | The **Grace period** you set | Minimum number of days from when an update installs until the host restarts automatically. |
+| `AllowAutoUpdate` | `1` | Installs updates automatically, then prompts the end user to restart. |
+| `SetDisablePauseUXAccess` | `1` | Removes the **Pause updates** option from Windows Settings. |
+| `ConfigureDeadlineNoAutoReboot` | `1` | Doesn't restart the host automatically until both the deadline and the grace period have passed. |
+
+Fleet sets all of these on every Windows host that gets the profile. To change any setting other than the deadline and grace period, use a [custom Windows profile](#custom-os-update-profiles) instead of Fleet-managed settings.
 
 
 <meta name="category" value="guides">

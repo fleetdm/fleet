@@ -2526,7 +2526,7 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
-		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
+		if appConfig.License.IsPremium() {
 			if _, ok := mdmAppConfig["apple_business"]; !ok {
 				mdmAppConfig["apple_business"] = []any{}
 			}
@@ -2985,7 +2985,6 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.RequireBitLockerPIN == nil {
 			defaultUnsetToFalse(&windowsSettings.RequireBitLockerPIN)
 		}
-		defaultUnsetToFalse(&windowsSettings.EnableManagedLocalAccount)
 		mdmAppConfig["macos_settings"] = macOSSettings
 		mdmAppConfig["windows_settings"] = windowsSettings
 		mdmAppConfig["linux_settings"] = linuxSettings
