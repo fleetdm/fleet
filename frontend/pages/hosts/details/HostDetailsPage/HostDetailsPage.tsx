@@ -1936,9 +1936,9 @@ const HostDetailsPage = ({
                   }
                   isLoading={
                     activeActivityTab === "past"
-                      ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
-                      : upcomingActivitiesIsFetching ||
-                        upcomingMDMCommandsIsFetching
+                      ? pastActivitiesIsLoading || pastMDMCommandsIsLoading
+                      : upcomingActivitiesIsLoading ||
+                        upcomingMDMCommandsIsLoading
                   }
                   isError={
                     activeActivityTab === "past"
