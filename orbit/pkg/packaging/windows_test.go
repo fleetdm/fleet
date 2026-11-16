@@ -68,10 +68,11 @@ func TestWriteResourceSyso(t *testing.T) {
 }
 
 func TestMSIFilename(t *testing.T) {
-	assert.Equal(t, "fleet-osquery.msi", msiFilename(Options{}))
-	assert.Equal(t, "fleet-osquery-arm64.msi", msiFilename(Options{Architecture: ArchArm64}))
+	assert.Equal(t, "fleet-windows-amd64.msi", msiFilename(Options{}))
+	assert.Equal(t, "fleet-windows-amd64.msi", msiFilename(Options{Architecture: ArchAmd64}))
+	assert.Equal(t, "fleet-windows-arm64-workstations.msi", msiFilename(Options{Architecture: ArchArm64, FleetName: "Workstations"}))
 	assert.Equal(t, "out/custom.msi", msiFilename(Options{CustomOutfile: "out/custom.msi"}))
-	assert.Equal(t, "out/custom.msi", msiFilename(Options{CustomOutfile: "out/custom.msi", Architecture: ArchArm64}))
+	assert.Equal(t, "out/custom.msi", msiFilename(Options{CustomOutfile: "out/custom.msi", Architecture: ArchArm64, FleetName: "Workstations"}))
 }
 
 func TestSanitizeVersion(t *testing.T) {

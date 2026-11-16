@@ -87,7 +87,7 @@ const RunScriptBatchPaginatedList = ({
         {script.hasRun ? (
           <>
             Run again
-            <Icon name="refresh" color="ui-fleet-black-75" />
+            <Icon name="retry" color="ui-fleet-black-75" />
           </>
         ) : (
           <>

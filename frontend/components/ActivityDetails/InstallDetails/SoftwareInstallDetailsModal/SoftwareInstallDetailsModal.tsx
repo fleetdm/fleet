@@ -276,8 +276,7 @@ export const StatusMessage = ({
     <IconStatusMessage
       className={`${baseClass}__status-message`}
       iconName={
-        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-        "pending-outline"
+        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ?? "pending"
       }
       message={renderStatusCopy()}
     />
@@ -358,7 +357,7 @@ export const SoftwareInstallDetailsModal = ({
   };
 
   const isInstalledByFleet = hostSoftware
-    ? !!hostSoftware.software_package?.last_install
+    ? !!hostSoftware.package?.last_install
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<

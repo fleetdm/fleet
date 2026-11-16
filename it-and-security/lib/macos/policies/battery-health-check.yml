@@ -16,7 +16,8 @@
     can cause unexpected shutdowns, reduced portability, and decreased productivity.
     Monitoring battery health helps IT plan for device replacements and ensures
     employees have reliable hardware.
-  resolution: |-
-    Check your battery health by clicking the Apple menu > System Settings > Battery > Battery Health.
-    If your battery condition shows "Service Needed" or health is "Fair" or "Poor", please reach out in #help-it to arrange a battery replacement or device swap.
+  resolution: >-
+    No action needed from you. IT reviews failing hosts and reaches out to arrange a battery replacement or device
+    swap.
+  hidden: true
   platform: darwin

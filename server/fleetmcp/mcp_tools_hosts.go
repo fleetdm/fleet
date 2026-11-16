@@ -125,7 +125,7 @@ func registerGetHost(s *server.MCPServer, fleetClient *FleetClient) {
 		}
 
 		// Case 2: identifier path — query-first to detect collisions before
-		// falling back to /hosts/identifier/:id (which silently picks one
+		// falling back to /hosts/:id (which silently picks one
 		// when multiple hosts share a hostname). Cap at 50: Fleet's substring
 		// matcher is permissive so we need room for collisions to surface.
 		const maxCandidates = 50

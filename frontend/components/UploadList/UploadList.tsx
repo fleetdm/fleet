@@ -3,13 +3,13 @@ import React from "react";
 
 const baseClass = "upload-list";
 
-interface IUploadListProps<T = any> {
+interface IUploadListProps<T = unknown> {
   /** The attribute name that is used for the react key for each list item.
    * This is optional and not needed when the listItem type is a string
    */
   keyAttribute?: keyof T;
   listItems: T[];
-  HeadingComponent?: (props: any) => JSX.Element;
+  HeadingComponent?: () => JSX.Element;
   /** If the row renders user-typed text (name/title/label/description),
    * wrap it in <TooltipTruncatedText /> with `flex: 1; min-width: 0` on the
    * container — see "Lists & rows" in .claude/rules/fleet-frontend.md. */

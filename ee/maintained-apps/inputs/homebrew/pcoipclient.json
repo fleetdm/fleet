@@ -1,6 +1,6 @@
 {
   "name": "Teradici PCoIP Software Client for macOS",
-  "unique_identifier": "com.teradici.swiftclient",
+  "unique_identifier": "com.teradici.pcoipclient",
   "token": "pcoipclient",
   "installer_format": "dmg",
   "slug": "pcoipclient/darwin",

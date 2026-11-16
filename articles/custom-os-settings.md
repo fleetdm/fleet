@@ -326,6 +326,16 @@ SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\emp
 
 > If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
 
+
+#### Conflicting settings in multiple profiles
+
+If two Windows profiles set the same setting (`<LocURI>`) to different values, Fleet accepts both and doesn't show a warning. The host ends up with the value from whichever profile it processes last. The order isn't guaranteed, so the result can differ between hosts.
+
+Only the overlapping setting is affected. For example, if one profile sets the camera and microphone settings, and a second profile only sets the camera, the microphone setting from the first profile still applies. Both profiles show as "Verified" because Fleet only checks that the host returned a success status code, not which value is in effect. If you delete one of the profiles, Fleet doesn't remove the shared setting because the other profile still enforces it. The host keeps its current value, which can be the value from the profile you deleted.
+
+To avoid unexpected results, make sure each setting is in only one profile that applies to a host. If you need different values for different hosts, use [labels](#target-hosts-with-labels) to target each profile.
+
+
 ### Special Android behavior
 
 On Android, if some settings from the profile fail (e.g. incompatible device), other settings from the profile will still be applied. Failed settings will be surfaced on **Host > OS settings**.

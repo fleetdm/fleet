@@ -93,9 +93,8 @@ be run on the union of the hosts and hosts with matching labels.
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "ID of the fleet where the named report belongs to (0 means global)",
+				Name:  fleetFlagName,
+				Usage: "ID of the fleet where the named report belongs to (0 means global)",
 			},
 			configFlag(),
 			contextFlag(),

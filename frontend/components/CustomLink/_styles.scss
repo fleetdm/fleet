@@ -12,12 +12,12 @@
 
   &:hover,
   &:focus-visible {
-    .external-link-icon__outline {
+    .external-link-icon path {
       fill: $core-fleet-black;
-      stroke: $core-fleet-black;
     }
-    .external-link-icon__arrow {
-      stroke: $core-fleet-white;
+
+    .external-link-icon--small {
+      stroke: $core-fleet-black;
     }
   }
 
@@ -25,13 +25,23 @@
   &:not(.custom-link--multiline) {
     display: inline-flex;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-xxsmall;
   }
 
   &__no-wrap {
     white-space: nowrap;
     display: inline-flex;
-    gap: $pad-xsmall;
+    gap: $pad-xxsmall;
+  }
+
+  // Offset each icon's built-in inset (2.5px at 16px, 1px at 12px) so the
+  // visible gap is 4px next to both regular and small text.
+  .external-link-icon {
+    margin-left: -0.5px;
+  }
+
+  .external-link-icon--small {
+    margin-left: 1px;
   }
 
   &__last-word {
@@ -76,15 +86,16 @@
     // the always-dark tooltip background regardless of light/dark mode.
     text-decoration-color: $static-white;
 
-    .external-link-icon__outline {
+    .external-link-icon path {
+      fill: $static-white;
+    }
+
+    // The small icon is stroke-drawn with a themed color that turns dark in
+    // dark mode.
+    .external-link-icon--small {
       stroke: $static-white;
     }
 
-    .external-link-icon__arrow {
-      stroke: $static-white;
-    }
-
-    // Inverse hover over effect
     &:hover,
     &:focus-visible {
       // !important: same specificity as the `@include link` hover color above,
@@ -93,20 +104,16 @@
       color: rgba($static-white, 0.7) !important;
       text-decoration-color: rgba($static-white, 0.7);
 
-      // Dim the whole icon as one composited unit instead of applying alpha
-      // to fill/stroke separately — the stroke overlaps the fill's edge, so
-      // per-property alpha double-blends there and mismatches the interior.
       .external-link-icon {
         opacity: 0.7;
       }
 
-      .external-link-icon__outline {
+      .external-link-icon path {
         fill: $static-white;
-        stroke: $static-white;
       }
 
-      .external-link-icon__arrow {
-        stroke: $tooltip-bg;
+      .external-link-icon--small {
+        stroke: $static-white;
       }
     }
 
@@ -117,20 +124,6 @@
   }
 
   &--flash-message-link {
-    // Override the default hover colors (white arrow stroke, dark outline fill)
-    // which assume a dark background — flash messages use a light background.
-    &:hover,
-    &:focus-visible {
-      .external-link-icon__outline {
-        fill: $core-fleet-black;
-        stroke: $core-fleet-black;
-      }
-
-      .external-link-icon__arrow {
-        stroke: $core-fleet-white;
-      }
-    }
-
     &:focus-visible {
       text-decoration: none;
     }

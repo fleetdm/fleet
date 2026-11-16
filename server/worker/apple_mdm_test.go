@@ -1460,7 +1460,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosApp
 		// the pre-flight failure path records the failed install and its
 		// activity in the service layer, so the worker must fail the item
 		// without emitting a second activity
-		installer := &mockInHouseAppInstaller{err: &fleet.PreflightInstallFailedError{Reason: "Couldn't resolve $FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}
+		installer := &mockInHouseAppInstaller{err: &fleet.PreflightInstallFailedError{Reason: "Couldn't resolve $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}
 		var capturedActivities []fleet.ActivityDetails
 		mdmWorker := &AppleMDM{
 			InHouseAppInstaller: installer,

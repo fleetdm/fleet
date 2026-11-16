@@ -322,7 +322,7 @@ func getSoftwareFromURL(url, apiToken string, debug bool) []fleet.Software {
 	}
 	apiClient.SetToken(apiToken)
 
-	software, err := apiClient.ListSoftwareVersions("")
+	software, _, err := apiClient.ListSoftwareVersions("")
 	if err != nil {
 		panic(err)
 	}

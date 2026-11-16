@@ -167,12 +167,6 @@ const buildControlsItems = (
                 keywords: ["automatic install"],
               },
               {
-                id: "controls-run-script",
-                label: "Run script",
-                path: withTeamId(paths.CONTROLS_RUN_SCRIPT),
-                keywords: ["shell", "post-enrollment"],
-              },
-              {
                 id: "controls-setup-assistant",
                 label: "Setup Assistant",
                 path: withTeamId(paths.CONTROLS_SETUP_ASSISTANT),

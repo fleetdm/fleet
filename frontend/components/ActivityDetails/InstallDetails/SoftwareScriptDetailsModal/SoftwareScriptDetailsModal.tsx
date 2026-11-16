@@ -155,8 +155,7 @@ export const StatusMessage = ({
     <IconStatusMessage
       className={`${baseClass}__status-message`}
       iconName={
-        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-        "pending-outline"
+        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ?? "pending"
       }
       message={renderStatusCopy()}
     />

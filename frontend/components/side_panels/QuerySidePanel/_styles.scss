@@ -28,7 +28,7 @@
 
       svg {
         path {
-          stroke: $core-vibrant-blue;
+          fill: $core-vibrant-blue;
         }
       }
     }
@@ -36,7 +36,7 @@
     &:hover {
       svg {
         path {
-          stroke: $core-vibrant-blue-over;
+          fill: $core-vibrant-blue-over;
         }
       }
     }

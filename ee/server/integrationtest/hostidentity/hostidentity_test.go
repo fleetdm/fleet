@@ -499,17 +499,23 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 }
 
 // renewalCSR builds a renewal request for existingCert, proving possession of existingKey and requesting a cert for newKey.
-// It also returns the renewal data carried in the request, so that callers can replay it.
+// legacy signs the proof format of fleetd that predates key-bound proofs.
 func renewalCSR(
-	t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey,
-) (csr *x509.CertificateRequest, renewalDataJSON []byte) {
+	t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey, legacy bool,
+) *x509.CertificateRequest {
 	t.Helper()
 
 	// Create the renewal data
 	serialHex := fmt.Sprintf("0x%x", existingCert.SerialNumber.Bytes())
 
 	// Sign the message with the existing private key
-	hash := sha256.Sum256([]byte(serialHex))
+	newKeyDER, err := x509.MarshalPKIXPublicKey(&newKey.PublicKey)
+	require.NoError(t, err)
+	proofMessage := types.RenewalChallenge(serialHex, newKeyDER)
+	if legacy {
+		proofMessage = []byte(serialHex)
+	}
+	hash := sha256.Sum256(proofMessage)
 	signature, err := ecdsa.SignASN1(rand.Reader, existingKey, hash[:])
 	require.NoError(t, err)
 
@@ -518,7 +524,7 @@ func renewalCSR(
 		Signature:    base64.StdEncoding.EncodeToString(signature),
 	}
 
-	renewalDataJSON, err = json.Marshal(renewalData)
+	renewalDataJSON, err := json.Marshal(renewalData)
 	require.NoError(t, err)
 
 	// Create CSR with renewal extension
@@ -540,9 +546,9 @@ func renewalCSR(
 
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
-	csr, err = x509.ParseCertificateRequest(csrDerBytes)
+	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
-	return csr, renewalDataJSON
+	return csr
 }
 
 // testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
@@ -560,7 +566,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
 	require.NoError(t, err)
 
-	csr, renewalDataJSON := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey)
+	csr := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey, false)
 
 	renewedCert, err := enrollHostIdentityCSR(t, s, csr)
 	require.NoError(t, err, "Renewal should succeed")
@@ -657,35 +663,26 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// Try to renew again using the same old certificate serial number
 		// This should fail because the certificate has already been revoked
 
-		// Generate another new key pair for this attempt
+		// Generate another new key pair for this attempt, with a valid proof for it, so revocation is the only reason to reject it
 		anotherNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
 		require.NoError(t, err)
-
-		// Use the same renewal data as before (same serial and signature)
-		retryCSRTemplate := x509util.CertificateRequest{
-			CertificateRequest: x509.CertificateRequest{
-				Subject: pkix.Name{
-					CommonName: existingCert.Subject.CommonName,
-				},
-				SignatureAlgorithm: x509.ECDSAWithSHA256,
-				ExtraExtensions: []pkix.Extension{
-					{
-						Id:    types.RenewalExtensionOID,
-						Value: renewalDataJSON, // Reuse the same renewal data
-					},
-				},
-			},
-		}
-
-		retryCSRDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &retryCSRTemplate, anotherNewKey)
-		require.NoError(t, err)
-		retryCSR, err := x509.ParseCertificateRequest(retryCSRDerBytes)
-		require.NoError(t, err)
+		retryCSR := renewalCSR(t, existingCert, eccPrivateKey, anotherNewKey, false)
 
 		_, err = enrollHostIdentityCSR(t, s, retryCSR)
 		rejected, ok := errors.AsType[enrollment.RejectedError](err)
 		require.True(t, ok, "Renewal retry with same serial should fail, got %v", err)
 		require.Equal(t, scep.FAILURE, rejected.Status)
+	})
+
+	t.Run("legacy renewal proof from older fleetd is accepted", func(t *testing.T) {
+		legacyNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+		require.NoError(t, err)
+		legacyCSR := renewalCSR(t, renewedCert, newEccPrivateKey, legacyNewKey, true)
+		legacyCert, err := enrollHostIdentityCSR(t, s, legacyCSR)
+		require.NoError(t, err)
+		legacyPubKey, ok := legacyCert.PublicKey.(*ecdsa.PublicKey)
+		require.True(t, ok)
+		assert.True(t, legacyNewKey.PublicKey.Equal(legacyPubKey))
 	})
 }
 

@@ -8,7 +8,7 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-nvm-windows"
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
 $exitCode = 0
-$stagedInstaller = $null
+$stageDir = $null
 
 try {
     $owners = @(Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
@@ -39,11 +39,23 @@ try {
         }
     }
     $userAccount = "$($owner.Domain)\$($owner.User)"
+    $sid = (New-Object System.Security.Principal.NTAccount($userAccount)).Translate(
+        [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing NVM for Windows for $userAccount."
 
-    # Fleet's installer directory is not readable by that user.
-    $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
-    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
+    # Fleet's installer directory is not readable by that user, so stage a copy in
+    # a new folder only SYSTEM and Administrators can write to.
+    $security = New-Object System.Security.AccessControl.DirectorySecurity
+    $security.SetAccessRuleProtection($true, $false)
+    foreach ($grant in @(@("S-1-5-18", "FullControl"), @("S-1-5-32-544", "FullControl"), @($sid, "ReadAndExecute"))) {
+        $security.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            (New-Object System.Security.Principal.SecurityIdentifier($grant[0])), $grant[1],
+            "ContainerInherit, ObjectInherit", "None", "Allow")))
+    }
+    $stageDir = Join-Path $env:ProgramData ("fleet-nvm-windows-" + [guid]::NewGuid().ToString("N"))
+    [void][System.IO.Directory]::CreateDirectory($stageDir, $security)
+    $stagedInstaller = Join-Path $stageDir (Split-Path $exeFilePath -Leaf)
+    Copy-Item -LiteralPath $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
 
     $installArgs = "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS"
     if ($installArgs) {
@@ -51,24 +63,26 @@ try {
     } else {
         $action = New-ScheduledTaskAction -Execute $stagedInstaller
     }
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     $principal = New-ScheduledTaskPrincipal -UserId $userAccount -RunLevel Highest
-    $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
-    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
+    $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
 
     $startDate = Get-Date
-    Start-ScheduledTask -TaskName $taskName
+    $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop).LastRunTime
+    Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 
+    # A task that's still queued hasn't updated LastRunTime yet.
     Start-Sleep -Seconds 2
     while ($true) {
         $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
         $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
-        if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+        if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
             $exitCode = $info.LastTaskResult
             break
         }
         if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
+            Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
             Throw "Timed out waiting for the install task to finish. If $userAccount is not a local admin, setup may be waiting on a UAC prompt."
         }
         Start-Sleep -Seconds 5
@@ -82,8 +96,8 @@ try {
     if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     }
-    if ($stagedInstaller -and (Test-Path -LiteralPath $stagedInstaller)) {
-        Remove-Item -LiteralPath $stagedInstaller -Force -ErrorAction SilentlyContinue
+    if ($stageDir -and (Test-Path -LiteralPath $stageDir)) {
+        Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 

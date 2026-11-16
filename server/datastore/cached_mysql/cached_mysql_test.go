@@ -364,118 +364,6 @@ func TestCachedEULAMetadata(t *testing.T) {
 	}, 3*time.Second, 50*time.Millisecond)
 }
 
-func TestCachedPacksforHost(t *testing.T) {
-	t.Parallel()
-
-	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithPacksExpiration(100*time.Millisecond))
-
-	dbPacks := []*fleet.Pack{
-		{
-			ID:   1,
-			Name: "test-pack-1",
-		},
-		{
-			ID:   2,
-			Name: "test-pack-2",
-		},
-	}
-	called := 0
-	mockedDS.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		called++
-		return dbPacks, nil
-	}
-
-	// first call gets the result from the DB
-	packs, err := ds.ListPacksForHost(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, dbPacks, packs)
-	require.Same(t, dbPacks[0], packs[0])
-	require.Equal(t, 1, called)
-
-	// change "stored" dbPacks.
-	dbPacks = []*fleet.Pack{
-		{
-			ID:   1,
-			Name: "test-pack-1",
-		},
-		{
-			ID:   3,
-			Name: "test-pack-3",
-		},
-	}
-
-	// this call gets it from the cache
-	packs2, err := ds.ListPacksForHost(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, packs, packs2)         // returns the old cached value
-	require.NotSame(t, packs[0], packs2[0]) // have been cloned
-	require.Equal(t, 1, called)
-
-	time.Sleep(200 * time.Millisecond)
-
-	// this call gets it from the DB again since the cache expired
-	packs3, err := ds.ListPacksForHost(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, dbPacks, packs3)
-	require.Same(t, dbPacks[0], packs3[0])
-	require.Equal(t, 2, called)
-}
-
-func TestCachedListScheduledQueriesInPack(t *testing.T) {
-	t.Parallel()
-
-	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithScheduledQueriesExpiration(100*time.Millisecond))
-
-	dbScheduledQueries := fleet.ScheduledQueryList{
-		{
-			ID:   1,
-			Name: "test-schedule-1",
-		},
-		{
-			ID:   2,
-			Name: "test-schedule-2",
-		},
-	}
-	called := 0
-	mockedDS.ListScheduledQueriesInPackFunc = func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
-		called++
-		return dbScheduledQueries, nil
-	}
-
-	// this initial call gets the result from the DB
-	scheduledQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, dbScheduledQueries, scheduledQueries)
-	require.Same(t, dbScheduledQueries[0], scheduledQueries[0])
-	require.Equal(t, 1, called)
-
-	// change "stored" dbScheduledQueries.
-	dbScheduledQueries = fleet.ScheduledQueryList{
-		{
-			ID:   3,
-			Name: "test-schedule-3",
-		},
-	}
-
-	// this call gets it from the cache
-	scheduledQueries2, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, scheduledQueries2, scheduledQueries)
-	require.NotSame(t, scheduledQueries[0], scheduledQueries2[0]) // has been cloned
-	require.Equal(t, 1, called)
-
-	time.Sleep(200 * time.Millisecond)
-
-	// this call gets it from the DB again, since the cache expired
-	scheduledQueries3, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, dbScheduledQueries, scheduledQueries3)
-	require.Same(t, dbScheduledQueries[0], scheduledQueries3[0])
-	require.Equal(t, 2, called)
-}
-
 func TestCachedTeamAgentOptions(t *testing.T) {
 	t.Parallel()
 
@@ -594,7 +482,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"a": ptr.String("A"), "b": ptr.String("B")},
 	}
 
 	testTeam := fleet.Team{
@@ -637,11 +524,9 @@ func TestCachedTeamFeatures(t *testing.T) {
 	require.NotSame(t, &testFeatures, features)
 	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
-	// changing e.g. the DetailQueryOverrides map doesn't affect the stored value
-	ptrA := features.DetailQueryOverrides["a"]
-	*ptrA = "AAA"
-	features.DetailQueryOverrides["c"] = ptr.String("C")
-	require.NotEqual(t, testFeatures.DetailQueryOverrides, features.DetailQueryOverrides)
+	// changing e.g. the AdditionalQueries bytes doesn't affect the stored value
+	(*features.AdditionalQueries)[0] = '['
+	require.NotEqual(t, testFeatures.AdditionalQueries, features.AdditionalQueries)
 
 	// saving a team updates features in cache
 	aq = json.RawMessage(`{"bar": "baz"}`)
@@ -649,7 +534,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"c": ptr.String("C")},
 	}
 	updateTeam := &fleet.Team{
 		ID:        testTeam.ID,
@@ -801,7 +685,6 @@ func TestCachedQueryByName(t *testing.T) {
 	testQuery := &fleet.Query{
 		ID:     1,
 		TeamID: ptr.Uint(1),
-		Packs:  []fleet.Pack{{ID: 2, Name: "a"}},
 	}
 	mockedDS.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return testQuery, nil
@@ -819,7 +702,6 @@ func TestCachedQueryByName(t *testing.T) {
 	testQuery = &fleet.Query{
 		ID:     1,
 		TeamID: ptr.Uint(2),
-		Packs:  []fleet.Pack{{ID: 3, Name: "b"}},
 	}
 
 	// this call gets it from the cache
@@ -830,7 +712,7 @@ func TestCachedQueryByName(t *testing.T) {
 	require.False(t, mockedDS.QueryByNameFuncInvoked)
 
 	// a deep change doesn't alter the stored value
-	query2.Packs[0].Name = "Z"
+	*query2.TeamID = 99
 	require.NotEqual(t, query1, query2)
 
 	time.Sleep(200 * time.Millisecond)

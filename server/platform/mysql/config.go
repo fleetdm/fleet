@@ -26,5 +26,4 @@ type MysqlConfig struct {
 // This is a local copy of the fields needed from server/config.LoggingConfig.
 type LoggingConfig struct {
 	TracingEnabled bool
-	TracingType    string
 }

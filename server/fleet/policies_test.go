@@ -78,6 +78,8 @@ func TestFirstFuplicatePolicySpecName(t *testing.T) {
 		{"no specs", "", []*PolicySpec{}},
 		{"no duplicate names", "", []*PolicySpec{{Name: "foo"}}},
 		{"duplicate names", "foo", []*PolicySpec{{Name: "foo"}, {Name: "bar"}, {Name: "foo"}}},
+		{"same name in different fleets", "", []*PolicySpec{{Name: "foo", Team: "a"}, {Name: "foo", Team: "b"}}},
+		{"names differing only in normalization", "café", []*PolicySpec{{Name: "café"}, {Name: "café"}}},
 	}
 
 	for _, tc := range testCases {

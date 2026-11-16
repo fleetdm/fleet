@@ -1,8 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"log/slog"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -330,7 +332,9 @@ func (a *testAuth) AssertionNotOnOrAfter() time.Time { return time.Time{} }
 
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
+	var logs bytes.Buffer
 	opts := &TestServerOpts{
+		Logger: slog.New(slog.NewTextHandler(&logs, nil)),
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
@@ -376,12 +380,19 @@ func TestGetSSOUser(t *testing.T) {
 					{Value: "admin"},
 				},
 			},
+			{
+				Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+				Values: []fleet.SAMLAttributeValue{
+					{Value: "observer"},
+				},
+			},
 		},
 	}
 
 	// Test SSO login with a non-existent user.
 	_, err := svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
+	require.Contains(t, logs.String(), "FLEET_JIT_USER_ROLE_TEAM_1") // warning for the removed attribute
 
 	require.NotNil(t, newUser)
 	require.NotNil(t, newUser.GlobalRole)
@@ -409,10 +420,12 @@ func TestGetSSOUser(t *testing.T) {
 		return newUser, nil
 	}
 
+	logs.Reset()
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
 
 	require.False(t, ds.SaveUserFuncInvoked)
+	require.Contains(t, logs.String(), "FLEET_JIT_USER_ROLE_TEAM_1")
 
 	// (2) Test SSO login with the same user with roles updated in its attributes.
 
@@ -429,7 +442,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "maintainer"},
 			},
@@ -480,7 +493,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "admin"},
 			},
@@ -510,7 +523,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_3",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_3",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "maintainer"},
 			},
@@ -569,7 +582,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_1",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "technician"},
 			},

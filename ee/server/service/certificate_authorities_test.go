@@ -2227,6 +2227,20 @@ func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
 	}
 }
 
+func TestDigicertFieldsRejectRemovedVariable(t *testing.T) {
+	const errPrefix = "Couldn't add certificate authority. "
+	const removed = "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"
+	for field, err := range map[string]error{
+		"certificate_common_name":          validateDigicertCACN(removed, errPrefix),
+		"certificate_seat_id":              validateDigicertSeatID(removed, errPrefix),
+		"certificate_user_principal_names": validateDigicertUserPrincipalNames([]string{removed}, errPrefix),
+	} {
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae, field)
+		require.Equal(t, []map[string]string{{"name": field, "reason": errPrefix + removedEmailIDPVarMsg}}, iae.Invalid(), field)
+	}
+}
+
 type recordingESTService struct {
 	fleet.ESTService
 	record func(url string) error
@@ -2234,6 +2248,32 @@ type recordingESTService struct {
 
 func (r recordingESTService) ValidateESTURL(_ context.Context, ca fleet.ESTProxyCA) error {
 	return r.record(ca.URL)
+}
+
+func TestBatchApplyCertificateAuthoritiesRejectsRemovedVariableInUnchangedCA(t *testing.T) {
+	svc := &Service{logger: slog.New(slog.DiscardHandler)}
+	const removed = "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+
+	// A CA saved before the upgrade that GitOps sends back as it is.
+	digicert := []fleet.DigiCertCA{{
+		Name: "DIGICERT", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile",
+		CertificateCommonName: removed, CertificateSeatID: "seat",
+	}}
+	err := svc.processDigiCertCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, digicert, digicert)
+	var iae *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &iae)
+	require.Equal(t, []map[string]string{{
+		"name": "certificate_common_name", "reason": "certificate_authorities.digicert: " + removedEmailIDPVarMsg,
+	}}, iae.Invalid())
+
+	ejbca := validEJBCA("")
+	ejbca.CertificateCommonName = "cn"
+	ejbca.UsernameTemplate = "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"
+	err = svc.processEJBCACAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, []fleet.EJBCA{ejbca}, []fleet.EJBCA{ejbca})
+	require.ErrorAs(t, err, &iae)
+	require.Equal(t, []map[string]string{{
+		"name": "username_template", "reason": "certificate_authorities.ejbca: " + removedEmailIDPVarMsg,
+	}}, iae.Invalid())
 }
 
 func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {

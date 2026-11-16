@@ -252,8 +252,8 @@ export const compareVersions = (v1: string, v2: string): number => {
 // INSTALLER UTILITIES
 
 export const getInstallerVersion = (software: IHostSoftware) => {
-  if (software.software_package && software.software_package.version) {
-    return software.software_package.version;
+  if (software.package && software.package.version) {
+    return software.package.version;
   }
   if (software.app_store_app && software.app_store_app.version) {
     return software.app_store_app.version;
@@ -298,7 +298,7 @@ export const getUiStatus = (
   // Script packages with an uninstall script fall through to the regular
   // install statuses so the UI shows Install/Reinstall/Uninstall/Installed
   // instead of Run/Rerun/Ran.
-  if (isScriptPackage && !software.software_package?.has_uninstall_script) {
+  if (isScriptPackage && !software.package?.has_uninstall_script) {
     if (status === "failed_install") {
       return "failed_script";
     }
@@ -475,9 +475,9 @@ export const getInstallerActionButtonConfig = (
     switch (status) {
       // Script statuses
       case "failed_script":
-        return { text: "Retry", icon: "refresh" };
+        return { text: "Retry", icon: "retry" };
       case "ran_script":
-        return { text: "Rerun", icon: "refresh" };
+        return { text: "Rerun", icon: "retry" };
       case "running_script":
       case "pending_script":
       case "never_ran_script":
@@ -486,7 +486,7 @@ export const getInstallerActionButtonConfig = (
       case "failed_install":
       case "failed_install_installed":
       case "failed_install_update_available":
-        return { text: "Retry", icon: "refresh" };
+        return { text: "Retry", icon: "retry" };
       case "installed":
       case "pending_uninstall":
       case "uninstalling":
@@ -494,7 +494,7 @@ export const getInstallerActionButtonConfig = (
       case "failed_uninstall_installed":
       case "recently_installed":
       case "recently_updated":
-        return { text: "Reinstall", icon: "refresh" };
+        return { text: "Reinstall", icon: "retry" };
       // skipped_install joins the update family: a patch-when-closed skip is
       // a deferred update, so the action button reads "Update" even though the
       // label column says "Patch skipped".
@@ -503,7 +503,7 @@ export const getInstallerActionButtonConfig = (
       case "update_available":
       case "failed_uninstall_update_available":
       case "skipped_install":
-        return { text: "Update", icon: "refresh" };
+        return { text: "Update", icon: "update" };
       default:
         return { text: "Install", icon: "install" };
     }
@@ -513,7 +513,7 @@ export const getInstallerActionButtonConfig = (
       case "failed_uninstall":
       case "failed_uninstall_installed":
       case "failed_uninstall_update_available":
-        return { text: "Retry uninstall", icon: "refresh" };
+        return { text: "Retry uninstall", icon: "retry" };
       default:
         return { text: "Uninstall", icon: "trash" };
     }

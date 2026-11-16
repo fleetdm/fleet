@@ -643,10 +643,10 @@ func TestDecodeOktaResponseWithCustomAttrs(t *testing.T) {
       </saml2:AuthnContext>
     </saml2:AuthnStatement>
     <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
-      <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:Attribute Name="FLEET_JIT_USER_ROLE_FLEET_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
         <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">observer</saml2:AttributeValue>
       </saml2:Attribute>
-      <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:Attribute Name="FLEET_JIT_USER_ROLE_FLEET_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
         <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">maintainer</saml2:AttributeValue>
       </saml2:Attribute>
       <saml2:Attribute Name="foo" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
@@ -669,14 +669,14 @@ func TestDecodeOktaResponseWithCustomAttrs(t *testing.T) {
 	attrs := auth.AssertionAttributes()
 	assert.Equal(t, []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_1",
 			Values: []fleet.SAMLAttributeValue{{
 				Type:  "xs:string",
 				Value: "observer",
 			}},
 		},
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{{
 				Type:  "xs:string",
 				Value: "maintainer",
