@@ -3,6 +3,7 @@
   "slug": "winzip/windows",
   "package_identifier": "Corel.WinZip",
   "unique_identifier": "WinZip",
+  "open_process_names": ["winzip64.exe"],
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

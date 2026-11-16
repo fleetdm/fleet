@@ -3,6 +3,7 @@
   "slug": "nitro-pdf-pro/windows",
   "package_identifier": "NitroSoftware.NitroPro",
   "unique_identifier": "Nitro PDF Pro",
+  "open_process_names": ["nitropdf.exe"],
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
