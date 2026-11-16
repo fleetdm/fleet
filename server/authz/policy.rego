@@ -282,7 +282,7 @@ allow {
 # Team admins and maintainers can read/write for appropriate teams.
 allow {
 	object.type == "enroll_secret"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer][_]
 	action == [read, write][_]
 }
 

@@ -1,0 +1,1082 @@
+{
+  "metadata": {
+    "workspace": "495apple",
+    "collected_at": "2026-11-05T14:02:47Z",
+    "region": "us-east-2",
+    "interval": "90m",
+    "time_window": {
+      "start": "2026-11-05T01:57:00Z",
+      "end": "2026-11-05T03:27:00Z"
+    },
+    "note": "4.95 RC (75e81b8), 50k macOS MDM: 100 profiles added to 50k Macs at 01:57Z (push storm; osquery-perf per-device push topic inflates Fleet push CPU/memory)"
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 21.23,
+      "Minimum": 16.08,
+      "Maximum": 26.92,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 7.48,
+      "Minimum": 6.16,
+      "Maximum": 10.2,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 20,
+      "desiredCount": 20
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 5.56,
+      "Minimum": 3.53,
+      "Maximum": 8.13,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 12.67,
+      "Minimum": 11.99,
+      "Maximum": 13.89,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 25,
+      "desiredCount": 25
+    }
+  },
+  "apns_mock": {
+    "service": "fleet-495apple-apple-apns-mock",
+    "cpu_utilization": {
+      "Average": 11.8,
+      "Minimum": 3.55,
+      "Maximum": 25.96,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 22.27,
+      "Minimum": 15.91,
+      "Maximum": 26.09,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "per_task": {
+      "cpu": {
+        "avg_pct": 11.8,
+        "max_pct": 95.95,
+        "spread_pct": 84.15
+      },
+      "memory": {
+        "avg_pct": 22.27,
+        "max_pct": 32.52,
+        "spread_pct": 10.25
+      }
+    },
+    "network": {
+      "network_rx_bytes": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 433751.8443,
+        "Sum": 105835450,
+        "Unit": "Bytes/Second",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "network_tx_bytes": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 371070.0697,
+        "Sum": 90541097,
+        "Unit": "Bytes/Second",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    },
+    "task_counts": {
+      "runningCount": 4,
+      "desiredCount": 4
+    },
+    "container_health": {
+      "abnormal_stops": 0,
+      "running_tasks": 4,
+      "start_spread_min": 48.71,
+      "start_spread_alert": true,
+      "tasks": [
+        {
+          "task_id": "d3bf8bdbc3254664909db75ae1a5de66",
+          "started_at": "2026-11-04T20:15:16.449000-06:00",
+          "uptime_min": 431.73
+        },
+        {
+          "task_id": "5e071d9b74c3439fb29eceb5f70b1b0d",
+          "started_at": "2026-11-04T20:31:23.047000-06:00",
+          "uptime_min": 415.62
+        },
+        {
+          "task_id": "e326467813cf4f8e90e4890792bb2ea7",
+          "started_at": "2026-11-04T21:03:58.986000-06:00",
+          "uptime_min": 383.03
+        },
+        {
+          "task_id": "1e52098a9fdf4178bd0217f6a9026bb7",
+          "started_at": "2026-11-04T21:03:59.190000-06:00",
+          "uptime_min": 383.02
+        }
+      ]
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 52.7067,
+      "Minimum": 10.0467,
+      "Maximum": 97.4933,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "database_connections": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 294.7444,
+      "Minimum": 79,
+      "Maximum": 441,
+      "Unit": "Count",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "read_iops": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 0.0033,
+      "Maximum": 0.0167,
+      "Unit": "Count/Second",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "write_iops": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 1643.7182,
+      "Maximum": 2922.4895,
+      "Unit": "Count/Second",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "deadlocks": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 0,
+      "Sum": 0,
+      "Maximum": 0,
+      "Unit": "Count/Second",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 54.6139,
+        "Minimum": 33.205,
+        "Maximum": 87.355,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "database_connections": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 156.9111,
+        "Minimum": 66,
+        "Maximum": 289,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "read_iops": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 62.6608,
+        "Maximum": 370.363,
+        "Unit": "Count/Second",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "write_iops": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 0,
+        "Maximum": 0,
+        "Unit": "Count/Second",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    },
+    {
+      "instance": "reader-2",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 44.9272,
+        "Minimum": 21.6954,
+        "Maximum": 81.3133,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "database_connections": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 137.4667,
+        "Minimum": 50,
+        "Maximum": 258,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "read_iops": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 59.3103,
+        "Maximum": 321.7981,
+        "Unit": "Count/Second",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "write_iops": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 0,
+        "Maximum": 0,
+        "Unit": "Count/Second",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "rds_performance_insights": {
+    "writer": [
+      {
+        "rank": 1,
+        "sql": "COMMIT",
+        "load_avg": 11.69
+      },
+      {
+        "rank": 2,
+        "sql": "SELECT `c` . `command_uuid` , `c` . `request_type` , `c` . `command` , `c` . `subtype` FROM `nano_enrollment_queue` AS `q` INNER JOIN `nano_commands` AS `c` ON `q` . `command_uuid` = `c` . `command_uuid` LEFT JOIN `nano_command_results` `r` ON `r` . `command_uuid` = `q` . `command_uuid` AND `r` . `id` = `q` . `id` AND ( `r` . `status` != ? OR FALSE ) WHERE `q` . `id` = ? AND `q` . `active` = ? AND `r` . `status` IS NULL ORDER BY `q` . `priority` DESC , `q` . `created_at` LIMIT ?",
+        "load_avg": 2.75
+      },
+      {
+        "rank": 3,
+        "sql": "INSERT INTO `host_seen_times` ( `host_id` , `seen_time` ) VALUES (...) /* , ... */ , ( ?, ... ",
+        "load_avg": 0.68
+      },
+      {
+        "rank": 4,
+        "sql": "INSERT INTO `nano_command_results` ( `id` , `command_uuid` , STATUS , `result` , `not_now_at` , `not_now_tally` ) VALUES ( ?, ... , NULL , ? ) ON DUPLICATE KEY UPDATE STATUS = VALUES ( STATUS ) , `result` = VALUES ( `result` ) ",
+        "load_avg": 0.67
+      },
+      {
+        "rank": 5,
+        "sql": "UPDATE `host_mdm_apple_profiles` SET STATUS = ? , `operation_type` = ? , `detail` = ? WHERE `host_uuid` = ? AND `command_uuid` = ? ",
+        "load_avg": 0.63
+      }
+    ],
+    "readers": [
+      {
+        "instance": "reader-1",
+        "top_sql": [
+          {
+            "rank": 1,
+            "sql": "SELECT `hm` . `host_id` , `hm` . `enrolled` , `hm` . `server_url` , `hm` . `installed_from_dep` , `hm` . `mdm_id` , `hm` . `is_personal_enrollment` , `hm` . `personal_enrollment_type` , `hm` . `managed_apple_id` , COALESCE ( `hm` . `is_server` , FALSE ) AS `is_server` , COALESCE ( `mdms` . NAME , ? ) AS NAME , `hdep` . `assign_profile_response` AS `dep_profile_assign_status` , CASE WHEN `hm` . `enrolled` = ? AND `h` . `platform` = ? THEN EXISTS ( SELECT ? FROM `mdm_windows_enrollments` `mwe` WHE",
+            "load_avg": 0.28
+          },
+          {
+            "rank": 2,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` IS NULL AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` .",
+            "load_avg": 0.26
+          },
+          {
+            "rank": 3,
+            "sql": "SELECT DISTINCTROW `packs` . * FROM ( ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` JOIN `label_membership` `lm` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . `target_id` = `lm` . `label_id` AND `pt` . TYPE = ? ) WHERE `lm` . `host_id` = ? AND NOT `p` . `disabled` AND `p` . `pack_type` IS NULL ) UNION ALL ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . TYPE = ? AND `pt` . `target_id` = ? ) WHERE NOT `p` . `disabled` AND `p` . ",
+            "load_avg": 0.23
+          },
+          {
+            "rank": 4,
+            "sql": "SELECT `h` . `id` AS `host_id` , `h` . `platform` AS `platform` , `hmap` . `profile_uuid` AS `profile_uuid` , `hmap` . `has_acme_payload` AS `has_acme_payload` , `hmap` . `scope` AS `scope` , CASE WHEN `hmap` . `scope` = ? THEN COALESCE ( ( SELECT `ne` . `id` FROM `nano_enrollments` `ne` WHERE `ne` . TYPE = ? AND `ne` . `enabled` = ? AND `ne` . `device_id` = `h` . `uuid` ORDER BY `ne` . `created_at` ASC , `ne` . `id` ASC LIMIT ? ) , ? ) ELSE ? END AS `user_enrollment_id` FROM `host_mdm_apple_pro",
+            "load_avg": 0.21
+          },
+          {
+            "rank": 5,
+            "sql": "SELECT `h` . `id` AS `host_id` , COALESCE ( ( SELECT `nu` . `user_short_name` FROM `nano_enrollments` `ne` INNER JOIN `nano_users` `nu` ON `ne` . `user_id` = `nu` . `id` WHERE `ne` . TYPE = ? AND `ne` . `enabled` = ? AND `ne` . `device_id` = `h` . `uuid` ORDER BY `ne` . `created_at` ASC , `ne` . `id` ASC LIMIT ? ) , ? ) AS `user_short_name` FROM `host_mdm_apple_profiles` `hmap` JOIN HOSTS `h` ON `h` . `uuid` = `hmap` . `host_uuid` WHERE `hmap` . `command_uuid` = ? AND `hmap` . `host_uuid` = ? AN",
+            "load_avg": 0.16
+          }
+        ]
+      },
+      {
+        "instance": "reader-2",
+        "top_sql": [
+          {
+            "rank": 1,
+            "sql": "SELECT `hm` . `host_id` , `hm` . `enrolled` , `hm` . `server_url` , `hm` . `installed_from_dep` , `hm` . `mdm_id` , `hm` . `is_personal_enrollment` , `hm` . `personal_enrollment_type` , `hm` . `managed_apple_id` , COALESCE ( `hm` . `is_server` , FALSE ) AS `is_server` , COALESCE ( `mdms` . NAME , ? ) AS NAME , `hdep` . `assign_profile_response` AS `dep_profile_assign_status` , CASE WHEN `hm` . `enrolled` = ? AND `h` . `platform` = ? THEN EXISTS ( SELECT ? FROM `mdm_windows_enrollments` `mwe` WHE",
+            "load_avg": 0.22
+          },
+          {
+            "rank": 2,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` IS NULL AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` .",
+            "load_avg": 0.22
+          },
+          {
+            "rank": 3,
+            "sql": "SELECT `h` . `id` AS `host_id` , `h` . `platform` AS `platform` , `hmap` . `profile_uuid` AS `profile_uuid` , `hmap` . `has_acme_payload` AS `has_acme_payload` , `hmap` . `scope` AS `scope` , CASE WHEN `hmap` . `scope` = ? THEN COALESCE ( ( SELECT `ne` . `id` FROM `nano_enrollments` `ne` WHERE `ne` . TYPE = ? AND `ne` . `enabled` = ? AND `ne` . `device_id` = `h` . `uuid` ORDER BY `ne` . `created_at` ASC , `ne` . `id` ASC LIMIT ? ) , ? ) ELSE ? END AS `user_enrollment_id` FROM `host_mdm_apple_pro",
+            "load_avg": 0.21
+          },
+          {
+            "rank": 4,
+            "sql": "SELECT DISTINCTROW `packs` . * FROM ( ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` JOIN `label_membership` `lm` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . `target_id` = `lm` . `label_id` AND `pt` . TYPE = ? ) WHERE `lm` . `host_id` = ? AND NOT `p` . `disabled` AND `p` . `pack_type` IS NULL ) UNION ALL ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . TYPE = ? AND `pt` . `target_id` = ? ) WHERE NOT `p` . `disabled` AND `p` . ",
+            "load_avg": 0.19
+          },
+          {
+            "rank": 5,
+            "sql": "SELECT `h` . `id` AS `host_id` , COALESCE ( ( SELECT `nu` . `user_short_name` FROM `nano_enrollments` `ne` INNER JOIN `nano_users` `nu` ON `ne` . `user_id` = `nu` . `id` WHERE `ne` . TYPE = ? AND `ne` . `enabled` = ? AND `ne` . `device_id` = `h` . `uuid` ORDER BY `ne` . `created_at` ASC , `ne` . `id` ASC LIMIT ? ) , ? ) AS `user_short_name` FROM `host_mdm_apple_profiles` `hmap` JOIN HOSTS `h` ON `h` . `uuid` = `hmap` . `host_uuid` WHERE `hmap` . `command_uuid` = ? AND `hmap` . `host_uuid` = ? AN",
+            "load_avg": 0.16
+          }
+        ]
+      }
+    ]
+  },
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 27.3993,
+        "Minimum": 26.2965,
+        "Maximum": 29.2549,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 2.3631,
+        "Minimum": 2.3223,
+        "Maximum": 2.3818,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 4.3615,
+        "Minimum": 4.0493,
+        "Maximum": 5.0675,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 2.3422,
+        "Minimum": 2.3048,
+        "Maximum": 2.3567,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-3",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 4.3866,
+        "Minimum": 4.0448,
+        "Maximum": 4.9675,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 2.342,
+        "Minimum": 2.3081,
+        "Maximum": 2.3564,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "apns_mock_redis": [
+    {
+      "node": "apns-redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 4.1639,
+        "Minimum": 0.25,
+        "Maximum": 17.7059,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 1.0074,
+        "Minimum": 0.8818,
+        "Maximum": 1.9207,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "curr_connections": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 52.3222,
+        "Maximum": 367,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "curr_items": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 337.9667,
+        "Maximum": 2143,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "string_based_cmds": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 56854.9222,
+        "Sum": 5116943,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "pubsub_based_cmds": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 28015.3444,
+        "Sum": 2521381,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "network_bytes_out": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 22249402.6222,
+        "Sum": 2002446236,
+        "Unit": "Bytes",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "alb": {
+    "target_response_time": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 0.0953,
+      "Minimum": 0,
+      "Maximum": 124.9771,
+      "Unit": "Seconds",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "target_response_time_percentiles": {
+      "p99": 2.107,
+      "p95": 0.3126
+    },
+    "http_5xx_count": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Sum": 120863,
+      "Unit": "Count",
+      "data_points": 9,
+      "max_points": 18,
+      "data_coverage": 0.5
+    },
+    "http_elb_5xx_count": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Sum": 691382,
+      "Unit": "Count",
+      "data_points": 10,
+      "max_points": 18,
+      "data_coverage": 0.56
+    },
+    "request_count": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Sum": 81451233,
+      "Unit": "Count",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "processed_bytes": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Sum": 86019210584,
+      "Unit": "Bytes",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    }
+  },
+  "fleet_server_errors": {
+    "error_count": 426.0,
+    "sample_messages": [
+      "{\"ts\":\"2026-11-05T03:25:31Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:31Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:31Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:31Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:31Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:06Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:06Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:06Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:06Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}",
+      "{\"ts\":\"2026-11-05T03:25:06Z\",\"level\":\"warn\",\"msg\":\"health check failed\",\"component\":\"http\",\"component\":\"healthz\",\"err\":\"context deadline exceeded\",\"health-checker\":\"mysql\"}"
+    ]
+  },
+  "apns_mock_errors": {
+    "error_count": 124164.0,
+    "sample_messages": [
+      "time=2026-11-05T03:26:48.609Z level=ERROR msg=\"publish push\" token=746f6b656e52554a59534a355352534653 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.609Z level=ERROR msg=\"publish push\" token=746f6b656e3250535032415a375a515731 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.609Z level=ERROR msg=\"publish push\" token=746f6b656e50445637545256394e384539 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.725Z level=ERROR msg=\"publish push\" token=746f6b656e525436475136373736304438 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.609Z level=ERROR msg=\"publish push\" token=746f6b656e374747585a30424430574854 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.725Z level=ERROR msg=\"publish push\" token=746f6b656e31573137543335474b46354b error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.609Z level=ERROR msg=\"publish push\" token=746f6b656e5731594b51434b5652545431 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.725Z level=ERROR msg=\"publish push\" token=746f6b656e4a4148383550583257334d47 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.725Z level=ERROR msg=\"publish push\" token=746f6b656e543536484a51435532385250 error=\"context deadline exceeded\"",
+      "time=2026-11-05T03:26:48.609Z level=ERROR msg=\"publish push\" token=746f6b656e5036304a5332585953504446 error=\"context deadline exceeded\""
+    ]
+  },
+  "rds_writer_extended": {
+    "freeable_memory": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 15261845003.3778,
+      "Minimum": 15049535488,
+      "Unit": "Bytes",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "buffer_cache_hit_ratio": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 100,
+      "Minimum": 100,
+      "Unit": "Percent",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "volume_bytes_used": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 55342765397.3333,
+      "Maximum": 66524708864,
+      "Unit": "Bytes",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "select_latency": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 0.782,
+      "Maximum": 2.0932,
+      "Unit": "Milliseconds",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "insert_latency": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 3.3853,
+      "Maximum": 12.9647,
+      "Unit": "Milliseconds",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "dml_latency": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 2.2616,
+      "Maximum": 10.8036,
+      "Unit": "Milliseconds",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "threads_running": {
+      "average": 17.9,
+      "maximum": 43.99,
+      "vcpus": 8
+    },
+    "iops_utilization": {
+      "instance_class": "db.r6g.2xlarge",
+      "max_iops": 20000,
+      "read_iops_avg": 0.0033,
+      "write_iops_avg": 1643.7182,
+      "total_iops_avg": 1643.72,
+      "utilization_pct": 8.22
+    }
+  },
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "aurora_replica_lag": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 8.7333,
+        "Maximum": 40,
+        "Unit": "Milliseconds",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "freeable_memory": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 16106894904.8889,
+        "Minimum": 15936663552,
+        "Unit": "Bytes",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "buffer_cache_hit_ratio": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 99.9834,
+        "Minimum": 99.908,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "select_latency": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 0.4418,
+        "Maximum": 1.4016,
+        "Unit": "Milliseconds",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "iops_utilization": {
+        "instance_class": "db.r6g.2xlarge",
+        "max_iops": 20000,
+        "read_iops_avg": 62.6608,
+        "write_iops_avg": 0,
+        "total_iops_avg": 62.66,
+        "utilization_pct": 0.31
+      },
+      "threads_running": {
+        "average": 2.56,
+        "maximum": 5.9,
+        "vcpus": 8
+      }
+    },
+    {
+      "instance": "reader-2",
+      "aurora_replica_lag": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 8.4556,
+        "Maximum": 22,
+        "Unit": "Milliseconds",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "freeable_memory": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 16162278377.2444,
+        "Minimum": 16016146432,
+        "Unit": "Bytes",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "buffer_cache_hit_ratio": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 99.9813,
+        "Minimum": 99.8999,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "select_latency": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 0.9325,
+        "Maximum": 2.2541,
+        "Unit": "Milliseconds",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "iops_utilization": {
+        "instance_class": "db.r6g.2xlarge",
+        "max_iops": 20000,
+        "read_iops_avg": 59.3103,
+        "write_iops_avg": 0,
+        "total_iops_avg": 59.31,
+        "utilization_pct": 0.3
+      },
+      "threads_running": {
+        "average": 2.01,
+        "maximum": 4.42,
+        "vcpus": 8
+      }
+    }
+  ],
+  "redis_extended": [
+    {
+      "node": "redis-1",
+      "curr_connections": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 184.8889,
+        "Maximum": 693,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 78.6974,
+        "Minimum": 60.4749,
+        "Unit": "Percent",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "curr_connections": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 5,
+        "Maximum": 5,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    },
+    {
+      "node": "redis-3",
+      "curr_connections": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Average": 6,
+        "Maximum": 6,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-04T19:57:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 18,
+        "max_points": 18,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    }
+  ],
+  "network": {
+    "network_rx_bytes": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 1363617.1163,
+      "Sum": 2485874003,
+      "Unit": "Bytes/Second",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    },
+    "network_tx_bytes": {
+      "Timestamp": "2026-11-04T19:57:00-06:00",
+      "Average": 744447.938,
+      "Sum": 1357128591,
+      "Unit": "Bytes/Second",
+      "data_points": 18,
+      "max_points": 18,
+      "data_coverage": 1
+    }
+  },
+  "container_health": {
+    "abnormal_stops": 0,
+    "fleet_abnormal_stops": 0,
+    "running_tasks": 25,
+    "failed_health_checks": 10,
+    "unable_to_place": 0,
+    "service_events": [
+      {
+        "service": "fleet",
+        "at": "2026-11-04T19:59:21.100000-06:00",
+        "message": "(service fleet) has started 1 tasks: (task 95f22247309e4c44910686a778736454). Amazon ECS replaced 1 tasks due to an unhealthy status."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T19:59:58.019000-06:00",
+        "message": "(service fleet) (task 7882bd30323041e0bf9a5337be8e0ed7) (port 8080) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-2:ACCOUNT_ID:targetgroup/fleet-495apple-int/9cbd84f8534b5aed) due to (reason Health checks failed with these codes: [500])."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T19:59:58.043000-06:00",
+        "message": "(service fleet) (task 7882bd30323041e0bf9a5337be8e0ed7) (port 8080) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-2:ACCOUNT_ID:targetgroup/fleet-495apple/2d0793c1f393ca19) due to (reason Health checks failed with these codes: [500])."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T20:10:52.348000-06:00",
+        "message": "(service fleet) has started 1 tasks: (task 595fd86c175f4f7296bc5f3f47de70cd). Amazon ECS replaced 1 tasks due to an unhealthy status."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T20:11:19.994000-06:00",
+        "message": "(service fleet) (task 810af3cdc5444ba4851f70baa53c4669) (port 8080) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-2:ACCOUNT_ID:targetgroup/fleet-495apple-int/9cbd84f8534b5aed) due to (reason Health checks failed with these codes: [500])."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T20:11:20.022000-06:00",
+        "message": "(service fleet) (task 810af3cdc5444ba4851f70baa53c4669) (port 8080) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-2:ACCOUNT_ID:targetgroup/fleet-495apple/2d0793c1f393ca19) due to (reason Health checks failed with these codes: [500])."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T21:16:29.550000-06:00",
+        "message": "(service fleet) has started 1 tasks: (task e24aae5e876c41e8880c57f5eb3dc8d1). Amazon ECS replaced 1 tasks due to an unhealthy status."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T21:16:57.973000-06:00",
+        "message": "(service fleet) (task dad126e4bd974aada2d696b1930f3b2d) (port 8080) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-2:ACCOUNT_ID:targetgroup/fleet-495apple/2d0793c1f393ca19) due to (reason Health checks failed with these codes: [500])."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T21:25:39.246000-06:00",
+        "message": "(service fleet) has started 1 tasks: (task fbdea0001e28496282ea015c94e8a5a5). Amazon ECS replaced 1 tasks due to an unhealthy status."
+      },
+      {
+        "service": "fleet",
+        "at": "2026-11-04T21:26:17.893000-06:00",
+        "message": "(service fleet) (task 819c3c1fbf89497bb67782c93002c989) (port 8080) is unhealthy in (target-group arn:aws:elasticloadbalancing:us-east-2:ACCOUNT_ID:targetgroup/fleet-495apple/2d0793c1f393ca19) due to (reason Health checks failed with these codes: [500])."
+      }
+    ],
+    "tasks": [
+      {
+        "task_id": "a18673f6724f45fe8b57af6c5a81b21a",
+        "started_at": "2026-11-04T13:08:27.955000-06:00",
+        "started_epoch": 1793819307,
+        "uptime_min": 498.55
+      },
+      {
+        "task_id": "fd8f5d6d691345318699f4c0e0bc6313",
+        "started_at": "2026-11-04T13:08:27.552000-06:00",
+        "started_epoch": 1793819307,
+        "uptime_min": 498.55
+      },
+      {
+        "task_id": "93b920b2ae6e404fab41c22ef40e2f54",
+        "started_at": "2026-11-04T13:08:28.933000-06:00",
+        "started_epoch": 1793819308,
+        "uptime_min": 498.53
+      },
+      {
+        "task_id": "872becc899d14f109d5858f9b7353e39",
+        "started_at": "2026-11-04T13:08:31.372000-06:00",
+        "started_epoch": 1793819311,
+        "uptime_min": 498.48
+      },
+      {
+        "task_id": "20c4dcb414f44f139ff03850a14e4a4c",
+        "started_at": "2026-11-04T13:13:38.750000-06:00",
+        "started_epoch": 1793819618,
+        "uptime_min": 493.37
+      },
+      {
+        "task_id": "7ed37efbff664b2dbfdc782d11f10d33",
+        "started_at": "2026-11-04T13:13:39.583000-06:00",
+        "started_epoch": 1793819619,
+        "uptime_min": 493.35
+      },
+      {
+        "task_id": "362fd38448c643b0a7b85cda354dd005",
+        "started_at": "2026-11-04T13:13:40.711000-06:00",
+        "started_epoch": 1793819620,
+        "uptime_min": 493.33
+      },
+      {
+        "task_id": "d333cb45f6c445d8912f017d90449bcb",
+        "started_at": "2026-11-04T13:13:41.056000-06:00",
+        "started_epoch": 1793819621,
+        "uptime_min": 493.32
+      },
+      {
+        "task_id": "2bc5cd60c1704375af0a1ad285b0602d",
+        "started_at": "2026-11-04T13:18:47.556000-06:00",
+        "started_epoch": 1793819927,
+        "uptime_min": 488.22
+      },
+      {
+        "task_id": "2feddc60d77e4b4093fb42a1dc2f6146",
+        "started_at": "2026-11-04T13:18:48.496000-06:00",
+        "started_epoch": 1793819928,
+        "uptime_min": 488.2
+      },
+      {
+        "task_id": "102f3a12a89b48b2b68f861481043fc4",
+        "started_at": "2026-11-04T13:18:49.153000-06:00",
+        "started_epoch": 1793819929,
+        "uptime_min": 488.18
+      },
+      {
+        "task_id": "cb711e0900b0416baabc5683bf2b3e59",
+        "started_at": "2026-11-04T13:18:49.510000-06:00",
+        "started_epoch": 1793819929,
+        "uptime_min": 488.18
+      },
+      {
+        "task_id": "526794f446dc4d1bb5de3b88df30886d",
+        "started_at": "2026-11-04T13:24:01.921000-06:00",
+        "started_epoch": 1793820241,
+        "uptime_min": 482.98
+      },
+      {
+        "task_id": "74104092ed6545ca8fffe1fea6042a4f",
+        "started_at": "2026-11-04T13:24:01.553000-06:00",
+        "started_epoch": 1793820241,
+        "uptime_min": 482.98
+      },
+      {
+        "task_id": "9fadbeb97a66499f9cd2a7593b2351c9",
+        "started_at": "2026-11-04T13:24:01.827000-06:00",
+        "started_epoch": 1793820241,
+        "uptime_min": 482.98
+      },
+      {
+        "task_id": "9c1229e7f41244289a190587115ea48d",
+        "started_at": "2026-11-04T13:24:02.668000-06:00",
+        "started_epoch": 1793820242,
+        "uptime_min": 482.97
+      },
+      {
+        "task_id": "45dea65f46e2413fb9542d8dd6829913",
+        "started_at": "2026-11-04T13:29:09.556000-06:00",
+        "started_epoch": 1793820549,
+        "uptime_min": 477.85
+      },
+      {
+        "task_id": "6cb7e2788f934c7991f60f7cf0d78295",
+        "started_at": "2026-11-04T13:29:09.867000-06:00",
+        "started_epoch": 1793820549,
+        "uptime_min": 477.85
+      },
+      {
+        "task_id": "0c5161946ab74967a2d665d43da322e4",
+        "started_at": "2026-11-04T13:29:10.523000-06:00",
+        "started_epoch": 1793820550,
+        "uptime_min": 477.83
+      },
+      {
+        "task_id": "a3619db5663d44bb8f5fcd6229664086",
+        "started_at": "2026-11-04T13:29:10.665000-06:00",
+        "started_epoch": 1793820550,
+        "uptime_min": 477.83
+      },
+      {
+        "task_id": "7bd45d1544f84cc2af5ea2068596a2e8",
+        "started_at": "2026-11-04T13:34:26.644000-06:00",
+        "started_epoch": 1793820866,
+        "uptime_min": 472.57
+      },
+      {
+        "task_id": "3784bc347de84db9a92de5acb1a0a427",
+        "started_at": "2026-11-04T13:34:27.014000-06:00",
+        "started_epoch": 1793820867,
+        "uptime_min": 472.55
+      },
+      {
+        "task_id": "3aa2d7e1536a428abc115596c6e66027",
+        "started_at": "2026-11-04T13:34:27.210000-06:00",
+        "started_epoch": 1793820867,
+        "uptime_min": 472.55
+      },
+      {
+        "task_id": "462d03f9cce74849a34c2cdb03c60f7e",
+        "started_at": "2026-11-04T13:34:27.910000-06:00",
+        "started_epoch": 1793820867,
+        "uptime_min": 472.55
+      },
+      {
+        "task_id": "324d69712a3c49c197060966b99c66b9",
+        "started_at": "2026-11-04T13:39:23.824000-06:00",
+        "started_epoch": 1793821163,
+        "uptime_min": 467.62
+      }
+    ]
+  }
+}

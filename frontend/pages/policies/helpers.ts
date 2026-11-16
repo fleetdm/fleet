@@ -66,11 +66,12 @@ export const getTicketOrWebhookLabel = (
 export const generateSoftwareOptionHelpText = (
   title: ISoftwareTitle
 ): string => {
-  const isVppApp = title.source === "apps" && !!title.app_store_app;
+  const firstAppStoreApp = title.app_store_apps?.[0];
+  const isVppApp = title.source === "apps" && !!firstAppStoreApp;
 
   if (isVppApp) {
-    const version = title.app_store_app?.version
-      ? ` • ${title.app_store_app.version}`
+    const version = firstAppStoreApp?.version
+      ? ` • ${firstAppStoreApp.version}`
       : "";
     return `macOS (App Store)${version}`;
   }

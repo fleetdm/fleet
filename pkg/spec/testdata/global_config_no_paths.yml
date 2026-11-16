@@ -122,8 +122,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://fleetdm.com/company/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Fleet Device Management
   smtp_settings:
     authentication_method: authmethod_plain
@@ -160,7 +160,6 @@ org_settings:
         username: reed@fleetdm.com
     zendesk: []
   mdm:
-    apple_bm_default_team: ""
     end_user_authentication:
       entity_id: ""
       idp_name: ""

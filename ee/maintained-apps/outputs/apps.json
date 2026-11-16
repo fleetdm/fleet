@@ -2235,6 +2235,13 @@
       "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent collects metrics, logs, and traces from hosts and sends them to Datadog for monitoring."
+    },
+    {
       "name": "Dataflare",
       "slug": "dataflare/darwin",
       "platform": "darwin",
@@ -6204,6 +6211,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "noTunes",
+      "slug": "notunes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "digital.twisted.noTunes",
+      "description": "noTunes is a menu bar utility that prevents iTunes or Apple Music from launching automatically."
+    },
+    {
       "name": "Noun Project",
       "slug": "noun-project/darwin",
       "platform": "darwin",
@@ -9793,6 +9807,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/windows",
+      "platform": "windows",
+      "unique_identifier": "Wispr Flow",
+      "description": "Wispr Flow is a voice-to-text dictation app with AI-powered auto-editing."
     },
     {
       "name": "EdrawMax",

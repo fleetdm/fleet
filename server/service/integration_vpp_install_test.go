@@ -1528,7 +1528,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: "1"},
 		{AppStoreID: "2"},
-	}}, http.StatusConflict, "team_name", team.Name)
+	}}, http.StatusConflict, "fleet_name", team.Name)
 	txt = extractServerErrorText(res.Body)
 	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 fleet.")
 
@@ -1585,7 +1585,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: "1"},
 		{AppStoreID: "2"},
-	}}, http.StatusOK, &batchAppResp, "team_name", team3.Name)
+	}}, http.StatusOK, &batchAppResp, "fleet_name", team3.Name)
 	require.Len(t, batchAppResp.Apps, 2)
 
 	listSw = listSoftwareTitlesResponse{}

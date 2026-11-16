@@ -22,16 +22,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCACaps also checks that MakeHTTPHandler leaves r.Pattern alone: otelhttp reads it after the handler returns to set
+// http.route on metrics.
 func TestCACaps(t *testing.T) {
-	server, _, teardown := newServer(t)
+	_, svc, teardown := newServer(t)
 	defer teardown()
-	url := server.URL + "/scep?operation=GetCACaps"
-	resp, err := http.Get(url) //nolint:gosec
-	if err != nil {
-		t.Fatal(err)
+	handler := scepserver.MakeHTTPHandler(scepserver.MakeServerEndpoints(svc), svc, slog.New(slog.DiscardHandler))
+
+	cases := []struct {
+		method     string
+		wantStatus int
+	}{
+		{http.MethodGet, http.StatusOK},
+		{http.MethodHead, http.StatusOK},
+		{http.MethodPost, http.StatusOK},
+		{http.MethodPut, http.StatusMethodNotAllowed},
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Error("expected", http.StatusOK, "got", resp.StatusCode)
+	for _, c := range cases {
+		t.Run(c.method, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), c.method, "/scep?operation=GetCACaps", nil)
+			req.Pattern = "/scep"
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			require.Equal(t, c.wantStatus, rec.Code)
+			require.Equal(t, "/scep", req.Pattern)
+		})
 	}
 }
 
@@ -352,6 +368,9 @@ func TestHTTPHandlerWithIdentifierRouting(t *testing.T) {
 		{"escaped slash stays in the identifier", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2Fname", http.StatusOK,
 			"host,profile,ca/name"},
 		{"head", http.MethodHead, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusOK, "host,profile,NDES"},
+		{"post", http.MethodPost, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusOK, "host,profile,NDES"},
+		{"post with pkiclient.exe suffix", http.MethodPost, "/mdm/scep/proxy/host%2Cprofile%2CNDES/pkiclient.exe", http.StatusOK,
+			"host,profile,NDES"},
 		{"missing identifier", http.MethodGet, "/mdm/scep/proxy/", http.StatusNotFound, ""},
 		{"unknown suffix", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES/other", http.StatusNotFound, ""},
 		{"unsupported method", http.MethodPut, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusMethodNotAllowed, ""},

@@ -15,6 +15,7 @@ type removedKeysInner struct {
 	RequireAll bool     `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
 	Scoped     bool     `json:"new_scoped" removedkey:"old_scoped" renamescope:"setup"`
 	_          struct{} `json:"-" removedkey:"moved_away" renamescope:"setup"`
+	_          struct{} `json:"-" removedkey:"dropped_key"`
 }
 
 type removedKeysRequest struct {
@@ -37,6 +38,7 @@ func TestExtractRemovedKeyRules(t *testing.T) {
 		{Key: "require_all_software_macos"},
 		{Key: "old_scoped", Scope: []string{"setup"}},
 		{Key: "moved_away", Scope: []string{"setup"}},
+		{Key: "dropped_key"},
 	}, rules, "found through pointers and slices, deduplicated, including on a json:\"-\" marker")
 
 	// renameto rules are unaffected by removedkey tags.
@@ -57,6 +59,7 @@ func TestCheckRemovedKeys(t *testing.T) {
 		{name: "inside an array", body: `{"x": [{"oldid": null}]}`, wantKey: "oldid"},
 		{name: "old and new together", body: `{"new_id": 1, "old_id": 1}`, wantKey: "old_id"},
 		{name: "scoped key in scope", body: `{"setup": {"old_scoped": true}}`, wantKey: "old_scoped"},
+		{name: "key removed without a replacement", body: `{"setup": {"dropped_key": 1}}`, wantKey: "dropped_key"},
 		{name: "different case", body: `{"Old_ID": 1}`, wantKey: "Old_ID"},
 		{name: "scoped key in a differently cased scope", body: `{"SETUP": {"OLD_SCOPED": true}}`, wantKey: "OLD_SCOPED"},
 		{name: "old name as a string value", body: `{"name": "old_id", "list": ["require_all_software_macos"]}`},

@@ -233,19 +233,16 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBusinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
-
 	// AppleBusinessManager defines the associations between AB tokens
 	// and the fleets used to assign hosts when they're ingested from Apple
 	// Business.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business" removedkey:"apple_business_manager" renamescope:"mdm"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
-	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
+	AppleBMEnabledAndConfigured bool `json:"apple_business_enabled_and_configured" removedkey:"apple_bm_enabled_and_configured" renamescope:"mdm"`
 
 	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
@@ -257,7 +254,7 @@ type MDM struct {
 	// It is set to true as soon as one of the ABM tokens receives this error
 	// code, and is set to false only once all ABM tokens have agreed to the new
 	// terms.
-	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
+	AppleBMTermsExpired bool `json:"apple_business_terms_expired" removedkey:"apple_bm_terms_expired" renamescope:"mdm"`
 
 	// EnabledAndConfigured is set to true if Fleet has been
 	// configured with the required APNS and SCEP certificates. It can't be set
@@ -346,6 +343,8 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+
+	_ struct{} `removedkey:"apple_bm_default_team" renamescope:"mdm"`
 }
 
 // IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
@@ -1802,47 +1801,12 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName string `json:"org_name"`
-	// Deprecated: use OrgLogoURLDarkMode.
-	OrgLogoURL string `json:"org_logo_url"`
-	// Deprecated: use OrgLogoURLLightMode.
-	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
-	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
-	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
+	OrgName             string `json:"org_name"`
+	OrgLogoURLDarkMode  string `json:"org_logo_url_dark_mode" removedkey:"org_logo_url" renamescope:"org_info"`
+	OrgLogoURLLightMode string `json:"org_logo_url_light_mode" removedkey:"org_logo_url_light_background" renamescope:"org_info"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
-}
-
-// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
-// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
-func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
-	invalid := &InvalidArgumentError{}
-
-	switch {
-	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
-		invalid.Append("org_logo_url",
-			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
-	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
-		o.OrgLogoURL = o.OrgLogoURLDarkMode
-	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
-		o.OrgLogoURLDarkMode = o.OrgLogoURL
-	}
-
-	switch {
-	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
-		invalid.Append("org_logo_url_light_background",
-			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
-	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
-		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
-	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
-		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
-	}
-
-	if invalid.HasErrors() {
-		return invalid
-	}
-	return nil
 }
 
 // orgLogoServingPathPrefix is the relative path Fleet writes into the
@@ -1865,11 +1829,8 @@ func AbsolutizeLogoURL(u, serverURL string) string {
 	return strings.TrimRight(serverURL, "/") + u
 }
 
-// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
-// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to both logo URL fields on OrgInfo in place.
 func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
-	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
-	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
 	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
 	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
 }
@@ -2346,7 +2307,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id,omitempty" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {

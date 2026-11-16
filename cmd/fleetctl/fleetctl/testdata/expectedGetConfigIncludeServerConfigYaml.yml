@@ -38,15 +38,14 @@ spec:
   mdm:
     android_enabled_and_configured: false
     apple_business: null
-    apple_business_manager: null
     apple_account_provisioning:
       oauth_idp_token_url: null
       oauth_idp_client_id: null
       oauth_idp_client_secret: null
     apple_server_url: ""
     volume_purchasing_program: null
-    apple_bm_enabled_and_configured: false
-    apple_bm_terms_expired: false
+    apple_business_enabled_and_configured: false
+    apple_business_terms_expired: false
     enabled_and_configured: false
     windows_mdm_enabled: false
     enable_disk_encryption: false
@@ -167,8 +166,6 @@ spec:
       plugin: filesystem
   max_software_package_size: 537919488
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
     org_logo_url_dark_mode: ""
     org_logo_url_light_mode: ""
     org_name: ""

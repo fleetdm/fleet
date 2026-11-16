@@ -214,25 +214,6 @@ var perHostHookCases = []perHostHookCase{
 		},
 	},
 	{
-		// batch tuples are [labelID, hostID]; distinct hosts only
-		"AsyncBatchInsertLabelMembership", []uint{21, 22},
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.AsyncBatchInsertLabelMembershipFunc = func(ctx context.Context, batch [][2]uint) error { return nil }
-			return &ds.AsyncBatchInsertLabelMembershipFuncInvoked, func() error {
-				return d.AsyncBatchInsertLabelMembership(hookTestCtx, [][2]uint{{1, 21}, {2, 21}, {1, 22}})
-			}
-		},
-	},
-	{
-		"AsyncBatchDeleteLabelMembership", []uint{31},
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.AsyncBatchDeleteLabelMembershipFunc = func(ctx context.Context, batch [][2]uint) error { return nil }
-			return &ds.AsyncBatchDeleteLabelMembershipFuncInvoked, func() error {
-				return d.AsyncBatchDeleteLabelMembership(hookTestCtx, [][2]uint{{5, 31}})
-			}
-		},
-	},
-	{
 		"AddLabelsToHost", []uint{41},
 		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
 			ds.AddLabelsToHostFunc = func(ctx context.Context, hostID uint, labelIDs []uint) error { return nil }
@@ -305,18 +286,6 @@ func TestPerHostHooksFireOnSuccess(t *testing.T) {
 			require.Equal(t, 0, store.labelScopesResetCalls)
 		})
 	}
-}
-
-// TestAsyncBatchUpdateLabelTimestampNotHooked: timestamp-only touches never
-// change membership and must not invalidate anything.
-func TestAsyncBatchUpdateLabelTimestampNotHooked(t *testing.T) {
-	ctx := context.Background()
-	ds, store, d := newTestDatastore()
-	ds.AsyncBatchUpdateLabelTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error { return nil }
-
-	require.NoError(t, d.AsyncBatchUpdateLabelTimestamp(ctx, []uint{1, 2}, time.Now()))
-	require.Empty(t, store.hostInvalidations)
-	require.Equal(t, 0, store.invalidateCalls)
 }
 
 // TestNoInvalidationOnWriteError: a failed datastore write must NOT fire an

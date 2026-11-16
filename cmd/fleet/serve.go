@@ -403,7 +403,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-	task := async.NewTask(ds, redisPool, clock.C, &config)
+	task := async.NewTask(ds, config.OTELEnabled())
 
 	if config.Sentry.Dsn != "" {
 		v := version.Version()
@@ -843,20 +843,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal:              initFatal,
 	})
 
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, logger.With("cron", "async_task"))
-
-	// Flush seen hosts every second
-	hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
-	if !hostsAsyncCfg.Enabled {
-		go func() {
-			for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-				if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
-					logger.InfoContext(ctx, "failed to update host seen times", "err", err)
-				}
+	go func() {
+		for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) { //nolint:gosec // jitter, not security sensitive
+			if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
+				logger.InfoContext(ctx, "failed to update host seen times", "err", err)
 			}
-		}()
-	}
+		}
+	}()
 
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{

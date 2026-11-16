@@ -277,22 +277,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	// Mirror deprecated logo URL fields to the new mode-aware fields (and
-	// vice versa) so every read returns a consistent view to clients.
-	// NormalizeLogoFields only errors when both forms are set with
-	// conflicting values — that shouldn't happen via the normal write path
-	// (which 422s on conflict), so reaching this branch implies the row
-	// was edited out-of-band. Log it so the inconsistency is visible, then
-	// canonicalize by preferring the mode-aware fields.
-	if invalid := ac.OrgInfo.NormalizeLogoFields(); invalid != nil {
-		svc.logger.WarnContext(ctx, "persisted org logo URL fields are inconsistent; canonicalizing to mode-aware values for response", "err", invalid.Error())
-		if ac.OrgInfo.OrgLogoURLDarkMode != "" {
-			ac.OrgInfo.OrgLogoURL = ac.OrgInfo.OrgLogoURLDarkMode
-		}
-		if ac.OrgInfo.OrgLogoURLLightMode != "" {
-			ac.OrgInfo.OrgLogoURLLightBackground = ac.OrgInfo.OrgLogoURLLightMode
-		}
-	}
 	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
 	// current ServerURL. Persisted form stays relative; this is purely a
 	// read-time view. Safe to do here because no SaveAppConfig caller
@@ -724,13 +708,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Reject conflicting deprecated/new logo URL pairs and mirror them so
-	// both forms are persisted with identical values. Done on the incoming
-	// payload before merge so we surface the conflict at the source field.
-	if normErr := newAppConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
-	}
-
 	if newAppConfig.SSOSettings != nil {
 		validateSSOSettings(newAppConfig, appConfig, invalid, lic, applyOpts.Overwrite)
 		if invalid.HasErrors() {
@@ -1108,13 +1085,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
-	}
-
-	// Validate logo fields immediately after the merge
-	// A persisted-row conflict the patch didn't touch surfaces here as a 422,
-	// instead of letting the request silently complete its side effects.
-	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.AgentOptions != nil {
@@ -1653,7 +1623,7 @@ func (svc *Service) applyABMTokenAssignments(
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+	if appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid {
 		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
@@ -1706,7 +1676,7 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			return ctxerr.Wrap(ctx, err, "saving VPP token assignments")
 		}
 	}
 	return nil
@@ -2773,44 +2743,6 @@ func (svc *Service) validateABMAssignments(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (tokensToSave []*fleet.ABMToken, defaultTokenID *uint, err error) {
-	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
-		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-		return nil, nil, nil
-	}
-
-	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
-		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil, nil, nil
-		}
-		team, err := svc.ds.TeamByName(ctx, name)
-		if err != nil {
-			invalid.Append("mdm.apple_bm_default_team", "team name not found")
-			return nil, nil, nil
-		}
-		tokens, err := svc.ds.ListABMTokens(ctx)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if len(tokens) > 1 {
-			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-			return nil, nil, nil
-		}
-
-		if len(tokens) == 0 {
-			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
-			return nil, nil, nil
-		}
-
-		tok := tokens[0]
-		tok.MacOSDefaultTeamID = &team.ID
-		tok.IOSDefaultTeamID = &team.ID
-		tok.IPadOSDefaultTeamID = &team.ID
-		tok.BYODDefaultTeamID = &team.ID
-		return []*fleet.ABMToken{tok}, nil, nil
-	}
-
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())

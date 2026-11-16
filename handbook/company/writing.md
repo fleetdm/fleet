@@ -331,7 +331,7 @@ When adding or reordering a page, try to leave as much room between values as po
 
 ## Temporary landing pages
 
-> To create a new page for the main website, use the standard [website request](https://fleetdm.com/handbook/company/communications#fleetdm-com) process.
+> To create a new page for the main website, use the standard [#g-first-impressions request](https://fleetdm.com/handbook/company/communications#fleetdm-com) process.
 
 Temporary landing pages are intended for driving traffic from ads, events, and campaigns. They live in the [landing-pages](https://github.com/fleetdm/fleet/tree/main/website/views/pages/landing-pages) folder of the Fleet repo, and use the `/lp` URL path.
  
@@ -345,7 +345,7 @@ Examples of pages that live behind `/lp`:
 - A landing page for an ad campaign
 - A giveaway page for an event
 
-If an `/lp` page gets traction and the messaging resonates, it can be promoted to the main site. At which point, it goes through the [website request](https://fleetdm.com/handbook/company/communications#fleetdm-com) process.
+If an `/lp` page gets traction and the messaging resonates, it can be promoted to the main site. At which point, it goes through the [#g-first-impressions request](https://fleetdm.com/handbook/company/communications#fleetdm-com) process.
 
 
 ## Writing style
