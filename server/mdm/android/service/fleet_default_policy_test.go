@@ -1,11 +1,13 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,11 +155,12 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 
 	ds := new(ds_mock.Store)
 	client := &android_mock.Client{}
+	var logs bytes.Buffer
 	reconciler := &profileReconciler{
 		DS:         ds,
 		Enterprise: &android.Enterprise{EnterpriseID: "LC00test"},
 		Client:     client,
-		Logger:     slog.New(slog.DiscardHandler),
+		Logger:     slog.New(slog.NewTextHandler(&logs, nil)),
 	}
 
 	var (
@@ -319,6 +322,27 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		require.Len(t, patched, 2)
 		require.Empty(t, patched[policyName(0)].PasswordPolicies)
 		require.Empty(t, patched[policyName(teamGone)].PasswordPolicies)
+	})
+
+	t.Run("a profile left out for using variables is logged when the policy is sent, not every run", func(t *testing.T) {
+		withVar := &fleet.MDMAndroidConfigProfile{
+			Name: "pin-var", TeamID: &teamB,
+			RawJSON: json.RawMessage(`{"passwordPolicies":[{"passwordScope":"$FLEET_VAR_HOST_UUID"}]}`),
+		}
+		profiles = []*fleet.MDMAndroidConfigProfile{withVar}
+		checksums, patchErrs = nil, nil
+		logs.Reset()
+		run(t)
+		require.Len(t, patched, 1)
+		require.Empty(t, patched[policyName(teamB)].PasswordPolicies)
+		require.Equal(t, 1, strings.Count(logs.String(), "left out of the fleet's default policy"))
+		require.Contains(t, logs.String(), "pin-var")
+
+		checksums = saved
+		logs.Reset()
+		run(t)
+		require.Empty(t, patched)
+		require.NotContains(t, logs.String(), "left out of the fleet's default policy")
 	})
 }
 

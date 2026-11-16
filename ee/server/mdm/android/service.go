@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -113,7 +114,7 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 			return nil, err
 		}
 		svc.logger.WarnContext(ctx, "failed to replace the zero-touch token created against the global default policy",
-			"fleet_id", teamID, "err", err)
+			"fleet_id", ptr.ValOrZero(teamID), "err", err)
 		return buildDPCExtrasResponse(existing), nil
 	}
 
@@ -130,7 +131,7 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	replaced, err := svc.ds.ReplaceZeroTouchEnrollmentToken(ctx, existing.TokenName, token)
 	if err != nil {
 		svc.logger.WarnContext(ctx, "failed to save the zero-touch token that replaces the one created against the global default policy",
-			"fleet_id", teamID, "err", err)
+			"fleet_id", ptr.ValOrZero(teamID), "err", err)
 		return buildDPCExtrasResponse(existing), nil
 	}
 	return buildDPCExtrasResponse(replaced), nil

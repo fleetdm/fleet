@@ -1,6 +1,7 @@
 package android
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -178,6 +179,8 @@ func TestGetZeroTouchConfiguration_ReplacesLegacyToken(t *testing.T) {
 
 	t.Run("policy failure keeps the old token", func(t *testing.T) {
 		svc, mockDS, apiClient, core := setup(t)
+		var logs bytes.Buffer
+		svc.logger = slog.New(slog.NewTextHandler(&logs, nil))
 		core.ensurePolicyErr = errors.New("quota")
 
 		resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), &teamID)
@@ -185,10 +188,13 @@ func TestGetZeroTouchConfiguration_ReplacesLegacyToken(t *testing.T) {
 		assert.Equal(t, "legacy-token-value", enrollmentToken(t, resp))
 		assert.False(t, apiClient.EnterprisesEnrollmentTokensCreateFuncInvoked)
 		assert.False(t, mockDS.ReplaceZeroTouchEnrollmentTokenFuncInvoked)
+		assert.Contains(t, logs.String(), "fleet_id=7 ", "the fleet ID is logged, not its pointer")
 	})
 
 	t.Run("save failure keeps the old token", func(t *testing.T) {
 		svc, mockDS, _, _ := setup(t)
+		var logs bytes.Buffer
+		svc.logger = slog.New(slog.NewTextHandler(&logs, nil))
 		mockDS.ReplaceZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ string, _ *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
 			return nil, errors.New("db down")
 		}
@@ -196,6 +202,7 @@ func TestGetZeroTouchConfiguration_ReplacesLegacyToken(t *testing.T) {
 		resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), &teamID)
 		require.NoError(t, err)
 		assert.Equal(t, "legacy-token-value", enrollmentToken(t, resp))
+		assert.Contains(t, logs.String(), "fleet_id=7 ", "the fleet ID is logged, not its pointer")
 	})
 }
 

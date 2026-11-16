@@ -95,30 +95,32 @@ func fleetDefaultPolicyName(enterpriseName string, teamID uint) string {
 	return fmt.Sprintf("%s/policies/%s", enterpriseName, android.FleetDefaultPolicyID(teamID))
 }
 
-// prepareFleetDefaultPolicy builds a fleet's default policy and its checksum.
-func prepareFleetDefaultPolicy(ctx context.Context, logger *slog.Logger, teamID uint, profiles []*fleet.MDMAndroidConfigProfile,
-) (*androidmanagement.Policy, []byte, error) {
+// prepareFleetDefaultPolicy builds a fleet's default policy and its checksum, and returns the names of the
+// profiles left out of it for using variables.
+func prepareFleetDefaultPolicy(ctx context.Context, teamID uint, profiles []*fleet.MDMAndroidConfigProfile,
+) (*androidmanagement.Policy, []byte, []string, error) {
 	policy, skipped, err := buildFleetDefaultPolicy(profiles)
 	if err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "build default policy for fleet %d", teamID)
-	}
-	if len(skipped) > 0 {
-		logger.WarnContext(ctx, "android passcode profiles with variables are left out of the fleet's default policy",
-			"fleet_id", teamID, "profiles", skipped)
+		return nil, nil, nil, ctxerr.Wrapf(ctx, err, "build default policy for fleet %d", teamID)
 	}
 	checksum, err := fleetDefaultPolicyChecksum(policy)
 	if err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "checksum default policy for fleet %d", teamID)
+		return nil, nil, nil, ctxerr.Wrapf(ctx, err, "checksum default policy for fleet %d", teamID)
 	}
-	return policy, checksum, nil
+	return policy, checksum, skipped, nil
 }
 
 // sendFleetDefaultPolicy patches a fleet's default policy in AMAPI. If AMAPI rejects the passcode settings,
 // it sends the base settings instead, so the policy that enrollment tokens point at always exists; the
 // passcode then arrives with the host's own policy, which reports the rejection on the profile.
 func sendFleetDefaultPolicy(ctx context.Context, client androidmgmt.Client, logger *slog.Logger,
-	enterpriseName string, teamID uint, policy *androidmanagement.Policy,
+	enterpriseName string, teamID uint, policy *androidmanagement.Policy, skipped []string,
 ) error {
+	// Logged only when the policy is sent, not on every reconcile run.
+	if len(skipped) > 0 {
+		logger.WarnContext(ctx, "android passcode profiles with variables are left out of the fleet's default policy",
+			"fleet_id", teamID, "profiles", skipped)
+	}
 	policyName := fleetDefaultPolicyName(enterpriseName, teamID)
 	patch := func(p *androidmanagement.Policy) error {
 		patchCtx, cancel := context.WithTimeout(ctx, fleetDefaultPolicyPatchTimeout)
@@ -196,14 +198,14 @@ func (r *profileReconciler) reconcileFleetDefaultPolicies(ctx context.Context) e
 func (r *profileReconciler) syncFleetDefaultPolicy(ctx context.Context, teamID uint, profiles []*fleet.MDMAndroidConfigProfile,
 	storedChecksum []byte,
 ) error {
-	policy, checksum, err := prepareFleetDefaultPolicy(ctx, r.Logger, teamID, profiles)
+	policy, checksum, skipped, err := prepareFleetDefaultPolicy(ctx, teamID, profiles)
 	if err != nil {
 		return err
 	}
 	if bytes.Equal(checksum, storedChecksum) {
 		return nil
 	}
-	if err := sendFleetDefaultPolicy(ctx, r.Client, r.Logger, r.Enterprise.Name(), teamID, policy); err != nil {
+	if err := sendFleetDefaultPolicy(ctx, r.Client, r.Logger, r.Enterprise.Name(), teamID, policy, skipped); err != nil {
 		return err
 	}
 	// Only replaces what was read, so a policy that EnsureFleetDefaultPolicy marked unverified meanwhile
@@ -228,7 +230,7 @@ func (svc *Service) EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "list android fleet default policy profiles")
 		}
-		policy, _, err := prepareFleetDefaultPolicy(ctx, svc.logger, teamID, profiles)
+		policy, _, skipped, err := prepareFleetDefaultPolicy(ctx, teamID, profiles)
 		if err != nil {
 			return "", err
 		}
@@ -239,7 +241,7 @@ func (svc *Service) EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName
 		}
 		_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-		if err := sendFleetDefaultPolicy(ctx, svc.androidAPIClient, svc.logger, enterpriseName, teamID, policy); err != nil {
+		if err := sendFleetDefaultPolicy(ctx, svc.androidAPIClient, svc.logger, enterpriseName, teamID, policy, skipped); err != nil {
 			return "", err
 		}
 		// The reconciler may be sending newer profiles at the same time, and either patch can land last, so
