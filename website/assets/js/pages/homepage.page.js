@@ -17,6 +17,16 @@ parasails.registerPage('homepage', {
       emailAddress: {isEmail: true, required: true},
     },
 
+    // For the newsletter signup form. Separate syncing state, so submitting one form doesn't spin the other's button.
+    newsletterSyncing: false,
+    newsletterFormData: {},
+    newsletterFormErrors: {},
+    newsletterCloudError: '',
+    newsletterCloudSuccess: false,
+    newsletterFormRules: {
+      emailAddress: {isEmail: true, required: true},
+    },
+
     // For the testimonials veil
     testimonialsVisibleHeight: 600,
     testimonialsHeightIncrement: 560,// « Roughly one to two rows of cards.
@@ -96,6 +106,13 @@ parasails.registerPage('homepage', {
         qualified('showFormExperience', 'experience-1772126772950');
       }
       this.goto(report.eventUrl);
+    },
+    submittedNewsletterForm: function() {
+      this.newsletterCloudSuccess = true;
+      this.newsletterFormData = {};
+      setTimeout(()=>{
+        this.newsletterCloudSuccess = false;
+      }, 10000);
     },
     animateTicker: function(tickerOptionPurpose) {
       let tickerOptionSelector = `[purpose="${tickerOptionPurpose}"]`;
