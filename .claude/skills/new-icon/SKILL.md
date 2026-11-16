@@ -32,6 +32,7 @@ Every icon must follow these rules. If you're given an SVG that breaks them, fix
 - **Gaps to a badge:** the outline ends 1.5px from the badge (2.5px on 32px icons). Keep every gap to the same badge equal.
 - **Line ends:** where a line stops next to another shape, end it straight-on, not partway around a curve, so the gap reads the same as the others.
 - **Outlined by default.** Use filled only when it's needed to convey meaning or importance (`error`, and `success-filled` for the OS settings "Verified" status). Badges are filled with the symbol cut out.
+- **Color:** draw in `ui-fleet-black-75` (`#515774`), the default icon color. Other colors are applied in code.
 - **Cut-outs** are real holes (even-odd fill), not white shapes.
 - **Layers:** flat. Vectors sit directly in the icon frame, with no groups, masks, or boolean operations.
 
