@@ -8,13 +8,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetcrypto "github.com/fleetdm/fleet/v4/server/platform/crypto"
 	"github.com/jmoiron/sqlx"
 )
 
 func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 	ctx context.Context, tenantID string, proxyServerSecret string,
 ) error {
-	encryptedSecret, err := encrypt([]byte(proxyServerSecret), ds.serverPrivateKey)
+	encryptedSecret, err := fleetcrypto.Encrypt([]byte(proxyServerSecret), ds.serverPrivateKey)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "encrypt proxy server secret")
 	}
@@ -67,7 +68,7 @@ func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext, s
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting microsoft_compliance_partner_integrations")
 	}
-	secret := decryptOrPassthrough(row.ProxyServerSecret, serverPrivateKey)
+	secret := fleetcrypto.DecryptOrPassthrough(row.ProxyServerSecret, serverPrivateKey)
 	return &fleet.ConditionalAccessMicrosoftIntegration{
 		TenantID:          row.TenantID,
 		ProxyServerSecret: string(secret),
