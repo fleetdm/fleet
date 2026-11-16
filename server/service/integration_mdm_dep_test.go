@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -183,7 +182,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			TeamID:                nil,
 			CustomProfileIdent:    "I1",
 			ManualAgentInstall:    true,
-			BootstrapPackage:      true,
 		})
 	})
 }
@@ -333,7 +331,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			TeamID:                &tm.ID,
 			CustomProfileIdent:    "I2",
 			ManualAgentInstall:    true,
-			BootstrapPackage:      true,
 		})
 	})
 }
@@ -417,7 +414,6 @@ type DEPEnrollTestOpts struct {
 	UseOldFleetdFlow                  bool
 	ManualAgentInstall                bool
 	EnrollmentProfileFromDEPUsingPost bool
-	BootstrapPackage                  bool
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
@@ -437,44 +433,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 	if opts.TeamID != nil {
 		payload["fleet_id"] = *opts.TeamID
-		if opts.BootstrapPackage {
-			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
-			require.NoError(t, err)
-
-			team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-			_, err = s.ds.SaveTeam(ctx, team)
-			require.NoError(t, err)
-		}
-	} else if opts.BootstrapPackage {
-		ac, err := s.ds.AppConfig(ctx)
-		require.NoError(t, err)
-
-		ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-		err = s.ds.SaveAppConfig(ctx, ac)
-		require.NoError(t, err)
 	}
 
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	t.Cleanup(func() {
 		// Get back to the default state.
-		if opts.BootstrapPackage {
-			if opts.TeamID != nil {
-				team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
-				require.NoError(t, err)
-
-				team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
-				_, err = s.ds.SaveTeam(ctx, team)
-				require.NoError(t, err)
-			} else {
-				ac, err := s.ds.AppConfig(ctx)
-				require.NoError(t, err)
-
-				ac.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
-				err = s.ds.SaveAppConfig(ctx, ac)
-				require.NoError(t, err)
-			}
-		}
-
 		payload["apple_enable_release_device_manually"] = false
 		payload["macos_manual_agent_install"] = false
 		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)

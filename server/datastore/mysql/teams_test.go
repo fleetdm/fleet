@@ -940,16 +940,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						GracePeriodDays: optjson.SetInt(3),
 					},
 					MacOSSetup: fleet.MacOSSetup{
-						BootstrapPackage:    optjson.SetString("bootstrap"),
-						MacOSSetupAssistant: optjson.SetString("assistant"),
-						ManualAgentInstall:  optjson.SetBool(true),
-					},
-					WindowsSettings: fleet.WindowsSettings{
-						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+						ManualAgentInstall: optjson.SetBool(true),
 					},
 					AndroidSettings: fleet.AndroidSettings{
-						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-						Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+						Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 					},
 				},
 			},
@@ -993,8 +987,6 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				GracePeriodDays: optjson.SetInt(3),
 			},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:                 optjson.SetString("bootstrap"),
-				MacOSSetupAssistant:              optjson.SetString("assistant"),
 				EnableReleaseDeviceManually:      optjson.SetBool(false),
 				Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 				ManualAgentInstall:               optjson.SetBool(true),
@@ -1004,13 +996,11 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				EnableManagedLocalAccountWindows: optjson.SetBool(false),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:       optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 				EnableDiskEncryption: optjson.SetBool(false),
 				RequireBitLockerPIN:  optjson.SetBool(false),
 			},
 			AndroidSettings: fleet.AndroidSettings{
-				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 		}, mdm)
 	})

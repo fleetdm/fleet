@@ -126,9 +126,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]any{
-				"custom_settings": []any{"foo", "bar"},
-			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -151,9 +148,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]any{
-				"custom_settings": []any{"foo", "bar"},
-			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)

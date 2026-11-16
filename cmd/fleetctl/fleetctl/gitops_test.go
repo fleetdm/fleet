@@ -2937,12 +2937,9 @@ software:
 			assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 			assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 			assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
-			assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
-			assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
 			assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 			assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 			assert.False(t, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
-			assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 			assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 			assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
 		})
@@ -4143,15 +4140,30 @@ software:
 		assert.False(t, ds.BatchSetScriptsFuncInvoked)
 
 		// Real run
+		var noTeamDecls []*fleet.MDMAppleDeclaration
+		var noTeamWindows []*fleet.MDMWindowsConfigProfile
+		var noTeamAndroid []*fleet.MDMAndroidConfigProfile
+		batchSetMDMProfiles := ds.BatchSetMDMProfilesFunc
+		t.Cleanup(func() { ds.BatchSetMDMProfilesFunc = batchSetMDMProfiles })
+		ds.BatchSetMDMProfilesFunc = func(
+			ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+			macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+		) (fleet.MDMProfilesUpdates, error) {
+			if tmID == nil || *tmID == 0 {
+				noTeamDecls, noTeamWindows, noTeamAndroid = macDecls, winProfiles, androidProfiles
+			}
+			return fleet.MDMProfilesUpdates{}, nil
+		}
 		_ = runAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFile.Name()})
 		assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 		assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
-		require.Len(t, (*savedAppConfigPtr).MDM.MacOSSettings.CustomSettings, 1)
-		assert.Equal(t, filepath.Base(ddmFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.MacOSSettings.CustomSettings[0].Path))
-		require.Len(t, (*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value, 1)
-		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
-		require.Len(t, (*savedAppConfigPtr).MDM.AndroidSettings.CustomSettings.Value, 1)
-		assert.Equal(t, filepath.Base(androidFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.AndroidSettings.CustomSettings.Value[0].Path))
+		// The profiles go to the batch endpoint, read from the paths relative to unassigned.yml.
+		require.Len(t, noTeamDecls, 1)
+		assert.Equal(t, "config", noTeamDecls[0].Name)
+		require.Len(t, noTeamWindows, 1)
+		assert.Equal(t, "config2", noTeamWindows[0].Name)
+		require.Len(t, noTeamAndroid, 1)
+		assert.Equal(t, "config3", noTeamAndroid[0].Name)
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
 
 		// Get applied policies for the team
@@ -7120,16 +7132,12 @@ settings:
       minimum_version: null
       deadline: null
     macos_settings:
-      custom_settings: null
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7184,16 +7192,12 @@ settings:
       minimum_version: null
       deadline: null
     macos_settings:
-      custom_settings: null
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7247,16 +7251,12 @@ settings:
       minimum_version: null
       deadline: null
     macos_settings:
-      custom_settings: null
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7362,16 +7362,12 @@ settings:
       minimum_version: null
       deadline: null
     macos_settings:
-      custom_settings: null
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7481,16 +7477,12 @@ settings:
       minimum_version: null
       deadline: null
     macos_settings:
-      custom_settings: null
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -9844,9 +9836,7 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 			},
 		}
 		if euaEnabled {
-			cf.Config.Controls.MacOSSetup = &fleet.MacOSSetup{
-				EnableEndUserAuthentication: true,
-			}
+			cf.Config.Controls.MacOSSetup = &fleet.GitOpsMacOSSetup{EnableEndUserAuthentication: true}
 		}
 		return cf
 	}
@@ -9903,7 +9893,7 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 
 	t.Run("global file enables EUA at no-team and has complete IdP: accepted", func(t *testing.T) {
 		global := globalConfig(completeIdP)
-		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		global.Config.Controls.MacOSSetup = &fleet.GitOpsMacOSSetup{EnableEndUserAuthentication: true}
 		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedEmpty, noTeams, false)
 		assert.NoError(t, err)
 	})
@@ -9922,7 +9912,7 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 				},
 			},
 		})
-		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		global.Config.Controls.MacOSSetup = &fleet.GitOpsMacOSSetup{EnableEndUserAuthentication: true}
 		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, noTeams, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "default.yml")

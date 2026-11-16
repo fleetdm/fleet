@@ -15,9 +15,9 @@ func makeProfileConfig(t *testing.T, profiles []fleet.MDMProfileSpec, osName str
 	config := &spec.GitOps{}
 	switch osName {
 	case "macos":
-		config.Controls.MacOSSettings = &fleet.MacOSSettings{CustomSettings: profiles}
+		config.Controls.MacOSSettings = &fleet.GitOpsMacOSSettings{CustomSettings: profiles}
 	case "windows":
-		config.Controls.WindowsSettings = &fleet.WindowsSettings{CustomSettings: optjson.SetSlice(profiles)}
+		config.Controls.WindowsSettings = &fleet.GitOpsWindowsSettings{CustomSettings: optjson.SetSlice(profiles)}
 	default:
 		t.Fatalf("unknown os: %s", osName)
 	}

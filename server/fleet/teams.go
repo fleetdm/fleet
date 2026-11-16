@@ -297,9 +297,8 @@ type TeamConfig struct {
 	Integrations       TeamIntegrations    `json:"integrations"`
 	MDM                TeamMDM             `json:"mdm"`
 	// the below aren't serialized as-is into config JSON column in the teams table
-	Features Features              `json:"features"`
-	Scripts  optjson.Slice[string] `json:"scripts,omitzero"`
-	Software *SoftwareSpec         `json:"software,omitempty"`
+	Features Features      `json:"features"`
+	Software *SoftwareSpec `json:"software,omitempty"`
 }
 
 func (t TeamConfig) ToLite() TeamConfigLite {
@@ -634,26 +633,6 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 
-	if t.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(t.MacOSSettings.CustomSettings))
-		for i, mps := range t.MacOSSettings.CustomSettings {
-			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
-		}
-	}
-	if t.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
-		for i, mps := range t.WindowsSettings.CustomSettings.Value {
-			windowsSettings[i] = *mps.Copy()
-		}
-		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
-	}
-	if t.AndroidSettings.CustomSettings.Set {
-		androidSettings := make([]MDMProfileSpec, len(t.AndroidSettings.CustomSettings.Value))
-		for i, mps := range t.AndroidSettings.CustomSettings.Value {
-			androidSettings[i] = *mps.Copy()
-		}
-		clone.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
-	}
 	if t.MacOSSetup.Software.Set {
 		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
 		for i, s := range t.MacOSSetup.Software.Value {
@@ -682,12 +661,10 @@ type TeamSpecMDM struct {
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	// A map is used for the macos settings so that we can easily detect if its
-	// sub-keys were provided or not in an "apply" call. E.g. if the
-	// custom_settings key is specified but empty, then we need to clear the
-	// value, but if it isn't provided, we need to leave the existing value
-	// unmodified.
+	// sub-keys were provided or not in an "apply" call, and leave the existing
+	// value unmodified when they aren't.
 	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup    MacOSSetup     `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
+	MacOSSetup    MacOSSetupSpec `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -768,11 +745,10 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	// Deep copy Features
 	clone.Features = *t.Features.Copy()
 
-	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
+	// Deep copy all MDM fields (includes setup software)
 	clone.MDM = *t.MDM.Copy()
 
-	// Do not copy script and software since they will not be stored/cached in the database.
-	clone.Scripts = optjson.Slice[string]{}
+	// Do not copy software since it will not be stored/cached in the database.
 	clone.Software = nil
 
 	return &clone
@@ -975,7 +951,6 @@ type TeamSpec struct {
 	Secrets            *[]EnrollSecret         `json:"secrets,omitempty"`
 	Features           *json.RawMessage        `json:"features"`
 	MDM                TeamSpecMDM             `json:"mdm"`
-	Scripts            optjson.Slice[string]   `json:"scripts,omitzero"`
 	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
 	Integrations       TeamSpecIntegrations    `json:"integrations"`
 	Software           *SoftwareSpec           `json:"software,omitempty"`
@@ -1040,12 +1015,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsUpdates = mdm.WindowsUpdates
 	mdmSpec.MacOSSettings = mdm.MacOSSettings.ToMap()
 	// assets are only present in ToMap for GitOps request validation; they are
-	// not stored on the team config. custom_settings is left out of fleet
-	// responses, so it would only print as null. Keep both out of the
-	// generated spec.
+	// not stored on the team config, so keep them out of the generated spec.
 	delete(mdmSpec.MacOSSettings, "assets")
-	delete(mdmSpec.MacOSSettings, "custom_settings")
-	mdmSpec.MacOSSetup = mdm.MacOSSetup
+	mdmSpec.MacOSSetup = MacOSSetupSpec{MacOSSetup: mdm.MacOSSetup}
 	// emit the deprecated flat toggle only when it agrees with every
 	// per-platform setting: the flat toggle wins when provided, so emitting it
 	// for a mixed state would reset the per-platform values on re-apply.

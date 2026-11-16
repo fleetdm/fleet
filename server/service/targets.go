@@ -40,8 +40,6 @@ func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	for _, team := range results.Teams {
-		// Each result carries the fleet's whole config.
-		team.ClearRecordedLists()
 		targets.Teams = append(targets.Teams,
 			fleet.TeamSearchResult{
 				Team:        team,

@@ -1072,46 +1072,40 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	}
 
 	enableReleaseDeviceCases := []struct {
-		enableRelease     *bool
-		setupAssistant    string
-		expectedRelease   bool
-		expectedAssistant string
-		expectedStatus    int
+		enableRelease   *bool
+		setupAssistant  string
+		expectedRelease bool
+		expectedStatus  int
 	}{
 		{
-			enableRelease:     nil,
-			setupAssistant:    "",
-			expectedRelease:   false,
-			expectedAssistant: "",
-			expectedStatus:    http.StatusOK,
+			enableRelease:   nil,
+			setupAssistant:  "",
+			expectedRelease: false,
+			expectedStatus:  http.StatusOK,
 		},
 		{
-			enableRelease:     new(true),
-			setupAssistant:    "",
-			expectedRelease:   true,
-			expectedAssistant: "",
-			expectedStatus:    http.StatusOK,
+			enableRelease:   new(true),
+			setupAssistant:  "",
+			expectedRelease: true,
+			expectedStatus:  http.StatusOK,
 		},
 		{
-			enableRelease:     new(false),
-			setupAssistant:    "",
-			expectedRelease:   false,
-			expectedAssistant: "",
-			expectedStatus:    http.StatusOK,
+			enableRelease:   new(false),
+			setupAssistant:  "",
+			expectedRelease: false,
+			expectedStatus:  http.StatusOK,
 		},
 		{
-			enableRelease:     new(false),
-			setupAssistant:    asstURL,
-			expectedRelease:   false,
-			expectedAssistant: "",
-			expectedStatus:    http.StatusUnprocessableEntity,
+			enableRelease:   new(false),
+			setupAssistant:  asstURL,
+			expectedRelease: false,
+			expectedStatus:  http.StatusUnprocessableEntity,
 		},
 		{
-			enableRelease:     new(true),
-			setupAssistant:    asstAwait,
-			expectedRelease:   false,
-			expectedAssistant: "",
-			expectedStatus:    http.StatusUnprocessableEntity,
+			enableRelease:   new(true),
+			setupAssistant:  asstAwait,
+			expectedRelease: false,
+			expectedStatus:  http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -1152,9 +1146,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				if c.enableRelease != nil {
 					macSetup["apple_enable_release_device_manually"] = *c.enableRelease
 				}
-				if c.setupAssistant != "" {
-					macSetup["apple_setup_assistant"] = c.setupAssistant
-				}
 
 				uploadSucceeded := true
 				if c.setupAssistant != "" {
@@ -1173,13 +1164,11 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"setup_experience": macSetup}})),
 						c.expectedStatus, &acResp)
 					require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-					require.Equal(t, c.expectedAssistant, storedAppConfig(t, s.ds).MDM.MacOSSetup.MacOSSetupAssistant.Value)
 				}
 
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
 				require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-				require.Equal(t, c.expectedAssistant, storedAppConfig(t, s.ds).MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			})
 		}
 	})
@@ -1230,17 +1219,14 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					uploadSucceeded := c.expectedStatus < 300
 
 					if uploadSucceeded {
-						// use the apply team specs to set both the setup assistant and the
-						// enable release at once
-						macSetup := fleet.MacOSSetup{
-							MacOSSetupAssistant: optjson.SetString(c.setupAssistant),
-						}
+						// use the apply team specs to set the enable release
+						var macSetup fleet.MacOSSetup
 						if c.enableRelease != nil {
 							macSetup.EnableReleaseDeviceManually = optjson.SetBool(*c.enableRelease)
 						}
 						teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 							Name: tm.Name,
-							MDM:  fleet.TeamSpecMDM{MacOSSetup: macSetup},
+							MDM:  fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetupSpec{MacOSSetup: macSetup}},
 						}}}
 						s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 					}
@@ -1258,7 +1244,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
 				require.Equal(t, c.expectedRelease, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-				require.Equal(t, c.expectedAssistant, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			})
 		}
 	})

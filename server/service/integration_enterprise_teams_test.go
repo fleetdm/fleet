@@ -404,25 +404,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 
-	// dry-run with valid agent options and custom macos settings
-	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":          teamNameDecomposed,
-				"agent_options": agentOpts,
-				"mdm": map[string]any{
-					"macos_settings": map[string]any{
-						"custom_settings": []string{"foo", "bar"},
-					},
-				},
-			},
-		},
-	}
-	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
-
 	// dry-run with macos disk encryption set to false, no error
 	teamSpecs = map[string]any{
 		"specs": []any{
@@ -546,7 +527,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
-	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
 	require.False(t, team.Config.MDM.EnableDiskEncryption)                 // unchanged
 
 	// apply without agent options specified
@@ -719,12 +699,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &getResp)
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
-
-	// custom profiles still need Apple MDM
-	res := s.Do("POST", "/api/latest/fleet/spec/fleets", spec(map[string]any{
-		"custom_settings": []string{"foo"},
-	}), http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 }
 
 // applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only

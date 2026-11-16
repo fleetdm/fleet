@@ -581,11 +581,10 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 			EnableDiskEncryption: optjson.SetBool(false),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			BootstrapPackage: optjson.SetString("bootstrap"),
+			Software: optjson.SetSlice([]*fleet.MacOSSetupSoftware{{AppStoreID: "a"}, {AppStoreID: "b"}}),
 		},
 	}
 
@@ -630,7 +629,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	require.False(t, mockedDS.TeamMDMConfigFuncInvoked)
 
 	// changing some deep value doesn't affect the stored value
-	mdmConfig.MacOSSettings.CustomSettings[0] = fleet.MDMProfileSpec{Path: "c"}
+	mdmConfig.MacOSSetup.Software.Value[0] = &fleet.MacOSSetupSoftware{AppStoreID: "c"}
 	require.NotEqual(t, testMDMConfig, *mdmConfig)
 
 	// saving a team updates config in cache
@@ -640,7 +639,6 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("2022-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       nil,
 			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}

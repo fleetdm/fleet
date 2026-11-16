@@ -240,7 +240,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings:   appConfig.WebhookSettings,
 			Integrations:      appConfig.Integrations,
 			MDM:               appConfig.MDM,
-			Scripts:           appConfig.Scripts,
 			GitOpsConfig:      appConfig.GitOpsConfig,
 			ConditionalAccess: appConfig.ConditionalAccess,
 		},
@@ -257,7 +256,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			StagedUploadAvailable:  svc.StagedUploadAvailable(ctx),
 		},
 	}
-	response.ClearRecordedLists()
 	return response, nil
 }
 
@@ -359,7 +357,6 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 
 	response.Obfuscate()
-	response.ClearRecordedLists()
 
 	if lic == nil || (!lic.IsPremium()) || response.FleetDesktop.TransparencyURL == "" {
 		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
@@ -669,6 +666,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				svc.logger.WarnContext(ctx, fmt.Sprintf("App config: `%s` is deprecated, please use `%s` instead", oldKey, newKey), "log_topic", logging.DeprecatedFieldTopic)
 			}
 		}
+	}
+
+	requestOnly, p, err := splitRequestOnlyConfigKeys(p)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(err, http.StatusBadRequest))
 	}
 
 	invalid := &fleet.InvalidArgumentError{}
@@ -1130,7 +1132,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 	}
 
-	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, invalid, applyOpts.Overwrite); err != nil {
+	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, requestOnly.MDM.MacOSSetup.BootstrapPackage, invalid, applyOpts.Overwrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
@@ -1155,9 +1157,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	var vppAssignments map[uint][]uint
-	vppAssignmentsDefined := newAppConfig.MDM.VolumePurchasingProgram.Set && newAppConfig.MDM.VolumePurchasingProgram.Valid
+	vpp := requestOnly.MDM.VolumePurchasingProgram
+	vppAssignmentsDefined := vpp.Set && vpp.Valid
 	if vppAssignmentsDefined {
-		vppAssignments, err = svc.validateVPPAssignments(ctx, newAppConfig.MDM.VolumePurchasingProgram.Value, invalid, lic)
+		vppAssignments, err = svc.validateVPPAssignments(ctx, vpp.Value, invalid, lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
 		}
@@ -1527,38 +1530,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
-		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
-		// clear macos setup assistant for no team - note that we cannot call
-		// svc.DeleteMDMAppleSetupAssistant here as it would call the (non-premium)
-		// current service implementation. We have to go through the Enterprise
-		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
-		}
-	}
-
-	if oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value != appConfig.MDM.MacOSSetup.BootstrapPackage.Value &&
-		appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
-		// clear bootstrap package for no team - note that we cannot call
-		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
-		// current service implementation. We have to go through the Enterprise
-		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
-			// The package may have already been deleted via the GUI while the
-			// appconfig JSON still had the stale URL; ignore not-found.
-			if !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
-			}
-		}
-	}
-
 	if err := svc.applyABMTokenAssignments(ctx, newAppConfig, appConfig, abmAssignments, defaultABMTokenID); err != nil {
 		return nil, err
 	}
 
 	if vppAssignmentsDefined {
-		if err := svc.applyVPPTokenAssignments(ctx, newAppConfig, vppAssignments); err != nil {
+		if err := svc.applyVPPTokenAssignments(ctx, vpp.Value, vppAssignments); err != nil {
 			return nil, err
 		}
 	}
@@ -1651,16 +1628,32 @@ func (svc *Service) applyABMTokenAssignments(
 	return nil
 }
 
+// Since Fleet 5 the config doesn't save the bootstrap package URL or the VPP token assignments, but
+// requests still send them: GitOps sends the URL so settings that need a package are validated before
+// it uploads the package, and the VPP assignments are applied to the tokens. They're split out of p
+// because the strict decode into fleet.AppConfig rejects keys it doesn't have.
+func splitRequestOnlyConfigKeys(p []byte) (fleet.AppConfigRequestOnly, []byte, error) {
+	var requestOnly fleet.AppConfigRequestOnly
+	if err := json.Unmarshal(p, &requestOnly); err != nil {
+		return requestOnly, nil, err
+	}
+	p, err := endpointer.RemoveJSONKeys(p,
+		[]string{"mdm", "volume_purchasing_program"},
+		[]string{"mdm", "setup_experience", "macos_bootstrap_package"},
+	)
+	return requestOnly, p, err
+}
+
 // applyVPPTokenAssignments persists the VPP token fleet assignments computed while validating an
 // app config change. Like applyABMTokenAssignments, it runs after SaveAppConfig has committed.
 func (svc *Service) applyVPPTokenAssignments(
 	ctx context.Context,
-	newAppConfig fleet.AppConfig,
+	vpp []fleet.MDMAppleVolumePurchasingProgramInfo,
 	vppAssignments map[uint][]uint,
 ) error {
 	// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
 	tokensInCfg := make(map[string]struct{})
-	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+	for _, t := range vpp {
 		tokensInCfg[t.Location] = struct{}{}
 	}
 	vppToks, err := svc.ds.ListVPPTokens(ctx)
@@ -2287,6 +2280,7 @@ func (svc *Service) validateMDM(
 	lic *fleet.LicenseInfo,
 	oldMdm *fleet.MDM,
 	mdm *fleet.MDM,
+	bootstrapPackage optjson.String,
 	invalid *fleet.InvalidArgumentError,
 	overwrite bool,
 ) error {
@@ -2307,13 +2301,10 @@ func (svc *Service) validateMDM(
 			invalid.Append("linux_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
 		}
 	}
-	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
-		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())
-	}
 	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.apple_enable_release_device_manually", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !lic.IsPremium() {
+	if bootstrapPackage.Value != "" && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_bootstrap_package", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !lic.IsPremium() {
@@ -2373,22 +2364,12 @@ func (svc *Service) validateMDM(
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
-		if len(mdm.MacOSSettings.CustomSettings) > 0 && !fleet.MDMProfileSpecsMatch(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings) {
-			invalid.Append("apple_settings.configuration_profiles",
-				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
-
-		if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
-			invalid.Append("setup_experience.apple_setup_assistant",
-				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
-
 		if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value {
 			invalid.Append("setup_experience.apple_enable_release_device_manually",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
+		if bootstrapPackage.Value != "" {
 			invalid.Append("setup_experience.macos_bootstrap_package",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
@@ -2408,34 +2389,12 @@ func (svc *Service) validateMDM(
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
-	fleet.ValidateMDMProfileSpecs(invalid, "macos", mdm.MacOSSettings.CustomSettings)
-
-	if !mdm.WindowsEnabledAndConfigured {
-		if mdm.WindowsSettings.CustomSettings.Set &&
-			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
-			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
-			invalid.Append("windows_settings.configuration_profiles",
-				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
-		}
-
-		if mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value &&
-			!oldMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value {
-			invalid.Append("setup_experience.windows_managed_local_account_enabled",
-				"Couldn’t enable setup_experience.windows_managed_local_account_enabled. "+fleet.WindowsMDMNotTurnedOnMessage)
-		}
+	if !mdm.WindowsEnabledAndConfigured &&
+		mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value &&
+		!oldMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value {
+		invalid.Append("setup_experience.windows_managed_local_account_enabled",
+			"Couldn’t enable setup_experience.windows_managed_local_account_enabled. "+fleet.WindowsMDMNotTurnedOnMessage)
 	}
-	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
-
-	// Check oldMdm as we bypass the patching of this value, as it's enabled and disabled elsewhere.
-	if !oldMdm.AndroidEnabledAndConfigured {
-		if mdm.AndroidSettings.CustomSettings.Set &&
-			len(mdm.AndroidSettings.CustomSettings.Value) > 0 &&
-			!fleet.MDMProfileSpecsMatch(mdm.AndroidSettings.CustomSettings.Value, oldMdm.AndroidSettings.CustomSettings.Value) {
-			invalid.Append("android_settings.configuration_profiles",
-				`Couldn’t edit android_settings.configuration_profiles. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
-		}
-	}
-	fleet.ValidateMDMProfileSpecs(invalid, "android", mdm.AndroidSettings.CustomSettings.Value)
 
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
@@ -2516,19 +2475,22 @@ func (svc *Service) validateMDM(
 
 	// The bootstrap package can come from the payload's URL (GitOps uploads it before applying the
 	// config, and dry runs don't upload it at all) or from a package already uploaded via the UI/API.
-	if keys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup); len(keys) > 0 && mdm.MacOSSetup.BootstrapPackage.Value == "" {
+	newlyEnabledKeys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup)
+	hasBootstrapPackage := bootstrapPackage.Value != ""
+	if !hasBootstrapPackage && (len(newlyEnabledKeys) > 0 || mdm.MacOSSetup.ManualAgentInstall.Value) {
 		_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
-		switch {
-		case fleet.IsNotFound(err):
-			for _, arg := range fleet.BootstrapPackageRequiredError(keys).Errors {
-				invalid.AppendInvalidArgument(arg)
-			}
-		case err != nil:
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+		}
+		hasBootstrapPackage = err == nil
+	}
+	if len(newlyEnabledKeys) > 0 && !hasBootstrapPackage {
+		for _, arg := range fleet.BootstrapPackageRequiredError(newlyEnabledKeys).Errors {
+			invalid.AppendInvalidArgument(arg)
 		}
 	}
 
-	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
+	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup, hasBootstrapPackage); err != nil {
 		var invalidArgErr *fleet.InvalidArgumentError
 		if errors.As(err, &invalidArgErr) {
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate

@@ -40,7 +40,6 @@ func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	resp := listTeamsResponse{Teams: []fleet.Team{}}
 	for _, team := range teams {
-		team.ClearRecordedLists()
 		resp.Teams = append(resp.Teams, *team)
 	}
 	return resp, nil
@@ -103,7 +102,6 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		return defaultTeamResponse{Team: defaultTeam}, nil
 	}
 
-	team.ClearRecordedLists()
 	return getTeamResponse{Team: team}, nil
 }
 
@@ -137,7 +135,6 @@ func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	team.ClearRecordedLists()
 	return teamResponse{Team: team}, nil
 }
 
@@ -196,7 +193,6 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return defaultTeamResponse{Team: defaultTeam}, nil
 	}
 
-	team.ClearRecordedLists()
 	return teamResponse{Team: team}, err
 }
 
@@ -350,7 +346,6 @@ func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, sv
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	team.ClearRecordedLists()
 	return teamResponse{Team: team}, err
 }
 
@@ -411,7 +406,6 @@ func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	team.ClearRecordedLists()
 	return teamResponse{Team: team}, err
 }
 
@@ -429,7 +423,6 @@ func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	team.ClearRecordedLists()
 	return teamResponse{Team: team}, err
 }
 

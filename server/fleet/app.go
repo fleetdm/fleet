@@ -203,28 +203,6 @@ type MDMAppleVolumePurchasingProgramInfo struct {
 	Teams    []string `json:"fleets"`
 }
 
-func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
-	// "" spells "no fleet" here (see UpdateVPPTokenTeams), so renaming from it
-	// would claim every unassigned platform.
-	if oldName == "" {
-		return false
-	}
-
-	var renamed bool
-	for i, t := range m.Teams {
-		if t == oldName {
-			m.Teams[i], renamed = newName, true
-		}
-	}
-	return renamed
-}
-
-func (m *MDMAppleVolumePurchasingProgramInfo) CleanRemovedTeam(removedTeamName string) bool {
-	before := len(m.Teams)
-	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool { return t == removedTeamName })
-	return len(m.Teams) != before
-}
-
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	// AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM
@@ -325,8 +303,6 @@ type MDM struct {
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
-
-	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program,omitzero"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
@@ -848,12 +824,6 @@ func (w WindowsUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
-	// CustomSettings is a slice of configuration profile file paths.
-	//
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for profiles is in MySQL.)
-	CustomSettings []MDMProfileSpec `json:"custom_settings,omitzero" renameto:"configuration_profiles"`
-
 	// EnableDiskEncryption enforces FileVault on macOS hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 	// EnableEscrowDiskEncryptionKey makes Fleet escrow the FileVault recovery
@@ -861,7 +831,7 @@ type MacOSSettings struct {
 	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 
 	// Assets is a slice of Apple DDM asset (com.apple.asset) declaration file
-	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
+	// paths. Like the profiles, assets are not stored on the AppConfig/team
 	// spec: this field is only populated while parsing a GitOps file so the
 	// assets can be applied via their own batch endpoint. It is intentionally
 	// omitted from FromMap; ToMap includes it only so the key passes the team
@@ -871,13 +841,8 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
-func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
-	return s.CustomSettings
-}
-
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings":                   s.CustomSettings,
 		"enable_disk_encryption":            s.EnableDiskEncryption,
 		"enable_escrow_disk_encryption_key": s.EnableEscrowDiskEncryptionKey,
 		"assets":                            s.Assets,
@@ -888,9 +853,6 @@ type WithMDMProfileSpecs interface {
 	GetMDMProfileSpecs() []MDMProfileSpec
 }
 
-// Compile-time interface check
-var _ WithMDMProfileSpecs = MacOSSettings{}
-
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
 // the map (ie. the key was present even if empty) or an error. If the
@@ -898,98 +860,6 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 // MacOSSettings so that its fields are replaced only if present in the map.
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
-
-	extractLabelField := func(parentMap map[string]any, fieldName string) ([]string, error) {
-		v, ok := parentMap[fieldName]
-		if !ok || v == nil {
-			return nil, nil
-		}
-		labels, ok := v.([]any)
-		if !ok {
-			return nil, &json.UnmarshalTypeError{
-				Value: fmt.Sprintf("%T", v),
-				Type:  reflect.TypeFor[[]string](),
-				Field: "macos_settings.custom_settings." + fieldName,
-			}
-		}
-		var ret []string
-		for _, label := range labels {
-			strLabel, ok := label.(string)
-			if !ok {
-				return nil, &json.UnmarshalTypeError{
-					Value: fmt.Sprintf("%T", label),
-					Type:  reflect.TypeFor[string](),
-					Field: "macos_settings.custom_settings." + fieldName,
-				}
-			}
-			ret = append(ret, strLabel)
-		}
-		return ret, nil
-	}
-
-	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
-		v, ok := parentMap[fieldName]
-		if !ok || v == nil {
-			return "", nil
-		}
-		str, ok := v.(string)
-		if !ok {
-			return "", &json.UnmarshalTypeError{
-				Value: fmt.Sprintf("%T", v),
-				Type:  reflect.TypeFor[string](),
-				Field: "macos_settings.custom_settings." + fieldName,
-			}
-		}
-		return str, nil
-	}
-
-	if v, ok := m["custom_settings"]; ok {
-		set["custom_settings"] = true
-
-		vals, ok := v.([]interface{})
-		if v == nil || ok {
-			csSpecs := make([]MDMProfileSpec, 0, len(vals))
-			for _, v := range vals {
-				if m, ok := v.(map[string]interface{}); ok {
-					var spec MDMProfileSpec
-					var err error
-					if spec.Path, err = extractStringField(m, "path"); err != nil {
-						return nil, err
-					}
-					if spec.Name, err = extractStringField(m, "name"); err != nil {
-						return nil, err
-					}
-					if spec.Description, err = extractStringField(m, "description"); err != nil {
-						return nil, err
-					}
-
-					if spec.Labels, err = extractLabelField(m, "labels"); err != nil {
-						return nil, err
-					}
-					if spec.LabelsIncludeAll, err = extractLabelField(m, "labels_include_all"); err != nil {
-						return nil, err
-					}
-					if spec.LabelsExcludeAny, err = extractLabelField(m, "labels_exclude_any"); err != nil {
-						return nil, err
-					}
-					if spec.LabelsIncludeAny, err = extractLabelField(m, "labels_include_any"); err != nil {
-						return nil, err
-					}
-
-					csSpecs = append(csSpecs, spec)
-				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
-					csSpecs = append(csSpecs, MDMProfileSpec{Path: m})
-				} else {
-					return nil, &json.UnmarshalTypeError{
-						Value: fmt.Sprintf("%T", v),
-						Type:  reflect.TypeOf(s.CustomSettings),
-						Field: "macos_settings.custom_settings",
-					}
-				}
-			}
-			s.CustomSettings = csSpecs
-		}
-	}
 
 	// a nil value means the key was explicitly null (the optjson fields
 	// marshal unset values as null), which is treated as "not provided"
@@ -1026,12 +896,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage                                  optjson.String                     `json:"macos_bootstrap_package,omitzero" removedkey:"bootstrap_package" renamescope:"setup_experience"`
 	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant                               optjson.String                     `json:"apple_setup_assistant,omitzero" removedkey:"macos_setup_assistant" renamescope:"setup_experience"`
 	EnableReleaseDeviceManually                       optjson.Bool                       `json:"apple_enable_release_device_manually" removedkey:"enable_release_device_manually" renamescope:"setup_experience"`
-	Script                                            optjson.String                     `json:"macos_script,omitzero" removedkey:"script" renamescope:"setup_experience"`
 	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall                                optjson.Bool                       `json:"macos_manual_agent_install" removedkey:"manual_agent_install" renamescope:"setup_experience"`
 	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"setup_experience"`
@@ -1060,7 +927,7 @@ func (mos MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []str
 
 // validateBootstrapPackageSettings checks that the bootstrap package settings turned on compared to
 // old come with a bootstrap package in the same payload.
-func (mos *MacOSSetup) validateBootstrapPackageSettings(old MacOSSetup) error {
+func (mos *MacOSSetupSpec) validateBootstrapPackageSettings(old MacOSSetup) error {
 	keys := mos.NewlyEnabledBootstrapPackageSettings(old)
 	if len(keys) == 0 || (mos.BootstrapPackage.Valid && mos.BootstrapPackage.Value != "") {
 		return nil
@@ -1080,7 +947,7 @@ func BootstrapPackageRequiredError(keys []string) *InvalidArgumentError {
 
 // Validate checks the payload is in a valid state.
 // If needed to compare against old values (for partial patches) use ValidateAgainst instead.
-func (mos *MacOSSetup) Validate() error {
+func (mos *MacOSSetupSpec) Validate() error {
 	if mos == nil {
 		return nil
 	}
@@ -1105,12 +972,12 @@ func (mos *MacOSSetup) Validate() error {
 }
 
 // ValidateAgainst checks the payload is in a valid state, comparing against old values if needed for partial patches.
-func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
+func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup, hasBootstrapPackage bool) error {
 	if mos == nil {
 		return nil
 	}
 
-	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && !hasBootstrapPackage {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
@@ -1141,20 +1008,11 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	if mos == nil {
 		return
 	}
-	if !mos.BootstrapPackage.Valid {
-		mos.BootstrapPackage = optjson.SetString("")
-	}
-	if !mos.MacOSSetupAssistant.Valid {
-		mos.MacOSSetupAssistant = optjson.SetString("")
-	}
 	if !mos.EnableReleaseDeviceManually.Valid {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !mos.LockEndUserInfo.Valid {
 		mos.LockEndUserInfo = optjson.SetBool(mos.EnableEndUserAuthentication)
-	}
-	if !mos.Script.Valid {
-		mos.Script = optjson.SetString("")
 	}
 	if !mos.Software.Valid {
 		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
@@ -1265,12 +1123,6 @@ type AppConfig struct {
 	MDM MDM `json:"mdm"`
 
 	GitOpsConfig GitOpsConfig `json:"gitops"`
-
-	// Scripts is a slice of script file paths.
-	//
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for scripts is in MySQL.)
-	Scripts optjson.Slice[string] `json:"scripts,omitzero"`
 
 	YaraRules []YaraRule `json:"yara_rules,omitempty"`
 
@@ -1429,50 +1281,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	// 	clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
 	// }
 
-	if c.MDM.MacOSSettings.CustomSettings != nil {
-		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
-		for i, mps := range c.MDM.MacOSSettings.CustomSettings {
-			clone.MDM.MacOSSettings.CustomSettings[i] = *mps.Copy()
-		}
-	}
-
-	if c.Scripts.Set {
-		scripts := make([]string, len(c.Scripts.Value))
-		copy(scripts, c.Scripts.Value)
-		clone.Scripts = optjson.SetSlice(scripts)
-	}
-
-	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]MDMProfileSpec, len(c.MDM.WindowsSettings.CustomSettings.Value))
-		for i, mps := range c.MDM.WindowsSettings.CustomSettings.Value {
-			windowsSettings[i] = *mps.Copy()
-		}
-		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
-	}
-
-	if c.MDM.AndroidSettings.CustomSettings.Set {
-		androidSettings := make([]MDMProfileSpec, len(c.MDM.AndroidSettings.CustomSettings.Value))
-		for i, mps := range c.MDM.AndroidSettings.CustomSettings.Value {
-			androidSettings[i] = *mps.Copy()
-		}
-		clone.MDM.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
-	}
-
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
 		copy(abm, c.MDM.AppleBusinessManager.Value)
 		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
 
-	}
-
-	if c.MDM.VolumePurchasingProgram.Set {
-		vpp := make([]MDMAppleVolumePurchasingProgramInfo, len(c.MDM.VolumePurchasingProgram.Value))
-		for i, s := range c.MDM.VolumePurchasingProgram.Value {
-			vpp[i].Location = s.Location
-			vpp[i].Teams = make([]string, len(s.Teams))
-			copy(vpp[i].Teams, s.Teams)
-		}
-		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
 	}
 
 	if c.MDM.MacOSSetup.Software.Set {
@@ -2576,10 +2389,6 @@ func (v *Version) AuthzType() string {
 }
 
 type WindowsSettings struct {
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings,omitzero" renameto:"configuration_profiles"`
-
 	// Fleet 5 moved the managed local account setting to setup_experience.
 	_ struct{} `json:"-" removedkey:"enable_managed_local_account" renamescope:"windows_settings"`
 
@@ -2608,26 +2417,9 @@ type WindowsAutomaticEnrollment struct {
 	DefaultFleet string `json:"default_fleet"`
 }
 
-func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
-	return ws.CustomSettings.Value
-}
-
-// Compile-time interface check
-var _ WithMDMProfileSpecs = WindowsSettings{}
-
 type AndroidSettings struct {
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings,omitzero" renameto:"configuration_profiles"`
-	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
+	Certificates optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
-
-func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
-	return ws.CustomSettings.Value
-}
-
-// Compile-time interface check
-var _ WithMDMProfileSpecs = AndroidSettings{}
 
 // only letters, numbers, spaces, dashes, and underscores
 var certificateNamePattern = regexp.MustCompile(`^[\w\s-]+$`)

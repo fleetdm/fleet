@@ -498,7 +498,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
 
-			if err := payload.MDM.MacOSSetup.ValidateAgainst(team.Config.MDM.MacOSSetup); err != nil {
+			if err := payload.MDM.MacOSSetup.ValidateAgainst(team.Config.MDM.MacOSSetup, false); err != nil {
 				return nil, err
 			}
 
@@ -853,21 +853,19 @@ func (svc *Service) handleTeamRenameInAppConfig(ctx context.Context, appCfg *fle
 	}
 	return svc.rewriteAppConfigTeamNames(ctx, appCfg, teamID,
 		func(t *fleet.MDMAppleABMAssignmentInfo) bool { return t.RenameTeam(oldName, newName) },
-		func(p *fleet.MDMAppleVolumePurchasingProgramInfo) bool { return p.RenameTeam(oldName, newName) },
 	)
 }
 
-// rewriteAppConfigTeamNames applies abm and vpp to the app config entries owned
-// by the tokens this fleet is assigned to, and persists the result only if
-// something actually changed. The fleet names in mdm.apple_business and
-// mdm.volume_purchasing_program are copies; the abm_tokens and vpp_token_teams
-// rows are the source of truth, so they select which entries may be touched.
+// rewriteAppConfigTeamNames applies abm to the app config entries owned by the
+// ABM tokens this fleet is assigned to, and persists the result only if
+// something actually changed. The fleet names in mdm.apple_business are
+// copies; the abm_tokens rows are the source of truth, so they select which
+// entries may be touched.
 func (svc *Service) rewriteAppConfigTeamNames(
 	ctx context.Context,
 	appCfg *fleet.AppConfig,
 	teamID uint,
 	abm func(*fleet.MDMAppleABMAssignmentInfo) bool,
-	vpp func(*fleet.MDMAppleVolumePurchasingProgramInfo) bool,
 ) error {
 	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
 	if err != nil {
@@ -877,23 +875,6 @@ func (svc *Service) rewriteAppConfigTeamNames(
 	for i := range appCfg.MDM.AppleBusinessManager.Value {
 		token := &appCfg.MDM.AppleBusinessManager.Value[i]
 		if slices.Contains(orgNames, token.OrganizationName) && abm(token) {
-			updated = true
-		}
-	}
-
-	vppTokens, err := svc.ds.ListVPPTokens(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list VPP tokens")
-	}
-	locations := make(map[string]struct{})
-	for _, tok := range vppTokens {
-		if slices.ContainsFunc(tok.Teams, func(tt fleet.TeamTuple) bool { return tt.ID == teamID }) {
-			locations[tok.Location] = struct{}{}
-		}
-	}
-	for i := range appCfg.MDM.VolumePurchasingProgram.Value {
-		programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
-		if _, ok := locations[programInfo.Location]; ok && vpp(programInfo) {
 			updated = true
 		}
 	}
@@ -1248,7 +1229,6 @@ func (svc *Service) cleanupStaleAppConfigTeamNames(ctx context.Context, teamID u
 	}
 	return svc.rewriteAppConfigTeamNames(ctx, appCfg, teamID,
 		func(t *fleet.MDMAppleABMAssignmentInfo) bool { return t.CleanRemovedTeam(name) },
-		func(p *fleet.MDMAppleVolumePurchasingProgramInfo) bool { return p.CleanRemovedTeam(name) },
 	)
 }
 
@@ -1791,7 +1771,7 @@ func (svc *Service) createTeamFromSpec(
 		macOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 
-	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
+	if macOSSetup.BootstrapPackage.Value != "" ||
 		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value ||
 		macOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment || macOSSetup.MacOSEnableBootstrapPackageDuringMigration {
 		if !appCfg.MDM.EnabledAndConfigured {
@@ -1892,10 +1872,6 @@ func (svc *Service) createTeamFromSpec(
 	if anyDiskEncryptionOn && svc.config.Server.PrivateKey == "" {
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
-	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
-	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
-	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
-
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
@@ -1959,7 +1935,7 @@ func (svc *Service) createTeamFromSpec(
 		return &fleet.Team{Name: spec.Name}, nil
 	}
 
-	tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
+	newTeam := &fleet.Team{
 		Name:     spec.Name,
 		Filename: spec.Filename,
 		Config: fleet.TeamConfig{
@@ -1974,7 +1950,7 @@ func (svc *Service) createTeamFromSpec(
 				IPadOSUpdates:              spec.MDM.IPadOSUpdates,
 				WindowsUpdates:             spec.MDM.WindowsUpdates,
 				MacOSSettings:              macOSSettings,
-				MacOSSetup:                 macOSSetup,
+				MacOSSetup:                 macOSSetup.MacOSSetup,
 				WindowsSettings:            windowsSettings,
 				AndroidSettings:            spec.MDM.AndroidSettings,
 				LinuxSettings:              linuxSettings,
@@ -1992,7 +1968,8 @@ func (svc *Service) createTeamFromSpec(
 			Software: spec.Software,
 		},
 		Secrets: secrets,
-	})
+	}
+	tm, err := svc.ds.NewTeam(ctx, newTeam)
 	if err != nil {
 		return nil, err
 	}
@@ -2289,15 +2266,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
-		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
-		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
-	}
-	if spec.MDM.MacOSSetup.BootstrapPackage.Set {
-		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
-		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
-	}
+	var didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
 	if spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		didUpdateEnableReleaseManually = oldMacOSSetup.EnableReleaseDeviceManually.Value != spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = spec.MDM.MacOSSetup.EnableReleaseDeviceManually
@@ -2318,8 +2287,7 @@ func (svc *Service) editTeamFromSpec(
 	// modified via spec? Doing the same for Windows, but should we?
 
 	if !appCfg.MDM.EnabledAndConfigured &&
-		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
-			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "") ||
+		(spec.MDM.MacOSSetup.BootstrapPackage.Value != "" ||
 			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) ||
 			(didUpdateManualAgentInstall && team.Config.MDM.MacOSSetup.ManualAgentInstall.Value) ||
 			(didUpdateEnableManagedLocalAccount && team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value) ||
@@ -2399,13 +2367,6 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
 
-	// Whether Windows/Android MDM is configured is gated at the global level
-	// in ModifyAppConfig; createTeamFromSpec doesn't gate custom_settings on
-	// the configured flag, and gating it here can spuriously reject team
-	// edits when the cached AppConfig lags behind a recent enable.
-	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
-	}
 	var didUpdateWindowsManagedLocalAccount bool
 	if spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
 		newWindowsManagedLocalAccount := spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows
@@ -2416,14 +2377,6 @@ func (svc *Service) editTeamFromSpec(
 		}
 		team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newWindowsManagedLocalAccount
 	}
-	if spec.MDM.AndroidSettings.CustomSettings.Set {
-		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
-	}
-
-	if spec.Scripts.Set {
-		team.Config.Scripts = spec.Scripts
-	}
-
 	if spec.Software != nil {
 		if team.Config.Software == nil {
 			team.Config.Software = &fleet.SoftwareSpec{}
@@ -2451,10 +2404,6 @@ func (svc *Service) editTeamFromSpec(
 		}
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
-
-	fleet.ValidateMDMProfileSpecs(invalid, "apple", team.Config.MDM.MacOSSettings.CustomSettings)
-	fleet.ValidateMDMProfileSpecs(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
-	fleet.ValidateMDMProfileSpecs(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
 
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
@@ -2599,37 +2548,6 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
-	// if the macos setup assistant was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
-		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
-		oldMacOSSetup.MacOSSetupAssistant.Value != "" {
-		if err := svc.DeleteMDMAppleSetupAssistant(ctx, &team.ID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear macos setup assistant for team %d", team.ID)
-		}
-	}
-
-	// if the bootstrap package was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
-		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
-		oldMacOSSetup.BootstrapPackage.Value != "" {
-		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
-			// The package may have already been deleted via the GUI while the
-			// team config JSON still had the stale URL; ignore not-found.
-			if !fleet.IsNotFound(err) {
-				return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
-			}
-		}
-	}
-
-	// if the setup experience script was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.Script.Set &&
-		spec.MDM.MacOSSetup.Script.Value == "" &&
-		oldMacOSSetup.Script.Value != "" {
-		if err := svc.DeleteSetupExperienceScript(ctx, &team.ID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear setup experience script for team %d", team.ID)
-		}
-	}
-
 	if didUpdateMacOSEndUserAuth {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(
 			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
@@ -2737,30 +2655,10 @@ func (svc *Service) validateTeamCalendarIntegrations(
 }
 
 func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) (map[string]bool, error) {
-	oldCustomSettings := applyUpon.CustomSettings
 	setFields, err := applyUpon.FromMap(spec.MDM.MacOSSettings)
 	if err != nil {
 		return nil, fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "apply team macos settings")
-	}
-
-	customSettingsChanged := setFields["custom_settings"] &&
-		len(applyUpon.CustomSettings) > 0 &&
-		!fleet.MDMProfileSpecsMatch(applyUpon.CustomSettings, oldCustomSettings)
-
-	// macOS disk encryption isn't gated on Apple MDM, matching the disk encryption endpoint, so a
-	// Windows-only MDM org can apply its own generate-gitops export.
-	if customSettingsChanged && !appCfg.MDM.EnabledAndConfigured {
-		// TODO: Address potential edge cases when teams that previously utilized MDM features
-		// are edited later edited when MDM disabled
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.custom_settings",
-			`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-	}
-
 	return setFields, nil
 }
 
