@@ -82,7 +82,7 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 		ds.reader(ctx),
 		&hostConditionalAccessStatus,
 		`SELECT
-			mcphs.host_id, mcphs.device_id, mcphs.user_principal_name, mcphs.compliant, mcphs.created_at, mcphs.updated_at, mcphs.managed,
+			mcphs.host_id, mcphs.device_id, mcphs.user_principal_name, mcphs.compliant, mcphs.created_at, mcphs.updated_at, mcphs.managed, mcphs.verified,
 			h.os_version, hdn.display_name
 		FROM microsoft_compliance_partner_host_statuses mcphs
 		JOIN host_display_names hdn ON hdn.host_id=mcphs.host_id
@@ -268,10 +268,10 @@ func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostI
 			UserPrincipalName: row.UserPrincipalName,
 			Managed:           row.Managed,
 			Compliant:         row.Compliant,
+			Verified:          row.Verified,
 			DisplayName:       row.DisplayName,
 			OSVersion:         conditionalAccessOSVersion(row.OSVersion),
 		}
-		state.StatusVerified = row.Verified
 	}
 	return state, nil
 }

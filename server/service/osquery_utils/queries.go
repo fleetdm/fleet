@@ -1171,7 +1171,7 @@ func entraDeviceIDIngester(trustedOnly bool, unmark EntraDeviceUnmarker) func(
 		}
 
 		// CreateHostConditionalAccessStatus skips an unchanged row too, but checking here saves its read.
-		if current == nil || current.DeviceID != accepted || current.UserPrincipalName != "" || state.StatusVerified != verified {
+		if current == nil || current.DeviceID != accepted || current.UserPrincipalName != "" || current.Verified != verified {
 			if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, accepted, "", verified); err != nil {
 				return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 			}

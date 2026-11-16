@@ -438,11 +438,11 @@ func testConditionalAccessWindowsEntraDeviceIDState(t *testing.T, ds *Datastore)
 	exec(`INSERT INTO host_autopilot_devices (host_id, autopilot_device_id, entra_device_id) VALUES (?, 'ap-other', 'other')`, other.ID)
 
 	state := getState(win.ID)
-	require.True(t, state.StatusVerified)
 	require.Equal(t, enrollmentID, state.EnrollmentEntraDeviceID)
 	require.Equal(t, autopilotID, state.AutopilotEntraDeviceID)
 	loaded, err := ds.LoadHostConditionalAccessStatus(ctx, win.ID)
 	require.NoError(t, err)
+	require.True(t, loaded.Verified)
 	require.Equal(t, "10.0.26100.1000", loaded.OSVersion)
 	loaded.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
 	require.Equal(t, loaded, state.Status)

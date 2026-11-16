@@ -6711,16 +6711,15 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 	}
 
 	cases := []struct {
-		name           string
-		trustedOnly    bool
-		rows           []map[string]string
-		enrollmentID   string
-		autopilotID    string
-		stored         *fleet.HostConditionalAccessStatus
-		storedVerified bool
-		wantCreated    *created
-		wantDeleted    bool
-		wantUnmarked   []string
+		name         string
+		trustedOnly  bool
+		rows         []map[string]string
+		enrollmentID string
+		autopilotID  string
+		stored       *fleet.HostConditionalAccessStatus
+		wantCreated  *created
+		wantDeleted  bool
+		wantUnmarked []string
 	}{
 		{
 			name:        "default: registered certificate is accepted unverified",
@@ -6783,11 +6782,12 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			stored: stored(joinedID),
 		},
 		{
-			name:           "default: unchanged verified device ID isn't stored again",
-			rows:           []map[string]string{unanchored(registeredID, "1000")},
-			enrollmentID:   registeredID,
-			stored:         stored(registeredID),
-			storedVerified: true,
+			name:         "default: unchanged verified device ID isn't stored again",
+			rows:         []map[string]string{unanchored(registeredID, "1000")},
+			enrollmentID: registeredID,
+			stored: &fleet.HostConditionalAccessStatus{
+				HostID: host.ID, DeviceID: registeredID, Managed: new(true), Compliant: new(true), Verified: true,
+			},
 		},
 		{
 			name:         "default: device ID that becomes verified is stored again",
@@ -6886,7 +6886,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
 				require.Equal(t, host.ID, hostID)
 				return &fleet.WindowsHostEntraDeviceIDState{
-					Status: c.stored, StatusVerified: c.storedVerified,
+					Status:                  c.stored,
 					EnrollmentEntraDeviceID: c.enrollmentID, AutopilotEntraDeviceID: c.autopilotID,
 				}, nil
 			}
