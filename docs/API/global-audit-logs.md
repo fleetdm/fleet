@@ -559,6 +559,7 @@ This activity contains the following fields:
 - [deleted_conditional_access_okta](#deleted-conditional-access-okta)
 - [enabled_conditional_access_automations](#enabled-conditional-access-automations)
 - [disabled_conditional_access_automations](#disabled-conditional-access-automations)
+- [stopped_reporting_microsoft_entra_device_id](#stopped-reporting-microsoft-entra-device-id)
 
 ### added_conditional_access_integration_microsoft
 
@@ -615,6 +616,29 @@ This activity contains the following field:
 {
   "fleet_id": 5,
   "fleet_name": "Workstations"
+}
+```
+
+### stopped_reporting_microsoft_entra_device_id
+
+Generated when Fleet, with [`microsoft_compliance_partner.windows_trusted_device_id_only`](https://fleetdm.com/docs/configuration/fleet-server-configuration#microsoft-compliance-partner-windows-trusted-device-id-only) set, stops reporting a Windows host's Microsoft Entra device ID that it already reported to Entra. Entra keeps the last status Fleet reported for that device. To check it, see [Conditional access: Entra](https://fleetdm.com/guides/entra-conditional-access-integration#stopped-reporting-a-device-id). The activity is associated with the host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "entra_device_id": The Entra device ID Fleet stopped reporting.
+- "reason": `no_trusted_certificate` if the host no longer has a trusted certificate for the device ID, or `replaced` if it now reports a different one.
+- "new_entra_device_id": The device ID the host now reports. Only included when "reason" is `replaced`.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "WIN-ANNA",
+  "entra_device_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "reason": "replaced",
+  "new_entra_device_id": "4f1c2a3b-5d6e-4f70-8a9b-0c1d2e3f4a5b"
 }
 ```
 
