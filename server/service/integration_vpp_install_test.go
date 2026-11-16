@@ -1768,6 +1768,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		nil, http.StatusOK, &st, "fleet_id", "0")
 
 	require.Equal(t, "ipa_test", st.SoftwareTitle.Name)
+	require.Len(t, st.SoftwareTitle.Packages, 1)
 	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.Packages[0].Name)
 	require.Equal(t, "ios", st.SoftwareTitle.Packages[0].Platform)
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.Packages[0].UploadedAt, time.Hour)
