@@ -948,13 +948,9 @@ function OutputShareCard({
       </div>
 
       {/* Like the SCEP and TUF servers, Start/Stop sit at the right at a fixed
-          width, so the button doesn't move. */}
-      {!fileServerDir ? (
-        <span className="dim">
-          These are in the Fleet repo, so they aren't shared: python http.server would serve the whole repo. Set a folder for
-          python http.server in Settings to build packages there and share them.
-        </span>
-      ) : served ? (
+          width, so the button doesn't move. Served comes first: with no folder
+          set, a python started elsewhere still serves the repo, packages too. */}
+      {served ? (
         <div style={SHARE_ROW}>
           <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{shareURL}</span>
           <button onClick={() => copy(shareURL, "URL")}>Copy URL</button>
@@ -964,6 +960,11 @@ function OutputShareCard({
             Stop sharing
           </button>
         </div>
+      ) : !fileServerDir ? (
+        <span className="dim">
+          These are in the Fleet repo, so they aren't shared: python http.server would serve the whole repo. Set a folder for
+          python http.server in Settings to build packages there and share them.
+        </span>
       ) : pythonRunning ? (
         <div style={SHARE_ROW}>
           <span style={{ color: "var(--ui-warning)" }}>
@@ -978,7 +979,7 @@ function OutputShareCard({
           <div style={{ flex: 1 }} />
           <button
             className="primary"
-            onClick={() => act(() => api.startProcess(pythonStartArgs(settings, pythonCwd)))}
+            onClick={() => act(async () => api.startProcess(await pythonStartArgs(settings, pythonCwd)))}
             disabled={busy || !outputRoot || !pythonCwd}
             style={SHARE_BUTTON}
           >
@@ -986,10 +987,17 @@ function OutputShareCard({
           </button>
         </div>
       )}
-      {fileServerDir && (
+      {served && !fileServerDir && (
+        <span style={{ color: "var(--ui-warning)" }}>
+          python http.server has no folder set, so it's serving the whole Fleet repo to your network. Stop it, and set a folder
+          for it in Settings.
+        </span>
+      )}
+      {(fileServerDir || served) && (
         <span className="dim">
           It's the same python http.server as on the Server tab, set up in Settings → python http.server, and it serves that whole
-          folder to your network. Installers contain enroll secrets, so stop sharing when you're done.
+          folder to your network, including whatever its symlinks point to. Installers contain enroll secrets, so stop sharing
+          when you're done.
         </span>
       )}
 

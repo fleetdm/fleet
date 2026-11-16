@@ -194,6 +194,7 @@ export const api = {
   // to dial. It changes with the network, so read it when it's shown rather
   // than holding on to it.
   lanIp: () => cast<string>(SettingsService.LanIP()),
+  expandPath: (p: string) => cast<string>(SettingsService.ExpandPath(p)),
   getSettings: () => cast<Settings>(SettingsService.GetSettings()),
   saveSettings: (settings: Settings) =>
     SettingsService.SaveSettings(settings as never),

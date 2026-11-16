@@ -202,7 +202,6 @@ export function ServerTab({
         ngrokRunning={ngrokRunning}
         pythonRunning={pythonRunning}
         apnsMockRunning={apnsMockRunning}
-        apnsMockUrl={apnsMockLive}
         onBuildStepRun={captureBuildBranch}
       />
       <div
@@ -287,7 +286,6 @@ function MasterControl({
   ngrokRunning,
   pythonRunning,
   apnsMockRunning,
-  apnsMockUrl,
   onBuildStepRun,
 }: {
   server: ServerProfile;
@@ -297,7 +295,6 @@ function MasterControl({
   ngrokRunning: boolean;
   pythonRunning: boolean;
   apnsMockRunning: boolean;
-  apnsMockUrl: string | null;
   onBuildStepRun?: (stepId: string) => void;
 }) {
   const [busy, setBusy] = useState<"starting" | "stopping" | null>(null);
@@ -327,7 +324,6 @@ function MasterControl({
           ngrokRunning,
           pythonRunning,
           apnsMockRunning,
-          apnsMockUrl,
         },
         onBuildStepRun,
       });
@@ -348,7 +344,6 @@ function MasterControl({
           ngrokRunning,
           pythonRunning,
           apnsMockRunning,
-          apnsMockUrl,
         },
       });
     } catch (e) {
@@ -656,6 +651,8 @@ function ChainCard({
       if (step.kind === "docker-up") {
         return await dockerUpWithStaleCleanup(server);
       }
+      // Read now: during Run all, the mock may have started since the click.
+      const serveMock = step.kind === "serve" ? apnsMockLiveUrl(server, await api.listProcesses()) : null;
       await api.startProcess({
         id: step.id,
         label: step.label,
@@ -663,8 +660,8 @@ function ChainCard({
         program: step.program,
         args: step.args,
         log_channel: step.logChannel,
-        env: step.kind === "serve" ? serveEnvFor(server, apnsMockLiveUrl(server, procs)) : step.env && step.env.length > 0 ? step.env : null,
-        meta: step.kind === "serve" ? serveMetaFor(server, apnsMockLiveUrl(server, procs)) : null,
+        env: step.kind === "serve" ? serveEnvFor(server, serveMock) : step.env && step.env.length > 0 ? step.env : null,
+        meta: step.kind === "serve" ? serveMetaFor(server, serveMock) : null,
       });
       if (step.longRunning) return true;
       return await waitForExit(step.id);
@@ -1271,7 +1268,7 @@ function ActiveProcessesPanel({
   async function pythonStart() {
     setBusy("python-start");
     try {
-      await api.startProcess(pythonStartArgs(settings, repoPath));
+      await api.startProcess(await pythonStartArgs(settings, repoPath));
     } catch (e) {
       console.error("python start failed", e);
     }

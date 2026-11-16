@@ -37,6 +37,15 @@ export function DetectFleetConfig(repo: string): $CancellablePromise<string> {
 }
 
 /**
+ * ExpandPath expands a leading "~" the way Hangar's own path settings do, for
+ * paths the frontend hands to a process that gets no shell (python
+ * http.server's --directory).
+ */
+export function ExpandPath(p: string): $CancellablePromise<string> {
+    return $Call.ByID(1108631888, p);
+}
+
+/**
  * GetSettings loads the persisted settings (defaults if none saved yet).
  */
 export function GetSettings(): $CancellablePromise<settings$0.Settings> {

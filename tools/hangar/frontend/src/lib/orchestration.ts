@@ -16,6 +16,7 @@ import {
   type Settings,
 } from "./ipc";
 import {
+  apnsMockLiveUrl,
   apnsMockProcId,
   apnsMockStartArgs,
   apnsMockUrl,
@@ -87,14 +88,18 @@ export function pythonServedFrom(command: string): { port: number; directory: st
 }
 
 /// python http.server's spawn, shared by Start all, the Server tab and the
-/// Installers tab's sharing, so they all run the same server.
-export function pythonStartArgs(settings: Settings, cwd: string) {
+/// Installers tab's sharing, so they all run the same server. python gets no
+/// shell, so a "~/..." directory is expanded here; the packages folder under
+/// it is expanded the same way on the Go side.
+export async function pythonStartArgs(settings: Settings, cwd: string) {
+  const dir = settings.python_server.directory;
+  const expanded = dir ? await api.expandPath(dir) : dir;
   return {
     id: "python-server",
     label: "python http.server",
     cwd,
     program: "python3",
-    args: pythonArgsFor(settings),
+    args: pythonArgsFor({ ...settings, python_server: { ...settings.python_server, directory: expanded } }),
   };
 }
 
@@ -143,10 +148,9 @@ export type SystemHealth = {
   dockerUp: boolean;
   ngrokRunning: boolean;
   pythonRunning: boolean;
-  /// This server's mock APNs process (per-server, unlike ngrok/python), and
-  /// its URL while running (apnsMockLiveUrl). Start all doesn't start it.
+  /// This server's mock APNs process (per-server, unlike ngrok/python).
+  /// Start all doesn't start it.
   apnsMockRunning: boolean;
-  apnsMockUrl: string | null;
 };
 
 export type StartAllArgs = {
@@ -194,7 +198,9 @@ export async function startAll(args: StartAllArgs): Promise<void> {
     if (!ok) return;
   }
   if (!health.serveUp) {
-    await startServe(server, health.apnsMockUrl);
+    // Read now, not when Start all began: the mock may have been started
+    // from the osquery-perf tab while the build chain ran.
+    await startServe(server, apnsMockLiveUrl(server, await api.listProcesses()));
     // long-running — don't wait
   }
   // 3. ngrok — global; skip if disabled, already running, or no tunnels picked.
@@ -213,7 +219,7 @@ export async function startAll(args: StartAllArgs): Promise<void> {
   }
   // 4. python — global; skip if disabled or already running.
   if (settings.python_server.enabled && !health.pythonRunning) {
-    await api.startProcess(pythonStartArgs(settings, cwd));
+    await api.startProcess(await pythonStartArgs(settings, cwd));
   }
 }
 
