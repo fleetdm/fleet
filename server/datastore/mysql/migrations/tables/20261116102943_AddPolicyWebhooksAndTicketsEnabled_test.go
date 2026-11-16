@@ -66,6 +66,15 @@ func TestUp_20261116102943(t *testing.T) {
 		teamEmptyPolicy, teamNullPolicy, teamNoConfigPolicy, noTeamInTeamList,
 	}, disabled)
 
+	// A retry after a partial run finds the column and gives the same result.
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	require.NoError(t, Up_20261116102943(tx))
+	require.NoError(t, tx.Commit())
+	enabled = nil
+	require.NoError(t, sqlx.Select(db, &enabled, `SELECT id FROM policies WHERE webhooks_and_tickets_enabled = 1 ORDER BY id`))
+	require.Equal(t, []int64{globalListed, teamAListed, teamBListed, noTeamListed}, enabled)
+
 	// New policies default to off.
 	newID := newPolicy("created after", teamA)
 	var flag bool
