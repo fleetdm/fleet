@@ -54,8 +54,8 @@ type registeredRoute struct {
 	// replace a handler once registered.
 	handler  http.Handler
 	matchers []varMatcher
-	// served is the route's middleware around a call to handler.
-	served http.Handler
+	// chain is the route middleware wrapped around a call to the current handler.
+	chain http.Handler
 	// patterns are the ServeMux patterns the route is registered as, one per method and version.
 	patterns []muxPattern
 }
@@ -73,7 +73,7 @@ func (rr *registeredRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (rr *registeredRoute) serve(w http.ResponseWriter, req *http.Request) {
-	rr.served.ServeHTTP(w, req.WithContext(WithRouteTemplate(req.Context(), rr.template)))
+	rr.chain.ServeHTTP(w, req.WithContext(WithRouteTemplate(req.Context(), rr.template)))
 }
 
 // allows reports whether every constrained path variable, as pathValue returns it, satisfies its constraint.
@@ -302,9 +302,9 @@ func (r *Router) Handle(rt Route, handler http.Handler) {
 		panic(fmt.Sprintf("route %s: %v", rt.Name, err))
 	}
 	rr.matchers = matchers
-	rr.served = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { rr.handler.ServeHTTP(w, req) })
+	rr.chain = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { rr.handler.ServeHTTP(w, req) })
 	for _, mw := range slices.Backward(r.middleware) {
-		rr.served = mw(rt.clone(), rr.served)
+		rr.chain = mw(rt.clone(), rr.chain)
 	}
 	for _, pattern := range stdlibPatterns(rt) {
 		register(r.mux, rt.Name, pattern, rr)
