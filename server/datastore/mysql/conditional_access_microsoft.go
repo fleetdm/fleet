@@ -214,24 +214,21 @@ func (ds *Datastore) SetHostConditionalAccessStatus(ctx context.Context, hostID 
 
 func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
 	var row struct {
-		OSVersion               string  `db:"os_version"`
-		DisplayName             string  `db:"display_name"`
-		DeviceID                *string `db:"device_id"`
-		UserPrincipalName       string  `db:"user_principal_name"`
-		Managed                 *bool   `db:"managed"`
-		Compliant               *bool   `db:"compliant"`
-		Verified                bool    `db:"verified"`
-		EnrollmentEntraDeviceID string  `db:"enrollment_entra_device_id"`
-		AutopilotEntraDeviceID  string  `db:"autopilot_entra_device_id"`
+		fleet.HostConditionalAccessStatus
+		HasStatus               bool   `db:"has_status"`
+		EnrollmentEntraDeviceID string `db:"enrollment_entra_device_id"`
+		AutopilotEntraDeviceID  string `db:"autopilot_entra_device_id"`
 	}
 	// The latest enrollment, as in MDMWindowsGetEnrolledDeviceWithHostUUID. Its claim proves nothing when hosts share
 	// the UUID, since it can't be attributed to one of them. The replica is fine: an enrollment linked in the same
 	// request may be ingested after this query anyway, and the next check-in picks it up.
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
 		SELECT
+			h.id AS host_id,
 			h.os_version,
 			COALESCE(hdn.display_name, '') AS display_name,
-			mcphs.device_id,
+			mcphs.host_id IS NOT NULL AS has_status,
+			COALESCE(mcphs.device_id, '') AS device_id,
 			COALESCE(mcphs.user_principal_name, '') AS user_principal_name,
 			mcphs.managed,
 			mcphs.compliant,
@@ -261,17 +258,10 @@ func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostI
 		EnrollmentEntraDeviceID: row.EnrollmentEntraDeviceID,
 		AutopilotEntraDeviceID:  row.AutopilotEntraDeviceID,
 	}
-	if row.DeviceID != nil {
-		state.Status = &fleet.HostConditionalAccessStatus{
-			HostID:            hostID,
-			DeviceID:          *row.DeviceID,
-			UserPrincipalName: row.UserPrincipalName,
-			Managed:           row.Managed,
-			Compliant:         row.Compliant,
-			Verified:          row.Verified,
-			DisplayName:       row.DisplayName,
-			OSVersion:         conditionalAccessOSVersion(row.OSVersion),
-		}
+	if row.HasStatus {
+		status := row.HostConditionalAccessStatus
+		status.OSVersion = conditionalAccessOSVersion(status.OSVersion)
+		state.Status = &status
 	}
 	return state, nil
 }
