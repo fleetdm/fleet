@@ -1274,7 +1274,7 @@ GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481]
 |:--|:--|
 | Windows Task Manager shows "Orbit osquery runtime and autoupdater" | `Fleet`. This changes when fleetd updates, whatever the Fleet server version. |
 | Windows **Settings > Apps > Installed apps** shows "Fleet osquery" | `Fleet`. This changes when fleetd connects to a Fleet 5 server. |
-| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `Fleet`. This changes when fleetd talks to a Fleet 5 server. |
+| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `fleet`. This changes when fleetd talks to a Fleet 5 server. |
 | macOS Activity Monitor and `ps` show the process name `orbit`, and fleetd starts from `/opt/orbit/bin/orbit/orbit`, a link to `/opt/orbit/bin/orbit/macos/<channel>/orbit` | `Fleet`, and fleetd starts from `/opt/orbit/bin/orbit/Fleet`, a link to `/opt/orbit/bin/orbit/macos/<channel>/Fleet`. |
 
 #### What to do
