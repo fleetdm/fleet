@@ -86,6 +86,7 @@ func TestAppExistsLogsEveryRow(t *testing.T) {
 		version    string
 		rows       []string
 		wantExists bool
+		wantLog    string
 	}{
 		{name: "short version matches", rows: []string{row(app, "6.7.0.3", "")}, wantExists: true},
 		{name: "shorter short version", rows: []string{row(app, "6.7.0", "6.7.0")}, wantExists: true},
@@ -105,6 +106,8 @@ func TestAppExistsLogsEveryRow(t *testing.T) {
 			version:    "6.7.0.3",
 			rows:       []string{row(app, "v6.7.0.3", "v6.7.0.3")},
 			wantExists: true,
+			// The patched query compares the raw value, so the log shows it.
+			wantLog: "Version: 6.7.0.3 (osquery: v6.7.0.3)",
 		},
 		{name: "no match", rows: []string{row(app, "6.6.2", "6.6.2")}},
 	}
@@ -128,6 +131,11 @@ func TestAppExistsLogsEveryRow(t *testing.T) {
 			// The patched query is checked separately, after the exists query.
 			require.Equal(t, 1, queries)
 			require.Equal(t, len(tc.rows), strings.Count(logs.String(), "Found app"))
+			if tc.wantLog != "" {
+				require.Contains(t, logs.String(), tc.wantLog)
+			} else {
+				require.NotContains(t, logs.String(), "(osquery:")
+			}
 		})
 	}
 }

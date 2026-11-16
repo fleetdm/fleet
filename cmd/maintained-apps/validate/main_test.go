@@ -270,3 +270,9 @@ func TestCheckManifestQueries(t *testing.T) {
 		}
 	}
 }
+
+func TestFoundVersion(t *testing.T) {
+	require.Equal(t, "6.7.0.3", foundVersion("6.7.0.3", "6.7.0.3"))
+	require.Equal(t, "6.7.0.3 (osquery: v6.7.0.3)", foundVersion("6.7.0.3", "v6.7.0.3"))
+	require.Equal(t, "2025.3.1 (osquery: 253.31033.139)", foundVersion("2025.3.1", "253.31033.139"))
+}

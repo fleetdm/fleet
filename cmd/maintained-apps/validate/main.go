@@ -561,6 +561,16 @@ func checkPatchedQuery(ctx context.Context, patchedQuery string) error {
 	return checkManifestQuery(ctx, "patched", patchedQuery, errPatchedQueryNoRows)
 }
 
+// foundVersion formats a version for the Found app log lines. The patched query
+// compares the raw osquery value, not the one MutateSoftwareOnIngestion rewrites
+// (R, Raspberry Pi Imager, JetBrains on Windows), so show both when they differ.
+func foundVersion(sanitized, raw string) string {
+	if sanitized == raw {
+		return sanitized
+	}
+	return fmt.Sprintf("%s (osquery: %s)", sanitized, raw)
+}
+
 func checkManifestQuery(ctx context.Context, kind, query string, errNoRows error) error {
 	if strings.TrimSpace(query) == "" {
 		return fmt.Errorf("manifest has no %s query", kind)

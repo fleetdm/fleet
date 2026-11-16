@@ -81,7 +81,7 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-const patchedQueryFixHint = "Compare the Found app lines above with the version. A DisplayVersion that's a shorter form of the version, or in another format, needs an enricher in ee/maintained-apps/ingesters/winget/external_refs, or use_display_version_for_patch if the winget manifest has a DisplayVersion. Another programs entry at an older version that the patched query also matches (a leftover from an earlier major, a bundled component) needs the query narrowed."
+const patchedQueryFixHint = "Compare the Found app lines above with the version. The patched query compares osquery's raw version, shown as \"osquery:\" when ingestion rewrites it. A DisplayVersion that's a shorter form of the version, or in another format, needs an enricher in ee/maintained-apps/ingesters/winget/external_refs, or use_display_version_for_patch if the winget manifest has a DisplayVersion. Another programs entry at an older version that the patched query also matches (a leftover from an earlier major, a bundled component) needs the query narrowed."
 
 // appExists reports whether the app is installed at the expected version. It
 // logs every programs row it finds, so a failing patched query can be traced to
@@ -152,6 +152,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	found := false
 	if len(results) > 0 {
 		for _, result := range results {
+			rawVersion := result.Version
 			// Vendor is populated so name/version sanitizers that key off the
 			// publisher (e.g. JetBrains build-number normalization in
 			// MutateSoftwareOnIngestion) behave as they do in production.
@@ -165,7 +166,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			result.Version = software.Version
 			result.Name = software.Name
 
-			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, foundVersion(result.Version, rawVersion)))
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check

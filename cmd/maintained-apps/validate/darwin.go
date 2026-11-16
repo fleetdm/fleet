@@ -253,7 +253,7 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-const patchedQueryFixHint = "Compare the Found app lines above with the version. Another copy with the same bundle identifier at an older version (a nested helper, an updater's backup) needs its path excluded in a per-token query in ee/maintained-apps/ingesters/homebrew/ingester.go, as Syncovery and Docker Desktop do. A bundle_short_version that's a shorter form of the version, or in another format, needs a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or a per-token patched query that compares bundle_version if it carries the version."
+const patchedQueryFixHint = "Compare the Found app lines above with the version. The patched query compares osquery's raw bundle_short_version, shown as \"osquery:\" when ingestion rewrites it. Another copy with the same bundle identifier at an older version (a nested helper, an updater's backup) needs its path excluded in a per-token query in ee/maintained-apps/ingesters/homebrew/ingester.go, as Syncovery and Docker Desktop do. A bundle_short_version that's a shorter form of the version, or in another format, needs a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or a per-token patched query that compares bundle_version if it carries the version."
 
 // appExists reports whether the app is installed at the expected version. It
 // logs every row it finds, so a failing patched query can be traced to the copy
@@ -307,6 +307,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	found := false
 	if len(results) > 0 {
 		for _, result := range results {
+			rawVersion := result.Version
 			software := &fleet.Software{
 				Name:             result.Name,
 				Version:          result.Version,
@@ -317,7 +318,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			result.Version = software.Version
 			result.Name = software.Name
 
-			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, foundVersion(result.Version, rawVersion), result.BundledVersion))
 
 			// OneDrive auto-updates immediately after installation, so the installed version
 			// might be newer than the installer version. For OneDrive, we only verify that
