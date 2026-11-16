@@ -96,7 +96,6 @@ spec:
       macos_managed_local_account_enabled: false
       windows_managed_local_account_enabled: false
       enable_end_user_authentication: false
-      enable_managed_local_account: false
       apple_enable_release_device_manually: false
       macos_end_user_local_account_type: admin
       lock_end_user_info: false

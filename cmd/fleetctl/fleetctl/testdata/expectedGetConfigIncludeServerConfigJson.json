@@ -141,8 +141,7 @@
         "macos_script": null,
         "macos_require_all_software": false,
         "windows_require_all_software": false,
-        "software": null,
-        "enable_managed_local_account": false
+        "software": null
       },
       "windows_automatic_enrollment": null,
       "windows_settings": {
