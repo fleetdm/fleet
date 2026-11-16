@@ -1066,7 +1066,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 	if _, ok := fleetNames[existing.Name]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing declaration %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+			InternalErr: fmt.Errorf("editing declaration %s for fleet %s not allowed because it's managed by Fleet", existing.Name, teamName),
 		}
 	}
 
@@ -1772,7 +1772,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[existing.Identifier]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing profile %s for team %s not allowed because it's managed by Fleet", existing.Identifier, teamName),
+			InternalErr: fmt.Errorf("editing profile %s for fleet %s not allowed because it's managed by Fleet", existing.Identifier, teamName),
 		}
 	}
 
@@ -1894,7 +1894,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
-			InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
+			InternalErr: fmt.Errorf("deleting profile %s for fleet %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
 		}
 	}
 
@@ -4863,7 +4863,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				attrs,
 				"host_id", info.HostID,
 				"platform", info.Platform,
-				"team_id", info.TeamID,
+				"fleet_id", info.TeamID,
 				"dep_assigned_to_fleet", info.DEPAssignedToFleet,
 				"installed_from_dep", info.InstalledFromDEP,
 				"scep_renewal_in_progress", info.SCEPRenewalInProgress,
@@ -6049,7 +6049,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		logger.DebugContext(ctx, "no VPP token configured for this host's team")
+		logger.DebugContext(ctx, "no VPP token configured for this host's fleet")
 		return nil
 	default:
 		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
@@ -6121,7 +6121,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
-			"team_id", softwareWithAutoUpdateSchedule.TeamID,
+			"fleet_id", softwareWithAutoUpdateSchedule.TeamID,
 			"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
 			"update_window_end", softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
 			"host_timezone", *host.TimeZone,
@@ -6170,7 +6170,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			logger.ErrorContext(
 				ctx, "software title by id",
 				"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
-				"team_id", host.TeamID,
+				"fleet_id", host.TeamID,
 				"err", err,
 			)
 			continue
@@ -6190,14 +6190,14 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			logger.ErrorContext(
 				ctx, "title should be VPP app",
 				"software_title_id", softwareTitle.ID,
-				"team_id", host.TeamID,
+				"fleet_id", host.TeamID,
 			)
 			continue
 		default:
 			logger.ErrorContext(
-				ctx, "get VPP app metadata by team and title",
+				ctx, "get VPP app metadata by fleet and title",
 				"software_title_id", softwareTitle.ID,
-				"team_id", host.TeamID,
+				"fleet_id", host.TeamID,
 				"err", err,
 			)
 			continue
@@ -6378,7 +6378,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		logger := logger.With(
 			"software_title_id", softwareTitle.ID,
-			"team_id", host.TeamID,
+			"fleet_id", host.TeamID,
 			"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			"latest_version", softwareTitle.AppStoreApps[0].LatestVersion,
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
@@ -6391,7 +6391,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID, hostVersion.VPPAppTeamID)
 		if err != nil {
 			logger.ErrorContext(
-				ctx, "get VPP app by team and title",
+				ctx, "get VPP app by fleet and title",
 				"err", err,
 			)
 			continue
@@ -7103,7 +7103,7 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.L
 		if es.Secret == "" {
 			var msg string
 			if es.TeamID != nil {
-				msg += fmt.Sprintf("team_id %d doesn't have an enroll secret, ", *es.TeamID)
+				msg += fmt.Sprintf("fleet_id %d doesn't have an enroll secret, ", *es.TeamID)
 			}
 			if globalSecret == "" {
 				logger.WarnContext(ctx, msg+"no global enroll secret found, skipping the creation of a com.fleetdm.fleetd.config profile")
@@ -7169,7 +7169,7 @@ func removeOneTimeSecretFleetdProfile(ctx context.Context, ds fleet.Datastore, l
 	if err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetdConfigPayloadIdentifier); err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "deleting fleetd configuration profile left by one-time enroll secrets")
 	}
-	logger.InfoContext(ctx, "removed fleetd configuration profile that only carried a one-time enroll secret placeholder", "team_id", teamID)
+	logger.InfoContext(ctx, "removed fleetd configuration profile that only carried a one-time enroll secret placeholder", "fleet_id", teamID)
 	return nil
 }
 

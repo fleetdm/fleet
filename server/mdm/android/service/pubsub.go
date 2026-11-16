@@ -887,7 +887,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
 	if host != nil {
-		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
+		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating fleet if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		if err := svc.verifyReenrollment(ctx, device); err != nil {
 			return 0, err

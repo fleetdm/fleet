@@ -338,7 +338,7 @@ func (ds *Datastore) bootstrapPackageAllowedDuringMigration(ctx context.Context,
 			return false, ctxerr.Wrap(ctx, err, "get team mdm config")
 		}
 		if tc == nil {
-			return false, errors.New("team MDM config was nil but no error")
+			return false, errors.New("fleet MDM config was nil but no error")
 		}
 		return tc.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration, nil
 	}

@@ -1600,7 +1600,7 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 		return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
 	}
 	if len(enrollSecrets) == 0 {
-		return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		return nil, ctxerr.Errorf(ctx, "no enroll secrets found for fleet %v", androidHost.Host.TeamID)
 	}
 
 	// Get certificate templates for the host (all templates, regardless of status)
@@ -1862,7 +1862,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
 		}
 		if len(enrollSecrets) == 0 {
-			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for fleet %v", androidHost.Host.TeamID)
 		}
 
 		var certificateTemplateIDs []android.AgentCertificateTemplate

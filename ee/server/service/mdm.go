@@ -1952,7 +1952,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *macOSTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of macOS team"),
 			}
 		}
@@ -1966,7 +1966,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		iOSTeam, err := svc.ds.TeamLite(ctx, *iOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *iOSTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
 			}
 		}
@@ -1979,7 +1979,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		iPadOSTeam, err := svc.ds.TeamLite(ctx, *iPadOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *iPadOSTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
 			}
 		}
@@ -1992,7 +1992,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		byodTeam, err := svc.ds.TeamLite(ctx, *byodTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *byodTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *byodTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of BYOD team"),
 			}
 		}

@@ -344,7 +344,7 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 		"issue_key", createdIssue.Key,
 	}
 	if args.FailingPolicy.TeamID != nil {
-		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
+		attrs = append(attrs, "fleet_id", *args.FailingPolicy.TeamID)
 	}
 	j.Log.DebugContext(ctx, "created jira issue for failing policy", attrs...)
 
@@ -443,7 +443,7 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger *
 		"hosts_count", len(hosts),
 	}
 	if policy.TeamID != nil {
-		attrs = append(attrs, "team_id", *policy.TeamID)
+		attrs = append(attrs, "fleet_id", *policy.TeamID)
 	}
 	if len(hosts) == 0 {
 		logger.DebugContext(ctx, "skipping, no host", attrs...)

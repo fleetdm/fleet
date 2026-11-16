@@ -225,7 +225,7 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 		case r.ScriptName != "":
 			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
-			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'fleet_id' is allowed.`)
 		}
 	}
 	if r.ScriptContents != "" {
@@ -233,7 +233,7 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 		case r.ScriptName != "":
 			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
-			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
+			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'fleet_id' is allowed.`)
 		}
 	}
 

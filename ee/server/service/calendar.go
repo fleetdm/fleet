@@ -435,7 +435,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 	}
 	if eventDetails.TeamID == nil {
 		// Should not happen
-		svc.logger.ErrorContext(ctx, "Calendar event has no team ID", "uuid", eventUUID)
+		svc.logger.ErrorContext(ctx, "Calendar event has no fleet ID", "uuid", eventUUID)
 		return false
 	}
 

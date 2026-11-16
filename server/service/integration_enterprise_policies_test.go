@@ -1337,7 +1337,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 
 	// A script owned by another team is rejected.
 	res = s.Do("POST", specURL, spec("gitops cross team script", team.Name, otherTeamScript.ID), http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+	require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 
 	// A script that does not exist is rejected with a clear message rather than a database error.
 	res = s.Do("POST", specURL, spec("gitops missing script", team.Name, otherTeamScript.ID+999), http.StatusBadRequest)

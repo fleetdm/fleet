@@ -196,7 +196,7 @@ func (svc *Service) validateProfileSchemaWith(ctx context.Context, schema *profi
 		// The structural checks already accepted the profile. The error isn't
 		// logged because its text can quote profile content.
 		svc.logger.Log(ctx, max(level, slog.LevelInfo), "profile schema validation skipped: profile not readable by validator",
-			"profile_name", name, "team_id", teamID)
+			"profile_name", name, "fleet_id", teamID)
 		return nil
 	}
 	v := schema.Version
@@ -204,13 +204,13 @@ func (svc *Service) validateProfileSchemaWith(ctx context.Context, schema *profi
 		svc.logger.Log(ctx, level, "profile schema validation finding",
 			"code", f.Code, "payload_type", f.PayloadType, "key_path", f.KeyPath,
 			"expected", f.Expected, "actual", f.Actual,
-			"profile_name", name, "team_id", teamID, "strict", mode == profilevalidation.ModeStrict,
+			"profile_name", name, "fleet_id", teamID, "strict", mode == profilevalidation.ModeStrict,
 			"apple_release", v.Apple.Release, "windows_release", v.Windows.Release)
 	}
 	if len(findings) > maxLoggedProfileFindings {
 		svc.logger.Log(ctx, level, "profile schema validation findings not logged",
 			"not_logged", len(findings)-maxLoggedProfileFindings, "total", len(findings),
-			"profile_name", name, "team_id", teamID, "strict", mode == profilevalidation.ModeStrict)
+			"profile_name", name, "fleet_id", teamID, "strict", mode == profilevalidation.ModeStrict)
 	}
 	if len(findings) == 0 {
 		return nil

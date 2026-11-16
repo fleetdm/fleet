@@ -1224,7 +1224,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		if installDuringSetup {
 			return errDeleteInstallerInstalledDuringSetup
 		}
-		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
+		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for fleet id %d", appID.AdamID, appID.Platform,
 			globalOrTeamID))
 	}
 
@@ -2157,7 +2157,7 @@ TEAMLOOP:
 			// This should only be possible if there are no other teams
 			// Make sure something array is non-nil
 			if len(tokTeams) != 1 {
-				return nil, ctxerr.Errorf(ctx, "team \"%s\" belongs to All teams, and %d other team(s)", tok.OrgName, len(tokTeams)-1)
+				return nil, ctxerr.Errorf(ctx, "fleet \"%s\" belongs to All fleets, and %d other fleet(s)", tok.OrgName, len(tokTeams)-1)
 			}
 			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP
@@ -2425,7 +2425,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		if token.Teams != nil && len(token.Teams) == 0 {
 			// Token was already assigned to All Teams, we should not
 			// see it again in a loop
-			return nil, fmt.Errorf("vpp token \"%s\" has been assigned to All teams, and another team", token.OrgName)
+			return nil, fmt.Errorf("vpp token \"%s\" has been assigned to All fleets, and another fleet", token.OrgName)
 		}
 		switch team.NullTeam {
 		case fleet.NullTeamAllTeams:
@@ -2434,7 +2434,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 			if token.Teams != nil {
 				// This team has already been assigned something, this
 				// should not happen
-				return nil, fmt.Errorf("vpp token \"%s\" has been asssigned to All teams, and another team", token.OrgName)
+				return nil, fmt.Errorf("vpp token \"%s\" has been asssigned to All fleets, and another fleet", token.OrgName)
 			}
 			token.Teams = []fleet.TeamTuple{}
 		case fleet.NullTeamNoTeam:
@@ -2546,7 +2546,7 @@ TEAMLOOP:
 			// This should only be possible if there are no other teams
 			// Make sure something array is non-nil
 			if len(tokTeams) != 1 {
-				return nil, ctxerr.Errorf(ctx, "team \"%s\" belongs to All teams, and %d other team(s)", tok.OrgName, len(tokTeams)-1)
+				return nil, ctxerr.Errorf(ctx, "fleet \"%s\" belongs to All fleets, and %d other fleet(s)", tok.OrgName, len(tokTeams)-1)
 			}
 			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP

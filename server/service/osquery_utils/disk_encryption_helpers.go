@@ -17,9 +17,9 @@ func IsDiskEncryptionEscrowEnabledForHost(ctx context.Context, logger *slog.Logg
 	if host.TeamID != nil {
 		teamMDM, err := ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
-			logger.DebugContext(ctx, "failed to get team MDM config for disk encryption check",
+			logger.DebugContext(ctx, "failed to get fleet MDM config for disk encryption check",
 				"host_id", host.ID,
-				"team_id", *host.TeamID,
+				"fleet_id", *host.TeamID,
 				"err", err,
 			)
 			return false

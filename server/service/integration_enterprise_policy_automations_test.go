@@ -4320,12 +4320,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 			Platform:    "darwin",
 			ProfileUUID: new(otherAppleProf.ProfileUUID),
 		}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 
 		res = s.Do("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
 			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, otherAppleProf.ProfileUUID)),
 			http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 	})
 
 	t.Run("nonexistent profile is rejected", func(t *testing.T) {
@@ -4413,7 +4413,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 				ProfileUUID: new(otherAppleProf.ProfileUUID),
 			}},
 		}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 	})
 }
 

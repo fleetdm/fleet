@@ -943,7 +943,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"label_id": float64(123)}, nil)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "filters must include a team filter")
+		require.ErrorContains(t, err, "filters must include a fleet filter")
 	})
 
 	t.Run("error if filters match too many hosts", func(t *testing.T) {

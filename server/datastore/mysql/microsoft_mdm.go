@@ -3019,7 +3019,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 		case "action_required":
 			res.Pending += c.Count
 		case "":
-			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d windows hosts on fleet %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
 		default:
 			return nil, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm windows status count: status=%s, count=%d", c.Status, c.Count))
 		}

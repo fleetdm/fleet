@@ -83,7 +83,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, labe
 	}
 
 	if !hasGlobalWriteRole() && (notOnTeamID == nil || !hasWriteRoleOnTeam(*notOnTeamID)) {
-		return ctxerr.New(ctx, "you cannot edit labels on the specified team")
+		return ctxerr.New(ctx, "you cannot edit labels on the specified fleet")
 	}
 
 	type existingLabel struct {
@@ -389,7 +389,7 @@ DELETE FROM label_membership WHERE label_id = ?
 	return ctxerr.Wrap(ctx, err, "ApplyLabelSpecs transaction")
 }
 
-var errLabelMismatchHostTeam = errors.New("supplied hosts are on a different team than the label")
+var errLabelMismatchHostTeam = errors.New("supplied hosts are on a different fleet than the label")
 
 func checkHostIdentifiersInTeam(
 	ctx context.Context,
@@ -941,7 +941,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	return labels, nil
 }
 
-var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
+var errInaccessibleTeam = errors.New("The fleet ID you provided refers to a fleet that either does not exist or you do not have permission to access.")
 
 // labelScopeKey mirrors the labels unique index: names compare case-insensitively within one fleet, or among
 // global labels (fleet 0).

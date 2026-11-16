@@ -162,7 +162,7 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock
 		if err := cronCalendarEventsForTeam(
 			ctx, ds, distributedLock, localConfig, *team, appConfig.OrgInfo.OrgName, domain, logger, newActivitySvc,
 		); err != nil {
-			logger.InfoContext(ctx, "events calendar cron", "team_id", team.ID, "err", err)
+			logger.InfoContext(ctx, "events calendar cron", "fleet_id", team.ID, "err", err)
 		}
 	}
 
@@ -192,12 +192,12 @@ func cronCalendarEventsForTeam(
 
 	if len(policies) == 0 {
 		logger.DebugContext(ctx, "skipping, no calendar policies",
-			"team_id", team.ID,
+			"fleet_id", team.ID,
 		)
 		return nil
 	}
 
-	logger = logger.With("team_id", team.ID)
+	logger = logger.With("fleet_id", team.ID)
 
 	//
 	// NOTEs:
@@ -237,7 +237,7 @@ func cronCalendarEventsForTeam(
 		}
 	}
 	logger.DebugContext(ctx, "summary",
-		"team_id", team.ID,
+		"fleet_id", team.ID,
 		"passing_hosts", len(passingHosts),
 		"failing_hosts", len(failingHosts),
 		"failing_hosts_without_associated_email", len(failingHostsWithoutAssociatedEmail),
@@ -878,7 +878,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger *
 
 	for _, team := range teams {
 		if err := cleanupTeamCalendarEvents(ctx, ds, calConfig, *team, logger); err != nil {
-			logger.InfoContext(ctx, "delete team calendar events", "team_id", team.ID, "err", err)
+			logger.InfoContext(ctx, "delete fleet calendar events", "fleet_id", team.ID, "err", err)
 		}
 	}
 

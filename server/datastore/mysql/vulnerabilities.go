@@ -122,7 +122,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		if teamID == nil {
 			msg = "global"
 		} else {
-			msg = fmt.Sprintf("team %d", *teamID)
+			msg = fmt.Sprintf("fleet %d", *teamID)
 		}
 		return nil, ctxerr.Wrap(ctx, notFound(fmt.Sprintf("Vulnerability for %s", msg)).WithName(cve))
 	}

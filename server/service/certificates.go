@@ -636,7 +636,7 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 	}
 	if len(uniqueIDs) != len(certificateTemplates) {
 		return authz.ForbiddenWithInternal(
-			"can only delete templates from team parameter",
+			"can only delete templates from fleet parameter",
 			authz.UserFromContext(ctx),
 			&fleet.CertificateTemplate{TeamID: teamID},
 			fleet.ActionWrite,

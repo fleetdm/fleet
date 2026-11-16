@@ -75,7 +75,7 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 		err = autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests)
 		if err != nil {
 			logger.ErrorContext(ctx, "auto-updating fleet-maintained app",
-				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
+				"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
 	}
 
@@ -115,7 +115,7 @@ func autoUpdateOneFleetMaintainedApp(
 		version, err := downloadNewVersionIfEligible(ctx, ds, store, logger, c, pin, client, manifests)
 		if err != nil {
 			logger.ErrorContext(ctx, "downloading new fleet-maintained app version",
-				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
+				"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
 		publishedVersion = version
 	}
@@ -171,7 +171,7 @@ func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *
 	}
 
 	logger.InfoContext(ctx, "advanced fleet-maintained app to newer cached version",
-		"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug,
+		"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug,
 		"from", c.Version, "to", target.Version, "pin", pin)
 	return nil
 }
@@ -432,7 +432,7 @@ func downloadNewVersionIfEligible(
 	}
 
 	logger.InfoContext(ctx, "cached new fleet-maintained app version",
-		"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug,
+		"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug,
 		"from", c.Version, "to", version, "pin", pin)
 	return version, nil
 }

@@ -4972,7 +4972,7 @@ WHERE
 			tmID = *installer.TeamID
 		}
 		if _, ok := byTeam[tmID]; ok && installer.Extension != "ipa" {
-			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
+			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one fleet", sha256))
 		}
 		if installer.PackageIDList != "" {
 			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
@@ -5259,7 +5259,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 		}
 
 		if cat.TeamID != ptr.ValOrZero(host.TeamID) {
-			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category team does not match host team"})
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category fleet does not match host fleet"})
 		}
 		categoryName = &cat.Name
 	}

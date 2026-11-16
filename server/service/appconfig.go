@@ -2793,7 +2793,7 @@ func (svc *Service) validateABMAssignments(
 
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
-					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
+					invalid.Appendf("mdm.apple_business", "fleet %s doesn't exist", tmName)
 					return nil, nil, nil
 				}
 			}
@@ -2862,7 +2862,7 @@ func (svc *Service) validateVPPAssignments(
 				tmName = fleet.TeamNameAllTeams
 			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
-				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
 			}
 		}

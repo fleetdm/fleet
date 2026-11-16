@@ -265,8 +265,8 @@ WHERE ` + whereTeam
 			// TODO: how should we handle this unexpected case?
 			ds.logger.DebugContext(
 				ctx, "list mdm commands: multiple hosts found for identifier",
-				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
-				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
+				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s fleet: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
+				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s fleet: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
 			)
 		}
 		byUUID[h.UUID] = h

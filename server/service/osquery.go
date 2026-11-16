@@ -1981,7 +1981,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ctx, "received policy results",
 			"host_id", host.ID,
 			"host_platform", host.Platform,
-			"team_id", ptr.ValOrZero(host.TeamID),
+			"fleet_id", ptr.ValOrZero(host.TeamID),
 			"failing", failing,
 			"passing", passing,
 			"not_executed", notExecuted,
@@ -3353,7 +3353,7 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 	svc.logger.DebugContext(
 		ctx, "looked up profiles to resend for newly failing policies",
 		"host_id", host.ID,
-		"team_id", policyTeamID,
+		"fleet_id", policyTeamID,
 		"newly_failing", newlyFailingPolicyIDs,
 		"with_profile", len(policiesWithProfile),
 	)
@@ -3510,7 +3510,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			scriptTeamID = *scriptMetadata.TeamID
 		}
 		if policyTeamID != scriptTeamID { // this should not happen
-			logger.ErrorContext(ctx, "script team does not match host team")
+			logger.ErrorContext(ctx, "script fleet does not match host fleet")
 			continue
 		}
 
@@ -4070,7 +4070,7 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		if err != nil {
-			svc.logger.DebugContext(ctx, "querying name and team ID from result", "err", err)
+			svc.logger.DebugContext(ctx, "querying name and fleet ID from result", "err", err)
 			parsedByRaw[queryResult.QueryName] = parsedName{}
 			continue
 		}

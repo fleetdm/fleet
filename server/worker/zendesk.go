@@ -346,7 +346,7 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 		"ticket_id", createdTicket.ID,
 	}
 	if args.FailingPolicy.TeamID != nil {
-		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
+		attrs = append(attrs, "fleet_id", *args.FailingPolicy.TeamID)
 	}
 	z.Log.DebugContext(ctx, "created zendesk ticket for failing policy", attrs...)
 
@@ -441,7 +441,7 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 		"hosts_count", len(hosts),
 	}
 	if policy.TeamID != nil {
-		attrs = append(attrs, "team_id", *policy.TeamID)
+		attrs = append(attrs, "fleet_id", *policy.TeamID)
 	}
 	if len(hosts) == 0 {
 		logger.DebugContext(ctx, "skipping, no host", attrs...)

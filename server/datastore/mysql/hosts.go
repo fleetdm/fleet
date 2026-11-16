@@ -1510,7 +1510,7 @@ func (ds *Datastore) applyHostFilters(
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
-					Message:     "team is invalid",
+					Message:     "fleet is invalid",
 					InternalErr: err,
 				},
 			)

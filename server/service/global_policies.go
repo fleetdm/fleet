@@ -187,7 +187,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	for _, policy := range policiesByID {
 		if policy.PolicyData.TeamID != nil {
 			return nil, authz.ForbiddenWithInternal(
-				"attempting to delete policy that belongs to team",
+				"attempting to delete policy that belongs to fleet",
 				authz.UserFromContext(ctx),
 				policy,
 				fleet.ActionWrite,

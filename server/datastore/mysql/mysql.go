@@ -871,7 +871,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		ds.logger.InfoContext(context.TODO(), "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "fleet filter missing user")
 		return "FALSE"
 	}
 
@@ -960,7 +960,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		ds.logger.InfoContext(context.TODO(), "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "fleet filter missing user")
 		return "FALSE"
 	}
 
@@ -1025,7 +1025,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		ds.logger.InfoContext(context.TODO(), "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "fleet filter missing user")
 		return "FALSE"
 	}
 

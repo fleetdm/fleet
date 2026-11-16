@@ -230,7 +230,7 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	if _, ok := fleetNames[existing.Name]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing profile %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+			InternalErr: fmt.Errorf("editing profile %s for fleet %s not allowed because it's managed by Fleet", existing.Name, teamName),
 		}
 	}
 

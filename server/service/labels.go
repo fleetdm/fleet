@@ -691,7 +691,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			return fleet.NewUserMessageError(
 				ctxerr.New(
 					ctx,
-					"When applying team label specs, provide the team label by URL query string parameter rather than within the JSON request body",
+					"When applying fleet label specs, provide the fleet label by URL query string parameter rather than within the JSON request body",
 				), http.StatusUnprocessableEntity)
 		}
 		spec.TeamID = teamID

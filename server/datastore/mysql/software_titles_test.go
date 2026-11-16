@@ -2624,7 +2624,7 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 			PackagesOnly: true,
 		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "packages_only can only be provided with team_id")
+		require.Contains(t, err.Error(), "packages_only can only be provided with fleet_id")
 	})
 
 	t.Run("packages_only=false with team_id", func(t *testing.T) {

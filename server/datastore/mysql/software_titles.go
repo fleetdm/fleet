@@ -292,7 +292,7 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	if opt.TeamID == nil {
 		if opt.PackagesOnly {
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with fleet_id")
 		}
 		if opt.Platform != "" {
 			// the platform filters for **installable** software on the given platform, and installable
@@ -300,10 +300,10 @@ func (ds *Datastore) ListSoftwareTitles(
 			return nil, 0, nil, fleet.NewInvalidArgumentError("query", fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
 		}
 		if opt.HashSHA256 != "" {
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "hash_sha256 can only be provided with team_id")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "hash_sha256 can only be provided with fleet_id")
 		}
 		if opt.PackageName != "" {
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "package_name can only be provided with team_id")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "package_name can only be provided with fleet_id")
 		}
 	}
 
