@@ -5025,11 +5025,11 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in fleet configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in fleet configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 		},

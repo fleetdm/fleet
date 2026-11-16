@@ -74,7 +74,7 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 		return nil, errors.New(fleet.RunScriptGatewayTimeoutErrMsg)
 	case http.StatusPaymentRequired:
 		if teamID > 0 {
-			return nil, errors.New("Team id parameter requires Fleet Premium license.")
+			return nil, errors.New("Fleet id parameter requires Fleet Premium license.")
 		}
 		fallthrough // if no team id, fall through to default error message
 	default:

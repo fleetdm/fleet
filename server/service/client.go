@@ -872,7 +872,7 @@ func (c *Client) ApplyGroup(
 			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, profileSpecs.android, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				// TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
-				return nil, nil, nil, nil, fmt.Errorf("Team %s: %w", k, err)
+				return nil, nil, nil, nil, fmt.Errorf("Fleet %s: %w", k, err)
 			}
 			tmFileContents[k] = fileContents
 		}
@@ -883,7 +883,7 @@ func (c *Client) ApplyGroup(
 		for k, assetSpecs := range tmAssetSpecs {
 			assetContents, err := getAssetsContents(baseDir, assetSpecs, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("Team %s: %w", k, err)
+				return nil, nil, nil, nil, fmt.Errorf("Fleet %s: %w", k, err)
 			}
 			tmAssetContents[k] = assetContents
 		}
@@ -1095,7 +1095,7 @@ func (c *Client) ApplyGroup(
 		// references against the database.
 		if afterTeamApply != nil {
 			if err := afterTeamApply(teamIDsByName); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("after-team-create hook: %w", err)
+				return nil, nil, nil, nil, fmt.Errorf("after-fleet-create hook: %w", err)
 			}
 		}
 
@@ -2728,7 +2728,7 @@ func (c *Client) DoGitOps(
 		}
 		features, ok = features.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("Team %s features config is not a map", *incoming.TeamName)
+			return nil, fmt.Errorf("Fleet %s features config is not a map", *incoming.TeamName)
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
@@ -2739,7 +2739,7 @@ func (c *Client) DoGitOps(
 		// historical_data sub-keys default to true on every gitops apply.
 		// See ensureHistoricalDataDefaults for the rationale.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
-			return nil, fmt.Errorf("Team %s %w", *incoming.TeamName, err)
+			return nil, fmt.Errorf("Fleet %s %w", *incoming.TeamName, err)
 		}
 
 		// Integrations
@@ -4202,7 +4202,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, appConfig *fle
 	teamName := ""
 	switch {
 	case config.IsNoTeam():
-		teamName = "No team"
+		teamName = fleet.DisplayNameNoTeam
 		teamID = "0"
 	case config.TeamID != nil:
 		teamName = *config.TeamName

@@ -1403,7 +1403,7 @@ software:
 // missing (new) team strips the VPP config and re-applies it after teams are
 // created; that re-apply must validate referenced teams against teams that exist in
 // Fleet, not only against teams whose files were supplied this run. Previously this
-// errored with "volume_purchasing_program team <existing> not found in team configs".
+// errored with "volume_purchasing_program fleet <existing> not found in fleet configs".
 func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
 	testing_utils.StartAndServeVPPServer(t)
 	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
@@ -1649,10 +1649,10 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "volume_purchasing_program fleet 📱🏢 Company-owned iPhones not found in fleet configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "volume_purchasing_program fleet 📱🏢 Company-owned iPhones not found in fleet configs")
 			},
 		},
 		{

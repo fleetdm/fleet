@@ -19,7 +19,7 @@ import (
 
 const (
 	filenameMaxLength           = 255
-	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s to set VPP apps\n"
+	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for fleet %s to set VPP apps\n"
 )
 
 type LabelUsage struct {
@@ -186,7 +186,7 @@ func gitopsCommand() *cli.Command {
 			if appConfig.License.IsPremium() {
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
-					return fmt.Errorf("getting teams: %w", err)
+					return fmt.Errorf("getting fleets: %w", err)
 				}
 				for _, tm := range teams {
 					teamIDLookup[tm.Name] = &tm.ID
@@ -232,14 +232,14 @@ func gitopsCommand() *cli.Command {
 					}
 					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, *teamID)
 					if err != nil {
-						return fmt.Errorf("getting software for team %q: %w", teamName, err)
+						return fmt.Errorf("getting software for fleet %q: %w", teamName, err)
 					}
 					if softwareMap == nil {
 						continue
 					}
 					raw, err := json.Marshal(softwareMap)
 					if err != nil {
-						return fmt.Errorf("marshaling software for team %q: %w", teamName, err)
+						return fmt.Errorf("marshaling software for fleet %q: %w", teamName, err)
 					}
 					syntheticSoftwareByTeam[teamName] = raw
 					teamsSoftwareInstallers[teamName] = installers
@@ -282,7 +282,7 @@ func gitopsCommand() *cli.Command {
 				configFile := ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig}
 
 				if !isGlobalConfig && !appConfig.License.IsPremium() {
-					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					logf("[!] skipping fleet config %s since fleets are only supported for premium Fleet users\n", flFilename)
 					continue
 				}
 				if isGlobalConfig {
@@ -309,7 +309,7 @@ func gitopsCommand() *cli.Command {
 						existingLabels = globalLabels
 					} else {
 						if existingLabels, err = fleetClient.GetLabels(*teamID); err != nil {
-							return fmt.Errorf("getting team '%s' labels: %w", teamName, err)
+							return fmt.Errorf("getting fleet '%s' labels: %w", teamName, err)
 						}
 					}
 				}
@@ -745,15 +745,15 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("apple_business fleet %s cannot be deleted", team.Name)
 						}
 						if slices.Contains(vppTeams, team.Name) {
-							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
+							return fmt.Errorf("volume_purchasing_program fleet %s cannot be deleted", team.Name)
 						}
 						if windowsEnrollmentDefaultFleet != "" && norm.NFC.String(team.Name) == windowsEnrollmentDefaultFleet {
 							return fmt.Errorf("windows_automatic_enrollment default_fleet %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
-							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted fleet %s\n", team.Name)
 						} else {
-							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting fleet %s\n", team.Name)
 							if err := fleetClient.DeleteTeam(team.ID); err != nil {
 								return err
 							}
@@ -1454,7 +1454,7 @@ func applyWindowsEnrollmentAssignmentIfNeeded(
 		return err
 	}
 	if _, ok := knownTeams[norm.NFC.String(defaultFleet)]; !ok {
-		return fmt.Errorf("windows_automatic_enrollment default_fleet %q not found in team configs", defaultFleet)
+		return fmt.Errorf("windows_automatic_enrollment default_fleet %q not found in fleet configs", defaultFleet)
 	}
 	if flDryRun {
 		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply Windows enrollment default fleet\n")
@@ -1534,7 +1534,7 @@ func applyVPPTokenAssignmentIfNeeded(
 			continue
 		}
 		if _, ok := knownTeams[norm.NFC.String(vppTeam)]; !ok {
-			return fmt.Errorf("volume_purchasing_program team %s not found in team configs", vppTeam)
+			return fmt.Errorf("volume_purchasing_program fleet %s not found in fleet configs", vppTeam)
 		}
 	}
 
@@ -1545,12 +1545,12 @@ func applyVPPTokenAssignmentIfNeeded(
 	}
 
 	if flDryRun {
-		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply volume_purchasing_program teams\n")
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply volume_purchasing_program fleets\n")
 		return nil
 	}
-	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying volume_purchasing_program teams\n")
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying volume_purchasing_program fleets\n")
 	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
-		return fmt.Errorf("applying fleet config for volume_purchasing_program teams: %w", err)
+		return fmt.Errorf("applying fleet config for volume_purchasing_program fleets: %w", err)
 	}
 	return nil
 }

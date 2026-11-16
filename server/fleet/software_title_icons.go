@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?(?:team_id|fleet_id)=\d+`)
+var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?fleet_id=\d+`)
 
 const SoftwareTitleIconSignedURLExpiry = 6 * time.Hour
 

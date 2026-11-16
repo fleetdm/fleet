@@ -1,1 +1,2 @@
 - **Breaking change:** REST API requests that send a removed team name now fail with a 422 that links to the Fleet 5 migration guide, instead of being ignored. This covers the `team_id` and `team_name` query parameters and sort keys, the `team_id`, `team_ids`, `teams`, and `team` body keys, and the `team` type in `POST /translate`. Use the matching `fleet` names instead.
+- **Breaking change:** `POST /api/latest/fleet/spec/certificates` no longer accepts `"No team"` as a fleet name and fails with a 422 that links to the Fleet 5 migration guide. Use `"Unassigned"` instead.

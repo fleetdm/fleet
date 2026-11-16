@@ -434,12 +434,20 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 
 	activitiesBeforeNoTeam := s.listActivities()
 
-	// certificate templates for "No team"
+	// the old "No team" name is rejected with the Fleet 5 migration message
+	res := s.Do("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{Name: "Old Name Template", Team: "No team", CertificateAuthorityId: ca.ID, SubjectName: "CN=$FLEET_VAR_HOST_UUID"},
+		},
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `"No team" was removed in Fleet 5. Use "Unassigned" instead.`)
+
+	// certificate templates for "Unassigned"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "No Team Template 1",
-				Team:                   "No team",
+				Team:                   "Unassigned",
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
