@@ -268,7 +268,7 @@ type BatchSetSoftwareInstallersResult struct {
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).

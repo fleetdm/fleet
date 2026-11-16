@@ -721,7 +721,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_4", SelfService: true, Platform: fleet.AndroidPlatform, Configuration: exampleConfiguration},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
@@ -770,7 +770,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_4", Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
@@ -801,7 +801,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, Configuration: exampleConfiguration},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "fleet_id", fmt.Sprint(*teamID))
@@ -827,7 +827,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 				DryRun: false,
 				Apps:   []fleet.VPPBatchPayload{},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 	})
 	t.Run("android app setup experience", func(t *testing.T) {
@@ -856,7 +856,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		// Should not create an edited setup experience activity, nothing changed
@@ -868,7 +868,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		// Should create an edited setup experience activity, existing software changed
@@ -880,7 +880,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_2", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 
 		// Should create an edited setup experience activity, as new software was added
@@ -893,7 +893,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 					{AppStoreID: "app_3", Platform: fleet.AndroidPlatform, InstallDuringSetup: ptr.Bool(true)},
 				},
 			},
-			http.StatusOK, &batchResp, "team_name", teamName,
+			http.StatusOK, &batchResp, "fleet_name", teamName,
 		)
 		var count int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {

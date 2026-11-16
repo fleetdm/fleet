@@ -236,10 +236,14 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 					"json": KindJSONKey, "query": KindQueryParam, "url": KindQueryParam, "form": KindFormField, "csv": KindCSVColumn,
 				} {
 					oldName, _, _ := strings.Cut(tag.Get(key), ",")
-					if renameTo == "" || !isTeamRelated(oldName) {
+					if renameTo == "" || oldName == "" {
 						continue
 					}
+					// Count every renamed tag, since group C left no team ones and the scan must still prove it parsed something.
 					found++
+					if !isTeamRelated(oldName) {
+						continue
+					}
 					scope := ScopeRequest | ScopeResponse
 					if filepath.ToSlash(rel) == "server/fleet/activities.go" {
 						scope = ScopeActivityDetails
