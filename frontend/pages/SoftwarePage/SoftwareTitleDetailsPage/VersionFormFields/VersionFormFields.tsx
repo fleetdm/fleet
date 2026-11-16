@@ -266,6 +266,13 @@ const VersionFormFields = ({
     debounceValidateConfig();
   };
 
+  const onBlurConfiguration = () => {
+    // Blur-time validation runs now; drop the pending debounced copy so it
+    // can't fire after the user refocuses and clears the error.
+    debounceValidateConfig.cancel();
+    configFieldProps.onBlur();
+  };
+
   const onSelectCategory = ({
     name,
     value,
@@ -321,6 +328,7 @@ const VersionFormFields = ({
       <Editor
         {...configFieldProps}
         onChange={onChangeConfiguration}
+        onBlur={onBlurConfiguration}
         label="Configuration"
         mode={editorMode}
         helpText={configHelpText}

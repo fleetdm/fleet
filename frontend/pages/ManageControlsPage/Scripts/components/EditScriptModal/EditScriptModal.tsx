@@ -141,6 +141,9 @@ const EditScriptModal = ({
   };
 
   const onBlur = () => {
+    // Blur-time validation runs now; drop the pending debounced copy so it
+    // can't fire after the user refocuses and clears the error.
+    debounceValidate.cancel();
     setFormError(validate(scriptFormData));
   };
 
