@@ -85,7 +85,6 @@ type appConfigGlobalInputs struct {
 	EnableTurnOnWindowsMDMManually bool
 	WindowsMigrationEnabled        bool
 	ServerURL                      string
-	ScriptsDisabled                bool
 	// Hosts in a fleet fall back to the global script timeout.
 	ScriptExecutionTimeout int
 }
@@ -114,7 +113,6 @@ func appConfigOrbitInputs(cfg *fleet.AppConfig) (*appConfigGlobalInputs, *appCon
 		EnableTurnOnWindowsMDMManually: cfg.MDM.EnableTurnOnWindowsMDMManually,
 		WindowsMigrationEnabled:        cfg.MDM.WindowsMigrationEnabled,
 		ServerURL:                      cfg.ServerSettings.ServerURL,
-		ScriptsDisabled:                cfg.ServerSettings.ScriptsDisabled,
 		ScriptExecutionTimeout:         opts.ScriptExecutionTimeout,
 	}
 	noTeam := &appConfigNoTeamInputs{

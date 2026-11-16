@@ -8,7 +8,7 @@ import EnrollSecretRow from "./EnrollSecretRow";
 const TEAM_SECRET = {
   secret: "super-secret-secret",
   created_at: "",
-  team_id: 2,
+  fleet_id: 2,
 };
 describe("Enroll secret row", () => {
   it("Hides secret by default and shows secret on click of eye icon", async () => {

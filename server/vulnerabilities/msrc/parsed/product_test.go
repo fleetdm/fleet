@@ -587,6 +587,10 @@ var msrcWinProducts = Products{
 	"10735": NewProductFromFullName("Windows 10 for x64-based Systems"),
 	"10852": NewProductFromFullName("Windows 10 Version 1607 for 32-bit Systems"),
 	"10853": NewProductFromFullName("Windows 10 Version 1607 for x64-based Systems"),
+	"11568": NewProductFromFullName("Windows 10 Version 1809 for 32-bit Systems"),
+	"11569": NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems"),
+	"11570": NewProductFromFullName("Windows 10 Version 1809 for ARM64-based Systems"),
+	"11673": NewProductFromFullName("Windows 10 Version 1809 for HoloLens"),
 	"11926": NewProductFromFullName("Windows 11 for x64-based Systems"),
 	"11927": NewProductFromFullName("Windows 11 for ARM64-based Systems"),
 	"12085": NewProductFromFullName("Windows 11 Version 22H2 for ARM64-based Systems"),
@@ -902,6 +906,67 @@ func TestMatchesOperatingSystem(t *testing.T) {
 			},
 			want: "",
 			err:  ErrNoMatch,
+		},
+		// Releases before 20H2 report their display version from the ReleaseId registry value.
+		{
+			name: "Windows 10 Enterprise LTSC 2019 with display version from ReleaseId",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows 10 Enterprise LTSC 1809",
+				Arch:             "64-bit",
+				DisplayVersion:   "1809",
+				KernelVersion:    "10.0.17763.9376",
+				InstallationType: "Client",
+			},
+			want: "11569",
+			err:  nil,
+		},
+		{
+			name: "Windows 10 Enterprise 2016 LTSB with display version from ReleaseId",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows 10 Enterprise 2016 LTSB 1607",
+				Arch:             "64-bit",
+				DisplayVersion:   "1607",
+				KernelVersion:    "10.0.14393.9611",
+				InstallationType: "Client",
+			},
+			want: "10853",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2019 Datacenter with display version from ReleaseId",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2019 Datacenter 1809",
+				Arch:             "64-bit",
+				DisplayVersion:   "1809",
+				KernelVersion:    "10.0.17763.9376",
+				InstallationType: "Server",
+			},
+			want: "11571",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2019 Server Core with display version from ReleaseId",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2019 Datacenter 1809 (Server Core)",
+				Arch:             "64-bit",
+				DisplayVersion:   "1809",
+				KernelVersion:    "10.0.17763.9376",
+				InstallationType: "Server Core",
+			},
+			want: "11572",
+			err:  nil,
+		},
+		{
+			name: "Windows Server 2016 Datacenter with display version from ReleaseId",
+			os: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2016 Datacenter 1607",
+				Arch:             "64-bit",
+				DisplayVersion:   "1607",
+				KernelVersion:    "10.0.14393.9611",
+				InstallationType: "Server",
+			},
+			want: "10816",
+			err:  nil,
 		},
 		// A Hardware Lab Kit product must never be preferred over the operating system:
 		// the fixture's HLK products reduce to the same name as the real ones.

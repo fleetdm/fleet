@@ -1,6 +1,7 @@
 package hostidentity
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -83,7 +84,7 @@ func RegisterSCEP(
 	))
 
 	signer = challengeMiddleware(ds, signer)
-	signer = renewalMiddleware(ds, logger, signer)
+	signer = renewalMiddleware(ds, logger, fleetConfig.Auth.RequireHostIdentityRenewalKeyBinding, signer)
 	scepService := NewSCEPService(
 		ds,
 		signer,
@@ -105,7 +106,9 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret
+// challengeMiddleware checks that ChallengePassword matches an enrollment secret, and refuses to issue a certificate for a name that
+// already holds a valid one, unless that certificate was never used to enroll a host and the request is for the same key. Replacing any
+// other certificate requires a renewal request, which proves possession of the existing key.
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request by looking for the custom Fleet extension
@@ -125,8 +128,36 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
 		}
+
+		commonName := m.CSR.Subject.CommonName
+		existingCert, err := ds.GetHostIdentityCertByName(ctx, commonName)
+		switch {
+		case fleet.IsNotFound(err):
+			return next.SignCSRContext(ctx, m)
+		case err != nil:
+			return nil, fmt.Errorf("checking existing host identity certificate: %w", err)
+		}
+
+		// The agent retries with the key it already holds when the issued certificate never reached it, which is before it can enroll.
+		// Only the holder of the private key can sign a CSR for that public key, so this does not let someone else take over the name.
+		if existingCert.HostID != nil || !csrSignedWithKey(m.CSR, existingCert.PublicKeyRaw) {
+			return nil, fmt.Errorf("a valid host identity certificate already exists for %q, renew it with its existing key", commonName)
+		}
 		return next.SignCSRContext(ctx, m)
 	}
+}
+
+// csrSignedWithKey returns whether the CSR has a valid signature and its public key is publicKeyRaw (an uncompressed ECDSA point).
+func csrSignedWithKey(csr *x509.CertificateRequest, publicKeyRaw []byte) bool {
+	if csr.CheckSignature() != nil {
+		return false
+	}
+	key, ok := csr.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return false
+	}
+	csrKeyRaw, err := types.CreateECDSAPublicKeyRaw(key)
+	return err == nil && bytes.Equal(csrKeyRaw, publicKeyRaw)
 }
 
 // hasRenewalExtension checks if the CSR contains the renewal extension
@@ -139,8 +170,9 @@ func hasRenewalExtension(csr *x509.CertificateRequest) bool {
 	return false
 }
 
-// renewalMiddleware handles certificate renewal with proof-of-possession
-func renewalMiddleware(ds fleet.Datastore, logger *slog.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+// renewalMiddleware handles certificate renewal with proof-of-possession.
+// Until requireKeyBinding is set, it also accepts legacy proofs signed over only the serial number, which any key can reuse.
+func renewalMiddleware(ds fleet.Datastore, logger *slog.Logger, requireKeyBinding bool, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request
 		var renewalData types.RenewalData
@@ -187,10 +219,24 @@ func renewalMiddleware(ds fleet.Datastore, logger *slog.Logger, next scepserver.
 			return nil, fmt.Errorf("decoding signature: %w", err)
 		}
 
-		// Verify the signature
-		hash := sha256.Sum256([]byte(renewalData.SerialNumber))
+		// The proof binds the CSR's public key, so the CSR must prove possession of it.
+		if err := m.CSR.CheckSignature(); err != nil {
+			return nil, fmt.Errorf("invalid renewal CSR signature: %w", err)
+		}
+
+		hash := sha256.Sum256(types.RenewalChallenge(renewalData.SerialNumber, m.CSR.RawSubjectPublicKeyInfo))
 		if !ecdsa.VerifyASN1(pubKey, hash[:], sigBytes) {
-			return nil, errors.New("invalid renewal signature")
+			legacyHash := sha256.Sum256([]byte(renewalData.SerialNumber))
+			if !ecdsa.VerifyASN1(pubKey, legacyHash[:], sigBytes) {
+				return nil, errors.New("invalid renewal signature")
+			}
+			if requireKeyBinding {
+				logger.WarnContext(ctx, "legacy renewal proof rejected, upgrade fleetd",
+					"serial", renewalData.SerialNumber, "cn", oldCertData.CommonName)
+				return nil, errors.New("renewal proof is not bound to the CSR key")
+			}
+			logger.WarnContext(ctx, "renewal proof is not bound to the CSR key, upgrade fleetd",
+				"serial", renewalData.SerialNumber, "cn", oldCertData.CommonName)
 		}
 
 		// Enforce that the CSR's CN matches the original certificate's CN.
@@ -252,12 +298,15 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 	// [ ] Renewal            // Supports certificate renewal (same or new key, new cert)
 	// [ ] Update             // Supports certificate update (new key)
 	//
+	// Fleet-specific:
+	// [x] Fleet-Renewal-Key-Binding // Verifies renewal proofs bound to the CSR key; fleetd won't fall back to legacy proofs
+	//
 	// These capabilities are implied by the protocol and don't need to be explicitly declared:
 	// [x] SCEPStandard       // Conforms to a known SCEP standard version
 	// [x] PKCS7              // Responses are in PKCS#7 format
 	// [x] X509               // Supports X.509 certificates
 	//
-	defaultCaps := []byte("SHA-256\nAES\nPOSTPKIOperation")
+	defaultCaps := []byte("SHA-256\nAES\nPOSTPKIOperation\n" + types.RenewalKeyBindingCapability)
 	return defaultCaps, nil
 }
 

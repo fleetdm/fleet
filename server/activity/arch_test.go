@@ -30,6 +30,7 @@ var (
 		m + "/server/contexts/authz",
 		m + "/server/contexts/publicip",
 		m + "/pkg/fleethttp",
+		m + "/pkg/removednames",
 	}
 )
 

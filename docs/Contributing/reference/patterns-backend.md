@@ -15,6 +15,7 @@ Table of Contents
   - [Unbounded tables](#unbounded-tables)
   - [Data retention](#data-retention)
   - [Re-usable transactionable functions](#re-usable-transactionable-functions)
+  - [Replica lag](#replica-lag)
 - [Specific features](#specific-features)
   - [GitOps](#gitops)
 
@@ -184,6 +185,12 @@ func (ds *Datastore) MyDSMethodWithTransaction(ctx context.Context, yourArgsHere
 
 See [this commit](https://github.com/fleetdm/fleet/pull/22843/files#diff-c5babdad542a72acf2ec2ecb7cb43967fc53850b6998ac629e253336b87e008bR415)
 for an example of this pattern.
+
+### Replica lag
+
+Replication lag of up to 50ms could potentially happen (based on some historical data from AWS Aurora). Use `ctxdb.RequirePrimary(ctx, true)` when reading a value after writing to it in the same request, or for a read-then-write of something critical like the app config (see [`SetAndroidEnabledAndConfigured`](https://github.com/fleetdm/fleet/blob/c1ccc202b46aa66205b4c13723ef7c62374d6411/server/datastore/mysql/app_configs.go#L130)).
+
+Avoid reading from the primary db when not necessary. For example, a GET request after a PATCH for the same resource, or two concurrent requests from different admins that change the same resource (e.g. one admin edits an App Store app while another deletes it), might not need to handle replica lag issues. Some host endpoints might have to deal with back to back requests, so they may need to handle replica lag. For examples, see [`isDuplicateOrStalePubSub`](https://github.com/fleetdm/fleet/blob/c1ccc202b46aa66205b4c13723ef7c62374d6411/server/mdm/android/service/pubsub.go#L463) and [`tryLinkUnlinkedEnrollmentFromDevDetail`](https://github.com/fleetdm/fleet/blob/c1ccc202b46aa66205b4c13723ef7c62374d6411/server/service/microsoft_mdm.go#L1889).
 
 ## Specific features
 

@@ -29,6 +29,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"EnrollRules", testOneTimeEnrollSecretEnrollRules},
 		{"OverwriteWarningOnlyWhenEnrolled", testOneTimeEnrollSecretOverwriteWarning},
 		{"RejectSharedSecretForAppleMDMHosts", testOneTimeEnrollSecretRejectShared},
+		{"RejectUUIDOfAnotherMDMHost", testOneTimeEnrollSecretRejectUUIDOfAnotherMDMHost},
 		{"ResetTurnOffAndDelete", testOneTimeEnrollSecretResetAndDelete},
 		{"Cleanup", testOneTimeEnrollSecretCleanup},
 		{"WindowsMint", testOneTimeEnrollSecretWindowsMint},
@@ -546,6 +547,126 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 			reject,
 		)
 		require.NoError(t, err)
+	})
+}
+
+func testOneTimeEnrollSecretRejectUUIDOfAnotherMDMHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newMDMHosts := func(t *testing.T) []*fleet.Host {
+		mac := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		nanoEnroll(t, ds, mac, false)
+		windows := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		insertWindowsEnrollment(t, ds, "hw-"+windows.UUID, windows.UUID)
+		return []*fleet.Host{mac, windows}
+	}
+	enrollOrbit := func(hostUUID, serial, platform, osqueryID string, extra ...fleet.DatastoreEnrollOrbitOption) error {
+		_, err := ds.EnrollOrbit(ctx, append([]fleet.DatastoreEnrollOrbitOption{
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:      hostUUID,
+				HardwareSerial:    serial,
+				Platform:          platform,
+				OsqueryIdentifier: osqueryID,
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()),
+		}, extra...)...)
+		return err
+	}
+	enrollOsquery := func(hostUUID, serial, osqueryID string, extra ...fleet.DatastoreEnrollOsqueryOption) error {
+		_, err := ds.EnrollOsquery(ctx, append([]fleet.DatastoreEnrollOsqueryOption{
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(osqueryID),
+			fleet.WithEnrollOsqueryHardwareUUID(hostUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+		}, extra...)...)
+		return err
+	}
+	requireOnlyHostWithUUID := func(t *testing.T, h *fleet.Host) {
+		t.Helper()
+		var ids []uint
+		require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &ids, `SELECT id FROM hosts WHERE uuid = ?`, h.UUID))
+		require.Equal(t, []uint{h.ID}, ids)
+	}
+	newSerial := func() string { return "SERIAL-" + uuid.NewString()[:8] }
+
+	t.Run("a new host", func(t *testing.T) {
+		for _, h := range newMDMHosts(t) {
+			err := enrollOrbit(h.UUID, newSerial(), h.Platform, uuid.NewString())
+			requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+			err = enrollOsquery(h.UUID, newSerial(), uuid.NewString())
+			requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+
+			requireOnlyHostWithUUID(t, h)
+		}
+	})
+
+	t.Run("a host without a UUID", func(t *testing.T) {
+		for _, h := range newMDMHosts(t) {
+			for _, blank := range []string{"", " ", "\u200b", "\u00a0", "\x01"} {
+				osqueryID, serial := uuid.NewString(), newSerial()
+				require.NoError(t, enrollOsquery(blank, serial, osqueryID))
+
+				err := enrollOrbit(h.UUID, serial, h.Platform, osqueryID)
+				requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+				err = enrollOsquery(h.UUID, serial, osqueryID)
+				requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+
+				requireOnlyHostWithUUID(t, h)
+			}
+		}
+	})
+
+	t.Run("a secret minted for a Windows MDM enrollment", func(t *testing.T) {
+		for _, h := range newMDMHosts(t) {
+			device := insertWindowsEnrollment(t, ds, "hw-"+uuid.NewString(), "")
+			require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+			secret := liveWindowsSecret(t, ds, device.ID)
+
+			withoutUUID := uuid.NewString()
+			require.NoError(t, enrollOsquery("", newSerial(), withoutUUID))
+			for _, osqueryID := range []string{uuid.NewString(), withoutUUID} {
+				err := enrollOrbit(h.UUID, newSerial(), "windows", osqueryID, fleet.WithEnrollOrbitOneTimeEnrollSecret(secret.ID))
+				requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+				err = enrollOsquery(h.UUID, newSerial(), osqueryID, fleet.WithEnrollOsqueryOneTimeEnrollSecret(secret.ID))
+				requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+			}
+
+			requireOnlyHostWithUUID(t, h)
+			require.Equal(t, secret.Secret, liveWindowsSecret(t, ds, device.ID).Secret)
+		}
+	})
+
+	t.Run("the MDM host re-enrolls", func(t *testing.T) {
+		for _, h := range newMDMHosts(t) {
+			_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil)...)
+			require.NoError(t, err)
+			_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil)...)
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("hosts sharing the UUID re-enroll", func(t *testing.T) {
+		for _, h := range newMDMHosts(t) {
+			duplicate := newOneTimeSecretTestHost(t, ds, h.Platform, nil)
+			_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET uuid = ? WHERE id = ?`, h.UUID, duplicate.ID)
+			require.NoError(t, err)
+
+			for _, osqueryID := range []string{*h.OsqueryHostID, *duplicate.OsqueryHostID} {
+				require.NoError(t, enrollOrbit(h.UUID, newSerial(), h.Platform, osqueryID))
+				require.NoError(t, enrollOsquery(h.UUID, newSerial(), osqueryID))
+			}
+		}
+	})
+
+	t.Run("a deleted MDM host comes back", func(t *testing.T) {
+		for _, h := range newMDMHosts(t) {
+			require.NoError(t, ds.DeleteHost(ctx, h.ID))
+			recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil)...)
+			require.NoError(t, err)
+			require.Equal(t, h.UUID, recreated.UUID)
+		}
 	})
 }
 

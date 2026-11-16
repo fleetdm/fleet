@@ -18,6 +18,67 @@ try {
     throw "INSTALLER_PATH is not set"
   }
 
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $zip = [System.IO.Compression.ZipFile]::OpenRead($msixPath)
+  try {
+    $reader = New-Object System.IO.StreamReader($zip.GetEntry("AppxManifest.xml").Open())
+    [xml]$manifest = $reader.ReadToEnd()
+    $reader.Dispose()
+  } finally {
+    $zip.Dispose()
+  }
+  $identity = $manifest.Package.Identity
+
+  # The host may already be on a newer version than this installer (e.g. from the app's own
+  # updater). Windows won't provision an older version over it (0xc1570118 when the newer
+  # version is provisioned, "Element not found" when it's installed only for a user).
+  $newer = @(Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $identity.Name }) +
+    @(Get-AppxPackage -AllUsers -Name $identity.Name) |
+    Where-Object { [version]$_.Version -gt [version]$identity.Version } |
+    Sort-Object { [version]$_.Version } -Descending |
+    Select-Object -First 1
+  if ($newer) {
+    Write-Host "$softwareName $($newer.Version) is already on this host, which is newer than this installer ($($identity.Version))."
+
+    # A copy registered only for other users isn't available to the console user, not even
+    # after they sign in again, so register the copy that's already on the host for them.
+    $userName = (Get-CimInstance Win32_ComputerSystem).UserName
+    if (-not $userName -or $userName -notlike "*\*") {
+      Write-Host "No interactive user logged on. Nothing to install."
+      Exit 0
+    }
+    $registered = {
+      Get-AppxPackage -User $userName -Name $identity.Name |
+        Where-Object { [version]$_.Version -ge [version]$identity.Version }
+    }
+    if (& $registered) {
+      Write-Host "It's already registered for '$userName'. Nothing to install."
+      Exit 0
+    }
+
+    $familyName = (Get-AppxPackage -AllUsers -Name $identity.Name | Select-Object -First 1).PackageFamilyName
+    Write-Host "Registering $familyName for '$userName' via scheduled task..."
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
+      -Argument "-NoProfile -WindowStyle Hidden -Command `"Add-AppxPackage -RegisterByFamilyName -MainPackage '$familyName'`""
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $principal = New-ScheduledTaskPrincipal -UserId $userName -RunLevel Highest
+    $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -User $userName -Force | Out-Null
+    Start-ScheduledTask -TaskName $taskName
+
+    $startDate = Get-Date
+    while (-not (& $registered)) {
+      if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 90) {
+        Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        Write-Host "Error: $softwareName wasn't registered for '$userName' within 90s."
+        Exit 1
+      }
+      Start-Sleep -Seconds 2
+    }
+    Write-Host "Registered $softwareName for '$userName'."
+    Exit 0
+  }
+
   Write-Host "Provisioning MSIX for all users..."
   $result = Add-AppxProvisionedPackage -Online -PackagePath $msixPath -SkipLicense -Regions "all" -ErrorAction Stop
   $result | Out-String | Write-Host

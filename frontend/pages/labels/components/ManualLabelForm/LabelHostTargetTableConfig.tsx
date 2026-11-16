@@ -25,7 +25,7 @@ export const generateTableHeaders = (
             <Button
               onClick={() => handleRowRemove(cellProps.row)}
               variant="subdued"
-              icon="close-filled"
+              icon="close"
               ariaLabel="Remove"
             />
           ),

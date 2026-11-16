@@ -166,6 +166,20 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "$FLEET_VAR_NDES_SCEP_CHALLENGE")
 
+	// Add and update with the variable Fleet 5 removed → 422 with its migration message.
+	removedVarConfig := asJSONString(`<dict><key>K</key><string>${FLEET_VAR_HOST_END_USER_EMAIL_IDP}</string></dict>`)
+	const removedVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: `
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    ipadOSAdamID,
+		Platform:      fleet.IPadOSPlatform,
+		Configuration: removedVarConfig,
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: removedVarConfig}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
+
 	// macOS adam ID — pre-registered as a macOS-only app in the mock VPP server.
 	const macosAdamID = "1"
 
@@ -316,7 +330,8 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
-		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
+		// The standard encoder HTML-escapes angle brackets as \u003c and \u003e.
+		require.Contains(t, body, `"configuration":"\u003cdict\u003e\u003ckey\u003eK\u003c/key\u003e\u003cstring\u003ev\u003c/string\u003e\u003c/dict\u003e"`)
 	})
 
 	t.Run("android wire format", func(t *testing.T) {
@@ -338,7 +353,7 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		require.NoError(t, resp.Body.Close())
 		require.NotZero(t, addResp.TitleID)
 
-		stored, err := s.ds.GetAndroidAppConfiguration(ctxdb.RequirePrimary(ctx, true), androidAdamID, team.ID)
+		stored, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), addResp.VersionID)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`, string(stored))
 
@@ -597,7 +612,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 			&updateAppStoreAppRequest{
 				TeamID:        &team.ID,
-				Configuration: asJSONString(`<dict><key>Email</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`),
+				Configuration: asJSONString(`<dict><key>User</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`),
 			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
@@ -644,7 +659,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			if act.Type == (fleet.ActivityInstalledAppStoreApp{}).ActivityName() {
 				require.NotNil(t, act.Details)
 				require.Contains(t, string(*act.Details), string(fleet.SoftwareInstallFailed))
-				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_EMAIL_IDP")
+				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 				found = true
 				break
 			}
@@ -1064,6 +1079,11 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApp.Configuration, &gotFirstPlist))
 	require.Equal(t, productionPlist, gotFirstPlist)
 
+	// read the vpp_token of both versions, each should have the token the app was added from
+	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken)
+	require.Equal(t, validToken.Token.ID, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken.ID)
+	require.Equal(t, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken, titleResp.SoftwareTitle.AppStoreApps[1].VPPToken)
+
 	// edit the title without a version id, the request should be rejected since the title has two versions
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true)}, http.StatusBadRequest)
@@ -1128,6 +1148,8 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.NotNil(t, updResp.AppStoreApp)
 	require.Equal(t, addTestResp.VersionID, updResp.AppStoreApp.ID)
 	require.Equal(t, "Staging", updResp.AppStoreApp.Name)
+	require.NotNil(t, updResp.AppStoreApp.VPPToken)
+	require.Equal(t, validToken.Token.ID, updResp.AppStoreApp.VPPToken.ID)
 	require.NotNil(t, updResp.AppStoreApp.AutoUpdateEnabled)
 	require.True(t, *updResp.AppStoreApp.AutoUpdateEnabled)
 	require.Equal(t, "Staging", lastActivityVersionName(fleet.ActivityEditedAppStoreApp{}.ActivityName()))
@@ -1948,6 +1970,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
 		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
-	}, http.StatusBadRequest, "team_name", team.Name)
+	}, http.StatusBadRequest, "fleet_name", team.Name)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
 }

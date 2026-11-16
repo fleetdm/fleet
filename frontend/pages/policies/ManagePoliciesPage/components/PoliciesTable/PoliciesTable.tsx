@@ -150,7 +150,7 @@ const PoliciesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
-        iconName="filter-alt"
+        iconName="filter"
       />
     );
   }, [platform, handlePlatformFilterDropdownChange]);
@@ -207,7 +207,7 @@ const PoliciesTable = ({
   const pageHasSelectableRows =
     !viewingTeamPolicies ||
     isPrimoMode ||
-    policiesList.some((p) => p.team_id !== null);
+    policiesList.some((p) => p.fleet_id !== null);
 
   const hasPermissionAndPoliciesToDelete =
     canAddOrDeletePolicies && hasPoliciesToDelete && pageHasSelectableRows;

@@ -1444,7 +1444,6 @@ func testEnqueueSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, results, 1)
 	require.NotNil(t, results[0].InHouseAppID)
 	require.Equal(t, iosAppID, *results[0].InHouseAppID)
-	require.True(t, results[0].IsForInHouseApp())
 	require.True(t, results[0].IsForSoftware())
 	require.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
 	require.NotNil(t, results[0].SoftwareTitleID)
@@ -1795,6 +1794,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Status:            fleet.SetupExperienceStatusPending,
 			VPPAppTeamID:      new(vppAppsTeamsID),
 			VPPAppVersionName: new(fleet.DefaultAppStoreAppVersionName),
+			VPPAppVPPTokenID:  new(tok1.ID),
 			SoftwareTitleID:   new(vppApp.TitleID),
 			Source:            new("apps"),
 		},
@@ -3279,5 +3279,12 @@ func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Da
 		require.Equal(t, versionA.AppTeamID, *results[0].VPPAppTeamID)
 		require.NotNil(t, results[0].VPPAppVersionName)
 		require.Equal(t, fleet.DefaultAppStoreAppVersionName, *results[0].VPPAppVersionName)
+
+		var appTokenID *uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &appTokenID, "SELECT vpp_token_id FROM vpp_apps_teams WHERE id = ?", versionA.AppTeamID)
+		})
+		require.NotNil(t, appTokenID)
+		require.Equal(t, appTokenID, results[0].VPPAppVPPTokenID)
 	}
 }

@@ -22,6 +22,10 @@ type Client struct {
 	Dialect SqlDialect
 	// Migrations is the list of migrations.
 	Migrations Migrations
+	// MinOutOfOrderVersion is the lowest migration version that Up may apply
+	// out of order, i.e. when a migration with a higher version has already
+	// been applied. When 0, out-of-order application is disabled.
+	MinOutOfOrderVersion int64
 }
 
 func New(tableName string, dialect SqlDialect) *Client {

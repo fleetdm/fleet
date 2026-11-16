@@ -73,25 +73,18 @@ func initDatastore(config config.FleetConfig, logger *slog.Logger, c clock.Clock
 // evalMigrationStatus prints any operator guidance for the current migration
 // status and reports whether runServeCmd should exit instead of starting. It
 // encodes the boot/refuse-to-boot decision: unknown migrations are only fatal
-// in dev mode; the v4.73.2 and partial-migration states are fatal unless
-// missing migrations are explicitly allowed; an uninitialized database is
-// always fatal.
+// in dev mode; partial migrations are fatal unless missing migrations are
+// explicitly allowed; an uninitialized database is always fatal.
 func evalMigrationStatus(status *fleet.MigrationStatus, devMode, allowMissing bool) (shouldExit bool) {
 	switch status.StatusCode {
 	case fleet.AllMigrationsCompleted:
 		// OK
 		return false
 	case fleet.UnknownMigrations:
-		printUnknownMigrationsMessage(status.UnknownTable, status.UnknownData)
+		printUnknownMigrationsMessage(status.UnknownTable)
 		return devMode
-	case fleet.NeedsFleetv4732Fix:
-		printFleetv4732FixNeededMessage()
-		return !allowMissing
-	case fleet.UnknownFleetv4732State:
-		printFleetv4732UnknownStateMessage(status.StatusCode)
-		return !allowMissing
 	case fleet.SomeMigrationsCompleted:
-		printMissingMigrationsWarning(os.Stdout, status.MissingTable, status.MissingData)
+		printMissingMigrationsWarning(os.Stdout, status.MissingTable)
 		return !allowMissing
 	case fleet.NoMigrationsCompleted:
 		printDatabaseNotInitializedError()

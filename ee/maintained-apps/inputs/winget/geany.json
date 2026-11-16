@@ -3,6 +3,7 @@
   "slug": "geany/windows",
   "package_identifier": "Geany.Geany",
   "unique_identifier": "Geany",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

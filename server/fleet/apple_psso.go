@@ -73,6 +73,9 @@ type PSSOIdPClient interface {
 type PSSONonceStore interface {
 	Store(ctx context.Context, nonce string, ttl time.Duration) error
 	Consume(ctx context.Context, nonce string) (ok bool, err error)
+	// MarkLoginAssertionUsed records a login assertion by its fingerprint for ttl, and reports whether this is its first
+	// use. The records are kept apart from the nonces, so a nonce consumed on a request can never remove one.
+	MarkLoginAssertionUsed(ctx context.Context, fingerprint string, ttl time.Duration) (firstUse bool, err error)
 }
 
 // PSSODeviceRegistrationRequest carries the device-key enrollment the Mac

@@ -1,0 +1,1 @@
+- `GET /api/v1/fleet/commands` now returns 404 for a host outside the user's fleets, the same as for a host that doesn't exist.

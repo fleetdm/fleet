@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"encoding/json"
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -9,7 +11,118 @@ import (
 )
 
 func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
-	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
+
+	t.Run("ejbca", func(t *testing.T) {
+		grouped, err := ValidateCertificateAuthoritiesSpec(map[string]any{
+			"ejbca": []any{map[string]any{
+				"name": "ejbca", "url": "https://ejbca.example.com", "client_p12": "p12", "password": "pw", "trust_ca_bundle": "bundle",
+				"certificate_authority_name": "ca", "certificate_profile_name": "cert", "end_entity_profile_name": "entity",
+				"certificate_common_name": "cn", "username_template": "user", "certificate_user_principal_names": []any{"upn"},
+			}},
+		})
+		require.NoError(t, err)
+		require.Equal(t, []EJBCA{{
+			Name: "ejbca", URL: "https://ejbca.example.com", ClientP12: "p12", Password: "pw", TrustCABundlePEM: "bundle",
+			CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
+			CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
+		}}, grouped.EJBCA)
+
+		grouped, err = ValidateCertificateAuthoritiesSpec(map[string]any{})
+		require.NoError(t, err)
+		require.Equal(t, []EJBCA{}, grouped.EJBCA)
+	})
+}
+
+// fullEJBCA returns an EJBCA CA with every field set, other than the PKCS#12 and its password, which are only inputs.
+func fullEJBCA() EJBCA {
+	return EJBCA{
+		ID: 1, Name: "ejbca", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+		CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
+		CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
+	}
+}
+
+// GitOps skips a CA whose Equals matches the stored one, so a field Equals doesn't compare would never be updated.
+func TestCAEqualsComparesEveryField(t *testing.T) {
+	t.Run("EJBCA", func(t *testing.T) {
+		// Equals compares the certificate and key read out of the PKCS#12, not the PKCS#12 and its password.
+		requireEqualsComparesEveryField(t, fullEJBCA(), (*EJBCA).Equals, "ClientP12", "Password")
+	})
+	t.Run("DigiCert", func(t *testing.T) {
+		requireEqualsComparesEveryField(t, DigiCertCA{
+			ID: 1, Name: "digicert", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile",
+			CertificateCommonName: "cn", CertificateUserPrincipalNames: []string{"upn"}, CertificateSeatID: "seat",
+		}, (*DigiCertCA).Equals)
+	})
+	t.Run("custom SCEP", func(t *testing.T) {
+		requireEqualsComparesEveryField(t, CustomSCEPProxyCA{ID: 1, Name: "scep", URL: "https://scep.example.com", Challenge: "challenge"},
+			(*CustomSCEPProxyCA).Equals)
+	})
+	t.Run("Hydrant", func(t *testing.T) {
+		requireEqualsComparesEveryField(t, HydrantCA{
+			ID: 1, Name: "hydrant", URL: "https://hydrant.example.com", ClientID: "id", ClientSecret: "secret",
+		}, (*HydrantCA).Equals)
+	})
+	t.Run("EST", func(t *testing.T) {
+		requireEqualsComparesEveryField(t, ESTProxyCA{
+			ID: 1, Name: "est", URL: "https://est.example.com", Username: "user", Password: "pass",
+		}, (*ESTProxyCA).Equals)
+	})
+	t.Run("Smallstep", func(t *testing.T) {
+		requireEqualsComparesEveryField(t, SmallstepSCEPProxyCA{
+			ID: 1, Name: "smallstep", URL: "https://smallstep.example.com/scep", ChallengeURL: "https://smallstep.example.com/challenge",
+			Username: "user", Password: "pass",
+		}, (*SmallstepSCEPProxyCA).Equals)
+	})
+}
+
+// requireEqualsComparesEveryField checks that equals ignores the ID and the ignored fields, and that zeroing any other field of full makes
+// it unequal.
+func requireEqualsComparesEveryField[T any](t *testing.T, full T, equals func(a, b *T) bool, ignored ...string) {
+	ignored = append(ignored, "ID")
+	same := full
+	for _, name := range ignored {
+		field := reflect.ValueOf(&same).Elem().FieldByName(name)
+		switch field.Kind() {
+		case reflect.Uint:
+			field.SetUint(field.Uint() + 1)
+		case reflect.String:
+			field.SetString(field.String() + "-changed")
+		default:
+			t.Fatalf("unsupported kind %s for ignored field %s", field.Kind(), name)
+		}
+	}
+	require.True(t, equals(&full, &same))
+
+	typ := reflect.TypeFor[T]()
+	for i := range typ.NumField() {
+		name := typ.Field(i).Name
+		if slices.Contains(ignored, name) {
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			changed := full
+			field := reflect.ValueOf(&changed).Elem().Field(i)
+			require.False(t, field.IsZero(), "set %s in the test CA", name)
+			field.SetZero()
+			require.False(t, equals(&full, &changed))
+		})
+	}
+}
+
+func TestEJBCACertificateAuthority(t *testing.T) {
+	full := fullEJBCA()
+	stored := full.CertificateAuthority()
+	require.Equal(t, string(CATypeEJBCA), stored.Type)
+	require.Equal(t, full, stored.EJBCA())
+
+	// The empty optional fields are stored as NULL.
+	minimal := EJBCA{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"}
+	stored = minimal.CertificateAuthority()
+	require.Equal(t, minimal, stored.EJBCA())
+	require.Nil(t, stored.TrustCABundlePEM)
+	require.Nil(t, stored.EJBCAUsernameTemplate)
+	require.Nil(t, stored.CertificateUserPrincipalNames)
 }
 
 func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
@@ -404,5 +517,36 @@ func TestGoogleCASCAEquals(t *testing.T) {
 		c := a
 		change(&c)
 		require.False(t, a.Equals(&c))
+	}
+}
+
+func TestCertificateAuthorityGoogleCASCA(t *testing.T) {
+	full := func() CertificateAuthority {
+		return CertificateAuthority{
+			ID: 7, Type: string(CATypeGoogleCAS), Name: new("GOOGLE_WIFI"), URL: new(""),
+			GoogleCASProject: new("p"), GoogleCASLocation: new("l"), GoogleCASCAPool: new("c"), GoogleCASAPIKeyJSON: new("k"),
+		}
+	}
+	ca := full()
+	got, err := ca.GoogleCASCA()
+	require.NoError(t, err)
+	require.Equal(t, GoogleCASCA{ID: 7, Name: "GOOGLE_WIFI", Project: "p", Location: "l", CAPool: "c", APIKeyJSON: "k"}, got)
+
+	for name, tc := range map[string]struct {
+		change  func(*CertificateAuthority)
+		wantErr string
+	}{
+		"another type":   {func(ca *CertificateAuthority) { ca.Type = string(CATypeHydrant) }, "is not a Google CAS certificate authority"},
+		"no project":     {func(ca *CertificateAuthority) { ca.GoogleCASProject = nil }, "does not have a Google Cloud project ID configured"},
+		"empty location": {func(ca *CertificateAuthority) { ca.GoogleCASLocation = new("") }, "does not have a location configured"},
+		"no CA pool":     {func(ca *CertificateAuthority) { ca.GoogleCASCAPool = nil }, "does not have a CA pool configured"},
+		"no key":         {func(ca *CertificateAuthority) { ca.GoogleCASAPIKeyJSON = nil }, "does not have a service account key configured"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ca := full()
+			tc.change(&ca)
+			_, err := ca.GoogleCASCA()
+			require.ErrorContains(t, err, tc.wantErr)
+		})
 	}
 }

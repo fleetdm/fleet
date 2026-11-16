@@ -252,7 +252,8 @@ Windows downloads Microsoft's disallowed certificate list automatically, and Mic
     UNION
     SELECT 1 WHERE (
       SELECT COUNT(DISTINCT upper(sha1)) FROM certificates
-      WHERE store = 'Disallowed'
+      WHERE store_location = 'LocalMachine'
+        AND store IN ('Untrusted Certificates', 'Disallowed')
         AND upper(sha1) IN (
           'A99B289464F3B44343270A7A1E910F02370483FE', '1396BE1372BC93DFA2A433CA964DBA91548A6E57',
           '5F014E0DB3BB8F950E0598AB280846D383FC57BE', '5DFA19197D1C1CF629AF7C0CD865543C5050227C',

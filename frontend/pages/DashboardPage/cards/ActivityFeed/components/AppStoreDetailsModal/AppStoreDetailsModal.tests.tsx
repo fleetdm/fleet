@@ -82,4 +82,23 @@ describe("AppStoreDetailsModal", () => {
     renderModal({ platform: "darwin", configuration: "<dict/>" });
     expect(screen.queryByText("Configuration")).not.toBeInTheDocument();
   });
+
+  it("renders the VPP token location when the activity carries a token", () => {
+    renderModal({
+      platform: "ios",
+      vpp_token: { id: 2, location: "Acme K.K.", country_code: "JP" },
+    });
+    expect(screen.getByText("VPP token")).toBeInTheDocument();
+    expect(screen.getByText("Acme K.K.")).toBeInTheDocument();
+  });
+
+  it("omits the VPP token row without a token", () => {
+    renderModal({ platform: "ios" });
+    expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
+  });
+
+  it("omits the VPP token row when the token is null", () => {
+    renderModal({ platform: "android", vpp_token: null });
+    expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
+  });
 });

@@ -124,7 +124,7 @@ func (r ResetPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	TeamIDs   []uint `json:"fleet_ids" premium:"true"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 
@@ -197,6 +197,7 @@ type TeamPolicyRequest struct {
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
 	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
+	PatchDeadline                bool     `json:"patch_deadline" premium:"true"`
 }
 
 type TeamPolicyResponse struct {

@@ -4,6 +4,7 @@ package mock
 
 import (
 	"context"
+	"crypto/x509"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -13,9 +14,14 @@ var _ fleet.GoogleCASService = (*Service)(nil)
 
 type VerifyCAPoolFunc func(ctx context.Context, ca fleet.GoogleCASCA) error
 
+type IssueCertificateFunc func(ctx context.Context, ca fleet.GoogleCASCA, csr *x509.CertificateRequest) (*x509.Certificate, error)
+
 type Service struct {
 	VerifyCAPoolFunc        VerifyCAPoolFunc
 	VerifyCAPoolFuncInvoked bool
+
+	IssueCertificateFunc        IssueCertificateFunc
+	IssueCertificateFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -25,4 +31,11 @@ func (s *Service) VerifyCAPool(ctx context.Context, ca fleet.GoogleCASCA) error 
 	s.VerifyCAPoolFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyCAPoolFunc(ctx, ca)
+}
+
+func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	s.mu.Lock()
+	s.IssueCertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.IssueCertificateFunc(ctx, ca, csr)
 }

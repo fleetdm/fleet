@@ -5,7 +5,10 @@ import (
 	"time"
 )
 
-const PatchNotificationKind = "patch"
+const (
+	PatchNotificationKind         = "patch"
+	PatchDeadlineNotificationKind = "patch_deadline"
+)
 
 // A row of patch_notifications. InstallAt is null until the first toast reaches the end user.
 type PatchNotification struct {
@@ -50,6 +53,10 @@ type PatchNotificationAppDetail struct {
 	HasIcon             bool    `db:"has_icon"`
 	InstallQueued       bool    `db:"install_queued"`
 	UpdatedInInventory  bool    `db:"updated_in_inventory"`
+	// PolicyOptionChanged is true when the app's policy no longer uses this notification's patch
+	// option: Deadline turned off or the policy deleted for a deadline notification, Notify turned off
+	// for a notify one. A notify notification keeps patching after its policy is deleted.
+	PolicyOptionChanged bool `db:"policy_option_changed"`
 	// CreatedAt is when the app was added to the notification
 	CreatedAt time.Time `db:"created_at"`
 }

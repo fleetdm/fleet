@@ -71,6 +71,8 @@ export const getEnrollmentRejectedReasonText = (
     case "one_time_secret_identifier_mismatch":
       // Told entirely in the modal headline; there is no body text.
       return null;
+    case "uuid_of_another_mdm_host":
+      return "An enrollment presented this host's hardware UUID with a different identifier. Fleet doesn't add a second host with the UUID of a host that has MDM turned on. If this is the same device enrolling again, delete this host so it can re-enroll.";
     case "host_identity_cert_required":
       return "The enrollment wasn't signed with this host's identity certificate. Another device may have tried to enroll as this host.";
     default:

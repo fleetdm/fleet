@@ -3,6 +3,7 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -98,4 +99,7 @@ func (p *GoogleCASCAUpdatePayload) Preprocess() {
 type GoogleCASService interface {
 	// VerifyCAPool checks that the service account key is valid and can read the configured CA pool.
 	VerifyCAPool(ctx context.Context, ca GoogleCASCA) error
+	// IssueCertificate asks the CA pool to sign csr and returns the issued certificate. A failure expected to clear on its own is a
+	// CertificateAuthorityTransientError.
+	IssueCertificate(ctx context.Context, ca GoogleCASCA, csr *x509.CertificateRequest) (*x509.Certificate, error)
 }

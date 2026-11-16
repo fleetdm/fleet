@@ -29,7 +29,7 @@ import {
 } from "../HostSoftwareLibrary/helpers";
 
 /** Written as `types` on a macOS host when nothing is selected, since an absent
- * `types` re-applies the "macOS app" default. parseSoftwareTypesParam drops it
+ * `types` re-applies the "App (macOS)" default. parseSoftwareTypesParam drops it
  * as an unknown key, leaving an empty selection. */
 export const CLEARED_SOFTWARE_TYPES_PARAM = "none";
 
@@ -475,9 +475,9 @@ export const getInstallerActionButtonConfig = (
     switch (status) {
       // Script statuses
       case "failed_script":
-        return { text: "Retry", icon: "refresh" };
+        return { text: "Retry", icon: "retry" };
       case "ran_script":
-        return { text: "Rerun", icon: "refresh" };
+        return { text: "Rerun", icon: "retry" };
       case "running_script":
       case "pending_script":
       case "never_ran_script":
@@ -486,7 +486,7 @@ export const getInstallerActionButtonConfig = (
       case "failed_install":
       case "failed_install_installed":
       case "failed_install_update_available":
-        return { text: "Retry", icon: "refresh" };
+        return { text: "Retry", icon: "retry" };
       case "installed":
       case "pending_uninstall":
       case "uninstalling":
@@ -494,7 +494,7 @@ export const getInstallerActionButtonConfig = (
       case "failed_uninstall_installed":
       case "recently_installed":
       case "recently_updated":
-        return { text: "Reinstall", icon: "refresh" };
+        return { text: "Reinstall", icon: "retry" };
       // skipped_install joins the update family: a patch-when-closed skip is
       // a deferred update, so the action button reads "Update" even though the
       // label column says "Patch skipped".
@@ -503,7 +503,7 @@ export const getInstallerActionButtonConfig = (
       case "update_available":
       case "failed_uninstall_update_available":
       case "skipped_install":
-        return { text: "Update", icon: "refresh" };
+        return { text: "Update", icon: "update" };
       default:
         return { text: "Install", icon: "install" };
     }
@@ -513,7 +513,7 @@ export const getInstallerActionButtonConfig = (
       case "failed_uninstall":
       case "failed_uninstall_installed":
       case "failed_uninstall_update_available":
-        return { text: "Retry uninstall", icon: "refresh" };
+        return { text: "Retry uninstall", icon: "retry" };
       default:
         return { text: "Uninstall", icon: "trash" };
     }

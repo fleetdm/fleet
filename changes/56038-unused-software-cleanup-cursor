@@ -1,0 +1,1 @@
+- Fixed the vulnerabilities cron rescanning the software table on every unused-software cleanup batch, which made `cron_sync_host_software` take hours at large host counts.

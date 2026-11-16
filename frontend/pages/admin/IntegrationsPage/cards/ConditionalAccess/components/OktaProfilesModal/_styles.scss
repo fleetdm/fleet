@@ -1,0 +1,5 @@
+.okta-profiles-modal {
+  &__profiles {
+    @include vertical-page-tab-panel-layout;
+  }
+}

@@ -140,7 +140,7 @@ the account verification message.)`,
 
     let isIcpUser = false;
     let fleetPremiumTrialType = 'local trial';
-    if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
+    if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees >= 500) {
       fleetPremiumTrialType = 'render trial';
       isIcpUser = true;
     }//ﬁ

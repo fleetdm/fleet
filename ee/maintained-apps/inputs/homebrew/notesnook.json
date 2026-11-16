@@ -1,6 +1,6 @@
 {
   "name": "Notesnook",
-  "unique_identifier": "com.streetwriters.notesnook",
+  "unique_identifier": "org.streetwriters.notesnook",
   "token": "notesnook",
   "installer_format": "dmg",
   "slug": "notesnook/darwin",

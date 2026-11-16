@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -22,13 +23,24 @@ import (
 func AuthViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*viewer.Viewer, error) {
 	session, err := svc.GetSessionByKey(ctx, sessionKey)
 	if err != nil {
-		return nil, fleet.NewAuthRequiredError(err.Error())
+		return nil, authViewerError(ctx, err)
 	}
 	user, err := svc.UserUnauthorized(ctx, session.UserID)
 	if err != nil {
-		return nil, fleet.NewAuthRequiredError(err.Error())
+		return nil, authViewerError(ctx, err)
 	}
 	return &viewer.Viewer{User: user, Session: session}, nil
+}
+
+func authViewerError(ctx context.Context, err error) error {
+	if authErr, ok := errors.AsType[*fleet.AuthRequiredError](err); ok {
+		return authErr
+	}
+	// A client that disconnected mid-lookup is not a server failure.
+	if fleet.IsNotFound(err) || errors.Is(err, context.Canceled) {
+		return fleet.NewAuthRequiredError(err.Error())
+	}
+	return ctxerr.Wrap(ctx, fleet.NewAuthUnavailableError(err.Error()), "authenticate session")
 }
 
 // AuthenticatedUser wraps an endpoint, requires that the Fleet user is
@@ -119,6 +131,11 @@ func AuthenticatedUserMiddleware(svc fleet.Service, errHandler errorHandler, nex
 
 		v, err := AuthViewer(r.Context(), string(sessionKey), svc)
 		if err != nil {
+			if unavailable, ok := errors.AsType[*fleet.AuthUnavailableError](err); ok {
+				logging.WithErr(r.Context(), err)
+				errHandler(w, unavailable.Error(), unavailable.StatusCode())
+				return
+			}
 			errHandler(w, err.Error(), http.StatusUnauthorized)
 			return
 		}

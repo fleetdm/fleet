@@ -20,7 +20,7 @@ Workspace ONE is an MDM product from Omnissa that provides unified endpoint mana
 
 ### Enrollment and provisioning
 
-When new employees join or devices need to be deployed at scale, zero-touch enrollment lets IT ship devices directly to end users without manual setup. Fleet supports zero-touch deployment for macOS, Windows, and iOS/iPadOS, with Apple Business integration for Apple devices and Windows Autopilot for Windows. Workspace ONE also supports zero-touch enrollment across these operating systems.
+When new employees join or devices need to be deployed at scale, zero-touch enrollment lets IT ship devices directly to end users without manual setup. Fleet supports zero-touch deployment for macOS, Windows, and iOS/iPadOS, with Apple Business integration for Apple devices and an OEM service that installs Fleet's agent or Windows Autopilot for Windows. Workspace ONE also supports zero-touch enrollment across these operating systems.
 
 Both solutions provide options for preventing end users from removing management and MDM configuration profiles without authorization. Both also support MDM migration using Apple's native capabilities for macOS, iOS, and iPadOS. Fleet extends this further for Windows and Linux. Fleet offers migration scripts and documentation to help IT teams transition these devices with minimal end-user disruption, allowing teams to move enrolled devices to Fleet without requiring employees to re-enroll or lose data.
 

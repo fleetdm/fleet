@@ -25,7 +25,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 18.4.0",
+      os_name: "Ubuntu",
+      os_version: "18.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -47,9 +48,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -75,7 +76,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS 6.10.0",
+      os_name: "CentOS",
+      os_version: "6.10.0",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -97,9 +99,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -125,7 +127,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 16.4.0",
+      os_name: "Ubuntu",
+      os_version: "16.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -147,9 +150,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -175,7 +178,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS Linux 7.9.2009",
+      os_name: "CentOS Linux",
+      os_version: "7.9.2009",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -197,9 +201,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -225,7 +229,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 20.4.0",
+      os_name: "Ubuntu",
+      os_version: "20.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -247,9 +252,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -275,7 +280,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS Linux 8.3.2011",
+      os_name: "CentOS Linux",
+      os_version: "8.3.2011",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -297,9 +303,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -378,7 +384,7 @@ const globalQueries = {
         "Test Query (every hour, 3 platforms, snapshot, no observer run, no min osversion)",
       description: "A test query",
       query: "SELECT * FROM users;",
-      team_id: null,
+      fleet_id: null,
       interval: 3600, // Every hour
       platform: "darwin,windows,linux",
       min_osquery_version: "",
@@ -389,7 +395,6 @@ const globalQueries = {
       author_name: "Test User",
       author_email: "test@example.com",
       observer_can_run: false,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -406,7 +411,7 @@ const globalQueries = {
         "Test Query 2 (every 12 hours, no platforms, observers can run, min version 5.8.1, differential)",
       description: "A second test query",
       query: "SELECT * FROM osquery_info",
-      team_id: null,
+      fleet_id: null,
       interval: 43200, // Every 12 hours
       platform: "",
       min_osquery_version: "5.8.1",
@@ -417,7 +422,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -433,7 +437,7 @@ const globalQueries = {
       name: "Test Query 3",
       description: "A third test query (Select all from windows_crashes",
       query: "SELECT * FROM windows_crashes",
-      team_id: null,
+      fleet_id: null,
       interval: 604800, // Weekly
       platform: "",
       min_osquery_version: "",
@@ -444,7 +448,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -460,7 +463,7 @@ const globalQueries = {
       name: "Test Query 4 (Never runs)",
       description: "A third test query",
       query: "SELECT * FROM osquery_info",
-      team_id: 2,
+      fleet_id: 2,
       interval: 0, // Never
       platform: "",
       min_osquery_version: "",
@@ -471,7 +474,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -487,7 +489,7 @@ const globalQueries = {
       name: "Test Query 5 runs every 5 minutes!",
       description: "A fifth test query",
       query: "SELECT * FROM osquery_info",
-      team_id: 2,
+      fleet_id: 2,
       interval: 604800, // Every week
       platform: "windows",
       min_osquery_version: "",
@@ -498,7 +500,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -514,7 +515,7 @@ const globalQueries = {
       name: "Test Query 6 runs every 6 hours",
       description: "A 6th test query",
       query: "SELECT * FROM osquery_info",
-      team_id: null,
+      fleet_id: null,
       interval: 21600, // 6 hours
       platform: "",
       min_osquery_version: "",
@@ -525,7 +526,6 @@ const globalQueries = {
       author_name: "Test User",
       author_email: "test@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -546,7 +546,7 @@ const teamQueries = {
       name: "test specific team query 2",
       description: "",
       query: "SELECT * FROM video_info;",
-      team_id: 13,
+      fleet_id: 13,
       platform: "windows",
       min_osquery_version: "",
       automations_enabled: true,
@@ -557,7 +557,6 @@ const teamQueries = {
       author_id: 1,
       author_name: "Jacob",
       author_email: "jacob@fleetdm.com",
-      packs: [],
       stats: {
         system_time_p50: 1,
         // system_time_p95: null,
@@ -575,7 +574,7 @@ const teamQueries = {
       name: "test specific team query",
       description: "",
       query: "SELECT * FROM osquery_info;",
-      team_id: 43,
+      fleet_id: 43,
       platform: "darwin",
       min_osquery_version: "",
       automations_enabled: true,
@@ -587,7 +586,6 @@ const teamQueries = {
       author_id: 1,
       author_name: "Jacob",
       author_email: "jacob@fleetdm.com",
-      packs: [],
       stats: {
         system_time_p50: 4,
         // system_time_p95: null,
@@ -10633,11 +10631,12 @@ const variables = (url: string) => {
   };
 };
 
-const addVariable = (url: string, variable: any) => {
-  if (variable.name === "DUPE") {
+const addVariable = (url: string, variable?: unknown) => {
+  const { name } = (variable ?? {}) as { name?: string };
+  if (name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
-  if (variable.name === "ERR") {
+  if (name === "ERR") {
     return Promise.reject({ status: 500, message: "Internal Server Error" });
   }
 
@@ -10645,7 +10644,7 @@ const addVariable = (url: string, variable: any) => {
   mockVariables = [
     ...mockVariables,
     {
-      name: variable.name,
+      name: name ?? "",
       id: nextVariableId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

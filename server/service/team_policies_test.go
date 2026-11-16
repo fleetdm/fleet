@@ -834,7 +834,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
 				},
-				wantErr: `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`,
+				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:              "windows app",
@@ -856,6 +856,62 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					NotifyBeforePatching: true,
 				},
 				wantErr: `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+			{
+				name:              "deadline on a non-patch policy",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Name:                         "dynamic policy",
+					Query:                        "SELECT 1;",
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `"patch_deadline" is only supported for patch policies`,
+			},
+			{
+				name:              "deadline with patch_when_closed",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					PatchWhenClosed:              true,
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+			},
+			{
+				name:              "deadline with notify_before_patching",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					NotifyBeforePatching:         true,
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+			},
+			{
+				name:              "deadline on a windows app",
+				installerPlatform: "windows",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `"patch_deadline" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
+			},
+			{
+				name:              "deadline with continuous automations off",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                 &patchType,
+					PatchSoftwareTitleID: new(patchSoftwareTitleID),
+					PatchDeadline:        true,
+				},
+				wantErr: `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`,
 			},
 		}
 
@@ -893,13 +949,36 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				name:      "stored patch_when_closed",
 				storedPWC: true,
 				payload:   fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
-				wantErr:   `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`,
+				wantErr:   `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:           "windows policy",
 				storedPlatform: "windows",
 				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
 				wantErr:        `"notify_before_patching" is only available for macOS Fleet-maintained apps.`,
+			},
+			{
+				name:    "deadline with continuous automations off",
+				payload: fleet.ModifyPolicyPayload{PatchDeadline: new(true), ContinuousAutomationsEnabled: new(false)},
+				wantErr: `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+			{
+				name:       "deadline on a non-patch policy",
+				storedType: fleet.PolicyTypeDynamic,
+				payload:    fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
+				wantErr:    `"patch_deadline" is only supported for patch policies`,
+			},
+			{
+				name:      "deadline with stored patch_when_closed",
+				storedPWC: true,
+				payload:   fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
+				wantErr:   `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+			},
+			{
+				name:           "deadline on a windows policy",
+				storedPlatform: "windows",
+				payload:        fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
+				wantErr:        `"patch_deadline" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
 			},
 		}
 
@@ -1031,6 +1110,35 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			assert.Equal(t, c.wantContinuous, saved.ContinuousAutomationsEnabled, c.name)
 		}
 	})
+}
+
+func TestModifyGlobalPolicyScriptID(t *testing.T) {
+	const policyID = uint(42)
+
+	ds := new(mock.Store)
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{ID: policyID, Name: "global", Query: "SELECT 1;"}, nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error { return nil }
+	opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+		return nil
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	_, err := svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 1}})
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre)
+	require.ErrorContains(t, err, errPolicyAllFleetsForScripts)
+	require.False(t, ds.SavePolicyFuncInvoked)
+
+	// Clients such as the UI send the full payload, so unsetting must keep working.
+	for _, unset := range []optjson.Any[uint]{{Set: true, Valid: true}, {Set: true}} {
+		_, err = svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: unset})
+		require.NoError(t, err)
+	}
+	require.True(t, ds.SavePolicyFuncInvoked)
 }
 
 func TestTeamPolicyResendConfigProfile(t *testing.T) {

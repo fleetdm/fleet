@@ -49,9 +49,6 @@ var componentFileMap = map[string]map[string]string{
 		"windows":       "osqueryd.exe",
 		"windows-arm64": "osqueryd.exe",
 	},
-	"nudge": {
-		"macos": "nudge.app.tar.gz",
-	},
 	"swiftDialog": {
 		"macos": "swiftDialog.app.tar.gz",
 	},
@@ -88,7 +85,7 @@ func channelVersionCommand() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:        "components",
 				EnvVars:     []string{"TUF_STATUS_COMPONENTS"},
-				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "nudge", "swiftDialog", "escrowBuddy"),
+				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "swiftDialog", "escrowBuddy"),
 				Destination: &components,
 				Usage:       "List of components",
 			},
@@ -157,7 +154,7 @@ func channelVersionCommand() *cli.Command {
 					Right:  true,
 				})
 				var rows [][]string
-				componentsInOrder := []string{"orbit", "desktop", "osqueryd", "nudge", "swiftDialog", "escrowBuddy"}
+				componentsInOrder := []string{"orbit", "desktop", "osqueryd", "swiftDialog", "escrowBuddy"}
 				setIfEmpty := func(m map[string]string, k string) string {
 					v := m[k]
 					if v == "" {
@@ -183,7 +180,7 @@ func channelVersionCommand() *cli.Command {
 }
 
 // validVersion performs a loose parsing of a version string, because
-// some components like nudge do not use semantic versioning (e.g. 1.1.10.81462).
+// some components do not use semantic versioning (e.g. 1.1.10.81462).
 func validVersion(version string) bool {
 	parts := strings.Split(version, ".")
 	for _, part := range parts {

@@ -1,8 +1,9 @@
 {
   "name": "MindManager",
-  "unique_identifier": "com.mindjet.mindmanager.25",
+  "unique_identifier": "com.mindjet.mindmanager.26",
   "token": "mindmanager",
   "installer_format": "dmg",
   "slug": "mindmanager/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/mindmanager-install.sh"
 }

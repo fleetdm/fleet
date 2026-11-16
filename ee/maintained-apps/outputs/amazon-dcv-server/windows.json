@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.0.24952.0",
+      "version": "26.0.25174.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon DCV Server' AND publisher = 'NICE, an Amazon Web Services company';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon DCV Server' AND publisher = 'NICE, an Amazon Web Services company' AND version_compare(version, '26.0.24952.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon DCV Server' AND publisher = 'NICE, an Amazon Web Services company' AND version_compare(version, '26.0.25174.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon dcv server.exe');"
       },
-      "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2026.0/Servers/nice-dcv-server-x64-Release-2026.0-24952.msi",
+      "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2026.0/Servers/nice-dcv-server-x64-Release-2026.0-25174.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "e1f43f45",
-      "sha256": "28e83279372f6dd313812be5a0ae0c8a82beee4ae1976da5f1effb0fd7e5b47f",
+      "sha256": "d11c5370d2066d5028c5597f83fd40a494770b03157a4810bfe063e926f638d9",
       "default_categories": [
         "Productivity"
       ],

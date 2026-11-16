@@ -8,7 +8,7 @@ import { PaginationParams } from "./common";
 export interface IGetCommandsApiParams extends PaginationParams {
   order_key?: string;
   order_direction?: "asc" | "desc";
-  host_identifier?: string;
+  host_identifier: string;
   request_type?: string;
   command_status?: string;
 }

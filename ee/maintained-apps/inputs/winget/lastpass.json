@@ -2,7 +2,7 @@
   "name": "LastPass",
   "slug": "lastpass/windows",
   "package_identifier": "LastPass.LastPass",
-  "unique_identifier": "LastPass",
+  "unique_identifier": "LastPass Universal Windows Installer",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

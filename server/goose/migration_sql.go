@@ -148,7 +148,7 @@ func (c *Client) runSQLMigration(db *sql.DB, scriptFile string, v int64, directi
 	for _, query := range splitSQLStatements(f, direction) {
 		if _, err = tx.Exec(query); err != nil {
 			tx.Rollback() //nolint:errcheck
-			log.Fatalf("FAIL %s (%v), quitting migration.", filepath.Base(scriptFile), err)
+			log.Fatalf("FAIL %s: %v", filepath.Base(scriptFile), err)
 			return err
 		}
 	}

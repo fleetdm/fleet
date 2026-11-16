@@ -16,8 +16,8 @@ const waitForLoadingToFinish = async (container: HTMLElement) => {
 };
 
 const team1ScriptOverrides = [
-  createMockScript({ id: 1, team_id: 1, name: "Team script 1" }),
-  createMockScript({ id: 2, team_id: 1, name: "Team script 2" }),
+  createMockScript({ id: 1, fleet_id: 1, name: "Team script 1" }),
+  createMockScript({ id: 2, fleet_id: 1, name: "Team script 2" }),
 ];
 
 const team1ScriptsHandler = getTeamScriptsHandler(1, team1ScriptOverrides);

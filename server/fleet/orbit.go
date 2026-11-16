@@ -81,6 +81,11 @@ type OrbitConfigNotifications struct {
 // field names, notifications fields prefixed with "notifications.".
 const OrbitConfigFallbackChangesHeader = "X-Fleet-Orbit-Config-Fallback-Changes"
 
+// OsqueryConfigFallbackChangeHeader is the osquery config request header in
+// which orbit, serving osquery its config, reports that the config it fetched
+// on its fallback poll had changed without the server nudging it.
+const OsqueryConfigFallbackChangeHeader = "X-Fleet-Osquery-Config-Fallback-Change"
+
 // IsQuiet reports whether the notifications ask orbit for nothing: no flag is
 // set and no script or software installer is pending. Orbit receivers use the
 // config poll as their clock while a flag is set, so only a quiet config lets
@@ -100,7 +105,6 @@ type OrbitConfig struct {
 	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
 	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
 	Extensions       json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
 	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
 	// UpdateChannels contains the TUF channels to use on fleetd components.
 	//
@@ -112,6 +116,18 @@ type OrbitConfig struct {
 	// persistent WebSocket to the server as a check-in notification channel
 	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
 	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+	// EntraDeviceTokenRequest, when set, asks fleetd on macOS to get an Entra ID token
+	// proving the device's Entra device ID and post it to the server, for the Microsoft
+	// "Conditional access" integration. Its values only change with the integration.
+	EntraDeviceTokenRequest *OrbitEntraDeviceTokenRequest `json:"entra_device_token_request,omitempty"`
+}
+
+// OrbitEntraDeviceTokenRequest holds the parameters of the Entra device token request.
+type OrbitEntraDeviceTokenRequest struct {
+	TenantID string `json:"tenant_id"`
+	ClientID string `json:"client_id"`
+	// Nonce binds the token to the host. It's prefixed with the host's hardware UUID.
+	Nonce string `json:"nonce"`
 }
 
 // OrbitWebSocketTransportConfig is the WebSocket transport directive delivered
@@ -126,6 +142,12 @@ type OrbitWebSocketTransportConfig struct {
 	// means the server doesn't send orbit/config nudges; agents keep their
 	// default poll interval.
 	OrbitConfigPollInterval *int `json:"orbit_config_poll_interval,omitempty"`
+	// OsqueryConfigPollInterval, when set, directs orbit to serve osquery its
+	// config (as osquery's config plugin), fetching it from the server when
+	// nudged (AgentWSMessageTypeOsqueryConfig) and, while connected, every
+	// OsqueryConfigPollInterval seconds as a fallback. Unset means osquery
+	// fetches its config from the server directly.
+	OsqueryConfigPollInterval *int `json:"osquery_config_poll_interval,omitempty"`
 }
 
 type OrbitConfigReceiver interface {

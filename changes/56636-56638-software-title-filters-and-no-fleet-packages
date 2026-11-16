@@ -1,0 +1,2 @@
+- Fixed the `software_installer_id` and `app_store_app_version_id` filters allowing ID's that don't belong to the software title.
+- Fixed software title endpoints returning package information from the Unassigned fleet when `fleet_id` is not provided.

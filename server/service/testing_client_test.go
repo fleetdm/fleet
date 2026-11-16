@@ -212,7 +212,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 				_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID)
 				return err
 			})
-			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
+			err := ts.ds.DeleteLabel(ctx, lbl.ID)
 			require.NoError(t, err)
 		}
 	}
@@ -252,13 +252,6 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
 		}
 		_, err = ts.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
-		require.NoError(t, err)
-	}
-
-	packs, err := ts.ds.ListPacks(ctx, fleet.PackListOptions{})
-	require.NoError(t, err)
-	for _, pack := range packs {
-		err := ts.ds.DeletePack(ctx, pack.Name)
 		require.NoError(t, err)
 	}
 
@@ -465,7 +458,7 @@ func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
 	specsReq := map[string]any{
 		"specs": []any{teamSpec},
 	}
-	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
+	ts.Do("POST", "/api/latest/fleet/spec/fleets", specsReq, http.StatusOK)
 }
 
 func (ts *withServer) LoginSSOUser(username, password string) string {

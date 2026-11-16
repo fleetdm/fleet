@@ -31,15 +31,18 @@ type Context struct {
 	CustomHeaders map[string]string `json:"custom-headers"`
 }
 
-func configFlag() cli.Flag {
+func defaultConfigPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		homeDir = "~"
 	}
-	defaultConfigPath := filepath.Join(homeDir, ".fleet", "config")
+	return filepath.Join(homeDir, ".fleet", "config")
+}
+
+func configFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:    "config",
-		Value:   defaultConfigPath,
+		Value:   defaultConfigPath(),
 		EnvVars: []string{"CONFIG"},
 		Usage:   "Path to the fleetctl config file",
 	}
@@ -303,15 +306,16 @@ func configSetCommand() *cli.Command {
 				fmt.Printf("[+] Set the token in the %q context\n", c.String("context"))
 			}
 
-			if flTLSSkipVerify {
+			if c.IsSet("tls-skip-verify") {
 				set = true
-				if err := setConfigValue(configPath, context, "tls-skip-verify", "true"); err != nil {
+				value := strconv.FormatBool(flTLSSkipVerify)
+				if err := setConfigValue(configPath, context, "tls-skip-verify", value); err != nil {
 					return fmt.Errorf("error setting tls-skip-verify: %w", err)
 				}
-				fmt.Printf("[+] Set the tls-skip-verify config key to \"true\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the tls-skip-verify config key to %q in the %q context\n", value, c.String("context"))
 			}
 
-			if flRootCA != "" {
+			if c.IsSet("rootca") {
 				set = true
 				if err := setConfigValue(configPath, context, "rootca", flRootCA); err != nil {
 					return fmt.Errorf("error setting rootca: %w", err)

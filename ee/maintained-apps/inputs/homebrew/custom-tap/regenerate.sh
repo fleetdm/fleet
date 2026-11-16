@@ -48,11 +48,21 @@ fi
 TAP_USER="fleetdm"
 TAP_NAME="fma-custom-tap"
 TAP_DIR="$(brew --repository)/Library/Taps/${TAP_USER}/homebrew-${TAP_NAME}"
+WORK_DIR="$(mktemp -d)"
 
 cleanup() {
-  rm -rf "$TAP_DIR"
+  rm -rf "$TAP_DIR" "$WORK_DIR"
+  # Only succeeds if empty, so another fleetdm tap stays put.
+  rmdir "$(dirname "$TAP_DIR")" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+# Newer Homebrew refuses to load casks from untrusted taps. Brew keeps its
+# trust store under $XDG_CONFIG_HOME when set, so pointing that at WORK_DIR
+# trusts the throwaway tap without touching the user's own trust.json.
+isolated_brew() {
+  XDG_CONFIG_HOME="${WORK_DIR}/config" brew "$@"
+}
 
 rm -rf "$TAP_DIR"
 mkdir -p "$TAP_DIR/Casks"
@@ -64,6 +74,10 @@ cp Casks/*.rb "$TAP_DIR/Casks/"
   git add -A
   git -c user.email=fma@local -c user.name=fma commit -q -m "local regenerate"
 ) >/dev/null
+
+if isolated_brew trust --help >/dev/null 2>&1; then
+  isolated_brew trust --tap "${TAP_USER}/${TAP_NAME}" >/dev/null
+fi
 
 mkdir -p api
 
@@ -77,10 +91,13 @@ STRIP='del(.installed, .installed_time, .outdated, .tap, .tap_git_head, .full_to
 for rb in "${rb_files[@]}"; do
   token="$(basename "$rb" .rb)"
   out="api/${token}.json"
+  tmp="${WORK_DIR}/${token}.json"
   echo "Regenerating ${out} from ${rb}..."
-  brew info --cask --json=v2 "${TAP_USER}/${TAP_NAME}/${token}" \
-    | jq ".casks[0] | ${STRIP}" \
-    > "$out"
+  # Write to a temp file so a brew failure can't truncate the committed JSON.
+  isolated_brew info --cask --json=v2 "${TAP_USER}/${TAP_NAME}/${token}" \
+    | jq -e ".casks[0] | ${STRIP}" \
+    > "$tmp"
+  mv "$tmp" "$out"
 done
 
 echo

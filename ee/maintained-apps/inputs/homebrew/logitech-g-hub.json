@@ -5,6 +5,5 @@
   "token": "logitech-g-hub",
   "installer_format": "zip",
   "default_categories": ["Utilities"],
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/logitech-g-hub-install.sh",
-  "frozen": true
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/logitech-g-hub-install.sh"
 }

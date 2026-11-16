@@ -1,4 +1,0 @@
-#!/bin/bash
-source $FLEET_ENV_PATH
-endpoint="api/latest/fleet/schedule/$1"
-curl $CURL_FLAGS -X DELETE -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$endpoint"

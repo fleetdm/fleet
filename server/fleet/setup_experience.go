@@ -52,6 +52,7 @@ type SetupExperienceStatusResult struct {
 	// app version (e.g. "Production"). Populated by ListSetupExperienceResultsByHostUUID
 	// via a JOIN on vpp_apps_teams. Nil for installer / in-house / script items.
 	VPPAppVersionName       *string `db:"vpp_app_version_name" json:"-"`
+	VPPAppVPPTokenID        *uint   `db:"vpp_app_vpp_token_id" json:"-"`
 	NanoCommandUUID         *string `db:"nano_command_uuid" json:"-" `
 	InHouseAppID            *uint   `db:"in_house_app_id" json:"-"`
 	SetupExperienceScriptID *uint   `db:"setup_experience_script_id" json:"-" `
@@ -147,11 +148,6 @@ func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 
 func (s *SetupExperienceStatusResult) IsForVPPApp() bool {
 	return s.VPPAppTeamID != nil
-}
-
-// IsForInHouseApp indicates if this result is for a setup experience in-house app (.ipa) step.
-func (s *SetupExperienceStatusResult) IsForInHouseApp() bool {
-	return s.InHouseAppID != nil
 }
 
 func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {

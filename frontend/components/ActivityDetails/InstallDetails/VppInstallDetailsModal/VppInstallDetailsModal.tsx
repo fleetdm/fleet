@@ -58,6 +58,7 @@ interface IGetStatusMessageProps {
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  activityCreatedAt?: string;
   platform?: string;
   vppVerifyTimeoutSeconds?: number;
   /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
@@ -91,6 +92,7 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  activityCreatedAt,
   platform,
   vppVerifyTimeoutSeconds,
   canOverrideFailureWithInstalled = false,
@@ -105,8 +107,8 @@ export const getStatusMessage = ({
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-    commandUpdatedAt
-      ? ` (${timeAgo(new Date(commandUpdatedAt), {
+    (activityCreatedAt || commandUpdatedAt)
+      ? ` (${timeAgo(new Date(activityCreatedAt || commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -344,6 +346,7 @@ export type IVppInstallDetails = {
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
+  activityCreatedAt?: string;
   platform?: string;
   /**
    * Set when Fleet failed the install before reaching the device (e.g. an
@@ -365,6 +368,10 @@ export type IVppInstallDetails = {
   /** Whether the install was triggered as a self-service action by the end
    *  user. Renders the actor as "End user". */
   selfService?: boolean;
+  /** Location (organization unit) of the VPP token the license was assigned
+   * from. Set by activity-feed entry points; inventory entry points have no
+   * token source. */
+  vppTokenLocation?: string;
 };
 
 interface IVPPInstallDetailsModalProps {
@@ -394,6 +401,8 @@ export const VppInstallDetailsModal = ({
     actorFullName,
     fleetInitiated,
     selfService,
+    vppTokenLocation,
+    activityCreatedAt,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -560,6 +569,7 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
+    activityCreatedAt,
     platform,
     vppVerifyTimeoutSeconds: Number.isFinite(vppVerifyTimeoutSeconds)
       ? vppVerifyTimeoutSeconds
@@ -677,12 +687,29 @@ export const VppInstallDetailsModal = ({
       isIPadOrIPhone(platform || "") &&
       (displayStatus === "installed" || isPendingInstall);
 
+    const showLicenseSentence =
+      showConfigUpdateNote &&
+      !!vppTokenLocation &&
+      !isManuallyInstalled &&
+      !overrideFailedMessageWithInstalledMessage;
+
     return (
       <div className={`${baseClass}__modal-content`}>
         <IconStatusMessage
           className={`${baseClass}__status-message`}
           iconName={iconName}
-          message={<span>{statusMessage}</span>}
+          message={
+            <span>
+              {statusMessage}
+              {showLicenseSentence && (
+                <>
+                  {" "}
+                  Fleet assigned license from <b>{vppTokenLocation}</b> VPP
+                  token.
+                </>
+              )}
+            </span>
+          }
         />
         {showConfigUpdateNote && (
           <p>

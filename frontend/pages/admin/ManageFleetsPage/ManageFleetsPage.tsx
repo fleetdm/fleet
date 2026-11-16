@@ -78,7 +78,8 @@ const ManageFleetsPage = ({
     if (!isCreateFleetDisabled) {
       setShowCreateFleetModal(true);
     }
-    const { create_fleet, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.create_fleet;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,
@@ -97,9 +98,9 @@ const ManageFleetsPage = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
+    onSuccess: ({ user, available_fleets, settings }: IGetMeResponse) => {
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
     },
   });
@@ -113,7 +114,7 @@ const ManageFleetsPage = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ILoadTeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.fleets,
       onError: (error) => handlePageError(error),
     }
   );
