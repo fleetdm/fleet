@@ -4,17 +4,17 @@ A new app version, configuration profile, or OS update can break things for ever
 
 ## Choose how to build rings
 
-Fleet supports two ring designs. Both put each host in exactly one ring, and both use the same promotion steps, so you can switch later without changing your workflow.
+Fleet supports two ring designs. Both use the same promotion steps, so you can switch later without changing your workflow.
 
 - IdP groups (recommended): Each ring is a group in your identity provider (IdP), like Okta or Microsoft Entra ID. You decide which people are in which ring, so your early adopters are people who've agreed to test changes and know how to report problems. Rings follow the person to every host they use, including iPhones, iPads, and Android devices.
-- Rollout waves: Each ring is a dynamic label that assigns hosts to a wave based on their hardware UUID. The team that manages Fleet controls the rings end to end, with no IdP changes. Use this when you can't create or manage IdP groups, or when most of your hosts have no end user assigned (servers, kiosks, shared devices).
+- Rollout rings: Each ring is a dynamic label that assigns hosts to a ring based on their hardware UUID. The team that manages Fleet controls the rings end to end, with no IdP changes. Use this when you don't have access to create or manage IdP groups, or when most of your hosts have no end user assigned (servers, kiosks, shared devices).
 
 ## Prerequisites
 
 - Fleet Premium.
 - Admin or maintainer access to the fleet you're rolling out to.
 - For IdP rings: your IdP connected to Fleet, with groups sent to Fleet and end users mapped to hosts. Learn how in [Foreign vitals: map IdP users to hosts](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
-- For rollout waves: hosts running Fleet's agent (fleetd). Waves rely on a query, so they don't cover iOS, iPadOS, or Android hosts.
+- For rollout rings: hosts running Fleet's agent (fleetd). Rollout rings rely on a query, so they don't cover iOS, iPadOS, or Android hosts.
 
 This guide shows GitOps YAML for each step. Everything also works in the Fleet UI: create the labels under **Labels**, and set targets in each item's **Target** settings.
 
@@ -31,7 +31,7 @@ This guide shows GitOps YAML for each step. Everything also works in the Fleet U
 
 You don't need a group for the final ring. The last step of every rollout targets all hosts, which covers everyone who isn't in a ring group.
 
-> **Note:** Hosts without an IdP user aren't in any ring. They get the change at the final step, along with everyone else. If you have many of these hosts, use [rollout waves](#option-2-build-rings-from-rollout-waves) instead, or add them to a [pinned hosts](#optional-pin-specific-hosts-into-the-first-ring) label.
+> **Note:** Hosts without an IdP user aren't in any ring. They get the change at the final step, along with everyone else. If you have many of these hosts, use [rollout rings](#option-2-build-rings-from-hardware-uuids) instead, or add them to a [pinned hosts](#optional-pin-specific-hosts-into-the-first-ring) label.
 
 ### Create a label for each ring
 
@@ -71,34 +71,41 @@ In the UI, go to **Labels > Add label**, select **Host vitals**, choose **IdP gr
 
 > **Warning:** The `value` must match the IdP group name exactly. If someone renames the group in your IdP, the label empties and the ring stops receiving changes. Update the label's `value` whenever a ring group is renamed.
 
-## Option 2: Build rings from rollout waves
+## Option 2: Build rings from hardware UUIDs
 
-Rollout waves split hosts into five waves using two characters of each host's hardware UUID. A host's wave never changes, and new hosts land in a wave shortly after they enroll.
+If you don't have access to your IdP, use rollout rings. Each ring is a dynamic label that picks a share of hosts using two characters of each host's hardware UUID. A host's ring assignment never changes, and new hosts land in their rings shortly after they enroll.
 
-| Wave | Share of hosts |
+Rollout rings are cumulative: each ring includes every host in the rings before it. There's a set of five rings for each of macOS, Windows, and Linux, so each platform can move at its own pace.
+
+| Ring | Share of the platform's hosts |
 | --- | --- |
-| Wave 1 - Canary (0-1%) | ~1% |
-| Wave 2 - Early (1-5%) | ~4% |
-| Wave 3 - Pilot (5-25%) | ~20% |
-| Wave 4 - Broad (25-75%) | ~50% |
-| Wave 5 - Tail (75-100%) | ~25% |
+| Ring 1 - Canary (1%) | ~1% |
+| Ring 2 - Early (5%) | ~5% |
+| Ring 3 - Pilot (25%) | ~25% |
+| Ring 4 - Broad (75%) | ~75% |
+| Ring 5 - All (100%) | 100% |
 
-1. Download [`rollout-waves.labels.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/labels/rollout-waves.labels.yml) and save it to `lib/labels/rollout-waves.labels.yml` in your GitOps repository.
-2. Reference it from `default.yml`:
+Each label name starts with its platform, like `macOS - Ring 1 - Canary (1%)` or `Windows - Ring 3 - Pilot (25%)`.
+
+1. Download [`rollout-rings.labels.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/labels/rollout-rings.labels.yml) and save it to `lib/labels/rollout-rings.labels.yml` in your GitOps repository.
+2. Delete the sections for any platforms you don't manage.
+3. Reference the file from `default.yml`:
 
    ```yaml
    labels:
-     - path: ./lib/labels/rollout-waves.labels.yml
+     - path: ./lib/labels/rollout-rings.labels.yml
    ```
 
-3. Run `fleetctl gitops`.
-4. Wait about an hour before you target the waves. Fleet adds hosts to dynamic labels as hosts check in, so a brand-new wave looks smaller than it is.
+4. Run `fleetctl gitops`.
+5. Wait about an hour before you target the rings. Fleet adds hosts to dynamic labels as hosts check in, so a brand-new ring looks smaller than it is.
 
-To create the waves in the UI, go to **Labels > Add label**, select **Dynamic**, and copy each wave's name and query from the file.
+To create the rings in the UI, go to **Labels > Add label**, select **Dynamic**, and copy each ring's name, platform, and query from the file.
 
-> **Note:** Hosts that share a hardware UUID, like VMs cloned from a template without a new UUID, all land in the same wave. If one wave is much bigger than its expected share, look for duplicate UUIDs.
+> **Note:** Hosts that share a hardware UUID, like VMs cloned from a template without a new UUID, all land in the same rings. If a ring is much bigger or smaller than its expected share, look for duplicate UUIDs.
 
-To change the wave sizes, edit the thresholds in each query. The waves cover the values 0-255, so a threshold of `< 3` is about 1% of hosts and `< 64` is about 25%.
+To change the ring sizes, edit the threshold in each query. The thresholds cover the values 0-255, so `< 3` is about 1% of hosts and `< 64` is about 25%.
+
+If you need each host in exactly one group, for example to compare results between groups, use [`rollout-waves.labels.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/labels/rollout-waves.labels.yml) instead. The waves split hosts into the same slices without overlap, and you promote them the same way.
 
 ## Optional: Pin specific hosts into the first ring
 
@@ -114,7 +121,7 @@ In the UI, go to **Labels > Add label**, select **Manual**, and add the hosts.
 
 Put the ring labels on whatever delivers the change. Add only the first ring (and `Pinned canaries`, if you use it) to start.
 
-The examples below use IdP ring names. For rollout waves, use the wave names instead, like `Wave 1 - Canary (0-1%)`.
+The examples below use IdP ring names. For rollout rings, use the ring for the software's or profile's platform instead, like `macOS - Ring 1 - Canary (1%)`.
 
 ### New software
 
@@ -215,7 +222,7 @@ Run `fleetctl gitops` to start the rollout.
 
 ## Promote to the next ring
 
-When the current ring looks healthy, add the next ring to every list you set up for this rollout. Keep the earlier rings in the list. Each host is in only one ring, so removing a ring would stop the rollout for those hosts.
+When the current ring looks healthy, add the next ring to every list you set up for this rollout. Keep the earlier rings in the list. IdP ring groups don't overlap, so removing an earlier ring would stop the rollout for those hosts. Rollout rings already include the earlier rings, so keeping them is harmless and leaves a record of each step in your Git history.
 
 ```yaml
       labels_include_any:
@@ -258,7 +265,7 @@ For the next release, start again from the first ring.
 
 **A ring label has no hosts**
 
-For IdP rings, check that the group name in the label matches the IdP group exactly and that your IdP is sending the group to Fleet. Open a host in the ring and check **Groups (IdP)** on its **Host details** page. For rollout waves, wait an hour after you create the labels.
+For IdP rings, check that the group name in the label matches the IdP group exactly and that your IdP is sending the group to Fleet. Open a host in the ring and check **Groups (IdP)** on its **Host details** page. For rollout rings, wait an hour after you create the labels, and check that the host's platform matches the ring's platform.
 
 **A host is in a ring group but doesn't get the change**
 
@@ -281,4 +288,4 @@ The new version's include list and the current version's exclude list don't matc
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-11-16">
 <meta name="category" value="guides">
-<meta name="description" value="Roll out software, profiles, and OS updates in rings with IdP group or rollout wave labels, and promote changes one ring at a time.">
+<meta name="description" value="Roll out software, profiles, and OS updates in rings built from IdP groups or hardware UUIDs, and promote changes one ring at a time.">
