@@ -498,7 +498,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
 
-			if err := payload.MDM.MacOSSetup.ValidateAgainst(team.Config.MDM.MacOSSetup, false); err != nil {
+			var hasBootstrapPackage bool
+			if payload.MDM.MacOSSetup.ManualAgentInstall.Value {
+				_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, team.ID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "checking bootstrap package")
+				}
+				hasBootstrapPackage = err == nil
+			}
+			if err := payload.MDM.MacOSSetup.ValidateAgainst(team.Config.MDM.MacOSSetup, hasBootstrapPackage); err != nil {
 				return nil, err
 			}
 

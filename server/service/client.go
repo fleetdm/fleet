@@ -685,14 +685,31 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
-		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-		androidCustomSettings := extractAppCfgAndroidCustomSettings(specs.AppConfig)
+		windowsCustomSettings, err := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		macosCustomSettings, err := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		androidCustomSettings, err := extractAppCfgAndroidCustomSettings(specs.AppConfig)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
 		if err := validateProfileSpecs(macosCustomSettings, windowsCustomSettings, androidCustomSettings); err != nil {
 			return nil, nil, nil, nil, err
 		}
+		scripts, err := extractAppCfgScripts(specs.AppConfig)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		macosSetup, err := extractAppCfgMacOSSetup(specs.AppConfig)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
 
-		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
+		if macosSetup != nil {
 			// Check the setup assistant file before deleting anything.
 			var setupAssistant []byte
 			if macosSetup.MacOSSetupAssistant.Value != "" {
@@ -741,7 +758,7 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
+		if scripts != nil {
 			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
 			for i, f := range scripts {
 				b, err := os.ReadFile(f)
@@ -922,7 +939,10 @@ func (c *Client) ApplyGroup(
 			tmAssetContents[k] = assetContents
 		}
 
-		tmMacSetup := extractTmSpecsMacOSSetup(specs.Teams)
+		tmMacSetup, err := extractTmSpecsMacOSSetup(specs.Teams)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
 		tmBootstrapPackages := make(map[string]*fleet.MDMAppleBootstrapPackage, len(tmMacSetup))
 		tmMacSetupAssistants := make(map[string][]byte, len(tmMacSetup))
 
@@ -977,7 +997,10 @@ func (c *Client) ApplyGroup(
 			}
 		}
 
-		tmScripts := extractTmSpecsScripts(specs.Teams)
+		tmScripts, err := extractTmSpecsScripts(specs.Teams)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
 		tmScriptsPayloads := make(map[string][]fleet.ScriptPayload, len(tmScripts))
 		for k, paths := range tmScripts {
 			scriptPayloads := make([]fleet.ScriptPayload, len(paths))
@@ -1112,7 +1135,6 @@ func (c *Client) ApplyGroup(
 
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
-		var err error
 		teamOpts := fleet.ApplyTeamSpecOptions{
 			ApplySpecOptions:  opts.ApplySpecOptions,
 			DryRunAssumptions: specs.TeamsDryRunAssumptions,
@@ -1685,38 +1707,76 @@ func checkRemovedSpecKeys(specs *spec.Group) error {
 	return nil
 }
 
-func extractAppCfgMacOSSetup(appCfg any) *fleet.GitOpsMacOSSetup {
+func extractAppCfgMacOSSetup(appCfg any) (*fleet.GitOpsMacOSSetup, error) {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	mmdm, ok := asMap["mdm"].(map[string]interface{})
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	// GitOps
 	mosGitOps, ok := mmdm["setup_experience"].(*fleet.GitOpsMacOSSetup)
 	if ok {
-		return mosGitOps
+		return mosGitOps, nil
 	}
 
 	// Legacy fleetctl apply
 	mos, ok := mmdm["setup_experience"].(map[string]any)
 	if !ok || mos == nil {
-		return nil
+		return nil, nil
 	}
-	// A key left out keeps the item; an empty one deletes it.
+	items, err := decodeSetupItems("", mos)
+	if err != nil {
+		return nil, err
+	}
+	// A key left out keeps the item; an empty or null one deletes it.
 	var setup fleet.GitOpsMacOSSetup
-	if v, ok := mos["macos_bootstrap_package"]; ok {
-		bp, _ := v.(string) // if not a string, bp == ""
-		setup.BootstrapPackage = optjson.SetString(bp)
+	if v, ok := items["macos_bootstrap_package"]; ok {
+		setup.BootstrapPackage = optjson.SetString(ptr.ValOrZero(v))
 	}
-	if v, ok := mos["apple_setup_assistant"]; ok {
-		msa, _ := v.(string)
-		setup.MacOSSetupAssistant = optjson.SetString(msa)
+	if v, ok := items["apple_setup_assistant"]; ok {
+		setup.MacOSSetupAssistant = optjson.SetString(ptr.ValOrZero(v))
 	}
-	return &setup
+	return &setup, nil
+}
+
+// decodeSetupItems returns the setup experience keys that name a file or URL, keyed by name.
+func decodeSetupItems(prefix string, setup any) (map[string]*string, error) {
+	var raw map[string]json.RawMessage
+	if b, err := json.Marshal(setup); err != nil || json.Unmarshal(b, &raw) != nil {
+		// not an object, which the server rejects along with the rest of the spec
+		return nil, nil
+	}
+	items := make(map[string]*string)
+	for _, key := range []string{"macos_bootstrap_package", "apple_setup_assistant", "macos_script"} {
+		v, ok := raw[key]
+		if !ok {
+			continue
+		}
+		var s *string
+		if err := decodeSpecValue(prefix+"setup_experience."+key, v, &s); err != nil {
+			return nil, err
+		}
+		items[key] = s
+	}
+	return items, nil
+}
+
+// fleetctl apply reads specs as untyped YAML, and since Fleet 5 the server no longer receives the
+// profiles, scripts, or setup items, so a value of the wrong type is rejected here instead of being
+// read as empty, which would delete what's there.
+func decodeSpecValue(key string, value, target any) error {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("%s: %w", key, err)
+	}
+	if err := json.Unmarshal(b, target); err != nil {
+		return fmt.Errorf("%s: %s", key, fleet.NewUserMessageError(err, http.StatusBadRequest).UserMessage())
+	}
+	return nil
 }
 
 // Since Fleet 5 the config and fleet API types don't have the profiles, scripts, setup assistant,
@@ -1806,18 +1866,30 @@ func checkMDMRequirements(specs *spec.Group, getAppConfig func() (*fleet.Enriche
 	}
 	var scopes []scope
 	if specs.AppConfig != nil {
-		scopes = append(scopes, scope{
-			macos:   extractAppCfgMacOSCustomSettings(specs.AppConfig),
-			windows: extractAppCfgWindowsCustomSettings(specs.AppConfig),
-			android: extractAppCfgAndroidCustomSettings(specs.AppConfig),
-			setup:   extractAppCfgMacOSSetup(specs.AppConfig),
-		})
+		var sc scope
+		var err error
+		if sc.macos, err = extractAppCfgMacOSCustomSettings(specs.AppConfig); err != nil {
+			return err
+		}
+		if sc.windows, err = extractAppCfgWindowsCustomSettings(specs.AppConfig); err != nil {
+			return err
+		}
+		if sc.android, err = extractAppCfgAndroidCustomSettings(specs.AppConfig); err != nil {
+			return err
+		}
+		if sc.setup, err = extractAppCfgMacOSSetup(specs.AppConfig); err != nil {
+			return err
+		}
+		scopes = append(scopes, sc)
 	}
 	tmProfiles, err := extractTmSpecsMDMCustomSettings(specs.Teams)
 	if err != nil {
 		return err
 	}
-	tmSetups := extractTmSpecsMacOSSetup(specs.Teams)
+	tmSetups, err := extractTmSpecsMacOSSetup(specs.Teams)
+	if err != nil {
+		return err
+	}
 	for _, name := range slices.Sorted(maps.Keys(tmProfiles)) {
 		p := tmProfiles[name]
 		scopes = append(scopes, scope{prefix: fmt.Sprintf("fleet %q: ", name), macos: p.macos, windows: p.windows, android: p.android, setup: tmSetups[name]})
@@ -1911,97 +1983,61 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	return resolved
 }
 
-func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
+func extractAppCfgCustomSettings(appCfg any, platformKey string) ([]fleet.MDMProfileSpec, error) {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	mmdm, ok := asMap["mdm"].(map[string]interface{})
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	mos, ok := mmdm[platformKey].(fleet.WithMDMProfileSpecs)
 	if !ok || mos == nil {
 		return legacyExtractAppCfgCustomSettings(mmdm, platformKey)
 	}
-	return mos.GetMDMProfileSpecs()
+	return mos.GetMDMProfileSpecs(), nil
 }
 
 // legacyExtractAppCfgCustomSettings is used to extract custom settings for legacy fleetctl apply use case
-func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey string) []fleet.MDMProfileSpec {
+func legacyExtractAppCfgCustomSettings(mmdm map[string]any, platformKey string) ([]fleet.MDMProfileSpec, error) {
 	mos, ok := mmdm[platformKey].(map[string]interface{})
 	if !ok || mos == nil {
-		return nil
+		return nil, nil
 	}
 	cs, ok := mos["custom_settings"]
 	if !ok {
 		// custom settings is not present
-		return nil
+		return nil, nil
 	}
 
-	csAny, ok := cs.([]interface{})
-	if !ok || csAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// custom_settings key was actually provided.
-		return []fleet.MDMProfileSpec{}
+	settingsKey := platformKey
+	if platformKey == "macos_settings" {
+		settingsKey = "apple_settings"
 	}
-
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
-		var ret []string
-		if labels, ok := parentMap[fieldName].([]interface{}); ok {
-			for _, label := range labels {
-				if strLabel, ok := label.(string); ok {
-					ret = append(ret, strLabel)
-				}
-			}
-		}
-		return ret
+	var specs []fleet.MDMProfileSpec
+	if err := decodeSpecValue(settingsKey+".configuration_profiles", cs, &specs); err != nil {
+		return nil, err
 	}
-
-	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
-	for _, v := range csAny {
-		if m, ok := v.(map[string]interface{}); ok {
-			var profSpec fleet.MDMProfileSpec
-
-			// extract the Path field
-			if path, ok := m["path"].(string); ok {
-				profSpec.Path = path
-			}
-			if name, ok := m["name"].(string); ok {
-				profSpec.Name = name
-			}
-			if description, ok := m["description"].(string); ok {
-				profSpec.Description = description
-			}
-
-			// at this stage we extract and return all supported label fields, the
-			// validations are done later on in the Fleet API endpoint.
-			profSpec.Labels = extractLabelField(m, "labels")
-			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
-			profSpec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
-			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
-
-			if profSpec.Path != "" {
-				csSpecs = append(csSpecs, profSpec)
-			}
-		} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
-			if m != "" {
-				csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
-			}
+	// return a non-nil slice, so the caller knows that the custom_settings key was actually provided.
+	csSpecs := make([]fleet.MDMProfileSpec, 0, len(specs))
+	for _, spec := range specs {
+		if spec.Path != "" {
+			csSpecs = append(csSpecs, spec)
 		}
 	}
-	return csSpecs
+	return csSpecs, nil
 }
 
-func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+func extractAppCfgMacOSCustomSettings(appCfg any) ([]fleet.MDMProfileSpec, error) {
 	return extractAppCfgCustomSettings(appCfg, "macos_settings")
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+func extractAppCfgWindowsCustomSettings(appCfg any) ([]fleet.MDMProfileSpec, error) {
 	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
-func extractAppCfgAndroidCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+func extractAppCfgAndroidCustomSettings(appCfg any) ([]fleet.MDMProfileSpec, error) {
 	return extractAppCfgCustomSettings(appCfg, "android_settings")
 }
 
@@ -2098,33 +2134,30 @@ func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMPr
 	return m
 }
 
-func extractAppCfgScripts(appCfg interface{}) []string {
+func extractAppCfgScripts(appCfg any) ([]string, error) {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	scripts, ok := asMap["scripts"]
 	if !ok {
 		// scripts is not present
-		return nil
+		return nil, nil
 	}
 
-	scriptsAny, ok := scripts.([]interface{})
-	if !ok || scriptsAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// scripts key was actually provided.
-		return []string{}
+	var paths []string
+	if err := decodeSpecValue("scripts", scripts, &paths); err != nil {
+		return nil, err
 	}
-
-	scriptsStrings := make([]string, 0, len(scriptsAny))
-	for _, v := range scriptsAny {
-		s, _ := v.(string)
+	// return a non-nil slice, so the caller knows that the scripts key was actually provided.
+	scriptsStrings := make([]string, 0, len(paths))
+	for _, s := range paths {
 		if s != "" {
 			scriptsStrings = append(scriptsStrings, s)
 		}
 	}
-	return scriptsStrings
+	return scriptsStrings, nil
 }
 
 func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
@@ -2380,7 +2413,7 @@ func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.Te
 	return m
 }
 
-func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
+func extractTmSpecsScripts(tmSpecs []json.RawMessage) (map[string][]string, error) {
 	var m map[string][]string
 	for _, tm := range tmSpecs {
 		var spec struct {
@@ -2397,9 +2430,8 @@ func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
 				m = make(map[string][]string)
 			}
 			var scripts []string
-			if err := json.Unmarshal(spec.Scripts, &scripts); err != nil {
-				// ignore, will fail in apply team specs call
-				continue
+			if err := decodeSpecValue(fmt.Sprintf("fleet %q: scripts", spec.Name), spec.Scripts, &scripts); err != nil {
+				return nil, err
 			}
 			if scripts == nil {
 				// to be consistent with the AppConfig custom settings, set it to an
@@ -2409,17 +2441,17 @@ func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
 			m[spec.Name] = scripts
 		}
 	}
-	return m
+	return m, nil
 }
 
 // returns the setup_experience keyed by team name.
-func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.GitOpsMacOSSetup {
+func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) (map[string]*fleet.GitOpsMacOSSetup, error) {
 	var m map[string]*fleet.GitOpsMacOSSetup
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name string `json:"name"`
 			MDM  struct {
-				MacOSSetup fleet.GitOpsMacOSSetup `json:"setup_experience"`
+				MacOSSetup json.RawMessage `json:"setup_experience"`
 			} `json:"mdm"`
 		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
@@ -2427,14 +2459,25 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.GitOp
 			continue
 		}
 		spec.Name = norm.NFC.String(spec.Name)
-		if spec.Name != "" {
-			if m == nil {
-				m = make(map[string]*fleet.GitOpsMacOSSetup)
-			}
-			m[spec.Name] = &spec.MDM.MacOSSetup
+		if spec.Name == "" {
+			continue
 		}
+		var setup fleet.GitOpsMacOSSetup
+		if len(spec.MDM.MacOSSetup) > 0 {
+			if _, err := decodeSetupItems(fmt.Sprintf("fleet %q: ", spec.Name), spec.MDM.MacOSSetup); err != nil {
+				return nil, err
+			}
+			if err := json.Unmarshal(spec.MDM.MacOSSetup, &setup); err != nil {
+				// ignore, the other settings are sent to the server, which rejects them
+				continue
+			}
+		}
+		if m == nil {
+			m = make(map[string]*fleet.GitOpsMacOSSetup)
+		}
+		m[spec.Name] = &setup
 	}
-	return m
+	return m, nil
 }
 
 func (c *Client) SaveEnvSecrets(alreadySaved map[string]string, toSave map[string]string, dryRun bool) error {

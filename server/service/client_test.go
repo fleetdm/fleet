@@ -82,7 +82,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a", Labels: []string{"foo", "bar"}}, {Path: "b"}},
 		},
 		{
-			"empty and invalid custom settings",
+			"empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -97,10 +97,6 @@ spec:
         - path: ""
           labels:
             - "foo"
-        - path: 4
-          labels:
-            - "foo"
-            - "bar"
         - path: "c"
           labels:
             - baz
@@ -142,7 +138,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a", Name: "Wi-Fi", Description: "Joins the office network"}, {Path: "b"}},
 		},
 		{
-			"old empty and invalid custom settings",
+			"old empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -154,7 +150,6 @@ spec:
       custom_settings:
         - "a"
         - ""
-        - 4
         - "c"
 `,
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c"}},
@@ -166,14 +161,16 @@ spec:
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
 				// Legacy fleetctl apply
-				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				got, err := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 
 				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
 				mdm["macos_settings"] = fleet.GitOpsMacOSSettings{CustomSettings: c.want}
-				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				got, err = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 			}
 		})
@@ -321,7 +318,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a", Labels: []string{"foo", "bar"}}, {Path: "b"}},
 		},
 		{
-			"empty and invalid custom settings",
+			"empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -336,10 +333,6 @@ spec:
         - path: ""
           labels:
             - "foo"
-        - path: 4
-          labels:
-            - "foo"
-            - "bar"
         - path: "c"
           labels:
             - baz
@@ -363,7 +356,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 		},
 		{
-			"old empty and invalid custom settings",
+			"old empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -375,7 +368,6 @@ spec:
       custom_settings:
         - "a"
         - ""
-        - 4
         - "c"
 `,
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c"}},
@@ -387,7 +379,8 @@ spec:
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
 				// Legacy fleetctl apply
-				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				got, err := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 
 				// GitOps
@@ -396,7 +389,8 @@ spec:
 				windowsSettings := fleet.GitOpsWindowsSettings{}
 				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
 				mdm["windows_settings"] = windowsSettings
-				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				got, err = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 			}
 		})

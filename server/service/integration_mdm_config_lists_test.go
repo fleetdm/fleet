@@ -247,4 +247,30 @@ func (s *integrationMDMTestSuite) TestManualAgentInstallChecksUploadedBootstrapP
 	appConfig, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	require.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+
+	// GitOps sends an empty URL when it's deleting the package, so the uploaded one doesn't count.
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"setup_experience": {
+		"macos_manual_agent_install": true, "macos_bootstrap_package": ""
+	}}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "first specify a bootstrap package")
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+	t.Cleanup(func() {
+		_ = s.ds.DeleteMDMAppleBootstrapPackage(cleanupCtx, teamID)
+		require.NoError(t, s.ds.DeleteTeam(cleanupCtx, teamID))
+	})
+	// Update fleet doesn't have the URL, so it checks the fleet's uploaded package.
+	fleetPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID)
+	res = s.Do("PATCH", fleetPath, enable, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "first specify a bootstrap package")
+	require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+		Name:   "bootstrap.pkg",
+		TeamID: teamID,
+		Token:  uuid.NewString(),
+		Bytes:  []byte("fleet bootstrap"),
+		Sha256: []byte("fleet-bootstrap-sha256"),
+	}, nil))
+	s.Do("PATCH", fleetPath, enable, http.StatusOK)
 }

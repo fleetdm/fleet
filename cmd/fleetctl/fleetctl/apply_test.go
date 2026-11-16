@@ -2559,6 +2559,26 @@ spec:
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
 
+		// a value of the wrong type fails instead of reading as empty, which would delete the item
+		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
+		ds.DeleteMDMAppleBootstrapPackageFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+		ds.SaveTeamFuncInvoked = false
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", "42"))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, "setup_experience.apple_setup_assistant: invalid value type: expected string but got number")
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "true", ""))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, "setup_experience.macos_bootstrap_package: invalid value type: expected string but got bool")
+		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", "[assistant.json]"))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, `fleet "tm1": setup_experience.apple_setup_assistant: invalid value type: expected string but got array`)
+		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
+		assert.False(t, ds.SaveTeamFuncInvoked)
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
@@ -3143,6 +3163,32 @@ spec:
 			wantErr: `400 Bad Request: invalid value type at 'specs.0.name': expected string but got number`,
 		},
 		{
+			desc: "invalid scripts value type for team",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    scripts: script.sh
+`,
+			wantErr: `fleet "team1": scripts: invalid value type: expected array of strings but got string`,
+		},
+		{
+			desc: "invalid setup experience script value type for team",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      setup_experience:
+        macos_script: true
+`,
+			wantErr: `fleet "team1": setup_experience.macos_script: invalid value type: expected string but got bool`,
+		},
+		{
 			desc: "unknown key for team can be forced",
 			spec: `
 apiVersion: v1
@@ -3315,6 +3361,29 @@ spec:
     server_url: 123
 `,
 			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "config with invalid profiles value type",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    apple_settings:
+      configuration_profiles: profile.mobileconfig
+`,
+			wantErr: `apple_settings.configuration_profiles: invalid value type: expected array of MDMProfileSpecs but got string`,
+		},
+		{
+			desc: "config with invalid scripts value type",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  scripts:
+    - 42
+`,
+			wantErr: `scripts: invalid value type at '0': expected string but got number`,
 		},
 		{
 			desc: "config with invalid agent options in dry-run",
