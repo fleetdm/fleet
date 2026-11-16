@@ -462,8 +462,12 @@ func testConditionalAccessWindowsEntraDeviceIDState(t *testing.T, ds *Datastore)
 	require.Equal(t, "stored-id", state.Status.DeviceID)
 	require.Empty(t, state.Status.DisplayName)
 
-	// When hosts share a UUID, the enrollment can't be attributed to one of them, so no host gets its claim.
+	// A non-Windows host with the same UUID, like the macOS side of a Boot Camp Mac, doesn't make the claim ambiguous.
+	bootCamp := newTestHostWithPlatform(t, ds, "bootcamp", "darwin", nil)
+	exec(`UPDATE hosts SET uuid = ? WHERE id = ?`, other.UUID, bootCamp.ID)
 	require.Equal(t, otherID, getState(other.ID).EnrollmentEntraDeviceID)
+
+	// When Windows hosts share a UUID, the enrollment can't be attributed to one of them, so no host gets its claim.
 	dup := newTestHostWithPlatform(t, ds, "dup", "windows", nil)
 	exec(`UPDATE hosts SET uuid = ? WHERE id = ?`, other.UUID, dup.ID)
 	require.Empty(t, getState(other.ID).EnrollmentEntraDeviceID)

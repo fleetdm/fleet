@@ -219,10 +219,20 @@ func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostI
 		EnrollmentEntraDeviceID string `db:"enrollment_entra_device_id"`
 		AutopilotEntraDeviceID  string `db:"autopilot_entra_device_id"`
 	}
-	// The latest enrollment, as in MDMWindowsGetEnrolledDeviceWithHostUUID. Its claim proves nothing when hosts share
-	// the UUID, since it can't be attributed to one of them. The replica is fine: an enrollment linked in the same
-	// request may be ingested after this query anyway, and the next check-in picks it up.
+	// latest_enrollment is the enrollment MDM sends commands to, as in MDMWindowsGetEnrolledDeviceWithHostUUID. Its claim
+	// proves nothing when Windows hosts share the UUID, since it can't be attributed to one of them, and a host without a
+	// UUID must not match enrollments that aren't linked to a host yet. The replica is fine: an enrollment linked in the
+	// same request may be ingested after this query anyway, and the next check-in picks it up.
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		WITH latest_enrollment AS (
+			SELECT e.entra_device_id
+			FROM hosts h
+			JOIN mdm_windows_enrollments e ON e.host_uuid = h.uuid
+			WHERE h.id = ? AND h.uuid != ''
+				AND NOT EXISTS (SELECT 1 FROM hosts dup WHERE dup.uuid = h.uuid AND dup.id != h.id AND dup.platform = 'windows')
+			ORDER BY e.created_at DESC, e.id DESC
+			LIMIT 1
+		)
 		SELECT
 			h.id AS host_id,
 			h.os_version,
@@ -233,20 +243,16 @@ func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostI
 			mcphs.managed,
 			mcphs.compliant,
 			COALESCE(mcphs.verified, FALSE) AS verified,
-			COALESCE((
-				SELECT BIN_TO_UUID(e.entra_device_id) FROM mdm_windows_enrollments e
-				WHERE e.host_uuid = h.uuid AND h.uuid != ''
-					AND NOT EXISTS (SELECT 1 FROM hosts dup WHERE dup.uuid = h.uuid AND dup.id != h.id)
-				ORDER BY e.created_at DESC, e.id DESC LIMIT 1
-			), '') AS enrollment_entra_device_id,
+			COALESCE(BIN_TO_UUID(le.entra_device_id), '') AS enrollment_entra_device_id,
 			COALESCE((
 				SELECT a.entra_device_id FROM host_autopilot_devices a WHERE a.host_id = h.id AND a.deleted_at IS NULL
 			), '') AS autopilot_entra_device_id
 		FROM hosts h
 		LEFT JOIN microsoft_compliance_partner_host_statuses mcphs ON mcphs.host_id = h.id
 		LEFT JOIN host_display_names hdn ON hdn.host_id = h.id
+		LEFT JOIN latest_enrollment le ON TRUE
 		WHERE h.id = ?`,
-		hostID,
+		hostID, hostID,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(hostID))
