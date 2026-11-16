@@ -81,7 +81,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
 		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	// make the VPP app install pending on both hosts
@@ -204,7 +204,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
 		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	// create a software installer
@@ -385,10 +385,10 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// the VPP install count only sees the successful VPP app install
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.Equal(t, uint(1), titleResponse.SoftwareTitle.AppStoreApp.Status.Installed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApp.Status.Failed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApp.Status.Pending)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
+	require.Equal(t, uint(1), titleResponse.SoftwareTitle.AppStoreApps[0].Status.Installed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApps[0].Status.Failed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApps[0].Status.Pending)
 
 	// the SW install count only sees the failed install
 	titleResponse = getSoftwareTitleResponse{}

@@ -316,6 +316,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// The setup experience membership is the source of truth in the setup
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
+	setupAppsByName := make(map[string]struct{})
 	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
@@ -325,7 +326,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
-			setupSoftwareByTitleID[sw.ID] = struct{}{}
+			setupAppsByName[fleet.VPPAppID{AdamID: sw.AppStoreApps[0].AppStoreID, Platform: sw.AppStoreApps[0].Platform}.String()] = struct{}{}
 		}
 	}
 
@@ -393,16 +394,20 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 			})
 		case len(detail.AppStoreApps) > 0:
 			app := detail.AppStoreApps[0]
+			var installDuringSetup optjson.Bool
+			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
+				installDuringSetup = optjson.SetBool(true)
+			}
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AppStoreID,
+				AppStoreID:         app.AdamID,
 				Platform:           string(app.Platform),
-				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+				InstallDuringSetup: installDuringSetup,
 			}
 			// Output one object instead of a versions array when the app only has one version
-			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+			if len(detail.AppStoreApps) > 1 || app.VersionName != fleet.DefaultAppStoreAppVersionName {
 				for _, version := range detail.AppStoreApps {
 					appStoreAppSpec.Versions = append(appStoreAppSpec.Versions, fleet.TeamSpecAppStoreAppVersion{
-						Name:             version.Name,
+						Name:             version.VersionName,
 						SelfService:      version.SelfService,
 						LabelsIncludeAny: scopeLabelNames(version.LabelsIncludeAny),
 						LabelsExcludeAny: scopeLabelNames(version.LabelsExcludeAny),
