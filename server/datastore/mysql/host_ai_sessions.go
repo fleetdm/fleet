@@ -649,33 +649,23 @@ func (ds *Datastore) ListHostAISessions(ctx context.Context, hostID uint, opts f
 	if !ok {
 		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("order_key", "unsupported order key: "+orderKey))
 	}
-	direction, comparison := "ASC", ">"
+	direction := "ASC"
 	if opts.OrderDirection == fleet.OrderDescending {
-		direction, comparison = "DESC", "<"
+		direction = "DESC"
 	}
-	listWhere, listArgs := where, slices.Clone(args)
-	// The order and cursor are built here rather than by the list options helper, so unknown timestamps sort last and
-	// the cursor includes them. The order keys aren't unique, so ties are broken by id to keep pages stable; the cursor
-	// compares the order column alone, like the helper's, so it skips the rows tied with it.
+	// The order is built here rather than by the list options helper so unknown timestamps sort last. The order keys
+	// aren't unique, so ties are broken by id to keep pages stable, and there's no cursor: one on the order key alone
+	// would skip the rows tied with it.
 	listOpts := opts.ListOptions
 	listOpts.OrderKey = ""
-	if opts.After != "" {
-		if order.nullable {
-			listWhere += fmt.Sprintf(" AND (%s %s ? OR %s IS NULL)", order.column, comparison, order.column)
-		} else {
-			listWhere += fmt.Sprintf(" AND %s %s ?", order.column, comparison)
-		}
-		listArgs = append(listArgs, opts.After)
-		listOpts.After = ""
-		listOpts.Page = 0 // the cursor supersedes the page
-	}
+	listOpts.After = ""
 	orderBy := " ORDER BY "
 	if order.nullable {
 		orderBy += order.column + " IS NULL, "
 	}
 	orderBy += fmt.Sprintf("%s %s, id %s", order.column, direction, direction)
 	stmt, stmtArgs, err := appendListOptionsWithCursorToSQLSecure(
-		`SELECT `+hostAISessionColumns+listWhere+orderBy, listArgs, &listOpts, common_mysql.OrderKeyAllowlist{})
+		`SELECT `+hostAISessionColumns+where+orderBy, slices.Clone(args), &listOpts, common_mysql.OrderKeyAllowlist{})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}

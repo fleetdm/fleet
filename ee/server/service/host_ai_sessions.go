@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"slices"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 var hostAISessionOrderKeys = []string{"started_at", "ended_at", "agent", "username", "model", "output_token_count"}
@@ -30,32 +30,18 @@ func (svc *Service) authorizeHostAISessions(ctx context.Context, hostID uint) er
 	return svc.authz.Authorize(ctx, &fleet.HostAISessionAuthz{TeamID: host.TeamID}, fleet.ActionRead)
 }
 
+func validateAISessionPerPage(invalid *fleet.InvalidArgumentError, perPage uint) {
+	if perPage > platform_http.MaxPerPage {
+		invalid.Append("per_page", fmt.Sprintf("must be no greater than %d", platform_http.MaxPerPage))
+	}
+}
+
 func validateAISessionCategory(invalid *fleet.InvalidArgumentError, category fleet.AISessionCategory) {
 	switch category {
 	case "", fleet.AISessionCategoryCommand, fleet.AISessionCategoryFileAccess:
 	default:
 		invalid.Append("category", `must be "command" or "file_access"`)
 	}
-}
-
-// validateAISessionAfter checks the cursor against the order key's column, since MySQL fails a query that compares a
-// datetime column with a string it can't read. Timestamps are accepted as the API reports them or as MySQL reads them,
-// and returned in the form MySQL reads, in UTC.
-func validateAISessionAfter(invalid *fleet.InvalidArgumentError, orderKey, after string) string {
-	switch orderKey {
-	case "started_at", "ended_at":
-		for _, layout := range []string{time.RFC3339Nano, time.DateTime, time.DateOnly} {
-			if t, err := time.Parse(layout, after); err == nil {
-				return t.UTC().Format("2006-01-02 15:04:05.999999")
-			}
-		}
-		invalid.Append("after", "must be a timestamp, such as 2026-10-28T10:00:00Z, when ordering by "+orderKey)
-	case "output_token_count":
-		if _, err := strconv.ParseUint(after, 10, 64); err != nil {
-			invalid.Append("after", "must be a non-negative integer when ordering by "+orderKey)
-		}
-	}
-	return after
 }
 
 func (svc *Service) ListHostAISessions(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error) {
@@ -73,9 +59,12 @@ func (svc *Service) ListHostAISessions(ctx context.Context, hostID uint, opts fl
 	}
 	if !slices.Contains(hostAISessionOrderKeys, opts.OrderKey) {
 		invalid.Append("order_key", "must be one of: "+strings.Join(hostAISessionOrderKeys, ", "))
-	} else if opts.After != "" {
-		opts.After = validateAISessionAfter(invalid, opts.OrderKey, opts.After)
 	}
+	// The order keys aren't unique, so a cursor on the key alone would skip the sessions tied with it.
+	if opts.After != "" {
+		invalid.Append("after", "is not supported, use page instead")
+	}
+	validateAISessionPerPage(invalid, opts.PerPage)
 	if invalid.HasErrors() {
 		return nil, nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -109,6 +98,7 @@ func (svc *Service) ListHostAISessionEvents(ctx context.Context, hostID, aiSessi
 
 	invalid := &fleet.InvalidArgumentError{}
 	validateAISessionCategory(invalid, opts.Category)
+	validateAISessionPerPage(invalid, opts.PerPage)
 	if invalid.HasErrors() {
 		return nil, nil, ctxerr.Wrap(ctx, invalid)
 	}

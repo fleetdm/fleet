@@ -73,7 +73,7 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 	}
 	require.NoError(t, s.ds.UpsertHostAISessionEvents(ctx, teamHost.ID, nil, []*fleet.HostAISessionEvent{
 		newEvent(claude, 3, "", "WebFetch", fleet.AISessionActionNetwork),
-		newEvent(claude, 2, "approved", "README.md", fleet.AISessionActionRead),
+		newEvent(claude, 2, "allowed", "README.md", fleet.AISessionActionRead),
 		newEvent(claude, 1, "denied", "rm -rf /", fleet.AISessionActionExecute),
 		newEvent(cursor, 1, "", "main.go", fleet.AISessionActionWrite),
 	}))
@@ -136,11 +136,6 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 	require.Equal(t, []string{"cursor-1", "codex-1", "claude-1"},
 		sessionIDs(listSessions(http.StatusOK, "order_key", "output_token_count", "order_direction", "asc")))
 
-	// Timestamp cursors are accepted as the API reports them, and supersede the page.
-	resp = listSessions(http.StatusOK, "order_key", "ended_at", "after", claude.EndedAt.Format(time.RFC3339), "page", "3")
-	require.Equal(t, []string{"codex-1"}, sessionIDs(resp))
-	require.Equal(t, &fleet.PaginationMetadata{}, resp.Meta)
-
 	// Pages default to 50 results, so a busy host or session doesn't come back whole.
 	manySessions := make([]*fleet.HostAISession, 0, 51)
 	for i := range 51 {
@@ -168,20 +163,24 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 
 	// Invalid values.
 	for _, c := range []struct {
-		params  []string
-		wantErr string
+		params     []string
+		wantStatus int
+		wantErr    string
 	}{
-		{[]string{"agent", "claude"}, "claude_code, copilot_cli"},
-		{[]string{"category", "network"}, `"command" or "file_access"`},
-		{[]string{"order_key", "id"}, "started_at, ended_at"},
-		{[]string{"order_key", "tool_call_count"}, "started_at, ended_at"},
-		{[]string{"order_direction", "up"}, `"asc" or "desc"`},
-		{[]string{"order_key", "ended_at", "after", "yesterday"}, "timestamp"},
-		{[]string{"after", "2026-13-45"}, "timestamp"},
-		{[]string{"order_key", "output_token_count", "after", "many"}, "integer"},
+		{[]string{"agent", "claude"}, http.StatusUnprocessableEntity, "claude_code, copilot_cli"},
+		{[]string{"category", "network"}, http.StatusUnprocessableEntity, `"command" or "file_access"`},
+		{[]string{"order_key", "id"}, http.StatusUnprocessableEntity, "started_at, ended_at"},
+		{[]string{"order_key", "tool_call_count"}, http.StatusUnprocessableEntity, "started_at, ended_at"},
+		{[]string{"order_key", "ended_at", "after", "2026-10-28T10:00:00Z"}, http.StatusUnprocessableEntity, "not supported"},
+		{[]string{"per_page", "10001"}, http.StatusUnprocessableEntity, "no greater than 10000"},
+		{[]string{"order_key", "ended_at", "order_direction", "up"}, http.StatusBadRequest, "unknown order_direction"},
+		{[]string{"order_direction", "asc"}, http.StatusBadRequest, "order_key must be specified"},
+		{[]string{"after", "2026-10-28T10:00:00Z"}, http.StatusBadRequest, "order_key must be specified"},
+		{[]string{"page", "-1"}, http.StatusBadRequest, "negative page"},
+		{[]string{"per_page", "-1"}, http.StatusBadRequest, "invalid per_page"},
 	} {
-		res := s.Do("GET", sessionsURL(teamHost), nil, http.StatusUnprocessableEntity, c.params...)
-		require.Contains(t, extractServerErrorText(res.Body), c.wantErr)
+		res := s.Do("GET", sessionsURL(teamHost), nil, c.wantStatus, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.wantErr, c.params)
 	}
 	s.Do("GET", "/api/latest/fleet/hosts/999999/ai_sessions", nil, http.StatusNotFound)
 
@@ -243,8 +242,19 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 	eventsResp = listEvents(http.StatusOK, "per_page", "2", "page", "1")
 	require.Equal(t, []string{"WebFetch"}, targets(eventsResp))
 	require.Equal(t, &fleet.PaginationMetadata{HasPreviousResults: true}, eventsResp.Meta)
-	res := s.Do("GET", eventsURL, nil, http.StatusUnprocessableEntity, "category", "network")
-	require.Contains(t, extractServerErrorText(res.Body), `"command" or "file_access"`)
+	for _, c := range []struct {
+		params     []string
+		wantStatus int
+		wantErr    string
+	}{
+		{[]string{"category", "network"}, http.StatusUnprocessableEntity, `"command" or "file_access"`},
+		{[]string{"per_page", "10001"}, http.StatusUnprocessableEntity, "no greater than 10000"},
+		{[]string{"page", "-1"}, http.StatusBadRequest, "negative page"},
+		{[]string{"per_page", "-1"}, http.StatusBadRequest, "invalid per_page"},
+	} {
+		res := s.Do("GET", eventsURL, nil, c.wantStatus, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.wantErr, c.params)
+	}
 	s.Do("GET", fmt.Sprintf("%s/%d/events", sessionsURL(noTeamHost), claudeID), nil, http.StatusNotFound)
 	s.Do("GET", fmt.Sprintf("%s/%d/events", sessionsURL(teamHost), claudeID+1000), nil, http.StatusNotFound)
 

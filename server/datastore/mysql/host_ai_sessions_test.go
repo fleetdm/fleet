@@ -985,12 +985,11 @@ func testListHostAISessions(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"s1"}, aiSessionIDs(sessions))
 	require.Equal(t, &fleet.PaginationMetadata{HasPreviousResults: true, TotalResults: 3}, meta)
 
-	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending, After: s2.EndedAt.Format(time.DateTime)})
-	require.Equal(t, []string{"s3", "s1"}, aiSessionIDs(sessions))
-	// The cursor supersedes the page.
-	sessions, meta = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending, After: s2.EndedAt.Format(time.DateTime), Page: 1, PerPage: 1})
-	require.Equal(t, []string{"s3"}, aiSessionIDs(sessions))
-	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: true, TotalResults: 3}, meta)
+	// Cursors aren't supported: the order keys aren't unique, so a cursor on the key alone would skip ties.
+	byEndedAt.After = s2.EndedAt.Format(time.DateTime)
+	sessions, meta = list(fleet.HostAISessionListOptions{ListOptions: byEndedAt})
+	require.Equal(t, []string{"s1"}, aiSessionIDs(sessions))
+	require.Equal(t, &fleet.PaginationMetadata{HasPreviousResults: true, TotalResults: 3}, meta)
 
 	sessions, meta = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", Agent: "gemini_cli"})
 	require.Empty(t, sessions)
@@ -1001,7 +1000,7 @@ func testListHostAISessions(t *testing.T, ds *Datastore) {
 	_, _, err = ds.ListHostAISessions(ctx, host1.ID, fleet.HostAISessionListOptions{Category: "network"})
 	require.Error(t, err)
 
-	// Sessions with an unknown start or end sort last whichever the direction, and cursors reach them.
+	// Sessions with an unknown start or end sort last whichever the direction.
 	s4 := newTestAISession("s4", now, 0)
 	s4.EndedAt = nil
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host1.ID, []*fleet.HostAISession{s4}))
@@ -1013,9 +1012,7 @@ func testListHostAISessions(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"s1", "s3", "s4", "s2"}, aiSessionIDs(sessions))
 	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "started_at", OrderDirection: fleet.OrderDescending})
 	require.Equal(t, []string{"s4", "s3", "s1", "s2"}, aiSessionIDs(sessions))
-	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderDescending, After: s3.EndedAt.Format(time.DateTime)})
-	require.Equal(t, []string{"s1", "s4"}, aiSessionIDs(sessions))
-	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderAscending, After: s3.EndedAt.Format(time.DateTime)})
+	sessions, _ = list(fleet.HostAISessionListOptions{OrderKey: "ended_at", OrderDirection: fleet.OrderAscending, Page: 1, PerPage: 2})
 	require.Equal(t, []string{"s2", "s4"}, aiSessionIDs(sessions))
 }
 
@@ -1072,7 +1069,7 @@ func testListHostAISessionEvents(t *testing.T, ds *Datastore) {
 	// Stored out of order: events are listed in the order the calls ran.
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
 		withAISessionAction(newTestAISessionEvent(s1, 2, "denied"), fleet.AISessionActionRead),
-		withAISessionAction(newTestAISessionEvent(s1, 1, "approved"), fleet.AISessionActionExecute),
+		withAISessionAction(newTestAISessionEvent(s1, 1, "allowed"), fleet.AISessionActionExecute),
 		e3,
 		e0,
 		withAISessionAction(newTestAISessionEvent(s2, 0, ""), fleet.AISessionActionExecute),
@@ -1096,7 +1093,7 @@ func testListHostAISessionEvents(t *testing.T, ds *Datastore) {
 	}
 
 	events, meta := list(fleet.HostAISessionEventListOptions{})
-	require.Equal(t, []string{"0:", "1:approved", "2:denied", "3:"}, decisions(events))
+	require.Equal(t, []string{"0:", "1:allowed", "2:denied", "3:"}, decisions(events))
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 4}, meta)
 	require.NotZero(t, events[0].ID)
 	require.Equal(t, []fleet.AISessionCategory{fleet.AISessionCategoryCommand}, events[0].Categories)
@@ -1110,7 +1107,7 @@ func testListHostAISessionEvents(t *testing.T, ds *Datastore) {
 	require.Equal(t, now.Unix(), events[3].ExecutedAt.Unix())
 
 	events, meta = list(fleet.HostAISessionEventListOptions{Category: fleet.AISessionCategoryCommand})
-	require.Equal(t, []string{"0:", "1:approved"}, decisions(events))
+	require.Equal(t, []string{"0:", "1:allowed"}, decisions(events))
 	require.NotNil(t, meta)
 	require.Equal(t, uint(2), meta.TotalResults)
 	events, meta = list(fleet.HostAISessionEventListOptions{Category: fleet.AISessionCategoryFileAccess})
@@ -1125,7 +1122,7 @@ func testListHostAISessionEvents(t *testing.T, ds *Datastore) {
 	require.Empty(t, empty)
 
 	events, meta = list(fleet.HostAISessionEventListOptions{PerPage: 3, Page: 0})
-	require.Equal(t, []string{"0:", "1:approved", "2:denied"}, decisions(events))
+	require.Equal(t, []string{"0:", "1:allowed", "2:denied"}, decisions(events))
 	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: true, TotalResults: 4}, meta)
 	events, meta = list(fleet.HostAISessionEventListOptions{PerPage: 3, Page: 1})
 	require.Equal(t, []string{"3:"}, decisions(events))
