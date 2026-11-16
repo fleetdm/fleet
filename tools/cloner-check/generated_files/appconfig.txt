@@ -192,6 +192,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageD
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageDuringMigration	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccountWindows	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
@@ -221,7 +222,7 @@ github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Value	[]fleet.MDMProfileSpec
-github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	EnableManagedLocalAccount	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	_	struct {}
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	EnableDiskEncryption	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	RequireBitLockerPIN	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	VolumePurchasingProgram	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]

@@ -114,7 +114,7 @@ type TeamPayloadMDM struct {
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
 	MacOSSettings *TeamPayloadMacOSSettings `json:"macos_settings" renameto:"apple_settings"`
-	// WindowsSettings exposes only the managed local account and disk encryption surfaces
+	// WindowsSettings exposes only the disk encryption surfaces
 	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
 	LinuxSettings   *TeamPayloadLinuxSettings   `json:"linux_settings"`
@@ -136,7 +136,8 @@ type TeamPayloadMacOSSettings struct {
 
 // TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
 type TeamPayloadWindowsSettings struct {
-	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
+	// Fleet 5 moved the managed local account setting to setup_experience.
+	_ struct{} `json:"-" removedkey:"enable_managed_local_account" renamescope:"windows_settings"`
 	// RequireBitLockerPIN is the canonical home of the deprecated top-level
 	// windows_require_bitlocker_pin key.
 	RequireBitLockerPIN  optjson.Bool `json:"require_bitlocker_pin"`
@@ -240,6 +241,9 @@ func (t Team) MarshalJSON() ([]byte, error) {
 	}
 	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 
 	return json.Marshal(x)
@@ -562,8 +566,8 @@ func (t TeamMDM) MarshalJSON() ([]byte, error) {
 	} else {
 		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
 	}
-	if !t.WindowsSettings.EnableManagedLocalAccount.Valid {
-		t.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	if !t.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		t.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 	// the alias type has no methods, so marshaling it avoids infinite recursion
 	type alias TeamMDM
@@ -722,6 +726,9 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	}
 	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if !t.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		t.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 	return json.Marshal(t)
 }

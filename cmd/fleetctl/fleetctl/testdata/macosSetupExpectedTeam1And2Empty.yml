@@ -28,7 +28,6 @@ spec:
         require_bitlocker_pin: false
         configuration_profiles: null
         enable_disk_encryption: false
-        enable_managed_local_account: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:
@@ -36,9 +35,10 @@ spec:
         certificates: null
       setup_experience:
         macos_bootstrap_package: null
-        enable_create_local_admin_account: false
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
         enable_end_user_authentication: false
-        end_user_local_account_type: "admin"
+        macos_end_user_local_account_type: "admin"
         lock_end_user_info: false
         apple_setup_assistant: null
         macos_manual_agent_install: null
@@ -104,7 +104,6 @@ spec:
         require_bitlocker_pin: false
         configuration_profiles: null
         enable_disk_encryption: false
-        enable_managed_local_account: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:
@@ -114,8 +113,9 @@ spec:
         macos_bootstrap_package: null
         apple_setup_assistant: null
         macos_manual_agent_install: null
-        enable_create_local_admin_account: false
-        end_user_local_account_type: "admin"
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
+        macos_end_user_local_account_type: "admin"
         apple_enable_release_device_manually: false
         lock_end_user_info: false
         macos_script: null

@@ -137,7 +137,6 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 			typ:      field.Type,
 			pathName: pathName,
 		}
-
 	}
 }
 
