@@ -33,7 +33,7 @@ module.exports = {
 
   fn: async function ({googleCustomerId, token, hostUuid}) {
 
-    // The Fleet server stores the customer ID without the leading "C" (#56649), and fleetdm.com stores it with one.
+    // Google's device APIs use the customer ID without the leading "C", so accept either form and match it with one.
     googleCustomerId = 'C' + googleCustomerId.replace(/^C/, '');
 
     let informationAboutThisCustomer = await GoogleConditionalAccessServer.findOne({googleCustomerId});
