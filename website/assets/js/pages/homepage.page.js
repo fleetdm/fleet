@@ -23,6 +23,7 @@ parasails.registerPage('homepage', {
     newsletterFormErrors: {},
     newsletterCloudError: '',
     newsletterCloudSuccess: false,
+    newsletterSuccessTimeout: undefined,
     newsletterFormRules: {
       emailAddress: {isEmail: true, required: true},
     },
@@ -78,6 +79,10 @@ parasails.registerPage('homepage', {
     if(masonry && masonry.scrollHeight <= this.testimonialsVisibleHeight) {
       this.allTestimonialsVisible = true;
     }
+    // Vue replaces the page's DOM on mount, so a browser that already tried the /#newsletter jump (e.g. Firefox) can be left at the top.
+    if(window.location.hash === '#newsletter') {
+      this.$el.querySelector('#newsletter').scrollIntoView();
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -110,7 +115,8 @@ parasails.registerPage('homepage', {
     submittedNewsletterForm: function() {
       this.newsletterCloudSuccess = true;
       this.newsletterFormData = {};
-      setTimeout(()=>{
+      clearTimeout(this.newsletterSuccessTimeout);
+      this.newsletterSuccessTimeout = setTimeout(()=>{
         this.newsletterCloudSuccess = false;
       }, 10000);
     },

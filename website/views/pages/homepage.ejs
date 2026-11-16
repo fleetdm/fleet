@@ -686,9 +686,10 @@
   <%/* Newsletter signup */%>
   <div purpose="newsletter-container">
     <div purpose="newsletter-banner" id="newsletter">
-      <p v-if="newsletterFormErrors.emailAddress || newsletterCloudError" class="text-danger" focus-first>
+      <p id="newsletter-error" class="text-danger" role="alert" v-if="newsletterFormErrors.emailAddress || newsletterCloudError === 'invalidEmailDomain'" focus-first>
         Please enter a valid work email
       </p>
+      <cloud-error role="alert" v-else-if="newsletterCloudError"></cloud-error>
       <p v-else-if="newsletterCloudSuccess">
         Thanks for subscribing!
       </p>
@@ -696,7 +697,7 @@
         <strong>Curious?</strong> Get product updates and news
       </p>
       <ajax-form purpose="newsletter-form" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="newsletterFormErrors" :form-data="newsletterFormData" :form-rules="newsletterFormRules" :syncing.sync="newsletterSyncing" :cloud-error.sync="newsletterCloudError" @submitted="submittedNewsletterForm()">
-        <input purpose="newsletter-form-input" class="form-control form-control-sm" type="email" aria-label="Work email" autocomplete="email" v-model.trim="newsletterFormData.emailAddress" placeholder="Enter your work email">
+        <input purpose="newsletter-form-input" class="form-control form-control-sm" type="email" aria-label="Work email" autocomplete="email" v-model.trim="newsletterFormData.emailAddress" placeholder="Enter your work email" :aria-invalid="newsletterFormErrors.emailAddress || newsletterCloudError === 'invalidEmailDomain' ? 'true' : false" :aria-describedby="newsletterFormErrors.emailAddress || newsletterCloudError === 'invalidEmailDomain' ? 'newsletter-error' : false">
         <ajax-button purpose="subscribe-button" type="submit" :syncing="newsletterSyncing" class="btn btn-primary btn-sm">Subscribe</ajax-button>
       </ajax-form>
     </div>
