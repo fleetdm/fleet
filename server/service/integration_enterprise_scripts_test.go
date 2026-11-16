@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -611,7 +612,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	// Queue again this time using a filter
 	filters := map[string]any{
-		"team_id": 0,
+		"fleet_id": 0,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
@@ -1561,6 +1562,15 @@ VALUES
 			default:
 				require.Nil(t, gotScript.LastExecution)
 			}
+		}
+
+		// default order is by name ascending; order_direction=desc reverses it
+		require.True(t, slices.IsSortedFunc(resp.Scripts, func(a, b *fleet.HostScriptDetail) int { return strings.Compare(a.Name, b.Name) }))
+		var descResp fleet.GetHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host0.ID), nil, http.StatusOK, &descResp, "order_key", "name", "order_direction", "desc")
+		require.Len(t, descResp.Scripts, len(resp.Scripts))
+		for i := range resp.Scripts {
+			require.Equal(t, resp.Scripts[i].Name, descResp.Scripts[len(descResp.Scripts)-1-i].Name)
 		}
 	})
 

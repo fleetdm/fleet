@@ -26,7 +26,6 @@ func TestClearRecordedLists(t *testing.T) {
 		"apple_settings":   {"custom_settings", "configuration_profiles"},
 		"windows_settings": {"custom_settings", "configuration_profiles"},
 		"android_settings": {"custom_settings", "configuration_profiles"},
-		"macos_setup":      {"bootstrap_package", "macos_setup_assistant", "script"},
 		"setup_experience": {"macos_bootstrap_package", "apple_setup_assistant", "macos_script"},
 	}
 
@@ -99,9 +98,6 @@ func TestClearRecordedLists(t *testing.T) {
 			"mdm.windows_settings.configuration_profiles",
 			"mdm.android_settings.custom_settings",
 			"mdm.android_settings.configuration_profiles",
-			"mdm.macos_setup.bootstrap_package",
-			"mdm.macos_setup.macos_setup_assistant",
-			"mdm.macos_setup.script",
 			"mdm.setup_experience.macos_bootstrap_package",
 			"mdm.setup_experience.apple_setup_assistant",
 			"mdm.setup_experience.macos_script",
@@ -135,9 +131,6 @@ func TestClearRecordedLists(t *testing.T) {
 			"mdm.windows_settings.configuration_profiles",
 			"mdm.android_settings.custom_settings",
 			"mdm.android_settings.configuration_profiles",
-			"mdm.macos_setup.bootstrap_package",
-			"mdm.macos_setup.macos_setup_assistant",
-			"mdm.macos_setup.script",
 			"mdm.setup_experience.macos_bootstrap_package",
 			"mdm.setup_experience.apple_setup_assistant",
 			"mdm.setup_experience.macos_script",

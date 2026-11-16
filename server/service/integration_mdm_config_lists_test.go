@@ -40,7 +40,6 @@ var recordedListKeysByObject = []struct {
 	{objectPath: []string{"mdm", "apple_settings"}, keys: []string{"custom_settings", "configuration_profiles"}},
 	{objectPath: []string{"mdm", "windows_settings"}, keys: []string{"custom_settings", "configuration_profiles"}},
 	{objectPath: []string{"mdm", "android_settings"}, keys: []string{"custom_settings", "configuration_profiles"}},
-	{objectPath: []string{"mdm", "macos_setup"}, keys: []string{"bootstrap_package", "macos_setup_assistant", "script"}},
 	{objectPath: []string{"mdm", "setup_experience"}, keys: []string{"macos_bootstrap_package", "apple_setup_assistant", "macos_script"}},
 }
 
@@ -106,9 +105,9 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesOmitRecordedLists()
 			"macos_settings":   map[string]any{"custom_settings": []map[string]any{{"path": "apple.mobileconfig"}}},
 			"windows_settings": map[string]any{"custom_settings": []map[string]any{{"path": "windows.xml"}}},
 			"android_settings": map[string]any{"custom_settings": []map[string]any{{"path": "android.json"}}},
-			"macos_setup": map[string]any{
-				"macos_setup_assistant": "assistant.json",
-				"bootstrap_package":     "https://example.com/bootstrap.pkg",
+			"setup_experience": map[string]any{
+				"apple_setup_assistant":   "assistant.json",
+				"macos_bootstrap_package": "https://example.com/bootstrap.pkg",
 			},
 		},
 	}

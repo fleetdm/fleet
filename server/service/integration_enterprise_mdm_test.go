@@ -97,12 +97,13 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			GracePeriodDays: optjson.SetInt(2),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
@@ -304,14 +305,17 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2021-01-01"}`, team.ID, team.Name), 0,
+	)
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`,
+		fmt.Sprintf(
+			`{"fleet_id": %d, "fleet_name": %q}`,
 			team.ID,
 			team.Name,
-		), 0)
+		), 0,
+	)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
@@ -422,10 +426,12 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.False(t, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`,
+		fmt.Sprintf(
+			`{"fleet_id": %d, "fleet_name": %q}`,
 			team.ID,
 			team.Name,
-		), 0)
+		), 0,
+	)
 
 	// setting the windows updates doesn't alter the apple updates
 	tmResp = teamResponse{}
@@ -1461,7 +1467,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+		"mdm": { "setup_experience": { "apple_enable_release_device_manually": true } }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Couldn't update setup_experience because MDM features aren't turned on in Fleet.`)

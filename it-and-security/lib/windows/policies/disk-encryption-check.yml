@@ -2,8 +2,8 @@
   query: SELECT 1 FROM bitlocker_info WHERE protection_status = 1;
   critical: false
   description: This policy checks if disk encryption is enabled.
-  resolution: |-
-    Disk encryption should be automatically enforced by Fleet. If you are failing this policy, please restart your device. After restarting, open Fleet Desktop and click Refetch to clear this policy failure. 
-
-    If the issue persists, please reach out in #help-dogfooding. 
+  resolution: >-
+    No action needed from you. Fleet turns on BitLocker through MDM. If Windows needs a restart or a BitLocker PIN to
+    finish, My device shows a banner. If it keeps failing, IT checks the host's disk encryption status in Fleet.
+  hidden: true
   platform: windows

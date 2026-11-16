@@ -130,6 +130,9 @@ const AutocompleteDropdown = ({
         multi
         searchable
         autoFocus={autoFocus}
+        // Otherwise react-select swallows Escape (to clear the value), so the
+        // enclosing modal never closes.
+        escapeClearsValue={false}
       />
     </div>
   );

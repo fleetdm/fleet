@@ -56,6 +56,8 @@ When the report is full, Fleet keeps updating hosts already in the report as lon
 
 Fleet also doesn't store a host's result if it exceeds 512 KB. Fleet records when the host last sent results, but the report shows that the host returned no data. To reduce the size of a result, return fewer columns or rows in your query.
 
+Fleet doesn't store any of a host's results if the host returns more than 1,000 rows. Fleet keeps the host's previous results, if any, and doesn't mark the report as clipped. If this is the host's first result, the host doesn't appear in the report. This limit applies to each host's result, and `report_cap` doesn't change it. To get all rows, filter your query to return 1,000 rows or fewer per host, or [run a live report](#run-a-report), which isn't limited.
+
 > You can change the 1,000-result minimum by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
 
 Persisting results within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable stored results either globally or per-report.

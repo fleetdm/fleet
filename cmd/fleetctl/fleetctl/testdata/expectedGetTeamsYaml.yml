@@ -43,9 +43,10 @@ spec:
       name_template: null
       setup_experience:
         apple_enable_release_device_manually: false
-        enable_create_local_admin_account: false
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
         enable_end_user_authentication: false
-        end_user_local_account_type: admin
+        macos_end_user_local_account_type: admin
         lock_end_user_info: false
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
@@ -56,7 +57,6 @@ spec:
       windows_require_bitlocker_pin: null
       windows_settings:
         enable_disk_encryption: false
-        enable_managed_local_account: false
         require_bitlocker_pin: false
       windows_updates:
         deadline_days: null
@@ -121,9 +121,10 @@ spec:
       name_template: null
       setup_experience:
         apple_enable_release_device_manually: false
-        enable_create_local_admin_account: false
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
         enable_end_user_authentication: false
-        end_user_local_account_type: admin
+        macos_end_user_local_account_type: admin
         lock_end_user_info: false
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
@@ -134,7 +135,6 @@ spec:
       windows_require_bitlocker_pin: null
       windows_settings:
         enable_disk_encryption: false
-        enable_managed_local_account: false
         require_bitlocker_pin: false
       windows_updates:
         deadline_days: 7

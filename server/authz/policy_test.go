@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chartapi "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -771,7 +772,15 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 	noTeamInstaller := &fleet.SoftwareInstaller{}
 	team1Installer := &fleet.SoftwareInstaller{TeamID: new(uint(1))}
 	team2Installer := &fleet.SoftwareInstaller{TeamID: new(uint(2))}
+	// VPP apps and title icons are authorized as the same rego type (installable_entity).
+	team1VPPApp := &fleet.VPPApp{TeamID: new(uint(1))}
+	team1Icon := &fleet.SoftwareTitleIcon{TeamID: 1}
 	runTestCases(t, []authTestCase{
+		{user: test.UserTeamAdminTeam1, object: team1VPPApp, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1VPPApp, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Icon, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1Icon, action: write, allow: false},
+
 		{user: nil, object: noTeamInstaller, action: read, allow: false},
 		{user: nil, object: noTeamInstaller, action: write, allow: false},
 		{user: nil, object: team1Installer, action: read, allow: false},
@@ -1326,7 +1335,7 @@ func TestAuthorizeHost(t *testing.T) {
 
 // TestAuthorizeActivityHost verifies that the bounded-context activity.Host
 // type is serialized with the json field names the OPA policy expects
-// (object.team_id, object.id). Without those tags, team-scoped users get a
+// (object.fleet_id, object.id). Without those tags, team-scoped users get a
 // 403 when listing host past activities (issue #46009).
 func TestAuthorizeActivityHost(t *testing.T) {
 	t.Parallel()
@@ -1360,6 +1369,9 @@ func TestAuthorizeActivityHost(t *testing.T) {
 	globalHost := &activity.Host{}
 	hostTeam1 := &activity.Host{ID: 10, TeamID: new(uint(1))}
 	hostTeam2 := &activity.Host{ID: 11, TeamID: new(uint(2))}
+	// The chart bounded context has its own host type, also authorized as "host".
+	chartHostTeam1 := &chartapi.Host{ID: 10, TeamID: new(uint(1))}
+	chartHostTeam2 := &chartapi.Host{ID: 11, TeamID: new(uint(2))}
 
 	runTestCases(t, []authTestCase{
 		// Global admin can read any host.
@@ -1371,6 +1383,8 @@ func TestAuthorizeActivityHost(t *testing.T) {
 		{user: teamAdmin, object: globalHost, action: list, allow: true},
 		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
 		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
+		{user: teamAdmin, object: chartHostTeam1, action: read, allow: true},
+		{user: teamAdmin, object: chartHostTeam2, action: read, allow: false},
 
 		// Team maintainer / observer can also read hosts on their team.
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
@@ -2008,60 +2022,6 @@ func TestAuthorizeTarget(t *testing.T) {
 	})
 }
 
-func TestAuthorizeUserCreatedPack(t *testing.T) {
-	t.Parallel()
-
-	userCreatedPack := &fleet.Pack{
-		// Type nil is the type for user-created packs.
-		Type: nil,
-	}
-	runTestCases(t, []authTestCase{
-		{user: nil, object: userCreatedPack, action: read, allow: false},
-		{user: nil, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserNoRoles, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserNoRoles, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserAdmin, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserAdmin, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserMaintainer, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserObserver, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserObserver, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserObserverPlus, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTechnician, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTechnician, object: userCreatedPack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserGitOps, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: write, allow: false},
-	})
-}
-
 func TestAuthorizeCarve(t *testing.T) {
 	t.Parallel()
 
@@ -2427,10 +2387,14 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	t.Parallel()
 
 	globalSettings := &fleet.MDMAppleSettingsPayload{}
+	team1SetupSettings := &fleet.MDMAppleSetupPayload{TeamID: new(uint(1))}
 	team1Settings := &fleet.MDMAppleSettingsPayload{
 		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
+		{user: test.UserTeamAdminTeam1, object: team1SetupSettings, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1SetupSettings, action: write, allow: false},
+
 		{user: test.UserNoRoles, object: globalSettings, action: write, allow: false},
 		{user: test.UserNoRoles, object: globalSettings, action: read, allow: false},
 		{user: test.UserNoRoles, object: team1Settings, action: write, allow: false},

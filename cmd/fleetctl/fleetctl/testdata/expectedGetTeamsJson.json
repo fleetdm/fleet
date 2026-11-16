@@ -59,21 +59,21 @@
         "name_template": "",
         "setup_experience": {
           "apple_enable_release_device_manually": false,
-          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_enable_bootstrap_package_during_manual_enrollment": false,
           "macos_enable_bootstrap_package_during_migration": false,
+          "macos_end_user_local_account_type": "admin",
+          "macos_managed_local_account_enabled": false,
           "macos_manual_agent_install": null,
           "macos_require_all_software": false,
           "software": null,
+          "windows_managed_local_account_enabled": false,
           "windows_require_all_software": false
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "enable_disk_encryption": false,
-          "enable_managed_local_account": false,
           "require_bitlocker_pin": false
         },
         "windows_updates": {
@@ -172,21 +172,21 @@
         "name_template": "",
         "setup_experience": {
           "apple_enable_release_device_manually": false,
-          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_enable_bootstrap_package_during_manual_enrollment": false,
           "macos_enable_bootstrap_package_during_migration": false,
+          "macos_end_user_local_account_type": "admin",
+          "macos_managed_local_account_enabled": false,
           "macos_manual_agent_install": null,
           "macos_require_all_software": false,
           "software": null,
+          "windows_managed_local_account_enabled": false,
           "windows_require_all_software": false
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "enable_disk_encryption": false,
-          "enable_managed_local_account": false,
           "require_bitlocker_pin": false
         },
         "windows_updates": {

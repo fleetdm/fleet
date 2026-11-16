@@ -205,7 +205,8 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 			})
 		}
 		if c.WithCollidingProfileNames {
-			profiles = append(profiles,
+			profiles = append(
+				profiles,
 				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-win-uuid", Name: "Team Win", Platform: "windows"},
 				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-dash-win-uuid", Name: "Team-Win", Platform: "windows"},
 			)
@@ -580,7 +581,8 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	}
 	// Only add FMA and package install policies for actual teams, not unassigned.
 	if *teamID != 0 {
-		policies = append(policies,
+		policies = append(
+			policies,
 			&fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					ID:          4,
@@ -2211,35 +2213,34 @@ func TestGenerateControls(t *testing.T) {
 	// Check that the controls do not contain a setup_experience section
 	_, ok := controlsRaw["setup_experience"]
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
-	// The disabled Windows managed local account is not emitted (absent key means disabled).
-	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
-		require.NotContains(t, windowsSection, "enable_managed_local_account")
-	}
 
-	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
-	// and the Windows managed local account enabled.
+	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
 	mdmConfig = fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableEndUserAuthentication: true,
-		},
-		WindowsSettings: fleet.WindowsSettings{
-			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
-	// The enabled Windows managed local account is emitted.
-	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
-	require.True(t, ok, "expected a windows_settings section")
-	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
 
-	// The same key name is the deprecated spelling of the Apple toggle, so make sure it is correct.
-	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
-	require.NoError(t, err)
-	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
-	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
+	// The Windows managed local account alone needs the placeholder too, also with only Windows MDM on.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableManagedLocalAccountWindows: optjson.SetBool(true),
+		},
+	}
+	for _, appleMDM := range []bool{true, false} {
+		cmd.AppConfig.MDM.EnabledAndConfigured = appleMDM
+		controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+		require.NoError(t, err)
+		verifyControlsHasMacosSetup(t, controlsRaw)
+		controlsYaml, err := yamlMarshalRenamed(controlsRaw)
+		require.NoError(t, err)
+		require.NotContains(t, string(controlsYaml), "enable_managed_local_account")
+	}
+	cmd.AppConfig.MDM.EnabledAndConfigured = true
 
 	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	require.NoError(t, err)
@@ -3822,7 +3823,8 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 	pngBody := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01, 0x02}
 
 	t.Run("Fleet-hosted logo is downloaded and emitted as a path key", func(t *testing.T) {
-		cmd, _ := newOrgLogoCommand(t,
+		cmd, _ := newOrgLogoCommand(
+			t,
 			&orgLogoStub{MockClient: &MockClient{}, body: pngBody, contentType: "image/png"},
 			fleet.OrgInfo{
 				OrgName:             "ACME",
@@ -3838,9 +3840,6 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Equal(t, "./lib/org_logo/dark.png", orgInfo["org_logo_path_dark_mode"])
 		_, hasDarkURL := orgInfo["org_logo_url_dark_mode"]
 		assert.False(t, hasDarkURL, "Fleet-hosted dark URL should be removed in favor of the path key")
-		// The deprecated alias is also cleared so aliasRules can't resurrect the URL.
-		_, hasOldDark := orgInfo["org_logo_url"]
-		assert.False(t, hasOldDark)
 
 		// Bytes were queued for the on-disk export.
 		assert.Equal(t, string(pngBody), cmd.FilesToWrite["lib/org_logo/dark.png"])
@@ -3848,7 +3847,8 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 
 	t.Run("SVG logo is exported with an .svg extension", func(t *testing.T) {
 		svgBody := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>`)
-		cmd, _ := newOrgLogoCommand(t,
+		cmd, _ := newOrgLogoCommand(
+			t,
 			&orgLogoStub{MockClient: &MockClient{}, body: svgBody, contentType: "image/svg+xml"},
 			fleet.OrgInfo{
 				OrgName:            "ACME",

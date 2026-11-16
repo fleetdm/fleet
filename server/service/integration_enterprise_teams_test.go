@@ -146,12 +146,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
@@ -204,7 +205,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamNameDecomposed,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"lock_end_user_info": true,
 					},
 				},
@@ -276,12 +277,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
@@ -316,12 +318,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
@@ -358,12 +361,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
@@ -460,8 +464,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
-						"enable_release_device_manually": false,
+					"setup_experience": map[string]any{
+						"apple_enable_release_device_manually": false,
 					},
 				},
 			},
@@ -477,8 +481,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
-						"enable_release_device_manually": true,
+					"setup_experience": map[string]any{
+						"apple_enable_release_device_manually": true,
 					},
 				},
 			},
@@ -494,7 +498,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"macos_require_all_software": true,
 					},
 				},
@@ -1381,9 +1385,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// add a team user
 	tmResp.Team = nil
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Users, 1) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
 	assert.Equal(t, user.ID, tmResp.Team.Users[0].ID)
+	assert.Equal(t, user.Email, tmResp.Team.Users[0].Email)
+
+	fleetRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": %%q, "fleet_id": %d, "fleet_name": %q}`,
+		user.ID, user.Name, user.Email, tm1ID, tmResp.Team.Name)
+	lastActivityID := s.lastActivityMatches(fleet.ActivityTypeChangedUserTeamRole{}.ActivityName(), fmt.Sprintf(fleetRoleDetails, fleet.RoleObserver), 0)
+	activities := s.listActivities()
+	require.NotNil(t, activities[len(activities)-1].ActorID)
+	assert.Equal(t, s.users["admin1@example.com"].ID, *activities[len(activities)-1].ActorID)
+
+	// adding a team user with the role they already have logs nothing
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
+	s.lastActivityMatches("", "", lastActivityID)
+
+	// changing a team user's role logs the new role
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleMaintainer}}}, http.StatusOK, &tmResp)
+	lastActivityID = s.lastActivityMatches(fleet.ActivityTypeChangedUserTeamRole{}.ActivityName(), fmt.Sprintf(fleetRoleDetails, fleet.RoleMaintainer), 0)
 
 	// add a team user - non-existing team
 	tmResp.Team = nil
@@ -1392,6 +1412,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// add a team user - invalid user role
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: "foobar"}}}, http.StatusUnprocessableEntity, &tmResp)
+	s.lastActivityMatches("", "", lastActivityID)
 
 	// search for that user
 	usersResp.Users = nil
@@ -1408,11 +1429,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID}}}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Users) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
+	lastActivityID = s.lastActivityMatches(fleet.ActivityTypeDeletedUserTeamRole{}.ActivityName(), fmt.Sprintf(fleetRoleDetails, fleet.RoleMaintainer), 0)
 
 	// delete team user - unknown user
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID + 1}}}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Users) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
+	s.lastActivityMatches("", "", lastActivityID)
 
 	// delete team user - unknown team
 	tmResp.Team = nil

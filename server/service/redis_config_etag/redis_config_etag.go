@@ -29,10 +29,9 @@ const (
 	// the per-instance in-memory caches that feed the config build:
 	//
 	//	  packConfigCache TTL (1m, service.PackConfigCacheTTL)
-	//	+ max cached_mysql TTL feeding the build (1m: defaultPacksExpiration,
-	//	  defaultScheduledQueriesExpiration and
-	//	  defaultTeamAgentOptionsExpiration — AgentOptionsForHost reads the
-	//	  last of these; see cached_mysql.MaxConfigInputTTL)
+	//	+ max cached_mysql TTL feeding the build (1m:
+	//	  defaultTeamAgentOptionsExpiration, read by AgentOptionsForHost; see
+	//	  cached_mysql.MaxConfigInputTTL)
 	//	+ slack for in-flight requests and clock slop (1m)
 	//	= 3m
 	//
@@ -40,16 +39,17 @@ const (
 	// the stale-write poisoning described in the package docs comes back.
 	DefaultFenceTTL = 3 * time.Minute
 
-	// DefaultETagTTL is the backstop TTL on SHARED ETag records. The
-	// generation/fence mechanism is the correctness mechanism and would
-	// suffice alone if invalidation-hook coverage (see
-	// server/datastore/etag_invalidate) were provably complete forever. The
-	// TTL converts any MISSED hook — or an out-of-band DB edit, a restore
-	// from backup, a future mutation added without a hook — from a
-	// permanently poisoned ETag into a bounded delay, at the cost of one full
-	// config build per (team, platform) per TTL. It may be lengthened as
-	// confidence grows. NEVER remove it.
-	DefaultETagTTL = 1 * time.Hour
+	// Shared ETag record TTLs are JITTERED between these bounds (~50-70m,
+	// centered on one hour) so the backstop never expires all (scope, platform)
+	// records at once when they were created around the same time (e.g., during
+	// initial fleet check-in). The generation/fence mechanism is the correctness
+	// mechanism; the TTL converts any MISSED invalidation hook — or an
+	// out-of-band DB edit, a restore from backup, a future mutation added
+	// without a hook — from a permanently poisoned ETag into a bounded delay,
+	// at the cost of one full config build per (scope, platform) per TTL. The
+	// bounds may be lengthened as confidence grows. NEVER remove them.
+	DefaultETagMinTTL = 50 * time.Minute
+	DefaultETagMaxTTL = 70 * time.Minute
 
 	// Host record TTLs are JITTERED between these bounds (~50-70m, centered
 	// on one hour) so the backstop never expires a whole fleet's records at
@@ -68,9 +68,9 @@ const (
 	// un-short-circuited baseline.
 	DefaultHostQuarantineTTL = 30 * time.Second
 
-	// gateStateTTL bounds the cached gate answers (legacy packs flag, label
-	// scopes). On expiry the next reader recomputes them with cheap DB
-	// queries; the TTL also bounds any failure of the reset hooks.
+	// gateStateTTL bounds the cached label-scope gate answer. On expiry the
+	// next reader recomputes it with a cheap DB query; the TTL also bounds any
+	// failure of the reset hooks.
 	gateStateTTL = 5 * time.Minute
 )
 
@@ -79,7 +79,6 @@ const (
 const (
 	genKeyBase        = "{cfgetag}:gen"
 	fenceKeyBase      = "{cfgetag}:fence"
-	legacyKeyBase     = "{cfgetag}:legacy-packs"
 	scopeModesKeyBase = "{cfgetag}:scope-modes"
 	// shared etag record keys append ":v<fleet version>:<scope>:<platform>",
 	// see (*Store).etagKey.
@@ -118,7 +117,7 @@ var (
 		Namespace: "fleet",
 		Subsystem: "config_etag",
 		Name:      "gate_loads_total",
-		Help:      "Executions of the gate-state loaders (legacy packs, label scopes).",
+		Help:      "Executions of the label-scope gate-state loader.",
 	})
 )
 
@@ -129,17 +128,17 @@ type Store struct {
 	pool           fleet.RedisPool
 	logger         *slog.Logger
 	fenceTTL       time.Duration
-	etagTTL        time.Duration
+	etagMinTTL     time.Duration
+	etagMaxTTL     time.Duration
 	hostETagMinTTL time.Duration
 	hostETagMaxTTL time.Duration
 	quarantineTTL  time.Duration
 	version        string // Fleet server version baked into ETag record keys
 	testPrefix     string // for tests, the key prefix to use to avoid conflicts
 
-	// Per-gate leader-election flags: true while a database load for that
-	// gate is in flight on this Fleet instance. See the non-blocking
-	// leader election note on the gate methods.
-	legacyLoadInFlight atomic.Bool
+	// Leader-election flag: true while a label-scope database load is in
+	// flight on this Fleet instance. See the non-blocking leader election
+	// note on LabelScopes.
 	scopesLoadInFlight atomic.Bool
 }
 
@@ -153,7 +152,8 @@ func New(pool fleet.RedisPool, logger *slog.Logger) *Store {
 		pool:           pool,
 		logger:         logger,
 		fenceTTL:       DefaultFenceTTL,
-		etagTTL:        DefaultETagTTL,
+		etagMinTTL:     DefaultETagMinTTL,
+		etagMaxTTL:     DefaultETagMaxTTL,
 		hostETagMinTTL: DefaultHostETagMinTTL,
 		hostETagMaxTTL: DefaultHostETagMaxTTL,
 		quarantineTTL:  DefaultHostQuarantineTTL,
@@ -163,7 +163,6 @@ func New(pool fleet.RedisPool, logger *slog.Logger) *Store {
 
 func (s *Store) genKey() string        { return s.testPrefix + genKeyBase }
 func (s *Store) fenceKey() string      { return s.testPrefix + fenceKeyBase }
-func (s *Store) legacyKey() string     { return s.testPrefix + legacyKeyBase }
 func (s *Store) scopeModesKey() string { return s.testPrefix + scopeModesKeyBase }
 
 func (s *Store) etagKey(scope, platform string) string {
@@ -176,6 +175,17 @@ func (s *Store) hostETagKey(hostID uint) string {
 
 func (s *Store) hostQuarantineKey(hostID uint) string {
 	return fmt.Sprintf("%s%s:%d", s.testPrefix, hostQuarantineKeyPrefix, hostID)
+}
+
+// etagTTLSeconds returns a jittered TTL in [etagMinTTL, etagMaxTTL] so the
+// backstop never expires all shared (scope, platform) records at once.
+func (s *Store) etagTTLSeconds() int {
+	minSec := int(s.etagMinTTL.Seconds())
+	maxSec := int(s.etagMaxTTL.Seconds())
+	if maxSec <= minSec {
+		return minSec
+	}
+	return minSec + rand.IntN(maxSec-minSec+1) //nolint:gosec // TTL jitter doesn't need cryptographic randomness
 }
 
 // hostETagTTLSeconds returns a jittered TTL in [hostETagMinTTL, hostETagMaxTTL] so
@@ -268,7 +278,7 @@ func (s *Store) SetIfNoFence(ctx context.Context, scope, platform, etag string) 
 
 	res, err := redigo.Int64(conn.Do("EVAL", setIfNoFenceScript, 3,
 		s.fenceKey(), s.genKey(), s.etagKey(scope, platform),
-		etag, int(s.etagTTL.Seconds())))
+		etag, s.etagTTLSeconds()))
 	if err != nil {
 		metricPublish.WithLabelValues("error").Inc()
 		return false, ctxerr.Wrap(ctx, err, "redis config etag set")
@@ -489,7 +499,7 @@ func (s *Store) gateSet(ctx context.Context, key, val string) error {
 	return nil
 }
 
-// Non-blocking leader election (both gate loaders).
+// Non-blocking leader election (gate loader).
 //
 // A naive GET → miss → SELECT → SET turns one Redis miss into one database
 // query PER CONCURRENT CONFIG REQUEST during the miss window — and the
@@ -499,7 +509,7 @@ func (s *Store) gateSet(ctx context.Context, key, val string) error {
 // config-request latency to a possibly-hung database query, violating the
 // fail-open guarantee.
 //
-// Instead: one CAS flag per gate per Fleet instance. The winner re-checks
+// Instead: one CAS flag per Fleet instance. The winner re-checks
 // Redis (another container may have just loaded), runs the loader, SETs the
 // state. Losers do NOT wait and do NOT query — they return
 // fleet.ErrConfigETagGateLoading, which callers treat as "unknown → bypass
@@ -507,69 +517,6 @@ func (s *Store) gateSet(ctx context.Context, key, val string) error {
 // most one loader query per container per miss window, zero added latency,
 // no new stall modes. Redis connections are scoped per operation and never
 // held across the database load.
-
-// LegacyPacksPresent reports whether the deployment has any user-created 2017
-// packs, caching the answer in Redis for gateStateTTL. On any error it
-// returns true — for this gate, "assume present" is the safe direction: it
-// bypasses the fast path (costing only performance), whereas a wrong "false"
-// could let a host match past a config change that never fires an invalidation
-// event. Returns fleet.ErrConfigETagGateLoading (with present=true) when
-// another request on this instance is already loading — normal contention,
-// not a fault.
-func (s *Store) LegacyPacksPresent(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error) {
-	val, found, err := s.gateGet(ctx, s.legacyKey())
-	if err != nil {
-		return true, err
-	}
-	if found {
-		return val != "0", nil
-	}
-
-	// Cache miss: elect a loader (see the leader-election note above).
-	if !s.legacyLoadInFlight.CompareAndSwap(false, true) {
-		return true, fleet.ErrConfigETagGateLoading
-	}
-	defer s.legacyLoadInFlight.Store(false)
-
-	// Re-check under leadership: another Fleet instance may have loaded and
-	// SET while we were losing the race locally.
-	if val, found, err := s.gateGet(ctx, s.legacyKey()); err != nil {
-		return true, err
-	} else if found {
-		return val != "0", nil
-	}
-
-	metricGateLoads.Inc()
-	present, err := load(ctx)
-	if err != nil {
-		return true, ctxerr.Wrap(ctx, err, "load legacy packs presence")
-	}
-	stored := "0"
-	if present {
-		stored = "1"
-	}
-	if err := s.gateSet(ctx, s.legacyKey(), stored); err != nil {
-		return present, err
-	}
-	// Bounded state-write log: at most once per gateStateTTL/reset per
-	// container (only the elected loader reaches this line).
-	s.logger.InfoContext(ctx, "config etag gate state written",
-		"kind", "legacy_packs", "present", present)
-	return present, nil
-}
-
-// ResetLegacyPacksFlag drops the cached legacy-packs answer so the next
-// LegacyPacksPresent recomputes it. Pack CRUD hooks call this because the
-// answer may have just changed in either direction.
-func (s *Store) ResetLegacyPacksFlag(ctx context.Context) error {
-	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
-	defer conn.Close()
-
-	if _, err := conn.Do("DEL", s.legacyKey()); err != nil {
-		return ctxerr.Wrap(ctx, err, "redis config etag legacy flag reset")
-	}
-	return nil
-}
 
 // LabelScopes returns the cached set of scopes containing label-scoped
 // scheduled reports, loading and caching it (gateStateTTL) on a miss. On any

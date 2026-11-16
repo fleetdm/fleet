@@ -19,7 +19,7 @@ const DefaultColumnFilter = <T extends object>({ column }: FilterProps<T>) => {
         onChange={(searchString) => {
           setFilter(searchString || undefined); // Set undefined to remove the filter entirely
         }}
-        icon="filter-funnel"
+        icon="filter"
       />
     </div>
   );

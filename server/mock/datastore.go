@@ -49,6 +49,23 @@ func (m *Store) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostU
 	return nil
 }
 
+// AllLabelIDsByName falls back to the LabelIDsByName mock unless a test mocks it, so a test's label fixture serves both
+// lookups.
+func (m *Store) AllLabelIDsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+	if m.AllLabelIDsByNameFunc != nil {
+		return m.DataStore.AllLabelIDsByName(ctx, names, filter)
+	}
+	ids, err := m.LabelIDsByName(ctx, names, filter)
+	if err != nil {
+		return nil, err
+	}
+	all := make(map[string][]uint, len(ids))
+	for name, id := range ids {
+		all[name] = []uint{id}
+	}
+	return all, nil
+}
+
 type mockNotFoundError struct{}
 
 func (e *mockNotFoundError) Error() string    { return "not found" }

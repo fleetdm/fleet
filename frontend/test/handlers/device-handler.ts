@@ -20,8 +20,6 @@ import { baseUrl } from "test/test-utils";
 export const createDefaultDeviceResponse = (): IDUPDetails => ({
   host: { ...createMockHost(), dep_assigned_to_fleet: false },
   license: createMockLicense(),
-  org_logo_url: "",
-  org_logo_url_light_background: "",
   org_logo_url_dark_mode: "",
   org_logo_url_light_mode: "",
   org_contact_url: "",

@@ -268,6 +268,7 @@ import DanteController from "./png/DanteController.png";
 import Darkmodebuddy from "./png/Darkmodebuddy.png";
 import Darktable from "./png/Darktable.png";
 import Dash from "./png/Dash.png";
+import DatadogAgent from "./png/DatadogAgent.png";
 import Dataflare from "./png/Dataflare.png";
 import DataGrip from "./png/DataGrip.png";
 import Dataspell from "./png/Dataspell.png";
@@ -718,6 +719,7 @@ import Notesnook from "./png/Notesnook.png";
 import Notesollama from "./png/Notesollama.png";
 import Notion from "./png/Notion.png";
 import NotionCalendar from "./png/NotionCalendar.png";
+import NoTunes from "./png/noTunes.png";
 import NounProject from "./png/NounProject.png";
 import Nova from "./png/Nova.png";
 import Novabench from "./png/Novabench.png";
@@ -1427,6 +1429,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,
+  "datadog agent": DatadogAgent,
   dataflare: Dataflare,
   datagrip: DataGrip,
   dataspell: Dataspell,
@@ -1903,6 +1906,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   notesollama: Notesollama,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  notunes: NoTunes,
   "noun project": NounProject,
   nova: Nova,
   novabench: Novabench,
@@ -2418,7 +2422,7 @@ const matchStrictNameSourceToIcon = ({
   switch (true) {
     case name === "zoom.us.app" && source === "apps":
       return Zoom;
-    case name === "zoom":
+    case name === "zoom" || name === "zoom (arm64)":
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;

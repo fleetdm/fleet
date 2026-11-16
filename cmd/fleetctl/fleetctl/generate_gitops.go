@@ -1212,8 +1212,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 
 // generateOrgInfo returns OrgInfo as a map so we can swap a Fleet-hosted
 // logo URL for a path key plus an exported file. External URLs flow through
-// unchanged; the deprecated logo URL keys are renamed to the mode-aware
-// variants by yamlMarshalRenamed at write time.
+// unchanged.
 func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
 	raw, err := json.Marshal(cmd.AppConfig.OrgInfo)
 	if err != nil {
@@ -1226,12 +1225,12 @@ func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
 
 	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeLight,
 		cmd.AppConfig.OrgInfo.OrgLogoURLLightMode,
-		"org_logo_path_light_mode", "org_logo_url_light_mode", "org_logo_url_light_background"); err != nil {
+		"org_logo_path_light_mode", "org_logo_url_light_mode"); err != nil {
 		return nil, err
 	}
 	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeDark,
 		cmd.AppConfig.OrgInfo.OrgLogoURLDarkMode,
-		"org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"); err != nil {
+		"org_logo_path_dark_mode", "org_logo_url_dark_mode"); err != nil {
 		return nil, err
 	}
 	return orgInfo, nil
@@ -1240,10 +1239,10 @@ func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
 // exportFleetHostedLogo, when the given URL points at the Fleet logo serving
 // endpoint, downloads the logo bytes, writes them to lib/org_logo/<mode>.<ext>,
 // and rewrites the orgInfo map to reference the file via pathKey instead of
-// the URL keys. External URLs are left untouched.
+// the URL key. External URLs are left untouched.
 func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
 	orgInfo map[string]any, mode fleet.OrgLogoMode, urlValue string,
-	pathKey, newURLKey, deprecatedURLKey string,
+	pathKey, urlKey string,
 ) error {
 	if !fleet.IsFleetHostedLogoURL(urlValue) {
 		return nil
@@ -1268,8 +1267,7 @@ func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
 	cmd.FilesToWrite[fileName] = string(body)
 
 	orgInfo[pathKey] = fmt.Sprintf("./%s", fileName)
-	delete(orgInfo, newURLKey)
-	delete(orgInfo, deprecatedURLKey)
+	delete(orgInfo, urlKey)
 	return nil
 }
 
@@ -1585,14 +1583,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
 			}
-			// Emit the managed local account toggle only when it is enabled. Omitting it is lossless because false is
-			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
-			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
-			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
-			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.EnableManagedLocalAccount.Value {
-				windowsSettings[jsonFieldName(windowsSettingsT, "EnableManagedLocalAccount")] = true
-			}
-
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
 			if len(profiles["android_profiles"].([]map[string]any)) > 0 {
@@ -1702,6 +1692,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
 
+		// The Windows managed local account setting lives in setup_experience too, so a server with only Windows MDM
+		// still needs the placeholder.
+		needsSetupExperience := teamId != nil && teamMdm != nil && teamMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
@@ -1727,17 +1720,18 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			hasEnrollmentProfile := enrollmentProfile != nil
 
-			// If the team has any of these configured, we need to generate the macos_setup section.
-			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
+			// If the team has any of these configured, we need to generate the setup_experience section.
+			needsSetupExperience = needsSetupExperience || hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
 				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
 					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
-					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
-				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
-				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-					Filename: teamName,
-					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
-				})
-			}
+					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin")))
+		}
+		if needsSetupExperience {
+			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
+			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+				Filename: teamName,
+				Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
+			})
 		}
 
 		if len(linuxSettings) > 0 {

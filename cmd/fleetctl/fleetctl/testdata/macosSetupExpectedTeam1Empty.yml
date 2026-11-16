@@ -28,9 +28,10 @@ spec:
       android_settings:
         certificates: null
       setup_experience:
-        enable_create_local_admin_account: false
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
         enable_end_user_authentication: false
-        end_user_local_account_type: "admin"
+        macos_end_user_local_account_type: "admin"
         lock_end_user_info: false
         macos_manual_agent_install: null
         macos_enable_bootstrap_package_during_manual_enrollment: false
@@ -60,7 +61,6 @@ spec:
       windows_settings:
         require_bitlocker_pin: false
         enable_disk_encryption: false
-        enable_managed_local_account: false
     secrets: null
     webhook_settings:
       host_status_webhook: null

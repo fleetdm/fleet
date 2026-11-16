@@ -134,7 +134,7 @@ Anti-pattern:
 Arrowless `TooltipWrapper` is `bottom-start` with left-aligned bubble text. Only override `position` or `text-align` when the anchor uses `showArrow` (pointed callout).
 
 ## Interfaces & Types
-- Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`
+- Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `ILabel`
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)
 - New code should use TypeScript interfaces only
 - API interface naming: use `*FormData` for form-driven request bodies, `*ApiParams`/`*QueryParams` for request params, `*Response` for API responses, `*QueryKey` when typing a React Query key. Avoid `*Body`, `*PostBody`, `*Payload`, `*Request` for API request bodies. `*PreviewPayload` is fine for outgoing webhook shapes (matches the "Preview payload" UI terminology).

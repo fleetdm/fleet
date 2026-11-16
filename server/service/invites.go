@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -333,8 +332,6 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invi
 	// skipauth: There is no viewer context at this point. We rely on verifying
 	// the invite for authNZ.
 	svc.authz.SkipAuthorization(ctx)
-
-	logging.WithExtras(ctx, "token", token)
 
 	invite, err := svc.ds.InviteByToken(ctx, token)
 	if err != nil {

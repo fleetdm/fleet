@@ -170,12 +170,9 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 }
 
 // defaultExpectedWindowsSettings returns the WindowsSettings shape produced by a team config
-// save/load round trip with nothing configured: the managed local account toggle force-defaulted
-// to disabled.
+// save/load round trip with nothing configured.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
-	return fleet.WindowsSettings{
-		EnableManagedLocalAccount: optjson.SetBool(false),
-	}
+	return fleet.WindowsSettings{}
 }
 
 func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *fleet.Host {
@@ -421,7 +418,7 @@ func waitBatchSetSoftwareInstallers(t *testing.T, s *withServer, teamName string
 	timeout := time.After(1 * time.Minute)
 	for {
 		var batchResultResponse batchSetSoftwareInstallersResultResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "team_name", teamName)
+		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "fleet_name", teamName)
 		if batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusCompleted ||
 			batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusFailed {
 			return batchResultResponse
