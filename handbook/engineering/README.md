@@ -479,7 +479,7 @@ Processes for maintaining and releasing changes to fleetdm.com (local testing, d
 
 ## Runbooks
 
-Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](./runbooks) subdirectory and link them here.
+Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](https://github.com/fleetdm/fleet/tree/main/handbook/engineering/runbooks) subdirectory and link them here.
 
 - [AI coding tool outage](./runbooks/ai-coding-tool-outage.md): fall back to GitHub Copilot when Claude Code is unavailable.
 
