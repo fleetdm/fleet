@@ -1017,8 +1017,8 @@ Figma is the source of truth for icons. If an icon in code doesn't match Figma, 
   `external-link` with `size="small"`, which has its own 12px drawing for links in 12px text. If an
   icon needs another size, draw it separately in Figma instead of scaling the 16px icon.
 - **Grid and stroke:** icons are drawn on a 16px grid with a 1.5px stroke.
-- **Status icons:** use the outlined versions (`success`, `error`, `pending`, `info`).
-  The one exception is the OS settings "Verified" status, which uses `success-filled`.
+- **Status icons:** `success`, `pending`, and `info` are outlined. `error` is filled so failures
+  stand out. The only filled success icon is `success-filled`, for the OS settings "Verified" status.
 - **Names:** use simple names (`error`, `pending`, `info`, `success`, `close`). Before adding an
   icon, check `ICON_MAP` for an existing one instead of adding a variant.
 - **Buttons:** pass the icon with the `icon` prop instead of an `<Icon>` child, so the button handles
