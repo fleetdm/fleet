@@ -48,6 +48,7 @@ func TestRecoveryLockPassword(t *testing.T) {
 		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
 		{"RecoveryLockPasswordArchive", testRecoveryLockPasswordArchive},
 		{"ClaimHostsForRecoveryLockVerify", testClaimHostsForRecoveryLockVerify},
+		{"RecoveryLockCurrentPasswordDuringRotation", testRecoveryLockCurrentPasswordDuringRotation},
 	}
 
 	for _, c := range cases {
@@ -2002,6 +2003,11 @@ func testRecoveryLockResetOnMDMReEnrollment(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
 		assert.False(t, status.PasswordAvailable, "the re-animated password is pending, not yet verified on the device")
 		assert.Empty(t, status.Detail)
+
+		// The pre-re-enrollment password was wiped from the device with the MDM profile.
+		got, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, got.Password, "stale password from before re-enrollment must not be returned")
 	})
 
 	t.Run("preserves row during SCEP renewal", func(t *testing.T) {
@@ -2069,17 +2075,20 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	type matrixCase struct {
-		name                   string
-		status                 *fleet.MDMDeliveryStatus // nil = SQL NULL
-		operationType          fleet.MDMOperationType
-		hasPassword            bool
-		hasPendingPw           bool
+		name          string
+		status        *fleet.MDMDeliveryStatus // nil = SQL NULL
+		operationType fleet.MDMOperationType
+		hasPassword   bool
+		hasPendingPw  bool
+		// verified sets verify_command_uuid: a verify confirmed encrypted_password on the device.
+		verified               bool
 		deleted                bool
 		errorMessage           string
 		expectNilFromDatastore bool
 		expectPopulatedStatus  *fleet.RecoveryLockStatus
-		// Only a verified row offers its password: until the device confirms the
-		// SetRecoveryLock command, the stored password may not be the one on the device.
+		// A row offers its active password once the device has confirmed it, and keeps offering
+		// it through a rotation or clear: that is the password the device holds until the
+		// new state is confirmed.
 		expectPasswordAvailable bool
 		expectDetail            string
 	}
@@ -2148,12 +2157,53 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			expectDetail:            "set failed",
 		},
 		{
+			name:                    "verified password, rotation pending -> pending, prior password available",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			verified:                true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verified password, rotation verifying -> pending, prior password available",
+			status:                  &fleet.MDMDeliveryVerifying,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			verified:                true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verified password, rotation retry queued -> pending, prior password available",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			verified:                true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verified password, rotation failed -> failed, prior password available",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			verified:                true,
+			errorMessage:            "set failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "set failed",
+		},
+		{
 			name:                    "pending remove -> removing_enforcement",
 			status:                  &fleet.MDMDeliveryPending,
 			operationType:           fleet.MDMOperationTypeRemove,
 			hasPassword:             true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
-			expectPasswordAvailable: false,
+			expectPasswordAvailable: true,
 		},
 		{
 			name:                    "NULL status remove -> removing_enforcement (clear retry)",
@@ -2161,7 +2211,15 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			operationType:           fleet.MDMOperationTypeRemove,
 			hasPassword:             true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
-			expectPasswordAvailable: false,
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verifying remove -> removing_enforcement",
+			status:                  &fleet.MDMDeliveryVerifying,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
 		},
 		{
 			name:                    "failed remove -> failed",
@@ -2170,7 +2228,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			hasPassword:             true,
 			errorMessage:            "clear failed",
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
-			expectPasswordAvailable: false,
+			expectPasswordAvailable: true,
 			expectDetail:            "clear failed",
 		},
 	}
@@ -2202,11 +2260,16 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 				errMsgArg = tc.errorMessage
 			}
 
+			var verifyCmdArg any
+			if tc.verified {
+				verifyCmdArg = "verify-" + uuid
+			}
+
 			_, err := ds.writer(ctx).ExecContext(ctx, `
 				INSERT INTO host_recovery_key_passwords
-					(host_uuid, encrypted_password, pending_encrypted_password, status, operation_type, error_message, deleted)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				host.UUID, encryptedPw, pendingPw, statusArg, string(tc.operationType), errMsgArg, tc.deleted)
+					(host_uuid, encrypted_password, pending_encrypted_password, status, operation_type, error_message, verify_command_uuid, deleted)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				host.UUID, encryptedPw, pendingPw, statusArg, string(tc.operationType), errMsgArg, verifyCmdArg, tc.deleted)
 			require.NoError(t, err)
 
 			got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
@@ -2220,6 +2283,17 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			require.NotNil(t, got)
 			assert.Equal(t, tc.expectPasswordAvailable, got.PasswordAvailable)
 			assert.Equal(t, tc.expectDetail, got.Detail)
+
+			// The read API returns a password exactly when password_available says so, and it's
+			// always the active one, never the pending one.
+			pw, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+			require.NoError(t, err)
+			if tc.expectPasswordAvailable {
+				require.NotNil(t, pw.Password)
+				assert.Equal(t, "password-bytes", *pw.Password)
+			} else {
+				assert.Nil(t, pw.Password)
+			}
 
 			got.PopulateStatus()
 			if tc.expectPopulatedStatus == nil {
@@ -2639,4 +2713,94 @@ func testClaimHostsForRecoveryLockVerify(t *testing.T, ds *Datastore) {
 	require.Len(t, claims, 1)
 	require.Equal(t, "install-awaiting", claims[0].HostUUID)
 	require.NotEqual(t, claimed, claims[0].VerifyCommandUUID)
+}
+
+func testRecoveryLockCurrentPasswordDuringRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setupVerified := func(t *testing.T, name, hostUUID string) (*fleet.Host, string) {
+		host := test.NewHost(t, ds, name, "1.2.9.1", name+"key", hostUUID, time.Now())
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: host.UUID, Password: pw, PendingSetCommandUUID: uuid.NewString()},
+		}))
+		markRecoveryLockVerified(t, ds, host.UUID)
+		return host, pw
+	}
+
+	requireCurrent := func(t *testing.T, hostUUID, want string) {
+		t.Helper()
+		got, err := ds.GetHostRecoveryLockPassword(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, got.Password)
+		assert.Equal(t, want, *got.Password)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		assert.True(t, status.PasswordAvailable)
+	}
+
+	t.Run("prior password until the rotated one is verified", func(t *testing.T) {
+		host, oldPw := setupVerified(t, "rot-current-ok", "rotcurrentok")
+
+		newPw := apple_mdm.GenerateRecoveryLockPassword()
+		setCmd := uuid.NewString()
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, setCmd, newPw))
+		requireCurrent(t, host.UUID, oldPw)
+
+		// Viewing during the rotation must not schedule another one.
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, rotateAt.IsZero())
+
+		verifyCmd := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, setCmd, verifyCmd))
+		requireCurrent(t, host.UUID, oldPw)
+
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, verifyCmd))
+		requireCurrent(t, host.UUID, newPw)
+
+		got, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, got.AutoRotateAt, "a view during the rotation must not leave a deadline behind")
+	})
+
+	t.Run("prior password after the rotation fails", func(t *testing.T) {
+		host, oldPw := setupVerified(t, "rot-current-fail", "rotcurrentfail")
+
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, uuid.NewString(), apple_mdm.GenerateRecoveryLockPassword()))
+		markRecoveryLockFailed(t, ds, host.UUID, "device rejected")
+		requireCurrent(t, host.UUID, oldPw)
+
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, rotateAt.IsZero(), "the auto-rotation cron skips failed rows")
+	})
+
+	t.Run("prior password while a rotation is retried", func(t *testing.T) {
+		host, oldPw := setupVerified(t, "rot-current-retry", "rotcurrentretry")
+
+		setCmd := uuid.NewString()
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, setCmd, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.RetryRecoveryLock(ctx, host.UUID, setCmd))
+		requireCurrent(t, host.UUID, oldPw)
+
+		// The cron re-sends the rotation through the bulk set path.
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: host.UUID, Password: apple_mdm.GenerateRecoveryLockPassword(), PendingSetCommandUUID: uuid.NewString()},
+		}))
+		requireCurrent(t, host.UUID, oldPw)
+	})
+
+	t.Run("current password while removal is pending", func(t *testing.T) {
+		host, pw := setupVerified(t, "rot-current-remove", "rotcurrentremove")
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_recovery_key_passwords SET operation_type = ?, status = ? WHERE host_uuid = ?`,
+				fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, host.UUID)
+			return err
+		})
+		requireCurrent(t, host.UUID, pw)
+	})
 }

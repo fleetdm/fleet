@@ -601,11 +601,18 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		var rotateResp rotateRecoveryLockPasswordResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateResp)
 
-		// While the rotation is in flight the row is no longer 'verified', so the API
-		// withholds the password rather than hand back one that may already be stale.
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		assert.Nil(t, getPasswordResp.RecoveryLockPassword.Password, "password is withheld until the rotation verifies")
+		// While the rotation is in flight the host still holds the original password, so
+		// that's what the API returns, and viewing it doesn't schedule another rotation.
+		var pendingResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &pendingResp)
+		require.NotNil(t, pendingResp.RecoveryLockPassword)
+		require.NotNil(t, pendingResp.RecoveryLockPassword.Password)
+		assert.Equal(t, originalPassword, *pendingResp.RecoveryLockPassword.Password, "the prior password is shown until the rotation verifies")
+		assert.Nil(t, pendingResp.RecoveryLockPassword.AutoRotateAt)
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+		assert.True(t, rlpStatus.PasswordAvailable)
 
 		// The rotation is delivered and verified the same way an initial set is
 		ackSetThenVerify(t, mdmClient)

@@ -140,10 +140,12 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 			status = VALUES(status),
 			operation_type = VALUES(operation_type),
 			error_message = NULL,
+			-- Assigned before deleted is reset: a live row being retried keeps its proof that
+			-- encrypted_password is on the device, a re-animated row does not.
+			verify_command_uuid = IF(deleted = 1, NULL, verify_command_uuid),
 			deleted = 0,
 			auto_rotate_at = NULL,
 			set_command_uuid = NULL,
-			verify_command_uuid = NULL,
 			pending_set_command_uuid = VALUES(pending_set_command_uuid),
 			pending_verify_command_uuid = NULL
 	`
@@ -159,8 +161,24 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	})
 }
 
+// recoveryLockCurrentPasswordCond is true when encrypted_password is the password the device
+// holds, including while a rotation or clear is in flight. A verify, or the verified install a
+// clear starts from, is the proof; a row re-animated by re-enrollment has a stale
+// encrypted_password and no verify_command_uuid until its new password is verified.
+var recoveryLockCurrentPasswordCond = fmt.Sprintf(`(
+	encrypted_password IS NOT NULL
+	AND (status <=> '%s' OR operation_type = '%s' OR verify_command_uuid IS NOT NULL)
+)`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
+
+// GetHostRecoveryLockPassword returns the password the host currently holds, or a nil
+// Password when Fleet can't vouch for one yet.
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, status, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	stmt := `
+		SELECT
+			IF(` + recoveryLockCurrentPasswordCond + `, encrypted_password, NULL) AS encrypted_password,
+			status, updated_at, auto_rotate_at
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
 		EncryptedPassword []byte                   `db:"encrypted_password"`
@@ -195,12 +213,12 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 }
 
 func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `
+	stmt := `
 		SELECT
 			status,
 			operation_type,
 			COALESCE(error_message, '') AS detail,
-			(encrypted_password IS NOT NULL AND status <=> 'verified') AS password_available
+			` + recoveryLockCurrentPasswordCond + ` AS password_available
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 
@@ -740,17 +758,15 @@ func (ds *Datastore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID
 }
 
 // MarkRecoveryLockPasswordViewed schedules auto-rotation by setting
-// auto_rotate_at to 1 hour from now on the host's install-state recovery lock
-// row, overwriting any prior deadline. Returns the scheduled rotation time.
+// auto_rotate_at to 1 hour from now on the host's verified install-state
+// recovery lock row, overwriting any prior deadline. Returns the scheduled
+// rotation time.
 //
-// If the row is missing or not in install state (e.g.,
-// ClaimHostsForRecoveryLockClear has flipped it to operation_type='remove'
-// because the host's current team has the feature disabled), returns a zero
-// time and no error: the password is still readable until the device confirms
-// ClearRecoveryLock, but auto-rotation does not apply and would be undone by
-// the clear anyway. Callers should treat zero as "no rotation scheduled" and
-// omit auto_rotate_at from the response rather than reporting a deadline the
-// auto-rotation cron (filtered on operation_type='install') will never honor.
+// If the row is missing, not in install state (e.g., pending removal), or not
+// verified (a rotation is in flight or failed), returns a zero time and no
+// error: the current password is still readable, but the auto-rotation cron
+// (filtered on verified install rows) would not honor a deadline. Callers
+// should treat zero as "no rotation scheduled" and omit auto_rotate_at.
 func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
 	rotateAt := time.Now().Add(1 * time.Hour)
 
@@ -760,7 +776,8 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND operation_type = '%s'
-	`, fleet.MDMOperationTypeInstall)
+		  AND status = '%s'
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, rotateAt, hostUUID)
 	if err != nil {

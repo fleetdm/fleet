@@ -7614,6 +7614,57 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		assert.Nil(t, password)
 		assert.Contains(t, err.Error(), "mark recovery lock password viewed")
 	})
+
+	newArmHostSvc := func(t *testing.T, password *fleet.HostRecoveryLockPassword) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id, Platform: "darwin", UUID: "arm-uuid", CPUType: "arm64e"}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
+			return password, nil
+		}
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			// The datastore schedules nothing while a rotation is in flight.
+			return time.Time{}, nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+		return svc, test.UserContext(ctx, test.UserAdmin), ds, opts
+	}
+
+	t.Run("returns current password while a rotation is pending", func(t *testing.T) {
+		svc, ctx, ds, opts := newArmHostSvc(t, &fleet.HostRecoveryLockPassword{
+			Password: new("current-password"),
+			Status:   &fleet.MDMDeliveryPending,
+		})
+
+		password, err := svc.GetHostRecoveryLockPassword(ctx, 6)
+		require.NoError(t, err)
+		require.NotNil(t, password.Password)
+		assert.Equal(t, "current-password", *password.Password)
+		assert.Nil(t, password.AutoRotateAt)
+		assert.True(t, ds.MarkRecoveryLockPasswordViewedFuncInvoked)
+		assert.True(t, opts.ActivityMock.NewActivityFuncInvoked, "viewing the password is still logged")
+	})
+
+	t.Run("no password and no side effects when the host holds no known password", func(t *testing.T) {
+		svc, ctx, ds, opts := newArmHostSvc(t, &fleet.HostRecoveryLockPassword{
+			Status: &fleet.MDMDeliveryPending,
+		})
+
+		password, err := svc.GetHostRecoveryLockPassword(ctx, 7)
+		require.NoError(t, err)
+		assert.Nil(t, password.Password)
+		assert.Nil(t, password.AutoRotateAt)
+		assert.False(t, ds.MarkRecoveryLockPasswordViewedFuncInvoked)
+		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
 }
 
 func TestListHostsIgnoresPremiumOptions(t *testing.T) {
