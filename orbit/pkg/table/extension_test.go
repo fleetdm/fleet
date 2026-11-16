@@ -1,3 +1,8 @@
+//go:build !windows
+
+// Excluded on Windows because the test listens on a unix socket path, which
+// isn't a valid named pipe path.
+
 package table
 
 import (
@@ -75,7 +80,20 @@ func (f *fakeExtensionManager) RegisterExtension(_ *osquerygen.InternalExtension
 }
 
 func (f *fakeExtensionManager) DeregisterExtension(osquerygen.ExtensionRouteUUID) (*osquerygen.ExtensionStatus, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	// With osquery.WithClient, Shutdown doesn't drop the client, so osquery-go's
+	// ping goroutine would keep pinging forever; failing pings stops it.
+	if f.pingErr == nil {
+		f.pingErr = errors.New("deregistered")
+	}
 	return &osquerygen.ExtensionStatus{Code: 0}, nil
+}
+
+func (f *fakeExtensionManager) getRegistered() [][]string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.registered
 }
 
 func (f *fakeExtensionManager) Options() (osquerygen.InternalOptionList, error) {
@@ -96,12 +114,6 @@ func testTablePlugin(name string) osquery.OsqueryPlugin {
 }
 
 func TestRunnerSkipsConflictingTables(t *testing.T) {
-	// Unix socket paths have a short length limit, so avoid t.TempDir().
-	dir, err := os.MkdirTemp("", "ext")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	sock := filepath.Join(dir, "s")
-
 	for _, tc := range []struct {
 		name           string
 		fake           *fakeExtensionManager
@@ -128,15 +140,23 @@ func TestRunnerSkipsConflictingTables(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// Unix socket paths have a short length limit, so avoid t.TempDir().
+			// A dir per subtest avoids reusing a listen path that osquery-go may
+			// still be closing asynchronously.
+			dir, err := os.MkdirTemp("", "ext")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(dir) })
+			sock := filepath.Join(dir, "s")
+
 			plugins := []osquery.OsqueryPlugin{testTablePlugin("a"), testTablePlugin("b"), testTablePlugin("c")}
 			r := NewRunner(sock)
-			err := r.run(t.Context(), plugins, func() (*osquery.ExtensionManagerServer, error) {
+			err = r.run(t.Context(), plugins, func() (*osquery.ExtensionManagerServer, error) {
 				return osquery.NewExtensionManagerServer("test", sock,
 					osquery.WithClient(tc.fake),
 					osquery.ServerPingInterval(10*time.Millisecond))
 			})
 			require.ErrorContains(t, err, tc.wantErr)
-			require.Equal(t, tc.wantRegistered, tc.fake.registered)
+			require.Equal(t, tc.wantRegistered, tc.fake.getRegistered())
 		})
 	}
 }

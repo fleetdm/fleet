@@ -156,11 +156,13 @@ func (r *Runner) run(ctx context.Context, plugins []osquery.OsqueryPlugin, newSe
 		if !ok || ctx.Err() != nil {
 			return err
 		}
-		remaining := slices.DeleteFunc(plugins, func(p osquery.OsqueryPlugin) bool {
-			return p.Name() == name
+		// Only tables are dropped; losing another kind of plugin (e.g. distributed)
+		// would silently break orbit, so that conflict stays fatal.
+		remaining := slices.DeleteFunc(slices.Clone(plugins), func(p osquery.OsqueryPlugin) bool {
+			return p.RegistryName() == "table" && p.Name() == name
 		})
 		if len(remaining) == len(plugins) {
-			// The conflicting item isn't one of ours, retrying won't help.
+			// The conflicting item isn't one of our tables, retrying won't help.
 			return err
 		}
 		plugins = remaining
