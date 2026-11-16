@@ -1,2 +1,3 @@
 - Updated the "Learn more" links under macOS and Windows on **Controls > OS updates** to open the end user experience section of the "Enforce OS updates" guide.
 - Made the screenshot in the **End user experience** section on **Controls > OS updates** fill the full width of its card.
+- Added a link to the profile builder on the Windows tab of **Controls > OS updates** (Fleet Premium), and made the builder open with Windows selected when it is linked to with `platform=windows`.
