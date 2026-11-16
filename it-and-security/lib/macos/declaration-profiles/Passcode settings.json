@@ -3,7 +3,7 @@
     "Identifier": "com.fleetdm.config.passcode.settings",
     "Payload": {
         "RequireAlphanumericPasscode": true,
-        "MinimumLength": 10,
+        "MinimumLength": 14,
         "MinimumComplexCharacters": 1,
         "MaximumFailedAttempts": 11,
         "MaximumGracePeriodInMinutes": 1,
