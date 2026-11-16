@@ -341,3 +341,21 @@ func TestSoftwareAITools(t *testing.T) {
 		require.NotEqual(t, "ai_tools", r["source"])
 	}
 }
+
+func TestSoftwareVSCodeExtensionsReportExtensionFor(t *testing.T) {
+	if len(vsCodeExtensionsVulnerableSoftware) == 0 {
+		loadExtraVulnerableSoftware()
+	}
+	a := &agent{
+		softwareVSCodeExtensionsCount: softwareExtraEntityCount{entityCount: entityCount{common: 3, unique: 2}},
+		strings:                       map[string]string{},
+		softwareVersionMap:            map[rune]int{},
+	}
+
+	rows := a.softwareVSCodeExtensions()
+	require.Len(t, rows, 5+len(vsCodeExtensionsVulnerableSoftware))
+	for _, r := range rows {
+		require.Equal(t, "vscode_extensions", r["source"], r["name"])
+		require.Equal(t, "vscode", r["extension_for"], r["name"])
+	}
+}

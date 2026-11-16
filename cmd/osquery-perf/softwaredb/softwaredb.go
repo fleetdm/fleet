@@ -125,6 +125,18 @@ type DB struct {
 	Ubuntu  []UbuntuSoftware
 }
 
+// extensionFor defaults VS Code extensions to "vscode" because most software.db rows predate
+// osquery's vscode_edition column, while real hosts always report it.
+func extensionFor(source string, stored *string) (string, bool) {
+	if source == "vscode_extensions" && (stored == nil || *stored == "") {
+		return "vscode", true
+	}
+	if stored == nil {
+		return "", false
+	}
+	return *stored, true
+}
+
 // DarwinToMaps converts Darwin software at given indices to osquery result format
 func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
@@ -144,8 +156,8 @@ func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 		if s.ExtensionID != nil {
 			m["extension_id"] = *s.ExtensionID
 		}
-		if s.ExtensionFor != nil {
-			m["extension_for"] = *s.ExtensionFor
+		if v, ok := extensionFor(s.Source, s.ExtensionFor); ok {
+			m["extension_for"] = v
 		}
 		if s.Source == "homebrew_packages" {
 			// Homebrew formulae report their keg directory, which is what the executable hash
@@ -176,8 +188,8 @@ func (db *DB) WindowsToMaps(indices []uint32) []map[string]string {
 		if s.ExtensionID != nil {
 			m["extension_id"] = *s.ExtensionID
 		}
-		if s.ExtensionFor != nil {
-			m["extension_for"] = *s.ExtensionFor
+		if v, ok := extensionFor(s.Source, s.ExtensionFor); ok {
+			m["extension_for"] = v
 		}
 		results = append(results, m)
 	}
@@ -206,8 +218,8 @@ func (db *DB) UbuntuToMaps(indices []uint32) []map[string]string {
 		if s.ExtensionID != nil {
 			m["extension_id"] = *s.ExtensionID
 		}
-		if s.ExtensionFor != nil {
-			m["extension_for"] = *s.ExtensionFor
+		if v, ok := extensionFor(s.Source, s.ExtensionFor); ok {
+			m["extension_for"] = v
 		}
 		results = append(results, m)
 	}

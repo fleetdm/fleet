@@ -3217,9 +3217,10 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
 		name := fmt.Sprintf("common.extension_%d", i)
 		commonVSCodeExtensionsSoftware[i] = map[string]string{
-			"name":    name,
-			"version": a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
-			"source":  "vscode_extensions",
+			"name":          name,
+			"version":       a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
+			"source":        "vscode_extensions",
+			"extension_for": "vscode",
 		}
 	}
 	if a.softwareVSCodeExtensionsCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -3232,9 +3233,10 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	for i := 0; i < len(uniqueVSCodeExtensionsSoftware); i++ {
 		name := fmt.Sprintf("unique.extension_%s_%d", a.CachedString("hostname"), i)
 		uniqueVSCodeExtensionsSoftware[i] = map[string]string{
-			"name":    name,
-			"version": a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
-			"source":  "vscode_extensions",
+			"name":          name,
+			"version":       a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
+			"source":        "vscode_extensions",
+			"extension_for": "vscode",
 		}
 	}
 	if a.softwareVSCodeExtensionsCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareVSCodeExtensionsCount.uniqueSoftwareUninstallProb {
@@ -3246,10 +3248,11 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	var vulnerableVSCodeExtensionsSoftware []map[string]string
 	for _, vsCodeExtension := range vsCodeExtensionsVulnerableSoftware {
 		vulnerableVSCodeExtensionsSoftware = append(vulnerableVSCodeExtensionsSoftware, map[string]string{
-			"name":    vsCodeExtension.Name,
-			"version": vsCodeExtension.Version,
-			"vendor":  vsCodeExtension.Vendor,
-			"source":  vsCodeExtension.Source,
+			"name":          vsCodeExtension.Name,
+			"version":       vsCodeExtension.Version,
+			"vendor":        vsCodeExtension.Vendor,
+			"source":        vsCodeExtension.Source,
+			"extension_for": "vscode",
 		})
 	}
 	software := commonVSCodeExtensionsSoftware
