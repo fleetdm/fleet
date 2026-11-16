@@ -3,14 +3,17 @@ import { isEmpty } from "lodash";
 import React, { useContext, useState } from "react";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IApiError } from "interfaces/errors";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { getErrorMessage } from "./helpers";
 
@@ -108,8 +111,8 @@ const WindowsTargetForm = ({
   refetchAppConfig,
   refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config, isPremiumTier } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<IWindowsTargetFormData>({
@@ -193,6 +196,20 @@ const WindowsTargetForm = ({
         onChange={handleChange("gracePeriodDays")}
         onBlur={handleBlur}
       />{" "}
+      {isPremiumTier && (
+        <p className={`${baseClass}__profile-builder-note`}>
+          Looking to customize active hours and driver updates? Leave these
+          settings empty, and instead use the{" "}
+          <CustomLink
+            url={getPathWithQueryParams(PATHS.CONTROLS_CUSTOM_SETTINGS_NEW, {
+              fleet_id: currentTeamId,
+              platform: "windows",
+            })}
+            text="profile builder"
+          />
+          .
+        </p>
+      )}
       <div className="button-wrap">
         <GitOpsModeTooltipWrapper
           position="right"
