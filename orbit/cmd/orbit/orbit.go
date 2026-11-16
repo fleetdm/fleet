@@ -588,6 +588,9 @@ func orbitAction(c *cli.Context) error {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
+	// Before anything waits for the server, so the Linux process shows its name while the server is unreachable.
+	update.ApplyRememberedAgentNames(c.String("root-dir"))
+
 	// Override flags with values retrieved from Fleet.
 	fallbackServerOverridesCfg := setServerOverrides(c)
 	if !fallbackServerOverridesCfg.empty() {
@@ -1551,7 +1554,7 @@ func orbitAction(c *cli.Context) error {
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
-	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(orbitClient.GetServerCapabilities))
+	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
