@@ -2594,7 +2594,7 @@ CREATE TABLE `microsoft_compliance_partner_host_statuses` (
 CREATE TABLE `microsoft_compliance_partner_integrations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `proxy_server_secret` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `proxy_server_secret` blob NOT NULL,
   `setup_done` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
