@@ -144,6 +144,13 @@ module.exports.custom = {
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': 'allenhouchins',
 
+    // 🤖 fleet-gitops agent skills (in this repo and in the `fleetctl new` template)
+    '.claude/skills/fleet-gitops': 'allenhouchins',
+    '.claude/skills/fleet-gitops-export': 'allenhouchins',
+    '.agents/skills/fleet-gitops-export': 'allenhouchins',
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins',
+    'cmd/fleetctl/fleetctl/templates/new/.claude/skills/fleet-gitops': 'allenhouchins',
+
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
     'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
