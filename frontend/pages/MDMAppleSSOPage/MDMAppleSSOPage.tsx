@@ -20,6 +20,10 @@ const DEPSSOLoginPage = ({
 }: WithRouterProps<Params, IMDMSSOParams>) => {
   const [clickedLogin, setClickedLogin] = useState(false);
   localStorage.setItem("deviceinfo", query.deviceinfo || "");
+  // The callback page reads this after the IdP round trip; fleetd sets it when
+  // the sign-in runs in the zero-touch kiosk, where the window can't be closed.
+  const { setup_only: setupOnly, ...ssoQuery } = query;
+  sessionStorage.setItem("setup_only", setupOnly ? "1" : "");
   let initiator = query.initiator;
   if (!initiator) {
     if (pathname.startsWith("/mdm/apple/account_driven_enroll/sso")) {
@@ -36,7 +40,7 @@ const DEPSSOLoginPage = ({
   }
   const { error } = useQuery<IMdmSSOResponse, AxiosError>(
     ["dep_sso"],
-    () => mdmAPI.initiateMDMAppleSSO({ ...query, initiator }),
+    () => mdmAPI.initiateMDMAppleSSO({ ...ssoQuery, initiator }),
     {
       enabled: clickedLogin || initiator !== "setup_experience",
       retry: false,

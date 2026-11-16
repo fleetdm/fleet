@@ -116,6 +116,19 @@ type OrbitConfig struct {
 	// persistent WebSocket to the server as a check-in notification channel
 	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
 	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+	// EndUserIdPAccount, when set, is the IdP identity the end user
+	// authenticated as (via MDM SSO) during the setup experience. On Windows
+	// zero-touch enrollment fleetd uses it to create the local account from the
+	// IdP identity. nil means no IdP account is associated with the host.
+	EndUserIdPAccount *OrbitEndUserIdPAccount `json:"end_user_idp_account,omitempty"`
+}
+
+// OrbitEndUserIdPAccount is the subset of a host's associated IdP account
+// delivered to fleetd via the orbit config.
+type OrbitEndUserIdPAccount struct {
+	Username string `json:"username"`
+	Fullname string `json:"fullname"`
+	Email    string `json:"email"`
 }
 
 // OrbitWebSocketTransportConfig is the WebSocket transport directive delivered

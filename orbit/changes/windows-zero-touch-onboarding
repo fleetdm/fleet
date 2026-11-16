@@ -1,0 +1,1 @@
+* Added Windows zero-touch onboarding. On a Windows image that auto-logs-in a temporary `fleet-provision` account, fleetd runs the setup experience in a full-screen Edge kiosk, asks the end user to choose a password, creates a standard local account from their IdP identity, removes the provisioning account, and opens Windows Hello sign-in options at the user's first sign-in.

@@ -67,6 +67,16 @@ func Run(path string, opts ...Option) (lastLogs string, err error) {
 	return run(path, o)
 }
 
+// InteractiveSession reports the user name and session ID of the active
+// interactive desktop session when a real user is logged in, so callers running
+// as a privileged service can wait for a usable desktop before launching a UI.
+// present is false when no interactive user is logged in (e.g. Windows OOBE or
+// the logon screen). Only implemented on Windows; other platforms always report
+// not present.
+func InteractiveSession() (username string, sessionID uint32, present bool, err error) {
+	return interactiveSession()
+}
+
 // RunWithOutput runs an application as the current login user and returns its output.
 // It assumes the caller is running with high privileges (root on UNIX).
 //

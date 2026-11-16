@@ -1,0 +1,2 @@
+* Fleet now sends the end user's IdP identity to fleetd on Windows hosts connected to Fleet MDM, so fleetd can create the local account during Windows zero-touch onboarding.
+* Updated the page shown after IdP sign-in during the setup experience to say "Setting up your device" with a loading indicator instead of asking the end user to close the window.

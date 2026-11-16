@@ -38,6 +38,7 @@ var orbitConfigFieldTriggers = map[string]string{
 	"bitlocker_pin_request_pending":               "hook: QueueBitLockerPINRequest",
 	"pending_software_installer_ids":              "hook: activateNextUpcomingActivity",
 	"run_setup_experience":                        "onboarding window: set during enrollment",
+	"end_user_idp_account":                        "onboarding window: recorded by the setup experience IdP sign-in before orbit enrolls",
 	"create_windows_managed_local_account":        "hook: initiateWindowsManagedLocalAccountRotation, orbitconfig_notify SaveAppConfig/SaveTeam",
 	"run_disk_encryption_escrow":                  "hook: QueueEscrow",
 }

@@ -125,6 +125,8 @@ export interface IMDMSSOParams {
   // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
   // enrollments with end-user authentication.
   host_uuid?: string;
+  // set by fleetd for the zero-touch kiosk; read by the frontend, not sent to the server
+  setup_only?: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {
