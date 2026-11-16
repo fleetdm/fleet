@@ -48,8 +48,6 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		// for software titles list.
 		if sw.SoftwarePackage != nil {
 			sw.SoftwarePackage.InstallDuringSetup = nil
-		} else if sw.AppStoreApp != nil {
-			sw.AppStoreApp.InstallDuringSetup = nil
 		}
 	}
 	if len(titles) == 0 {
@@ -128,7 +126,7 @@ func (svc *Service) ListSoftwareTitles(
 
 type getSoftwareTitleRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getSoftwareTitleResponse struct {
@@ -164,7 +162,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -218,7 +216,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 				// Key policies by installer_id so each package on a multi-package
 				// title only surfaces the ones actually bound to it. VPP-backed
-				// policies have nil InstallerID and dispatch via AppStoreApp.
+				// policies have nil InstallerID and carry a VPPAppsTeamsID instead.
 				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 				if titleMeta != nil {
 					for _, p := range titleMeta.AutomaticInstallPolicies {
@@ -321,13 +319,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						meta.Configuration = wrapped
 					}
 				}
-
-				software.AppStoreApps = append(software.AppStoreApps, meta.AppStoreAppVersion())
 			}
-			// Set app_store_app to the first-added version for backwards compatibility.
-			if len(versions) > 0 {
-				software.AppStoreApp = versions[0]
-			}
+			software.AppStoreApps = versions
 		}
 
 		// add in house app data if needed
@@ -355,6 +348,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 					meta.Configuration = wrapped
 				}
+				software.Packages = []fleet.SoftwareInstaller{*meta}
 			}
 			software.SoftwarePackage = meta
 		}
@@ -394,9 +388,6 @@ func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *u
 	}
 	if title.SoftwarePackage != nil {
 		filterInstaller(title.SoftwarePackage)
-	}
-	if title.AppStoreApp != nil {
-		title.AppStoreApp.Configuration = nil
 	}
 	for i := range title.AppStoreApps {
 		title.AppStoreApps[i].Configuration = nil

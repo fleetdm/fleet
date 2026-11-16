@@ -1,8 +1,7 @@
 #deals {
 
   input, select {
-    height: 48px;
-    border-radius: 6px;
+    .text-input(large);
     &:disabled {
       color: #8B8FA2;
       background-color: #F9FAFC;
@@ -82,8 +81,6 @@
   [purpose='submit-button'] {
     display: flex;
     // width: 260px;
-    height: 48px;
-    padding: 16px 32px;
     justify-content: center;
     align-items: center;
     gap: 4px;
@@ -91,10 +88,8 @@
     margin-right: auto;
     color: #FFF;
     text-align: center;
-    font-size: 16px;
     font-style: normal;
     font-weight: 700;
-    line-height: 24px;
   }
 
   @media (max-width: 991px) {

@@ -961,8 +961,8 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 }
 
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
-// returns the orbit node key and host uuid. For automatic enrollment, it returns the UPN (the
-// host uuid will be an empty string), and for an Entra token also the Entra device ID signed into it.
+// returns the orbit node key and host uuid. For automatic enrollment with an Entra token, it returns
+// the UPN and the Entra device ID signed into it (the host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string,
 	entraDeviceID string, enrollType fleet.WindowsMDMEnrollType, err error,
 ) {
@@ -988,46 +988,32 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", "", 0, fmt.Errorf("token creation error %v", err)
 		}
 
-		// Validating the Binary Security Token Payload
+		// IsValidToken only accepts the programmatic enrollment type
 		err = binSecToken.IsValidToken()
 		if err != nil {
 			return "", "", "", 0, fmt.Errorf("invalid token data %v", err)
 		}
 
-		// Validating the Binary Security Token Type used on Programmatic Enrollments
-		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			if err != nil {
-				return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
-			}
-			if host == nil {
-				return "", "", "", 0, errors.New("host not found for orbit node key")
-			}
-
-			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", "", "", 0, errors.New("unable to retrieve host mdm info")
-			}
-
-			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-				return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
-			}
-
-			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
+		host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+		if err != nil {
+			return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
+		}
+		if host == nil {
+			return "", "", "", 0, errors.New("host not found for orbit node key")
 		}
 
-		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
-		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
-			if err != nil {
-				return "", "", "", 0, ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
-			}
-
-			// No errors, token is authorized
-			return upnToken, "", "", fleet.WindowsMDMEnrollTypeAutomatic, nil
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", 0, errors.New("unable to retrieve host mdm info")
 		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
 	}
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
@@ -2639,9 +2625,9 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
 // a terminal state, then finalizes the device down one of three paths:
 //
-//   - hard block (require_all_software_windows=true and any item failed, or the 3-hour timeout was hit): the ESP
+//   - hard block (windows_require_all_software=true and any item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with only the "Reset device" recovery option, and remaining items are canceled.
-//   - soft block (require_all_software_windows=false and an item failed, or the 3-hour timeout was hit): the ESP
+//   - soft block (windows_require_all_software=false and an item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
 //     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
 //     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
@@ -2694,7 +2680,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
 	// management session, and (2) stale team_id if a host transferred teams mid-enrollment, which could let
-	// require_all_software_windows be read from the wrong team and bypass the gate.
+	// windows_require_all_software be read from the wrong team and bypass the gate.
 	//
 	// We cache the full HostLite (not just team_id) because Stage 3 also needs OsqueryHostID: setup_experience_status_results
 	// is keyed by fleet.HostUUIDForSetupExperience, which on Windows resolves to OsqueryHostID -- not the Fleet host UUID
@@ -2761,7 +2747,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return results, nil
 	}
 
-	// loadRequireAll memoizes the host -> team's require_all_software_windows lookup. It is consulted at most twice
+	// loadRequireAll memoizes the host -> team's windows_require_all_software lookup. It is consulted at most twice
 	// per checkin: once inside Stage 3 (to decide whether to short-circuit on a software failure) and once below
 	// (to drive the block/release decision).
 	var (
@@ -2904,7 +2890,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 	}
 
-	// We're past the wait gate or timed out. Look up require_all_software_windows (memoized via loadRequireAll if
+	// We're past the wait gate or timed out. Look up windows_require_all_software (memoized via loadRequireAll if
 	// Stage 3 already consulted it) to decide between block and release. Return the error on lookup failure so the
 	// device stays Active and retries on the next management session: failing open here would permanently bypass
 	// the policy after the Active->None transition below.

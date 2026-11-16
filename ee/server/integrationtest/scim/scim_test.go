@@ -107,6 +107,8 @@ func testAuth(t *testing.T, s *Suite) {
 		"userName": "maintainer-attempt@example.com",
 	}, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
+	// Maintainer denied on delete user
+	s.Do(t, "DELETE", scimPath("/Users/1"), nil, http.StatusForbidden)
 	// Maintainer denied on details endpoint
 	resp = nil
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &resp)

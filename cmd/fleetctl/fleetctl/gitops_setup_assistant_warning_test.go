@@ -18,7 +18,7 @@ type fakeABMChecker struct {
 	countQueries []string
 }
 
-func (f *fakeABMChecker) ListABMTokens() ([]*fleet.ABMToken, error) { return f.tokens, f.tokensErr }
+func (f *fakeABMChecker) ListABTokens() ([]*fleet.ABMToken, error) { return f.tokens, f.tokensErr }
 func (f *fakeABMChecker) CountHosts(query string) (int, error) {
 	f.countQueries = append(f.countQueries, query)
 	if f.countErr != nil {
@@ -66,7 +66,7 @@ func TestWarnSetupAssistantsWithoutABMTokens(t *testing.T) {
 			checker: &fakeABMChecker{
 				tokens: []*fleet.ABMToken{abmToken("Workstations", "", "", "")},
 				hostCounts: map[string]int{
-					fmt.Sprintf("team_id=7&mdm_enrollment_status=%s", fleet.MDMEnrollStatusPending): 2,
+					fmt.Sprintf("fleet_id=7&mdm_enrollment_status=%s", fleet.MDMEnrollStatusPending): 2,
 				},
 			},
 			fleets:       map[string]uint{"Lab": 7},

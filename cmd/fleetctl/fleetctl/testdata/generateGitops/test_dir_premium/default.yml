@@ -192,7 +192,6 @@ org_settings:
     live_reporting_disabled: false
     mcp_disabled: false
     report_cap: 1
-    scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true

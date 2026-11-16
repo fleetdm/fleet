@@ -38,6 +38,30 @@ func TestValidateUserRoles(t *testing.T) {
 			license: LicenseInfo{
 				Tier: TierFree,
 			},
+			checkErr: nil,
+		},
+		{
+			name:   "global-gitops-create-not-premium-not-api-only",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(RoleGitOps),
+				APIOnly:    new(false),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrAPIOnlyRole),
+		},
+		{
+			name:   "team-gitops-create-not-premium",
+			create: true,
+			payload: UserPayload{
+				Teams:   &[]UserTeam{{Role: RoleGitOps}},
+				APIOnly: new(true),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
 			checkErr: func(err error) bool {
 				return err == ErrMissingLicense
 			},

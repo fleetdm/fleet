@@ -8,7 +8,8 @@
       AND o.desktop_version = '';
   critical: false
   description: Hosts with Fleet Desktop.app use the app for self-service, so the Fleet Desktop menu bar icon is hidden.
-  resolution: "Fleet runs a script that hides the menu bar icon when this policy fails. If it still fails after a refetch, drop a note in #help-it."
+  resolution: "No action needed from you. Fleet runs a script that hides the menu bar icon when this policy fails. If it keeps failing, IT reviews the script output in the host's activity."
+  hidden: true
   run_script:
     path: ../scripts/hide-fleet-desktop-menu-bar.sh
   labels_include_any:

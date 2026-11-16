@@ -19,7 +19,8 @@ describe("FormField", () => {
       </FormField>
     );
 
-    expect(screen.getByTestId("external-link-small-icon")).toBeInTheDocument();
-    expect(screen.queryByTestId("external-link-icon")).toBeNull();
+    expect(
+      screen.getByTestId("external-link-icon").querySelector("svg")
+    ).toHaveAttribute("viewBox", "0 0 12 12");
   });
 });

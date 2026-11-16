@@ -18,8 +18,6 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/stretchr/testify/require"
-	"go.elastic.co/apm/v2"
-	"go.elastic.co/apm/v2/apmtest"
 )
 
 type mockStack struct {
@@ -49,7 +47,7 @@ func TestStack(t *testing.T) {
 	}
 }
 
-func TestElasticStack(t *testing.T) {
+func TestCauseAndLeafStack(t *testing.T) {
 	ctx := context.Background()
 
 	wrap := errors.New("wrap")
@@ -76,7 +74,7 @@ func TestElasticStack(t *testing.T) {
 				return errFn(func() error { return wrap })
 			},
 			causeStackContains: []string{
-				"\\.TestElasticStack\\.func1",
+				"\\.TestCauseAndLeafStack\\.func1",
 			},
 		},
 		{
@@ -86,8 +84,8 @@ func TestElasticStack(t *testing.T) {
 				return errFn(func() error { return Wrap(ctx, wrap) })
 			},
 			causeStackContains: []string{
-				"\\.TestElasticStack\\.func3\\.\\d",
-				"\\.TestElasticStack\\.func1", // errFn
+				"\\.TestCauseAndLeafStack\\.func3\\.\\d",
+				"\\.TestCauseAndLeafStack\\.func1", // errFn
 			},
 		},
 		{
@@ -97,9 +95,9 @@ func TestElasticStack(t *testing.T) {
 				return errFn(func() error { return func() error { return New(ctx, "new") }() })
 			},
 			causeStackContains: []string{
-				"\\.TestElasticStack\\.func4(\\.\\d){2}",
-				"\\.TestElasticStack\\.func4\\.\\d",
-				"\\.TestElasticStack\\.func1", // errFn
+				"\\.TestCauseAndLeafStack\\.func4(\\.\\d){2}",
+				"\\.TestCauseAndLeafStack\\.func4\\.\\d",
+				"\\.TestCauseAndLeafStack\\.func1", // errFn
 			},
 		},
 		{
@@ -115,10 +113,10 @@ func TestElasticStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"\\.TestElasticStack\\.func5(\\.\\d){3}",
-				"\\.TestElasticStack\\.func5(\\.\\d){2}",
-				"\\.TestElasticStack\\.func5\\.\\d",
-				"\\.TestElasticStack\\.func1", // errFn
+				"\\.TestCauseAndLeafStack\\.func5(\\.\\d){3}",
+				"\\.TestCauseAndLeafStack\\.func5(\\.\\d){2}",
+				"\\.TestCauseAndLeafStack\\.func5\\.\\d",
+				"\\.TestCauseAndLeafStack\\.func1", // errFn
 			},
 		},
 		{
@@ -134,15 +132,15 @@ func TestElasticStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"\\.TestElasticStack\\.func6(\\.\\d){3}",
-				"\\.TestElasticStack\\.func6(\\.\\d){2}",
-				"\\.TestElasticStack\\.func6\\.\\d",
-				"\\.TestElasticStack\\.func1", // errFn
+				"\\.TestCauseAndLeafStack\\.func6(\\.\\d){3}",
+				"\\.TestCauseAndLeafStack\\.func6(\\.\\d){2}",
+				"\\.TestCauseAndLeafStack\\.func6\\.\\d",
+				"\\.TestCauseAndLeafStack\\.func1", // errFn
 			},
 			leafStackContains: []string{
 				// only a single stack trace is collected when wrapping another
 				// FleetError.
-				"\\.TestElasticStack\\.func6\\.\\d",
+				"\\.TestCauseAndLeafStack\\.func6\\.\\d",
 			},
 		},
 		{
@@ -158,8 +156,8 @@ func TestElasticStack(t *testing.T) {
 			},
 			causeStackContains: []string{
 				// since it wraps a non-FleetError, the full stack is collected
-				"\\.TestElasticStack\\.func7\\.\\d",
-				"\\.TestElasticStack\\.func1", // errFn
+				"\\.TestCauseAndLeafStack\\.func7\\.\\d",
+				"\\.TestCauseAndLeafStack\\.func1", // errFn
 			},
 		},
 	}
@@ -191,34 +189,6 @@ func TestElasticStack(t *testing.T) {
 
 			checkStack(t, causeStack, c.causeStackContains)
 			checkStack(t, leafStack, c.leafStackContains)
-
-			// run in a test APM transaction, recording the sent events
-			_, _, apmErrs := apmtest.NewRecordingTracer().WithTransaction(func(ctx context.Context) {
-				// APM should be able to capture that error (we use the FleetCause error,
-				// so that it gets the most relevant stack trace and not that of the
-				// wrapped ones) and its cause is the cause.
-				apm.CaptureError(ctx, cause).Send()
-			})
-			require.Len(t, apmErrs, 1)
-			apmErr := apmErrs[0]
-			require.NotNil(t, apmErr)
-
-			// the culprit should be the function name of the top of the stack of the
-			// cause error.
-			fnIndex := strings.Index(c.causeStackContains[0], "TestElasticStack")
-			require.GreaterOrEqual(t, fnIndex, 0)
-			// fnName := strings.TrimSpace(c.causeStackContains[0][fnIndex:])
-			require.Regexp(t, c.causeStackContains[0][fnIndex:], apmErr.Culprit)
-
-			// the APM stack should match the cause stack (i.e. APM should have
-			// grabbed the stacktrace that we provided). If it didn't, it would have
-			// a stacktrace with a function name indicating the WithTransaction
-			// function literal where CaptureError is called.
-			var apmStack []string
-			for _, st := range apmErr.Exception.Stacktrace {
-				apmStack = append(apmStack, st.Module+"."+st.Function+" ("+st.File+":"+fmt.Sprint(st.Line)+")")
-			}
-			checkStack(t, apmStack, c.causeStackContains)
 		})
 	}
 }

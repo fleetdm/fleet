@@ -148,7 +148,7 @@ WHERE TRUE
 }
 
 // mdmCommandsOrderAllowlist is the closed set of order_key values accepted
-// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands.
+// by GET /api/v1/fleet/commands.
 var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"host_uuid":    "host_uuid",
 	"command_uuid": "command_uuid",

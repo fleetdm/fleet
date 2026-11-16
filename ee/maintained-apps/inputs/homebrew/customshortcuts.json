@@ -2,7 +2,7 @@
   "name": "CustomShortcuts",
   "unique_identifier": "com.houdah.CustomShortcuts",
   "token": "customshortcuts",
-  "installer_format": "zip",
+  "installer_format": "dmg",
   "slug": "customshortcuts/darwin",
   "default_categories": [
     "Productivity"

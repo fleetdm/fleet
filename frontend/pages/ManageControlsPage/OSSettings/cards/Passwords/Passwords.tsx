@@ -75,7 +75,7 @@ const Passwords = ({
       select: (res) => res.fleet,
       onSuccess: (res) => {
         setEnableRecoveryLockPassword(
-          res.mdm?.enable_recovery_lock_password ?? false
+          res.mdm?.macos_recovery_lock_password_enabled ?? false
         );
       },
       onError: (err) => {
@@ -90,10 +90,10 @@ const Passwords = ({
   useEffect(() => {
     if (currentTeamId === API_NO_TEAM_ID) {
       setEnableRecoveryLockPassword(
-        config?.mdm.enable_recovery_lock_password ?? false
+        config?.mdm.macos_recovery_lock_password_enabled ?? false
       );
     }
-  }, [currentTeamId, config?.mdm.enable_recovery_lock_password]);
+  }, [currentTeamId, config?.mdm.macos_recovery_lock_password_enabled]);
 
   const isTeamQuery = currentTeamId !== API_NO_TEAM_ID;
   const showLoading = isTeamQuery && isLoadingTeam;
@@ -106,12 +106,16 @@ const Passwords = ({
     try {
       if (currentTeamId === API_NO_TEAM_ID) {
         await configAPI.update({
-          mdm: { enable_recovery_lock_password: enableRecoveryLockPassword },
+          mdm: {
+            macos_recovery_lock_password_enabled: enableRecoveryLockPassword,
+          },
         });
       } else {
         await teamsAPI.updateConfig(
           {
-            mdm: { enable_recovery_lock_password: enableRecoveryLockPassword },
+            mdm: {
+              macos_recovery_lock_password_enabled: enableRecoveryLockPassword,
+            },
           },
           currentTeamId
         );

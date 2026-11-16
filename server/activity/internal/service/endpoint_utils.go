@@ -15,7 +15,6 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -141,11 +140,11 @@ func (e *endpointer) Service() any {
 	return e.svc
 }
 
-func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
+func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Append RouteTemplateRequestFunc so the api_only endpoint middleware
-	// can read the matched mux route template from context.
+	// can read the matched route template from context.
 	//
 	// Full-slice expression prevents aliasing into the caller's backing array
 	// if it happens to have spare capacity.

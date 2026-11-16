@@ -35,46 +35,9 @@
       aspect-ratio: 43 / 27;
     }
   }
+  // Plain-HTML copy of <animated-arrow-button>: this error page doesn't load the Vue app.
   [purpose='animated-arrow-button'] {
-    width: fit-content;
-    display: flex;
-    align-items: center;
-    padding: 6px 0px;
-    text-decoration: none;
-    font-size: 16px;
-    color: @core-fleet-black;
-    font-weight: 700;
-    [purpose='button-text'] {
-      color: @core-fleet-black;
-    }
-    [purpose='animated-arrow'] {
-      margin-left: 8px;
-      stroke-width: 2px;
-      height: 12px;
-      width: 12px;
-      fill: none;
-      stroke: @core-vibrant-green;
-    }
-    [purpose='arrow-line'] {
-      opacity: 0;
-      transition: opacity 10ms ease-out;
-    }
-    [purpose='chevron'] {
-      transition: transform 100ms ease-out;
-    }
-    &:hover {
-      text-decoration: none;
-      [purpose='button-text'] {
-        color: @core-fleet-black;
-      }
-      [purpose='arrow-line'] {
-        opacity: 1;
-        transition: opacity 150ms ease-out;
-      }
-      [purpose='chevron'] {
-        transform: translateX(5px);
-      }
-    }
+    .secondary-button();
   }
 
 }

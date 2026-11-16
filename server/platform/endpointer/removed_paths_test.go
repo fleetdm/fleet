@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,11 +16,11 @@ import (
 func TestRegisterRemovedPaths(t *testing.T) {
 	t.Parallel()
 
-	r := mux.NewRouter()
-	r.HandleFunc("/api/v1/fleet/kept", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r := NewRouter()
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Handle(Route{Name: "kept", Path: "/api/v1/fleet/kept"}, ok)
 	// A live route with the same shape as the method-limited removed path below, registered first as in the API.
-	r.HandleFunc("/api/v1/fleet/partly/{id:[0-9]+}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }).
-		Methods(http.MethodGet)
+	r.Handle(Route{Name: "partly", Methods: []string{http.MethodGet}, Path: "/api/v1/fleet/partly/{id:[0-9]+}"}, ok)
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{
 		{
@@ -43,7 +42,7 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	}{
 		{"v1", http.MethodGet, "/api/v1/fleet/gone/1?token=secret", http.StatusGone, "gone via GET"},
 		{"dated version", http.MethodPost, "/api/2022-04/fleet/gone/abc", http.StatusGone, "gone via POST"},
-		{"head", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusGone, ""},
+		{"head is not removed", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusMethodNotAllowed, ""},
 		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone via DELETE"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
@@ -85,14 +84,14 @@ func TestRegisterRemovedPaths(t *testing.T) {
 func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	t.Parallel()
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
 		Path: "/api/_version_/fleet/items/{id}/old/{name}",
 		Overlap: RemovedPathOverlap{
 			Method:            http.MethodPost,
 			RouteTemplate:     "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
-			WrongMethodRoutes: map[string]string{"/api/_version_/fleet/items/{id}/live/{name}": http.MethodGet},
+			WrongMethodRoutes: map[string][]string{"/api/_version_/fleet/items/{id}/live/{name}": {http.MethodGet}},
 		},
 		Message: func(method string) string { return "gone via " + method },
 	}})
@@ -141,7 +140,7 @@ func TestLiteralSegmentsMatch(t *testing.T) {
 func TestRegisterRemovedPathsWithMethodsAndOverlap(t *testing.T) {
 	t.Parallel()
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.DiscardHandler), []RemovedPath{
 		{
 			// The overlap route takes the only removed method.
