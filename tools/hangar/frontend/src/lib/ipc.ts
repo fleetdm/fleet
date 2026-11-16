@@ -131,6 +131,7 @@ export type MdmAssetsFile = mdmassetsM.AssetFile;
 export type TufConfig = settingsM.TufConfig;
 export type TufServerStatus = tufM.ServerStatus;
 export type ApnsMockStatus = apnsmockM.Status;
+export type ApnsMockPreflight = apnsmockM.Preflight;
 
 export type InstallersConfig = settingsM.InstallersConfig;
 export type InstallerTarget = settingsM.InstallerTarget;
@@ -142,7 +143,6 @@ export type InstallersOutputFile = installersM.OutputFile;
 export type InstallersManifestEntry = installersM.ManifestEntry;
 export type InstallersContextInfo = servicesM.InstallersContextInfo;
 export type InstallersLocalTUF = servicesM.InstallersLocalTUF;
-export type InstallersShareStatus = installersM.ShareStatus;
 export type InstallersSharedFile = installersM.SharedFile;
 
 export type DepCheck = depsM.DepCheck;
@@ -318,16 +318,15 @@ export const api = {
   installersStopBuild: () => InstallersService.InstallersStopBuild(),
   installersListOutputs: (contextName: string, manual: boolean) =>
     cast<InstallersOutputFile[]>(InstallersService.InstallersListOutputs(contextName, manual)),
-  installersSuggestSharePort: () => cast<number>(InstallersService.InstallersSuggestSharePort()),
-  installersShareStart: (port: number) =>
-    cast<InstallersShareStatus>(InstallersService.InstallersShareStart(port)),
-  installersShareStop: () => InstallersService.InstallersShareStop(),
-  installersShareStatus: () => cast<InstallersShareStatus>(InstallersService.InstallersShareStatus()),
+  // Where python http.server serves the packages folder, or "".
+  installersShareURL: () => cast<string>(InstallersService.InstallersShareURL()),
   installersSharedFiles: () =>
     cast<InstallersSharedFile[]>(InstallersService.InstallersSharedFiles()),
   // Per-server mock APNs (cmd/apple-apns-mock); started via startProcess.
   apnsMockStatus: (port: number) =>
     cast<ApnsMockStatus>(ApnsMockService.ApnsMockStatus(port)),
+  apnsMockPreflight: (repo: string, redisPort: number, port: number) =>
+    cast<ApnsMockPreflight>(ApnsMockService.ApnsMockPreflight(repo, redisPort, port)),
 
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {

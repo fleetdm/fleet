@@ -4,6 +4,8 @@ import { Toast } from "../Toast";
 import { StatusPill } from "../StatusPill";
 import { copyText } from "../../lib/clipboard";
 import { LogBox } from "../LogLines";
+import { activeServer } from "../../lib/servers";
+import { pythonStartArgs } from "../../lib/orchestration";
 import {
   api,
   type ContextSummary,
@@ -15,7 +17,6 @@ import {
   type InstallersManifestEntry,
   type InstallersOutputFile,
   type InstallersScanResult,
-  type InstallersShareStatus,
   type InstallersSharedFile,
   type LogEntry,
   type LogLine,
@@ -35,7 +36,7 @@ import {
 } from "../../lib/installers";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
-// The share controls row swaps between the port box and the URL + buttons;
+// The share controls row swaps between Start sharing and the URL + buttons;
 // a fixed minimum height keeps the card from shifting when it does.
 const SHARE_ROW: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap", minHeight: 40 };
 const SHARE_BUTTON: React.CSSProperties = { minWidth: 130 };
@@ -160,10 +161,6 @@ export function InstallersTab({
       persist((s) => ({ ...s, installers: { ...s.installers, options: update(s.installers.options) } })),
     [persist],
   );
-  const setSharePort = useCallback(
-    (port: number) => persist((s) => ({ ...s, installers: { ...s.installers, share_port: port } })),
-    [persist],
-  );
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", fontSize: "var(--fs-xx-small)" }}>
@@ -200,12 +197,7 @@ export function InstallersTab({
           />
         )}
 
-        <OutputShareCard
-          settings={settings}
-          port={cfg.share_port}
-          onPortChange={setSharePort}
-          flash={flash}
-        />
+        <OutputShareCard settings={settings} procs={procs} flash={flash} />
       </div>
       {toast && <Toast kind={toast.kind} msg={toast.msg} />}
     </div>
@@ -852,15 +844,17 @@ function BuildCard({
   );
 }
 
+// OutputShareCard shows the packages folder and shares it through python
+// http.server: the same process, folder and port as the Server tab's, so there
+// is one server to set up (Settings → python http.server). Packages in the repo
+// (no python folder set) aren't shared: python would serve the whole repo.
 function OutputShareCard({
   settings,
-  port,
-  onPortChange,
+  procs,
   flash,
 }: {
   settings: Settings;
-  port: number;
-  onPortChange: (port: number) => void;
+  procs: ProcInfo[];
   flash: (kind: "ok" | "err", msg: string) => void;
 }) {
   // The packages folder follows the file server's directory, else the primary
@@ -881,90 +875,47 @@ function OutputShareCard({
         setRootErr(errText(e));
       });
   }, [fileServerDir, primaryRepo]);
-  const [lanIp, setLanIp] = useState("");
-  useEffect(() => {
-    api.lanIp().then(setLanIp).catch(() => setLanIp(""));
-  }, []);
-  const [status, setStatus] = useState<InstallersShareStatus | null>(null);
-  const [files, setFiles] = useState<InstallersSharedFile[]>([]);
-  const [suggested, setSuggested] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
-  const busyRef = useRef(false);
-  const [portDraft, setPortDraft] = useState(port ? String(port) : "");
-  const [showFiles, setShowFiles] = useState(false);
-  const running = !!status?.running;
 
-  // Every refresh/start/stop takes a sequence number; a response that isn't the
-  // latest is dropped, so a poll begun before Stop can't flip the card back to
-  // "sharing".
+  const pythonProc = procs.find((p) => p.id === "python-server");
+  const pythonRunning = pythonProc?.state === "running" || pythonProc?.state === "stopping";
+  // python runs from the active server's repo, like on the Server tab.
+  const pythonCwd = activeServer(settings).worktree_path ?? primaryRepo;
+  const [shareURL, setShareURL] = useState("");
+  const [files, setFiles] = useState<InstallersSharedFile[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
+
+  // Polled: builds add files, and python's state and the LAN address change.
+  // A response that isn't the latest is dropped.
   const seq = useRef(0);
   const refresh = useCallback(async () => {
     const id = ++seq.current;
     try {
-      const st = await api.installersShareStatus();
-      // Listed either way: with install commands while sharing, plain otherwise.
+      const url = await api.installersShareURL();
       const list = await api.installersSharedFiles().catch(() => [] as InstallersSharedFile[]);
       if (id !== seq.current) return;
-      setStatus(st);
+      setShareURL(url);
       setFiles(list);
     } catch (e) {
       console.error("share status", e);
     }
-  }, [outputRoot]);
+  }, []);
   useEffect(() => {
     refresh();
-    const poll = window.setInterval(() => {
-      if (!busyRef.current) refresh();
-    }, 3000);
+    const poll = window.setInterval(refresh, 3000);
     return () => window.clearInterval(poll);
-  }, [refresh]);
+  }, [refresh, pythonRunning, outputRoot]);
 
-  // Suggest a free port whenever sharing is known to be off (ports come and go).
-  const suggest = useCallback(() => {
-    api.installersSuggestSharePort().then(setSuggested).catch(() => setSuggested(null));
-  }, []);
-  const knownStopped = status !== null && !status.running;
-  useEffect(() => {
-    if (knownStopped) suggest();
-  }, [knownStopped, suggest]);
-
-  const act = async (fn: () => Promise<void>) => {
-    if (busyRef.current) return;
-    busyRef.current = true;
+  const served = pythonRunning && !!shareURL;
+  const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
-    seq.current++;
     try {
       await fn();
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
-      await refresh();
+    } catch (e) {
+      flash("err", errText(e));
     }
-  };
-  const start = () =>
-    act(async () => {
-      try {
-        await api.installersShareStart(port);
-      } catch (e) {
-        flash("err", errText(e));
-        suggest();
-      }
-    });
-  const stop = () =>
-    act(async () => {
-      try {
-        await api.installersShareStop();
-      } catch (e) {
-        flash("err", errText(e));
-      }
-    });
-
-  // Empty means auto; anything else must be a whole port number before it's saved.
-  const portValid = portDraft === "" || (/^\d+$/.test(portDraft) && Number(portDraft) >= 1 && Number(portDraft) <= 65535);
-  const onPortInput = (v: string) => {
-    setPortDraft(v);
-    if (v === "") onPortChange(0);
-    else if (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 65535) onPortChange(Number(v));
+    setBusy(false);
+    refresh();
   };
   const copy = async (text: string, label: string) => {
     try {
@@ -979,7 +930,7 @@ function OutputShareCard({
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
         <div className="section-title" style={{ margin: 0 }}>Packages folder &amp; sharing</div>
-        <StatusPill label="HTTP server" up={running} upText="sharing" downText="not sharing" />
+        <StatusPill label="python http.server" up={served} upText="sharing" downText={pythonRunning ? "other folder" : "not sharing"} />
       </div>
 
       {/* One subfolder per context; manual builds go in the folder itself. */}
@@ -995,51 +946,55 @@ function OutputShareCard({
           Open
         </button>
       </div>
-      <span className="dim">
-        {fileServerDir ? (
-          <>
-            Inside the file server's directory, so they're also at{" "}
-            <span className="mono">http://{lanIp || "<this Mac>"}:{settings.python_server.port}/packages/</span> while python http.server runs.
-          </>
-        ) : (
-          <>Inside the Fleet repo. Set a directory for python http.server in Settings to put packages there instead.</>
-        )}
-      </span>
 
-      {/* Sharing controls on one line. Like the SCEP and TUF servers, Start/Stop
-          sit at the right at a fixed width, so the button doesn't move. */}
-      {running && status ? (
+      {/* Like the SCEP and TUF servers, Start/Stop sit at the right at a fixed
+          width, so the button doesn't move. */}
+      {!fileServerDir ? (
+        <span className="dim">
+          These are in the Fleet repo, so they aren't shared: python http.server would serve the whole repo. Set a folder for
+          python http.server in Settings to build packages there and share them.
+        </span>
+      ) : served ? (
         <div style={SHARE_ROW}>
-          <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{status.url}</span>
-          <button onClick={() => copy(status.url, "URL")}>Copy URL</button>
-          <button onClick={() => api.openUrl(status.url).catch((e) => flash("err", errText(e)))}>Open in browser</button>
+          <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{shareURL}</span>
+          <button onClick={() => copy(shareURL, "URL")}>Copy URL</button>
+          <button onClick={() => api.openUrl(shareURL).catch((e) => flash("err", errText(e)))}>Open in browser</button>
           <div style={{ flex: 1 }} />
-          <button className="danger" onClick={stop} disabled={busy} style={SHARE_BUTTON}>Stop sharing</button>
+          <button className="danger" onClick={() => act(() => api.stopProcess("python-server"))} disabled={busy} style={SHARE_BUTTON}>
+            Stop sharing
+          </button>
+        </div>
+      ) : pythonRunning ? (
+        <div style={SHARE_ROW}>
+          <span style={{ color: "var(--ui-warning)" }}>
+            python http.server is running on another folder. Restart it from the Server tab to serve <span className="mono">{fileServerDir}</span>.
+          </span>
         </div>
       ) : (
         <div style={SHARE_ROW}>
-          <span>Port</span>
-          <input
-            inputMode="numeric"
-            value={portDraft}
-            placeholder={suggested ? `${suggested} (free)` : "auto"}
-            onChange={(e) => onPortInput(e.target.value.trim())}
-            aria-invalid={!portValid}
-            title={portValid ? "Leave empty to use a free port" : "Enter a port from 1 to 65535"}
-            style={{ width: 120, borderColor: portValid ? undefined : "var(--ui-error)" }}
-          />
-          {!portValid && <span style={{ color: "var(--ui-error)" }}>enter a port from 1 to 65535</span>}
+          <span className="dim">
+            Starts python http.server on <span className="mono">{fileServerDir}</span>, port {settings.python_server.port}.
+          </span>
           <div style={{ flex: 1 }} />
-          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid} style={SHARE_BUTTON}>Start sharing</button>
+          <button
+            className="primary"
+            onClick={() => act(() => api.startProcess(pythonStartArgs(settings, pythonCwd)))}
+            disabled={busy || !outputRoot || !pythonCwd}
+            style={SHARE_BUTTON}
+          >
+            Start sharing
+          </button>
         </div>
       )}
-      <span className="dim">
-        Sharing serves this folder read-only to your network. Installers contain enroll secrets, so stop sharing when you're done. macOS may ask
-        once to allow incoming connections for Hangar.
-      </span>
+      {fileServerDir && (
+        <span className="dim">
+          It's the same python http.server as on the Server tab, set up in Settings → python http.server, and it serves that whole
+          folder to your network. Installers contain enroll secrets, so stop sharing when you're done.
+        </span>
+      )}
 
-      {/* The folder's installers: plain while not sharing, with copyable install
-          commands once the server is up (they need its URL). */}
+      {/* The folder's installers: plain while not shared, with copyable install
+          commands while python http.server serves them (they need its URL). */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <button
           className="link-btn"
@@ -1048,11 +1003,11 @@ function OutputShareCard({
           style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
         >
           <span style={{ fontWeight: 600, color: "var(--app-text)" }}>
-            {showFiles ? "▾" : "▸"} {running ? "Install commands" : "Installers"}
+            {showFiles ? "▾" : "▸"} {served ? "Install commands" : "Installers"}
           </span>
           <span className="dim">
             {files.length} installer{files.length === 1 ? "" : "s"}
-            {!running && files.length > 0 ? " · start sharing for install commands" : ""}
+            {!served && fileServerDir && files.length > 0 ? " · start sharing for install commands" : ""}
           </span>
         </button>
         {!showFiles ? null : files.length === 0 ? (
@@ -1062,7 +1017,7 @@ function OutputShareCard({
             <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
               <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.url || f.path}>{f.path}</span>
               <span className="dim">{formatBytes(f.size)}</span>
-              {running && f.command ? (
+              {served && f.command ? (
                 <button className="link-btn" onClick={() => copy(f.command, "install command")} title={f.command}>
                   copy {f.shell === "powershell" ? "PowerShell (admin)" : "shell"} command
                 </button>
@@ -1073,21 +1028,6 @@ function OutputShareCard({
           ))
         )}
       </div>
-
-      {running && status && (
-        <>
-          {status.recent.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontWeight: 600 }}>Recent downloads</span>
-              {status.recent.map((d, i) => (
-                <span key={`${i}-${d.at_ms}-${d.path}`} className="dim">
-                  {new Date(d.at_ms).toLocaleTimeString()} · <span className="mono">{d.client}</span> · <span className="mono">{d.path}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }

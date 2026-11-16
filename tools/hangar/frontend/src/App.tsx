@@ -28,7 +28,7 @@ import {
   type ProcInfo,
   type Settings,
 } from "./lib/ipc";
-import { activeServer, apnsMockProcId } from "./lib/servers";
+import { activeServer, apnsMockLiveUrl, apnsMockProcId } from "./lib/servers";
 import {
   useMultiServerHealth,
   type DockerHealth,
@@ -157,6 +157,7 @@ export default function App() {
       p.id === activeApnsMockId &&
       (p.state === "running" || p.state === "stopping"),
   );
+  const apnsMockUrl = settings ? apnsMockLiveUrl(activeServer(settings), procs) : null;
 
   // Tray reflects the active server's serve/docker plus the global services.
   const trayState = {
@@ -209,6 +210,7 @@ export default function App() {
             ngrokRunning,
             pythonRunning,
             apnsMockRunning,
+            apnsMockUrl,
           },
         });
       } catch (e) {
@@ -225,6 +227,7 @@ export default function App() {
             ngrokRunning,
             pythonRunning,
             apnsMockRunning,
+            apnsMockUrl,
           },
         });
       } catch (e) {
@@ -236,7 +239,7 @@ export default function App() {
       cancelled = true;
       unlistens.forEach((u) => u());
     };
-  }, [settings, serve.up, docker.up, ngrokRunning, pythonRunning, apnsMockRunning]);
+  }, [settings, serve.up, docker.up, ngrokRunning, pythonRunning, apnsMockRunning, apnsMockUrl]);
 
   // Quit flow. anyRunning + shutdown targets span ALL servers, so Cmd+Q tears
   // down every stack, not just the active one. Read via a ref so the

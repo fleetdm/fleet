@@ -36,8 +36,6 @@ type InstallersService struct {
 	// after its process exits. The next build waits for it: the update claims
 	// files replaced since its build started, so it would claim the next build's.
 	manifests sync.WaitGroup
-
-	share installers.Share
 }
 
 // NewInstallersService wires the service to the shared process manager.
@@ -441,87 +439,37 @@ func loadSettings() (settings.Settings, error) {
 	return settings.Load(dir)
 }
 
-// Ports the share must not take even when they're momentarily free: the TUF
-// file-server and the dev compose stack's SAML IdP (docker-compose.yml).
-var fixedHangarPorts = []uint16{tuf.DefaultPort, 9080}
+// pythonProcID is the frontend's id for python http.server.
+const pythonProcID = "python-server"
 
-// InstallersSuggestSharePort is the first free port from 8000 that no
-// configured Hangar service uses.
-func (s *InstallersService) InstallersSuggestSharePort() (uint16, error) {
-	return installers.FreePort(installers.DefaultSharePort, hangarPorts())
-}
-
-// hangarPorts are the ports Hangar's services bind when started, so the share
-// mustn't take them even while they're stopped.
-func hangarPorts() map[uint16]bool {
-	reserved := map[uint16]bool{}
-	for _, p := range fixedHangarPorts {
-		reserved[p] = true
-	}
-	if cur, err := loadSettings(); err == nil {
-		for _, srv := range cur.Servers {
-			for _, p := range []uint16{srv.Ports.Server, srv.Ports.MySQL, srv.Ports.Redis, srv.Ports.S3, srv.Ports.S3Console, srv.Ports.APNsMock} {
-				reserved[p] = true
-			}
-		}
-		for _, sp := range cur.ScepProfiles {
-			reserved[sp.Port] = true
-		}
-		reserved[cur.PythonServer.Port] = true
-	}
-	return reserved
-}
-
-// InstallersShareStart serves the packages folder (every context's
-// subfolder) over HTTP on port, or on a suggested free port when port is 0.
-func (s *InstallersService) InstallersShareStart(port uint16) (installers.ShareStatus, error) {
+// InstallersShareURL is where python http.server serves the packages folder,
+// or "" when it isn't running with the folder inside its directory. Sharing is
+// python http.server's job: the Installers tab starts and stops the same
+// process as the Server tab, with the same folder and port.
+func (s *InstallersService) InstallersShareURL() string {
 	root, err := s.InstallersPackagesRoot()
 	if err != nil {
-		return installers.ShareStatus{}, err
+		return ""
 	}
-	if port != 0 && hangarPorts()[port] {
-		return installers.ShareStatus{}, fmt.Errorf("port %d is used by one of Hangar's services — pick another", port)
-	}
-	if port == 0 {
-		p, err := s.InstallersSuggestSharePort()
-		if err != nil {
-			return installers.ShareStatus{}, err
+	return s.pythonServedURL(root, netinfo.LanIP())
+}
+
+// pythonServedURL is where a running python http.server serves root, or "".
+func (s *InstallersService) pythonServedURL(root, lanIP string) string {
+	for _, p := range s.pm.ListProcesses() {
+		if p.ID == pythonProcID && (p.State == "running" || p.State == "stopping") {
+			return installers.PythonServedURL(p.Command, p.Cwd, root, lanIP)
 		}
-		port = p
 	}
-	// The share serves through os.Root, which needs the folder to exist.
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return installers.ShareStatus{}, fmt.Errorf("create %s: %w", root, err)
-	}
-	if err := s.share.Start(root, port); err != nil {
-		return installers.ShareStatus{}, err
-	}
-	slog.Info("installers: sharing", "root", root, "port", port)
-	return s.share.Status(netinfo.LanIP()), nil
+	return ""
 }
 
-// InstallersShareStop stops sharing.
-func (s *InstallersService) InstallersShareStop() error {
-	return s.share.Stop()
-}
-
-// InstallersShareStatus reports whether the folder is being shared, its URL
-// and recent downloads.
-func (s *InstallersService) InstallersShareStatus() installers.ShareStatus {
-	return s.share.Status(netinfo.LanIP())
-}
-
-// InstallersSharedFiles lists the installers in the packages folder. While
-// sharing they come with URLs and install commands (for the folder being
-// served); otherwise just paths and sizes.
+// InstallersSharedFiles lists the installers in the packages folder, with URLs
+// and install commands while python http.server serves it.
 func (s *InstallersService) InstallersSharedFiles() ([]installers.SharedFile, error) {
-	st := s.share.Status(netinfo.LanIP())
-	if st.Running {
-		return installers.ListShared(st.Root, st.URL)
-	}
 	root, err := s.InstallersPackagesRoot()
 	if err != nil {
 		return []installers.SharedFile{}, nil
 	}
-	return installers.ListShared(root, "")
+	return installers.ListShared(root, s.pythonServedURL(root, netinfo.LanIP()))
 }

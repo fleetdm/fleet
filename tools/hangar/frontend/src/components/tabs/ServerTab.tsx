@@ -16,6 +16,7 @@ import {
   ngrokIsLaunchable,
   pythonArgsFor,
   pythonServedFrom,
+  pythonStartArgs,
   serveArgsFor,
   serveEnvFor,
   serveLabelFor,
@@ -26,10 +27,9 @@ import {
 } from "../../lib/orchestration";
 import {
   apnsMockEnvConflict,
-  apnsMockMoved,
+  apnsMockLiveUrl,
   apnsMockProcId,
   apnsMockRunningPort,
-  apnsMockStartArgs,
   apnsMockUrl,
   dockerUpArgs,
   prepareDbArgsFor,
@@ -179,6 +179,7 @@ export function ServerTab({
   const pythonRunning =
     pythonProc?.state === "running" || pythonProc?.state === "stopping";
   const apnsMockRunning = isRunning(procs, apnsMockProcId(server));
+  const apnsMockLive = apnsMockLiveUrl(server, procs);
 
   const runChain = runChainFor(server);
 
@@ -201,6 +202,7 @@ export function ServerTab({
         ngrokRunning={ngrokRunning}
         pythonRunning={pythonRunning}
         apnsMockRunning={apnsMockRunning}
+        apnsMockUrl={apnsMockLive}
         onBuildStepRun={captureBuildBranch}
       />
       <div
@@ -243,6 +245,7 @@ export function ServerTab({
           fleetServePreview={
             <ServePreview
               server={server}
+              mockUrl={apnsMockLive}
               onTogglePremium={(premium) => {
                 const next = updateServer(settings, server.id, (s) => ({
                   ...s,
@@ -284,6 +287,7 @@ function MasterControl({
   ngrokRunning,
   pythonRunning,
   apnsMockRunning,
+  apnsMockUrl,
   onBuildStepRun,
 }: {
   server: ServerProfile;
@@ -293,6 +297,7 @@ function MasterControl({
   ngrokRunning: boolean;
   pythonRunning: boolean;
   apnsMockRunning: boolean;
+  apnsMockUrl: string | null;
   onBuildStepRun?: (stepId: string) => void;
 }) {
   const [busy, setBusy] = useState<"starting" | "stopping" | null>(null);
@@ -308,8 +313,7 @@ function MasterControl({
     (!settings.ngrok.enabled ||
       !ngrokIsLaunchable(settings) ||
       ngrokRunning) &&
-    (!settings.python_server.enabled || pythonRunning) &&
-    (!server.mock_apns || apnsMockRunning);
+    (!settings.python_server.enabled || pythonRunning);
 
   async function startAll() {
     setBusy("starting");
@@ -323,6 +327,7 @@ function MasterControl({
           ngrokRunning,
           pythonRunning,
           apnsMockRunning,
+          apnsMockUrl,
         },
         onBuildStepRun,
       });
@@ -343,6 +348,7 @@ function MasterControl({
           ngrokRunning,
           pythonRunning,
           apnsMockRunning,
+          apnsMockUrl,
         },
       });
     } catch (e) {
@@ -403,15 +409,17 @@ function MasterControl({
 /// debug flags, env values) lives in Settings → Fleet server.
 function ServePreview({
   server,
+  mockUrl,
   onTogglePremium,
   onConfigure,
 }: {
   server: ServerProfile;
+  mockUrl: string | null;
   onTogglePremium: (next: boolean) => void;
   onConfigure: () => void;
 }) {
   const args = serveArgsFor(server);
-  const env = serveEnvFor(server);
+  const env = serveEnvFor(server, mockUrl);
   const cmdPreview = `./build/fleet ${args.join(" ")}`;
   const premium = server.fleet_serve.premium;
 
@@ -655,8 +663,8 @@ function ChainCard({
         program: step.program,
         args: step.args,
         log_channel: step.logChannel,
-        env: step.env && step.env.length > 0 ? step.env : null,
-        meta: step.kind === "serve" ? serveMetaFor(server) : null,
+        env: step.kind === "serve" ? serveEnvFor(server, apnsMockLiveUrl(server, procs)) : step.env && step.env.length > 0 ? step.env : null,
+        meta: step.kind === "serve" ? serveMetaFor(server, apnsMockLiveUrl(server, procs)) : null,
       });
       if (step.longRunning) return true;
       return await waitForExit(step.id);
@@ -1129,35 +1137,16 @@ function ActiveProcessesPanel({
   const scepProcs = procs.filter(
     (p) => scepProfileIdOf(p.id) !== null && (p.state === "running" || p.state === "stopping"),
   );
-  // Probe a running mock where it actually listens, which is its old port
-  // after the one in Settings changes.
+  // Probe the running mock where it actually listens.
   const apnsMockPort = apnsMockRunningPort(server, procs) ?? server.ports.apns_mock;
-  const apnsMockStatus = useApnsMockStatus(
-    server.mock_apns || apnsMockRunning ? apnsMockPort : null,
-  );
-  const mockMoved = apnsMockMoved(server, procs);
-  // A serve that pushes to the mock has to follow it to its new port, even
-  // after the mock was restarted there from its own card. A serve started
-  // before Hangar recorded its push URL only shows whether it had one, so with
-  // a moved mock any serve set up to use the mock is restarted.
+  const apnsMockStatus = useApnsMockStatus(apnsMockRunning ? apnsMockPort : null);
+  const apnsMockLive = apnsMockLiveUrl(server, procs);
+  // fleet serve pushes to the running mock, else to Apple, and reads which
+  // only at startup: after the mock starts or stops, it needs a restart.
   const serveNeedsRestart =
-    serveOwned &&
-    !!serveProc &&
-    (serveNeedsRestartForApns(server, serveProc) ||
-      (mockMoved && !apnsMockEnvConflict(server)));
+    serveOwned && !!serveProc && serveNeedsRestartForApns(server, serveProc, apnsMockLive);
   const servePushedTo = serveProc?.meta?.[SERVE_PUSH_URL_META] ?? "";
   const [restartError, setRestartError] = useState<string | null>(null);
-  // What the banner's restart covers, held from the click until it succeeds:
-  // once the mock is down the process list no longer shows it had moved, and
-  // a retry after a failure has to redo the same steps. Without a moved mock
-  // the banner is only ever about serve.
-  const [restartPlan, setRestartPlan] = useState<{ mock: boolean; serve: boolean } | null>(null);
-  const restart = restartPlan ?? { mock: mockMoved, serve: serveNeedsRestart || !mockMoved };
-  const restartWhat = !restart.mock
-    ? "fleet serve"
-    : restart.serve
-      ? "mock APNs and fleet serve"
-      : "mock APNs";
 
   // The file server's address only matters while it's up and something else is
   // dialling it, and it moves with the network, so it's re-read while running.
@@ -1282,14 +1271,7 @@ function ActiveProcessesPanel({
   async function pythonStart() {
     setBusy("python-start");
     try {
-      const { args } = pythonArgs();
-      await api.startProcess({
-        id: "python-server",
-        label: "python http.server",
-        cwd: repoPath,
-        program: "python3",
-        args,
-      });
+      await api.startProcess(pythonStartArgs(settings, repoPath));
     } catch (e) {
       console.error("python start failed", e);
     }
@@ -1311,17 +1293,6 @@ function ActiveProcessesPanel({
     setBusy(null);
   }
 
-  async function apnsMockStart() {
-    const mock = apnsMockStartArgs(server, settings);
-    if (!mock) return;
-    setBusy("apns-start");
-    try {
-      await api.startProcess(mock);
-    } catch (e) {
-      console.error("mock APNs start failed", e);
-    }
-    setBusy(null);
-  }
   async function apnsMockStop() {
     setBusy("apns-stop");
     try {
@@ -1336,22 +1307,10 @@ function ActiveProcessesPanel({
   async function serveRestart() {
     setBusy("serve-restart");
     setRestartError(null);
-    setRestartPlan(restart);
     try {
-      // The mock goes first, so it's listening where the restarted serve pushes.
-      if (restart.mock) {
-        const mock = apnsMockStartArgs(server, settings);
-        if (!mock) throw new Error("server 1 has no Fleet repo set, and the mock runs from it");
-        await api.stopProcess(mock.id);
-        await waitForExit(mock.id, 10_000);
-        await api.startProcess(mock);
-      }
-      if (restart.serve) {
-        await api.stopProcess(serveId);
-        await waitForExit(serveId, 10_000);
-        await startServe(server);
-      }
-      setRestartPlan(null);
+      await api.stopProcess(serveId);
+      await waitForExit(serveId, 10_000);
+      await startServe(server, apnsMockLive);
     } catch (e) {
       setRestartError(String(e));
     }
@@ -1390,8 +1349,7 @@ function ActiveProcessesPanel({
     scepProcs.length;
   const configuredCount =
     (showNgrok && !ngrokRunning ? 1 : 0) +
-    (showPython && !pythonRunning ? 1 : 0) +
-    (server.mock_apns && !apnsMockRunning ? 1 : 0);
+    (showPython && !pythonRunning ? 1 : 0);
 
   return (
     <div>
@@ -1412,30 +1370,24 @@ function ActiveProcessesPanel({
           · {configuredCount} configured
         </div>
       </div>
-      {(serveNeedsRestart || mockMoved || restartPlan) && (
+      {(serveNeedsRestart || busy === "serve-restart" || restartError) && (
         <div style={{ marginBottom: "var(--pad-small)" }}>
           <WarningBanner
             action={{
-              label: busy === "serve-restart" ? "restarting…" : `Restart ${restartWhat}`,
+              label: busy === "serve-restart" ? "restarting…" : "Restart fleet serve",
               disabled: busy !== null,
               onClick: serveRestart,
             }}
           >
             {restartError
-              ? `Couldn't restart ${restartWhat}: ${restartError}`
+              ? `Couldn't restart fleet serve: ${restartError}`
               : busy === "serve-restart"
-                ? `Restarting ${restartWhat}…`
-                : mockMoved
-                  ? `mock APNs is still running on :${apnsMockPort}, but its port in Settings is now :${server.ports.apns_mock}. ${
-                      serveNeedsRestart
-                        ? "Restart it and fleet serve so pushes reach it on the new port."
-                        : "Restart it to move it to the new port."
-                    }`
-                  : server.mock_apns
-                    ? servePushedTo
-                      ? `fleet serve still pushes to ${servePushedTo}, but mock APNs is now at ${apnsMockUrl(server)}. Restart it so pushes reach the mock.`
-                      : "fleet serve was started before mock APNs was turned on, so its Apple MDM pushes still go to Apple. Restart it to send them to the mock."
-                    : "fleet serve is still sending Apple MDM pushes to the mock APNs server. Restart it to send them to Apple again."}
+                ? "Restarting fleet serve…"
+                : apnsMockLive
+                  ? servePushedTo
+                    ? `fleet serve pushes to ${servePushedTo}, but mock APNs is at ${apnsMockLive}. Restart it so pushes reach the mock.`
+                    : "fleet serve was started before mock APNs, so its Apple MDM pushes go to Apple. Restart it to send them to the mock."
+                  : "mock APNs is stopped, but fleet serve still sends Apple MDM pushes to it. Restart it to send them to Apple again, so real devices get them."}
           </WarningBanner>
         </div>
       )}
@@ -1515,18 +1467,18 @@ function ActiveProcessesPanel({
           onStop={pythonStop}
           onSettings={() => goToSettings("python")}
         />
-        <ApnsMockCell
-          server={server}
-          settings={settings}
-          running={apnsMockRunning}
-          port={apnsMockPort}
-          status={apnsMockStatus}
-          busy={busy?.startsWith("apns-") ?? false}
-          onStart={apnsMockStart}
-          onStop={apnsMockStop}
-          onLogs={goToLogs}
-          onSettings={() => goToSettings("fleet-server")}
-        />
+        {/* Only while it runs, like the SCEP servers: it's started from the
+            osquery-perf tab for runs that need it. */}
+        {apnsMockRunning && (
+          <ApnsMockCell
+            server={server}
+            port={apnsMockPort}
+            status={apnsMockStatus}
+            busy={busy?.startsWith("apns-") ?? false}
+            onStop={apnsMockStop}
+            onLogs={goToLogs}
+          />
+        )}
         {scepProcs.map((p) => {
           const profileId = scepProfileIdOf(p.id) as string;
           const profile = scepProfileById(settings, profileId);
@@ -2012,126 +1964,46 @@ function WarningBanner({
 
 function ApnsMockCell({
   server,
-  settings,
-  running,
   port,
   status,
   busy,
-  onStart,
   onStop,
   onLogs,
-  onSettings,
 }: {
   server: ServerProfile;
-  settings: Settings;
-  running: boolean;
-  /// Where the mock listens: its own port while running, else the one in Settings.
+  /// Where the running mock listens (its command line's port).
   port: number;
   status: ApnsMockStatus | null;
   busy: boolean;
-  onStart: () => void;
   onStop: () => void;
   onLogs: () => void;
-  onSettings: () => void;
 }) {
   const url = apnsMockUrl(server, port);
-  const moved = running && server.mock_apns && port !== server.ports.apns_mock;
-  const conflict = apnsMockEnvConflict(server);
-  const conflictNote = conflict && server.mock_apns && (
-    <div style={{ padding: "0 var(--pad-medium) var(--pad-medium)" }}>
-      <WarningBanner>{conflict}</WarningBanner>
-    </div>
-  );
-
-  if (running) {
-    const up = status?.up ?? false;
-    return (
-      <Cell>
-        <ProcRow
-          dotState={up && !moved ? "run" : "warn"}
-          name="mock APNs"
-          subline={
-            up
-              ? `up${moved ? " on its old port" : ""} · ${url} · ${plural(status!.active_connections, "device")} connected · ${plural(status!.total_pushes, "push", "pushes")}`
-              : "starting · compiling cmd/apple-apns-mock on first run"
-          }
-          onLogs={onLogs}
-          onStop={onStop}
-          busy={busy}
-          down={false}
-          links={up ? [{ label: "stats ↗", url: `${url}/stats`, title: `Open ${url}/stats` }] : undefined}
-        />
-        {conflictNote}
-      </Cell>
-    );
-  }
-
-  if (!server.mock_apns) {
-    return (
-      <DisabledServiceCell
-        name="mock APNs"
-        settingsLabel="Settings → Fleet server ↗"
-        onSettings={onSettings}
-      />
-    );
-  }
-
-  const mock = apnsMockStartArgs(server, settings);
+  const conflict = apnsMockEnvConflict(server, url);
+  const up = status?.up ?? false;
   return (
-    <StarterCell>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="dot idle" />
-          <div className="card-title">
-            mock APNs{" "}
-            <span className="dim" style={{ fontWeight: 400 }}>
-              · off
-            </span>
-          </div>
-        </div>
-        <button
-          className="primary"
-          onClick={onStart}
-          disabled={busy || !mock || (status?.up ?? false)}
-          style={{ padding: "4px 12px", fontSize: "var(--fs-xx-small)" }}
-        >
-          {busy ? "…" : "▶ Start"}
-        </button>
+    <Cell>
+      <ProcRow
+        dotState={up ? "run" : "warn"}
+        name="mock APNs"
+        subline={
+          up
+            ? `up · ${url} · ${plural(status!.active_connections, "device")} connected · ${plural(status!.total_pushes, "push", "pushes")}`
+            : "starting · compiling cmd/apple-apns-mock on first run"
+        }
+        onLogs={onLogs}
+        onStop={onStop}
+        busy={busy}
+        down={false}
+        links={up ? [{ label: "stats ↗", url: `${url}/stats`, title: `Open ${url}/stats` }] : undefined}
+      />
+      <div style={{ padding: "0 var(--pad-medium) var(--pad-medium)", display: "flex", flexDirection: "column", gap: 6 }}>
+        {conflict && <WarningBanner>{conflict}</WarningBanner>}
+        <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
+          While fleet serve pushes here, real Apple devices on this server get no pushes.
+        </span>
       </div>
-      {status?.up ? (
-        <WarningBanner>
-          Something Hangar didn't start is already answering on :{server.ports.apns_mock}.
-          Stop it from Settings → Troubleshoot → Mock APNs servers.
-        </WarningBanner>
-      ) : mock ? (
-        <div className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
-          will run:{" "}
-          <span className="mono" style={{ color: "var(--app-text)" }}>
-            {mock.program} {mock.args.join(" ")}
-          </span>
-        </div>
-      ) : (
-        <div className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
-          Set server 1's Fleet repo first: the mock runs from it.
-        </div>
-      )}
-      {conflict && <WarningBanner>{conflict}</WarningBanner>}
-      <div style={{ textAlign: "right" }}>
-        <button
-          onClick={onSettings}
-          className="link-btn"
-          style={{ fontSize: "var(--fs-xx-small)" }}
-        >
-          Settings → Fleet server ↗
-        </button>
-      </div>
-    </StarterCell>
+    </Cell>
   );
 }
 

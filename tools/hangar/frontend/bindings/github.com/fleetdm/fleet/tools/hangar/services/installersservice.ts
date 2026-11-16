@@ -109,40 +109,22 @@ export function InstallersScan(contextName: string): $CancellablePromise<install
 }
 
 /**
- * InstallersShareStart serves the packages folder (every context's
- * subfolder) over HTTP on port, or on a suggested free port when port is 0.
+ * InstallersShareURL is where python http.server serves the packages folder,
+ * or "" when it isn't running with the folder inside its directory. Sharing is
+ * python http.server's job: the Installers tab starts and stops the same
+ * process as the Server tab, with the same folder and port.
  */
-export function InstallersShareStart(port: number): $CancellablePromise<installers$0.ShareStatus> {
-    return $Call.ByID(614217091, port).then(($result: any) => {
-        return $$createType7($result);
-    });
+export function InstallersShareURL(): $CancellablePromise<string> {
+    return $Call.ByID(3500784770);
 }
 
 /**
- * InstallersShareStatus reports whether the folder is being shared, its URL
- * and recent downloads.
- */
-export function InstallersShareStatus(): $CancellablePromise<installers$0.ShareStatus> {
-    return $Call.ByID(71445715).then(($result: any) => {
-        return $$createType7($result);
-    });
-}
-
-/**
- * InstallersShareStop stops sharing.
- */
-export function InstallersShareStop(): $CancellablePromise<void> {
-    return $Call.ByID(1839447825);
-}
-
-/**
- * InstallersSharedFiles lists the installers in the packages folder. While
- * sharing they come with URLs and install commands (for the folder being
- * served); otherwise just paths and sizes.
+ * InstallersSharedFiles lists the installers in the packages folder, with URLs
+ * and install commands while python http.server serves it.
  */
 export function InstallersSharedFiles(): $CancellablePromise<installers$0.SharedFile[]> {
     return $Call.ByID(3683406806).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType8($result);
     });
 }
 
@@ -163,14 +145,6 @@ export function InstallersStopBuild(): $CancellablePromise<void> {
     return $Call.ByID(2900109466);
 }
 
-/**
- * InstallersSuggestSharePort is the first free port from 8000 that no
- * configured Hangar service uses.
- */
-export function InstallersSuggestSharePort(): $CancellablePromise<number> {
-    return $Call.ByID(548954564);
-}
-
 // Private type creation functions
 const $$createType0 = $models.InstallersContextInfo.createFrom;
 const $$createType1 = installers$0.OutputFile.createFrom;
@@ -179,6 +153,5 @@ const $$createType3 = $models.InstallersLocalTUF.createFrom;
 const $$createType4 = installers$0.Channels.createFrom;
 const $$createType5 = $Create.Map($Create.Any, $Create.Any);
 const $$createType6 = installers$0.ScanResult.createFrom;
-const $$createType7 = installers$0.ShareStatus.createFrom;
-const $$createType8 = installers$0.SharedFile.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType7 = installers$0.SharedFile.createFrom;
+const $$createType8 = $Create.Array($$createType7);

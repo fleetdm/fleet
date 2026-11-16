@@ -276,9 +276,6 @@ func TestLoadBackfillsAPNsMockPort(t *testing.T) {
 	if p := got.Servers[1].Ports; p.APNsMock != 8388 || p.MySQL != 3326 {
 		t.Errorf("s2 ports = %+v, want apns_mock 8388 and the rest untouched", p)
 	}
-	if got.Servers[0].MockAPNs {
-		t.Error("mock_apns should default off")
-	}
 }
 
 func TestNextServerProfile(t *testing.T) {

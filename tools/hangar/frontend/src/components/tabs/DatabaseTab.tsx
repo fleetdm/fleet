@@ -8,6 +8,7 @@ import {
 import { noAutocorrect } from "../../lib/noAutocorrect";
 import { startServe, waitForExit } from "../../lib/orchestration";
 import {
+  apnsMockLiveUrl,
   dbBackupCommand,
   dbRestoreCommand,
   prepareDbArgsFor,
@@ -199,6 +200,7 @@ export function DatabaseTab({
         }
         server={server}
         serveProcId={serveProcId}
+        apnsMockUrl={apnsMockLiveUrl(server, procs)}
         lastBackup={lastBackup}
         backupCount={backups.length}
         backupsDir={activeCentralDir}
@@ -316,6 +318,7 @@ function StatusHeader({
   serveOwned,
   server,
   serveProcId,
+  apnsMockUrl,
   lastBackup,
   backupCount,
   backupsDir,
@@ -329,6 +332,8 @@ function StatusHeader({
   serveOwned: boolean;
   server: ServerProfile;
   serveProcId: string;
+  /// The server's running mock APNs, which a started serve pushes to.
+  apnsMockUrl: string | null;
   lastBackup: BackupEntry | null;
   backupCount: number;
   backupsDir: string | null;
@@ -357,7 +362,7 @@ function StatusHeader({
     setServeBusy("starting");
     setError(null);
     try {
-      await startServe(server);
+      await startServe(server, apnsMockUrl);
     } catch (e) {
       setError(String(e));
       setServeBusy(null);

@@ -247,12 +247,6 @@ export class InstallersConfig {
     "manual_target": InstallerTarget;
     "options": InstallerOptions;
 
-    /**
-     * SharePort is the port for sharing the packages folder over HTTP; 0 means
-     * pick a free one.
-     */
-    "share_port": number;
-
     /** Creates a new InstallersConfig instance. */
     constructor($$source: Partial<InstallersConfig> = {}) {
         if (!("context" in $$source)) {
@@ -269,9 +263,6 @@ export class InstallersConfig {
         }
         if (!("options" in $$source)) {
             this["options"] = (new InstallerOptions());
-        }
-        if (!("share_port" in $$source)) {
-            this["share_port"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -710,14 +701,6 @@ export class ServerProfile {
     "fleet_serve": FleetServeConfig;
     "enabled": boolean;
 
-    /**
-     * MockAPNs runs cmd/apple-apns-mock with this server's stack and points
-     * fleet serve's Apple MDM pushes at it, so osquery-perf's simulated Apple
-     * devices can MDM-enroll. Real Apple devices on this server get no pushes
-     * while it's on.
-     */
-    "mock_apns": boolean;
-
     /** Creates a new ServerProfile instance. */
     constructor($$source: Partial<ServerProfile> = {}) {
         if (!("id" in $$source)) {
@@ -746,9 +729,6 @@ export class ServerProfile {
         }
         if (!("enabled" in $$source)) {
             this["enabled"] = false;
-        }
-        if (!("mock_apns" in $$source)) {
-            this["mock_apns"] = false;
         }
 
         Object.assign(this, $$source);
