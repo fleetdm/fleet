@@ -855,7 +855,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS vendor,
       '' AS installed_path
@@ -879,7 +879,7 @@ spec:
       COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
       bundle_identifier AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'apps' AS source,
       '' AS vendor,
       last_opened_time AS last_opened_at,
@@ -891,7 +891,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -903,7 +903,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       identifier AS extension_id,
-      'firefox' AS browser,
+      'firefox' AS extension_for,
       'firefox_addons' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -915,7 +915,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'safari_extensions' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -927,7 +927,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'homebrew_packages' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -940,7 +940,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'homebrew_packages' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -948,7 +948,7 @@ spec:
     FROM homebrew_packages
     WHERE type = 'cask'
     AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
-  bash: bash -c 'echo "name,version,extension_id,browser,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
+  bash: bash -c 'echo "name,version,extension_id,extension_for,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
   purpose: Informational
   tags: built-in
 ---
@@ -967,7 +967,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'deb_packages' AS source,
       '' AS release,
       '' AS vendor,
@@ -980,7 +980,7 @@ spec:
       package AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'portage_packages' AS source,
       '' AS release,
       '' AS vendor,
@@ -992,7 +992,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'rpm_packages' AS source,
       release AS release,
       vendor AS vendor,
@@ -1004,7 +1004,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'npm_packages' AS source,
       '' AS release,
       '' AS vendor,
@@ -1016,7 +1016,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS release,
       '' AS vendor,
@@ -1028,7 +1028,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      'firefox' AS browser,
+      'firefox' AS extension_for,
       'firefox_addons' AS source,
       '' AS release,
       '' AS vendor,
@@ -1078,7 +1078,7 @@ spec:
             COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
             apps.bundle_identifier AS bundle_identifier,
             '' AS extension_id,
-            '' AS browser,
+            '' AS extension_for,
             'apps' AS source,
             '' AS vendor,
             apps.last_opened_time AS last_opened_at,
@@ -1101,7 +1101,7 @@ spec:
           name AS name,
           version AS version,
           '' AS extension_id,
-          '' AS browser,
+          '' AS extension_for,
           'python_packages' AS source,
           '' AS vendor,
           path AS installed_path
@@ -1125,7 +1125,7 @@ spec:
           name AS name,
           version AS version,
           '' AS extension_id,
-          '' AS browser,
+          '' AS extension_for,
           'python_packages' AS source,
           '' AS vendor,
           path AS installed_path
@@ -1150,7 +1150,7 @@ spec:
       version,
       '' AS bundle_identifier,
       uuid AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'vscode_extensions' AS source,
       publisher AS vendor,
       '' AS last_opened_at,
@@ -1256,7 +1256,7 @@ spec:
     # Write the comparable result to stdout
 
     $results | Format-Table -AutoSize
-  bash: bash -c "sqlite3 -header -csv /path/to/database.db \"WITH cached_users AS (WITH cached_groups AS (SELECT * FROM groups) SELECT uid, username, type, groupname, shell FROM users LEFT JOIN cached_groups USING(gid) WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%\$' AND username NOT LIKE '\\_%' ESCAPE '\\' AND NOT (username = 'sync' AND shell = '/bin/sync' AND directory <> '')) SELECT name, version, '' AS bundle_identifier, uuid AS extension_id, '' AS browser, 'vscode_extensions' AS source, publisher AS vendor, '' AS last_opened_at, path AS installed_path FROM cached_users CROSS JOIN vscode_extensions USING(uid)\""
+  bash: bash -c "sqlite3 -header -csv /path/to/database.db \"WITH cached_users AS (WITH cached_groups AS (SELECT * FROM groups) SELECT uid, username, type, groupname, shell FROM users LEFT JOIN cached_groups USING(gid) WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%\$' AND username NOT LIKE '\\_%' ESCAPE '\\' AND NOT (username = 'sync' AND shell = '/bin/sync' AND directory <> '')) SELECT name, version, '' AS bundle_identifier, uuid AS extension_id, '' AS extension_for, 'vscode_extensions' AS source, publisher AS vendor, '' AS last_opened_at, path AS installed_path FROM cached_users CROSS JOIN vscode_extensions USING(uid)\""
   discovery: vscode_extensions
   purpose: Informational
   tags: built-in
@@ -1276,7 +1276,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'programs' AS source,
       publisher AS vendor,
       install_location AS installed_path
@@ -1286,7 +1286,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'ie_extensions' AS source,
       '' AS vendor,
       path AS installed_path
@@ -1296,7 +1296,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS vendor,
       path AS installed_path
@@ -1306,7 +1306,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      'firefox' AS browser,
+      'firefox' AS extension_for,
       'firefox_addons' AS source,
       '' AS vendor,
       path AS installed_path
@@ -1316,7 +1316,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'chocolatey_packages' AS source,
       '' AS vendor,
       path AS installed_path

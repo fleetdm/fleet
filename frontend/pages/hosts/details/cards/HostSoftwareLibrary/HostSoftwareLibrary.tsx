@@ -650,8 +650,7 @@ const HostSoftwareLibrary = ({
           details={{
             host_display_name: hostDisplayName,
             install_uuid:
-              selectedHostSWInstallDetails.software_package?.last_install
-                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+              selectedHostSWInstallDetails.package?.last_install?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
             skipped_install: selectedHostSWInstallDetails.skipped_install,
           }}
           hostSoftware={selectedHostSWInstallDetails}
@@ -668,7 +667,7 @@ const HostSoftwareLibrary = ({
               selectedHostSWIpaInstallDetails.display_name
             ),
             commandUuid:
-              selectedHostSWIpaInstallDetails.software_package?.last_install
+              selectedHostSWIpaInstallDetails.package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
           }}
           hostSoftware={selectedHostSWIpaInstallDetails}
@@ -680,8 +679,7 @@ const HostSoftwareLibrary = ({
           details={{
             host_display_name: hostDisplayName,
             install_uuid:
-              selectedHostSWScriptDetails.software_package?.last_install
-                ?.install_uuid,
+              selectedHostSWScriptDetails.package?.last_install?.install_uuid,
           }}
           hostSoftware={selectedHostSWScriptDetails}
           onCancel={() => setSelectedHostSWScriptDetails(null)}

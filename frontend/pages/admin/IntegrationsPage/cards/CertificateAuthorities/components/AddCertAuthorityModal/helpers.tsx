@@ -9,6 +9,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { IAddCertAuthorityFormData } from "services/entities/certificates";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { formatFleet5RemovalMessage } from "utilities/helpers";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
@@ -269,6 +270,7 @@ export const getDisplayErrMessage = (
   const reason = rawReason.toLowerCase();
   const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
   const unprefixedReason = rawReason.replace(SERVER_ERROR_PREFIX, "");
+  const fleet5Removal = formatFleet5RemovalMessage(unprefixedReason);
 
   // Google CAS errors name the field or Google setting to fix, and the server
   // writes its 4xx reasons for admins, so they're shown as is.
@@ -280,6 +282,8 @@ export const getDisplayErrMessage = (
     err.status < 500
   ) {
     message = unprefixedReason;
+  } else if (fleet5Removal) {
+    message = fleet5Removal;
   } else if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile guid")) {

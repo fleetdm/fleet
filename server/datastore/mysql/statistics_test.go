@@ -214,8 +214,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// Create new app cfg for test
 	cfg, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
-			OrgName:    "Test",
-			OrgLogoURL: "localhost:8080/logo.png",
+			OrgName:            "Test",
+			OrgLogoURLDarkMode: "localhost:8080/logo.png",
 		},
 	})
 	require.NoError(t, err)
@@ -1043,7 +1043,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 
 	// Create a new app config so ApplyDefaults runs (new-install defaults: only "secrets" exception).
 	_, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
-		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURL: "localhost:8080/logo.png"},
+		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURLDarkMode: "localhost:8080/logo.png"},
 	})
 	require.NoError(t, err)
 

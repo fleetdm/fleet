@@ -44,21 +44,10 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
-	p, err := s.ds.NewPack(context.Background(), &fleet.Pack{
-		Name: t.Name(),
-		Hosts: []fleet.Target{
-			{
-				Type:     fleet.TargetHost,
-				TargetID: hosts[0].ID,
-			},
-		},
-	})
-	require.NoError(t, err)
-
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]any{"team_id": float64(team1.ID)},
+		Filters: &map[string]any{"fleet_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -72,11 +61,6 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
 	require.NoError(t, err)
-
-	newP, err := s.ds.Pack(context.Background(), p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Hosts)
-	require.NoError(t, s.ds.DeletePack(context.Background(), newP.Name))
 }
 
 func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
@@ -229,7 +213,7 @@ func (s *integrationTestSuite) TestTechnicianCannotDeleteHostsOnFree() {
 		[]fleet.UserTeam{{Team: *team, Role: fleet.RoleTechnician}})
 	defer func() { s.token = s.getTestAdminToken() }()
 
-	teamFilter := &map[string]any{"team_id": float64(team.ID)}
+	teamFilter := &map[string]any{"fleet_id": float64(team.ID)}
 
 	s.token = globalTechnician
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusPaymentRequired)
@@ -743,7 +727,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "team_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "fleet_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host2.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -1058,7 +1042,6 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Equal(t, "chrome_extensions", sw.Source)
 	assert.Equal(t, "test-extension-id", sw.ExtensionID)
 	assert.Equal(t, "chrome", sw.ExtensionFor)
-	assert.Equal(t, "chrome", sw.Browser) // backward compatibility field
 	assert.Equal(t, "com.google.Chrome", sw.BundleIdentifier)
 
 	// Verify installed_paths is populated and not empty
@@ -1241,13 +1224,13 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "name", "include_host_counts", "false")
 
 	// team filter, no host
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team2.ID))
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
 	require.Empty(t, resp.Platforms)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host, low_disk_count is ignored as not premium
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
@@ -1255,7 +1238,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 

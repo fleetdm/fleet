@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/gorilla/mux"
 )
@@ -21,7 +22,7 @@ import (
 // gorilla, which stays the source of truth for matching semantics.
 type fastPathHandler struct {
 	fast   *http.ServeMux
-	router *mux.Router
+	router *endpointer.Router
 }
 
 func (h *fastPathHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +32,7 @@ func (h *fastPathHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// inside a single segment. abc%2Fdef vs abc/def is a common example.
 	// 2. An unclean path (contains ../ and the like) is redirected by gorilla with a 301 but by the stdlib mux with a 307.
 	if r.URL.RawPath != "" || !isCanonicalPath(r.URL.Path) {
-		gorillaFallback{h.router}.ServeHTTP(w, r)
+		gorillaFallback{h.router.Gorilla()}.ServeHTTP(w, r)
 		return
 	}
 	h.fast.ServeHTTP(w, r)
@@ -48,9 +49,9 @@ func (g gorillaFallback) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.router.ServeHTTP(w, r)
 }
 
-// Router exposes the gorilla router underneath so callers that introspect the route table, such as endpoint catalog
-// validation, keep working once the fast path is installed.
-func (h *fastPathHandler) Router() *mux.Router { return h.router }
+// Router exposes the router underneath so callers that introspect the route table, such as endpoint catalog validation, keep
+// working once the fast path is installed.
+func (h *fastPathHandler) Router() *endpointer.Router { return h.router }
 
 var (
 	fleetVersionVar = regexp.MustCompile(`{fleetversion:\(\?:([^)]*)\)}`)
@@ -59,11 +60,11 @@ var (
 )
 
 // newFastPathHandler builds the fast path from an already-registered gorilla router. It has to run after every route is
-// registered and after addMetrics, because the handlers it promotes are the fully wrapped ones. middlewares are the
-// route-agnostic wrappers gorilla applies through Use; they are applied again here because a request served by the fast path
-// never enters the gorilla router.
-func newFastPathHandler(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) (http.Handler, error) {
-	fast, err := buildFastPathMux(r, middlewares, cfg)
+// registered, because it copies gorilla's route list; handlers wrapped later still apply, since the Router's per-route
+// handler looks up the current one on each request. middlewares are the route-agnostic wrappers gorilla applies through
+// Use; they are applied again here because a request served by the fast path never enters the gorilla router.
+func newFastPathHandler(r *endpointer.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) (http.Handler, error) {
+	fast, err := buildFastPathMux(r.Gorilla(), middlewares, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("building the stdlib fast-path router: %w", err)
 	}
@@ -98,8 +99,9 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			wrapped = middleware.Middleware(wrapped)
 		}
 		if cfg.Logging.TracingEnabled && cfg.OTELEnabled() {
-			// Span names have to keep matching the gorilla route template: the trace sampler tiers routes by span name.
-			wrapped = otelmw.WrapHandler(otelmw.WithRouteTag(tpl, wrapped), tpl, cfg)
+			// Must match the name cleanRoutePattern gives the same route on the gorilla path.
+			route := tracing.CleanRouteTemplate(tpl)
+			wrapped = otelmw.WrapHandler(otelmw.WithRouteTag(route, wrapped), route, cfg)
 		}
 
 		varNames := make([]string, 0, 4)
@@ -115,7 +117,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 					// fast path keeps the first and ignores this one.
 					continue
 				}
-				bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, gorillaFallback{r})
+				bridged := newFastPathRoute(method, versionSegment(tpl, pattern), varNames, matchers, wrapped, gorillaFallback{r})
 				if err := tryRegister(fast, full, bridged); err != nil {
 					return fmt.Errorf("route %s: %w", route.GetName(), err)
 				}
@@ -156,10 +158,10 @@ func tryRegister(m *http.ServeMux, pattern string, h http.Handler) (err error) {
 	return nil
 }
 
-// newFastPathRoute adapts a stdlib match back to what Fleet's gorilla-shaped handlers expect: mux vars and the route template
-// in context. It also hands back to gorilla the requests a stdlib pattern matches more loosely than the gorilla template did,
-// so a request the router rejects today is still rejected by the router.
-func newFastPathRoute(tpl, method, version string, varNames []string, matchers []varMatcher,
+// newFastPathRoute adapts a stdlib match back to the mux vars Fleet's gorilla-shaped handlers expect. It also hands back to
+// gorilla the requests a stdlib pattern matches more loosely than the gorilla template did, so a request the router rejects
+// today is still rejected by the router.
+func newFastPathRoute(method, version string, varNames []string, matchers []varMatcher,
 	handler, fallback http.Handler,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -184,7 +186,6 @@ func newFastPathRoute(tpl, method, version string, varNames []string, matchers [
 			}
 			req = mux.SetURLVars(req, vars)
 		}
-		req = req.WithContext(endpointer.WithRouteTemplate(req.Context(), tpl))
 		handler.ServeHTTP(w, req)
 	})
 }

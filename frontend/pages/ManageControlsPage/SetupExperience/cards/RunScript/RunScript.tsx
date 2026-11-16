@@ -92,7 +92,7 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
 
     const mdmNotConfigured = !(
       globalConfig?.mdm.enabled_and_configured &&
-      globalConfig?.mdm.apple_bm_enabled_and_configured
+      globalConfig?.mdm.apple_business_enabled_and_configured
     );
 
     if (mdmNotConfigured) {

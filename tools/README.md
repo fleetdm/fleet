@@ -237,7 +237,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `hangar/` | Desktop control panel for the Fleet dev environment (Go + Wails, macOS) — run `fleet serve`, manage branches / DB / fleetctl / GitOps / osquery-perf from one window | `cd tools/hangar && task dev` - See [hangar/README.md](hangar/README.md) |
 | `oncall/` | Find community issues/PRs | `./tools/oncall/oncall.sh issues` or `./tools/oncall/oncall.sh prs` |
 | **Infrastructure** | | |
-| `apm-elastic/` | Elastic APM config | See [apm-elastic/README.md](apm-elastic/README.md) |
 | `calendar/` | Calendar integration tools | See [calendar/README.md](calendar/README.md) |
 | `fdm/` | FleetDM developer tools | `fdm <command>` - Wrapper for Fleet make targets |
 | `fleet-docker/` | Fleet Docker configs | Docker configuration for Fleet |

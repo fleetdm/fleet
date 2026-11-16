@@ -102,20 +102,6 @@ type ListHostsInLabelRequest struct {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Delete Label
-////////////////////////////////////////////////////////////////////////////////
-
-type DeleteLabelRequest struct {
-	Name string `url:"name"`
-}
-
-type DeleteLabelResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r DeleteLabelResponse) Error() error { return r.Err }
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Label By ID
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -134,9 +120,16 @@ func (r DeleteLabelByIDResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type ApplyLabelSpecsRequest struct {
-	Specs       []*LabelSpec `json:"specs"`
-	TeamID      *uint        `json:"-" query:"fleet_id,optional"`
-	NamesToMove []string     `json:"names_to_move,omitempty"`
+	Specs        []*LabelSpec  `json:"specs"`
+	TeamID       *uint         `json:"-" query:"fleet_id,optional"`
+	LabelsToMove []LabelToMove `json:"labels_to_move,omitempty"`
+}
+
+type LabelToMove struct {
+	Name string `json:"name"`
+	// Omitted when the name moves from the global level into the fleet being applied. When applying global labels,
+	// only the listed fleets' labels with that name are set aside.
+	FromFleetID *uint `json:"from_fleet_id,omitempty"`
 }
 
 type ApplyLabelSpecsResponse struct {

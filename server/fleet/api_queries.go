@@ -55,6 +55,9 @@ type GetQueryReportRequest struct {
 	ListOptions ListOptions `url:"list_options"`
 }
 
+// SortsByAnyColumn exempts order_key from the removed sort key check, since a report's result columns can be named team_id.
+func (GetQueryReportRequest) SortsByAnyColumn() {}
+
 type GetQueryReportResponse struct {
 	QueryID       uint                 `json:"query_id" renameto:"report_id"`
 	Results       []HostQueryResultRow `json:"results"`

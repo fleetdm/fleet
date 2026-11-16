@@ -131,7 +131,7 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Anna's iPad",
         commandUpdatedAt: "2026-05-27T22:49:52Z",
         platform: "ipados",
-        failureReason: "There is no IdP email for this host. …",
+        failureReason: "There is no IdP username for this host. …",
         selfService: true,
         actorFullName: "Anna",
       })
@@ -988,7 +988,7 @@ describe("VPP Install Details Modal", () => {
           id: 99,
           name: "Logic Pro",
           source: "apps",
-          software_package: null,
+          package: null,
           app_store_app: createMockHostAppStoreApp({ version: "2.0.0" }),
           installed_versions: [
             { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },

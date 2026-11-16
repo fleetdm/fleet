@@ -2022,7 +2022,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "onc-wifi", Contents: oncProfileJSON},
 		{Name: "camera-policy", Contents: cameraProfileJSON},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	// Trigger profile reconciliation
 	s.awaitTriggerAndroidProfileSchedule(t)
@@ -2090,7 +2090,7 @@ func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "onc-wifi", Contents: oncProfileJSON},
 		{Name: "camera-policy", Contents: cameraProfileJSON},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	s.awaitTriggerAndroidProfileSchedule(t)
 	s.assertONCProfileWithheld(t, host.UUID)
@@ -2147,7 +2147,7 @@ func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnother
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: oncProfileName, Contents: oncProfileJSON},
 		{Name: cameraProfileName, Contents: cameraProfileJSON},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 	s.awaitTriggerAndroidProfileSchedule(t)
 	s.assertONCProfileWithheld(t, host.UUID)
 
@@ -2194,7 +2194,7 @@ func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnother
 			{Name: oncProfileName, Contents: oncProfileJSON},
 			{Name: cameraProfileName, Contents: cameraProfileJSON},
 			{Name: "extra-batch", Contents: []byte(`{"cameraDisabled": false}`)},
-		}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+		}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 		requireDetailPreservedAndStatusReset(t, "POST /mdm/profiles/batch")
 	})

@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -83,7 +82,7 @@ const (
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
 // but that is not the case, digicert, custom scep, hydrant and smallstep are totally supported just in a different way (multiple CA's)
 var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
-	fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
+	fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL,
 	fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarHostEndUserIDPExternalID,
@@ -311,6 +310,9 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
+	}
+	if err := fleet.FindRemovedFleetVariable(fleetVars...); err != nil {
+		return nil, err
 	}
 
 	// Validate against all valid Fleet variables in configuration profiles
@@ -2460,7 +2462,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 		decoded.EnrollReference = ptr.String(strings.Split(auth, "Bearer ")[1])
 	}
 
-	token := mux.Vars(r)["token"]
+	token, _ := platform_http.PathVar(r, "token")
 	if token != "" {
 		decoded.EnrollmentToken = token
 	}
@@ -3642,7 +3644,7 @@ func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, 
 	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
 	switch {
 	case fleet.IsNotFound(err):
-		return bootstrapPackageMetadataResponse{Err: fleet.NewInvalidArgumentError("team_id/fleet_id",
+		return bootstrapPackageMetadataResponse{Err: fleet.NewInvalidArgumentError("fleet_id",
 			"bootstrap package for this fleet does not exist").WithStatus(http.StatusNotFound)}, nil
 	case err != nil:
 		return bootstrapPackageMetadataResponse{Err: err}, nil
@@ -3694,7 +3696,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleBootstrapPackageSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
@@ -3726,7 +3728,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMAppleSetupAssistantRequest struct {
-	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
+	TeamID            *uint           `json:"fleet_id"`
 	Name              string          `json:"name"`
 	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
 }
@@ -3764,7 +3766,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMAppleSetupAssistantResponse struct {
@@ -3852,7 +3854,7 @@ func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, 
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type deleteMDMAppleSetupAssistantResponse struct {
@@ -4340,7 +4342,7 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 
 type batchSetAppleDDMAssetsRequest struct {
 	TeamID   *uint                                `json:"-" query:"fleet_id,optional"`
-	TeamName string                               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamName string                               `json:"-" query:"fleet_name,optional"`
 	DryRun   bool                                 `json:"-" query:"dry_run,optional"`
 	Assets   []fleet.MDMAppleDDMAssetBatchPayload `json:"assets"`
 }
@@ -6200,7 +6202,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		softwareTitle.AppStoreApp = vppAppMetadata
+		softwareTitle.AppStoreApps = []*fleet.VPPAppStoreApp{vppAppMetadata}
 
 		// Incoming softwares have Name, BundleIdentifier, Source and Version.
 		var bundleIdentifier string
@@ -6245,7 +6247,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		latestVersion := toValidSemVer(softwareTitle.AppStoreApp.LatestVersion)
+		latestVersion := toValidSemVer(softwareTitle.AppStoreApps[0].LatestVersion)
 		if _, err := fleet.VersionToSemverVersion(latestVersion); err != nil {
 			logger.ErrorContext(
 				ctx, "invalid latest version",
@@ -6296,11 +6298,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, recent install for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
@@ -6340,19 +6342,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, pending install for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
-		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
@@ -6377,8 +6379,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		logger := logger.With(
 			"software_title_id", softwareTitle.ID,
 			"team_id", host.TeamID,
-			"adam_id", softwareTitle.AppStoreApp.AdamID,
-			"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+			"adam_id", softwareTitle.AppStoreApps[0].AdamID,
+			"latest_version", softwareTitle.AppStoreApps[0].LatestVersion,
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 
@@ -8595,10 +8597,10 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
-	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
-	BYODTeamID   *uint `json:"byod_team_id" renameto:"byod_fleet_id"`
+	MacOSTeamID  *uint `json:"macos_fleet_id"`
+	IOSTeamID    *uint `json:"ios_fleet_id"`
+	IPadOSTeamID *uint `json:"ipados_fleet_id"`
+	BYODTeamID   *uint `json:"byod_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {

@@ -83,7 +83,7 @@ const generateTableConfig = (
           [
             getDisplayedSoftwareName(original.name, original.display_name),
             original.name,
-            original.software_package?.name,
+            original.packages?.[0]?.name,
           ].some((field) => field?.toLowerCase().includes(q))
         );
       },
@@ -120,7 +120,7 @@ const generateTableConfig = (
       Cell: (cellProps: ITableStringCellProps) => {
         if (platform === "android") {
           const androidPlayStoreId =
-            cellProps.row.original.app_store_app?.app_store_id;
+            cellProps.row.original.app_store_apps?.[0]?.app_store_id;
 
           return (
             <TextCell
@@ -135,7 +135,7 @@ const generateTableConfig = (
 
         const title = cellProps.row.original;
         let displayedVersion =
-          title.software_package?.version || title.app_store_app?.version;
+          title.packages?.[0]?.version || title.app_store_apps?.[0]?.version;
 
         if (platform === "linux") {
           const packageTypeCopy = getSetupExperienceLinuxPackageCopy(

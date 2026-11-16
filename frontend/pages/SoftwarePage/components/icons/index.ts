@@ -268,6 +268,7 @@ import DanteController from "./png/DanteController.png";
 import Darkmodebuddy from "./png/Darkmodebuddy.png";
 import Darktable from "./png/Darktable.png";
 import Dash from "./png/Dash.png";
+import DatadogAgent from "./png/DatadogAgent.png";
 import Dataflare from "./png/Dataflare.png";
 import DataGrip from "./png/DataGrip.png";
 import Dataspell from "./png/Dataspell.png";
@@ -718,6 +719,7 @@ import Notesnook from "./png/Notesnook.png";
 import Notesollama from "./png/Notesollama.png";
 import Notion from "./png/Notion.png";
 import NotionCalendar from "./png/NotionCalendar.png";
+import NoTunes from "./png/noTunes.png";
 import NounProject from "./png/NounProject.png";
 import Nova from "./png/Nova.png";
 import Novabench from "./png/Novabench.png";
@@ -905,6 +907,7 @@ import ScreenStudio from "./png/ScreenStudio.png";
 import Scribe from "./png/Scribe.png";
 import Scribus from "./png/Scribus.png";
 import Scrivener from "./png/Scrivener.png";
+import ScrollReverser from "./png/ScrollReverser.png";
 import Secretive from "./png/Secretive.png";
 import Securesafe from "./png/Securesafe.png";
 import Selfcontrol from "./png/Selfcontrol.png";
@@ -1111,6 +1114,7 @@ import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Winzip from "./png/Winzip.png";
 import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
@@ -1427,6 +1431,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,
+  "datadog agent": DatadogAgent,
   dataflare: Dataflare,
   datagrip: DataGrip,
   dataspell: Dataspell,
@@ -1903,6 +1908,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   notesollama: Notesollama,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  notunes: NoTunes,
   "noun project": NounProject,
   nova: Nova,
   novabench: Novabench,
@@ -2097,6 +2103,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   scribe: Scribe,
   scribus: Scribus,
   scrivener: Scrivener,
+  "scroll reverser": ScrollReverser,
   secretive: Secretive,
   securesafe: Securesafe,
   selfcontrol: Selfcontrol,
@@ -2316,6 +2323,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  winzip: Winzip,
   wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
@@ -2418,7 +2426,7 @@ const matchStrictNameSourceToIcon = ({
   switch (true) {
     case name === "zoom.us.app" && source === "apps":
       return Zoom;
-    case name === "zoom":
+    case name === "zoom" || name === "zoom (arm64)":
       return Zoom;
     case name.startsWith("zoom workplace"):
       return Zoom;

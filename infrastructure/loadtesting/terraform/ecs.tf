@@ -206,10 +206,6 @@ resource "aws_ecs_task_definition" "backend" {
             value = "100"
           },
           {
-            name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
-            value = "10000"
-          },
-          {
             name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET"
             value = aws_s3_bucket.software_installers.bucket
           },

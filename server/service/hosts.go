@@ -617,7 +617,7 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[string]interface{}) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsListError(ctx, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 
 	opts, lid, err := hostListOptionsFromFilters(filter)
@@ -975,7 +975,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	if !alreadyAuthd {
 		// Authorize again with team loaded now that we have team_id
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-			return nil, err
+			return nil, authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 		}
 	}
 
@@ -996,7 +996,7 @@ func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
-			return err
+			return authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsDeleteHostErrorMessage, err)
 		}
 		if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 			return err
@@ -1052,7 +1052,7 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID       *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID       *uint   `query:"fleet_id,optional"`
 	Platform     *string `query:"platform,optional"`
 	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
@@ -1131,7 +1131,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. GetHost checks team access.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
+		return nil, authz.GitOpsListError(ctx, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 	}
 
 	var host *fleet.HostLite
@@ -1178,7 +1178,7 @@ func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsListError(ctx, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, id)
@@ -1193,7 +1193,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 	if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 		return err
@@ -1298,7 +1298,7 @@ func (svc *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int)
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamRequest struct {
-	TeamID  *uint  `json:"team_id" renameto:"fleet_id"`
+	TeamID  *uint  `json:"fleet_id"`
 	HostIDs []uint `json:"hosts"`
 }
 
@@ -1340,15 +1340,28 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(h.ID), "get host for transfer")
 		if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionTransferHost, notFoundErr); err != nil {
-			return err
+			return authz.GitOpsFleetError(ctx, h.TeamID, fleet.GitOpsTransferHostErrorMessage, err)
 		}
 	}
 	return nil
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
-	// Authorize transfer access to the destination team.
+// authorizeHostTransferDestination checks that the caller can transfer hosts
+// into teamID (nil for "Unassigned"). Every role that can transfer hosts can
+// also list them, so the list check only stops GitOps users, before any host
+// is looked up.
+func (svc *Service) authorizeHostTransferDestination(ctx context.Context, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsListError(ctx, fleet.GitOpsTransferHostErrorMessage, err)
+	}
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
+		return authz.GitOpsFleetError(ctx, teamID, fleet.GitOpsTransferHostErrorMessage, err)
+	}
+	return nil
+}
+
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	if err := svc.authorizeHostTransferDestination(ctx, teamID); err != nil {
 		return err
 	}
 
@@ -1505,7 +1518,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id" renameto:"fleet_id"`
+	TeamID  *uint                   `json:"fleet_id"`
 	Filters *map[string]interface{} `json:"filters"`
 }
 
@@ -1526,8 +1539,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// Authorize transfer access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
+	if err := svc.authorizeHostTransferDestination(ctx, teamID); err != nil {
 		return err
 	}
 
@@ -1885,11 +1897,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
-	}
-
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
 	bats, err := svc.ds.ListHostBatteries(ctx, host.ID)
@@ -2278,7 +2285,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
-		Packs:                         packs,
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
 		CustomHostVitals:              customHostVitals,
@@ -3373,7 +3379,7 @@ type getHostMDMSummaryResponse struct {
 }
 
 type getHostMDMSummaryRequest struct {
-	TeamID   *uint  `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID   *uint  `query:"fleet_id,optional"`
 	Platform string `query:"platform,optional"`
 }
 
@@ -3477,7 +3483,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getAggregatedMacadminsDataRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getAggregatedMacadminsDataResponse struct {
@@ -3618,9 +3624,6 @@ func (r hostsReportResponse) Error() error { return r.Err }
 func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
-		// Add the aliased fields for team_id and team_name.
-		h.FleetID = h.TeamID
-		h.FleetName = h.TeamName
 		if h.DeviceMapping != nil {
 			// return the list of emails, comma-separated, as part of that single CSV field
 			var dms []struct {
@@ -3816,14 +3819,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
 			}
-			// If team_id / team_name are requested, also include their aliases.
-			// TODO: clean up in Fleet 5.
-			if rawCol == "team_id" {
-				cols = append(cols, "fleet_id")
-			}
-			if rawCol == "team_name" {
-				cols = append(cols, "fleet_name")
-			}
 		}
 	}
 	if len(cols) == 0 {
@@ -3863,7 +3858,7 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID             *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID             *uint   `query:"fleet_id,optional"`
 	Platform           *string `query:"platform,optional"`
 	Name               *string `query:"os_name,optional"`
 	Version            *string `query:"os_version,optional"`
@@ -3957,7 +3952,7 @@ func (svc *Service) OSVersions(
 			if err != nil {
 				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, count, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, count, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -4226,7 +4221,7 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 
 type getOSVersionRequest struct {
 	ID                 uint  `url:"id"`
-	TeamID             *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID             *uint `query:"fleet_id,optional"`
 	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
 }
 
@@ -4273,7 +4268,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+			return nil, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -4704,7 +4699,7 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			} else {
 				return nil, nil, badRequest("label_id must be a number")
 			}
-		case "fleet_id", "team_id":
+		case "fleet_id":
 			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
 				teamID := uint(teamID)
 				opt.TeamFilter = &teamID
@@ -5283,12 +5278,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+		fleet.ActivityTypeReadHostRecoveryLockPassword{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		},
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
 	}
 
 	// Schedule auto-rotation by marking the password as viewed.

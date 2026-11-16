@@ -1,6 +1,6 @@
 # Fleet-maintained apps (FMA)
 
-> **Using Claude Code?** The `new-fma` skill ([.claude/skills/new-fma/SKILL.md](../../.claude/skills/new-fma/SKILL.md)) automates this workflow and bakes in the gotchas this README doesn't cover — verifying the installed app's identity with `msiinfo`/`PlistBuddy` instead of trusting winget/cask metadata, handling bootstrapper installers, parsing unquoted `UninstallString`s, version-matching quirks, and more. Just ask it to "add X as a macOS/Windows FMA."
+> **Using Claude Code?** The `fleet-maintained-apps` skill ([.claude/skills/fleet-maintained-apps/SKILL.md](../../.claude/skills/fleet-maintained-apps/SKILL.md)) automates this workflow and bakes in the gotchas this README doesn't cover — verifying the installed app's identity with `msiinfo`/`PlistBuddy` instead of trusting winget/cask metadata, handling bootstrapper installers, parsing unquoted `UninstallString`s, version-matching quirks, and more. Just ask it to "add X as a macOS/Windows FMA."
 
 ## Adding a new app (macOS)
 
@@ -63,7 +63,7 @@ custom-tap/
 
 1. Write the cask DSL in `inputs/homebrew/custom-tap/Casks/<token>.rb`.
 2. Run `./regenerate.sh` from inside `custom-tap/` to produce `api/<token>.json`. Requires macOS with Homebrew and `jq`.
-3. In the app's input manifest (`inputs/homebrew/<token>.json`), set `cask_path` to `ee/maintained-apps/inputs/homebrew/custom-tap/api/<token>.json`. See `inputs/homebrew/fleet-desktop.json` for an example.
+3. In the app's input manifest (`inputs/homebrew/<token>.json`), set `cask_path` to `ee/maintained-apps/inputs/homebrew/custom-tap/api/<token>.json`. See `inputs/homebrew/druva-insync.json` for an example.
 
 See [`inputs/homebrew/custom-tap/README.md`](inputs/homebrew/custom-tap/README.md) for the full contributor flow. Apps without `cask_path` continue to be fetched from `formulae.brew.sh`.
 
@@ -117,7 +117,7 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `unique_identifier`      | string       | **Required.** Platform-specific unique identifier. For Windows, this is the `DisplayName`.                                                                                                                                                                       |
 | `package_identifier`                  | string       | **Required.** The `PackageIdentifier` from winget. Fleet uses this to pull the correct metadata for the app.                                                                                                                                                             |
 | `slug`                   | string       | **Required.** Identifies the app/platform combination (e.g., `box-drive/windows`). Used to name manifest files and reference the app in [Fleet's best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). Format: `<app-name>/<platform>`, where app name is filesystem-friendly and platform is `darwin`.             |
-| `installer_arch`       | string       | **Required.** `x64`, `x86`, or `arm64` (most apps use `x64`). ARM64 builds are separate FMAs with an `-arm64` slug suffix and an `(ARM64)` name suffix, e.g. `firefox@nightly-arm64/windows`; CI validates them on the `windows-11-arm` runner. For `arm64`, the generated `exists` and `patched` queries pass on non-ARM hosts, which can't run those builds; `x64` builds run on ARM through emulation and stay unscoped.                                                        |
+| `installer_arch`       | string       | **Required.** `x64`, `x86`, or `arm64` (most apps use `x64`). ARM64 builds are separate FMAs with an `-arm64` slug suffix and an `(ARM64)` name suffix, e.g. `firefox@nightly-arm64/windows`; CI validates them on the `windows-11-arm` runner. For `arm64`, the generated `exists` and `patched` queries pass on non-ARM hosts, which can't run those builds; `x64` builds run on ARM through emulation and stay unscoped. When both builds register the same DisplayName, or their MSIs share an upgrade code, they resolve to one software title, so only one of them can be added to a fleet.                                                        |
 | `installer_type`       | string       | **Required.** `exe`, `msi`, or `msix` (file type, not vendor tech like "wix")                                                        |
 | `installer_scope`       | string       | **Required.** `machine` or `user` (prefer `machine` for managed installs)                                                        |
 | `nested_installer_type`  | string       | For `zip` installers, only select the winget installer whose `NestedInstallerType` matches this value (e.g., `wix`). Use it when the manifest lists several zips for the same architecture and scope that differ only in what they contain. Paint.NET ships an `exe` setup front end and a `wix` MSI, and only the MSI installs silently as SYSTEM.  |
@@ -195,6 +195,8 @@ To match other process names, set `open_process_names` in the app's input manife
 ```json
 "open_process_names": ["7zfm.exe", "7zg.exe"]
 ```
+
+ARM64 builds need this too, set to their x64 sibling's executables: the default would look for `<name> (ARM64).exe`.
 
 To match every process whose name starts with a prefix, set `open_process_name_prefix` instead (the two can't be combined):
 
