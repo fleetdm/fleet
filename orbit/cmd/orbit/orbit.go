@@ -588,6 +588,11 @@ func orbitAction(c *cli.Context) error {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
+	if runtime.GOOS == "darwin" {
+		// Before anything starts: it replaces this process when it applies.
+		update.ReexecAsFleet(c.String("root-dir"))
+	}
+
 	// Before anything waits for the server, so the Linux process shows its name while the server is unreachable.
 	update.ApplyRememberedAgentNames(c.String("root-dir"))
 
@@ -800,6 +805,9 @@ func orbitAction(c *cli.Context) error {
 	opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
 
 	opt.RootDirectory = c.String("root-dir")
+	if runtime.GOOS == "darwin" && update.UsesFleetPath(opt.RootDirectory) {
+		opt.Targets.UseFleetExecName()
+	}
 	opt.ServerURL = c.String("update-url")
 	if opt.ServerURL == update.OldFleetTUFURL {
 		//
@@ -1555,6 +1563,13 @@ func orbitAction(c *cli.Context) error {
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
+	// In dev mode the updater doesn't manage orbit's executable, so there's nothing to move.
+	if runtime.GOOS == "darwin" && !c.Bool("dev-mode") {
+		orbitClient.RegisterConfigReceiver(update.NewAgentPathReceiver(
+			c.String("root-dir"), c.Bool("disable-updates"),
+			orbitClient.GetServerCapabilities, orbitClient.TriggerOrbitRestart,
+		))
+	}
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(

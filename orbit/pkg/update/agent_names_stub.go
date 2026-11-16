@@ -2,8 +2,8 @@
 
 package update
 
-// applyAgentDisplayNames does nothing on macOS: Activity Monitor names a process after its executable file, and
-// renaming it would break Full Disk Access profiles that match orbit by path.
+// applyAgentDisplayNames does nothing on macOS, where the process name comes from the executable's path; see
+// AgentPathReceiver.
 func applyAgentDisplayNames() error {
 	return nil
 }

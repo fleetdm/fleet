@@ -336,7 +336,8 @@ jobs:
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
-        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        # With a Fleet 5 server, orbit moves to an executable named Fleet.
+        pgrep -x Fleet || pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
         echo "Checking if fleet-desktop is running..."
         pgrep -x fleet-desktop || (echo "ERROR: fleet-desktop is not running" && exit 1)
         echo "All processes are running."

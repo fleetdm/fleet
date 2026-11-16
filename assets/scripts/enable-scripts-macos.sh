@@ -15,6 +15,7 @@ else
 fi
 # Stop Orbit, wait for stop to complete, and then restart.
 launchctl bootout system/com.fleetdm.orbit
-while pgrep orbit > /dev/null; do sleep 1 ; done
+# Match the path: with Fleet 5 the process is named Fleet instead of orbit.
+while pgrep -f '^/opt/orbit/bin/orbit/' > /dev/null; do sleep 1 ; done
 launchctl bootstrap system $plist_path
 echo "Fleet script execution has been enabled and Orbit restarted."
