@@ -2,7 +2,6 @@ package endpointer
 
 import (
 	"fmt"
-	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -60,20 +59,16 @@ type registeredRoute struct {
 	patterns []muxPattern
 }
 
+func (rr *registeredRoute) serve(w http.ResponseWriter, req *http.Request) {
+	rr.chain.ServeHTTP(w, req.WithContext(WithRouteTemplate(req.Context(), rr.template)))
+}
+
 func (rr *registeredRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if mw, ok := w.(*muxWriter); ok {
-		mw.routed = true
-		w = mw.ResponseWriter
-	}
 	if !rr.allows(req.PathValue) {
 		rr.router.unmatched(w, req)
 		return
 	}
 	rr.serve(w, req)
-}
-
-func (rr *registeredRoute) serve(w http.ResponseWriter, req *http.Request) {
-	rr.chain.ServeHTTP(w, req.WithContext(WithRouteTemplate(req.Context(), rr.template)))
 }
 
 // allows reports whether every constrained path variable, as pathValue returns it, satisfies its constraint.
@@ -167,10 +162,10 @@ var allowMethods = []string{
 	http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions,
 }
 
-// unmatched answers a request the ServeMux matched without the route constraints: the route it picked had a path variable
-// fail its constraint, or it found the path only on other methods. A ServeMux wildcard matches any segment, so the router
-// enforces constraints itself and answers what a router matching on them would. It serves the request with a less specific
-// route that takes it, or answers 405 when another method serves the path, and 404 otherwise.
+// unmatched answers a request whose route, picked by the ServeMux, had a path variable fail its constraint. A ServeMux
+// wildcard matches any segment, so the router enforces constraints itself and answers what a router matching on them would:
+// it serves the request with a less specific route that takes it, or answers 405 when another method serves the path, and
+// 404 otherwise.
 func (r *Router) unmatched(w http.ResponseWriter, req *http.Request) {
 	segments := strings.Split(req.URL.EscapedPath(), "/")
 	for i, segment := range segments {
@@ -182,6 +177,8 @@ func (r *Router) unmatched(w http.ResponseWriter, req *http.Request) {
 		segments[i] = decoded
 	}
 	if match, ok := r.resolve(req.Method, segments); ok {
+		// Only the wildcards that stand in for some removed paths are less specific than a live route, so this is where a
+		// request for one of those removed paths gets its 410.
 		routed := new(http.Request)
 		*routed = *req
 		routed.Pattern = match.pattern.pattern
@@ -213,45 +210,6 @@ func (r *Router) unmatched(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 }
 
-// muxWriter holds back the 405 the ServeMux writes when it finds the path only on other methods, since it does so without
-// the route constraints. Until a route takes the request, it keeps the headers the ServeMux sets apart from the real ones.
-type muxWriter struct {
-	http.ResponseWriter
-	header http.Header
-	// routed is set by the route the ServeMux dispatched to, which then writes to the real ResponseWriter.
-	routed bool
-	// heldBack is set when the ServeMux answered 405.
-	heldBack    bool
-	wroteHeader bool
-}
-
-func (mw *muxWriter) Header() http.Header {
-	if mw.header == nil {
-		mw.header = make(http.Header)
-	}
-	return mw.header
-}
-
-func (mw *muxWriter) WriteHeader(code int) {
-	if code == http.StatusMethodNotAllowed {
-		mw.heldBack = true
-		return
-	}
-	mw.wroteHeader = true
-	maps.Copy(mw.ResponseWriter.Header(), mw.header)
-	mw.ResponseWriter.WriteHeader(code)
-}
-
-func (mw *muxWriter) Write(b []byte) (int, error) {
-	if mw.heldBack {
-		return len(b), nil
-	}
-	if !mw.wroteHeader {
-		mw.WriteHeader(http.StatusOK)
-	}
-	return mw.ResponseWriter.Write(b)
-}
-
 // NewRouter returns an empty Router.
 func NewRouter() *Router {
 	return &Router{mux: http.NewServeMux()}
@@ -259,11 +217,7 @@ func NewRouter() *Router {
 
 // ServeHTTP serves req with the route that matches it.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	mw := &muxWriter{ResponseWriter: w}
-	r.mux.ServeHTTP(mw, req)
-	if mw.heldBack {
-		r.unmatched(w, req)
-	}
+	r.mux.ServeHTTP(w, req)
 }
 
 // Routes returns a copy of the recorded routes, in registration order.

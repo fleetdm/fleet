@@ -198,7 +198,11 @@ func TestRouterEdgeCases(t *testing.T) {
 			path:       "/api/latest/fleet/hosts/identifier/device_mapping",
 			wantStatus: 200, wantBody: "get_hosts_identifier__identifier_ identifier_segment=identifier,identifier=device_mapping",
 		},
-		{name: "invalid id on a path only other methods serve", method: "POST", path: "/api/latest/fleet/certificates/abc", wantStatus: 404},
+		{
+			// The ServeMux answers a wrong method before any route constraint runs, so the invalid id doesn't turn this into a 404.
+			name: "invalid id on a path only other methods serve", method: "POST", path: "/api/latest/fleet/certificates/abc",
+			wantStatus: 405, wantAllow: "DELETE, GET, HEAD",
+		},
 		{
 			name: "wrong method on a path other methods serve", method: "POST", path: "/api/latest/fleet/certificates/1",
 			wantStatus: 405, wantAllow: "DELETE, GET, HEAD",
