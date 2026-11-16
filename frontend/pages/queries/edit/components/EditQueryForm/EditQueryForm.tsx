@@ -431,21 +431,15 @@ const EditQueryForm = ({
   const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (isExistingQuery && !lastEditedQueryName.trim()) {
-      return setErrors({
-        ...errors,
-        name: "Enter a report name",
-      });
-    }
-
     const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
-
-    // allow save when invalid sqlite syntax
-    const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
-
-    if (!canSave) return;
+    // Syntax errors don't block Save; only an empty query does.
+    const queryBlocked = !valid && newErrs.query === EMPTY_QUERY_ERR;
 
     if (!isExistingQuery) {
+      if (queryBlocked) {
+        setErrors({ ...errors, query: newErrs.query });
+        return;
+      }
       platformSelector.setSelectedPlatforms(
         platformCompatibility.getCompatiblePlatforms()
       );
@@ -453,10 +447,19 @@ const EditQueryForm = ({
       return;
     }
 
+    // Existing report: collect name, platform, labels and query errors in one
+    // pass so all three inline errors surface at once (not just name).
+    const nameInvalid = !lastEditedQueryName.trim();
     const hasPlatform = platformSelector.isAnyPlatformSelected;
     setPlatformError(hasPlatform ? null : "Select at least one platform");
     setShowLabelsError(labelsRequired);
-    if (!hasPlatform || labelsRequired) return;
+    if (nameInvalid || queryBlocked) {
+      const nextErrors = { ...errors };
+      if (nameInvalid) nextErrors.name = "Enter a report name";
+      if (queryBlocked) nextErrors.query = newErrs.query;
+      setErrors(nextErrors);
+    }
+    if (nameInvalid || queryBlocked || !hasPlatform || labelsRequired) return;
 
     onUpdate(updateQueryData);
   };
@@ -472,14 +475,14 @@ const EditQueryForm = ({
   // Pre-validate before opening the confirm-changes modal so inline errors
   // (name, platforms, labels) aren't hidden behind it.
   const handleSaveWithConfirm = () => {
-    if (!lastEditedQueryName.trim()) {
-      setErrors({ ...errors, name: "Enter a report name" });
-      return;
-    }
+    const nameInvalid = !lastEditedQueryName.trim();
     const hasPlatform = platformSelector.isAnyPlatformSelected;
     setPlatformError(hasPlatform ? null : "Select at least one platform");
     setShowLabelsError(labelsRequired);
-    if (!hasPlatform || labelsRequired) return;
+    if (nameInvalid) {
+      setErrors({ ...errors, name: "Enter a report name" });
+    }
+    if (nameInvalid || !hasPlatform || labelsRequired) return;
     toggleConfirmSaveChangesModal();
   };
 
@@ -701,12 +704,9 @@ const EditQueryForm = ({
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
-    // Save stays enabled when name, platforms, or labels are missing — click
-    // reveals the inline errors via handleSaveQuery, matching Fleet's form
-    // validation pattern.
-    const disableSaveFormErrors =
-      !!errors.query && errors.query === EMPTY_QUERY_ERR;
-
+    // Save stays enabled for any client-side validation error (name, platforms,
+    // labels, empty or invalid query) — click reveals the inline errors via
+    // handleSaveQuery, matching Fleet's form validation pattern.
     return (
       <>
         {/* No submit button, so Enter in the name field would navigate. */}
@@ -912,7 +912,7 @@ const EditQueryForm = ({
                             ? handleSaveWithConfirm
                             : handleSaveQuery()
                         }
-                        disabled={disableSaveFormErrors || disableChildren}
+                        disabled={disableChildren}
                         isLoading={isQueryUpdating}
                       >
                         Save
@@ -926,7 +926,7 @@ const EditQueryForm = ({
                       <Button
                         variant="secondary"
                         onClick={handleSaveAsNewQuery}
-                        disabled={disableSaveFormErrors || disableChildren}
+                        disabled={disableChildren}
                       >
                         Save as new
                       </Button>

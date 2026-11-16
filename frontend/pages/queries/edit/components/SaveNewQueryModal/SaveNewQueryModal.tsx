@@ -264,7 +264,18 @@ const SaveNewQueryModal = ({
           name="name"
           onChange={(value: string) => setName(value)}
           onBlur={() => {
-            setName(name.trim());
+            const trimmed = name.trim();
+            setName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a report name" });
+            }
+          }}
+          onFocus={() => {
+            if (errors.name) {
+              const next = { ...errors };
+              delete next.name;
+              setErrors(next);
+            }
           }}
           value={name}
           error={errors.name}

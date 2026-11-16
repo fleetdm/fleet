@@ -312,17 +312,14 @@ describe("SaveNewQueryModal", () => {
       const { user } = render(
         <SaveNewQueryModal {...defaultProps} saveQuery={saveQuery} />
       );
-      let allHosts;
-      let custom;
       await waitFor(() => {
-        allHosts = screen.getByLabelText("All hosts");
-        custom = screen.getByLabelText("Custom");
-        expect(allHosts).toBeInTheDocument();
-        expect(custom).toBeInTheDocument();
+        expect(screen.getByLabelText("Name")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
       });
-      custom && (await user.click(custom));
-
+      // Set the name first so blurring Name to click Custom doesn't surface
+      // the required-name error (which would swap the "Name" label text).
       await user.type(screen.getByLabelText("Name"), "name");
+      await user.click(screen.getByLabelText("Custom"));
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await user.click(saveButton);

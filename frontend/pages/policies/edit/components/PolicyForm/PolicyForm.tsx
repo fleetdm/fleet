@@ -473,16 +473,20 @@ const PolicyForm = ({
   ) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName.trim()) {
-      setErrors({ ...errors, name: "Enter a policy name" });
-      return;
-    }
+    if (isEditMode) {
+      const nameInvalid = !lastEditedQueryName.trim();
+      if (nameInvalid) {
+        setErrors({ ...errors, name: "Enter a policy name" });
+      }
 
-    if (isEditMode && !isPatchPolicy) {
-      const hasPlatform = isAnyPlatformSelected;
-      setPlatformError(hasPlatform ? null : "Select at least one platform");
-      setShowLabelsError(labelsRequired);
-      if (!hasPlatform || labelsRequired) {
+      if (!isPatchPolicy) {
+        const hasPlatform = isAnyPlatformSelected;
+        setPlatformError(hasPlatform ? null : "Select at least one platform");
+        setShowLabelsError(labelsRequired);
+        if (nameInvalid || !hasPlatform || labelsRequired) {
+          return;
+        }
+      } else if (nameInvalid) {
         return;
       }
     }
@@ -549,10 +553,9 @@ const PolicyForm = ({
       return;
     }
 
-    // Synchronously block empty queries. The button-level `disableSaveFormErrors`
-    // relies on the debounced `errors.query`, so a fast click before the debounce
-    // fires could otherwise submit an empty query. Mirrors the guard in
-    // EditQueryForm's handleSaveQuery (see #38348).
+    // Empty-query check: surface the inline error and return. Save stays
+    // enabled per Fleet's form validation pattern; only this guard prevents
+    // the submit.
     if (!lastEditedQueryBody?.trim()) {
       setErrors({ ...errors, query: EMPTY_QUERY_ERR });
       return;
@@ -572,6 +575,13 @@ const PolicyForm = ({
     }
 
     if (!isEditMode) {
+      // Seed the save modal with the query's compatible platforms, mirroring
+      // the "new report" flow in EditQueryForm.handleSaveQuery. Without this,
+      // the modal opens with every platform unchecked because new policies
+      // have no platform selector on the page.
+      platformSelector.setSelectedPlatforms(
+        platformCompatibility.getCompatiblePlatforms()
+      );
       setIsSaveNewPolicyModalOpen(true);
     } else {
       const payload: IPolicyFormData = {
@@ -789,11 +799,10 @@ const PolicyForm = ({
   };
 
   const renderPolicyForm = () => {
-    // Save stays enabled when name / platforms / labels are missing — click
-    // reveals the inline errors via promptSavePolicy, matching Fleet's form
-    // validation pattern. Syntax errors do not disable Save either.
-    const disableSaveFormErrors =
-      isAddingAutomation || errors.query === EMPTY_QUERY_ERR;
+    // Save stays enabled for any client-side validation error (name, platforms,
+    // labels, empty or invalid query) — click reveals the inline errors via
+    // promptSavePolicy, matching Fleet's form validation pattern.
+    const disableSaveFormErrors = isAddingAutomation;
 
     // Single source of truth: patchOptions renders inside this block (patchSlot)
     // when shown, and standalone otherwise — the two must stay exact complements.

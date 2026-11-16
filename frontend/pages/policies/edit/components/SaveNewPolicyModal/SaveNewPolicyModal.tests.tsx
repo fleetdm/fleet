@@ -168,17 +168,14 @@ describe("SaveNewPolicyModal", () => {
       render(
         <SaveNewPolicyModal {...defaultProps} onCreatePolicy={onCreatePolicy} />
       );
-      let allHosts;
-      let custom;
       await waitFor(() => {
-        allHosts = screen.getByLabelText("All hosts");
-        custom = screen.getByLabelText("Custom");
-        expect(allHosts).toBeInTheDocument();
-        expect(custom).toBeInTheDocument();
+        expect(screen.getByLabelText("Name")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
       });
-      custom && (await userEvent.click(custom));
-
+      // Set the name first so blurring Name to click Custom doesn't surface
+      // the required-name error (which would swap the "Name" label text).
       await userEvent.type(screen.getByLabelText("Name"), "name");
+      await userEvent.click(screen.getByLabelText("Custom"));
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await userEvent.click(saveButton);

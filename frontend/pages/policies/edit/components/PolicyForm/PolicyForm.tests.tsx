@@ -407,9 +407,7 @@ describe("PolicyForm - component", () => {
       expect(onUpdate).not.toHaveBeenCalled();
       // The synchronous guard sets errors.query = EMPTY_QUERY_ERR, which
       // SQLEditor surfaces as its label text.
-      expect(
-        screen.getByText("Query text must be present")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Enter a query")).toBeInTheDocument();
     });
 
     // Regression test for #38348: a policy with a non-empty but syntactically
@@ -567,6 +565,74 @@ describe("PolicyForm - component", () => {
           screen.getByText("Select at least one platform")
         ).toBeInTheDocument();
       });
+    });
+
+    // A new policy has no platform selector on the page, so the save modal has
+    // to seed itself from the query's compatible platforms. Without the seed,
+    // the modal opens with every platform unchecked and every new policy needs
+    // its platforms picked by hand.
+    it("opens the new-policy save modal with compatible platforms checked", async () => {
+      // os_version is Darwin / Linux / Windows / Chrome, so every platform is
+      // compatible — all four checkboxes should be checked in the modal.
+      const compatibleQuery = "SELECT * FROM os_version;";
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: undefined,
+            lastEditedQueryName: "",
+            lastEditedQueryDescription: "",
+            lastEditedQueryBody: compatibleQuery,
+            lastEditedQueryResolution: "",
+            lastEditedQueryCritical: false,
+            // null, not "" — "" triggers the usePlatformSelector "check all
+            // four" fallback and would mask the regression (pre-fix, every
+            // checkbox would also be checked).
+            lastEditedQueryPlatform: null,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          {...defaultProps}
+          policyIdForEdit={null}
+          storedPolicy={undefined}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      // Modal has opened; each platform checkbox inside it is checked.
+      await waitFor(() => {
+        expect(
+          screen.getByRole("checkbox", { name: /^macOS/ })
+        ).toBeChecked();
+      });
+      expect(screen.getByRole("checkbox", { name: /^Windows/ })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /^Linux/ })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /^ChromeOS/ })).toBeChecked();
     });
 
     it("disables run button with tooltip when live queries are globally disabled", async () => {

@@ -367,6 +367,20 @@ const SaveNewPolicyModal = ({
         <InputField
           name="name"
           onChange={(value: string) => setLastEditedQueryName(value)}
+          onBlur={() => {
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a policy name" });
+            }
+          }}
+          onFocus={() => {
+            if (errors.name) {
+              const next = { ...errors };
+              delete next.name;
+              setErrors(next);
+            }
+          }}
           value={lastEditedQueryName}
           error={errors.name}
           inputClassName={`${baseClass}__policy-save-modal-name`}
