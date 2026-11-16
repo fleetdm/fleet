@@ -161,14 +161,22 @@ func TestHostsTransferByLabel(t *testing.T) {
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
-	// GitOps users get the server's message, and no host moves.
-	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-		return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+	// GitOps users get the transfer message, and no host moves: from the server with --label, from fleetctl with --hosts.
+	for _, user := range []*fleet.User{
+		{GlobalRole: new(fleet.RoleGitOps)},
+		{Teams: []fleet.UserTeam{{ID: 99, Role: fleet.RoleGitOps}}},
+	} {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			user.ID = id
+			return user, nil
+		}
+		for _, flags := range [][]string{{"--label", "label1"}, {"--hosts", "host1"}} {
+			ds.AddHostsToTeamFuncInvoked = false
+			_, err := runAppNoChecks(append([]string{"hosts", "transfer", "--fleet", "team1"}, flags...))
+			require.ErrorContains(t, err, fleet.GitOpsTransferHostErrorMessage, flags)
+			assert.False(t, ds.AddHostsToTeamFuncInvoked)
+		}
 	}
-	ds.AddHostsToTeamFuncInvoked = false
-	_, err := runAppNoChecks([]string{"hosts", "transfer", "--fleet", "team1", "--label", "label1"})
-	require.ErrorContains(t, err, fleet.GitOpsTransferHostErrorMessage)
-	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
