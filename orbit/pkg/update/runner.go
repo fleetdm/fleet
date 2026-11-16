@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -331,10 +332,11 @@ func (r *Runner) orbitSymlinkStatus() (orbitSymlinkState, error) {
 	if err != nil {
 		return orbitSymlinkOK, fmt.Errorf("get %s binary: %w", constant.OrbitTUFTargetName, err)
 	}
-	if localTarget == nil {
-		return orbitSymlinkOK, fmt.Errorf("get %s binary: no local target", constant.OrbitTUFTargetName)
-	}
-	return compareOrbitSymlink(OrbitLinkPath(r.updater.opt.RootDirectory, runtime.GOOS), localTarget.ExecPath)
+	path := localTarget.ExecPath
+
+	// Symlink Orbit binary
+	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+	return compareOrbitSymlink(linkPath, path)
 }
 
 // compareOrbitSymlink compares the symlink at linkPath against the expected target path.
@@ -386,7 +388,7 @@ func (r *Runner) updateTarget(target string) error {
 	oVC := compareVersion(newVersion, build.Version, "fleetd")
 
 	// Symlink Orbit binary
-	linkPath := OrbitLinkPath(r.updater.opt.RootDirectory, runtime.GOOS)
+	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
 	// Rename the old file otherwise overwrite fails
 	if err := os.Rename(linkPath, linkPath+".old"); err != nil {
 		return fmt.Errorf("move old symlink current: %w", err)

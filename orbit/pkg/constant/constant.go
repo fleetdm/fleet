@@ -38,8 +38,7 @@ const (
 	// SystemServiceName is the name of Orbit system service
 	// The service name is used by the OS service management framework
 	SystemServiceName = "Fleet osquery"
-	// AgentDisplayName is the name end users see for the agent: the Windows Task Manager and Installed apps names, and
-	// the macOS executable name.
+	// AgentDisplayName is the name end users see for the agent: the Windows Task Manager and Installed apps names.
 	AgentDisplayName = "Fleet"
 	// AgentLinuxProcessName is the agent's process name on Linux, lowercase like other Linux process names.
 	AgentLinuxProcessName = "fleet"
