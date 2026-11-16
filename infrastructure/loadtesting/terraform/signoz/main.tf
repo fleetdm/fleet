@@ -218,6 +218,51 @@ resource "kubernetes_storage_class_v1" "gp3" {
   depends_on = [time_sleep.wait_for_ebs_csi]
 }
 
+resource "null_resource" "signoz_drain_gate" {
+  triggers = {
+    cluster_name = local.cluster_name
+    region       = var.aws_region
+  }
+
+  depends_on = [
+    aws_eks_addon.ebs_csi,
+    kubernetes_storage_class_v1.gp3
+  ]
+
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    command    = <<-EOT
+      set -x
+      CLUSTER="${self.triggers.cluster_name}"
+      REGION="${self.triggers.region}"
+      KUBECONFIG_TMP=$(mktemp)
+      trap 'rm -f "$KUBECONFIG_TMP"' EXIT
+      if aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER" --kubeconfig "$KUBECONFIG_TMP"; then
+        export KUBECONFIG="$KUBECONFIG_TMP"
+        kubectl delete pvc -n signoz --all --timeout=300s || true
+        for _ in $(seq 1 120); do
+          LEFT=$(kubectl get pv -o jsonpath='{range .items[?(@.spec.claimRef.namespace=="signoz")]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -c .) || LEFT=0
+          [ "$LEFT" = "0" ] && break
+          sleep 5
+        done
+      fi
+      for VOL in $(aws ec2 describe-volumes --region "$REGION" \
+        --filters Name=status,Values=available "Name=tag:Name,Values=$CLUSTER-dynamic-*" \
+        --query 'Volumes[].VolumeId' --output text); do
+        aws ec2 delete-volume --region "$REGION" --volume-id "$VOL" || true
+      done
+      for ELB in $(aws elb describe-load-balancers --region "$REGION" \
+        --query 'LoadBalancerDescriptions[].LoadBalancerName' --output text); do
+        if aws elb describe-tags --region "$REGION" --load-balancer-names "$ELB" \
+          --query "TagDescriptions[].Tags[?Key=='kubernetes.io/cluster/$CLUSTER'].Value | []" --output text | grep -q owned; then
+          aws elb delete-load-balancer --region "$REGION" --load-balancer-name "$ELB" || true
+        fi
+      done
+    EOT
+  }
+}
+
 # SigNoz via Helm
 resource "helm_release" "signoz" {
   name       = "signoz"
@@ -329,7 +374,8 @@ resource "helm_release" "signoz" {
 
   depends_on = [
     module.eks,
-    kubernetes_storage_class_v1.gp3
+    kubernetes_storage_class_v1.gp3,
+    null_resource.signoz_drain_gate
   ]
 }
 
