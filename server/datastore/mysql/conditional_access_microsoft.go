@@ -236,7 +236,7 @@ func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostI
 		SELECT
 			h.id AS host_id,
 			h.os_version,
-			COALESCE(hdn.display_name, '') AS display_name,
+			COALESCE(NULLIF(hdn.display_name, ''), h.hostname) AS display_name,
 			mcphs.host_id IS NOT NULL AS has_status,
 			COALESCE(mcphs.device_id, '') AS device_id,
 			COALESCE(mcphs.user_principal_name, '') AS user_principal_name,

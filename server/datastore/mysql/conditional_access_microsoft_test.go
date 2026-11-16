@@ -455,12 +455,14 @@ func testConditionalAccessWindowsEntraDeviceIDState(t *testing.T, ds *Datastore)
 	exec(`UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE host_id = ?`, win.ID)
 	require.Empty(t, getState(win.ID).AutopilotEntraDeviceID)
 
-	// The status is still returned without a display name.
+	// The status is still returned without a display name, named after the hostname since Entra needs a name.
 	exec(`DELETE FROM host_display_names WHERE host_id = ?`, win.ID)
 	state = getState(win.ID)
 	require.NotNil(t, state.Status)
 	require.Equal(t, "stored-id", state.Status.DeviceID)
-	require.Empty(t, state.Status.DisplayName)
+	require.Equal(t, win.Hostname, state.Status.DisplayName)
+	exec(`INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')`, win.ID)
+	require.Equal(t, win.Hostname, getState(win.ID).Status.DisplayName)
 
 	// A non-Windows host with the same UUID, like the macOS side of a Boot Camp Mac, doesn't make the claim ambiguous.
 	bootCamp := newTestHostWithPlatform(t, ds, "bootcamp", "darwin", nil)
