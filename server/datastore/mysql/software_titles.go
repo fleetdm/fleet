@@ -510,7 +510,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 					appStoreAppPoliciesByTitleID[p.TitleID] = append(appStoreAppPoliciesByTitleID[p.TitleID], p)
 				default:
 					ds.logger.WarnContext(ctx, "policy should have an associated VPP application or software package",
-						"team_id", opt.TeamID,
+						"fleet_id", opt.TeamID,
 						"policy_id", p.ID,
 					)
 				}

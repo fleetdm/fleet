@@ -2421,7 +2421,10 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	}
 
 	for _, team := range teams {
-		token := tokens[team.VPPTokenID]
+		token, ok := tokens[team.VPPTokenID]
+		if !ok {
+			continue // the token was deleted between the two reads
+		}
 		if token.Teams != nil && len(token.Teams) == 0 {
 			// Token was already assigned to All Teams, we should not
 			// see it again in a loop

@@ -261,7 +261,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 			p.IncludeLabels = nil
 			p.IncludeMode = fleet.MDMProfileIncludeNone
 			errMsg := "windows profile has mixed include label modes; ignoring include labels"
-			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "team_id",
+			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "fleet_id",
 				p.TeamID)
 			ctxerr.Handle(ctx, errors.New(errMsg))
 			continue

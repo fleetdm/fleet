@@ -917,7 +917,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// Bad team filter
 	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
 	require.Error(t, err)
-	require.True(t, strings.Contains(err.Error(), "fleet is invalid"), err)
+	require.ErrorContains(t, err, "fleet is invalid")
 }
 
 func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {

@@ -143,7 +143,7 @@ func runScriptCommand() *cli.Command {
 			if async {
 				res, err := client.RunHostScriptAsync(h.ID, b, name, c.Uint(fleetFlagName))
 				if err != nil {
-					if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
+					if isScriptContentsWithFleetError(err) {
 						return errors.New("Only one of '--script-path' or '--fleet' is allowed.")
 					}
 					return err
@@ -162,7 +162,7 @@ func runScriptCommand() *cli.Command {
 			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint(fleetFlagName))
 			s.Stop()
 			if err != nil {
-				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
+				if isScriptContentsWithFleetError(err) {
 					return errors.New("Only one of '--script-path' or '--fleet' is allowed.")
 				}
 				return err
@@ -240,4 +240,12 @@ func validateScriptPath(path string) error {
 		return nil
 	}
 	return errors.New(fleet.RunScriptInvalidTypeErrMsg)
+}
+
+// isScriptContentsWithFleetError reports whether the server rejected script contents sent with a fleet. Servers before Fleet 5 name
+// the old parameter.
+func isScriptContentsWithFleetError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, `Only one of 'script_contents' or 'fleet_id' is allowed`) ||
+		strings.Contains(msg, `Only one of 'script_contents' or 'team_id' is allowed`)
 }

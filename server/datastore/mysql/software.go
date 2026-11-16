@@ -5776,7 +5776,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		default:
 			ds.logger.WarnContext(
 				ctx, "software title record should have an associated VPP application or software package",
-				"team_id", teamID,
+				"fleet_id", teamID,
 				"host_id", host.ID,
 				"software_title_id", softwareTitleRecord.ID,
 			)
