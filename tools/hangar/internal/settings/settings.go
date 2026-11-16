@@ -344,11 +344,28 @@ func migrate(s *Settings) {
 }
 
 // Save writes settings.json to dir (pretty-printed, 2-space indent to match
-// the Rust serde_json output).
+// the Rust serde_json output). The write goes through a temp file and rename
+// so a crash never leaves a truncated file.
 func Save(dir string, s Settings) error {
 	b, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, fileName), b, 0o644)
+	tmp, err := os.CreateTemp(dir, fileName+".*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), filepath.Join(dir, fileName))
 }

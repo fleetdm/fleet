@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -90,4 +91,74 @@ func TestHasExt(t *testing.T) {
 			t.Errorf("HasExt(%q, %v) = %v, want %v", c.path, c.allowed, got, c.want)
 		}
 	}
+}
+
+func TestDataDirOverride(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "hangar-data")
+	t.Setenv("HANGAR_DATA_DIR", root)
+
+	for name, fn := range map[string]func() (string, error){"ConfigDir": ConfigDir, "DataDir": DataDir} {
+		got, err := fn()
+		if err != nil || got != root {
+			t.Errorf("%s() = %q, %v; want %q", name, got, err, root)
+		}
+	}
+	logs, err := LogDir()
+	if err != nil || logs != filepath.Join(root, "logs") {
+		t.Errorf("LogDir() = %q, %v; want %q", logs, err, filepath.Join(root, "logs"))
+	}
+	for _, d := range []string{root, logs} {
+		info, err := os.Stat(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o700 {
+			t.Errorf("%s mode = %o, want 700", d, perm)
+		}
+	}
+}
+
+func TestRelativeOverridesRejected(t *testing.T) {
+	t.Setenv("HANGAR_DATA_DIR", "relative/data")
+	t.Setenv("HANGAR_RESERVATIONS_FILE", "relative/reservations.json")
+	for name, fn := range map[string]func() (string, error){
+		"ConfigDir": ConfigDir, "DataDir": DataDir, "LogDir": LogDir, "ReservationsFile": ReservationsFile,
+	} {
+		if got, err := fn(); err == nil {
+			t.Errorf("%s() = %q, want error for a relative override", name, got)
+		}
+	}
+}
+
+func TestReservationsFile(t *testing.T) {
+	home, data := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("HANGAR_DATA_DIR", data)
+	t.Setenv("HANGAR_RESERVATIONS_FILE", "")
+	if got, err := ReservationsFile(); err != nil || got != filepath.Join(data, "reservations.json") {
+		t.Errorf("default ReservationsFile() = %q, %v; want the data dir", got, err)
+	}
+
+	override := filepath.Join(t.TempDir(), "res.json")
+	t.Setenv("HANGAR_RESERVATIONS_FILE", override)
+	if got, err := ReservationsFile(); err != nil || got != override {
+		t.Errorf("ReservationsFile() = %q, %v; want %q", got, err, override)
+	}
+}
+
+func TestLockDataDir(t *testing.T) {
+	dir := t.TempDir()
+	release, err := LockDataDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LockDataDir(dir); err == nil {
+		t.Fatal("second LockDataDir on a held dir should fail")
+	}
+	release()
+	release2, err := LockDataDir(dir)
+	if err != nil {
+		t.Fatalf("LockDataDir after release: %v", err)
+	}
+	release2()
 }

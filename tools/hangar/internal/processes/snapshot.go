@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -17,6 +18,31 @@ func (m *Manager) ReadLogWindow(source string, sinceMS uint64, levels []string, 
 	}
 	m.storeMu.Unlock()
 	return filterLogWindow(channels, source, sinceMS, levels, search, maxLines)
+}
+
+// ReadLogWindowScrubbed returns source's entries from sinceMS to untilMS
+// (0 = no upper bound), newest maxLines (<= 0 = all), with scrubSecrets
+// applied to every message. Unlike ReadLogWindow it never reads other
+// channels.
+func (m *Manager) ReadLogWindowScrubbed(source string, sinceMS, untilMS uint64, maxLines int) LogWindow {
+	m.storeMu.Lock()
+	var entries []LogEntry
+	if r := m.logStore[source]; r != nil {
+		entries = r.snapshot()
+	}
+	m.storeMu.Unlock()
+	if untilMS > 0 {
+		entries = slices.DeleteFunc(entries, func(e LogEntry) bool { return e.TsMS > untilMS })
+	}
+	var limit *int
+	if maxLines > 0 {
+		limit = &maxLines
+	}
+	w := filterLogWindow(map[string][]LogEntry{source: entries}, source, sinceMS, []string{"debug", "info", "warn", "error"}, nil, limit)
+	for i := range w.Entries {
+		w.Entries[i].Message = scrubSecrets(w.Entries[i].Message)
+	}
+	return w
 }
 
 // LogsDirPath is the directory holding channel logs and snapshots.

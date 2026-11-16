@@ -70,6 +70,9 @@ type StartArgs struct {
 	Args       []string
 	LogChannel string // "" = no structured logging
 	Env        []EnvPair
+	// Owner is the agent job or assign this spawn runs for; a held slot
+	// refuses spawns that don't carry its holder. Never set from the frontend.
+	Owner string
 }
 
 // ContainerState is one docker compose service's state.

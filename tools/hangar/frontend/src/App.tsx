@@ -20,6 +20,7 @@ import { MdmAssetsTab } from "./components/tabs/MdmAssetsTab";
 import { TufTab } from "./components/tabs/TufTab";
 import {
   api,
+  settingsSync,
   type BranchStatus,
   type ComposeTarget,
   type LogLine,
@@ -35,6 +36,7 @@ import {
 } from "./lib/useSystemHealth";
 import { useApplyTheme } from "./lib/useTheme";
 import { startAll, stopAll } from "./lib/orchestration";
+import { useSlotUsage } from "./lib/useSlotUsage";
 
 const SERVE_DOWN: ServeStatus = { up: false, upSinceMs: null };
 const DOCKER_DOWN: DockerHealth = { up: false, upSinceMs: null, containers: [] };
@@ -72,7 +74,19 @@ export default function App() {
   );
 
   useEffect(() => {
-    api.getSettings().then(setSettings);
+    settingsSync.setApply(setSettings);
+    settingsSync.reload();
+    let off: (() => void) | undefined;
+    let gone = false;
+    listen("settings:changed", () => settingsSync.reload()).then((u) => {
+      if (gone) u();
+      else off = u;
+    });
+    return () => {
+      gone = true;
+      off?.();
+      settingsSync.setApply(null);
+    };
   }, []);
 
   useApplyTheme(settings?.theme);
@@ -226,7 +240,9 @@ export default function App() {
         (s) => healthMap[s.id]?.serve.up || healthMap[s.id]?.docker.up,
       )
     : false;
-  const anyRunning = anyServerUp || ngrokRunning || pythonRunning;
+  const slotUsage = useSlotUsage();
+  const agentBusy = Object.values(slotUsage).some((u) => u.job);
+  const anyRunning = anyServerUp || ngrokRunning || pythonRunning || agentBusy;
   const shutdownTargets: ComposeTarget[] = settings
     ? settings.servers
         .filter((s) => s.worktree_path)
@@ -449,9 +465,10 @@ function QuitModal({
               className="dim"
               style={{ fontSize: "var(--fs-x-small)", lineHeight: 1.5 }}
             >
-              This will stop every server's fleet serve, ngrok, the python
-              server, and run <span className="mono">docker compose down</span>{" "}
-              for each server before closing the app.
+              This will cancel running agent actions, stop every server's fleet
+              serve, ngrok, the python server, and run{" "}
+              <span className="mono">docker compose down</span> for each server
+              before closing the app.
             </div>
             <div
               style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}

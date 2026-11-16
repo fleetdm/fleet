@@ -111,3 +111,23 @@ func TestCleanOrphansSkipsMismatch(t *testing.T) {
 		t.Error("process with non-matching command line should be left alone")
 	}
 }
+
+func TestFailedPidFileWriteKeepsOldFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	dir := t.TempDir()
+	writePidFile(dir, []PidRecord{{ID: "old", PID: 1, Program: "sleep"}})
+
+	// A read-only dir fails the temp file; an in-place write would still
+	// succeed and replace the contents.
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	writePidFile(dir, []PidRecord{{ID: "new", PID: 2, Program: "sleep"}})
+
+	if got := readPidRecords(dir); len(got) != 1 || got[0].ID != "old" {
+		t.Errorf("running.json = %+v, want the old record intact", got)
+	}
+}

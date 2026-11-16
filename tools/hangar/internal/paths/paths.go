@@ -13,6 +13,9 @@
 // On macOS Tauri's config and data dirs are the same Application Support
 // folder, so settings.json, perf-configs.json and running.json all live
 // together there.
+//
+// HANGAR_DATA_DIR replaces that folder (logs go to its logs/ subdir), so a dev
+// Hangar can run beside the real one without sharing state.
 package paths
 
 import (
@@ -21,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // BundleID is the macOS bundle identifier that scopes this app's data and
@@ -41,28 +45,80 @@ func appLogDir(home string) string {
 	return filepath.Join(home, "Library", "Logs", BundleID)
 }
 
+const (
+	dataDirEnv      = "HANGAR_DATA_DIR"
+	reservationsEnv = "HANGAR_RESERVATIONS_FILE"
+)
+
 // ConfigDir returns the app's config directory (Application Support),
 // creating it if needed. Settings and perf-configs live here.
-func ConfigDir() (string, error) { return ensureForHome(appSupportDir) }
+func ConfigDir() (string, error) { return ensureDir(appSupportDir, "") }
 
 // DataDir returns the app's data directory. Same folder as ConfigDir on
 // macOS (Tauri parity); running.json lives here.
-func DataDir() (string, error) { return ensureForHome(appSupportDir) }
+func DataDir() (string, error) { return ensureDir(appSupportDir, "") }
 
-// LogDir returns the app's log directory (~/Library/Logs/<BundleID>),
-// creating it if needed.
-func LogDir() (string, error) { return ensureForHome(appLogDir) }
+// LogDir returns the app's log directory (~/Library/Logs/<BundleID>, or
+// $HANGAR_DATA_DIR/logs), creating it if needed.
+func LogDir() (string, error) { return ensureDir(appLogDir, "logs") }
 
-func ensureForHome(pick func(home string) string) (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolving home dir: %w", err)
+// ReservationsFile returns the slot reservations path:
+// $HANGAR_RESERVATIONS_FILE, else reservations.json in the data dir.
+func ReservationsFile() (string, error) {
+	if f := os.Getenv(reservationsEnv); f != "" {
+		if !filepath.IsAbs(f) {
+			return "", fmt.Errorf("%s must be an absolute path, got %q", reservationsEnv, f)
+		}
+		return f, nil
 	}
-	dir := pick(home)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	dir, err := DataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "reservations.json"), nil
+}
+
+// ensureDir resolves pick(home), or sub under $HANGAR_DATA_DIR when set, and
+// creates it 0700.
+func ensureDir(pick func(home string) string, sub string) (string, error) {
+	var dir string
+	if d := os.Getenv(dataDirEnv); d != "" {
+		if !filepath.IsAbs(d) {
+			return "", fmt.Errorf("%s must be an absolute path, got %q", dataDirEnv, d)
+		}
+		dir = filepath.Join(d, sub)
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolving home dir: %w", err)
+		}
+		dir = pick(home)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("creating %s: %w", dir, err)
 	}
 	return dir, nil
+}
+
+// LockDataDir takes an exclusive flock on <dir>/hangar.lock for the life of
+// the process, so a second Hangar on the same data dir can't reap the first
+// one's children or overwrite its state. It errors if the lock is held.
+// The returned release closes the lock file; keep it reachable until exit,
+// since the file's finalizer would otherwise close it and drop the lock.
+func LockDataDir(dir string) (release func(), err error) {
+	path := filepath.Join(dir, "hangar.lock")
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("opening %s: %w", path, err)
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		f.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, fmt.Errorf("%s is held by another Hangar", path)
+		}
+		return nil, fmt.Errorf("locking %s: %w", path, err)
+	}
+	return func() { f.Close() }, nil
 }
 
 // Expand expands a leading "~" or "~/" to the user's home directory.

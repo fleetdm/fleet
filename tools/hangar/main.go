@@ -11,10 +11,13 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/fleetdm/fleet/tools/hangar/internal/agentapi"
 	"github.com/fleetdm/fleet/tools/hangar/internal/applog"
 	"github.com/fleetdm/fleet/tools/hangar/internal/buildinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/processes"
+	"github.com/fleetdm/fleet/tools/hangar/internal/reservations"
+	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 	"github.com/fleetdm/fleet/tools/hangar/internal/shellpath"
 	"github.com/fleetdm/fleet/tools/hangar/internal/traymenu"
 	"github.com/fleetdm/fleet/tools/hangar/services"
@@ -50,23 +53,57 @@ func main() {
 		os.Exit(1)
 	}
 
-	// From here on everything — including whatever the Go runtime prints on
-	// its way out if this process dies unexpectedly — lands in hangar.log.
-	session := applog.Setup(logDir)
-	slog.Info("starting Fleet Hangar", "bundleID", paths.BundleID, "logDir", logDir, "dataDir", dataDir)
+	session, unlock, err := bootstrap(logDir, dataDir, applog.Setup, processes.CleanOrphansFromPriorRun)
+	if err != nil {
+		slog.Error("data dir is in use; is another Hangar running?", "dataDir", dataDir, "err", err)
+		os.Exit(1)
+	}
+	// Deferred so the lock file stays reachable; its finalizer would close
+	// the fd and drop the lock.
+	defer unlock()
 
-	// Warm the login-shell PATH (so the first spawn doesn't pay the probe
-	// latency; shellpath.Command then resolves tools against it) and reap any
-	// orphans a prior crashed session left behind, before the tray/commands
-	// come up.
+	// Warm the login-shell PATH so the first spawn doesn't pay the probe
+	// latency; shellpath.Command then resolves tools against it.
 	shellpath.Warm()
-	processes.CleanOrphansFromPriorRun(dataDir)
 
 	// intentionalQuit gates hide-to-tray (window close) vs a real quit.
 	var intentionalQuit atomic.Bool
 
 	emitter := &wailsEmitter{}
 	pm := processes.New(logDir, dataDir, emitter)
+
+	resPath, err := paths.ReservationsFile()
+	if err != nil {
+		slog.Error("resolve reservations file", "err", err)
+		os.Exit(1)
+	}
+	store, err := settings.NewStore(dataDir, func(e string) { emitter.Emit(e, nil) }, func() (map[string]bool, error) {
+		res, err := reservations.Read(resPath)
+		if err != nil {
+			return nil, err
+		}
+		ids := make(map[string]bool, len(res))
+		for id := range res {
+			ids[id] = true
+		}
+		return ids, nil
+	})
+	if err != nil {
+		slog.Error("load settings", "err", err)
+		os.Exit(1)
+	}
+
+	agentAPI := agentapi.New(agentapi.Options{
+		Store:            store,
+		Manager:          agentapi.NewManager(pm),
+		ReservationsPath: resPath,
+		Emit:             func(e string) { emitter.Emit(e, nil) },
+	})
+	if stopSock, err := startAgentSocket(dataDir, agentAPI.Handler()); err != nil {
+		slog.Error("agent API disabled", "err", err)
+	} else {
+		defer stopSock()
+	}
 
 	// Fold the managed processes into each heartbeat: when Hangar goes away on
 	// its own, this is what says what was running at the time — and whether
@@ -88,13 +125,13 @@ func main() {
 		Name:        "Fleet Hangar",
 		Description: "Desktop control panel for Fleet contributors",
 		Services: []application.Service{
-			application.NewService(&services.SettingsService{}),
+			application.NewService(&services.SettingsService{Store: store}),
 			application.NewService(services.NewProcessService(pm, func() {
 				// Called after ShutdownNow's teardown: flag the exit as
 				// intentional so the close hook lets the window go, then quit.
 				intentionalQuit.Store(true)
 				app.Quit()
-			})),
+			}, agentAPI.Close)),
 			application.NewService(services.NewScepService(pm)),
 			application.NewService(&services.MdmAssetsService{}),
 			application.NewService(services.NewTufService(pm)),
@@ -112,6 +149,7 @@ func main() {
 			application.NewService(&services.PerfConfigService{}),
 			application.NewService(&services.DepsService{}),
 			application.NewService(&services.DialogService{}),
+			application.NewService(&services.AgentService{Usage: agentAPI.SlotUsage}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -185,4 +223,21 @@ func main() {
 	}
 	// Reached only if the event loop stops without AppKit terminating us.
 	session.Close("event loop returned")
+}
+
+// bootstrap takes the data-dir lock before anything writes state, so a second
+// Hangar on the same dir exits without rotating the first one's log or reaping
+// its children. It then sets up the app log and reaps orphans a prior crashed
+// session left behind.
+func bootstrap(logDir, dataDir string, setupLog func(logDir string) *applog.Session, reap func(dataDir string)) (*applog.Session, func(), error) {
+	unlock, err := paths.LockDataDir(dataDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	// From here on everything — including whatever the Go runtime prints on
+	// its way out if this process dies unexpectedly — lands in hangar.log.
+	session := setupLog(logDir)
+	slog.Info("starting Fleet Hangar", "bundleID", paths.BundleID, "logDir", logDir, "dataDir", dataDir)
+	reap(dataDir)
+	return session, unlock, nil
 }

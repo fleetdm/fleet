@@ -12,6 +12,8 @@ package processes
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -35,11 +37,15 @@ func pidFilePath(dataDir string) string {
 }
 
 // writePidFile persists records, or removes the file when empty (a missing
-// file on next startup is the "nothing to clean" fast path).
+// file on next startup is the "nothing to clean" fast path). It writes a temp
+// file and renames it over the old one, so a failed write leaves the previous
+// file whole.
 func writePidFile(dataDir string, records []PidRecord) {
 	path := pidFilePath(dataDir)
 	if len(records) == 0 {
-		_ = os.Remove(path)
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			slog.Warn("remove running.json failed", "path", path, "err", err)
+		}
 		return
 	}
 	b, err := json.Marshal(records)
@@ -47,9 +53,26 @@ func writePidFile(dataDir string, records []PidRecord) {
 		slog.Warn("marshal running.json failed", "err", err)
 		return
 	}
-	if err := os.WriteFile(path, b, 0o644); err != nil {
+	if err := replaceFile(path, b); err != nil {
 		slog.Warn("write running.json failed", "path", path, "err", err)
 	}
+}
+
+func replaceFile(path string, b []byte) error {
+	f, err := os.CreateTemp(filepath.Dir(path), ".running-*.tmp")
+	if err != nil {
+		return err
+	}
+	_, werr := f.Write(b)
+	if err := errors.Join(werr, f.Close()); err != nil {
+		_ = os.Remove(f.Name())
+		return err
+	}
+	if err := os.Rename(f.Name(), path); err != nil {
+		_ = os.Remove(f.Name())
+		return err
+	}
+	return nil
 }
 
 func readPidRecords(dataDir string) []PidRecord {

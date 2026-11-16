@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSlotUsage } from "../../lib/useSlotUsage";
+import { SlotBadges } from "../SlotBadges";
 import {
   api,
   type NgrokYamlInfo,
@@ -118,6 +120,7 @@ export function ServerTab({
   goToLogs: () => void;
   goToSettings: (section: SettingsSection) => void;
 }) {
+  const slotUsage = useSlotUsage();
   const repoPath = server.worktree_path;
   const buildChain: ChainStep[] = buildChainFor(server);
   const [now, setNow] = useState(Date.now());
@@ -221,6 +224,7 @@ export function ServerTab({
             <div style={{ display: "flex", gap: 6 }}>
               <HealthChip label="serve" up={serve.up} />
               <HealthChip label="docker" up={docker.up} />
+              <SlotBadges usage={slotUsage[server.id]} />
             </div>
           }
           fleetServePreview={
@@ -719,7 +723,7 @@ function ChainCard({
               step={s}
               proc={procs.find((p) => p.id === s.id)}
               onRun={() => runStep(s)}
-              onStop={() => api.stopProcess(s.id)}
+              onStop={() => api.stopProcess(s.id).catch((e) => setError(String(e)))}
               now={now}
               externalRunning={externalRunningByStepId?.[s.id] ?? false}
               treatAsIdle={isStepStale(s.id)}
