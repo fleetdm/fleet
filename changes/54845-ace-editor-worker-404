@@ -1,1 +1,0 @@
-- Fixed the JSON and XML editors (software Edit configuration and custom OS settings) requesting a missing `worker-json.js`/`worker-xml.js` file and throwing an uncaught error when opened.
