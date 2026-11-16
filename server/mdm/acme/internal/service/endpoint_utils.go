@@ -18,7 +18,6 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // encodeResponse encodes the response as JSON.
@@ -127,7 +126,7 @@ func (e *endpointer) Service() any {
 // Compile-time check to ensure endpointer implements Endpointer.
 var _ eu.Endpointer[handlerFunc] = &endpointer{}
 
-func newEndpointerWithNoAuth(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
+func newEndpointerWithNoAuth(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{

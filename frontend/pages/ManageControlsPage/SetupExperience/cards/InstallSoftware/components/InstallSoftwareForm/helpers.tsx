@@ -16,6 +16,6 @@ export const getInstallSoftwareDuringSetupCount = (
   return softwareTitles.filter(
     (software) =>
       software.software_package?.install_during_setup ||
-      software.app_store_app?.install_during_setup
+      software.app_store_apps?.some((v) => v.install_during_setup)
   ).length;
 };

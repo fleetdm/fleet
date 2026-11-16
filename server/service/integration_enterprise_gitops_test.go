@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -218,14 +219,6 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
-	cpar := createPackResponse{}
-	var userPackID uint
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name:     new("Foobar"),
-		Disabled: new(false),
-	}, http.StatusOK, &cpar)
-	userPackID = cpar.Pack.Pack.ID
-	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		Email:      new("foo42@example.com"),
@@ -308,6 +301,37 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	})
 	require.NoError(t, err)
 
+	requireForbiddenMessage := func(method, path string, body any, message string) {
+		t.Helper()
+		res := s.Do(method, path, body, http.StatusForbidden)
+		assert.Equal(t, message, extractServerErrorText(res.Body), "%s %s", method, path)
+	}
+	// GitOps users get a message for getting a host by identifier or id, deleting it, and transferring it to any fleet, also
+	// when the host doesn't exist, so hosts can't be probed. The host stays where it was.
+	noSuchHost := &fleet.Host{ID: 999999, Hostname: "no-such-host"}
+	requireGitOpsHostMessages := func(h *fleet.Host, toTeamIDs ...*uint) {
+		t.Helper()
+		filters := &map[string]any{"query": h.Hostname}
+		requireForbiddenMessage("GET", "/api/latest/fleet/hosts/"+h.Hostname, nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+		requireForbiddenMessage("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+		requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, fleet.GitOpsDeleteHostErrorMessage)
+		requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{h.ID}},
+			fleet.GitOpsDeleteHostErrorMessage)
+		requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{Filters: filters},
+			fleet.GitOpsDeleteHostErrorMessage)
+		for _, toTeamID := range toTeamIDs {
+			requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: toTeamID, HostIDs: []uint{h.ID}},
+				fleet.GitOpsTransferHostErrorMessage)
+			requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer/filter",
+				addHostsToTeamByFilterRequest{TeamID: toTeamID, Filters: filters}, fleet.GitOpsTransferHostErrorMessage)
+		}
+		if h != noSuchHost {
+			stored, err := s.ds.HostLite(ctx, h.ID)
+			require.NoError(t, err)
+			assert.Equal(t, h.TeamID, stored.TeamID)
+		}
+	}
+
 	//
 	// Start running permission tests with user gitops1.
 	//
@@ -319,37 +343,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
-	// Attempt to retrieve a host by identifier should succeed, but return the host id
-	// and nothing else: GitOps is denied on every other host read endpoint, and only
-	// gets the id here, a documented permission kept for compatibility. Asserting on
-	// the raw body since decoding into a response struct wouldn't catch extra fields.
-	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
-
-	// GET /hosts/:id is denied for an identifier and for an id, and doesn't reveal which values match a host.
-	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID), "no-such-host"} {
-		s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusForbidden)
-	}
+	// Attempt to get, delete, or transfer hosts, should fail with a message.
+	requireGitOpsHostMessages(h1, &t1.ID, nil)
+	requireGitOpsHostMessages(noSuchHost, &t1.ID)
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
-
-	// Attempt to delete hosts, should fail.
-	s.DoJSON("DELETE", "/api/latest/fleet/hosts/1", nil, http.StatusForbidden, &deleteHostResponse{})
-
-	// Attempt to transfer host from global to a team, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
-		TeamID:  &t1.ID,
-		HostIDs: []uint{h1.ID},
-	}, http.StatusOK, &addHostsToTeamResponse{})
-
-	// The host is now on a team, but the identifier endpoint still returns the id only.
-	resp = s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
-	body, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
 	// Attempt to create a label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -370,16 +369,13 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", fleet.ListLabelsRequest{}, http.StatusOK, &fleet.ListLabelsResponse{})
 
 	// Attempt to delete a label, should allow.
-	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", fleet.DeleteLabelRequest{}, http.StatusOK, &fleet.DeleteLabelResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", clr.Label.ID), nil, http.StatusOK, &fleet.DeleteLabelByIDResponse{})
 
 	// Listing software is allowed for gitops so they can reconcile software state.
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &listSoftwareVersionsResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &listSoftwareResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{})
 	// Getting a single software title or version still requires Host:list, which gitops doesn't have.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/versions/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 
 	// Attempt to read app config, should pass.
@@ -468,44 +464,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete queries, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", cqr3.Query.Name), fleet.DeleteQueryRequest{}, http.StatusOK, &fleet.DeleteQueryResponse{})
-
-	// Attempt to add a query to a user pack, should allow.
-	sqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  cqr4.Query.ID,
-		Interval: 60,
-	}, http.StatusOK, &sqr)
-
-	// Attempt to edit a scheduled query in the global schedule, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.ModifyScheduledQueryRequest{
-		Interval: new(uint(30)),
-	}, http.StatusOK, &fleet.ScheduleQueryResponse{})
-
-	// Attempt to remove a query from the global schedule, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.DeleteScheduledQueryRequest{}, http.StatusOK, &fleet.DeleteScheduledQueryResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr3.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
-	// Attempt to create a pack, should allow.
-	cpr := createPackResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name: new("foo8"),
-	}, http.StatusOK, &cpr)
-
-	// Attempt to edit a pack, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
-		Name: new("foo9"),
-	}, http.StatusOK, &modifyPackResponse{})
-
-	// Attempt to read a pack, should allow.
-	// This is an exception to the "write only" nature of gitops (packs can be viewed by gitops).
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), nil, http.StatusOK, &getPackResponse{})
-
-	// Attempt to delete a pack, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/id/%d", cpr.Pack.ID), deletePackRequest{}, http.StatusOK, &deletePackResponse{})
 
 	// Attempt to create a global policy, should allow.
 	gplr := fleet.GlobalPolicyResponse{}
@@ -533,25 +495,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to create a team policy, should allow.
 	tplr := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/team/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Name:  "foo10",
 		Query: "SELECT * from file;",
 	}, http.StatusOK, &tplr)
 
 	// Attempt to edit a team policy, should allow.
 	mtplr := fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foo';"),
 	}, http.StatusOK, &mtplr)
 
 	// Attempt to view a team policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
+		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
 		&fleet.GetTeamPolicyByIDResponse{},
 	)
 
 	// Attempt to delete a team policy, should allow.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
 		IDs: []uint{tplr.Policy.ID},
 	}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 
@@ -670,6 +632,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
 
+	// Attempt to get, delete, or transfer hosts of its fleets or of no fleet, to any destination, should fail with a message.
+	requireGitOpsHostMessages(team1Host, &t3.ID, nil, &t2.ID)
+	requireGitOpsHostMessages(globalHost, &t1.ID)
+	requireGitOpsHostMessages(noSuchHost, &t1.ID)
+
 	// Attempt to create queries in global domain, should fail.
 	tcqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
@@ -711,20 +678,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to read the team's schedule, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusOK,
+		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusOK,
 		&getTeamScheduleResponse{},
 	)
 
 	// Attempt to read other team's schedule, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
-
-	// Attempt to add a query to a user pack, should fail.
-	tsqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  cqr4.Query.ID,
-		Interval: 60,
-	}, http.StatusForbidden, &tsqr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
 
 	// Attempt to add a query to the team's schedule, should allow.
 	cqrt1 := fleet.CreateQueryResponse{}
@@ -735,13 +694,13 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
 	// Add a schedule with the deprecated APIs (by referencing a global query).
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t1.ID), teamScheduleQueryRequest{
 		QueryID:  new(q1.ID),
 		Interval: new(uint(60)),
 	}, http.StatusOK, &ttsqr)
 
 	// Attempt to remove a query from the team's schedule, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, ttsqr.Scheduled.ID), deleteTeamScheduleRequest{}, http.StatusOK, &deleteTeamScheduleResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", t1.ID, ttsqr.Scheduled.ID), deleteTeamScheduleRequest{}, http.StatusOK, &deleteTeamScheduleResponse{})
 
 	// Attempt to add/remove a manual label from a team host, should allow.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
@@ -772,32 +731,32 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to create a team policy, should allow.
 	ttplr := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/team/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 		Name:  "foo1000",
 		Query: "SELECT * from file;",
 	}, http.StatusOK, &ttplr)
 
 	// Attempt to edit a team policy, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foobar';"),
 	}, http.StatusOK, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to edit another team's policy, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foobar';"),
 	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to view a team policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
+		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
 		&fleet.GetTeamPolicyByIDResponse{},
 	)
 
 	// Attempt to view another team's policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t2.ID, t2p.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetTeamPolicyByIDResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetTeamPolicyByIDResponse{})
 
 	// Attempt to delete a team policy, should allow.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
 		IDs: []uint{ttplr.Policy.ID},
 	}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 
@@ -884,11 +843,54 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	// Listing software titles for the team it owns is allowed.
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Listing software titles globally (no team) is forbidden for team gitops.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
 	// Listing software titles for a team it does not own is forbidden.
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t2.ID))
+
+	//
+	// Users with GitOps on t1 and another role on t2 can list hosts, so they get the messages only for t1: for its hosts, and
+	// as a transfer destination.
+	//
+	team2Host, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  new(t.Name() + "4"),
+		UUID:     t.Name() + "4",
+		Hostname: strings.ReplaceAll(t.Name()+"bar.local", "/", "_"),
+		TeamID:   &t2.ID,
+	})
+	require.NoError(t, err)
+	newMixedRoleUser := func(email, t2Role string) {
+		u := &fleet.User{
+			Name:  email,
+			Email: email,
+			Teams: []fleet.UserTeam{{Team: *t1, Role: fleet.RoleGitOps}, {Team: *t2, Role: t2Role}},
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		s.setTokenForTest(t, email, test.GoodPassword)
+	}
+
+	newMixedRoleUser("gitops-observer@example.com", fleet.RoleObserver)
+	requireForbiddenMessage("GET", "/api/latest/fleet/hosts/"+team1Host.Hostname, nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+	requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team1Host.ID), nil, fleet.GitOpsDeleteHostErrorMessage)
+	requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{team1Host.ID}},
+		fleet.GitOpsDeleteHostErrorMessage)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+team2Host.Hostname, nil, http.StatusOK, &getHostResponse{})
+	requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team2Host.ID), nil, authz.ForbiddenErrorMessage)
+
+	newMixedRoleUser("gitops-maintainer@example.com", fleet.RoleMaintainer)
+	requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &t2.ID, HostIDs: []uint{team1Host.ID}},
+		fleet.GitOpsTransferHostErrorMessage)
+	requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team2Host.ID}},
+		fleet.GitOpsTransferHostErrorMessage)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &t2.ID, HostIDs: []uint{team2Host.ID}},
+		http.StatusOK, &addHostsToTeamResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team2Host.ID), nil, http.StatusOK, &deleteHostResponse{})
+	stored, err := s.ds.HostLite(ctx, team1Host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, &t1.ID, stored.TeamID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {

@@ -2,6 +2,7 @@ import classNames from "classnames";
 import React from "react";
 
 import CustomLink from "components/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IPolicySoftwareToInstall } from "interfaces/policy";
@@ -64,22 +65,24 @@ export const PlatformSelector = ({
 
     return (
       <div className="form-field__help-text">
-        <span className={`${baseClass}__install-software`}>
-          <CustomLink text={softwareName} url={softwareLink} /> will only
-          install on{" "}
-          <TooltipWrapper
-            tipContent={
-              <>
-                To see targets, select{" "}
-                <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
-                that aren&apos;t targeted show an empty (---) policy status.
-              </>
-            }
-          >
-            targeted hosts
-          </TooltipWrapper>
-          .
-        </span>
+        <CustomLinkSizeContext.Provider value="small">
+          <span className={`${baseClass}__install-software`}>
+            <CustomLink text={softwareName} url={softwareLink} /> will only
+            install on{" "}
+            <TooltipWrapper
+              tipContent={
+                <>
+                  To see targets, select{" "}
+                  <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+                  that aren&apos;t targeted show an empty (---) policy status.
+                </>
+              }
+            >
+              targeted hosts
+            </TooltipWrapper>
+            .
+          </span>
+        </CustomLinkSizeContext.Provider>
       </div>
     );
   };

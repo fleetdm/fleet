@@ -3,8 +3,8 @@ package scim
 import (
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // CAVEAT — keep this in sync with scim.go. The route list below mirrors
@@ -72,8 +72,10 @@ func servedRoutes() []servedRoute {
 // apiendpoints.Validate can confirm the api_endpoints catalog stays in sync
 // with what SCIM actually serves; the handlers are never invoked, only their
 // path templates and methods are inspected.
-func RegisterValidationRoutes(r *mux.Router, _ []kithttp.ServerOption) {
+func RegisterValidationRoutes(r *endpointer.Router, _ []kithttp.ServerOption) {
+	// Registered through the endpointer, which records the routes that Validate reads. The stubs need no auth or encoding.
+	ep := &endpointer.CommonEndpointer[any]{Router: r}
 	for _, rt := range servedRoutes() {
-		r.Handle(rt.tpl, http.NotFoundHandler()).Methods(rt.method)
+		ep.HandleHTTPHandler(rt.tpl, http.NotFoundHandler(), rt.method)
 	}
 }

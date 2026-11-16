@@ -263,7 +263,7 @@ const ConfigurationProfiles = ({
     if (!listItems.length) {
       return (
         <EmptyState
-          variant="header-list"
+          variant="list"
           header="No configuration profiles"
           info={
             canAddConfigurationProfile

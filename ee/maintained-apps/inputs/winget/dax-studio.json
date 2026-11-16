@@ -3,6 +3,7 @@
   "slug": "dax-studio/windows",
   "package_identifier": "DaxStudio.DaxStudio",
   "unique_identifier": "DAX Studio",
+  "open_process_names": ["daxstudio.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",

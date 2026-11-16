@@ -1,0 +1,1 @@
+- Added jitter to shared ETag Redis cache TTLs (50-70 minutes instead of a fixed 60 minutes) to prevent synchronized cache expiry across all scope/platform records.

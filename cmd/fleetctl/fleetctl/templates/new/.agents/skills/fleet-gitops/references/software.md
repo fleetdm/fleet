@@ -51,23 +51,23 @@ A patch policy fails on hosts running anything older than the catalog version (o
 
 ## Custom packages
 
-The package file (one per app, in the platform's `software/` folder):
+The package file (one per app, in the platform's `software/` folder) is a list, even with one package:
 
 ```yaml
-url: https://downloads.example.com/app-1.2.3.pkg
-# or, for a package already uploaded to Fleet:
-# hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
-display_name: Example App
-install_script:
-  path: ../scripts/example-install.sh      # relative to this package file
-uninstall_script:
-  path: ../scripts/example-uninstall.sh
-post_install_script:
-  path: ../scripts/example-configure.sh
-pre_install_query:
-  path: ../queries/example-precheck.yml
-icon:
-  path: ../../all/icons/example.png        # square PNG, 120 to 1024 px
+- url: https://downloads.example.com/app-1.2.3.pkg
+  # or, for a package already uploaded to Fleet:
+  # hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
+  display_name: Example App
+  install_script:
+    path: ../scripts/example-install.sh      # relative to this package file
+  uninstall_script:
+    path: ../scripts/example-uninstall.sh
+  post_install_script:
+    path: ../scripts/example-configure.sh
+  pre_install_query:
+    path: ../queries/example-precheck.yml
+  icon:
+    path: ../../all/icons/example.png        # square PNG, 120 to 1024 px
 ```
 
 The fleet file entry carries the targeting: `path`, `self_service`, `setup_experience` (and `setup_experience_platform` for `.sh`, `.py`, `.ipa`), `categories`, `labels_*`, `display_name`.
@@ -75,7 +75,7 @@ The fleet file entry carries the targeting: `path`, `self_service`, `setup_exper
 - `url` must be a direct, stable download; Fleet downloads it on each GitOps run (ETag-conditional unless `always_download: true`) and uploads it to its own storage. Verify the URL resolves to the expected file type and architecture before committing; a URL you only inferred isn't verified. Secrets or per-environment hosts go in a `$VARIABLE`, as the repo already does for other URLs.
 - `hash_sha256` (64 lowercase hex chars) refers to a package already in Fleet; with `url` it skips the download when the hash matches. Get it from the software's page in the Fleet UI.
 - `.exe` and `.tar.gz` require both `install_script` and `uninstall_script`. Other types get Fleet's default scripts; `.msi` installs with `msiexec /quiet /norestart`.
-- A package file may also be a list of packages for staged rollouts or per-architecture installers, each with its own labels.
+- A package file can hold several packages for staged rollouts or per-architecture installers, each with its own labels.
 - Linux: scope `.deb` to Debian-based hosts and `.rpm` to RPM-based ones with the repo's distro and architecture labels; a `.deb` offered to a Fedora host just fails.
 - Script-only packages (`.sh`, `.ps1`, `.py`): the file itself is the install script, so `install_script`, `url`, and `hash_sha256` don't apply. Set `display_name`, `icon`, and, when needed, `uninstall_script`, `post_install_script`, and `pre_install_query` inline on the fleet file entry (Fleet 4.89 and later). They can't be the target of an `install_software` automation.
 

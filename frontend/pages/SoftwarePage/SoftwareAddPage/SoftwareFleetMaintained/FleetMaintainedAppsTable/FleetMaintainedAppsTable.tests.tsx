@@ -68,6 +68,29 @@ describe("combineAppsByPlatform", () => {
     expect(combined.displayName).toBe("WeChat");
   });
 
+  it("shows the macOS name regardless of order when names differ otherwise", () => {
+    const macos = app({
+      id: 1,
+      name: "Foo",
+      slug: "foo/darwin",
+      platform: "darwin",
+    });
+    const windows = app({
+      id: 2,
+      name: "Foo Desktop",
+      slug: "foo/windows",
+      platform: "windows",
+    });
+
+    [
+      [macos, windows],
+      [windows, macos],
+    ].forEach((entries) => {
+      const [combined] = combineAppsByPlatform(entries);
+      expect(combined.displayName).toBe("Foo");
+    });
+  });
+
   it("keeps the suffix in a single-platform app's name", () => {
     const [combined] = combineAppsByPlatform([
       app({

@@ -438,8 +438,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, err
 	}
 
-	// get software by ID, fail if it does not exist or does not have an existing installer
-	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
+	// get software by ID, fail if it does not exist or does not have an existing installer.
+	// Force the primary DB so the display name reflects any override set by a prior
+	// edit in the same session (replica lag would otherwise emit a stale value in the activity).
+	software, err := svc.ds.SoftwareTitleByID(ctxdb.RequirePrimary(ctx, true), payload.TitleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
@@ -969,6 +971,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		// Carry the stored display name on every edit so edits that don't touch
+		// it still record the current override, instead of emitting an empty
+		// string (which reads as "cleared" to downstream consumers).
+		activity.SoftwareDisplayName = software.DisplayName
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
 		}
@@ -2998,28 +3004,30 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var teamID *uint
+	var newFleet bool
 	if tmName != "" {
 		tm, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return "", nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil, which means Unassigned, so only the payload checks run.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return "", err
 			}
-			return "", err
+			newFleet = true
+		} else {
+			teamID = &tm.ID
 		}
-		teamID = &tm.ID
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	// Same pattern as the dry-run + team-not-found short-circuit above. Empty payload
-	// + dry-run has nothing to validate or stage, so skip the async round-trip — but
-	// only when the team also has no installers: an empty payload deletes every
-	// existing package, and the dry run must report each one. The client handles an
-	// empty UUID response gracefully.
-	if dryRun && len(payloads) == 0 {
+	// Empty payload + dry-run has nothing to validate or stage, so skip the async
+	// round-trip — but only when the team also has no installers: an empty payload
+	// deletes every existing package, and the dry run must report each one. The
+	// client handles an empty UUID response gracefully.
+	if dryRun && len(payloads) == 0 && !newFleet {
 		pendingDeletion, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, nil)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
@@ -3091,6 +3099,10 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "validating software categories")
 		}
+	}
+
+	if newFleet {
+		return "", nil
 	}
 
 	if !dryRun {
@@ -3260,6 +3272,28 @@ const (
 	batchSetFailedPrefix = "failed:"
 )
 
+// installerDownloadStallTimeout fails a download that receives no bytes for this long, counted from the request
+// start or the last byte read. Any byte resets it, so slow downloads still finish. Matches the agent's
+// downloadStallTimeout in client/orbit_client.go.
+var installerDownloadStallTimeout = 60 * time.Second
+
+var errInstallerDownloadStalled = errors.New("installer download stalled")
+
+// stallResetReader pushes the download stall timer back on every read that returns bytes.
+type stallResetReader struct {
+	r       io.Reader
+	timer   *time.Timer
+	timeout time.Duration
+}
+
+func (s stallResetReader) Read(p []byte) (int, error) {
+	n, err := s.r.Read(p)
+	if n > 0 {
+		s.timer.Reset(s.timeout)
+	}
+	return n, err
+}
+
 // downloadInstallerURL downloads an installer from a URL. If ifNoneMatch is
 // non-empty, the request includes an If-None-Match header for conditional GET.
 //
@@ -3267,6 +3301,20 @@ const (
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
 	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(maxInstallerSize))
+
+	// The client has no timeout so large installers can finish, which leaves a server that stops sending free to
+	// hang the batch. The stall timer cancels the request instead, before or after the headers arrive.
+	timeout := installerDownloadStallTimeout
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	stall := time.AfterFunc(timeout, func() { cancel(errInstallerDownloadStalled) })
+	defer stall.Stop()
+	stalledErr := func() error {
+		if !errors.Is(context.Cause(ctx), errInstallerDownloadStalled) {
+			return nil
+		}
+		return fmt.Errorf("downloading %q: no data received for %s: %w", downloadURL, timeout, errInstallerDownloadStalled)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -3278,6 +3326,9 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
 		var maxBytesErr *http.MaxBytesError
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, nil, fleet.NewInvalidArgumentError(
@@ -3314,8 +3365,11 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 		)
 	}
 
-	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
+	tfr, err := fleet.NewTempFileReader(stallResetReader{r: resp.Body, timer: stall, timeout: timeout}, nil)
 	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
 		// the max size error can be received either at client.Do or here when
 		// reading the body if it's caught via a limited body reader.
 		var maxBytesErr *http.MaxBytesError
@@ -3599,7 +3653,6 @@ func (svc *Service) softwareBatchUpload(
 				Categories:               p.Categories.Value,
 				DisplayName:              p.DisplayName,
 				RollbackVersion:          p.RollbackVersion,
-				AlwaysDownload:           p.AlwaysDownload,
 				Configuration:            p.Configuration,
 			}
 

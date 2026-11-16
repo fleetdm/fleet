@@ -31,15 +31,18 @@ type Context struct {
 	CustomHeaders map[string]string `json:"custom-headers"`
 }
 
-func configFlag() cli.Flag {
+func defaultConfigPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		homeDir = "~"
 	}
-	defaultConfigPath := filepath.Join(homeDir, ".fleet", "config")
+	return filepath.Join(homeDir, ".fleet", "config")
+}
+
+func configFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:    "config",
-		Value:   defaultConfigPath,
+		Value:   defaultConfigPath(),
 		EnvVars: []string{"CONFIG"},
 		Usage:   "Path to the fleetctl config file",
 	}

@@ -14,6 +14,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 		shouldFail           bool
 		expectedSSORolesInfo SSORolesInfo
 		expectedCoerced      []string
+		expectedIgnored      []string
 	}{
 		{
 			name:                 "nil",
@@ -474,6 +475,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 			},
+			expectedIgnored: []string{"FLEET_JIT_USER_ROLE_TEAM_1", "FLEET_JIT_USER_ROLE_TEAM_foo"},
 		},
 		{
 			name: "global-gitops-not-supported-for-jit",
@@ -501,7 +503,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ssoRolesInfo, coerced, err := RolesFromSSOAttributes(tc.attributes)
+			ssoRolesInfo, coerced, ignored, err := RolesFromSSOAttributes(tc.attributes)
 			if tc.shouldFail {
 				require.Error(t, err)
 			} else {
@@ -509,6 +511,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			}
 			require.Equal(t, tc.expectedSSORolesInfo, ssoRolesInfo)
 			require.Equal(t, tc.expectedCoerced, coerced)
+			require.Equal(t, tc.expectedIgnored, ignored)
 		})
 	}
 }

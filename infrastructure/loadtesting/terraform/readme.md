@@ -211,7 +211,7 @@ We run simulated hosts in containers of 500 at a time. Once the infrastructure i
 
 With the variable `loadtest_containers` you can specify how many containers of 500 hosts you want to start. In the example above, it will run 4000. If the `fleet` instances need special configuration, you can pass them as environment variables to the `fleet_config` terraform variable, which is a map, using the following syntax (note the use of single quotes around the whole `fleet_config` variable assignment, and the use of double quotes inside its map value):
 
-`terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING":"host_last_seen=true","FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL":"host_last_seen=10s"}'`
+`terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_LABEL_UPDATE_INTERVAL":"30m","FLEET_OSQUERY_POLICY_UPDATE_INTERVAL":"30m"}'`
 
 ### Monitoring the infrastructure
 
@@ -219,7 +219,7 @@ This [document](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN
 
 There are a few main places of interest to monitor the load and resource usage:
 
-* Tracing is off by default. Elastic APM is no longer wired up. Its instrumentation is gorilla-specific, so the Fleet server turns off the stdlib ServeMux fast path whenever Elastic APM is active. That skews load test results. To trace a load test, use the `infra` stack with `enable_otel=true` and view the traces in SigNoz.
+* Tracing is off by default. To trace a load test, use the `infra` stack with `enable_otel=true` and view the traces in SigNoz.
 * To monitor mysql database load, go to AWS RDS, select "Performance Insights" and the database instance to monitor (you may want to turn off auto-refresh).
 * To monitor Redis load, go to Amazon ElastiCache, select the redis cluster to monitor, and go to "Metrics".
 

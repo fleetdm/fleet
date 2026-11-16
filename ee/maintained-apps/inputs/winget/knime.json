@@ -3,7 +3,7 @@
   "slug": "knime/windows",
   "package_identifier": "Knime.AnalyticsPlatform.LTS",
   "unique_identifier": "KNIME Analytics Platform",
-  "fuzzy_match_name": true,
+  "open_process_names": ["knime.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

@@ -196,7 +196,7 @@ else
   status=1
 fi
 
-hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
 rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
 
 [[ $status -eq 0 ]] || exit "$status"

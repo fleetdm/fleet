@@ -27,6 +27,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"ListAvailableAppsByNameAndFilters", testListAvailableAppsByNameAndFilters},
 		{"ListAvailableAppsSharedName", testListAvailableAppsSharedName},
+		{"ListAvailableAppsSearchIgnoresPlatformSuffix", testListAvailableAppsSearchIgnoresPlatformSuffix},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
@@ -881,6 +882,41 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 	require.True(t, meta1.HasPreviousResults)
 	// The two pages cover the two distinct apps.
 	require.NotEqual(t, page0[0].Slug, page1[0].Slug)
+}
+
+func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Suffix Search"})
+	require.NoError(t, err)
+
+	mkApp := func(name, slug, platform, ident string) {
+		_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name: name, Slug: slug, Platform: platform, UniqueIdentifier: ident,
+		})
+		require.NoError(t, err)
+	}
+	mkApp("R for macOS", "r/darwin", "darwin", "org.R-project.R")
+	mkApp("R for Windows", "r/windows", "windows", "R for Windows")
+	mkApp("WeChat for Mac", "wechat/darwin", "darwin", "com.tencent.xinWeChat")
+	mkApp("WeChat", "wechat/windows", "windows", "WeChat")
+	mkApp("Google Credential Provider for Windows", "gcpw/windows", "windows", "GCPW")
+
+	search := func(q string) []string {
+		apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{MatchQuery: q, IncludeMetadata: true})
+		require.NoError(t, err)
+		var slugs []string
+		for _, a := range apps {
+			slugs = append(slugs, a.Slug)
+		}
+		return slugs
+	}
+
+	require.Subset(t, search("R"), []string{"r/darwin", "r/windows"})
+	require.Empty(t, search("for macOS"))
+	require.Empty(t, search("for Mac"))
+	require.ElementsMatch(t, []string{"gcpw/windows"}, search("for Windows"))
+	require.ElementsMatch(t, []string{"wechat/darwin", "wechat/windows"}, search("WeChat"))
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {

@@ -102,9 +102,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
 		require.Equal(t, []string{"label1"}, names)
-		return map[string]uint{"label1": uint(11)}, nil
+		return map[string][]uint{"label1": {11}}, nil
 	}
 
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -160,6 +160,23 @@ func TestHostsTransferByLabel(t *testing.T) {
 	assert.Empty(t, runAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--label", "label1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+	// GitOps users get the transfer message, and no host moves: from the server with --label, from fleetctl with --hosts.
+	for _, user := range []*fleet.User{
+		{GlobalRole: new(fleet.RoleGitOps)},
+		{Teams: []fleet.UserTeam{{ID: 99, Role: fleet.RoleGitOps}}},
+	} {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			user.ID = id
+			return user, nil
+		}
+		for _, flags := range [][]string{{"--label", "label1"}, {"--hosts", "host1"}} {
+			ds.AddHostsToTeamFuncInvoked = false
+			_, err := runAppNoChecks(append([]string{"hosts", "transfer", "--fleet", "team1"}, flags...))
+			require.ErrorContains(t, err, fleet.GitOpsTransferHostErrorMessage, flags)
+			assert.False(t, ds.AddHostsToTeamFuncInvoked)
+		}
+	}
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
@@ -176,9 +193,9 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
 		require.Equal(t, []string{"label1"}, names)
-		return map[string]uint{"label1": uint(11)}, nil
+		return map[string][]uint{"label1": {11}}, nil
 	}
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -237,9 +254,9 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
 		require.Equal(t, []string{"label1"}, names)
-		return map[string]uint{"label1": uint(11)}, nil
+		return map[string][]uint{"label1": {11}}, nil
 	}
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {

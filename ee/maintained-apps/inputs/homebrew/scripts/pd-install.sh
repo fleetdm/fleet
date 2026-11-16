@@ -127,13 +127,13 @@ yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$DMG
 APP_BUNDLE=$(find "$MOUNT_POINT" -maxdepth 1 -name "*.app" | head -1)
 if [ -z "$APP_BUNDLE" ]; then
   echo "No .app found inside the Pd DMG" >&2
-  hdiutil detach "$MOUNT_POINT" || true
+  hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
   exit 1
 fi
 APP_NAME=$(basename "$APP_BUNDLE")
 # copy to the applications folder
-if ! quit_and_track_application 'org.puredata.pd.pd-gui'; then
-  hdiutil detach "$MOUNT_POINT" || true
+if ! quit_and_track_application 'info.puredata.pd.pd-gui'; then
+  hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
   exit 1
 fi
 if [ -d "$APPDIR/$APP_NAME" ]; then
@@ -146,8 +146,8 @@ if ! sudo cp -R "$APP_BUNDLE" "$APPDIR"; then
   if [ -d "$TMPDIR/$APP_NAME.bkp" ]; then
     sudo mv "$TMPDIR/$APP_NAME.bkp" "$APPDIR/$APP_NAME"
   fi
-  hdiutil detach "$MOUNT_POINT" || true
+  hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
   exit 1
 fi
-hdiutil detach "$MOUNT_POINT" || true
-relaunch_application 'org.puredata.pd.pd-gui'
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+relaunch_application 'info.puredata.pd.pd-gui'

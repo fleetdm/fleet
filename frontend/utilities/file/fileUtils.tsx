@@ -1,6 +1,5 @@
 import React from "react";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import { PackageType } from "interfaces/package_type";
 
 type IPlatformDisplayName =
@@ -73,21 +72,13 @@ export const getExtensionFromFileName = (fileName: string) => {
 
 /** This gets the platform display name from the file.
  * Script packages (.sh, .py) map to "macOS & Linux" since they run on both;
- * .ipa maps to iOS/iPadOS with a tooltip noting it covers both.
+ * .ipa maps to iOS/iPadOS since it covers both.
  */
 export const getPlatformDisplayName = (file: File) => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
   }
-  if (fileExt === "ipa") {
-    return (
-      <TooltipWrapper tipContent="Software will be added for both platforms.">
-        {FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt]}
-      </TooltipWrapper>
-    );
-  }
-
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 

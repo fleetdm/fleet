@@ -31,3 +31,60 @@ type OperatingSystem struct {
 func (os OperatingSystem) IsWindows() bool {
 	return strings.ToLower(os.Platform) == "windows"
 }
+
+// archGroupedOSNames are the OS names the OS inventory records as "Arch Linux", so these Arch-based distributions group
+// with it in the OS list and on the dashboard. The value is whether the version is recorded as "rolling" no matter what
+// the host reports: Omarchy reports its own release number (e.g. "4.0.0"), which Arch Linux doesn't have.
+var archGroupedOSNames = map[string]bool{
+	"Arch Linux ARM": false,
+	"CachyOS Linux":  false,
+	"Omarchy":        true,
+}
+
+// InventoryOSName returns the name the OS inventory records for an operating system that reports name, and whether its
+// version is recorded as "rolling" instead of the reported one.
+func InventoryOSName(name string) (inventoryName string, forceRollingVersion bool) {
+	if forceRolling, ok := archGroupedOSNames[name]; ok {
+		return "Arch Linux", forceRolling
+	}
+	return name, false
+}
+
+// HostAPIOS returns the os_name and os_version host API responses carry, from the host's OS inventory row and its stored
+// display string (hosts.os_version). Hosts the inventory groups under "Arch Linux" keep their own reported name and
+// version, which the display string holds as "<name> <version>".
+func HostAPIOS(inventoryName, inventoryVersion, display string) (name, version string) {
+	if inventoryName == "Arch Linux" {
+		for reported := range archGroupedOSNames {
+			if v, ok := strings.CutPrefix(display, reported+" "); ok {
+				return reported, v
+			}
+		}
+	}
+	return APIOSName(inventoryName), inventoryVersion
+}
+
+// APIOSName returns an OS inventory name the way the API shows it. Windows names drop the "Microsoft " prefix that the
+// inventory keeps, because OS vulnerabilities are matched on the stored name.
+func APIOSName(inventoryName string) string {
+	if strings.HasPrefix(inventoryName, "Microsoft Windows") {
+		return strings.TrimPrefix(inventoryName, "Microsoft ")
+	}
+	return inventoryName
+}
+
+// InventoryOSNames returns the OS inventory names that an os_name filter value matches. A Windows name matches with or
+// without "Microsoft ", so filters written before Windows names dropped it keep working. The prefix check ignores case,
+// like the name column does.
+func InventoryOSNames(name string) []string {
+	if strings.HasPrefix(strings.ToLower(name), "windows") {
+		return []string{name, "Microsoft " + name}
+	}
+	return []string{name}
+}
+
+// IsArchGroupedOSName reports whether name is a reported OS name the OS inventory records as "Arch Linux".
+func IsArchGroupedOSName(name string) bool {
+	_, ok := archGroupedOSNames[name]
+	return ok
+}

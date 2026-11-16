@@ -73,8 +73,7 @@ const BootstrapAdvancedOptions = ({
     <>
       Use this option if you&apos;re deploying a custom fleetd via bootstrap
       package. If enabled, Fleet won&apos;t install fleetd automatically. To use
-      this option upload a bootstrap package first, and make sure to not use{" "}
-      <b>Install software</b> and <b>Run script</b>.
+      this option upload a bootstrap package first.
     </>
   );
 

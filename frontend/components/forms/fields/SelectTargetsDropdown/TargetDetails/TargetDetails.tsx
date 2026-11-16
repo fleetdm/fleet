@@ -9,7 +9,7 @@ import StatusIndicator from "components/StatusIndicator";
 import TableCount from "components/TableContainer/TableCount";
 import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
 import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
-import { humanHostMemory } from "utilities/helpers";
+import { getHostOSDisplayName, humanHostMemory } from "utilities/helpers";
 
 import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
 
@@ -33,6 +33,7 @@ const TargetDetails = ({
       primary_ip: hostIpAddress,
       memory,
       osquery_version: osqueryVersion,
+      os_name: osName,
       os_version: osVersion,
       platform,
       status,
@@ -97,7 +98,7 @@ const TargetDetails = ({
           />
           <DataSet
             title="Operating system"
-            value={osVersion}
+            value={getHostOSDisplayName(osName, osVersion)}
             orientation="horizontal"
           />
           <DataSet

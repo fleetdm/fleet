@@ -3,6 +3,7 @@
   "slug": "activitywatch/windows",
   "package_identifier": "ActivityWatch.ActivityWatch",
   "unique_identifier": "ActivityWatch",
+  "open_process_names": ["aw-qt.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

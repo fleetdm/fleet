@@ -3,6 +3,7 @@
   "slug": "gimp/windows",
   "package_identifier": "GIMP.GIMP.3",
   "unique_identifier": "GIMP",
+  "open_process_name_prefix": "gimp-3",
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/gimp_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/gimp_uninstall.ps1",

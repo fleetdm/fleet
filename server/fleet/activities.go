@@ -109,6 +109,9 @@ func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
 	return "disabled_activity_automations"
 }
 
+// The 2017 pack activity types below are no longer emitted. They're kept so
+// existing activities still render.
+
 type ActivityTypeCreatedPack struct {
 	ID   uint   `json:"pack_id"`
 	Name string `json:"pack_name"`
@@ -636,16 +639,16 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-type ActivityTypeViewedHostRecoveryLockPassword struct {
+type ActivityTypeReadHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
-	return "viewed_host_recovery_lock_password"
+func (a ActivityTypeReadHostRecoveryLockPassword) ActivityName() string {
+	return "read_host_recovery_lock_password"
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+func (a ActivityTypeReadHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -717,34 +720,10 @@ func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
-// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
-// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
-// activities still render.
-type ActivityTypeEnabledMacosDiskEncryption struct {
-	TeamID   *uint   `json:"fleet_id"`
-	TeamName *string `json:"fleet_name"`
-}
-
-func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
-	return "enabled_macos_disk_encryption"
-}
-
-// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
-// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
-// activities still render.
-type ActivityTypeDisabledMacosDiskEncryption struct {
-	TeamID   *uint   `json:"fleet_id"`
-	TeamName *string `json:"fleet_name"`
-}
-
-func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
-	return "disabled_macos_disk_encryption"
-}
-
 // ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
-// effective disk encryption settings changed. It replaces the deprecated
-// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
-// pair.
+// effective disk encryption settings changed. Activities recorded before Fleet
+// 4.92, when one setting covered every platform, were migrated to this type
+// with a null platform.
 type ActivityTypeEditedDiskEncryptionSettings struct {
 	FleetID   *uint   `json:"fleet_id"`
 	FleetName *string `json:"fleet_name"`
@@ -1404,7 +1383,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string  `json:"software_display_name"`
 	SoftwarePackage     string  `json:"software_package"`
 	HashSHA256          *string `json:"hash_sha256,omitempty"`
 	SelfService         bool    `json:"self_service"`
@@ -1502,7 +1481,7 @@ type ActivityTypeUninstalledSoftware struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string  `json:"software_display_name"`
 	ExecutionID         string  `json:"script_execution_id"`
 	SelfService         bool    `json:"self_service"`
 	Status              string  `json:"status"`
@@ -1758,7 +1737,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostID                  uint    `json:"host_id"`
 	HostDisplayName         string  `json:"host_display_name"`
 	SoftwareTitle           string  `json:"software_title"`
-	SoftwareDisplayName     *string `json:"software_display_name,omitempty"`
+	SoftwareDisplayName     string  `json:"software_display_name"`
 	AppStoreID              string  `json:"app_store_id"`
 	CommandUUID             string  `json:"command_uuid"`
 	Status                  string  `json:"status,omitempty"`
@@ -2050,12 +2029,12 @@ func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallSoftware struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
-	FromSetupExperience bool    `json:"from_setup_experience"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
@@ -2071,11 +2050,11 @@ func (a ActivityTypeCanceledInstallSoftware) WasFromAutomation() bool {
 }
 
 type ActivityTypeCanceledUninstallSoftware struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
@@ -2087,12 +2066,12 @@ func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallAppStoreApp struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
-	FromSetupExperience bool    `json:"from_setup_experience"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
@@ -2626,11 +2605,11 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledSetupExperience struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledSetupExperience) ActivityName() string {

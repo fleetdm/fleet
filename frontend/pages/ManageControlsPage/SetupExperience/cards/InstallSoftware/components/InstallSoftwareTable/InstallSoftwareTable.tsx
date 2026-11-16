@@ -31,7 +31,7 @@ const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<Record<string, boolean>>((acc, software) => {
     if (
       software.software_package?.install_during_setup ||
-      software.app_store_app?.install_during_setup
+      software.app_store_apps?.some((v) => v.install_during_setup)
     ) {
       if (software.id != null) {
         acc[String(software.id)] = true; // key must match DataTable getRowId(row) for selection to persist

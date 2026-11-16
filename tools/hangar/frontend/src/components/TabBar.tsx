@@ -9,6 +9,7 @@ export type TabId =
   | "scep"
   | "mdm-assets"
   | "tuf"
+  | "installers"
   | "settings";
 
 // Tabs whose content is scoped to the active server — the top server pills
@@ -28,6 +29,7 @@ const GLOBAL_TABS: { id: TabId; label: string }[] = [
   { id: "scep", label: "SCEP" },
   { id: "mdm-assets", label: "MDM assets" },
   { id: "tuf", label: "TUF" },
+  { id: "installers", label: "Installers" },
 ];
 
 const SERVER_TAB_IDS = new Set<TabId>(SERVER_TABS.map((t) => t.id));

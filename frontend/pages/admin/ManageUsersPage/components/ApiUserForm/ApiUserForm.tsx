@@ -73,8 +73,7 @@ const ApiUserForm = ({
   } = useFormValidation<ApiUserFormState>({
     initialFormData: {
       name: defaultData?.name ?? "",
-      global_role: (defaultData?.global_role ??
-        (isPremiumTier ? "gitops" : "observer")) as UserRole,
+      global_role: (defaultData?.global_role ?? "gitops") as UserRole,
       isGlobalUser: !defaultData?.fleets?.length,
       fleets: defaultData?.fleets ?? [],
       // null (all endpoints) and undefined (field not set / free tier) both mean

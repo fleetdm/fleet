@@ -12,4 +12,8 @@ var routeEntries = []Entry{
 		Kind: KindPath, Scope: ScopeRequest, Old: pathPrefix + "/scripts/batch/summary/{batch_execution_id}",
 		New: pathPrefix + "/scripts/batch/{batch_execution_id}", Context: "GET",
 	},
+	{
+		Kind: KindPath, Scope: ScopeRequest, Old: pathPrefix + "/hosts/identifier/{identifier}", New: pathPrefix + "/hosts/{id}",
+		Context: "GET",
+	},
 }
