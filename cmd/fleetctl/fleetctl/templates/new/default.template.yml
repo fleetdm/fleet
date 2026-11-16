@@ -74,6 +74,50 @@ org_settings:
   #   gitops_mode_enabled: true
   #   repository_url: "https://github.com/your-org/your-fleet-gitops-repo"
 
+  ###########################################################
+  # Uncomment to automatically delete hosts that haven't
+  # checked in to Fleet for a number of days.
+  #
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings
+  ###########################################################
+  # host_expiry_settings:
+  #   host_expiry_enabled: true
+  #   host_expiry_window: 30 # days
+
+  ###########################################################
+  # Uncomment to automatically delete activities older than a
+  # number of days.
+  #
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#activity-expiry-settings
+  ###########################################################
+  # activity_expiry_settings:
+  #   activity_expiry_enabled: true
+  #   activity_expiry_window: 30 # days
+
+  ###########################################################
+  # Uncomment to customize Fleet Desktop for your end users.
+  #
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop
+  ###########################################################
+  # fleet_desktop:
+  #   transparency_url: "https://example.com/transparency"
+  #   alternative_browser_host: "fleet-desktop.example.com"
+
+  ###########################################################
+  # Uncomment to send webhooks when things happen in Fleet,
+  # such as activities or hosts going offline.
+  #
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#webhook-settings
+  ###########################################################
+  # webhook_settings:
+  #   activities_webhook:
+  #     enable_activities_webhook: true
+  #     destination_url: "https://example.com/webhook-handler"
+
   mdm:
     ###########################################################
     # Uncomment to use single sign-on (SSO) to authenticate
