@@ -103,6 +103,7 @@ describe("SoftwareAppStoreVpp", () => {
           isPremiumTier: true,
           isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: true,
+          isOnGlobalTeam: true,
         },
       },
     });
@@ -123,7 +124,7 @@ describe("SoftwareAppStoreVpp", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows ask your admin copy for non-admins when no VPP tokens exist", async () => {
+  it("shows ask your admin copy for global non-admins when no VPP tokens exist", async () => {
     mockServer.use(emptyVppHandler, labelsHandler);
 
     const render = createCustomRenderer({
@@ -133,6 +134,7 @@ describe("SoftwareAppStoreVpp", () => {
           isPremiumTier: true,
           isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: false,
+          isOnGlobalTeam: true,
         },
       },
     });
@@ -150,6 +152,54 @@ describe("SoftwareAppStoreVpp", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Enable VPP" })
+    ).not.toBeInTheDocument();
+  });
+
+  // GET /vpp_tokens filters to tokens the team-scoped user's fleets can read,
+  // so an empty list can also mean the fleet simply isn't on any token. The
+  // user can't tell the difference, so show the actionable "add fleet to VPP"
+  // message instead of the misleading "VPP isn't enabled" one.
+  it("shows add fleet to VPP copy for a fleet admin when their fleet isn't on any token", async () => {
+    mockServer.use(emptyVppHandler, labelsHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
+          isGlobalAdmin: false,
+          isOnGlobalTeam: false,
+        },
+      },
+    });
+
+    render(
+      <SoftwareAppStoreVpp
+        currentTeamId={1}
+        currentTeamName="Workstations"
+        router={router}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Workstations fleet isn't added to Volume Purchasing Program \(VPP\)/i
+        )
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(
+        "To add App Store apps, ask your admin to add Workstations fleet to VPP."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit VPP" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Volume Purchasing Program \(VPP\) isn't enabled/i)
     ).not.toBeInTheDocument();
   });
 

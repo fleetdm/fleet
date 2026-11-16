@@ -4,8 +4,6 @@
   "spec": {
     "org_info": {
       "org_name": "",
-      "org_logo_url": "",
-      "org_logo_url_light_background": "",
       "org_logo_url_dark_mode": "",
       "org_logo_url_light_mode": "",
       "contact_url": "https://fleetdm.com/company/contact"
@@ -169,7 +167,8 @@
         "macos_script": null,
         "macos_require_all_software": false,
         "windows_require_all_software": false,
-        "software": null
+        "software": null,
+        "enable_managed_local_account": false
       },
       "windows_automatic_enrollment": null,
       "windows_settings": {

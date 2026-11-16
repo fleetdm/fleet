@@ -140,7 +140,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Check apps returned
 	var listMAResp listFleetMaintainedAppsResponse
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
-		&listMAResp, "team_id", fmt.Sprint(team.ID))
+		&listMAResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NoError(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.False(t, listMAResp.Meta.HasNextResults)
@@ -170,7 +170,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		listFleetMaintainedAppsRequest{},
 		http.StatusOK,
 		&listMAResp2,
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 		"per_page", "2",
 		"page", "2",
 	)
@@ -190,7 +190,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		listFleetMaintainedAppsRequest{},
 		http.StatusOK,
 		&listMAWin,
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 		"platform", "windows",
 	)
 	require.NoError(t, listMAWin.Err)
@@ -318,7 +318,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, uint(1), activeInstallerCount, "single-add API must set is_active = 1 for the installer")
 
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
-		&listMAResp, "team_id", fmt.Sprint(team.ID))
+		&listMAResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NoError(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))

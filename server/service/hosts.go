@@ -3940,7 +3940,7 @@ func (svc *Service) OSVersions(
 			if err != nil {
 				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, count, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, count, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -4256,7 +4256,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+			return nil, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -5266,12 +5266,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+		fleet.ActivityTypeReadHostRecoveryLockPassword{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		},
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
 	}
 
 	// Schedule auto-rotation by marking the password as viewed.

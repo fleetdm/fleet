@@ -122,8 +122,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://fleetdm.com/company/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Fleet Device Management
   smtp_settings:
     authentication_method: authmethod_plain

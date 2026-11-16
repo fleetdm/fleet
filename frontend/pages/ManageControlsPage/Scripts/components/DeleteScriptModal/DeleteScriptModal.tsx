@@ -16,7 +16,6 @@ interface IDeleteScriptModalProps {
   scriptId: number;
   onCancel: () => void;
   afterDelete: () => void;
-  isHidden?: boolean;
 }
 
 const DeleteScriptModal = ({
@@ -24,11 +23,11 @@ const DeleteScriptModal = ({
   scriptId,
   onCancel,
   afterDelete,
-  isHidden = false,
 }: IDeleteScriptModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onClickDelete = async (id: number) => {
+    if (isDeleting) return;
     setIsDeleting(true);
     try {
       await scriptAPI.deleteScript(id);
@@ -53,7 +52,6 @@ const DeleteScriptModal = ({
       title="Delete script"
       onExit={onCancel}
       onEnter={() => onClickDelete(scriptId)}
-      isHidden={isHidden}
       isContentDisabled={isDeleting}
     >
       <>

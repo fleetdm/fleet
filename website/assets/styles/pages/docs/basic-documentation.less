@@ -82,14 +82,12 @@
     100% {opacity: 0;}
   }
   [purpose='mobile-custom-select'] {
+    .text-input(large);
     display: flex;
     cursor: pointer;
-    height: 48px;
-    padding: 0px 12px;
     justify-content: space-between;
     align-items: center;
     align-self: stretch;
-    border-radius: 6px;
     border: 1px solid #E2E4EA;
     background: #FFF;
     width: 100%;
@@ -180,7 +178,7 @@
       display: none;
     }
     .input-group:focus-within {
-      border: 1px solid @core-vibrant-blue;
+      border: 1px solid @core-fleet-black;
     }
     .DocSearch-Button-Placeholder {
       font-size: 16px;
@@ -207,7 +205,7 @@
       background-color: #FFF;
     }
     .input-group:focus-within {
-      border: 1px solid @core-vibrant-blue;
+      border: 1px solid @core-fleet-black;
     }
     .docsearch-input {
       height: 100%;
@@ -785,8 +783,6 @@
           }
         }
         [purpose='continue-button'] {
-          font-size: 14px;
-          padding: 6px 12px;
           width: 131px;
           &:hover {
             color: #FFF;

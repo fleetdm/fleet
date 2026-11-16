@@ -12,10 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
-	return saveHostsScheduledQueryStatsDB(ctx, ds.writer(ctx), stats, batchSize)
-}
-
 // saveHostsScheduledQueryStatsDB upserts the stats of one or more hosts in
 // batches of batchSize rows and returns the number of statements executed.
 // Callers resolve each stat's report ID (ScheduledQueryID) up front; stats

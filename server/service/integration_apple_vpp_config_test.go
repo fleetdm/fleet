@@ -1970,6 +1970,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
 		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
-	}, http.StatusBadRequest, "team_name", team.Name)
+	}, http.StatusBadRequest, "fleet_name", team.Name)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
 }

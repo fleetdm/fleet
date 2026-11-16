@@ -96,6 +96,7 @@ spec:
       macos_managed_local_account_enabled: false
       windows_managed_local_account_enabled: false
       enable_end_user_authentication: false
+      enable_managed_local_account: false
       apple_enable_release_device_manually: false
       macos_end_user_local_account_type: admin
       lock_end_user_info: false
@@ -167,8 +168,6 @@ spec:
       plugin: filesystem
   max_software_package_size: 537919488
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
     org_logo_url_dark_mode: ""
     org_logo_url_light_mode: ""
     org_name: ""

@@ -1212,8 +1212,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 
 // generateOrgInfo returns OrgInfo as a map so we can swap a Fleet-hosted
 // logo URL for a path key plus an exported file. External URLs flow through
-// unchanged; the deprecated logo URL keys are renamed to the mode-aware
-// variants by yamlMarshalRenamed at write time.
+// unchanged.
 func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
 	raw, err := json.Marshal(cmd.AppConfig.OrgInfo)
 	if err != nil {
@@ -1226,12 +1225,12 @@ func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
 
 	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeLight,
 		cmd.AppConfig.OrgInfo.OrgLogoURLLightMode,
-		"org_logo_path_light_mode", "org_logo_url_light_mode", "org_logo_url_light_background"); err != nil {
+		"org_logo_path_light_mode", "org_logo_url_light_mode"); err != nil {
 		return nil, err
 	}
 	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeDark,
 		cmd.AppConfig.OrgInfo.OrgLogoURLDarkMode,
-		"org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"); err != nil {
+		"org_logo_path_dark_mode", "org_logo_url_dark_mode"); err != nil {
 		return nil, err
 	}
 	return orgInfo, nil
@@ -1240,10 +1239,10 @@ func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
 // exportFleetHostedLogo, when the given URL points at the Fleet logo serving
 // endpoint, downloads the logo bytes, writes them to lib/org_logo/<mode>.<ext>,
 // and rewrites the orgInfo map to reference the file via pathKey instead of
-// the URL keys. External URLs are left untouched.
+// the URL key. External URLs are left untouched.
 func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
 	orgInfo map[string]any, mode fleet.OrgLogoMode, urlValue string,
-	pathKey, newURLKey, deprecatedURLKey string,
+	pathKey, urlKey string,
 ) error {
 	if !fleet.IsFleetHostedLogoURL(urlValue) {
 		return nil
@@ -1268,8 +1267,7 @@ func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
 	cmd.FilesToWrite[fileName] = string(body)
 
 	orgInfo[pathKey] = fmt.Sprintf("./%s", fileName)
-	delete(orgInfo, newURLKey)
-	delete(orgInfo, deprecatedURLKey)
+	delete(orgInfo, urlKey)
 	return nil
 }
 
