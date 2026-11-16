@@ -563,8 +563,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Update AB token's fleets](#update-ab-tokens-fleets)
 - [Renew AB token](#renew-ab-token)
 - [Delete AB token](#delete-ab-token)
-- [Add VPP token](#add-VPP-token)
-- [Update VPP token's fleets](#update-vpp-tokens-fleets)
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
@@ -999,118 +997,6 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
-### Add VPP token
-
-`POST /api/v1/fleet/vpp_tokens`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
-
-#### Example
-
-`POST /api/v1/fleet/vpp_tokens`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
-Content-Type: application/octet-stream
-<TOKEN_DATA>
---------------------------f02md47480und42y
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-"vpp_token": {
-  "id": 1,
-  "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "terms_expired": false,
-  "teams": null,
-  "fleets": null
-}
-```
-
-### Update VPP token's fleets
-
-`PATCH /api/v1/fleet/vpp_tokens/:id/fleets`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The VPP token's ID |
-| fleet_ids | list | body | If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, defaults to all fleets. |
-
-#### Example
-
-`PATCH /api/v1/fleet/vpp_tokens/1/fleets`
-
-##### Request body
-
-```json
-{
-  "fleet_ids": [1, 2, 3]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-"vpp_token": {
-  "id": 1,
-  "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "terms_expired": false,
-  "teams": [
-    {
-      "team_id": 1,
-      "name": "Team 1"
-    },
-    {
-      "team_id": 2,
-      "name": "Team 2"
-    },
-    {
-      "team_id": 2,
-      "name": "Team 3"
-    },
-  ],
-  "fleets": [
-    {
-      "fleet_id": 1,
-      "name": "Team 1"
-    },
-    {
-      "fleet_id": 2,
-      "name": "Team 2"
-    },
-    {
-      "fleet_id": 2,
-      "name": "Team 3"
-    },
-  ]
-}
-```
-
 ### Renew VPP token
 
 `PATCH /api/v1/fleet/vpp_tokens/:id/renew`
@@ -1148,8 +1034,9 @@ Content-Type: application/octet-stream
 "vpp_token": {
   "id": 1,
   "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
+  "organization_unit": "Fleet Device Management Inc.",
   "renew_date": "2025-10-20T00:00:00Z",
+  "created_at": "2023-10-20T14:02:11Z",
   "terms_expired": false,
   "teams": [1, 2, 3],
   "fleets": [1, 2, 3]
@@ -2307,6 +2194,7 @@ If the `name` is not already associated with an existing fleet, this API route c
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
 | software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.app_store_apps.organization_unit      | string   | body  | The name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from. If not specified, apps that are already added to the fleet keep their current VPP token, and new apps are added from the fleet's first-added VPP token. |
 | software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.packages                          | array   | body  | An array of objects with values below. |
@@ -2966,9 +2854,9 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
 - [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
 - [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/{software_title_id}/install` — *exempt during setup experience*
 - [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
-- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/{software_title_id}/uninstall`) — *exempt during setup experience*
 - [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
 - [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
 - `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
@@ -3408,7 +3296,7 @@ Queues an install for every self-service software title available to the device 
 
 Uninstalls software from a host via the My device page.
 
-`POST /api/v1/fleet/device/{token}/software/uninstall/:software_title_id`
+`POST /api/v1/fleet/device/{token}/software/:software_title_id/uninstall`
 
 #### Parameters
 
@@ -3419,7 +3307,7 @@ Uninstalls software from a host via the My device page.
 
 #### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/123/uninstall`
 
 ##### Default response
 
@@ -4759,6 +4647,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "fleet_id": 1,
       "title_id": 2751,
+      "package_id": 36817,
       "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -4768,6 +4657,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "fleet_id": 1,
       "title_id": 3496,
+      "package_id": 36818,
       "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
       "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
       "fleet_maintained_app_id": 150,
@@ -4805,6 +4695,7 @@ _Available in Fleet Premium._
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.location | string   | body  | The name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from. The VPP token must be assigned to the fleet. If not specified, apps that are already added to the fleet keep their current VPP token, and new apps are added from the fleet's first-added VPP token. If specified and different from the current VPP token of an app that's already added, the request fails. |
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
@@ -4880,7 +4771,7 @@ _Available in Fleet Premium._
 
 _Available in Fleet Premium._
 
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+`POST /api/v1/fleet/software/titles/:software_title_id/packages/:package_id/token?alt=media`
 
 The returned token is a one-time use token that expires after 10 minutes.
 
@@ -4889,12 +4780,13 @@ The returned token is a one-time use token that expires after 10 minutes.
 | Name              | Type    | In    | Description                                                      |
 |-------------------|---------|-------|------------------------------------------------------------------|
 | software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| package_id        | integer | path  | **Required**. The ID of the package to download. This is the `id` of the package in the `packages` array returned by Get software title. |
 | fleet_id           | integer | query | **Required**. The fleet ID containing the software package.      |
 | alt               | integer | query | **Required**. Must be specified and set to "media".              |
 
 #### Example
 
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&fleet_id=2`
+`POST /api/v1/fleet/software/titles/123/packages/36818/token?alt=media&fleet_id=2`
 
 ##### Default response
 
