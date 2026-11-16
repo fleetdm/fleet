@@ -34,20 +34,21 @@ type scanItem struct {
 
 type scanRequest struct {
 	scanEmbedded
-	Name     string                  `json:"name"`
-	Skipped  string                  `json:"-"`
-	Item     *scanItem               `json:"item"`
-	Items    []scanItem              `json:"items"`
-	Renamed  []scanItem              `json:"queries" renameto:"reports"`
-	Inline   []scanItem              `json:"old_list" renameto:"new_list,inline"`
-	ByName   map[string]scanItem     `json:"by_name"`
-	Settings map[string]any          `json:"settings"`
-	Anything any                     `json:"anything"`
-	Raw      json.RawMessage         `json:"raw"`
-	Own      scanSelfDecoding        `json:"own"`
-	Wrapped  optjson.Slice[scanItem] `json:"wrapped"`
-	WrapOne  optjson.Any[scanItem]   `json:"wrap_one"`
-	OldKept  *uint                   `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
+	Name     string              `json:"name"`
+	Skipped  string              `json:"-"`
+	Item     *scanItem           `json:"item"`
+	Items    []scanItem          `json:"items"`
+	Renamed  []scanItem          `json:"queries" renameto:"reports"`
+	Inline   []scanItem          `json:"old_list" renameto:"new_list,inline"`
+	ByName   map[string]scanItem `json:"by_name"`
+	Settings map[string]any      `json:"settings"`
+	Anything any                 `json:"anything"`
+	Raw      json.RawMessage     `json:"raw"`
+	Own      scanSelfDecoding    `json:"own"`
+	OldKept  *uint               `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
+
+	Wrapped optjson.Slice[scanItem] `json:"wrapped"`
+	WrapOne optjson.Any[scanItem]   `json:"wrap_one"`
 }
 
 // requireRejected checks that err is a *RemovedKeyError for wantKey, or nil when wantKey is empty.
