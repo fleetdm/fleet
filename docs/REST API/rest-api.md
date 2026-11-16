@@ -7499,10 +7499,9 @@ Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_c
 | agent | string | query | Filters to only include sessions from the specified agent. Options include `"claude_code"`, `"copilot_cli"`, `"cursor"`, `"codex_cli"`, and `"gemini_cli"`. |
 | category | string | query | Filters to only include sessions with at least one tool call in the specified category. Options include `"command"` and `"file_access"`. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page. Default is `50`.|
+| per_page | integer | query | Results per page. Default is `50`. Maximum is 10,000.|
 | order_key | string | query | What to order results by. Options include `"started_at"`, `"ended_at"`, `"agent"`, `"username"`, `"model"`, and `"output_token_count"`. Default is `"ended_at"`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
-| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 `agent_session_id` is the agent's own identifier for the session. `username` is the local account whose home directory holds the session.
 
@@ -7663,7 +7662,7 @@ Fleet collects a session's tool calls on the refresh after it collects the sessi
 | ai_session_id | integer | path | **Required**. The ID of the AI session. |
 | category | string | query | Filters to only include events in the specified category. Options include `"command"` and `"file_access"`. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page. Default is `50`.|
+| per_page | integer | query | Results per page. Default is `50`. Maximum is 10,000.|
 
 `categories` is `["command"]` for a tool call that runs a shell command, and `["file_access"]` for one that reads, writes, or searches files. Other tool calls, such as network requests and calls to MCP servers, have an empty array. No event is in both categories.
 
