@@ -1,20 +1,19 @@
 {
   "versions": [
     {
-      "version": "22.23.2",
+      "version": "22.23.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '22.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '22.%' AND version_compare(version, '22.23.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '22.%' AND version_compare(version, '22.23.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\\nodejs\\node.exe');"
       },
-      "installer_url": "https://nodejs.org/dist/v22.23.2/node-v22.23.2-x64.msi",
+      "installer_url": "https://nodejs.org/dist/v22.23.5/node-v22.23.5-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "df2aaa27",
-      "sha256": "ce9572ae220c345fbae2340bbb4d084e8ca5e0fe093ee7067d43094ae23be989",
+      "sha256": "963a110509eca7e0d6cc009095ccb4117e26d59287876a056b79293ae3fef238",
       "default_categories": [
         "Developer tools"
-      ],
-      "upgrade_code": "{47C07A3A-42EF-4213-A85D-8F5A59077C28}"
+      ]
     }
   ],
   "refs": {
