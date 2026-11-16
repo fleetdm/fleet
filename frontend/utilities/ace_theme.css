@@ -1,13 +1,3 @@
-.ace-fleet {
-  --code-blue: #2f6bd4;
-  --code-green: #24803a;
-}
-
-body.dark-mode .ace-fleet {
-  --code-blue: #7aa7ff;
-  --code-green: #6fcf87;
-}
-
 .ace_editor.ace-fleet {
   font-family: "SourceCodePro", monospace;
   font-size: 14px;

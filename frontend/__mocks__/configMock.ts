@@ -106,6 +106,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     query_reports_disabled: false,
     ai_features_disabled: false,
     mcp_disabled: false,
+    ai_sessions_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,

@@ -1,0 +1,30 @@
+.ai-sessions-card {
+  @include vertical-card-layout;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-small;
+  }
+
+  &__header-period {
+    font-size: $xx-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+  }
+}
+
+.ai-sessions-table {
+  // The count row is sized to line up with a search bar, which this table
+  // doesn't have.
+  .table-container__results-count {
+    height: auto;
+  }
+
+  &__agent {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    white-space: nowrap;
+  }
+}
