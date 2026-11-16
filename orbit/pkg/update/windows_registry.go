@@ -68,11 +68,6 @@ func renameUninstallFleetdRegistryEntry(name string) error {
 	return nil
 }
 
-// restoreUninstallFleetdRegistryName gives fleetd's Installed apps entry back the installer's name.
-func restoreUninstallFleetdRegistryName() error {
-	return renameUninstallFleetdRegistryEntry(fleetdInstallerName)
-}
-
 func findUninstallFleetdRegKeyRelPath() (string, error) {
 	// get the existing keys in the Uninstall registry directory
 	enumerateKeyHandle, err := registry.OpenKey(registry.LOCAL_MACHINE, REG_UNINSTALL_REL_PATH, registry.READ)

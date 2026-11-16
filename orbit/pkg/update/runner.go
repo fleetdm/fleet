@@ -400,9 +400,6 @@ func (r *Runner) updateTarget(target string) error {
 		if err := updateUninstallFleetdRegistryVersion(newVersion); err != nil {
 			return fmt.Errorf("update orbit version in Windows registry: %w", err)
 		}
-		if *oVC == 1 {
-			undoAgentNames(restoreUninstallFleetdRegistryName)
-		}
 	}
 
 	return nil
