@@ -1,0 +1,1 @@
+- Fixed deleting policies stalling hosts' policy result reporting on instances with many hosts, which could make Fleet unresponsive and fail `fleetctl gitops` runs. Fleet now clears each policy's host data in small batches before deleting it.

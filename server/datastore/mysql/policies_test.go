@@ -113,6 +113,9 @@ func TestPolicies(t *testing.T) {
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
+		{"DeletePoliciesCleansUpBeforeDelete", testDeletePoliciesCleansUpBeforeDelete},
+		{"DeletePoliciesOverlappingMembership", testDeletePoliciesOverlappingMembership},
+		{"DeleteNoTeamPoliciesCancelsActivatedAutomations", testDeleteNoTeamPoliciesCancelsActivatedAutomations},
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 		{"SavePolicyDefersMembershipCleanup", testSavePolicyDefersMembershipCleanup},
@@ -8626,6 +8629,255 @@ func testBatchedPolicyMembershipCleanup(t *testing.T, ds *Datastore) {
 	// host_issues must be updated (no more failing policies for those hosts).
 	require.NoError(t, ds.writer(ctx).Get(&count, hostIssuesQ, hostIssuesArgs...))
 	assert.Zero(t, count)
+}
+
+// hostFailingPolicyCounts returns the hosts' failing policy counts, in host ID order.
+func hostFailingPolicyCounts(t *testing.T, ds *Datastore, hostIDs []uint) []int {
+	t.Helper()
+	stmt, args, err := sqlx.In(`SELECT failing_policies_count FROM host_issues WHERE host_id IN (?) ORDER BY host_id`, hostIDs)
+	require.NoError(t, err)
+	var counts []int
+	require.NoError(t, sqlx.SelectContext(t.Context(), ds.writer(t.Context()), &counts, stmt, args...))
+	return counts
+}
+
+// testDeletePoliciesCleansUpBeforeDelete verifies that deleting policies removes their per-host rows ahead of the
+// policy row (so the foreign-key cascades find nothing left), recomputes the hosts' failing policy counts, and leaves
+// other fleets' policies alone.
+func testDeletePoliciesCleansUpBeforeDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	orig := policyMembershipDeleteBatchSize
+	policyMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { policyMembershipDeleteBatchSize = orig })
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	globalPolicy := newTestPolicy(t, ds, user, "global", "", nil)
+	team1Policy := newTestPolicy(t, ds, user, "team1", "", &team1.ID)
+	team1OtherPolicy := newTestPolicy(t, ds, user, "team1 other", "", &team1.ID)
+	team2Policy := newTestPolicy(t, ds, user, "team2", "", &team2.ID)
+
+	team1Hosts := make([]*fleet.Host, 5)
+	team1HostIDs := make([]uint, len(team1Hosts))
+	for i := range team1Hosts {
+		team1Hosts[i] = newTestHostWithPlatform(t, ds, fmt.Sprintf("team1-host-%d", i), "darwin", &team1.ID)
+		team1HostIDs[i] = team1Hosts[i].ID
+		_, err := ds.RecordPolicyQueryExecutions(ctx, team1Hosts[i],
+			map[uint]*bool{globalPolicy.ID: new(false), team1Policy.ID: new(false), team1OtherPolicy.ID: new(false)},
+			time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	team2Host := newTestHostWithPlatform(t, ds, "team2-host", "darwin", &team2.ID)
+	_, err = ds.RecordPolicyQueryExecutions(ctx, team2Host, map[uint]*bool{team2Policy.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+
+	// Completed automation history and a queued App Store install. team1Policy gets an exact multiple of the batch size.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('adam-1', 'darwin', 'App', '1.0')`)
+	require.NoError(t, err)
+	for _, hp := range []struct {
+		host   *fleet.Host
+		policy *fleet.Policy
+	}{
+		{team1Hosts[0], team1Policy}, {team1Hosts[1], team1Policy}, {team1Hosts[2], team1Policy}, {team1Hosts[3], team1Policy},
+		{team1Hosts[4], team1OtherPolicy}, {team2Host, team2Policy},
+	} {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_script_results (host_id, execution_id, output, runtime, exit_code, policy_id) VALUES (?, ?, '', 0, 0, ?)`,
+			hp.host.ID, uuid.NewString(), hp.policy.ID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_software_installs (execution_id, host_id, policy_id, install_script_exit_code, installer_filename, version)
+			VALUES (?, ?, ?, 0, 'x', '1.0.0')`,
+			uuid.NewString(), hp.host.ID, hp.policy.ID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, policy_id) VALUES (?, 'adam-1', 'darwin', ?, ?)`,
+			hp.host.ID, uuid.NewString(), hp.policy.ID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_policy_automation_run_counts (policy_id, activity_type, host_id, success_count) VALUES (?, 'ran_script', ?, 1)`,
+			hp.policy.ID, hp.host.ID)
+		require.NoError(t, err)
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO upcoming_activities (host_id, activity_type, execution_id, payload) VALUES (?, 'vpp_app_install', ?, '{}')`,
+			hp.host.ID, uuid.NewString())
+		require.NoError(t, err)
+		upcomingID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO vpp_app_upcoming_activities (upcoming_activity_id, adam_id, platform, policy_id) VALUES (?, 'adam-1', 'darwin', ?)`,
+			upcomingID, hp.policy.ID)
+		require.NoError(t, err)
+	}
+
+	countRows := func(stmt string, args ...any) int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &n, stmt, args...))
+		return n
+	}
+	// These rows outlive the policy, detached from it.
+	detachedTables := []string{
+		"host_script_results", "host_software_installs", "host_vpp_software_installs", "vpp_app_upcoming_activities",
+	}
+	requirePolicyRows := func(policyID uint, membership, detached, runCounts int) {
+		require.Equal(t, membership, countRows(`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, policyID))
+		for _, table := range detachedTables {
+			require.Equal(t, detached, countRows(`SELECT COUNT(*) FROM `+table+` WHERE policy_id = ?`, policyID), table)
+		}
+		require.Equal(t, runCounts, countRows(`SELECT COUNT(*) FROM host_policy_automation_run_counts WHERE policy_id = ?`, policyID))
+	}
+
+	requirePolicyRows(team1Policy.ID, 5, 4, 4)
+	requirePolicyRows(team2Policy.ID, 1, 1, 1)
+	require.Equal(t, []int{3, 3, 3, 3, 3}, hostFailingPolicyCounts(t, ds, team1HostIDs))
+
+	// The rows are gone while the policy row still exists, so the cascade has nothing left to do.
+	require.NoError(t, ds.cleanupPoliciesBeforeDelete(ctx, []uint{team1Policy.ID}, &team1.ID))
+	_, err = ds.Policy(ctx, team1Policy.ID)
+	require.NoError(t, err)
+	requirePolicyRows(team1Policy.ID, 0, 0, 0)
+	for _, table := range detachedTables {
+		require.Equal(t, 4, countRows(`SELECT COUNT(*) FROM `+table+` WHERE policy_id IS NULL`), table)
+	}
+	require.Equal(t, []int{2, 2, 2, 2, 2}, hostFailingPolicyCounts(t, ds, team1HostIDs))
+
+	// Another fleet's policy is skipped, see the last assertions.
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{team1Policy.ID, team1OtherPolicy.ID, team2Policy.ID})
+	require.NoError(t, err)
+	for _, id := range []uint{team1Policy.ID, team1OtherPolicy.ID} {
+		_, err = ds.Policy(ctx, id)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	require.Equal(t, []int{1, 1, 1, 1, 1}, hostFailingPolicyCounts(t, ds, team1HostIDs))
+
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{globalPolicy.ID})
+	require.NoError(t, err)
+	_, err = ds.Policy(ctx, globalPolicy.ID)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, []int{0, 0, 0, 0, 0}, hostFailingPolicyCounts(t, ds, team1HostIDs))
+
+	_, err = ds.Policy(ctx, team2Policy.ID)
+	require.NoError(t, err)
+	requirePolicyRows(team2Policy.ID, 1, 1, 1)
+	require.Equal(t, []int{1}, hostFailingPolicyCounts(t, ds, []uint{team2Host.ID}))
+}
+
+// testDeletePoliciesOverlappingMembership deletes several policies whose members overlap in part or not at all, so
+// their members are read at different paces and some policies run out of members before others. Hosts fail up to
+// three of the policies: a count recomputed before the host's last row is deleted stays too high.
+func testDeletePoliciesOverlappingMembership(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	orig := policyMembershipDeleteBatchSize
+	policyMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { policyMembershipDeleteBatchSize = orig })
+
+	failingFirst := newTestPolicy(t, ds, user, "failing on the first hosts", "", nil)
+	failingEven := newTestPolicy(t, ds, user, "failing on even hosts", "", nil)
+	failingLast := newTestPolicy(t, ds, user, "failing on the last hosts", "", nil)
+	kept := newTestPolicy(t, ds, user, "kept", "", nil)
+
+	hostIDs := make([]uint, 10)
+	for i := range hostIDs {
+		h := newTestHostWithPlatform(t, ds, fmt.Sprintf("host-%d", i), "darwin", nil)
+		hostIDs[i] = h.ID
+		results := map[uint]*bool{kept.ID: new(false)}
+		if i < 7 {
+			results[failingFirst.ID] = new(false)
+		}
+		if i%2 == 0 {
+			results[failingEven.ID] = new(false)
+		}
+		// Four members, so the last full batch is followed by an empty one.
+		if i >= 6 {
+			results[failingLast.ID] = new(false)
+		}
+		_, err := ds.RecordPolicyQueryExecutions(ctx, h, results, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+
+	_, err := ds.DeleteGlobalPolicies(ctx, []uint{failingFirst.ID, failingEven.ID, failingLast.ID})
+	require.NoError(t, err)
+	require.Equal(t, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, hostFailingPolicyCounts(t, ds, hostIDs))
+}
+
+// testDeleteNoTeamPoliciesCancelsActivatedAutomations deletes "No team" policies whose script run and software install
+// were already handed to the host, and checks the delete cancels them rather than detaching them from the policy.
+func testDeleteNoTeamPoliciesCancelsActivatedAutomations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	scriptHost := newTestHostWithPlatform(t, ds, "script host", "darwin", nil)
+	installHost := newTestHostWithPlatform(t, ds, "install host", "darwin", nil)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "script.sh", ScriptContents: "echo"})
+	require.NoError(t, err)
+	scriptPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user.ID, fleet.PolicyPayload{
+		Name: "script policy", Query: "SELECT 1;", ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+
+	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   installer,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          new(fleet.PolicyNoTeamID),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	installPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user.ID, fleet.PolicyPayload{
+		Name: "install policy", Query: "SELECT 2;", SoftwareInstallerID: &installerID,
+	})
+	require.NoError(t, err)
+
+	for _, h := range []*fleet.Host{scriptHost, installHost} {
+		_, err = ds.RecordPolicyQueryExecutions(ctx, h,
+			map[uint]*bool{scriptPolicy.ID: new(false), installPolicy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+
+	// Neither host has anything else queued, so both requests are activated right away.
+	scriptRun, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: scriptHost.ID, ScriptContents: "echo", UserID: &user.ID, PolicyID: &scriptPolicy.ID, ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+	installExecID, err := ds.InsertSoftwareInstallRequest(ctx, installHost.ID, installerID,
+		fleet.HostSoftwareInstallOptions{PolicyID: &installPolicy.ID})
+	require.NoError(t, err)
+
+	var activated int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &activated,
+		`SELECT COUNT(*) FROM host_script_results WHERE execution_id = ? AND exit_code IS NULL`, scriptRun.ExecutionID))
+	require.Equal(t, 1, activated)
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &activated,
+		`SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ? AND status = 'pending_install'`, installExecID))
+	require.Equal(t, 1, activated)
+
+	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{scriptPolicy.ID, installPolicy.ID})
+	require.NoError(t, err)
+
+	var scriptRuns int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &scriptRuns,
+		`SELECT COUNT(*) FROM host_script_results WHERE execution_id = ?`, scriptRun.ExecutionID))
+	require.Zero(t, scriptRuns)
+	var installStatus sql.NullString
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &installStatus,
+		`SELECT status FROM host_software_installs WHERE execution_id = ?`, installExecID))
+	require.Equal(t, "canceled_install", installStatus.String)
+	require.Equal(t, []int{0, 0}, hostFailingPolicyCounts(t, ds, []uint{scriptHost.ID, installHost.ID}))
 }
 
 // testBatchedPolicyMembershipCleanupOnPolicyUpdate verifies that cleanupPolicyMembershipOnPolicyUpdate
