@@ -147,7 +147,7 @@ module.exports.custom = {
     // 🤖 fleet-gitops and fleet-maintained-apps agent skills
     '.claude/skills/fleet-gitops': 'allenhouchins',
     '.claude/skills/fleet-maintained-apps': 'allenhouchins',
-    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins',//« The one fleet-gitops skill copy (.claude/skills/fleet-gitops points here)
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins', //« The one fleet-gitops skill copy (.claude/skills/fleet-gitops points here)
     'cmd/fleetctl/fleetctl/templates/new/.claude/skills/fleet-gitops': 'allenhouchins',
 
     // 🫧 Articles and release notes
