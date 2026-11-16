@@ -1,6 +1,7 @@
 import classnames from "classnames";
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -125,15 +126,24 @@ const EditScriptModal = ({
     }
   );
 
+  // 3s pause after the last keystroke surfaces the error without flashing
+  // mid-edit. Blur and submit still validate immediately.
+  const debounceValidate = useDebouncedCallback((value: string) => {
+    setFormError(validate(value));
+  }, 3000);
+
   const onChange = (value: string) => {
     setScriptFormData(value);
-    const err = validate(value);
-    if (!err && !!formError) {
-      setFormError(validate(value));
+    if (formError) {
+      setFormError(null);
     }
+    debounceValidate(value);
   };
 
   const onBlur = () => {
+    // Blur-time validation runs now; drop the pending debounced copy so it
+    // can't fire after the user refocuses and clears the error.
+    debounceValidate.cancel();
     setFormError(validate(scriptFormData));
   };
 
@@ -216,7 +226,7 @@ const EditScriptModal = ({
                       <Button
                         onClick={onSave}
                         isLoading={isSubmitting}
-                        disabled={!!formError || gitopsEnabled}
+                        disabled={gitopsEnabled || isSubmitting}
                       >
                         Save
                       </Button>

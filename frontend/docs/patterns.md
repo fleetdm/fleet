@@ -378,6 +378,17 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 - On blur, clear any other field's error that the new value made irrelevant — e.g. filling **Metadata** clears the shared "Enter metadata or a metadata URL" error on **Metadata URL**. Errors that still apply, and server-set errors, stay.
 - When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
 
+#### Code and YAML editors
+
+`Editor`, `YamlAce`, and `SQLEditor` are exempt from the blur-only rule. Per-keystroke validation flashes mid-token; blur-only surfaces errors too late for code authoring.
+
+- Clear the error on change.
+- Re-validate 3s after the last keystroke, via `useDebouncedCallback` from `use-debounce`. Cancel the pending debounce on blur and on submit.
+- Validate immediately on blur (where supported) and on submit.
+- Save stays enabled per [Submit button state](#submit-button-state).
+
+Reference implementations: `EditQueryForm`, `PackageForm`, `EditScriptModal`, `Agents`, `AgentOptionsPage`, `EditConfigurationModal`, `VersionFormFields`.
+
 #### Error priority
 
 - Presence errors take priority over format errors. If a field is both empty and format-invalid, show the presence error.
