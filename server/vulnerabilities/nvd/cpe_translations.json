@@ -645,6 +645,15 @@
   },
   {
     "software": {
+      "name": ["Photos"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["Steam.app"],
       "source": ["apps"]
     },

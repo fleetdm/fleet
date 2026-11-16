@@ -2199,6 +2199,29 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "",
 		},
+		{
+			// The OneDrive Photos add-on is listed in Windows programs as "Photos" (Microsoft
+			// Corporation, version 26.x). It is not the Windows Photos app, which is a Store app and
+			// never appears in programs, and its 26.x version sorts below the 2022.x ranges of
+			// microsoft:photos CVEs such as CVE-2022-30168.
+			software: fleet.Software{
+				Name:    "Photos",
+				Source:  "programs",
+				Vendor:  "Microsoft Corporation",
+				Version: "26.204.1019.0007",
+			},
+			cpe: "",
+		},
+		{
+			// The skip only applies to the exact "Photos" name.
+			software: fleet.Software{
+				Name:    "Microsoft Photos",
+				Source:  "programs",
+				Vendor:  "Microsoft Corporation",
+				Version: "2026.11090.22001.0",
+			},
+			cpe: "cpe:2.3:a:microsoft:photos:2026.11090.22001.0:*:*:*:*:windows:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
