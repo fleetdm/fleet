@@ -626,9 +626,7 @@ describe("PolicyForm - component", () => {
 
       // Modal has opened; each platform checkbox inside it is checked.
       await waitFor(() => {
-        expect(
-          screen.getByRole("checkbox", { name: /^macOS/ })
-        ).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: /^macOS/ })).toBeChecked();
       });
       expect(screen.getByRole("checkbox", { name: /^Windows/ })).toBeChecked();
       expect(screen.getByRole("checkbox", { name: /^Linux/ })).toBeChecked();
