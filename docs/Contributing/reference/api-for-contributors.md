@@ -2113,11 +2113,8 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
 | mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
-| scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
 | webhook_settings                          | object | body  | The fleet's webhook settings. Only the keys provided are applied; omitted webhooks are left unchanged.                                                                                                                               |
 | webhook_settings.host_status_webhook      | object | body  | See [`webhook_settings.host_status_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-status-webhook2).                                                                                                       |
 | webhook_settings.failing_policies_webhook | object | body  | See [`webhook_settings.failing_policies_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-failing-policies-webhook2).                                                                                             |
@@ -2196,33 +2193,14 @@ If the `name` is not already associated with an existing fleet, this API route c
           "deadline": "2023-12-01"
         },
         "apple_settings": {
-          "configuration_profiles": [
-            {
-              "path": "path/to/profile1.mobileconfig",
-              "labels_include_all": ["Label 1", "Label 2"]
-            },
-            {
-              "path": "path/to/profile2.json",
-              "labels_exclude_any": ["Label 3", "Label 4"]
-            },
-          ],
           "assets": [
             {
               "path": "path/to/assets/asset.json"
             },
           ],
           "enable_disk_encryption": true
-        },
-        "windows_settings": {
-          "configuration_profiles": [
-            {
-              "path": "path/to/profile3.xml",
-              "labels_include_all": ["Label 1", "Label 2"]
-            }
-          ]
         }
       },
-      "scripts": ["path/to/script.sh"],
       "software": {
         "packages": [
           {

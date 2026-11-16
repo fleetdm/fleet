@@ -2142,7 +2142,6 @@ Modifies the Fleet's configuration with the supplied information.
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | conditional_access       | object  | body  | See [conditional_access](#conditional-access).    |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
-| scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
@@ -2156,7 +2155,9 @@ Modifies the Fleet's configuration with the supplied information.
 
 ```json
 {
-  "scripts": []
+  "org_info": {
+    "org_name": "Fleet Device Management"
+  }
 }
 ```
 
@@ -2886,8 +2887,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_updates          | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration          | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
-| macos_settings           | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
-| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
+| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | linux_settings           | object  | See [`mdm.linux_settings`](#mdm-linux-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
@@ -2990,23 +2990,12 @@ _Available in Fleet Premium._
 
 <br/>
 
-##### mdm.macos_settings
-
-`mdm.macos_settings` is an object with the following structure:
-
-| Name                                   | Type    | Description   |
-| -------------------------------------- | ------- | ------------- |
-| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-
-<br/>
-
 ##### mdm.apple_settings
 
 `mdm.apple_settings` is an object with the following structure:
 
 | Name                               | Type    | Description   |
 | ---------------------------------- | ------- | ------------- |
-| custom_settings                    | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
@@ -3018,7 +3007,8 @@ _Available in Fleet Premium._
 
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | ------------- |
-| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| enable_disk_encryption                 | boolean | Windows hosts that are "Unassigned" will have disk encryption enabled if set to true. |
+| require_bitlocker_pin                  | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 <br/>
 
@@ -3076,16 +3066,6 @@ _Available in Fleet Premium._
       "grace_period_days": 1
     },
     "apple_settings": {
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
-        },
-        {
-          "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
-        },
-      ],
       "enable_disk_encryption": true,
       "enable_escrow_disk_encryption_key": true,
       "assets": [
@@ -3095,12 +3075,6 @@ _Available in Fleet Premium._
       ]
     },
     "windows_settings": {
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true
     },
@@ -3119,10 +3093,8 @@ _Available in Fleet Premium._
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "lock_end_user_info": true,
-      "apple_setup_assistant": "path/to/config.json"
+      "lock_end_user_info": true
     },
     "windows_automatic_enrollment": {
       "default_fleet": "Workstations"
@@ -17018,7 +16990,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | ios_updates                       | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates                    | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
 | windows_updates                   | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
-| macos_settings                    | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
 | apple_settings                    | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
 | windows_settings                  | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | linux_settings                    | object  | See [`mdm.linux_settings`](#mdm-linux-settings2). |
@@ -17075,23 +17046,12 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 <br/>
 
-##### mdm.macos_settings
-
-`mdm.macos_settings` is an object with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
-<br/>
-
-
 ##### mdm.apple_settings
 
 `mdm.apple_settings` is an object with the following structure:
 
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
@@ -17104,7 +17064,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 | Name                                    | Type    | Description   |
 | ---------------------                   | ------- | -------------------------------------------------------------------------------------------------------|
-| custom_settings                         | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
 | enable_disk_encryption                  | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | require_bitlocker_pin                   | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 <br/>
@@ -17153,17 +17112,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       "grace_period_days": 1
     },
     "apple_settings": {
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"],
-          "self_service": true
-        },
-        {
-          "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
-        },
-      ],
       "enable_disk_encryption": true,
       "enable_escrow_disk_encryption_key": true,
       "assets": [
@@ -17173,18 +17121,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       ]
     },
     "windows_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ],
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true
     },
@@ -17192,7 +17128,6 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       "enable_escrow_disk_encryption_key": true
     },
     "setup_experience": {
-      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false
     }
   }
