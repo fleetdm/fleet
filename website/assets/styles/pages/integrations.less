@@ -274,15 +274,30 @@
       color: @core-fleet-black;
       font-weight: @bold;
     }
-    // .btn-reset() removes the focus outline.
-    &:focus-visible {
+    // .btn-reset() removes the focus outline. Browsers without :focus-visible (Safari < 15.4) drop the :not() rule and keep the ring on :focus.
+    &:focus {
       outline: 2px solid @core-fleet-black;
       outline-offset: 2px;
+    }
+    &:focus:not(:focus-visible) {
+      outline: none;
     }
   }
   [purpose='directory-results'] {
     flex-grow: 1;
     min-width: 0;
+  }
+  // Visually hidden, but screen readers announce it when the result count changes.
+  [purpose='results-status'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   [purpose='integration-grid'] {
     display: grid;
@@ -360,10 +375,13 @@
     font-weight: @bold;
     color: @core-vibrant-green;
     cursor: pointer;
-    &:focus-visible {
+    &:focus {
       outline: 2px solid @core-fleet-black;
       outline-offset: 2px;
       border-radius: 4px;
+    }
+    &:focus:not(:focus-visible) {
+      outline: none;
     }
   }
 

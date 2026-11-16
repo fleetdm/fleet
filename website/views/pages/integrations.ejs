@@ -64,6 +64,10 @@
           </div>
 
           <div purpose="directory-results">
+            <p purpose="results-status" role="status">
+              <span v-if="countVisibleIntegrations() === 0">No integrations match “{{searchQuery}}”.</span>
+              <span v-else>{{countVisibleIntegrations()}} {{countVisibleIntegrations() === 1 ? 'integration' : 'integrations'}}</span>
+            </p>
             <div purpose="integration-grid" v-if="countVisibleIntegrations() > 0">
               <% for (let integration of integrations) { %>
               <div purpose="integration-card" v-if="isIntegrationVisible('<%- integration.slug %>')">
@@ -75,9 +79,9 @@
                 <p><%- integration.summary %></p>
                 <div purpose="integration-links">
                   <% if (integration.docsUrl) { %>
-                  <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>"><%- integration.docsLabel %></animated-arrow-button>
+                  <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>" aria-label="<%- integration.docsLabel %>: <%- integration.name %>"><%- integration.docsLabel %></animated-arrow-button>
                   <% } %>
-                  <a purpose="learn-more-link" href="<%- integration.learnMoreUrl %>" target="_blank">Learn more</a>
+                  <a purpose="learn-more-link" href="<%- integration.learnMoreUrl %>" target="_blank" aria-label="Learn more about <%- integration.name %>">Learn more</a>
                 </div>
               </div>
               <% } %>
@@ -104,7 +108,7 @@
               <h5><%- block.name %></h5>
             </div>
             <p><%- block.description %></p>
-            <animated-arrow-button href="<%- block.docsUrl %>">Docs</animated-arrow-button>
+            <animated-arrow-button href="<%- block.docsUrl %>" aria-label="Docs: <%- block.name %>">Docs</animated-arrow-button>
           </div>
           <% } %>
         </div>

@@ -5,7 +5,6 @@ parasails.registerPage('integrations', {
   data: {
     selectedCategory: 'all',
     searchQuery: '',
-    scrollDistance: 0,
     lastScrollTop: 0,
   },
 
@@ -55,18 +54,17 @@ parasails.registerPage('integrations', {
       this.searchQuery = '';
     },
 
-    // Uses the same thresholds as the layout's header, so the sticky nav moves up when the header hides.
+    // Mirrors the layout's header logic exactly, so the sticky nav moves up and down in step with the header.
     handleScrollingCategoryNav: function() {
       let categoryNav = document.querySelector('[purpose="category-nav"]');
       let scrollTop = window.pageYOffset;
-      if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+      if (scrollTop > this.lastScrollTop && scrollTop > window.innerHeight * 1.5) {
         categoryNav.classList.add('header-hidden');
         this.lastScrollTop = scrollTop;
       } else if (scrollTop < this.lastScrollTop - 60) {
         categoryNav.classList.remove('header-hidden');
         this.lastScrollTop = scrollTop;
       }
-      this.scrollDistance = scrollTop;
     },
 
   }

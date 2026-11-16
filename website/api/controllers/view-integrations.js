@@ -159,7 +159,7 @@ module.exports = {
         logo: '/images/logo-active-directory-169x28@2x.png',
         summary: 'Use AD as Fleet’s identity provider so users sign in with existing domain credentials.',
         description: 'Active Directory is an on-premises identity and directory service. Use AD as the identity provider for Fleet so users sign in with existing domain credentials, keeping Fleet aligned with your current identity and access model.',
-        learnMoreUrl: 'https://learn.microsoft.com/en-us/azure/active-directory/fundamentals/whatis',
+        learnMoreUrl: 'https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/virtual-dc/active-directory-domain-services-overview',
       },
 
       // Security & logging
