@@ -122,7 +122,7 @@ const DISK_ENCRYPTION_MESSAGES = {
   },
   windows: {
     enabled:
-      "The disk is encrypted. If recently turned on, encryption could take awhile.",
+      "The disk is encrypted. If recently turned on, encryption could take a while.",
     disabled: "The disk is unencrypted.",
   },
   linux: {
