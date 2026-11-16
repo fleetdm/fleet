@@ -2227,7 +2227,7 @@ func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 }
 
-func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDeviceIDsAreUnmarked() {
+func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDeviceIDsAreCleared() {
 	t := s.T()
 	ctx := t.Context()
 	const (
@@ -2326,14 +2326,13 @@ func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDevi
 	require.Equal(t, []report{{joinedID, false, true}}, nextReports(1))
 	requireReported(joinedID)
 
-	// After a rejoin, the new ID is reported and the old one is reset in Entra.
+	// After a rejoin, only the new ID is reported. Fleet leaves the old one as Entra last saw it and logs a warning.
 	checkIn(anchored(rejoinedID), true)
-	require.ElementsMatch(t, []report{{joinedID, false, false}, {rejoinedID, false, true}}, nextReports(2))
+	require.Equal(t, []report{{rejoinedID, false, true}}, nextReports(1))
 	requireReported(rejoinedID)
 
-	// A certificate that isn't join-backed isn't accepted: the stored ID is cleared and reset in Entra.
+	// A certificate that isn't join-backed isn't accepted: the stored ID is cleared, and nothing more is sent to Entra.
 	checkIn(map[string]string{"device_id": userStoreOnly, "not_valid_after": "2000000000", "source": "unanchored"}, false)
-	require.Equal(t, []report{{rejoinedID, false, false}}, nextReports(1))
 	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, host.ID)
 	require.True(t, fleet.IsNotFound(err), err)
 	select {

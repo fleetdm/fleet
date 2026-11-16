@@ -1094,11 +1094,6 @@ WHERE c.issuer LIKE '` + entraDeviceCertIssuerLike + `';`,
 	Platforms: []string{"windows"},
 }
 
-// EntraDeviceUnmarker reports to Entra that a device ID a host no longer holds is not managed and not compliant. It's
-// best effort and runs after the host drops the device ID: gating the drop on it would pin hosts to device IDs deleted
-// from Entra, which the proxy can't tell apart from an outage.
-type EntraDeviceUnmarker func(ctx context.Context, dropped *fleet.HostConditionalAccessStatus)
-
 type entraDeviceIDCandidate struct {
 	deviceID      string
 	notValidAfter int64
@@ -1106,11 +1101,11 @@ type entraDeviceIDCandidate struct {
 }
 
 // entraDeviceIDIngester returns the ingest function for windowsEntraIDDetails.
-func entraDeviceIDIngester(trustedOnly bool, unmark EntraDeviceUnmarker) func(
+func entraDeviceIDIngester(trustedOnly bool) func(
 	ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string,
 ) error {
 	return func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-		return ingestEntraDeviceID(ctx, logger, host, ds, rows, trustedOnly, unmark)
+		return ingestEntraDeviceID(ctx, logger, host, ds, rows, trustedOnly)
 	}
 }
 
@@ -1119,7 +1114,7 @@ func entraDeviceIDIngester(trustedOnly bool, unmark EntraDeviceUnmarker) func(
 // redirect compliance. With trustedOnly, a certificate that isn't anchored is accepted only when it matches a signed ID.
 func ingestEntraDeviceID(
 	ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string,
-	trustedOnly bool, unmark EntraDeviceUnmarker,
+	trustedOnly bool,
 ) error {
 	if host.Platform != "windows" {
 		if len(rows) == 0 {
@@ -1175,14 +1170,12 @@ func ingestEntraDeviceID(
 		if err := ds.DeleteHostConditionalAccessStatus(ctx, host.ID, current.DeviceID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete host conditional access status")
 		}
-		logger.InfoContext(ctx, "cleared Entra device ID not backed by a trusted certificate",
-			"host_id", host.ID, "device_id", current.DeviceID, "untrusted_certificates", len(candidates))
-		unmarkEntraDevice(ctx, unmark, current)
+		logDroppedEntraDevice(ctx, logger, current, "no trusted certificate")
 		return nil
 	}
 
-	// Mirrors CreateHostConditionalAccessStatus's own no-op check, which saves its read. The unmark check below ignores
-	// case instead, so a case-only difference never unmarks the host's own device ID.
+	// Mirrors CreateHostConditionalAccessStatus's own no-op check, which saves its read. The replacement check below
+	// ignores case instead, so a case-only difference never reports the host's own device ID as dropped.
 	unchanged := current != nil && current.DeviceID == accepted && current.UserPrincipalName == "" && current.Verified == verified
 	if !unchanged {
 		if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, accepted, "", verified); err != nil {
@@ -1190,7 +1183,7 @@ func ingestEntraDeviceID(
 		}
 	}
 	if trustedOnly && current != nil && !strings.EqualFold(current.DeviceID, accepted) {
-		unmarkEntraDevice(ctx, unmark, current)
+		logDroppedEntraDevice(ctx, logger, current, "replaced by "+accepted)
 	}
 	return nil
 }
@@ -1233,12 +1226,19 @@ func entraSignedDeviceIDs(state *fleet.WindowsHostEntraDeviceIDState) []string {
 	return ids
 }
 
-// unmarkEntraDevice skips device IDs Fleet never reported, since Entra holds no status from Fleet for them.
-func unmarkEntraDevice(ctx context.Context, unmark EntraDeviceUnmarker, dropped *fleet.HostConditionalAccessStatus) {
-	if unmark == nil || (dropped.Managed == nil && dropped.Compliant == nil) {
+// logDroppedEntraDevice records a device ID the host no longer holds in trusted-only mode. Entra keeps the last status
+// Fleet reported for it, so one Fleet reported needs an admin to check it in Entra.
+func logDroppedEntraDevice(ctx context.Context, logger *slog.Logger, dropped *fleet.HostConditionalAccessStatus, reason string) {
+	attrs := []any{"host_id", dropped.HostID, "device_id", dropped.DeviceID, "reason", reason}
+	if dropped.Managed == nil && dropped.Compliant == nil {
+		logger.InfoContext(ctx, "dropped an Entra device ID that Fleet never reported to Entra", attrs...)
 		return
 	}
-	unmark(ctx, dropped)
+	logger.WarnContext(ctx, "stopped reporting an Entra device ID that Entra may still treat as compliant", append(attrs,
+		"last_reported_managed", ptr.ValOrZero(dropped.Managed),
+		"last_reported_compliant", ptr.ValOrZero(dropped.Compliant),
+		"action", "If this host shouldn't have reported this device, disable the device in Microsoft Entra (Devices > All devices, search for the device ID).",
+	)...)
 }
 
 // windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
@@ -4478,8 +4478,6 @@ var tpmPINQueries = map[string]DetailQuery{
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool
-	// UnmarkMicrosoftDevice is called when a Windows host stops holding an Entra device ID in trusted-only mode.
-	UnmarkMicrosoftDevice EntraDeviceUnmarker
 }
 
 func GetDetailQueries(
@@ -4563,9 +4561,7 @@ func GetDetailQueries(
 
 	if integrations.ConditionalAccessMicrosoft {
 		q := windowsEntraIDDetails
-		q.DirectIngestFunc = entraDeviceIDIngester(
-			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly, integrations.UnmarkMicrosoftDevice,
-		)
+		q.DirectIngestFunc = entraDeviceIDIngester(fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly)
 		generatedMap["conditional_access_microsoft_device_id_windows"] = q
 	}
 

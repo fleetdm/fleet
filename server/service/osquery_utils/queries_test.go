@@ -6719,7 +6719,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 		stored       *fleet.HostConditionalAccessStatus
 		wantCreated  *created
 		wantDeleted  bool
-		wantUnmarked []string
+		wantWarned   []string
 	}{
 		{
 			name:        "default: registered certificate is accepted unverified",
@@ -6802,7 +6802,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			stored: stored(registeredID),
 		},
 		{
-			name:        "default: replacing the device ID does not unmark the old one",
+			name:        "default: replacing the device ID doesn't warn about the old one",
 			rows:        []map[string]string{unanchored(registeredID, "1000")},
 			stored:      stored(plantedID),
 			wantCreated: &created{registeredID, false},
@@ -6832,19 +6832,19 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			autopilotID: "00000000-0000-0000-0000-000000000000",
 		},
 		{
-			name:         "trusted only: rejected certificate clears and unmarks the stored device ID",
-			trustedOnly:  true,
-			rows:         []map[string]string{unanchored(plantedID, "1000")},
-			stored:       stored(plantedID),
-			wantDeleted:  true,
-			wantUnmarked: []string{plantedID},
+			name:        "trusted only: rejected certificate clears the stored device ID and warns about it",
+			trustedOnly: true,
+			rows:        []map[string]string{unanchored(plantedID, "1000")},
+			stored:      stored(plantedID),
+			wantDeleted: true,
+			wantWarned:  []string{plantedID},
 		},
 		{
-			name:         "trusted only: no rows clears and unmarks a device ID that is not signed",
-			trustedOnly:  true,
-			stored:       stored(joinedID),
-			wantDeleted:  true,
-			wantUnmarked: []string{joinedID},
+			name:        "trusted only: no rows clears a device ID that is not signed and warns about it",
+			trustedOnly: true,
+			stored:      stored(joinedID),
+			wantDeleted: true,
+			wantWarned:  []string{joinedID},
 		},
 		{
 			name:         "trusted only: no rows keeps a signed device ID",
@@ -6860,21 +6860,21 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			stored:       stored(registeredID),
 		},
 		{
-			name:        "trusted only: clearing a device ID never reported to Entra does not unmark it",
+			name:        "trusted only: clearing a device ID never reported to Entra doesn't warn",
 			trustedOnly: true,
 			stored:      &fleet.HostConditionalAccessStatus{HostID: host.ID, DeviceID: plantedID},
 			wantDeleted: true,
 		},
 		{
-			name:         "trusted only: replacing the device ID unmarks the old one",
-			trustedOnly:  true,
-			rows:         []map[string]string{anchored(joinedID, "1000")},
-			stored:       stored(plantedID),
-			wantCreated:  &created{joinedID, false},
-			wantUnmarked: []string{plantedID},
+			name:        "trusted only: replacing the device ID warns about the old one",
+			trustedOnly: true,
+			rows:        []map[string]string{anchored(joinedID, "1000")},
+			stored:      stored(plantedID),
+			wantCreated: &created{joinedID, false},
+			wantWarned:  []string{plantedID},
 		},
 		{
-			name:        "trusted only: unchanged device ID is neither stored again nor unmarked",
+			name:        "trusted only: unchanged device ID is neither stored again nor warned about",
 			trustedOnly: true,
 			rows:        []map[string]string{anchored(joinedID, "1000")},
 			stored:      stored(joinedID),
@@ -6901,24 +6901,30 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 				require.Equal(t, c.stored.DeviceID, deviceID)
 				return nil
 			}
-			var gotUnmarked []string
-			unmark := func(ctx context.Context, dropped *fleet.HostConditionalAccessStatus) {
-				// The host drops the device ID before the unmark, so a failed unmark can't pin it.
-				require.Equal(t, c.wantCreated, gotCreated)
-				require.Equal(t, c.wantDeleted, ds.DeleteHostConditionalAccessStatusFuncInvoked)
-				gotUnmarked = append(gotUnmarked, dropped.DeviceID)
-			}
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 			fleetConfig := config.FleetConfig{}
 			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly = c.trustedOnly
-			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil,
-				Integrations{ConditionalAccessMicrosoft: true, UnmarkMicrosoftDevice: unmark}, nil)
+			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil, Integrations{ConditionalAccessMicrosoft: true}, nil)
 			q, ok := queries["conditional_access_microsoft_device_id_windows"]
 			require.True(t, ok)
 			require.NoError(t, q.DirectIngestFunc(t.Context(), logger, host, ds, c.rows))
 			require.Equal(t, c.wantCreated, gotCreated)
 			require.Equal(t, c.wantDeleted, ds.DeleteHostConditionalAccessStatusFuncInvoked)
-			require.Equal(t, c.wantUnmarked, gotUnmarked)
+
+			// Admins act on the warning in Entra, so it must name the device ID and say what to do.
+			var gotWarned []string
+			for line := range strings.Lines(logs.String()) {
+				var record map[string]any
+				require.NoError(t, json.Unmarshal([]byte(line), &record))
+				if record["level"] != "WARN" {
+					continue
+				}
+				require.Contains(t, record["action"], "disable the device in Microsoft Entra")
+				gotWarned = append(gotWarned, record["device_id"].(string))
+			}
+			require.Equal(t, c.wantWarned, gotWarned)
 		})
 	}
 
@@ -6928,7 +6934,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
 				return &fleet.WindowsHostEntraDeviceIDState{}, nil
 			}
-			require.NoError(t, entraDeviceIDIngester(trustedOnly, nil)(t.Context(), logger, host, ds, nil))
+			require.NoError(t, entraDeviceIDIngester(trustedOnly)(t.Context(), logger, host, ds, nil))
 			require.Equal(t, trustedOnly, ds.GetWindowsHostEntraDeviceIDStateFuncInvoked, "trustedOnly=%v", trustedOnly)
 		}
 	})
@@ -6936,14 +6942,14 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 	t.Run("rejects results from other platforms", func(t *testing.T) {
 		ds := new(mock.Store)
 		mac := &fleet.Host{ID: 8, Platform: "darwin"}
-		err := entraDeviceIDIngester(false, nil)(t.Context(), logger, mac, ds, []map[string]string{unanchored(registeredID, "1000")})
+		err := entraDeviceIDIngester(false)(t.Context(), logger, mac, ds, []map[string]string{unanchored(registeredID, "1000")})
 		require.Error(t, err)
 		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
 	})
 
 	t.Run("rejects an empty device ID", func(t *testing.T) {
 		ds := new(mock.Store)
-		err := entraDeviceIDIngester(false, nil)(t.Context(), logger, host, ds, []map[string]string{unanchored("", "1000")})
+		err := entraDeviceIDIngester(false)(t.Context(), logger, host, ds, []map[string]string{unanchored("", "1000")})
 		require.Error(t, err)
 		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
 	})
@@ -6953,7 +6959,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 		ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
 			return nil, errors.New("db down")
 		}
-		err := entraDeviceIDIngester(true, nil)(t.Context(), logger, host, ds, []map[string]string{anchored(joinedID, "1000")})
+		err := entraDeviceIDIngester(true)(t.Context(), logger, host, ds, []map[string]string{anchored(joinedID, "1000")})
 		require.Error(t, err)
 		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
 	})
