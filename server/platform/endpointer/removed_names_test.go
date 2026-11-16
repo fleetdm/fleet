@@ -44,13 +44,13 @@ type scanRequest struct {
 	OldKept  *uint               `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
 }
 
-// requireRejected checks that err is a *RemovedKeyError for wantKey, or nil when wantKey is empty.
 type columnSortRequest struct {
 	OrderKey string `query:"order_key,optional"`
 }
 
 func (columnSortRequest) SortsByAnyColumn() {}
 
+// requireRejected checks that err is a *RemovedKeyError for wantKey, or nil when wantKey is empty.
 func requireRejected(t *testing.T, err error, wantKey string) {
 	t.Helper()
 	if wantKey == "" {
