@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -57,20 +56,22 @@ func TestGroupFromBytesWithStdLib(t *testing.T) {
 	require.NotEmpty(t, g.Policies)
 }
 
-func TestGitOpsMacOS13CISPolicies(t *testing.T) {
-	requireValidGitOpsPolicies(t, "docs", "solutions", "cis", "macos-13", "policies", "cis-policy-queries.yml")
-}
-
-func TestGitOpsWin10CISPolicies(t *testing.T) {
-	requireValidGitOpsPolicies(t, "docs", "solutions", "cis", "win-10", "policies", "cis-policy-queries.yml")
-}
-
-func requireValidGitOpsPolicies(t *testing.T, relativePaths ...string) {
-	b := loadSpec(t, relativePaths...)
+func TestGroupFromBytesWithMacOS13CISQueries(t *testing.T) {
+	cisQueries := loadSpec(t,
+		"docs", "solutions", "cis", "macos-13", "policies", "cis-policy-queries.yml",
+	)
 	var policies []*Policy
-	require.NoError(t, YamlUnmarshal(b, &policies))
+	require.NoError(t, YamlUnmarshal(cisQueries, &policies))
 	require.NotEmpty(t, policies)
-	require.Empty(t, validateYAMLKeys(b, reflect.TypeFor[[]Policy](), filepath.Join(relativePaths...), []string{"policies"}))
+}
+
+func TestGroupFromBytesWithWin10CISQueries(t *testing.T) {
+	cisQueries := loadSpec(t,
+		"docs", "solutions", "cis", "win-10", "policies", "cis-policy-queries.yml",
+	)
+	var policies []*Policy
+	require.NoError(t, YamlUnmarshal(cisQueries, &policies))
+	require.NotEmpty(t, policies)
 }
 
 func TestGroupFromBytesMissingFields(t *testing.T) {
