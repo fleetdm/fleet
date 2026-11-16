@@ -10,6 +10,7 @@ type teamsBad struct {
 	E string `query:"my_teams"`   // want `query tag "my_teams": uses deprecated "team"/"teams"`
 	F string `json:"numTeams"`    // want `json tag "numTeams": uses deprecated "team"/"teams"`
 	G string `json:"team,omitempty"` // want `json tag "team": uses deprecated "team"/"teams"`
+	H string `csv:"team_name"` // want `csv tag "team_name": uses deprecated "team"/"teams"`
 }
 
 // --- query / queries as part of a larger name should be flagged ---

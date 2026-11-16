@@ -75,6 +75,6 @@ linters:
         description: Flags map[T]bool used as sets; suggests map[T]struct{} instead.
       apiparamcheck:
         type: module
-        description: Flags json/url/query struct tags using deprecated "team"/"teams" and "query"/"queries" terms.
+        description: Flags json/url/query/csv struct tags using deprecated "team"/"teams" and "query"/"queries" terms, and strings using "team"/"teams".
   exclusions:
     generated: strict

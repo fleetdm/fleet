@@ -1,5 +1,6 @@
-// Package apiparamcheck defines an analyzer that flags json/url/query struct
-// tags whose name contains deprecated Fleet terminology.
+// Package apiparamcheck defines an analyzer that flags json/url/query/csv struct
+// tags whose name contains deprecated Fleet terminology, and strings that use
+// "team" or "teams" (strings.go).
 //
 // Two renames are enforced:
 //   - "team" / "teams" was renamed to "fleet" / "fleets". Any occurrence of
@@ -23,16 +24,16 @@ import (
 )
 
 // Analyzer flags struct tags using deprecated "team"/"teams"/"query"/"queries"
-// terminology in json/url/query tag names.
+// terminology in json/url/query/csv tag names, and strings using "team"/"teams".
 var Analyzer = &analysis.Analyzer{
 	Name:     "apiparamcheck",
-	Doc:      "flags json/url/query struct tags using deprecated team/teams or query/queries terms",
+	Doc:      "flags json/url/query/csv struct tags using deprecated team/teams or query/queries terms, and strings using team/teams",
 	URL:      "https://github.com/fleetdm/fleet",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
-var checkedTagKeys = []string{"json", "url", "query"}
+var checkedTagKeys = []string{"json", "url", "query", "csv"}
 
 func run(pass *analysis.Pass) (any, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -70,6 +71,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 		}
 	})
+	checkStrings(pass, insp)
 
 	return nil, nil
 }
