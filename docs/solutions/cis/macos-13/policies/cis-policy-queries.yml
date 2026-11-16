@@ -2972,7 +2972,7 @@
     unwanted content. Warning users prior to loading the content enables better security.
   resolution: |
     Payload Method:
-    Ask your administrator to deploy a profile which enabled WarnAboutFraudulentWebsites in Safari
+    Ask your administrator to deploy a profile which enables WarnAboutFraudulentWebsites in Safari
   query: |
     SELECT 1 WHERE 
       EXISTS (
