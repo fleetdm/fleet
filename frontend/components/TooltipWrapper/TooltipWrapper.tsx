@@ -1,6 +1,6 @@
 import classnames from "classnames";
 import { uniqueId } from "lodash";
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
 import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
@@ -172,8 +172,9 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
    * (browser cap) and falls back to normal wrapping beyond that — long
    * tooltip strings may need manual `<br />` breaks to stay under the cap. */
   textBalanced?: boolean;
-  /** CSS selector for descendants to position the tooltip against, instead of
-   * the whole wrapped element. Only matching descendants open the tooltip. */
+  /** CSS selector for a descendant to position the tooltip against, instead of
+   * the whole wrapped element. The first match in DOM order is used, and
+   * hovering anywhere in the wrapped element still opens the tooltip. */
   anchorChildSelector?: string;
 }
 
@@ -220,20 +221,28 @@ const TooltipWrapper = ({
     // [`${baseClass}__${tipCustomClass}`]: !!tipCustomClass,
   });
 
-  const tipId = uniqueId();
+  // Hover state re-renders this wrapper, so keep its id stable when anchoring to
+  // a child. Other tooltips keep the existing per-render id.
+  const stableTipId = useMemo(() => uniqueId(), []);
+  const tipId = anchorChildSelector ? stableTipId : uniqueId();
   const anchorSelect = anchorChildSelector
     ?.split(",")
     .map((s) => `[data-tooltip-id='${tipId}'] ${s.trim()}`)
     .join(", ");
 
-  let delayShowVal;
+  // With anchorChildSelector, the wrapper's hover drives the tooltip so any part
+  // of the wrapped content opens it, while it stays pinned to the first match.
+  const [isGroupHovered, setIsGroupHovered] = useState(false);
+  const groupHoverTimer = useRef<number>();
+
+  let delayShowVal: number | undefined;
   if (typeof delayShow === "boolean" && delayShow) {
     delayShowVal = DEFAULT_DELAY_MS;
   } else if (typeof delayShow === "number") {
     delayShowVal = delayShow;
   }
 
-  let delayHideVal;
+  let delayHideVal: number | undefined;
   if ((typeof delayHide === "boolean" && delayHide) || clickable) {
     delayHideVal = DEFAULT_DELAY_MS;
   } else if (typeof delayHide === "number") {
@@ -246,8 +255,20 @@ const TooltipWrapper = ({
     [delayShowVal, delayHideVal] = [delayShowHide, delayShowHide];
   }
 
+  const onGroupHover = (open: boolean) => {
+    window.clearTimeout(groupHoverTimer.current);
+    groupHoverTimer.current = window.setTimeout(
+      () => setIsGroupHovered(open),
+      (open ? delayShowVal : delayHideVal) ?? 0
+    );
+  };
+
   return (
-    <span className={wrapperClassNames}>
+    <span
+      className={wrapperClassNames}
+      onMouseEnter={anchorSelect ? () => onGroupHover(true) : undefined}
+      onMouseLeave={anchorSelect ? () => onGroupHover(false) : undefined}
+    >
       <div
         className={elementClassNames}
         data-tip
@@ -263,6 +284,9 @@ const TooltipWrapper = ({
           className={tipClassNames}
           id={tipId}
           anchorSelect={anchorSelect}
+          isOpen={anchorSelect ? isGroupHovered : undefined}
+          // Without this, hovering another matching row re-anchors the tooltip there.
+          imperativeModeOnly={!!anchorSelect}
           delayShow={delayShowVal || delayInMs}
           delayHide={delayHideVal}
           noArrow={!showArrow}

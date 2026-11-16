@@ -35,19 +35,19 @@ const LocalAccountSection = ({
     localAccountType !== EndUserLocalAccountType.ADMIN;
   return (
     <div className={baseClass}>
-      <TurnOnMdmTooltipWrapper
-        platform="apple"
-        isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
-      >
-        <GitOpsModeTooltipWrapper
-          position="left"
-          tipOffset={8}
-          isInputField
-          disableTooltip={!isMacMdmEnabledAndConfigured}
-          renderChildren={(gitopsEnabled) => {
-            return (
-              <div className={`${baseClass}__field-group`}>
-                <h3 className={`${baseClass}__sub-header`}>End user account</h3>
+      <GitOpsModeTooltipWrapper
+        position="left"
+        tipOffset={8}
+        isInputField
+        disableTooltip={!isMacMdmEnabledAndConfigured}
+        renderChildren={(gitopsEnabled) => {
+          return (
+            <div className={`${baseClass}__field-group`}>
+              <h3 className={`${baseClass}__sub-header`}>End user account</h3>
+              <TurnOnMdmTooltipWrapper
+                platform="apple"
+                isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
+              >
                 <fieldset className="form-field">
                   <Radio
                     name="localAccountType"
@@ -88,8 +88,13 @@ const LocalAccountSection = ({
                     }
                   />
                 </fieldset>
+              </TurnOnMdmTooltipWrapper>
 
-                <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
+              <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
+              <TurnOnMdmTooltipWrapper
+                platform="apple"
+                isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
+              >
                 <ManagedAccountCheckbox
                   disabled={
                     gitopsEnabled ||
@@ -106,11 +111,11 @@ const LocalAccountSection = ({
                   value={effectiveEnableManagedLocalAccount(formData)}
                   onChange={onEnableManagedLocalAccountChange}
                 />
-              </div>
-            );
-          }}
-        />
-      </TurnOnMdmTooltipWrapper>
+              </TurnOnMdmTooltipWrapper>
+            </div>
+          );
+        }}
+      />
     </div>
   );
 };
