@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/require"
 )
@@ -26,6 +25,12 @@ type scanEmbedded struct {
 type scanSelfDecoding struct{ Inner string }
 
 func (s *scanSelfDecoding) UnmarshalJSON(b []byte) error { s.Inner = string(b); return nil }
+
+// scanWrapper decodes itself, like optjson.Slice, but names the type it wraps.
+type scanWrapper[T any] struct{ Value T }
+
+func (s *scanWrapper[T]) UnmarshalJSON(b []byte) error { return json.Unmarshal(b, &s.Value) }
+func (scanWrapper[T]) JSONValueType() reflect.Type     { return reflect.TypeFor[T]() }
 
 type scanItem struct {
 	Name   string `json:"name"`
@@ -47,8 +52,7 @@ type scanRequest struct {
 	Own      scanSelfDecoding    `json:"own"`
 	OldKept  *uint               `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
 
-	Wrapped optjson.Slice[scanItem] `json:"wrapped"`
-	WrapOne optjson.Any[scanItem]   `json:"wrap_one"`
+	Wrapped scanWrapper[[]scanItem] `json:"wrapped"`
 }
 
 // requireRejected checks that err is a *RemovedKeyError for wantKey, or nil when wantKey is empty.
@@ -86,9 +90,8 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "any is not looked into", body: `{"anything": {"team_id": 1}}`},
 		{name: "raw JSON is not looked into", body: `{"raw": {"team_id": 1}}`},
 		{name: "a type that decodes itself is not looked into", body: `{"own": {"team_id": 1}}`},
-		{name: "an optjson slice is looked into", body: `{"wrapped": [{"name": "a", "teams": 1}]}`, wantKey: "teams"},
-		{name: "an optjson value is looked into", body: `{"wrap_one": {"teams": 1}}`, wantKey: "teams"},
-		{name: "a name declared inside an optjson wrapper is accepted", body: `{"wrapped": [{"team_id": 1}], "wrap_one": null}`},
+		{name: "a type that decodes itself but names the type it wraps is looked into", body: `{"wrapped": [{"name": "a", "teams": 1}]}`, wantKey: "teams"},
+		{name: "a name declared inside a wrapper is accepted", body: `{"wrapped": [{"team_id": 1}]}`},
 		{name: "a json:- field is not a name the type declares", body: `{"Skipped": "x"}`},
 		{name: "maps are not looked into, their keys are data", body: `{"by_name": {"teams": {"teams": 1}}}`},
 		{name: "removed names as values", body: `{"name": "team_id", "items": [{"name": "teams"}]}`},
