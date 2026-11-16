@@ -284,6 +284,8 @@ func run(cfg *Config) error {
 				appLogger.ErrorContext(ctx, patchedQueryFixHint)
 			}
 			patchedQueryFailed = true
+		} else {
+			appLogger.InfoContext(ctx, "Patched query check passed")
 		}
 
 		// Uninstall
