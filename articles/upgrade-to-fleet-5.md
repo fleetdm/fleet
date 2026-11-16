@@ -918,14 +918,33 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| If your YAML leaves out `gitops`, `host_expiry_settings`, or `smtp_settings`, they keep their current values | They reset to their defaults ([`gitops`](https://fleetdm.com/docs/configuration/yaml-files#gitops), [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings), [`smtp_settings`](https://fleetdm.com/docs/configuration/yaml-files#smtp-settings)) |
+| If `org_settings` in `default.yml` leaves out [`gitops`](https://fleetdm.com/docs/configuration/yaml-files#gitops), [`smtp_settings`](https://fleetdm.com/docs/configuration/yaml-files#smtp-settings), [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings), [`activity_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#activity-expiry-settings), or [`fleet_desktop`](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop), they keep their current values | They reset to their defaults |
+| If [`server_settings`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) leaves out any key other than `server_url`, the key keeps its current value | It resets to its default |
+| If [`org_info`](https://fleetdm.com/docs/configuration/yaml-files#org-info) leaves out `contact_url` or the logo URLs, they keep their current values | They reset to their defaults |
+| If [`webhook_settings`](https://fleetdm.com/docs/configuration/yaml-files#webhook-settings) leaves out a webhook, the webhook turns off but keeps its `destination_url` and other values | The webhook turns off and its values reset to their defaults |
+| If a fleet's YAML leaves out `settings.host_expiry_settings`, the fleet keeps its current value | It resets to its default |
+| `password: ""` under `smtp_settings` deletes the SMTP password | A blank `password` keeps the current SMTP password. To delete it, leave out `smtp_settings`. |
+
+A setting that's left blank (for example, `smtp_settings:` with nothing after it) resets the same way as one that's left out.
+
+These resets have the biggest impact:
+
+- `smtp_settings`: Fleet stops sending user invite and password reset emails, and deletes the SMTP password. This doesn't apply if you use Fleet's managed-cloud offering.
+- `gitops`: GitOps mode turns off, so settings can be edited in the Fleet UI again.
+- `server_settings`: `report_cap` resets to `1000`, and Fleet deletes stored report results above the cap. `ai_features_disabled`, `mcp_disabled`, `live_reporting_disabled`, and `discard_reports_data` reset to `false`, which turns those features back on. `enable_analytics` resets to `true`.
+- `fleet_desktop`: `alternative_browser_host` is removed.
 
 #### What to do
 
-Change these before you upgrade.
+Fleet 4 already supports these settings in YAML, so change this before you upgrade.
 
 1. To get the current values, run `fleetctl generate-gitops`.
-2. Add these settings to your YAML with the values you use today.
+   - If the output doesn't include `gitops` or `smtp_settings`, get them from `fleetctl get config`.
+2. Add any settings your YAML leaves out, with the values you use today.
+   - Fleet never returns the SMTP password. Leave `password` out of `smtp_settings` to keep the current one, or set it from a secret in your CI/CD.
+3. After you upgrade, run `fleetctl gitops --dry-run`.
+   - If the run would reset `smtp_settings`, `gitops`, or `server_settings` values, the output lists them in a line like: `[!] would've set org_settings.smtp_settings to defaults because not defined in YAML: enable_smtp, password, server`
+   - Other settings reset without a warning.
 
 GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
