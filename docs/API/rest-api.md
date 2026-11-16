@@ -1699,6 +1699,8 @@ Returns an Apple configuration profile file with `Content-Type: application/x-ap
 
 ### Get Okta Windows configuration profiles
 
+((Global admin)) ((Global maintainer)) ((Global GitOps)) ((Global technician))
+
 _Available in Fleet Premium._
 
 Get the Windows configuration profiles (SyncML) for Okta conditional access. Requires a global admin, maintainer, technician, or GitOps user.
@@ -8982,6 +8984,8 @@ Deletes the label specified by ID.
 
 ### Use Fleet's MCP server
 
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
 _Available in Fleet Premium._
 
 Connects an AI tool to Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp). Point an MCP client at this URL, using the Streamable HTTP transport. The request body is an MCP JSON-RPC message.
@@ -11407,6 +11411,8 @@ None.
 
 ### Add Volume Purchasing Program (VPP) token
 
+((Global admin))
+
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/vpp_tokens`
@@ -11532,6 +11538,8 @@ None.
 ```
 
 ### Update Volume Purchasing Program (VPP) token's fleets
+
+((Global admin))
 
 _Available in Fleet Premium_
 
