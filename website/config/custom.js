@@ -147,7 +147,10 @@ module.exports.custom = {
     // 🤖 fleet-gitops agent skills
     '.claude/skills': 'allenhouchins',
     '.agents/skills': 'allenhouchins',
-    
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills': 'allenhouchins',//« fleet-gitops skill shipped by `fleetctl new` (the one copy; .claude/skills/fleet-gitops points here)
+    'cmd/fleetctl/fleetctl/templates/new/.claude/skills': 'allenhouchins',
+    'tools/fleet-slackbot/skill.js': 'allenhouchins',//« Fleet Slack bot's loader for the fleet-gitops skill
+
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
     'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
