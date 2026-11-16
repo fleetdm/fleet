@@ -1319,6 +1319,7 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 		features,
 		osquery_utils.Integrations{
 			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+			RecordActivity:             svc.recordDetailQueryActivity,
 		},
 		mdmTeamConfig,
 	)
@@ -3835,6 +3836,17 @@ func (svc *Service) setHostConditionalAccess(
 	}
 
 	return nil
+}
+
+// recordDetailQueryActivity records a Fleet-initiated activity while ingesting a detail query. A failure is logged so it
+// doesn't fail the ingestion.
+func (svc *Service) recordDetailQueryActivity(ctx context.Context, activity fleet.ActivityDetails) {
+	if svc.activitySvc == nil {
+		return
+	}
+	if err := svc.activitySvc.NewActivity(ctx, nil, activity); err != nil {
+		svc.logger.WarnContext(ctx, "record detail query activity", "activity", activity.ActivityName(), "err", err)
+	}
 }
 
 // recordConditionalAccessFailureActivity records a

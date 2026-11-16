@@ -2330,11 +2330,23 @@ func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDevi
 	checkIn(anchored(rejoinedID), true)
 	require.Equal(t, []report{{rejoinedID, false, true}}, nextReports(1))
 	requireReported(rejoinedID)
+	// The host's activity feed tells admins which device to check in Entra.
+	stoppedReporting := fleet.ActivityTypeStoppedReportingMicrosoftEntraDeviceID{}.ActivityName()
+	s.lastHostActivityMatches(host.ID, stoppedReporting, fmt.Sprintf(
+		`{"host_id": %d, "host_display_name": %q, "entra_device_id": %q, "reason": "replaced", "new_entra_device_id": %q}`,
+		host.ID, host.DisplayName(), joinedID, rejoinedID,
+	), 0)
 
 	// A certificate that isn't join-backed isn't accepted: the stored ID is cleared, and nothing more is sent to Entra.
 	checkIn(map[string]string{"device_id": userStoreOnly, "not_valid_after": "2000000000", "source": "unanchored"}, false)
 	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, host.ID)
 	require.True(t, fleet.IsNotFound(err), err)
+
+	s.lastHostActivityMatches(host.ID, stoppedReporting, fmt.Sprintf(
+		`{"host_id": %d, "host_display_name": %q, "entra_device_id": %q, "reason": "no_trusted_certificate"}`,
+		host.ID, host.DisplayName(), rejoinedID,
+	), 0)
+
 	select {
 	case r := <-reports:
 		t.Fatalf("unexpected Entra report %v", r)

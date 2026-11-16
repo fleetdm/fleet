@@ -429,6 +429,17 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  stoppedReportingMicrosoftEntraDeviceId: (activity: IActivity) => {
+    const { host_display_name, entra_device_id } = activity.details || {};
+    const host = host_display_name ? <b>{host_display_name}</b> : "a host";
+    return (
+      <>
+        stopped reporting Microsoft Entra device ID <b>{entra_device_id}</b> for{" "}
+        {host}. Entra keeps the last status Fleet reported for it. If that host
+        shouldn&apos;t have reported it, disable the device in Entra.
+      </>
+    );
+  },
   hostEnrollmentRejected: (activity: IActivity) => {
     const { host_display_name, host_serial, reason } = activity.details || {};
     let host: React.ReactNode = "a host";
@@ -2763,6 +2774,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.HostEnrollmentRejected: {
       return TAGGED_TEMPLATES.hostEnrollmentRejected(activity);
+    }
+    case ActivityType.StoppedReportingMicrosoftEntraDeviceId: {
+      return TAGGED_TEMPLATES.stoppedReportingMicrosoftEntraDeviceId(activity);
     }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);

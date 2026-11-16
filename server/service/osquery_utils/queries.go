@@ -1101,11 +1101,11 @@ type entraDeviceIDCandidate struct {
 }
 
 // entraDeviceIDIngester returns the ingest function for windowsEntraIDDetails.
-func entraDeviceIDIngester(trustedOnly bool) func(
+func entraDeviceIDIngester(trustedOnly bool, recordActivity func(context.Context, fleet.ActivityDetails)) func(
 	ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string,
 ) error {
 	return func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-		return ingestEntraDeviceID(ctx, logger, host, ds, rows, trustedOnly)
+		return ingestEntraDeviceID(ctx, logger, host, ds, rows, trustedOnly, recordActivity)
 	}
 }
 
@@ -1114,7 +1114,7 @@ func entraDeviceIDIngester(trustedOnly bool) func(
 // redirect compliance. With trustedOnly, a certificate that isn't anchored is accepted only when it matches a signed ID.
 func ingestEntraDeviceID(
 	ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string,
-	trustedOnly bool,
+	trustedOnly bool, recordActivity func(context.Context, fleet.ActivityDetails),
 ) error {
 	if host.Platform != "windows" {
 		if len(rows) == 0 {
@@ -1170,7 +1170,7 @@ func ingestEntraDeviceID(
 		if err := ds.DeleteHostConditionalAccessStatus(ctx, host.ID, current.DeviceID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete host conditional access status")
 		}
-		logDroppedEntraDevice(ctx, logger, current, "no trusted certificate")
+		reportDroppedEntraDevice(ctx, logger, recordActivity, current, "")
 		return nil
 	}
 
@@ -1183,7 +1183,7 @@ func ingestEntraDeviceID(
 		}
 	}
 	if trustedOnly && current != nil && !strings.EqualFold(current.DeviceID, accepted) {
-		logDroppedEntraDevice(ctx, logger, current, "replaced by "+accepted)
+		reportDroppedEntraDevice(ctx, logger, recordActivity, current, accepted)
 	}
 	return nil
 }
@@ -1226,10 +1226,18 @@ func entraSignedDeviceIDs(state *fleet.WindowsHostEntraDeviceIDState) []string {
 	return ids
 }
 
-// logDroppedEntraDevice records a device ID the host no longer holds in trusted-only mode. Entra keeps the last status
-// Fleet reported for it, so one Fleet reported needs an admin to check it in Entra.
-func logDroppedEntraDevice(ctx context.Context, logger *slog.Logger, dropped *fleet.HostConditionalAccessStatus, reason string) {
-	attrs := []any{"host_id", dropped.HostID, "device_id", dropped.DeviceID, "reason", reason}
+// reportDroppedEntraDevice tells admins about a device ID the host no longer holds in trusted-only mode, either replaced
+// by newDeviceID or, when that's empty, no longer backed by a trusted certificate. Entra keeps the last status Fleet
+// reported for it, so one Fleet reported needs an admin to check it in Entra.
+func reportDroppedEntraDevice(
+	ctx context.Context, logger *slog.Logger, recordActivity func(context.Context, fleet.ActivityDetails),
+	dropped *fleet.HostConditionalAccessStatus, newDeviceID string,
+) {
+	reason := "no_trusted_certificate"
+	if newDeviceID != "" {
+		reason = "replaced"
+	}
+	attrs := []any{"host_id", dropped.HostID, "device_id", dropped.DeviceID, "reason", reason, "new_device_id", newDeviceID}
 	if dropped.Managed == nil && dropped.Compliant == nil {
 		logger.InfoContext(ctx, "dropped an Entra device ID that Fleet never reported to Entra", attrs...)
 		return
@@ -1239,6 +1247,15 @@ func logDroppedEntraDevice(ctx context.Context, logger *slog.Logger, dropped *fl
 		"last_reported_compliant", ptr.ValOrZero(dropped.Compliant),
 		"action", "If this host shouldn't have reported this device, disable the device in Microsoft Entra (Devices > All devices, search for the device ID).",
 	)...)
+	if recordActivity != nil {
+		recordActivity(ctx, fleet.ActivityTypeStoppedReportingMicrosoftEntraDeviceID{
+			HostID:           dropped.HostID,
+			HostDisplayName:  dropped.DisplayName,
+			EntraDeviceID:    dropped.DeviceID,
+			Reason:           reason,
+			NewEntraDeviceID: newDeviceID,
+		})
+	}
 }
 
 // windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
@@ -4478,6 +4495,8 @@ var tpmPINQueries = map[string]DetailQuery{
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool
+	// RecordActivity records a Fleet-initiated activity while ingesting a result.
+	RecordActivity func(ctx context.Context, activity fleet.ActivityDetails)
 }
 
 func GetDetailQueries(
@@ -4561,7 +4580,9 @@ func GetDetailQueries(
 
 	if integrations.ConditionalAccessMicrosoft {
 		q := windowsEntraIDDetails
-		q.DirectIngestFunc = entraDeviceIDIngester(fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly)
+		q.DirectIngestFunc = entraDeviceIDIngester(
+			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly, integrations.RecordActivity,
+		)
 		generatedMap["conditional_access_microsoft_device_id_windows"] = q
 	}
 

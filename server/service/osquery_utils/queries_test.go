@@ -6904,9 +6904,17 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
+			var activities []fleet.ActivityTypeStoppedReportingMicrosoftEntraDeviceID
+			recordActivity := func(ctx context.Context, activity fleet.ActivityDetails) {
+				act, ok := activity.(fleet.ActivityTypeStoppedReportingMicrosoftEntraDeviceID)
+				require.True(t, ok, "unexpected activity %T", activity)
+				activities = append(activities, act)
+			}
+
 			fleetConfig := config.FleetConfig{}
 			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly = c.trustedOnly
-			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil, Integrations{ConditionalAccessMicrosoft: true}, nil)
+			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil,
+				Integrations{ConditionalAccessMicrosoft: true, RecordActivity: recordActivity}, nil)
 			q, ok := queries["conditional_access_microsoft_device_id_windows"]
 			require.True(t, ok)
 			require.NoError(t, q.DirectIngestFunc(t.Context(), logger, host, ds, c.rows))
@@ -6925,6 +6933,22 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 				gotWarned = append(gotWarned, record["device_id"].(string))
 			}
 			require.Equal(t, c.wantWarned, gotWarned)
+
+			// The activity carries the same signal for admins who don't read server logs.
+			var gotActivities []string
+			for _, act := range activities {
+				require.Equal(t, host.ID, act.HostID)
+				require.Equal(t, c.stored.DeviceID, act.EntraDeviceID)
+				if c.wantCreated != nil {
+					require.Equal(t, "replaced", act.Reason)
+					require.Equal(t, c.wantCreated.deviceID, act.NewEntraDeviceID)
+				} else {
+					require.Equal(t, "no_trusted_certificate", act.Reason)
+					require.Empty(t, act.NewEntraDeviceID)
+				}
+				gotActivities = append(gotActivities, act.EntraDeviceID)
+			}
+			require.Equal(t, c.wantWarned, gotActivities)
 		})
 	}
 
@@ -6934,7 +6958,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
 				return &fleet.WindowsHostEntraDeviceIDState{}, nil
 			}
-			require.NoError(t, entraDeviceIDIngester(trustedOnly)(t.Context(), logger, host, ds, nil))
+			require.NoError(t, entraDeviceIDIngester(trustedOnly, nil)(t.Context(), logger, host, ds, nil))
 			require.Equal(t, trustedOnly, ds.GetWindowsHostEntraDeviceIDStateFuncInvoked, "trustedOnly=%v", trustedOnly)
 		}
 	})
@@ -6942,14 +6966,14 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 	t.Run("rejects results from other platforms", func(t *testing.T) {
 		ds := new(mock.Store)
 		mac := &fleet.Host{ID: 8, Platform: "darwin"}
-		err := entraDeviceIDIngester(false)(t.Context(), logger, mac, ds, []map[string]string{unanchored(registeredID, "1000")})
+		err := entraDeviceIDIngester(false, nil)(t.Context(), logger, mac, ds, []map[string]string{unanchored(registeredID, "1000")})
 		require.Error(t, err)
 		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
 	})
 
 	t.Run("rejects an empty device ID", func(t *testing.T) {
 		ds := new(mock.Store)
-		err := entraDeviceIDIngester(false)(t.Context(), logger, host, ds, []map[string]string{unanchored("", "1000")})
+		err := entraDeviceIDIngester(false, nil)(t.Context(), logger, host, ds, []map[string]string{unanchored("", "1000")})
 		require.Error(t, err)
 		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
 	})
@@ -6959,7 +6983,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 		ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
 			return nil, errors.New("db down")
 		}
-		err := entraDeviceIDIngester(true)(t.Context(), logger, host, ds, []map[string]string{anchored(joinedID, "1000")})
+		err := entraDeviceIDIngester(true, nil)(t.Context(), logger, host, ds, []map[string]string{anchored(joinedID, "1000")})
 		require.Error(t, err)
 		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
 	})

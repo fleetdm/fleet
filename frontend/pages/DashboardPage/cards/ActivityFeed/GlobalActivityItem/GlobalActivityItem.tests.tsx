@@ -1646,6 +1646,37 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
   });
 
+  describe("stopped_reporting_microsoft_entra_device_id", () => {
+    it("renders Fleet as the actor, names the device and host, and says what to do in Entra", () => {
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.StoppedReportingMicrosoftEntraDeviceId,
+            actor_full_name: "",
+            actor_id: 0,
+            fleet_initiated: true,
+            created_at: "2026-01-01T00:00:00Z",
+            details: {
+              host_display_name: "Anna's PC",
+              entra_device_id: "11111111-1111-4111-8111-111111111111",
+              reason: "no_trusted_certificate",
+            },
+          })}
+          isPremiumTier
+        />
+      );
+
+      expect(screen.getByText("Fleet")).toBeInTheDocument();
+      expect(
+        screen.getByText("11111111-1111-4111-8111-111111111111")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Anna's PC")).toBeInTheDocument();
+      expect(
+        screen.getByText(/disable the device in Entra/i)
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("host_enrollment_rejected", () => {
     const renderRejected = (
       details: Partial<IActivityDetails>,

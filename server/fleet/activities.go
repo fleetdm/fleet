@@ -2900,6 +2900,31 @@ func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
 	return true
 }
 
+// ActivityTypeStoppedReportingMicrosoftEntraDeviceID is recorded when Fleet, with
+// microsoft_compliance_partner.windows_trusted_device_id_only set, stops
+// reporting a Windows host's Entra device ID that it already reported to Entra.
+// Entra keeps the last status Fleet reported for that device.
+type ActivityTypeStoppedReportingMicrosoftEntraDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	EntraDeviceID   string `json:"entra_device_id"`
+	// Reason is "no_trusted_certificate" or "replaced".
+	Reason           string `json:"reason"`
+	NewEntraDeviceID string `json:"new_entra_device_id,omitempty"`
+}
+
+func (a ActivityTypeStoppedReportingMicrosoftEntraDeviceID) ActivityName() string {
+	return "stopped_reporting_microsoft_entra_device_id"
+}
+
+func (a ActivityTypeStoppedReportingMicrosoftEntraDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeStoppedReportingMicrosoftEntraDeviceID) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeReleasedDeviceFromAB struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
