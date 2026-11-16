@@ -14,7 +14,7 @@ describe("Chip", () => {
   });
 
   it("renders a leading icon when icon prop is provided", () => {
-    render(<Chip icon="user" text="Self service" />);
+    render(<Chip icon="self-service" text="Self service" />);
 
     expect(screen.getByText("Self service")).toBeInTheDocument();
     expect(document.querySelector("svg")).not.toBeNull();
@@ -22,11 +22,15 @@ describe("Chip", () => {
 
   it("renders a trailing icon when trailingIcon prop is provided", () => {
     render(
-      <Chip icon="refresh" text="Auto install" trailingIcon="chevron-right" />
+      <Chip
+        icon="install-auto"
+        text="Auto install"
+        trailingIcon="chevron-right"
+      />
     );
 
     expect(screen.getByText("Auto install")).toBeInTheDocument();
-    // Two icons (refresh + chevron-right) so two svgs.
+    // Two icons (install-auto + chevron-right) so two svgs.
     expect(document.querySelectorAll("svg").length).toBe(2);
   });
 

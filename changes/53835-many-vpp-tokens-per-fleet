@@ -1,0 +1,4 @@
+- Added support for assigning multiple VPP tokens to a fleet. A VPP token on "All fleets" is now available alongside fleet-specific tokens. When adding an App Store app, you choose the VPP token, and each app installs with the token it was added from.
+- Added `vpp_token_id` to the list and add App Store app API endpoints. It's required when a fleet has more than one VPP token.
+- Added `location` to App Store apps in GitOps to pick the VPP token. Apps without `location` come from the fleet's first-added VPP token, and apps already added keep their token.
+- Deleting a VPP token now removes its apps from every fleet.

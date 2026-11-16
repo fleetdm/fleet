@@ -98,7 +98,7 @@ describe("Self-service - UpdateSoftwareItem component", () => {
       screen.queryByRole("button", { name: /^Update$/ })
     ).not.toBeInTheDocument();
 
-    // Failed status button is red (the error icon, not the grey error-outline).
+    // Failed status button is red (the error icon, not the grey error).
     const failedButton = screen.getByRole("button", { name: "Failed" });
     expect(failedButton).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();

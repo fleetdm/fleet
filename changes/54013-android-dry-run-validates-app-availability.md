@@ -1,0 +1,1 @@
+- Fixed GitOps dry runs not checking if Android apps are unavailable

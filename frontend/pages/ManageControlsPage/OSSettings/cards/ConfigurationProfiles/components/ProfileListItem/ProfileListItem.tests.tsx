@@ -18,7 +18,7 @@ const render = createCustomRenderer();
 
 const baseProfile: IMdmProfile = {
   profile_uuid: "d123",
-  team_id: 0,
+  fleet_id: 0,
   name: "My DDM profile",
   platform: "darwin",
   identifier: "com.example.test",
@@ -60,31 +60,45 @@ describe("ProfileListItem", () => {
     expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
-  it("shows a renamed mobileconfig's PayloadDisplayName and UUID on hover", async () => {
-    const { user } = renderItem({
-      ...baseProfile,
-      name: "Renamed profile",
-      payload_display_name: "Original display name",
-    });
+  it("opens the details modal when the row is clicked", async () => {
+    const onClickInfo = jest.fn();
+    const { user } = render(
+      <ProfileListItem
+        isPremium={false}
+        profile={baseProfile}
+        onClickInfo={onClickInfo}
+        onClickEdit={noop}
+        onClickDelete={noop}
+      />
+    );
 
-    await user.hover(screen.getByText("Renamed profile"));
-
-    await waitFor(() => {
-      expect(screen.getByText(/PayloadDisplayName:/)).toBeInTheDocument();
-    });
-    expect(screen.getByText("Original display name")).toBeInTheDocument();
-    expect(screen.getByText("d123")).toBeInTheDocument();
+    await user.click(screen.getByText("Uploaded", { exact: false }));
+    expect(onClickInfo).toHaveBeenCalledWith(baseProfile);
   });
 
-  it("shows only the UUID on hover when there's no PayloadDisplayName and the name fits", async () => {
+  it("does not open the details modal when an action is clicked", async () => {
+    const onClickInfo = jest.fn();
+    const onClickEdit = jest.fn();
+    const { user } = render(
+      <ProfileListItem
+        isPremium={false}
+        profile={baseProfile}
+        onClickInfo={onClickInfo}
+        onClickEdit={onClickEdit}
+        onClickDelete={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Edit/ }));
+    expect(onClickEdit).toHaveBeenCalled();
+    expect(onClickInfo).not.toHaveBeenCalled();
+  });
+
+  it("shows no name tooltip when the name fits", async () => {
     const { user } = renderItem(baseProfile);
 
     await user.hover(screen.getByText("My DDM profile"));
 
-    await waitFor(() => {
-      expect(screen.getByText("d123")).toBeInTheDocument();
-    });
-    expect(screen.queryByText(/PayloadDisplayName:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Name:/)).not.toBeInTheDocument();
   });
 
@@ -95,9 +109,8 @@ describe("ProfileListItem", () => {
     await user.hover(screen.getByText("My DDM profile"));
 
     await waitFor(() => {
-      expect(screen.getByText("d123")).toBeInTheDocument();
+      expect(screen.getByText(/^Name:/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/^Name:/)).toBeInTheDocument();
     expect(screen.getAllByText("My DDM profile")).toHaveLength(2);
   });
 });

@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -40,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -59,7 +59,7 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/apple
+// GET /apns
 ////////////////////////////////////////////////////////////////////////////////
 
 type getAppleMDMResponse struct {
@@ -100,130 +100,6 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	return appleMDM, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/apple_bm
-////////////////////////////////////////////////////////////////////////////////
-
-type getAppleBMResponse struct {
-	*fleet.AppleBM
-	Err error `json:"error,omitempty"`
-}
-
-func (r getAppleBMResponse) Error() error { return r.Err }
-
-func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	appleBM, err := svc.GetAppleBM(ctx)
-	if err != nil {
-		return getAppleBMResponse{Err: err}, nil
-	}
-
-	return getAppleBMResponse{AppleBM: appleBM}, nil
-}
-
-func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/apple/request_csr
-////////////////////////////////////////////////////////////////////////////////
-
-type requestMDMAppleCSRRequest struct {
-	EmailAddress string `json:"email_address"`
-	Organization string `json:"organization"`
-}
-
-type requestMDMAppleCSRResponse struct {
-	*fleet.AppleCSR
-	Err error `json:"error,omitempty"`
-}
-
-func (r requestMDMAppleCSRResponse) Error() error { return r.Err }
-
-func requestMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*requestMDMAppleCSRRequest)
-
-	csr, err := svc.RequestMDMAppleCSR(ctx, req.EmailAddress, req.Organization)
-	if err != nil {
-		return requestMDMAppleCSRResponse{Err: err}, nil
-	}
-	return requestMDMAppleCSRResponse{
-		AppleCSR: csr,
-	}, nil
-}
-
-func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (*fleet.AppleCSR, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	if err := fleet.ValidateEmail(email); err != nil {
-		if strings.TrimSpace(email) == "" {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email_address", "missing email address"))
-		}
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email_address", fmt.Sprintf("invalid email address: %v", err)))
-	}
-	if strings.TrimSpace(org) == "" {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("organization", "missing organization"))
-	}
-
-	// create the raw SCEP CA cert and key (creating before the CSR signing
-	// request so that nothing can fail after the request is made, except for the
-	// network during the response of course)
-	scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate SCEP CA cert and key")
-	}
-
-	// create the APNs CSR
-	apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate APNs CSR")
-	}
-
-	// request the signed APNs CSR from fleetdm.com
-	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
-		if ferr, ok := err.(apple_mdm.FleetWebsiteError); ok {
-			status := http.StatusBadGateway
-			if ferr.ExitType == "invalidEmailDomain" {
-				domain := "@" + strings.SplitN(email, "@", 2)[1]
-				return nil, ctxerr.Wrap(
-					ctx,
-					fleet.NewInvalidArgumentError(
-						"email_address",
-						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
-					),
-				)
-			}
-			return nil, ctxerr.Wrap(
-				ctx,
-				fleet.NewUserMessageError(
-					fmt.Errorf("FleetDM CSR request failed: %w", err),
-					status,
-				),
-			)
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
-	}
-
-	// PEM-encode the cert and keys
-	scepCACertPEM := certificate.EncodeCertPEM(scepCACert)
-	scepCAKeyPEM := certificate.EncodePrivateKeyPEM(scepCAKey)
-	apnsKeyPEM := certificate.EncodePrivateKeyPEM(apnsKey)
-
-	return &fleet.AppleCSR{
-		APNsKey:  apnsKeyPEM,
-		SCEPCert: scepCACertPEM,
-		SCEPKey:  scepCAKeyPEM,
-	}, nil
-}
-
 func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -241,7 +117,7 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/setup/eula
+// POST /setup_experience/eula
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMEULARequest struct {
@@ -362,7 +238,7 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPla
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/setup/eula?token={token}
+// GET /setup_experience/eula/{token}
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMEULARequest struct {
@@ -407,7 +283,7 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/setup/eula/{token}/metadata
+// GET /setup_experience/eula/metadata
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMEULAMetadataRequest struct {
@@ -449,7 +325,7 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEU
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// DELETE /mdm/setup/eula
+// DELETE /setup_experience/eula/{token}
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMEULARequest struct {
@@ -662,20 +538,22 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	for _, uuid := range result.FailedUUIDs {
 		failedUUIDs[uuid] = struct{}{}
 	}
+	activities := make([]activity_api.ActivityDetails, 0, len(hosts))
 	for _, h := range hosts {
 		if _, failed := failedUUIDs[h.UUID]; failed {
 			continue
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeRanCustomMDMCommand{
+		activities = append(activities, &fleet.ActivityTypeRanCustomMDMCommand{
 			HostID:          h.ID,
 			HostDisplayName: h.DisplayName(),
 			HostUUID:        h.UUID,
 			CommandUUID:     result.CommandUUID,
 			RequestType:     result.RequestType,
 			Platform:        commandPlatform,
-		}); err != nil {
-			svc.logger.ErrorContext(ctx, "failed to log activity for ran custom mdm command", "err", err, "host_uuid", h.UUID)
-		}
+		})
+	}
+	if err := svc.NewActivities(ctx, authz.UserFromContext(ctx), activities); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to log activities for ran custom mdm command", "err", err, "command_uuid", result.CommandUUID)
 	}
 
 	return result, nil
@@ -818,6 +696,11 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
 	}
 
+	// Host-secret placeholders are Fleet's to write, never an admin's
+	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate apple mdm command")
+	}
+
 	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
 		lic, err := svc.License(ctx)
 		if err != nil {
@@ -915,7 +798,7 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/commandresults
+// GET /commands/results
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMCommandResultsRequest struct {
@@ -1182,7 +1065,7 @@ func (svc *Service) getHostIdentifierMDMCommandResults(ctx context.Context, comm
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/commands
+// GET /commands
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMCommandsRequest struct {
@@ -1203,10 +1086,8 @@ func (r listMDMCommandsResponse) Error() error { return r.Err }
 
 // We the DecodeBody method to perform custom validation before hitting the service layer.
 func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	if req.CommandStatus != "" && req.HostIdentifier == "" {
-		return &fleet.BadRequestError{
-			Message: `"host_identifier" must be specified when filtering by "command_status".`,
-		}
+	if strings.TrimSpace(req.HostIdentifier) == "" {
+		return fleet.NewParamRequiredDeprecationError("host_identifier")
 	}
 
 	if req.CommandStatus != "" {
@@ -1300,6 +1181,10 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		User:            vc.User,
 		IncludeObserver: true,
 	}, opts)
+	if fleet.IsNotFound(err) && opts.Filters.HostIdentifier != "" {
+		// Not found covers hosts in teams the user can't see, so they look like hosts that don't exist.
+		return nil, nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1355,22 +1240,15 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		results = allowedResults
 	}
 
-	if len(results) == 0 && opts.Filters.HostIdentifier != "" {
-		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
-		var nve fleet.NotFoundError
-		if errors.As(err, &nve) {
-			return nil, nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
-		}
-	}
 	return results, total, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/disk_encryption/summary
+// GET /disk_encryption
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMDiskEncryptionSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMDiskEncryptionSummaryResponse struct {
@@ -1402,12 +1280,11 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles/summary (deprecated)
 // GET /configuration_profiles/summary
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMProfilesSummaryResponse struct {
@@ -1478,8 +1355,8 @@ func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []string, authzAction any, authorizer fleet.TeamIDSetter) ([]*fleet.Host, error) {
 	// load hosts (lite) by uuids, check that the user has the rights to run
 	// commands for every affected team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return nil, err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, authz.GitOpsHostListError(ctx, err)
 	}
 
 	// here we use a global admin as filter because we want to get all hosts that
@@ -1513,14 +1390,14 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 		authorizer.SetTeamID(authzTeamID)
 
 		if err := svc.authz.Authorize(ctx, authorizer, authzAction); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
+			return nil, ctxerr.Wrap(ctx, authz.GitOpsMDMCommandError(ctx, authzTeamID, err))
 		}
 	}
 	return hosts, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles/{uuid}
+// GET /configuration_profiles/{uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMConfigProfileRequest struct {
@@ -1636,7 +1513,7 @@ func (svc *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// DELETE /mdm/profiles/{uuid}
+// DELETE /configuration_profiles/{uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMConfigProfileRequest struct {
@@ -1818,7 +1695,7 @@ func isWindowsProfileUUID(profileUUID string) bool {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/profiles (Create Apple or Windows MDM Config Profile)
+// POST /configuration_profiles (Create Apple or Windows MDM Config Profile)
 ////////////////////////////////////////////////////////////////////////////////
 
 type newMDMConfigProfileRequest struct {
@@ -2167,7 +2044,7 @@ type updateMDMConfigProfileRequest struct {
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := updateMDMConfigProfileRequest{}
 
-	profileUUID, ok := mux.Vars(r)["profile_uuid"]
+	profileUUID, ok := platform_http.PathVar(r, "profile_uuid")
 	if !ok || profileUUID == "" {
 		return nil, &fleet.BadRequestError{Message: "profile_uuid is required"}
 	}
@@ -2441,7 +2318,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+	cp, teamName, err := svc.parseAndValidateAndroidConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
 	if err != nil {
 		return nil, err
 	}
@@ -2491,7 +2368,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 // parseAndValidateAndroidConfigProfile runs the validation shared by the
 // create and update paths. It returns the constructed profile (with labels
 // set) and the team's name (empty string for no team).
-func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, string, error) {
+func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMAndroidConfigProfile, string, error) {
 	// check that Android MDM is enabled - the middleware of the endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
@@ -2524,7 +2401,10 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 		RawJSON: data,
 	}
 	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
+		if _, ok := errors.AsType[*fleet.RemovedFleetVariableError](err); ok {
+			return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
+		}
+		err := &fleet.BadRequestError{Message: errPrefix + err.Error()}
 		return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
 	// After ValidateUserProvided, as for Windows, so its own 400s win.
@@ -2619,7 +2499,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMAndroidConfigProfile
 	var varNames []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		cp, _, err = svc.parseAndValidateAndroidConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
 		if err != nil {
 			return err
 		}
@@ -2695,13 +2575,13 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, teamID, authz.UserFromContext(ctx))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+		return nil, err
 	}
 
-	if len(labels) != len(uniqueNames) {
-		labelError := fleet.NewMissingLabelError(uniqueNames, labels)
+	if len(found) != len(uniqueNames) {
+		labelError := fleet.NewMissingLabelError(uniqueNames, found)
 		return nil, &fleet.BadRequestError{
 			InternalErr: labelError,
 			Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", labelError.MissingLabelName),
@@ -2709,17 +2589,18 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	}
 
 	// NOTE(lucas): To not break API error string returned above
-	// AND for code reusability we are a-ok with loading labels again in verifyLabelsToAssociate.
+	// AND for code reusability we are a-ok with loading labels again in loadLabelsToAssociate.
 	// This can definitely be optimized if need be.
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
+	scoped, err := loadLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	profLabels := make(map[string]fleet.ConfigurationProfileLabel)
-	for labelName, labelID := range labels {
+	for labelName, label := range scoped {
 		profLabels[labelName] = fleet.ConfigurationProfileLabel{
 			LabelName: labelName,
-			LabelID:   labelID,
+			LabelID:   label.ID,
 		}
 	}
 	return profLabels, nil
@@ -2762,8 +2643,8 @@ func (svc *Service) validateProfileLabelSets(ctx context.Context, teamID *uint, 
 }
 
 type batchModifyMDMConfigProfilesRequest struct {
-	TeamID                *uint                                      `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName              *string                                    `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID                *uint                                      `json:"-" query:"fleet_id,optional"`
+	TeamName              *string                                    `json:"-" query:"fleet_name,optional"`
 	DryRun                bool                                       `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	ConfigurationProfiles []fleet.BatchModifyMDMConfigProfilePayload `json:"configuration_profiles"`
 }
@@ -2813,8 +2694,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID        *uint   `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName      *string `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID        *uint   `json:"-" query:"fleet_id,optional"`
+	TeamName      *string `json:"-" query:"fleet_name,optional"`
 	DryRun        bool    `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
 	AssumeEnabled *bool   `json:"-" query:"assume_enabled,optional"` // if true, assume Windows MDM is enabled; honored on dry run only
 	// the incoming mdm.enable_profile_validation from GitOps; honored on dry run only
@@ -2861,6 +2742,10 @@ func (bcp *backwardsCompatProfilesParam) UnmarshalJSON(data []byte) error {
 
 // isMobileconfigContents reports whether a batch entry is a .mobileconfig
 // (an Apple XML plist) rather than a declaration, Windows or Android profile.
+func isAppleDeclarationContents(contents []byte) bool {
+	return mdm.GetRawProfilePlatform(contents) == "darwin" && mdm.GuessProfileExtension(contents) == "json"
+}
+
 func isMobileconfigContents(contents []byte) bool {
 	return mdm.GetRawProfilePlatform(contents) == "darwin" &&
 		bytes.HasPrefix(bytes.TrimSpace(contents), []byte("<"))
@@ -2998,6 +2883,31 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
+	// Checked before the dry run drops profiles with secrets. Declarations are named by the Name field, not their
+	// content, so only their identifier is checked.
+	for _, p := range profiles {
+		if isAppleDeclarationContents(p.Contents) {
+			if err := fleet.ValidateNoSecretsInDeclarationIdentifier(p.Contents); err != nil {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+			}
+			continue
+		}
+		if !isMobileconfigContents(p.Contents) {
+			continue
+		}
+		err := fleet.ValidateNoSecretsInProfileName(p.Contents)
+		if err == nil {
+			err = fleet.ValidateNoSecretsInProfileIdentifier(p.Contents)
+		}
+		if err != nil {
+			name := p.Name
+			if name == "" {
+				name = fleet.PayloadDisplayNameFromMobileconfig(p.Contents)
+			}
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(name, err.Error()))
+		}
+	}
+
 	// We will not validate the profiles containing secret variables during dry run.
 	// This is because the secret variables may not be available (or correct) in the gitops dry run.
 	if dryRun {
@@ -3005,6 +2915,13 @@ func (svc *Service) BatchSetMDMProfiles(
 		for _, p := range profiles {
 			if len(fleet.ContainsPrefixVars(string(p.Contents), fleet.ServerSecretPrefix)) == 0 {
 				profilesWithoutSecrets = append(profilesWithoutSecrets, p)
+				continue
+			}
+			// A removed Fleet variable doesn't depend on the secrets, so the dry run still reports it like a real run does.
+			if isMobileconfigContents(p.Contents) || mdm.GetRawProfilePlatform(p.Contents) == "android" {
+				if err := fleet.FindRemovedFleetVariable(variables.Find(string(p.Contents))...); err != nil {
+					return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", p.Name), err.Error()))
+				}
 			}
 		}
 		profiles = profilesWithoutSecrets
@@ -3024,6 +2941,14 @@ func (svc *Service) BatchSetMDMProfiles(
 		// If the profile does not contain secrets, then expanded and original content point to the same slice/memory location.
 		pCopy.Contents = []byte(expanded)
 		profilesWithSecrets[i] = pCopy
+
+		// A secret used as a number leaves the raw JSON unrecognizable, so such a declaration is only recognized here,
+		// once expanded. Like the other checks that need secrets, this one doesn't run on a dry run.
+		if !isAppleDeclarationContents(p.Contents) && isAppleDeclarationContents(pCopy.Contents) {
+			if err := fleet.ValidateNoSecretsInDeclarationIdentifier(p.Contents); err != nil {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+			}
+		}
 	}
 
 	if err := validateProfiles(profilesWithSecrets); err != nil {
@@ -3131,7 +3056,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	var seenAppleDeclOSUpdate, seenWindowsProfileOSUpdate bool
 	var rawAppleDecl, rawWindowsProfile []byte
 	for _, p := range appleDeclsSlice {
-		if !bytes.Contains(p.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+		// Match the parsed Type, not the raw JSON: the type string can be \u-escaped or appear in another declaration's payload.
+		if p.Type != apple_mdm.DeclarationTypeSoftwareUpdate {
 			continue
 		}
 
@@ -3372,14 +3298,14 @@ func fmtDuplicateNameErrMsg(name string) string {
 func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_name", "cannot specify both fleet_id and fleet_name"))
 	}
 	if tmID != nil || tmName != nil {
 		license, _ := license.FromContext(ctx)
 		if !license.IsPremium() {
-			field := "team_id"
+			field := "fleet_id"
 			if tmName != nil {
-				field = "team_name"
+				field = "fleet_name"
 			}
 			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
@@ -3817,11 +3743,11 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles (List profiles)
+// GET /configuration_profiles (List profiles)
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMConfigProfilesRequest struct {
-	TeamID      *uint             `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID      *uint             `query:"fleet_id,optional"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -3879,7 +3805,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateDiskEncryptionRequest struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `json:"fleet_id"`
 	// EnableDiskEncryption is deprecated: when provided it applies to every
 	// per-platform setting. Use the per-platform objects instead.
 	EnableDiskEncryption *bool                                       `json:"enable_disk_encryption"`
@@ -3913,9 +3839,7 @@ func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error {
-	// TODO(mna): this should all move to the ee package when we remove the
-	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
-	// leave here so both endpoints can reuse the same logic.
+	// TODO(mna): this should all move to the ee package.
 
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
@@ -3923,9 +3847,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, p
 		return fleet.ErrMissingLicense
 	}
 
-	// for historical reasons (the deprecated PATCH /mdm/apple/settings
-	// endpoint), this uses an Apple-specific struct for authorization. Can be improved
-	// once we remove the deprecated endpoint.
+	// for historical reasons, this uses an Apple-specific struct for authorization.
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleSettingsPayload{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -4394,7 +4316,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		var fwe apple_mdm.FleetWebsiteError
 		if errors.As(err, &fwe) {
-			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
+			// fleetdm.com returns a bad request here if the email is invalid.
 			if fwe.ExitType == "invalidEmailDomain" {
 				domain := "@" + strings.SplitN(vc.Email(), "@", 2)[1]
 				return nil, ctxerr.Wrap(
@@ -4912,7 +4834,7 @@ func mdmUnenrollEndpoint(ctx context.Context, request any, svc fleet.Service) (f
 
 func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, hostID)
@@ -4925,7 +4847,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
 		TeamID: host.TeamID,
 	}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	installedFromDEP := false

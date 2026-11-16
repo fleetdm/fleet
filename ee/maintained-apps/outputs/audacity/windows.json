@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.1.262721353",
+      "version": "4.0.2.263060742",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity' AND version_compare(version, '4.0.1.262721353') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity' AND version_compare(version, '4.0.2.263060742') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('audacity.exe','audacity4.exe'));"
       },
-      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.1/audacity-win-4.0.1-x86_64.msi",
+      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-4.0.2/audacity-win-4.0.2-x86_64.msi",
       "install_script_ref": "8355b1dc",
       "uninstall_script_ref": "1a857574",
-      "sha256": "efb652bf04168f5d4893f28b7cefaaf5ef385d9251544540ac774e3bf54793a3",
+      "sha256": "ff6cad670befee96fee563056965fa5e17bfa8c7ea3aba10c461c18799409e22",
       "default_categories": [
         "Productivity"
       ],

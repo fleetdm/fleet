@@ -79,7 +79,8 @@ func newPSSOTestService(t *testing.T, cfg pssoTestConfig) (*Service, context.Con
 
 // memNonceStore is a minimal in-memory fleet.PSSONonceStore.
 type memNonceStore struct {
-	nonces map[string]struct{}
+	nonces         map[string]struct{}
+	usedAssertions map[string]struct{}
 }
 
 func (s *memNonceStore) Store(_ context.Context, nonce string, _ time.Duration) error {
@@ -95,6 +96,17 @@ func (s *memNonceStore) Consume(_ context.Context, nonce string) (bool, error) {
 		return false, nil
 	}
 	delete(s.nonces, nonce)
+	return true, nil
+}
+
+func (s *memNonceStore) MarkLoginAssertionUsed(_ context.Context, fingerprint string, _ time.Duration) (bool, error) {
+	if _, ok := s.usedAssertions[fingerprint]; ok {
+		return false, nil
+	}
+	if s.usedAssertions == nil {
+		s.usedAssertions = map[string]struct{}{}
+	}
+	s.usedAssertions[fingerprint] = struct{}{}
 	return true, nil
 }
 

@@ -1,0 +1,1 @@
+- Set `XDG_RUNTIME_DIR` when running dialogs and Fleet Desktop as the logged-in user, so the LUKS passphrase prompt opens on Wayland compositors whose socket isn't `wayland-0` (e.g. Hyprland on Omarchy).

@@ -1,6 +1,6 @@
 {
   "name": "Dropshare",
-  "unique_identifier": "net.mkswap.Dropshare6",
+  "unique_identifier": "net.mkswap.Dropshare5",
   "token": "dropshare",
   "installer_format": "zip",
   "slug": "dropshare/darwin",

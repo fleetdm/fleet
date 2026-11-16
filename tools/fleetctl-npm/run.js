@@ -17,7 +17,6 @@ const { arch } = require("process");
 const { pipeline } = require("stream/promises");
 
 const axios = require("axios");
-const { rimrafSync } = require("rimraf");
 const { extract } = require("tar");
 const { version } = require("./package.json");
 
@@ -99,7 +98,7 @@ const install = async () => {
 const run = async () => {
   if (!existsSync(binPath)) {
     // Remove any existing binaries before installing the new one.
-    rimrafSync(binDir);
+    rmSync(binDir, { recursive: true, force: true });
     console.log(`Installing fleetctl ${strippedVersion}...`);
     try {
       await install();

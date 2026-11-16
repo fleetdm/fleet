@@ -4,6 +4,8 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for th
 
 **Transform how you interact with your endpoint data. Query osquery, check compliance, drill into per-host policy results, and investigate CVEs natively from Claude, Cursor, and any MCP-compatible AI agent.**
 
+> In Fleet Premium, the MCP server is built into the Fleet server, so there's nothing extra to deploy. That's the recommended way to use it: see the [Fleet MCP guide](https://fleetdm.com/guides/fleet-mcp). This README covers the standalone server.
+
 🔗 **GitHub Repo:** [https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp](https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp)
 🔗 **Learn about MCP:** [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 🔗 **Learn about Fleet:** [https://fleetdm.com/](https://fleetdm.com/)
@@ -73,7 +75,7 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 | Dimension | How to filter | Notes |
 |---|---|---|
 | **User / IP / hostname** | `query=` substring | One field — Fleet's substring matcher covers all of these plus serial / model. |
-| **Display name** | not searchable via `query` | Use `host_id` directly (from a candidate list or prior call). The `/hosts/identifier/:id` endpoint also matches `computer_name` exactly, which often equals the display name. |
+| **Display name** | not searchable via `query` | Use `host_id` directly (from a candidate list or prior call). `/hosts/:id` also matches `computer_name` exactly, which often equals the display name. |
 | **Fleet** | `fleet=<name>` | Resolved server-side to `fleet_id`. |
 | **Label** | `label=<name>` | Resolved server-side to `label_id`. Single label only — Fleet's API doesn't accept multi-label intersection. |
 | **Policy result** | `policy_id=<id>` + `policy_response=passing\|failing` | `policy_response` requires `policy_id`; otherwise rejected at the MCP layer. |
@@ -81,10 +83,10 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 
 ### Hostname collisions and host_id
 
-Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporting `hostname=mac`). Fleet's `/hosts/identifier/:id` endpoint silently returns one of them, which used to mean policy lookups could quietly target the wrong host. The current tools handle this with a **query-first** resolver:
+Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporting `hostname=mac`). Fleet's `/hosts/:id` endpoint silently returns one of them, which used to mean policy lookups could quietly target the wrong host. The current tools handle this with a **query-first** resolver:
 
 1. If you pass `host_id` (numeric), it goes straight to `/hosts/:host_id` — exact, no collision possible.
-2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/identifier/:id` (catches UUIDs and `computer_name`-only matches).
+2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/:id` (catches UUIDs and `computer_name`-only matches).
 
 If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (where the user-friendly display name does not match any indexed string field) are best fetched with `host_id` from the start.
 
@@ -97,7 +99,7 @@ Configure the server using environment variables. For local development, the `Ma
 | `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://your-fleet.example.com` |
 | `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). **Use the least-privileged Fleet role that covers your tools:** an **observer** / **observer-plus** token is enough for all tools - **admin is not required** |
 | `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32` (**min 32 chars — the server refuses a weaker one**). **Required on every transport (including stdio); the server refuses to start without it.** In HTTP mode (Streamable HTTP and SSE) the server validates it on every request; in stdio mode it must be set but is not checked at runtime (the client launches the binary as a local subprocess). |
-| `PORT` | `8080` | Port for the HTTP listener (Streamable HTTP and SSE). Ignored in stdio mode. Render injects this automatically. |
+| `PORT` | `8080` | Port for the HTTP listener (Streamable HTTP and SSE). Ignored in stdio mode. |
 | `LOG_LEVEL` | `info` | Log verbosity: `debug` / `info` / `warn` / `error`. Note: `debug` logs the route shape of every Fleet API call (path before query string only — no PII identifiers). Avoid `debug` in production deployments where logs are shipped to a centralized aggregator. |
 | `FLEET_TLS_SKIP_VERIFY` | `false` | Skip TLS certificate verification. **Hard-gated to localhost — the server refuses to start with this set and a non-loopback `FLEET_BASE_URL`.** Conflicts with `FLEET_CA_FILE`. |
 | `FLEET_CA_FILE` | *(optional)* | Path to a PEM CA certificate for self-signed Fleet instances |
@@ -172,9 +174,11 @@ Or add it to your project's `.mcp.json` or your global MCP config:
 }
 ```
 
-For a remote deployment (e.g. Render), use `https://your-fleet-mcp.onrender.com/mcp` as the URL.
+For a remote deployment, use the server's public `/mcp` URL (e.g. `https://fleet-mcp.example.com/mcp`).
 
 The endpoint is stateless: it issues no `Mcp-Session-Id` and answers `GET /mcp` with `405` (no server-initiated stream), which the MCP spec allows. Every tool is plain request/response, so nothing is lost, and clients keep working across server restarts and redeploys.
+
+For health checks, probe `GET /healthz`: it returns `200 ok` without authentication, so it stays green under load.
 
 ### SSE Transport (legacy)
 
@@ -284,10 +288,10 @@ This means Claude Desktop will surface a confirmation prompt before it fires —
 
 The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's Fleet role — with a role that can run live queries (observer-plus or higher), compromise of the MCP gives an attacker full host inventory access plus arbitrary osquery against every enrolled device. Defenses:
 
-- **Terminate TLS in front (the listener is plain HTTP).** The server speaks HTTP on `PORT`, so the `MCP_AUTH_TOKEN` bearer and all traffic are **cleartext on the wire**. For any non-loopback deployment, run it behind a TLS-terminating layer: **Render's edge already does this**; for a self-hosted / private-network deployment, put a reverse proxy (nginx / Caddy / Cloudflare) in front and only expose the HTTPS endpoint. The `stdio` transport is unaffected (no network hop).
+- **Terminate TLS in front (the listener is plain HTTP).** The server speaks HTTP on `PORT`, so the `MCP_AUTH_TOKEN` bearer and all traffic are **cleartext on the wire**. For any non-loopback deployment, put a TLS-terminating reverse proxy (nginx / Caddy / Cloudflare) in front and only expose the HTTPS endpoint. The `stdio` transport is unaffected (no network hop).
 - **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
 - **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
-- **Rate limiting / DoS protection belongs upstream.** The MCP runs no limiter of its own — Fleet typically runs behind a reverse proxy / edge that terminates TLS (above) and throttles requests, which is where per-client rate limiting belongs (Render's edge; or a reverse proxy / WAF such as nginx / Caddy / Cloudflare). The strong `MCP_AUTH_TOKEN` is the brute-force defense, and failed-auth requests are rejected by the MCP before they ever reach Fleet.
+- **Rate limiting / DoS protection belongs upstream.** The MCP runs no limiter of its own — Fleet typically runs behind a reverse proxy / edge that terminates TLS (above) and throttles requests, which is where per-client rate limiting belongs (a reverse proxy / WAF such as nginx / Caddy / Cloudflare). The strong `MCP_AUTH_TOKEN` is the brute-force defense, and failed-auth requests are rejected by the MCP before they ever reach Fleet.
 - **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user). To limit the user to the endpoints the MCP calls, see [Required API endpoints](#required-api-endpoints).
 - **Read vs run = the token's Fleet role.** The MCP acts with exactly the role of `FLEET_API_KEY` (it has no mode of its own), and Fleet enforces it. The read-only tools work with an **observer** token; the one mutating tool, `run_live_query`, needs **observer_plus** (or admin / maintainer / technician) per Fleet's RBAC — an observer token gets a `403`. **No maintainer or admin role is required.** Recommended: an API-only user with the **lowest role** your tools need — **observer** for a read-only deployment, **observer_plus** if you use `run_live_query`. The MCP doesn't infer or log these rights — it only enforces the API-only requirement above.
 - **Live queries run arbitrary osquery (scope the token).** `run_live_query` dispatches arbitrary osquery to devices — exactly like Fleet's own UI / `fleetctl` / live-query REST API, which the MCP proxies. Tables such as `curl` / `curl_certificate` / `carves` can make outbound requests or exfiltrate file content from a managed device (e.g. cloud-metadata credentials). **This is a Fleet/osquery capability, not specific to the MCP** — the MCP does not (and should not) special-case it. The MCP-layer control is a **least-privilege `FLEET_API_KEY`** (an observer token → Fleet rejects live queries entirely). To remove the capability everywhere (UI, `fleetctl`, scheduled, MCP), disable the tables on the osquery agent: `--disable_tables=curl,curl_certificate,carves,yara,yara_events` via fleetd/orbit agent options.
@@ -332,21 +336,6 @@ Read-only tools:
 
 Live report results stream over a WebSocket, which isn't subject to endpoint restrictions, so there's nothing else to select. The `-seed` flag also needs [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report).
 
-## Deploying to Render
-
-`cmd/fleet-mcp/render.yaml` is a standalone Render Blueprint, separate from the root `render.yaml` used by the main Fleet service.
-
-1. Push `cmd/fleet-mcp/render.yaml` to your repo.
-2. In the Render dashboard go to **New → Blueprint**.
-3. Connect your repo and set the **Blueprint file path** to `cmd/fleet-mcp/render.yaml`.
-4. During setup, fill in the following environment variables:
-   - `FLEET_BASE_URL` — URL of your Fleet instance
-   - `FLEET_API_KEY` — Fleet API token
-   - `MCP_AUTH_TOKEN` — generate with `openssl rand -hex 32`
-5. `PORT` is injected automatically by Render — no action needed.
-6. Health check: point Render's (or any orchestrator's) probe at **`GET /healthz`** — it returns `200 ok` unauthenticated, so it stays green under load.
-
-
 ## Development
 
 ### Project layout
@@ -389,7 +378,7 @@ Tunables (env vars) for the schema layer:
 A few non-obvious behaviors discovered while building this:
 
 - **`?query=` substring matching covers hostname, serial, primary IP, hardware model, AND host_users (username/email/IdP groups)** — but **not** display_name. Use `host_id` for display-name-only lookups.
-- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on the identifier endpoint even though `?query=` (which does not index `computer_name`) does not match it.
+- **`/hosts/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on `/hosts/:id` even though `?query=` (which does not index `computer_name`) does not match it.
 - **Hostname collisions are real** in any sizeable fleet. Always prefer `host_id` when you have it. The substring resolver returns up to 50 candidates with `display_name` / `serial` / `primary_ip` for disambiguation.
 - **`policy_response` requires `policy_id`** at the API level. The MCP layer rejects the orphan combination upfront with a clean error rather than letting Fleet return a vague 400.
 - **Fleet's `/hosts` endpoint silently ignores several filter params we tested.** As of Fleet 4.85, passing `cve=CVE-X`, `platform=linux`, or `label_id=N` to `GET /hosts` is accepted without error but returns the unfiltered host list — the MCP cannot rely on these. Workarounds shipped in this repo:

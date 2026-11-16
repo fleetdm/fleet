@@ -60,7 +60,7 @@ Before shipping a policy, check the SQL as cheaply as the situation allows and s
 
 ## Labels
 
-- **Dynamic** (`label_membership_type: dynamic`, the default): `query` plus optional `platform` (`darwin`, `windows`, `linux`, `ubuntu`, `centos`). Name them for what they select, the way the repo does (for example "Macs with Docker Desktop installed", "x86-based Windows hosts").
+- **Dynamic** (`label_membership_type: dynamic`, the default): `query` plus optional `platform` (`darwin`, `windows`, `linux`). Name them for what they select, the way the repo does (for example "Macs with Docker Desktop installed", "x86-based Windows hosts").
 - **Manual**: `hosts:` is a list of host ids, serials, or UUIDs (quoted). Omitting `hosts` preserves the current membership; an empty list clears it.
 - **Host vitals**: `criteria: {vital: <name>, value: <value>}`, where the vital is an IdP attribute (`end_user_idp_department`, `end_user_idp_group`, …) or a custom host vital (`vital: custom_host_vital` plus `custom_host_vital_id`).
 

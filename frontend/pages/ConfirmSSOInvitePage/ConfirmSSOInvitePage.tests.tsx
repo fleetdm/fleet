@@ -54,7 +54,7 @@ describe("ConfirmSSOInvitePage", () => {
         name: "Invitee Name",
         sso_enabled: true,
         global_role: "observer",
-        teams: [],
+        fleets: [],
       },
     });
     mockUsersAPI.create.mockResolvedValue({} as IUser);

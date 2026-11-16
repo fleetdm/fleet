@@ -3,6 +3,7 @@
   "slug": "obs/windows",
   "package_identifier": "OBSProject.OBSStudio",
   "unique_identifier": "OBS Studio",
+  "open_process_names": ["obs32.exe", "obs64.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/obs_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/obs_uninstall.ps1",
   "installer_arch": "x64",

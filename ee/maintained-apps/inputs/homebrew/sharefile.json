@@ -1,6 +1,6 @@
 {
   "name": "ShareFile",
-  "unique_identifier": "com.citrixfiles.ens.service",
+  "unique_identifier": "com.sharefile.desktop.widget",
   "token": "sharefile",
   "installer_format": "dmg",
   "slug": "sharefile/darwin",

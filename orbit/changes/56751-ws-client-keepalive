@@ -1,1 +1,0 @@
-- Fixed hosts not answering refetches and live reports for up to 10 minutes after waking from sleep or changing networks (e.g. Wi-Fi or VPN) when the WebSocket transport is enabled. Orbit now pings the server to detect a dead connection within about 45 seconds and falls back to polling.

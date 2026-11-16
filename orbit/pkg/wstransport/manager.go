@@ -42,6 +42,9 @@ type Options struct {
 	// OnOrbitConfig, when set, is called on orbit/config notifications, to
 	// fetch the orbit config now. Non-blocking.
 	OnOrbitConfig func()
+	// OnOsqueryConfig, when set, is called on osquery/config notifications,
+	// to fetch the osquery config now. Non-blocking.
+	OnOsqueryConfig func()
 	// OnConnect, when set, is called after each successful connect.
 	// Non-blocking.
 	OnConnect func()
@@ -244,6 +247,10 @@ func (m *Manager) readLoop(conn *websocket.Conn) error {
 			m.trigger()
 		case fleet.AgentWSMessageTypeOrbitConfig:
 			m.onOrbitConfig()
+		case fleet.AgentWSMessageTypeOsqueryConfig:
+			if m.opts.OnOsqueryConfig != nil {
+				m.opts.OnOsqueryConfig()
+			}
 		default:
 			// Ignored for forward compatibility.
 			log.Debug().Str("type", msg.Type).Msg("ignoring unknown websocket notification type")

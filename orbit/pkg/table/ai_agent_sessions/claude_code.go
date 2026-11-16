@@ -3,6 +3,7 @@ package ai_agent_sessions
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -215,110 +216,161 @@ func parseClaudeCode(src *source, r *recorder) {
 	// An API response is written as one record per content block, each
 	// repeating the response's usage, so usage is counted once per id.
 	usage := map[string]claudeUsage{}
-	for i, path := range src.files {
-		_ = scanJSONL(src.sc, path, func(line []byte) bool {
-			if r.done() {
-				return false
-			}
-			var head struct {
-				Type string `json:"type"`
-			}
-			if r.skipNext() {
-				if json.Unmarshal(line, &head) == nil && isClaudeMessage(head.Type) {
-					r.next()
-				}
+	scanFiles(src.sc, src.files, recordStamp, func(i int, line []byte) bool {
+		if r.done() {
+			return false
+		}
+		if r.skipNext() {
+			// Before the page, only what numbers the messages and calls is
+			// decoded.
+			skim, ok := claudeSkim(line)
+			switch {
+			case !ok:
+				claudeSkipRecord(r, line)
+				return true
+			case !isClaudeMessage(skim.Type):
+				return true
+			case r.skip(skim.calls()):
 				return true
 			}
-			var (
-				rec     claudeRecord[json.RawMessage]
-				body    claudeBody
-				sysBody claudeBody
-				ok      bool
-			)
-			if r.rows() {
-				if ok = json.Unmarshal(line, &rec) == nil; ok {
-					body, sysBody = claudeFullBody(rec.Message.Content), claudeFullBody(rec.Content)
+		}
+		var (
+			rec     claudeRecord[json.RawMessage]
+			body    claudeBody
+			sysBody claudeBody
+			ok      bool
+		)
+		if r.rows() {
+			if ok = json.Unmarshal(line, &rec) == nil; ok {
+				body, sysBody = claudeFullBody(rec.Message.Content), claudeFullBody(rec.Content)
+			}
+		} else {
+			var slim claudeRecord[claudeBody]
+			if ok = json.Unmarshal(line, &slim) == nil; ok {
+				rec.claudeHead, rec.Message.ID, rec.Message.Model, rec.Message.Usage =
+					slim.claudeHead, slim.Message.ID, slim.Message.Model, slim.Message.Usage
+				body = slim.Message.Content
+			}
+		}
+		if !ok {
+			claudeSkipRecord(r, line)
+			return true
+		}
+		r.seen = true
+		// Sub-agent turns: their own files, or older versions' records in
+		// the session's file.
+		sub := i > 0 || rec.IsSidechain
+		ts := parseTime(rec.Timestamp)
+		s.observe(ts)
+		if !sub {
+			// The first directory is where the session started; later ones
+			// may be wherever the agent cd'd into.
+			if s.ProjectPath == "" {
+				s.ProjectPath = rec.CWD
+			}
+			if rec.GitBranch != "" {
+				s.GitBranch = rec.GitBranch
+			}
+			if rec.Version != "" {
+				s.AgentVersion = rec.Version
+			}
+		}
+
+		switch rec.Type {
+		case "user":
+			r.message(ts, "", rec.CWD)
+			claudeUser(r, rec.claudeHead, body, sub)
+		case "assistant":
+			model := rec.Message.Model
+			if strings.HasPrefix(model, "<") { // "<synthetic>" isn't a model
+				model = ""
+			}
+			if model != "" && !sub {
+				s.Model = model
+			}
+			if id := rec.Message.ID; id == "" {
+				s.AssistantMessages++
+				if u := rec.Message.Usage; u != nil {
+					addClaudeUsage(s, *u)
 				}
 			} else {
-				var slim claudeRecord[claudeBody]
-				if ok = json.Unmarshal(line, &slim) == nil; ok {
-					rec.claudeHead, rec.Message.ID, rec.Message.Model, rec.Message.Usage =
-						slim.claudeHead, slim.Message.ID, slim.Message.Model, slim.Message.Usage
-					body = slim.Message.Content
-				}
-			}
-			if !ok {
-				// Count it as the skip path above would, so a message's index
-				// doesn't depend on the page asked for.
-				if json.Unmarshal(line, &head) == nil && isClaudeMessage(head.Type) {
-					r.next()
-				}
-				return true
-			}
-			r.seen = true
-			// Sub-agent turns: their own files, or older versions' records in
-			// the session's file.
-			sub := i > 0 || rec.IsSidechain
-			ts := parseTime(rec.Timestamp)
-			s.observe(ts)
-			if !sub {
-				// The first directory is where the session started; later ones
-				// may be wherever the agent cd'd into.
-				if s.ProjectPath == "" {
-					s.ProjectPath = rec.CWD
-				}
-				if rec.GitBranch != "" {
-					s.GitBranch = rec.GitBranch
-				}
-				if rec.Version != "" {
-					s.AgentVersion = rec.Version
-				}
-			}
-
-			switch rec.Type {
-			case "user":
-				r.message(ts, "", rec.CWD)
-				claudeUser(r, rec.claudeHead, body, sub)
-			case "assistant":
-				model := rec.Message.Model
-				if strings.HasPrefix(model, "<") { // "<synthetic>" isn't a model
-					model = ""
-				}
-				if model != "" && !sub {
-					s.Model = model
-				}
-				if id := rec.Message.ID; id == "" {
+				u, dup := usage[id]
+				if !dup {
 					s.AssistantMessages++
-					if u := rec.Message.Usage; u != nil {
-						addClaudeUsage(s, *u)
-					}
-				} else {
-					u, dup := usage[id]
-					if !dup {
-						s.AssistantMessages++
-					}
-					if rec.Message.Usage != nil {
-						u = *rec.Message.Usage
-					}
-					usage[id] = u
 				}
-				r.message(ts, model, rec.CWD)
-				claudeAssistant(r, body)
-			case "system":
-				r.message(ts, "", rec.CWD)
-				r.text(roleSystem, blockText, func() string { return textOf(sysBody.text) })
+				if rec.Message.Usage != nil {
+					u = *rec.Message.Usage
+				}
+				usage[id] = u
 			}
-			// Other record types (attachments, queued prompts, titles) aren't
-			// part of the conversation.
-			return true
-		})
-	}
+			r.message(ts, model, rec.CWD)
+			claudeAssistant(r, body)
+		case "system":
+			r.message(ts, "", rec.CWD)
+			r.text(roleSystem, blockText, func() string { return textOf(sysBody.text) })
+		}
+		// Other record types (attachments, queued prompts, titles) aren't
+		// part of the conversation.
+		return true
+	})
 	for _, u := range usage {
 		addClaudeUsage(s, u)
 	}
 }
 
 func isClaudeMessage(t string) bool { return t == "user" || t == "assistant" || t == "system" }
+
+// claudeSkipRecord counts a record that doesn't decode as a message, if its
+// type says it is one, so a message's index doesn't depend on the page
+// asked for.
+func claudeSkipRecord(r *recorder, line []byte) {
+	var head struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(line, &head) == nil && isClaudeMessage(head.Type) {
+		r.next()
+	}
+}
+
+// claudeSkimRecord is a record decoded only as far as numbering it: the
+// fields the full decode can reject, and its blocks' types.
+type claudeSkimRecord struct {
+	claudeHead
+	Message struct {
+		ID      string       `json:"id"`
+		Model   string       `json:"model"`
+		Usage   *claudeUsage `json:"usage"`
+		Content []struct {
+			Type string `json:"type"`
+		} `json:"content"`
+	} `json:"message"`
+}
+
+func (rec claudeSkimRecord) calls() int {
+	n := 0
+	for _, b := range rec.Message.Content {
+		if b.Type == "tool_use" {
+			n++
+		}
+	}
+	return n
+}
+
+// claudeSkim decodes a record as claudeSkimRecord, accepting exactly the
+// records claudeRecord accepts so a skipped message is numbered as a read
+// one. The blocks are decoded in place rather than through a custom type,
+// which would scan the (large) tool inputs twice; a string body is then a
+// type error, which is fine: it has no calls, and if the record fails the
+// full decode too it is counted the same way either way.
+func claudeSkim(line []byte) (claudeSkimRecord, bool) {
+	var rec claudeSkimRecord
+	err := json.Unmarshal(line, &rec)
+	var typeErr *json.UnmarshalTypeError
+	if err != nil && (!errors.As(err, &typeErr) || typeErr.Field != "message.content") {
+		return rec, false
+	}
+	return rec, true
+}
 
 func addClaudeUsage(s *Session, u claudeUsage) {
 	s.InputTokens += u.InputTokens

@@ -168,7 +168,12 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
-      expect(screen.getByText("User scope profile")).toBeInTheDocument();
+      // Profiles live in their own modal, not in the setup modal.
+      expect(screen.queryByText("User scope profile")).not.toBeInTheDocument();
+      expect(screen.queryByText("Windows profile")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Windows browser profile")
+      ).not.toBeInTheDocument();
       // Check for input fields
       expect(screen.getByText("IdP ID")).toBeInTheDocument();
       expect(
@@ -204,11 +209,10 @@ describe("Conditional access", () => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      // Fill in text fields. textboxes[0] is the read-only User scope profile.
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
-      await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
-      await user.type(textboxes[3], "https://example.com"); // Audience URI
+      await user.type(textboxes[0], TEST_OKTA_IDP_ID); // IdP ID
+      await user.type(textboxes[1], "https://example.com/acs"); // ACS URL
+      await user.type(textboxes[2], "https://example.com"); // Audience URI
 
       // Upload certificate file
       const certificateContent = `-----BEGIN CERTIFICATE-----
@@ -267,9 +271,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       });
 
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], TEST_OKTA_IDP_ID);
-      await user.type(textboxes[2], "https://example.com/acs");
-      await user.type(textboxes[3], "https://example.com");
+      await user.type(textboxes[0], TEST_OKTA_IDP_ID);
+      await user.type(textboxes[1], "https://example.com/acs");
+      await user.type(textboxes[2], "https://example.com");
 
       // Trailing newline after -----END CERTIFICATE----- is standard PEM output
       // (e.g. from openssl). skipTrim keeps it intact; without the exemption,
@@ -407,6 +411,72 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await waitFor(() => {
         expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
       });
+    });
+
+    it("Opens the Okta settings modal when clicking Edit on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      await user.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(screen.getByLabelText("IdP ID")).toHaveValue(TEST_OKTA_IDP_ID);
+    });
+
+    it("Opens the Okta profiles modal when clicking Profiles on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+      mockServer.use(
+        http.get(baseUrl("/conditional_access/idp/apple/profile"), () =>
+          HttpResponse.text("<plist>apple</plist>")
+        )
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      await user.click(screen.getByRole("button", { name: "Profiles" }));
+
+      expect(
+        screen.getByText("Okta conditional access profiles")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("tab", { name: "macOS", selected: true })
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Close" }));
+
+      expect(
+        screen.queryByText("Okta conditional access profiles")
+      ).not.toBeInTheDocument();
     });
 
     it("Shows both providers as configured when both are set up", async () => {
@@ -878,10 +948,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Does not show an error while the user types and clears, before blur", async () => {
       const { user } = await renderOktaModal();
 
-      // textboxes[0] is the readonly Editor; [1] is IdP ID.
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "x");
-      await user.clear(textboxes[1]);
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
 
       expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
     });
@@ -890,8 +959,8 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const { user } = await renderOktaModal();
 
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "x");
-      await user.clear(textboxes[1]);
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
       // Blur by tabbing to the next field.
       await user.tab();
 
@@ -902,12 +971,12 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const { user } = await renderOktaModal();
 
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "x");
-      await user.clear(textboxes[1]);
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
       await user.tab();
       await screen.findByText("Enter IdP ID");
 
-      await user.click(textboxes[1]);
+      await user.click(textboxes[0]);
 
       expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
     });

@@ -18,7 +18,7 @@ import (
 // Script represents a saved script that can be executed on a host.
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
-	TeamID *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint  `json:"fleet_id" db:"team_id"`
 	Name   string `json:"name" db:"name"`
 	// ScriptContents is not returned in payloads nor is it returned
 	// from reading from the database, it is only used as payload to
@@ -50,6 +50,13 @@ func (s *Script) ValidateNewScript() error {
 		return errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 	}
 
+	// PowerShell scripts don't support any shebang, so catch this before
+	// ValidateHostScriptContents / shebangInfo error on an unrecognized
+	// interpreter like pwsh.
+	if ext == ".ps1" && strings.HasPrefix(s.ScriptContents, "#!") {
+		return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
+	}
+
 	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
@@ -69,11 +76,6 @@ func (s *Script) ValidateNewScript() error {
 		// python scripts must be directly executable (via a python shebang).
 		if !directExecute || kind != shebangPython {
 			return errors.New(`Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`)
-		}
-	case ".ps1":
-		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
-		if directExecute {
-			return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
 		}
 	}
 
@@ -173,7 +175,7 @@ type HostScriptRequestPayload struct {
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
-	TeamID          uint   `json:"team_id,omitempty" renameto:"fleet_id"`
+	TeamID          uint   `json:"fleet_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -299,9 +301,8 @@ type HostScriptResult struct {
 	// user-requested run. Not returned as part of any API endpoint.
 	IsInternal bool `json:"-" db:"is_internal"`
 
-	// TeamID is only used for authorization, it must be set to the team id of
-	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"-"` // TODO: should we omit this from the json result?
+	// TeamID carries the fleet of the host or script being authorized to the policy through ExtraAuthz. It is never serialized or stored.
+	TeamID *uint `json:"-" db:"-"`
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -336,6 +337,11 @@ type HostScriptResult struct {
 
 func (hsr HostScriptResult) AuthzType() string {
 	return "host_script_result"
+}
+
+// ExtraAuthz implements authz.ExtraAuthzer so the policy reads team_id without it being in the response.
+func (hsr HostScriptResult) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{"team_id": hsr.TeamID}, nil
 }
 
 type BatchScriptHost struct {
@@ -743,7 +749,7 @@ type HostLockWipeStatus struct {
 type ScriptResponse struct {
 	// TeamID is the id of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// ID is the id of the script
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the script
@@ -777,7 +783,10 @@ const (
 	PendingActionWipe          PendingDeviceAction = "wipe"
 	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
 	PendingActionLocation      PendingDeviceAction = "location"
-	PendingActionNone          PendingDeviceAction = ""
+	// PendingActionUnenroll is never derived from HostLockWipeStatus. It replaces "wipe" for Android BYOD hosts, where the
+	// pending WIPE only removes the work profile (see suppressAndroidBYODWipeStatus).
+	PendingActionUnenroll PendingDeviceAction = "unenroll"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
@@ -903,8 +912,8 @@ var (
 
 type BatchExecutionStatusFilter struct {
 	ScriptID *uint   `json:"script_id,omitempty"`
-	TeamID   *uint   `json:"team_id,omitempty" renameto:"fleet_id"` // if nil, it is scoped to hosts that are assigned to "No team"
-	Status   *string `json:"status,omitempty"`                      // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	TeamID   *uint   `json:"fleet_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`   // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
 	// ExecutionID is the unique identifier for a single execution of the script.
 	ExecutionID *string `json:"execution_id,omitempty"`
 	// Limit is the maximum number of results to return.
@@ -930,7 +939,7 @@ type BatchActivity struct {
 	ActivityType     BatchExecutionActivityType    `json:"-" db:"activity_type"`
 	ScriptID         *uint                         `json:"script_id" db:"script_id"`
 	ScriptName       string                        `json:"script_name" db:"script_name"`
-	TeamID           *uint                         `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID           *uint                         `json:"fleet_id" db:"team_id"`
 	CreatedAt        time.Time                     `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time                     `json:"updated_at" db:"updated_at"`
 	NotBefore        *time.Time                    `json:"not_before,omitempty" db:"not_before"`

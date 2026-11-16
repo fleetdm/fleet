@@ -209,7 +209,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
 
-4. Head to **Settings > Payments & Billing > Apps & Books** and download the content token for the organization unit you want to use. Each token is based on an organization unit in Apple Business.
+4. Select your organization's name in the top-right corner, then select **Settings > Organizational Units**. Select the organizational unit you want to use, and then select **Download** next to **Content Token**. Each token is based on an organizational unit in Apple Business.
 
 5. Upload the content token (.vpptoken file) to Fleet.
 
@@ -227,7 +227,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 4. Sign in to [Apple Business](https://business.apple.com).
 
-5. Head to **Settings > Payments & Billing > Apps & Books** and download your content token.
+5. Select your organization's name in the top-right corner, then select **Settings > Organizational Units**. Select the organizational unit for the token you're renewing, and then select **Download** next to **Content Token**.
 
 6. Upload the content token (.vpptoken file) to Fleet.
 

@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="icon/calendar-clock">
+<path id="Vector" d="M14 5V4C14 3.64638 13.8595 3.30724 13.6095 3.05719C13.3594 2.80714 13.0203 2.66667 12.6667 2.66667H3.33333C2.97971 2.66667 2.64057 2.80714 2.39052 3.05719C2.14048 3.30724 2 3.64638 2 4V13.3333C2 13.687 2.14048 14.0261 2.39052 14.2761C2.64057 14.5262 2.97971 14.6667 3.33333 14.6667H5.66667" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" stroke="#59636E"/>
+<path id="Vector_2" d="M10.6667 1.33333V4" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" stroke="#59636E"/>
+<path id="Vector_3" d="M5.33333 1.33333V4" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" stroke="#59636E"/>
+<path id="Vector_4" d="M2 6.66667H5.33333" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" stroke="#59636E"/>
+<path id="Vector_5" d="M11.6667 11.6667L10.6667 10.8667V9.33333" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" stroke="#59636E"/>
+<path id="Vector_6" d="M14.6667 10.6667C14.6667 12.8758 12.8758 14.6667 10.6667 14.6667C8.45753 14.6667 6.66667 12.8758 6.66667 10.6667C6.66667 8.45753 8.45753 6.66667 10.6667 6.66667C12.8758 6.66667 14.6667 8.45753 14.6667 10.6667Z" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" stroke="#59636E"/>
+</g>
+</svg>

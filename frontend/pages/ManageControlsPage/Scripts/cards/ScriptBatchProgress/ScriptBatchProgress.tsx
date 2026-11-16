@@ -167,11 +167,7 @@ const ScriptBatchProgress = ({
               ]}
             />
             <div className={`${baseClass}__row-errors`}>
-              <Icon
-                name="error-outline"
-                color="ui-fleet-black-50"
-                size="small"
-              />{" "}
+              <Icon name="error" color="ui-fleet-black-50" />{" "}
               <div>{errored_host_count}</div>
             </div>
           </div>

@@ -154,8 +154,8 @@ const SoftwareTitleDetailsPage = ({
   );
   // Per-version target for the currently-open Edit or Delete modal on a
   // multi-version App Store app title (iOS/iPadOS/Android). `null` keeps the
-  // back-compat behavior (single `app_store_app` target). Parallel to
-  // `selectedInstallerId` for custom packages.
+  // back-compat single-version target. Parallel to `selectedInstallerId` for
+  // custom packages.
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(
     null
   );
@@ -203,7 +203,8 @@ const SoftwareTitleDetailsPage = ({
   );
 
   const isAvailableForInstall =
-    !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
+    !!softwareTitle?.software_package ||
+    !!softwareTitle?.app_store_apps?.length;
 
   const installerResult = useSoftwareInstaller(
     softwareTitle ?? ({} as ISoftwareTitleDetails)
@@ -211,7 +212,7 @@ const SoftwareTitleDetailsPage = ({
 
   // Canonical "this title can hold multiple custom packages" flag.
   // Single source of truth for three coordinated behaviors:
-  //   1. Library section shows the "+ Add package" action
+  //   1. Library section shows the "+ Add version" action
   //   2. Accordion rows render the self-service / auto-install icons
   //   3. SoftwareSummaryCard hides the Self-service / Auto install chips
   //      AND collapses the Actions dropdown into a pencil-icon Edit button
@@ -228,7 +229,7 @@ const SoftwareTitleDetailsPage = ({
   // macOS VPP and in-house `.ipa` stay single-version. Premium-only.
   const canActivateMultipleVersions =
     !!isPremiumTier &&
-    !!softwareTitle?.app_store_app &&
+    !!softwareTitle?.app_store_apps?.length &&
     (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
       isAndroidSoftwareSource(softwareTitle.source));
 
@@ -242,7 +243,8 @@ const SoftwareTitleDetailsPage = ({
       });
 
       // Keep the admin on the title when deleting one of multiple App Store
-      // app versions, or when the title still has inventory versions to show.
+      // app versions or custom packages, or when the title still has
+      // inventory versions to show.
       // The `versions` count is Inventory (host-installed); a freshly-added
       // multi-version title with no installs has `versions.length === 0`, so
       // without the explicit sibling signal a version delete would redirect.
@@ -338,7 +340,7 @@ const SoftwareTitleDetailsPage = ({
     const packages =
       title.packages ??
       (title.software_package ? [title.software_package] : []);
-    const appStore = title.app_store_app;
+    const appStore = title.app_store_apps?.[0];
 
     // No installable to render at all.
     if (packages.length === 0 && !appStore) {
@@ -385,8 +387,12 @@ const SoftwareTitleDetailsPage = ({
       const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
       return (
         <LibraryItemAccordion
-          filename={appStore.name}
-          version={appStore.latest_version}
+          filename={getDisplayedSoftwareName(
+            title.name,
+            title.display_name,
+            title.bundle_identifier
+          )}
+          version={appStore.version}
           // Apple App Store apps' version updates automatically, so the time the
           // app was added to Fleet reads as the time this version was added.
           addedAt={isAndroidPlayStoreApp ? appStore.created_at : undefined}
@@ -478,7 +484,11 @@ const SoftwareTitleDetailsPage = ({
           </div>
           <div className={`${baseClass}__app-versions-header-text`}>
             <span className={`${baseClass}__app-versions-header-name`}>
-              {appStore.name}
+              {getDisplayedSoftwareName(
+                title.name,
+                title.display_name,
+                title.bundle_identifier
+              )}
             </span>
             <span className={`${baseClass}__app-versions-header-version`}>
               {isAndroidPlayStoreApp ? (
@@ -487,7 +497,7 @@ const SoftwareTitleDetailsPage = ({
                 />
               ) : (
                 <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
-                  {appStore.latest_version}
+                  {appStore.version}
                 </TooltipWrapper>
               )}
             </span>
@@ -596,7 +606,7 @@ const SoftwareTitleDetailsPage = ({
       ));
     };
 
-    // "Add package" lives on titles that can hold multiple custom packages —
+    // "Add version" lives on titles that can hold multiple custom packages —
     // gated by the page-level `canActivateMultiplePackages` flag. FMA, VPP,
     // Google Play, and iOS in-house .ipa are all single-package by design
     // and so don't surface the action at all. The Library section already
@@ -611,7 +621,7 @@ const SoftwareTitleDetailsPage = ({
         disabled={atPackageLimit}
         icon="plus"
       >
-        Add package
+        Add version
       </Button>
     );
 
@@ -641,7 +651,7 @@ const SoftwareTitleDetailsPage = ({
           <TooltipWrapper
             tipContent={
               <>
-                This title already has {MAX_PACKAGES_PER_TITLE} packages. Delete
+                This title already has {MAX_PACKAGES_PER_TITLE} versions. Delete
                 one you no longer use before adding.
               </>
             }
@@ -681,7 +691,7 @@ const SoftwareTitleDetailsPage = ({
     // users and single-slot types fall through to the legacy wording.
     const getDescriptionContent = (): string => {
       if (canActivateMultiplePackages && canEditSoftware) {
-        return "Add packages for a staged rollout or to support multiple architectures.";
+        return "Add versions for a staged rollout or to support multiple architectures.";
       }
       if (canActivateMultipleVersions && canEditSoftware) {
         return "Add versions to scope different configurations to hosts.";
@@ -693,7 +703,7 @@ const SoftwareTitleDetailsPage = ({
     // App-store and custom-package paths are mutually exclusive at the data
     // layer (the backend rejects custom uploads against an FMA/VPP title), so
     // only one branch ever renders rows. The wrapper stays the same shape.
-    // The "Add package" action sits on the description row (not the section
+    // The "Add version" action sits on the description row (not the section
     // header) so it visually aligns with the secondary copy rather than the
     // h2 title — matches the Library row layout in Figma page 2:130.
     return (
@@ -785,6 +795,8 @@ const SoftwareTitleDetailsPage = ({
     const versionCount = title.app_store_apps?.length ?? 0;
     const isVersionDelete = selectedVersionId !== null;
     const isLastVersion = isVersionDelete && versionCount <= 1;
+    const siblingPackagesRemain =
+      canActivateMultiplePackages && (title.packages?.length ?? 0) > 1;
     return (
       <DeleteSoftwareModal
         softwareId={softwareId}
@@ -796,11 +808,13 @@ const SoftwareTitleDetailsPage = ({
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
         canActivateMultiplePackages={canActivateMultiplePackages}
+        packageName={selected?.name}
         onExit={closeDeleteModal}
         onSuccess={() => {
           closeDeleteModal();
           onDeleteInstaller({
-            siblingVersionsRemain: isVersionDelete && !isLastVersion,
+            siblingVersionsRemain:
+              (isVersionDelete && !isLastVersion) || siblingPackagesRemain,
           });
         }}
       />
@@ -888,7 +902,7 @@ const SoftwareTitleDetailsPage = ({
     if (!showAddPackageModal || typeof teamIdForApi !== "number") return null;
     // First-added is the canonical source for the file-type restriction.
     // Multi-package titles always have `packages[0]`; back-compat titles fall
-    // back to `software_package`. The "+ Add package" button is gated on the
+    // back to `software_package`. The "+ Add version" button is gated on the
     // section being visible, so we always have a name here.
     const existingPackageName =
       title.packages?.[0]?.name ?? title.software_package?.name ?? "";
@@ -911,18 +925,18 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderAddVersionModal = (title: ISoftwareTitleDetails) => {
+    const firstVersion = title.app_store_apps?.[0];
     if (
       !showAddVersionModal ||
-      !title.app_store_app ||
+      !firstVersion ||
       typeof teamIdForApi !== "number"
     ) {
       return null;
     }
     const existingVersionNames = title.app_store_apps?.map((v) => v.name) ?? [];
     // The Add version button only renders on titles that already have at
-    // least one version (an `app_store_app`), so every Add is a 2nd+ version.
-    // Default Target to Custom so the admin's label scope wins the
-    // first-added race.
+    // least one version, so every Add is a 2nd+ version. Default Target to
+    // Custom so the admin's label scope wins the first-added race.
     const defaultTargetCustom = true;
     const defaultAutoUpdate = getDefaultAutoUpdateFromVersions(
       title.app_store_apps
@@ -930,7 +944,11 @@ const SoftwareTitleDetailsPage = ({
     return (
       <AddVersionModal
         teamId={teamIdForApi}
-        appStore={title.app_store_app}
+        appStore={firstVersion}
+        titleDisplayName={getDisplayedSoftwareName(
+          title.name,
+          title.display_name
+        )}
         existingVersionNames={existingVersionNames}
         defaultTargetCustom={defaultTargetCustom}
         defaultAutoUpdate={defaultAutoUpdate}

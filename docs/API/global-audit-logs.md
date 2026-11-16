@@ -38,7 +38,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"public_ip": "168.226.215.82"
+  "public_ip": "168.226.215.82"
 }
 ```
 
@@ -54,8 +54,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"email": "foo@example.com",
-	"public_ip": "168.226.215.82"
+  "email": "foo@example.com",
+  "public_ip": "168.226.215.82"
 }
 ```
 
@@ -71,8 +71,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"email": "foo@example.com",
-	"public_ip": "168.226.215.82"
+  "email": "foo@example.com",
+  "public_ip": "168.226.215.82"
 }
 ```
 
@@ -93,7 +93,7 @@ This activity contains the following field:
 
 ```json
 {
-	"webhook_url": "https://example.com/notify"
+  "webhook_url": "https://example.com/notify"
 }
 ```
 
@@ -108,7 +108,7 @@ This activity contains the following field:
 
 ```json
 {
-	"webhook_url": "https://example.com/notify"
+  "webhook_url": "https://example.com/notify"
 }
 ```
 
@@ -607,11 +607,11 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
-	"fleet_id": 123,
-	"fleet_name": "Workstations",
-	"global": false
+  "team_id": 123,
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "global": false
 }
 ```
 
@@ -756,8 +756,12 @@ This activity contains the following fields:
 - [wiped_host](#wiped-host)
 - [failed_wipe](#failed-wipe)
 - [escrowed_disk_encryption_key](#escrowed-disk-encryption-key)
+- [rotated_disk_encryption_key](#rotated-disk-encryption-key)
+- [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
 - [bound_host_to_idp_account](#bound-host-to-idp-account)
 - [refused_host_idp_account_change](#refused-host-idp-account-change)
+- [set_host_google_device_id](#set-host-google-device-id)
+- [deleted_host_google_device_id](#deleted-host-google-device-id)
 - [edited_host_idp_data](#edited-host-idp-data)
 - [read_host_recovery_lock_password](#read-host-recovery-lock-password)
 - [escrowed_recovery_lock_password](#escrowed-recovery-lock-password)
@@ -811,11 +815,11 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 42,
-	"host_display_name": "USER-WINDOWS",
-	"host_serial": "ABC123",
-	"triggered_by": "expiration",
-	"host_expiry_window": 30
+  "host_id": 42,
+  "host_display_name": "USER-WINDOWS",
+  "host_serial": "ABC123",
+  "triggered_by": "expiration",
+  "host_expiry_window": 30
 }
 ```
 
@@ -832,41 +836,63 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": "123",
-	"host_serial": "B04FL3ALPT21",
-	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+  "host_id": "123",
+  "host_serial": "B04FL3ALPT21",
+  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }
 ```
 
 ### host_enrollment_rejected
 
-Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+Generated when Fleet refuses an enrollment in either of these cases:
+- An Orbit or osquery enrollment is refused under the one-time enroll secret rules. See the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) for Windows.
+- An automatic enrollment (ADE) is refused because the host is in a fleet that requires end user authentication and the device didn't complete it.
+
+Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
 
 This activity contains the following fields:
 - "host_id": ID of the host the attempt targeted, or null if the host is unknown.
 - "host_display_name": Display name of the host, if known.
 - "host_serial": Serial number the enrolling device presented.
-- "host_uuid": Hardware UUID the enrolling device presented.
-- "platform": Platform the enrolling device presented.
-- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "host_uuid": Hardware UUID the enrolling device presented. For "apple_mdm", this is the device's UDID.
+- "platform": Platform of the enrolling device.
+- "enrollment_plane": What attempted to enroll. One of:
+  - "orbit" or "osquery": a fleetd component.
+  - "apple_mdm": an Apple device during automatic enrollment (ADE).
 - "reason": Why the attempt was refused. One of:
-  - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile to issue a new one.
+  - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
-  - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business.
+  - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+  - "end_user_authentication_required": the host is in a fleet that requires end user authentication, but the device tried to enroll without completing it. This happens when the device got its automatic enrollment configuration before its fleet required end user authentication, or before it moved to that fleet. Erase and reactivate the device so it goes through end user authentication. Fleet only records this reason when every other enrollment check passed.
 
 #### Example
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Anna's MacBook Pro",
-	"host_serial": "C02ABC123DEF",
-	"host_uuid": "5F0F24C3-1F58-4C2B-9E7B-1F0E6C2B4D6A",
-	"platform": "darwin",
-	"enrollment_plane": "orbit",
-	"reason": "one_time_secret_spent"
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_serial": "C02ABC123DEF",
+  "host_uuid": "5F0F24C3-1F58-4C2B-9E7B-1F0E6C2B4D6A",
+  "platform": "darwin",
+  "enrollment_plane": "orbit",
+  "reason": "one_time_secret_spent"
 }
 ```
+
+#### Example: automatic enrollment
+
+```json
+{
+  "host_id": 456,
+  "host_display_name": "Anna's iPad",
+  "host_serial": "DMPXK2ABCDEF",
+  "host_uuid": "00008103-001A2B3C4D5E6F70",
+  "platform": "ipados",
+  "enrollment_plane": "apple_mdm",
+  "reason": "end_user_authentication_required"
+}
+```
+
 
 ### mdm_enrolled
 
@@ -1040,8 +1066,44 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "PWNED-VM-123"
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123"
+}
+```
+
+### rotated_disk_encryption_key
+
+Generated when a user triggers rotation of a host's disk encryption key.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+### failed_to_rotate_disk_encryption_key
+
+Generated when Fleet can't rotate a host's disk encryption key after a rotation was triggered. Fleet then prompts the end user for their password at their next login to escrow a new key.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": Why the rotation failed, as reported by the host or by Fleet.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "detail": "The host reported an error: NSTaskExitCode 34"
 }
 ```
 
@@ -1058,9 +1120,26 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
-	"idp_email": "ana.torres@example.com",
-	"replaced_idp_email": "ben.ito@example.com"
+  "host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+  "idp_email": "ana.torres@example.com",
+  "replaced_idp_email": "ben.ito@example.com"
+}
+```
+
+## unbound_host_from_idp_account
+
+Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account the host was linked to.
+
+#### Example
+
+```json
+{
+  "host_uuid": "C8D90CC1-0C2A-52D4-A6F4-DF55522A740F",
+  "idp_email": "anna@example.com"
 }
 ```
 
@@ -1077,9 +1156,47 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
-	"idp_email": "mallory@example.com",
-	"existing_idp_email": "ana.torres@example.com"
+  "host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+  "idp_email": "mallory@example.com",
+  "existing_idp_email": "ana.torres@example.com"
+}
+```
+
+### set_host_google_device_id
+
+Generated when a host is marked as company-owned in Google by saving its Google device ID, for example by the registration page from the Google conditional access guide. Not generated when the same ID is set again.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "google_device_id": The host's device ID in Google.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's iPhone",
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
+### deleted_host_google_device_id
+
+Generated when a user unmarks a host as company-owned in Google by removing its Google device ID. Not generated when the host has no Google device ID.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "google_device_id": The Google device ID that was removed.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's iPhone",
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
 }
 ```
 
@@ -1096,9 +1213,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 1,
-	"host_display_name": "Anna's MacBook Pro",
-	"host_idp_username": "anna.chao@example.com"
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_idp_username": "anna.chao@example.com"
 }
 ```
 
@@ -1131,8 +1248,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Anna's MacBook Pro"
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -1148,8 +1265,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Anna's MacBook Pro"
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -1201,8 +1318,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Anna's MacBook Pro"
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -1357,10 +1474,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"label_id": 123,
-	"label_name": "foo",
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations"
+  "label_id": 123,
+  "label_name": "foo",
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
 }
 ```
 
@@ -1378,10 +1495,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"label_id": 123,
-	"label_name": "foo",
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations"
+  "label_id": 123,
+  "label_name": "foo",
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
 }
 ```
 
@@ -1399,10 +1516,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"label_id": 123,
-	"label_name": "foo",
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations"
+  "label_id": 123,
+  "label_name": "foo",
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
 }
 ```
 
@@ -1430,6 +1547,8 @@ This activity contains the following fields:
 - [edited_android_profile](#edited-android-profile)
 - [resent_configuration_profile](#resent-configuration-profile)
 - [resent_configuration_profile_batch](#resent-configuration-profile-batch)
+- [installed_opt_in_configuration_profile](#installed-opt-in-configuration-profile)
+- [uninstalled_opt_in_configuration_profile](#uninstalled-opt-in-configuration-profile)
 - [enabled_recovery_lock_password](#enabled-recovery-lock-password)
 - [disabled_recovery_lock_password](#disabled-recovery-lock-password)
 - [edited_host_name_template](#edited-host-name-template)
@@ -1916,6 +2035,48 @@ This activity contains the following fields:
 }
 ```
 
+### installed_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is installed on a host by the user.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements"
+}
+```
+
+### uninstalled_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is uninstalled on a host by the user.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the uninstallation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements"
+}
+```
+
 ### enabled_recovery_lock_password
 
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
@@ -1986,9 +2147,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations",
-	"asset_name": "My Asset"
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations",
+  "asset_name": "My Asset"
 }
 ```
 
@@ -2043,9 +2204,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"fleet_id": 1,
-	"fleet_name": "💻 Workstations",
-	"asset_name": "My Asset"
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations",
+  "asset_name": "My Asset"
 }
 ```
 
@@ -2055,6 +2216,8 @@ This activity contains the following fields:
 - [deleted_macos_setup_assistant](#deleted-macos-setup-assistant)
 - [added_bootstrap_package](#added-bootstrap-package)
 - [deleted_bootstrap_package](#deleted-bootstrap-package)
+- [added_end_user_agreement](#added-end-user-agreement)
+- [deleted_end_user_agreement](#deleted-end-user-agreement)
 - [enabled_macos_setup_end_user_auth](#enabled-macos-setup-end-user-auth)
 - [disabled_macos_setup_end_user_auth](#disabled-macos-setup-end-user-auth)
 - [enabled_apple_business_only_enrollment](#enabled-apple-business-only-enrollment)
@@ -2151,6 +2314,36 @@ This activity contains the following fields:
 }
 ```
 
+### added_end_user_agreement
+
+Generated when a user uploads a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
+
+This activity contains the following fields:
+- "platform": the platform of the agreement ("darwin" or "windows").
+
+#### Example
+
+```json
+{
+  "platform": "windows"
+}
+```
+
+### deleted_end_user_agreement
+
+Generated when a user deletes a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
+
+This activity contains the following fields:
+- "platform": the platform of the agreement ("darwin" or "windows").
+
+#### Example
+
+```json
+{
+  "platform": "darwin"
+}
+```
+
 ### enabled_macos_setup_end_user_auth
 
 Generated when a user turns on IdP authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
@@ -2214,11 +2407,11 @@ This activity contains the following fields:
 
 ```json
 {
-	"platform": "darwin",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "platform": "darwin",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2235,9 +2428,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"fleet_id": 123,
-	"fleet_name": "Workstations",
-	"script_name": "set-timezones.sh"
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "script_name": "set-timezones.sh"
 }
 ```
 
@@ -2254,9 +2447,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"fleet_id": 123,
-	"fleet_name": "Workstations",
-	"script_name": "set-timezones.sh"
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
+  "script_name": "set-timezones.sh"
 }
 ```
 
@@ -2306,6 +2499,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2315,6 +2509,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 1234
 }
 ```
@@ -2492,7 +2687,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+  "tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
 }
 ```
 
@@ -2507,7 +2702,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+  "tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
 }
 ```
 
@@ -2522,7 +2717,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+  "tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
 }
 ```
 
@@ -2542,8 +2737,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"scim_user_id": 42,
-	"scim_user_name": "nondomain_user"
+  "scim_user_id": 42,
+  "scim_user_name": "nondomain_user"
 }
 ```
 
@@ -2577,12 +2772,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123,
-	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "policy_id": 123,
+  "policy_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2600,12 +2795,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123,
-	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "policy_id": 123,
+  "policy_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2623,12 +2818,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123,
-	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "policy_id": 123,
+  "policy_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2648,14 +2843,14 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123,
-	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"fleet_id": 1,
-	"fleet_name": "Workstations",
-	"host_id": 42,
-	"host_display_name": "Anna's MacBook Pro"
+  "policy_id": 123,
+  "policy_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "fleet_id": 1,
+  "fleet_name": "Workstations",
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -2677,24 +2872,24 @@ This activity contains a field "policies" where each item is a policy spec with 
 
 ```json
 {
-	"policies": [
-		{
-			"name":"Gatekeeper enabled (macOS)",
-			"query":"SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-			"critical":false,
-			"platform":"darwin",
-			"resolution":"To enable Gatekeeper, on the failing device [...]",
-			"description":"Checks to make sure that the Gatekeeper feature is [...]"
-		},
-		{
-			"name":"Full disk encryption enabled (Windows)",
-			"query":"SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
-			"critical":false,
-			"platform":"windows",
-			"resolution":"To get additional information, run the following osquery [...]",
-			"description":"Checks to make sure that full disk encryption is enabled on Windows devices."
-		}
-	]
+  "policies": [
+    {
+      "name":"Gatekeeper enabled (macOS)",
+      "query":"SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "critical":false,
+      "platform":"darwin",
+      "resolution":"To enable Gatekeeper, on the failing device [...]",
+      "description":"Checks to make sure that the Gatekeeper feature is [...]"
+    },
+    {
+      "name":"Full disk encryption enabled (Windows)",
+      "query":"SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
+      "critical":false,
+      "platform":"windows",
+      "resolution":"To get additional information, run the following osquery [...]",
+      "description":"Checks to make sure that full disk encryption is enabled on Windows devices."
+    }
+  ]
 }
 ```
 
@@ -2879,14 +3074,14 @@ This activity contains the following fields:
 
 ```json
 {
-	"query_id": 123,
-	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"report_id": 123,
-	"report_name": "foo",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "query_id": 123,
+  "query_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "report_id": 123,
+  "report_name": "foo",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2904,14 +3099,14 @@ This activity contains the following fields:
 
 ```json
 {
-	"query_id": 123,
-	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"report_id": 123,
-	"report_name": "foo",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "query_id": 123,
+  "query_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "report_id": 123,
+  "report_name": "foo",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2928,12 +3123,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
-	"report_name": "foo",
-	"fleet_id": 1,
-	"fleet_name": "Workstations"
+  "query_name": "foo",
+  "team_id": 1,
+  "team_name": "Workstations",
+  "report_name": "foo",
+  "fleet_id": 1,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2950,12 +3145,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"query_ids": [1, 42, 100],
-	"team_id": 123,
-	"team_name": "Workstations",
-	"report_ids": [1, 42, 100],
-	"fleet_id": 123,
-	"fleet_name": "Workstations"
+  "query_ids": [1, 42, 100],
+  "team_id": 123,
+  "team_name": "Workstations",
+  "report_ids": [1, 42, 100],
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2972,13 +3167,13 @@ This activity contains a field "specs" where each item is a report spec with the
 
 ```json
 {
-	"specs": [
-		{
-			"name":"Get OpenSSL versions",
-			"query":"SELECT name AS name, version AS version, 'deb_packages' AS source FROM [...]",
-			"description":"Retrieves the OpenSSL version."
-		}
-	]
+  "specs": [
+    {
+      "name":"Get OpenSSL versions",
+      "query":"SELECT name AS name, version AS version, 'deb_packages' AS source FROM [...]",
+      "description":"Retrieves the OpenSSL version."
+    }
+  ]
 }
 ```
 
@@ -2995,10 +3190,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"targets_count": 5000,
-	"query_sql": "SELECT * from osquery_info;",
-	"query_name": "foo",
-	"report_name": "foo"
+  "targets_count": 5000,
+  "query_sql": "SELECT * from osquery_info;",
+  "query_name": "foo",
+  "report_name": "foo"
 }
 ```
 
@@ -3234,6 +3429,7 @@ This activity contains the following fields:
 - "install_uuid": ID of the software installation.
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
@@ -3252,6 +3448,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
@@ -3328,6 +3525,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
@@ -3340,6 +3538,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
   "status": "uninstalled",
@@ -3482,16 +3681,20 @@ This activity contains the following fields:
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "version_name": Name of the admin-created App Store app version. Defaults to "Default version" when the admin didn't set one.
 - "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "auto_update_enabled": Whether automatic updates are enabled for this version (iOS and iPadOS only; omitted when unset).
+- "auto_update_window_start": Start of the auto-update maintenance window in `HH:MM` host local time (omitted when unset).
+- "auto_update_window_end": End of the auto-update maintenance window in `HH:MM` host local time (omitted when unset).
 
 #### Example
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
@@ -3506,7 +3709,9 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "version_name": "Production",
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
@@ -3521,15 +3726,17 @@ This activity contains the following fields:
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+- "version_name": Name of the admin-created App Store app version that was deleted. Defaults to "Default version" when the admin didn't set one.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
 ```json
 {
-  "software_title": "Logic Pro",
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "software_title": "Slack",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "team_name": "Workstations",
   "team_id": 1,
   "fleet_name": "Workstations",
@@ -3544,7 +3751,9 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
+  ],
+  "version_name": "Production",
+  "configuration": "<dict><key>ServerURL</key><string>https://example.com</string></dict>"
 }
 ```
 
@@ -3557,7 +3766,7 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
-- "software_display_name": Custom display name of the app, if one is set. Omitted otherwise.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
@@ -3576,6 +3785,7 @@ This activity contains the following fields:
   "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
+  "software_display_name": "Logic Pro",
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "status": "installed",
@@ -3605,6 +3815,7 @@ This activity contains the following fields:
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
 - "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "version_name": Name of the admin-created App Store app version that was edited. Defaults to "Default version" when the admin didn't set one.
 - "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 
@@ -3612,10 +3823,10 @@ This activity contains the following fields:
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
-  "app_store_id": "1234567",
-  "platform": "darwin",
+  "app_store_id": "618783545",
+  "platform": "ios",
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
@@ -3631,11 +3842,13 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
-  "software_display_name": "Logic Pro DAW"
-  "auto_update_enabled": true
-  "auto_update_window_start": "22:00"
-  "auto_update_window_end": "02:00"
+  ],
+  "software_display_name": "Slack",
+  "auto_update_enabled": true,
+  "auto_update_window_start": "22:00",
+  "auto_update_window_end": "02:00",
+  "version_name": "Production",
+  "configuration": "<dict><key>com.slack.workspace</key><string>example.slack.com</string></dict>"
 }
 ```
 
@@ -3647,6 +3860,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 - "from_setup_experience": Whether the install was part of the setup experience.
 
@@ -3657,6 +3871,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -3669,6 +3884,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -3678,6 +3894,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -3690,6 +3907,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 - "from_setup_experience": Whether the install was part of the setup experience.
 
@@ -3700,6 +3918,7 @@ This activity contains the following fields:
   "host_id": 123,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -3785,10 +4004,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
-	"fleet_id": 123,
-	"fleet_name": "Workstations"
+  "team_id": 123,
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -3804,10 +4023,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
-	"fleet_id": 123,
-	"fleet_name": "Workstations"
+  "team_id": 123,
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -3823,12 +4042,12 @@ This activity contains a field "teams" where each item contains the fleet detail
 
 ```json
 {
-	"teams": [
-		{
-			"id": 123,
-			"name": "foo"
-		}
-	]
+  "teams": [
+    {
+      "id": 123,
+      "name": "foo"
+    }
+  ]
 }
 ```
 
@@ -3854,9 +4073,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"user_id": 42,
-	"user_name": "Foo",
-	"user_email": "foo@example.com"
+  "user_id": 42,
+  "user_name": "Foo",
+  "user_email": "foo@example.com"
 }
 ```
 
@@ -3873,9 +4092,9 @@ This activity contains the following fields:
 
 ```json
 {
-	"user_id": 42,
-	"user_name": "Foo",
-	"user_email": "foo@example.com"
+  "user_id": 42,
+  "user_name": "Foo",
+  "user_email": "foo@example.com"
 }
 ```
 
@@ -3894,10 +4113,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"user_id": 42,
-	"user_name": "Foo",
-	"user_email": "foo@example.com",
-	"role": "Observer"
+  "user_id": 42,
+  "user_name": "Foo",
+  "user_email": "foo@example.com",
+  "role": "Observer"
 }
 ```
 
@@ -3916,10 +4135,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"user_id": 43,
-	"user_name": "Foo",
-	"user_email": "foo@example.com",
-	"role": "Maintainer"
+  "user_id": 43,
+  "user_name": "Foo",
+  "user_email": "foo@example.com",
+  "role": "Maintainer"
 }
 ```
 
@@ -3940,14 +4159,14 @@ This activity contains the following fields:
 
 ```json
 {
-	"user_id": 43,
-	"user_name": "Foo",
-	"user_email": "foo@example.com",
-	"role": "Maintainer",
-	"team_id": 5,
-	"team_name": "Bar",
-	"fleet_id": 5,
-	"fleet_name": "Bar"
+  "user_id": 43,
+  "user_name": "Foo",
+  "user_email": "foo@example.com",
+  "role": "Maintainer",
+  "team_id": 5,
+  "team_name": "Bar",
+  "fleet_id": 5,
+  "fleet_name": "Bar"
 }
 ```
 
@@ -3968,14 +4187,14 @@ This activity contains the following fields:
 
 ```json
 {
-	"user_id": 44,
-	"user_name": "Foo",
-	"user_email": "foo@example.com",
-	"role": "Observer",
-	"team_id": 2,
-	"team_name": "Zoo",
-	"fleet_id": 2,
-	"fleet_name": "Zoo"
+  "user_id": 44,
+  "user_name": "Foo",
+  "user_email": "foo@example.com",
+  "role": "Observer",
+  "team_id": 2,
+  "team_name": "Zoo",
+  "fleet_id": 2,
+  "fleet_name": "Zoo"
 }
 ```
 
@@ -3997,8 +4216,8 @@ This activity contains the following fields:
 
 ```json
 {
-	"custom_variable_id": 123,
-	"custom_variable_name": "SOME_API_KEY"
+  "custom_variable_id": 123,
+  "custom_variable_name": "SOME_API_KEY"
 }
 ```
 
@@ -4013,7 +4232,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"custom_variable_name": "SOME_API_KEY"
+  "custom_variable_name": "SOME_API_KEY"
 }
 ```
 
@@ -4029,11 +4248,11 @@ This activity contains the following fields:
 
 ```json
 {
-	"custom_variable_id": 123,
-	"custom_variable_name": "SOME_API_KEY"
+  "custom_variable_id": 123,
+  "custom_variable_name": "SOME_API_KEY"
 }
 ```
 
 <meta name="title" value="Global audit logs">
 <meta name="pageOrderInSection" value="60">
-<meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
+<meta name="description" value="Learn how Fleet logs administrative actions in JSON format."> 

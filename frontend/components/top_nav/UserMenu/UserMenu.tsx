@@ -49,7 +49,6 @@ const CustomDropdownIndicator = (
         name="chevron-down"
         color="ui-fleet-black-75"
         className={`${baseClass}__icon`}
-        size="small"
       />
     </components.DropdownIndicator>
   );

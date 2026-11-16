@@ -483,6 +483,15 @@ func parseGeminiCLI(src *source, r *recorder) {
 		parseGeminiLogs(src, ext.logs.load()[src.id], r)
 		return
 	}
+	// Messages of the main and sub-agent files are put in the order they
+	// were written (see scanFiles), a message without a timestamp following
+	// the previous one of its file.
+	type turn struct {
+		sub bool
+		ts  time.Time
+		m   geminiMessage
+	}
+	var turns []turn
 	for i, path := range src.files {
 		sub := i > 0
 		c, ok := loadGeminiConversation(src.sc, path)
@@ -494,12 +503,20 @@ func parseGeminiCLI(src *source, r *recorder) {
 			s.observe(parseTime(c.StartTime))
 			s.observe(parseTime(c.LastUpdated))
 		}
+		var ts time.Time
 		for _, m := range c.Messages {
-			if r.done() {
-				break
+			if t := parseTime(m.Timestamp); !t.IsZero() {
+				ts = t
 			}
-			geminiMessageRows(r, m, sub)
+			turns = append(turns, turn{sub: sub, ts: ts, m: m})
 		}
+	}
+	slices.SortStableFunc(turns, func(a, b turn) int { return a.ts.Compare(b.ts) })
+	for _, t := range turns {
+		if r.done() {
+			break
+		}
+		geminiMessageRows(r, t.m, t.sub)
 	}
 }
 

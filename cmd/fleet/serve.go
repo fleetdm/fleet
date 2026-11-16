@@ -64,6 +64,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
+	"github.com/fleetdm/fleet/v4/server/datastore/osqueryconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -99,6 +100,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -115,9 +117,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/throttled/throttled/v2"
-	"go.elastic.co/apm/module/apmhttp/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -185,7 +184,10 @@ func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerCo
 
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
-	config := configManager.LoadConfig()
+	config, err := configManager.LoadConfig()
+	if err != nil {
+		initFatal(err, "loading config")
+	}
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
@@ -209,6 +211,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
+	// Elastic APM support was removed. Turning tracing off avoids exporting OpenTelemetry to a default endpoint nobody set up.
+	elasticAPMConfigured := config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm"
+	if elasticAPMConfigured {
+		config.Logging.TracingEnabled = false
+		// OTEL logs require tracing, and the logger setup panics without a logger provider.
+		config.Logging.OtelLogsEnabled = false
+	}
+
 	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
 	// platform/tracing package stays free of cross context coupling. Infra paths (/healthz, /version, /metrics) are registered
 	// alongside their WrapHandler calls further down in this function.
@@ -222,6 +232,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
+
+	if elasticAPMConfigured {
+		logger.WarnContext(cmd.Context(), `The "logging.tracing_type: elasticapm" value is not available anymore, so tracing is off. `+
+			"What to use instead: "+fleet.Fleet5MigrationGuide)
+	}
 
 	// If you want to disable any logs by default, this is where to do it.
 	//
@@ -341,19 +356,34 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
 	if config.WebSocket.TransportEnabled {
 		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Live query and scoped orbit config wake-ups are delayed by the TTL of
-		// the in-memory caches the notified agent's request reads, so it can't
-		// be served a snapshot predating the change. Host orbit config wake-ups
-		// read nothing cached; their delay only batches them (see
+		// A notified agent calls back within milliseconds, so wake-ups wait for
+		// the in-memory caches its request reads to expire; otherwise it can be
+		// served a snapshot predating the change (see
 		// pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
-			LiveQuery:        liveQueryMemCacheDuration,
+			// The live query store's active-queries cache TTL (1s).
+			LiveQuery: liveQueryMemCacheDuration,
+			// Host orbit config changes are read uncached: the delay only
+			// batches the per-host wake-ups of one write (100ms).
 			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			// The longest TTL of the cached fleet and global orbit config
+			// inputs (1m).
 			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+			// A host moved to another fleet reads its new fleet's agent
+			// options from a cache (1m).
+			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
+			// The ETag write fence (3m), which outlasts the cached osquery
+			// config inputs plus the pack config cache built from them. Hosts
+			// nudged inside the fence each do a full config build that can't
+			// be stored as an ETag.
+			OsqueryConfigScope: redis_config_etag.DefaultFenceTTL,
 		}, logger.With("component", "agent-notifier"))
 		if config.WebSocket.OrbitConfigEnabled {
 			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
 			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
+		if config.WebSocket.OsqueryConfigEnabled {
+			ds = osqueryconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "osqueryconfig-notify"))
 		}
 	}
 
@@ -373,7 +403,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-	task := async.NewTask(ds, redisPool, clock.C, &config)
+	task := async.NewTask(ds, config.OTELEnabled())
 
 	if config.Sentry.Dsn != "" {
 		v := version.Version()
@@ -411,6 +441,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if !apple_mdm.MachineInfoVerificationEnabled() {
 		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+
 			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
+	}
+
+	if fleet.BootstrapPackageDuringMigrationEnvEnabled() {
+		logger.WarnContext(cmd.Context(), "FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is deprecated and will be removed in a future release. "+
+			"Use the setup_experience.macos_enable_bootstrap_package_during_migration setting instead.")
+	}
+
+	if config.MDM.AppleSCEPStaticChallengeEnabled {
+		logger.WarnContext(cmd.Context(), "Apple MDM static SCEP challenges are enabled via mdm.apple_scep_static_challenge_enabled. "+
+			"Anyone with the static SCEP challenge can turn on MDM for any Apple host. "+
+			"Static SCEP challenges are deprecated and will be removed in a future release.")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
@@ -532,6 +573,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.MDM.ValidateAppleIOSIPadOSRefetchBatchSize(initFatal)
 	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
@@ -611,7 +653,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
 		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
-		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
 		case configpkg.StorageBackendAzure:
@@ -637,7 +678,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 			ssoSessionStore,
-			profileMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
@@ -709,8 +749,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the notifications bounded context into the main service
 	svc.SetNotificationsService(notificationsSvc)
 	// Register kinds here, and nowhere else.
-	patchNotificationKind := service.NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+	patchNotificationKind := service.NewPatchNotificationKind(fleet.PatchNotificationKind, ds, svc, notificationsSvc, logger)
 	notificationsSvc.RegisterKind(patchNotificationKind)
+	notificationsSvc.RegisterKind(service.NewPatchNotificationKind(fleet.PatchDeadlineNotificationKind, ds, svc, notificationsSvc, logger))
 
 	// Bootstrap ACME service module
 	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays))}
@@ -732,16 +773,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub.InstanceID = instanceID
 		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
 
-		if config.WebSocket.OrbitConfigEnabled {
+		if config.WebSocket.ScopedNotificationsEnabled() {
 			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
 		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
 			switch {
 			case n.Scope != "":
 				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
-			case n.Type == fleet.AgentWSMessageTypeOrbitConfig:
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig, n.Type == fleet.AgentWSMessageTypeOsqueryConfig:
 				// Paced: a write can target thousands of hosts at once (e.g. a
-				// fleet-wide Windows MDM command).
+				// fleet-wide Windows MDM command, or hosts moved between fleets).
 				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
 			default:
 				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
@@ -802,20 +843,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal:              initFatal,
 	})
 
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, logger.With("cron", "async_task"))
-
-	// Flush seen hosts every second
-	hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
-	if !hostsAsyncCfg.Enabled {
-		go func() {
-			for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-				if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
-					logger.InfoContext(ctx, "failed to update host seen times", "err", err)
-				}
+	go func() {
+		for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) { //nolint:gosec // jitter, not security sensitive
+			if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
+				logger.InfoContext(ctx, "failed to update host seen times", "err", err)
 			}
-		}()
-	}
+		}
+	}()
 
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
@@ -1178,13 +1212,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// of the response.
 	liveQueryRestPeriod += 10 * time.Second
 
-	// Create the handler based on whether tracing should be there
-	var handler http.Handler
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-		handler = launcher.Handler(apmhttp.Wrap(rootMux))
-	} else {
-		handler = launcher.Handler(rootMux)
-	}
+	handler := launcher.Handler(rootMux)
 
 	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {
@@ -1509,7 +1537,7 @@ func printDatabaseNotInitializedError() {
 		os.Args[0])
 }
 
-func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
+func printMissingMigrationsWarning(w io.Writer, tables []int64) {
 	fmt.Fprintf(w, "################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
@@ -1524,23 +1552,7 @@ func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
 		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
 		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 		"################################################################################\n",
-		tablesAndDataToString(tables, data), os.Args[0])
-}
-
-func printFleetv4732FixNeededMessage() {
-	fmt.Printf("################################################################################\n"+
-		"# WARNING:\n"+
-		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
-		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+
-		"#   migrations. Please back up your data before continuing.\n"+
-		"#\n"+
-		"#   Run `%s prepare db` to perform migrations.\n"+
-		"#\n"+
-		"#   To run the server without performing migrations:\n"+
-		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
-		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
-		"################################################################################\n", os.Args[0])
+		migrationsToString(tables), os.Args[0])
 }
 
 func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

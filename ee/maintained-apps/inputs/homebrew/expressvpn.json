@@ -1,6 +1,6 @@
 {
   "name": "ExpressVPN",
-  "unique_identifier": "com.expressvpn.ExpressVPN",
+  "unique_identifier": "com.express.vpn",
   "token": "expressvpn",
   "installer_format": "zip",
   "slug": "expressvpn/darwin",

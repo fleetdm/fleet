@@ -6,5 +6,6 @@
   "slug": "bunch/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

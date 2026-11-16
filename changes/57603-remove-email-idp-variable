@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable. Configuration profiles, managed app configurations, and DigiCert and EJBCA certificate authority fields that use it are rejected. Use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` instead.

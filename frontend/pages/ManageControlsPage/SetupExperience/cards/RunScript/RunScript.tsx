@@ -23,7 +23,7 @@ import {
 } from "utilities/constants";
 
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import getManualAgentInstallSetting from "../../helpers";
+import { getManualAgentInstallSetting } from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
@@ -92,7 +92,7 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
 
     const mdmNotConfigured = !(
       globalConfig?.mdm.enabled_and_configured &&
-      globalConfig?.mdm.apple_bm_enabled_and_configured
+      globalConfig?.mdm.apple_business_enabled_and_configured
     );
 
     if (mdmNotConfigured) {

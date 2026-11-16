@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const path = require("path");
 const { validateProposedChanges, validateResolvedChanges } = require("./yaml-handler");
+const ClaudeClient = require("./claude-client");
 
 /**
  * Validate that a normalized path falls within the allowed GitOps structure.
@@ -143,12 +144,7 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
     console.log(`${logPrefix} Sending request to Claude...`);
     const responseText = await claude.runAgentLoop(userMessage, { onToolCall });
 
-    let result;
-    try {
-      result = claude._parseResponse(responseText);
-    } catch {
-      result = { type: "info", text: responseText };
-    }
+    const result = claude._parseResponse(responseText);
 
     if (result.type === "info") {
       console.log(`${logPrefix} Informational response (${result.text.length} chars)`);
@@ -260,7 +256,7 @@ async function handleRequest({ userText, userId, channelId, threadTs, messageTs,
     await setReaction("x");
 
     // Sanitize error message — don't leak internal details to Slack
-    const SAFE_PREFIXES = ["Refusing to commit", "Invalid file path"];
+    const SAFE_PREFIXES = ["Refusing to commit", "Invalid file path", ClaudeClient.TRUNCATED_RESPONSE_MESSAGE];
     let userMessage;
     const msg = err.message || "";
     if (err.status === 429 || msg.includes("rate_limit")) {

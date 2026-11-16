@@ -144,7 +144,7 @@ class ScepClientImpl : ScepClient {
             throw e
         } catch (e: Exception) {
             // Wrap unexpected exceptions in ScepException (Log.e removed to avoid test failures)
-            throw ScepException("Unexpected SCEP enrollment error: ${e.message}", e)
+            throw ScepException(e.message ?: e.javaClass.simpleName, e)
         }
     }
 

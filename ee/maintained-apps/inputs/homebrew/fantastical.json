@@ -1,6 +1,6 @@
 {
   "name": "Fantastical",
-  "unique_identifier": "com.flexibits.fantastical",
+  "unique_identifier": "com.flexibits.fantastical2.mac",
   "token": "fantastical",
   "installer_format": "zip",
   "slug": "fantastical/darwin",

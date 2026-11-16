@@ -34,9 +34,11 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			var authFailedError *platform_http.AuthFailedError
 			var authRequiredError *platform_http.AuthRequiredError
 			var authHeaderRequiredError *platform_http.AuthHeaderRequiredError
+			var authUnavailableError *platform_http.AuthUnavailableError
 			if errors.As(err, &authFailedError) ||
 				errors.As(err, &authRequiredError) ||
 				errors.As(err, &authHeaderRequiredError) ||
+				errors.As(err, &authUnavailableError) ||
 				errors.Is(err, platform_http.ErrPasswordResetRequired) {
 				return nil, err
 			}

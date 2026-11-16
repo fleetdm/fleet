@@ -5,8 +5,6 @@ import {
   CommaSeparatedPlatformString,
 } from "interfaces/platform";
 import {
-  ISoftwareResponse,
-  ISoftwareCountResponse,
   ISoftwareVersion,
   ISoftwareTitle,
   ISoftwareTitleDetails,
@@ -100,15 +98,6 @@ export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   scope: "software-titles" | "software-library";
 }
 
-export interface ISoftwareQueryKey extends ISoftwareApiParams {
-  scope: "software";
-}
-
-export interface ISoftwareCountQueryKey
-  extends Pick<ISoftwareApiParams, "query" | "vulnerable" | "teamId"> {
-  scope: "softwareCount";
-}
-
 export interface IGetSoftwareTitleQueryParams {
   softwareId: number;
   teamId?: number;
@@ -199,6 +188,8 @@ export interface IAddAppStoreAppFormData {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Apple App Store apps only. The API rejects it for Android. */
+  vpp_token_id?: number;
 }
 
 export interface IEditAppStoreAppFormData {
@@ -222,9 +213,6 @@ export interface IEditAppStoreAppFormData {
   auto_update_window_start?: string;
   auto_update_window_end?: string;
 }
-
-const ORDER_KEY = "name";
-const ORDER_DIRECTION = "asc";
 
 const handleAndroidForm = (
   teamId: number,
@@ -271,6 +259,7 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
     platform: formData.selectedApp?.platform, // Nested platform
     self_service: formData.selfService,
     automatic_install: formData.automaticInstall,
+    vpp_token_id: formData.vppTokenId,
   };
 
   if (formData.categories && formData.categories.length > 0) {
@@ -450,71 +439,6 @@ const handleEditAppStoreAppForm = (
 };
 
 export default {
-  load: async ({
-    page,
-    perPage,
-    orderKey = ORDER_KEY,
-    orderDirection: orderDir = ORDER_DIRECTION,
-    query,
-    vulnerable,
-    // availableForInstall, // TODO: Is this supported for the versions endpoint?
-    teamId,
-  }: Omit<
-    ISoftwareApiParams,
-    "availableForInstall" | "selfService"
-  >): Promise<ISoftwareResponse> => {
-    const { SOFTWARE } = endpoints;
-    const queryParams = {
-      page,
-      perPage,
-      orderKey,
-      orderDirection: orderDir,
-      teamId,
-      query,
-      vulnerable,
-      // availableForInstall,
-    };
-
-    const snakeCaseParams = convertParamsToSnakeCase(queryParams);
-    const { team_id, ...restParams } = snakeCaseParams;
-    const queryString = buildQueryStringFromParams({
-      ...restParams,
-      fleet_id: team_id,
-    });
-    const path = `${SOFTWARE}?${queryString}`;
-
-    try {
-      return sendRequest("GET", path);
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  getCount: async ({
-    query,
-    teamId,
-    vulnerable,
-  }: Pick<
-    ISoftwareApiParams,
-    "query" | "teamId" | "vulnerable"
-  >): Promise<ISoftwareCountResponse> => {
-    const { SOFTWARE } = endpoints;
-    const path = `${SOFTWARE}/count`;
-    const queryParams = {
-      query,
-      teamId,
-      vulnerable,
-    };
-    const snakeCaseParams = convertParamsToSnakeCase(queryParams);
-    const { team_id, ...restCountParams } = snakeCaseParams;
-    const queryString = buildQueryStringFromParams({
-      ...restCountParams,
-      fleet_id: team_id,
-    });
-
-    return sendRequest("GET", path.concat(`?${queryString}`));
-  },
-
   getSoftwareTitles: (
     params: ISoftwareApiParams
   ): Promise<ISoftwareTitlesResponse> => {
@@ -776,6 +700,7 @@ export default {
       auto_update_enabled?: boolean;
       auto_update_window_start?: string;
       auto_update_window_end?: string;
+      vpp_token_id?: number;
     }
   ) => {
     const { SOFTWARE_APP_STORE_APPS } = endpoints;

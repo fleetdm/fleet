@@ -60,24 +60,23 @@ export interface IMdmConfig {
   /** Host name template applied to "No team" Apple hosts. Mirrors
   `enable_disk_encryption` as a global-scope Controls > OS setting. */
   name_template?: string;
-  enable_recovery_lock_password: boolean;
+  macos_recovery_lock_password_enabled: boolean;
   /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
-  apple_bm_default_team?: string;
   /**
    * @deprecated
-   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_bm_terms_expired.
+   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_business_terms_expired.
    * https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
    */
-  apple_bm_terms_expired: boolean;
-  apple_bm_enabled_and_configured: boolean;
-  windows_enabled_and_configured: boolean;
+  apple_business_terms_expired: boolean;
+  apple_business_enabled_and_configured: boolean;
+  windows_mdm_enabled: boolean;
   enable_turn_on_windows_mdm_manually: boolean;
-  windows_migration_enabled: boolean;
+  windows_mdm_migration_enabled: boolean;
   android_enabled_and_configured: boolean;
   apple_require_hardware_attestation: boolean;
   end_user_authentication: IEndUserAuthentication;
@@ -94,20 +93,19 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     apple_setup_assistant: string | null;
     apple_enable_release_device_manually: boolean | null;
+    macos_enable_bootstrap_package_during_manual_enrollment: boolean;
+    macos_enable_bootstrap_package_during_migration: boolean;
     macos_manual_agent_install: boolean | null;
-    require_all_software_macos: boolean | null;
-    require_all_software_windows: boolean | null;
+    macos_require_all_software: boolean | null;
+    windows_require_all_software: boolean | null;
     lock_end_user_info: boolean | null;
-    enable_create_local_admin_account?: boolean;
-    end_user_local_account_type?: EndUserLocalAccountType;
-  };
-  macos_setup?: {
-    enable_managed_local_account?: boolean;
+    macos_managed_local_account_enabled?: boolean;
+    macos_end_user_local_account_type?: EndUserLocalAccountType;
+    windows_managed_local_account_enabled?: boolean;
   };
   windows_settings?: {
     enable_disk_encryption?: boolean;
     require_bitlocker_pin?: boolean;
-    enable_managed_local_account?: boolean;
   };
   linux_settings?: {
     enable_escrow_disk_encryption_key?: boolean;
@@ -138,7 +136,7 @@ export interface IWindowsAutomaticEnrollment {
 export interface IDeviceGlobalConfig {
   mdm: {
     enabled_and_configured: boolean;
-    require_all_software_macos: boolean | null;
+    macos_require_all_software: boolean | null;
     only_allow_apple_business_enrollment: boolean;
   };
   features: Pick<
@@ -175,7 +173,6 @@ export interface IConfigServerSettings {
   enable_analytics: boolean;
   deferred_save_host: boolean;
   query_reports_disabled: boolean;
-  scripts_disabled: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
 }
@@ -183,12 +180,8 @@ export interface IConfigServerSettings {
 export interface IConfig {
   org_info: {
     org_name: string;
-    /** @deprecated use `org_logo_url_dark_mode` */
-    org_logo_url: string;
-    /** @deprecated use `org_logo_url_light_mode` */
-    org_logo_url_light_background: string;
-    org_logo_url_dark_mode?: string;
-    org_logo_url_light_mode?: string;
+    org_logo_url_dark_mode: string;
+    org_logo_url_light_mode: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;

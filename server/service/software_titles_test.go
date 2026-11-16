@@ -536,3 +536,82 @@ func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
 	require.Len(t, filtersUsed, 1)
 	require.Equal(t, teamUser, filtersUsed[0].User)
 }
+
+func TestSoftwareTitleByIDVPPToken(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{ID: id, Name: "Foo", VPPAppsCount: 1}, nil
+	}
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		summaries := make(map[uint]*fleet.VPPAppStatusSummary, len(versions))
+		for _, v := range versions {
+			summaries[v.VPPAppsTeamsID] = &fleet.VPPAppStatusSummary{}
+		}
+		return summaries, nil
+	}
+	var versionTokenID *uint
+	var secondVersionTokenID *uint
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+		versions := []*fleet.VPPAppStoreApp{{Name: "Bar", VPPTokenID: versionTokenID}}
+		if secondVersionTokenID != nil {
+			versions = append(versions, &fleet.VPPAppStoreApp{Name: "Bar", VersionName: "Beta", VPPAppsTeamsID: 2, VPPTokenID: secondVersionTokenID})
+		}
+		return versions, nil
+	}
+	ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
+		if tokenID != 2 {
+			return nil, &notFoundError{}
+		}
+		return &fleet.VPPTokenDB{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	t.Run("fleet with a token", func(t *testing.T) {
+		versionTokenID = new(uint(2))
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.NotNil(t, title.AppStoreApp)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApp.VPPToken)
+	})
+
+	t.Run("app without a token", func(t *testing.T) {
+		versionTokenID = nil
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.NotNil(t, title.AppStoreApp)
+		require.Nil(t, title.AppStoreApp.VPPToken)
+	})
+
+	t.Run("deleted token", func(t *testing.T) {
+		versionTokenID = new(uint(3))
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.NotNil(t, title.AppStoreApp)
+		require.Nil(t, title.AppStoreApp.VPPToken)
+	})
+
+	t.Run("no fleet", func(t *testing.T) {
+		versionTokenID = new(uint(2))
+		ds.GetVPPTokenFuncInvoked = false
+		title, err := svc.SoftwareTitleByID(ctx, 1, nil)
+		require.NoError(t, err)
+		require.Nil(t, title.AppStoreApp)
+		require.False(t, ds.GetVPPTokenFuncInvoked)
+	})
+
+	t.Run("first version without a token and second version with a token", func(t *testing.T) {
+		// read a title whose first version has no token and second version has token 2, only the second version should have a token
+		versionTokenID = nil
+		secondVersionTokenID = new(uint(2))
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.Len(t, title.AppStoreApps, 2)
+		require.Nil(t, title.AppStoreApps[0].VPPToken)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApps[1].VPPToken)
+		require.Nil(t, title.AppStoreApp.VPPToken)
+	})
+}

@@ -117,22 +117,24 @@ func TestClaudeCodeMessages(t *testing.T) {
 		"2.0 assistant/tool_use Bash",
 		"3.0 system/tool_result ",
 		"3.1 system/tool_result ",
-		"4.0 assistant/tool_use Bash",
-		"5.0 system/tool_result ",
-		"6.0 assistant/tool_use mcp__github__create_issue",
-		"7.0 system/tool_result ",
-		"8.0 assistant/text ",
-		// The sub-agent follows, its instructions as system text.
-		"9.0 system/text ",
-		"10.0 assistant/tool_use Grep",
-		"11.0 system/tool_result ",
+		// The sub-agent's turns fall where their timestamps put them, its
+		// instructions as system text.
+		"4.0 system/text ",
+		"5.0 assistant/tool_use Grep",
+		"6.0 system/tool_result ",
+		"7.0 assistant/tool_use Bash",
+		"8.0 system/tool_result ",
+		"9.0 assistant/tool_use mcp__github__create_issue",
+		"10.0 system/tool_result ",
+		"11.0 assistant/text ",
 	}, render(rows, true, "tool_name"))
+	require.Equal(t, []string{"", "", "0", "1", "", "", "", "2", "", "3", "", "4", "", ""}, column(rows, "tool_call_index"))
 
 	require.Equal(t, "fix the build", rows[0]["content"])
 	require.Equal(t, "claude-opus-5", rows[1]["model"])
 	require.Empty(t, rows[0]["model"])
-	require.Equal(t, "Done.", rows[10]["content"])
-	require.Empty(t, rows[10]["model"], "synthetic model is dropped")
+	require.Equal(t, "Done.", rows[13]["content"])
+	require.Empty(t, rows[13]["model"], "synthetic model is dropped")
 	require.JSONEq(t, `{"file_path":"/Users/alice/GitHub/fleet/Makefile"}`, rows[2]["content"])
 	require.Equal(t, "t1", rows[2]["tool_use_id"])
 	require.Equal(t, "t1", rows[4]["tool_use_id"])
@@ -145,10 +147,10 @@ func TestClaudeCodeMessages(t *testing.T) {
 	require.Equal(t, []string{
 		"Read | read | /Users/alice/GitHub/fleet/Makefile | allowed",
 		"Bash | execute | make build | error",
+		`Grep | search | "TODO" in src | allowed`,
 		"Bash | execute | rm -rf /tmp/x | denied",
 		// An MCP server's text never counts as a refusal.
 		"mcp__github__create_issue | mcp | github: create_issue | error",
-		`Grep | search | "TODO" in src | allowed`,
 	}, summary(toolRows(t, "5d1f26db")))
 }
 

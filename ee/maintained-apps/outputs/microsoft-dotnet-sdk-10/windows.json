@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.0.403",
+      "version": "10.0.404",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 10.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 10.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '10.4.326.52412') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 10.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '10.4.426.53019') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft .net sdk 10.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/4a85064e-5a0f-43c9-85ea-a5a9d78047c5/7a651622-ad57-4db0-8c1e-12771c93f513/dotnet-sdk-10.0.403-win-x64.exe",
+      "installer_url": "https://download.microsoft.com/download/a45387e5-e2f1-4ab3-808f-96d2e6f109cc/638cfd74-d0f4-4385-a792-030dac790081/dotnet-sdk-10.0.404-win-x64.exe",
       "install_script_ref": "e7be17e2",
       "uninstall_script_ref": "a66843c1",
-      "sha256": "c71a1710bf3b931318e24a58c8414c1b4cc5d4fcac4510c07965c64083846332",
+      "sha256": "f7fdaf56ff976c3450e6e984ddea3f01790b45ecec848bcfa5dc32f62b6aa93a",
       "default_categories": [
         "Developer tools"
       ]

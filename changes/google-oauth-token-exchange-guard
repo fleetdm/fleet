@@ -1,0 +1,1 @@
+- Google Workspace and Google Calendar integrations now perform their OAuth token exchange through Fleet's outbound HTTP client, so the same outbound network settings apply to them as to other integrations. The service-account JSON `token_uri` is only honored under the `FLEET_TEST_GOOGLE_WORKSPACE_ENDPOINT` test seam; otherwise the exchange uses Google's token endpoint.

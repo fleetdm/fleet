@@ -1,0 +1,1 @@
+- Fixed search on the **Add software > Fleet-maintained** page matching the platform suffix (e.g. "for Windows") of apps that show without it, like "R" and "WeChat". Apps whose name always includes the suffix (e.g. "Google Credential Provider for Windows") still match.

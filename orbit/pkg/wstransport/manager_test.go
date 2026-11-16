@@ -419,9 +419,10 @@ func TestManagerKeepsRetryingWhenEverythingIsDown(t *testing.T) {
 func TestManagerOrbitConfigNotifications(t *testing.T) {
 	ws := newWSTestServer(t, "orbit-key")
 	fc := &countingClient{}
-	var orbitConfigs, connects, disconnects atomic.Int64
+	var orbitConfigs, osqueryConfigs, connects, disconnects atomic.Int64
 	m := newTestManager(t, ws.srv.URL, fc, NewQueryCache(), func(o *Options) {
 		o.OnOrbitConfig = func() { orbitConfigs.Add(1) }
+		o.OnOsqueryConfig = func() { osqueryConfigs.Add(1) }
 		o.OnConnect = func() { connects.Add(1) }
 		o.OnDisconnect = func() { disconnects.Add(1) }
 	})
@@ -434,6 +435,12 @@ func TestManagerOrbitConfigNotifications(t *testing.T) {
 	ws.notify(t, fleet.AgentWSMessage{Type: fleet.AgentWSMessageTypeOrbitConfig, Reason: fleet.AgentWSReasonActivity})
 	require.Eventually(t, func() bool { return orbitConfigs.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
 	assert.Equal(t, reads, fc.readCount())
+
+	// Same for an osquery/config notification.
+	ws.notify(t, fleet.AgentWSMessage{Type: fleet.AgentWSMessageTypeOsqueryConfig, Reason: fleet.AgentWSReasonReports})
+	require.Eventually(t, func() bool { return osqueryConfigs.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
+	assert.Equal(t, reads, fc.readCount())
+	assert.EqualValues(t, 1, orbitConfigs.Load())
 
 	// Dropping the connection reports it, and the reconnect too.
 	ws.closeAll()

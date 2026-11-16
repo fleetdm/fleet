@@ -21,7 +21,6 @@ import (
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
@@ -160,7 +159,7 @@ func main() {
 		e.GetEndpoint = scepserver.EndpointLoggingMiddleware(lginfo)(e.GetEndpoint)
 		e.PostEndpoint = scepserver.EndpointLoggingMiddleware(lginfo)(e.PostEndpoint)
 		scepHandler := scepserver.MakeHTTPHandler(e, svc, lginfo.With("component", "http"))
-		r := mux.NewRouter()
+		r := http.NewServeMux()
 		r.Handle("/scep", scepHandler)
 		h = r
 	}

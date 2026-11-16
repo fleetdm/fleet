@@ -1,6 +1,6 @@
 {
   "name": "Logseq",
-  "unique_identifier": "com.electron.logseq",
+  "unique_identifier": "com.logseq.logseq",
   "token": "logseq",
   "installer_format": "dmg",
   "slug": "logseq/darwin",

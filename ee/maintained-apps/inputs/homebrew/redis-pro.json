@@ -6,5 +6,6 @@
   "slug": "redis-pro/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

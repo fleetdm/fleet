@@ -3,6 +3,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+import CustomLink from "components/CustomLink";
 import { renderWithSetup } from "test/test-utils";
 
 import TooltipWrapper from "./TooltipWrapper";
@@ -20,6 +21,26 @@ describe("TooltipWrapper", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Tooltip text")).toBeInTheDocument();
+    });
+  });
+
+  it("renders the small external link icon for links in the tooltip", async () => {
+    const { user } = renderWithSetup(
+      <TooltipWrapper
+        tipContent={
+          <CustomLink url="https://fleetdm.com/docs" text="Learn more" newTab />
+        }
+      >
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+
+    await user.hover(screen.getByText("Hover me"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("external-link-icon").querySelector("svg")
+      ).toHaveAttribute("viewBox", "0 0 12 12");
     });
   });
 
