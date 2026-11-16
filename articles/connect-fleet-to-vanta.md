@@ -21,7 +21,7 @@ The integration sends:
 
 - Fleet Premium.
 - A Vanta account with permission to add integrations.
-- Fewer than 1,000 hosts. Vanta's connector API doesn't support more.
+- A host inventory that fits in Vanta's 10 MB request limit. Fleet sends all macOS hosts in one request and all Windows hosts in another. How many hosts fit depends on how much software each host has.
 - A browser that accepts cookies from fleetdm.com. The authorization flow uses signed cookies to verify your return from Vanta.
 
 > **Note:** The integration syncs macOS and Windows hosts only. Screen lock status is not available, so every host shows screen lock as false in Vanta. Use the [macOS](https://fleetdm.com/queries/screen-lock-enabled-mac-os) and [Windows](https://fleetdm.com/queries/screen-lock-enabled-windows) screen lock queries to see the real status.
