@@ -6085,6 +6085,20 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
+      "name": "Nitro PDF Pro",
+      "slug": "nitro-pdf-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Nitro PDF Pro",
+      "description": "Nitro PDF Pro is a PDF editor for creating, converting, editing, signing, and securing PDF documents."
+    },
+    {
+      "name": "Node.js 22",
+      "slug": "nodejs-22/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 22 is the 22.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
@@ -6209,6 +6223,13 @@
       "platform": "windows",
       "unique_identifier": "Notion 6.1.0",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "noTunes",
+      "slug": "notunes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "digital.twisted.noTunes",
+      "description": "noTunes is a menu bar utility that prevents iTunes or Apple Music from launching automatically."
     },
     {
       "name": "Noun Project",
@@ -7875,6 +7896,13 @@
       "platform": "windows",
       "unique_identifier": "Scrivener",
       "description": "Scrivener is a word processing software with a typewriter style."
+    },
+    {
+      "name": "Scroll Reverser",
+      "slug": "scroll-reverser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pilotmoon.scroll-reverser",
+      "description": "Scroll Reverser is a menu bar utility that reverses the scrolling direction of mice and trackpads independently."
     },
     {
       "name": "Secretive",
@@ -9772,6 +9800,13 @@
       "platform": "windows",
       "unique_identifier": "WinSCP",
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
+    },
+    {
+      "name": "WinZip",
+      "slug": "winzip/windows",
+      "platform": "windows",
+      "unique_identifier": "WinZip",
+      "description": "WinZip is a file compression utility for creating, extracting, and encrypting ZIP and other archives."
     },
     {
       "name": "WireGuard",

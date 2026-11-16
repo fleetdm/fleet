@@ -75,6 +75,14 @@ module.exports = {
         }
         return sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(a.quoteAuthorName) - sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(b.quoteAuthorName);
       });
+
+      // Move Wes Whetstone's (Stripe) quotes so they are mixed in with other companies instead of being next to Scott MacVicar's (Stripe) quote.
+      // The first one stays near the top (in the second row, in a different column than Scott's), and any others are spread out further down.
+      let wesQuotes = _.filter(testimonials, (testimonial)=>testimonial.quoteAuthorName === 'Wes Whetstone');
+      testimonials = _.difference(testimonials, wesQuotes);
+      wesQuotes.forEach((testimonial, index)=>{
+        testimonials.splice(Math.min(index === 0 ? 5 : 24 + 12 * (index - 1), testimonials.length), 0, testimonial);
+      });
     }//ﬁ
 
     let testimonialsWithVideoLinks = _.filter(testimonials, (testimonial)=>{

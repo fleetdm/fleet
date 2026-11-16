@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -104,11 +105,30 @@ func main() {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
 	}
 
-	fleetTLSClientCertificate := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE")
-	fleetTLSClientKey := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY")
-	fleetClientCrt, err := certificate.LoadClientCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
-	if err != nil {
-		log.Fatal().Err(err).Msg("load fleet tls client certificate")
+	// Prefer file-path env vars (set by newer orbit versions that avoid
+	// exposing secrets in process argv). Fall back to inline content env
+	// vars for backward compatibility with older orbit.
+	var (
+		fleetClientCrt *tls.Certificate
+		err            error
+	)
+	fleetTLSClientCertPath := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE_PATH")
+	fleetTLSClientKeyPath := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY_PATH")
+	if fleetTLSClientCertPath != "" && fleetTLSClientKeyPath != "" {
+		certFromFiles, loadErr := certificate.LoadClientCertificateFromFiles(fleetTLSClientCertPath, fleetTLSClientKeyPath)
+		if loadErr != nil {
+			log.Fatal().Err(loadErr).Msg("load fleet tls client certificate from files")
+		}
+		if certFromFiles != nil {
+			fleetClientCrt = &certFromFiles.Crt
+		}
+	} else {
+		fleetTLSClientCertificate := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE")
+		fleetTLSClientKey := os.Getenv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY")
+		fleetClientCrt, err = certificate.LoadClientCertificate(fleetTLSClientCertificate, fleetTLSClientKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("load fleet tls client certificate")
+		}
 	}
 	fleetAlternativeBrowserHost := os.Getenv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST")
 	if fleetClientCrt != nil {

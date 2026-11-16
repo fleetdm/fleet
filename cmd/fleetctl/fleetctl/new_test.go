@@ -195,6 +195,23 @@ func TestNewCIFleetURLNormalization(t *testing.T) {
 	}
 }
 
+// The generated GitLab job applies on pushes and on schedules; without a
+// resource_group two overlapping applies can finish out of order and roll the
+// fleet back to the older config. The GitHub workflow has a concurrency group.
+func TestNewGitLabJobSerialized(t *testing.T) {
+	outDir := filepath.Join(t.TempDir(), "out")
+	_, err := runNewCommand(t, "--org-name", "Test", "--dir", outDir)
+	require.NoError(t, err)
+
+	gitlab, err := os.ReadFile(filepath.Join(outDir, ".gitlab-ci.yml"))
+	require.NoError(t, err)
+	var jobs map[string]struct {
+		ResourceGroup string `json:"resource_group"`
+	}
+	require.NoError(t, yaml.Unmarshal(gitlab, &jobs))
+	assert.NotEmpty(t, jobs["fleet-gitops"].ResourceGroup)
+}
+
 func TestNewDirFlag(t *testing.T) {
 	dir := t.TempDir()
 	outDir := filepath.Join(dir, "custom-dir")

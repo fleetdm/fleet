@@ -3,9 +3,10 @@
   "slug": "nodejs/windows",
   "package_identifier": "OpenJS.NodeJS",
   "unique_identifier": "Node.js",
-  "open_process_names": ["node.exe"],
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
+  "ignore_upgrade_code": true,
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/nodejs_uninstall.ps1",
   "default_categories": ["Developer tools"]
 }

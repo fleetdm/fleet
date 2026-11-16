@@ -252,8 +252,8 @@ export const compareVersions = (v1: string, v2: string): number => {
 // INSTALLER UTILITIES
 
 export const getInstallerVersion = (software: IHostSoftware) => {
-  if (software.software_package && software.software_package.version) {
-    return software.software_package.version;
+  if (software.package && software.package.version) {
+    return software.package.version;
   }
   if (software.app_store_app && software.app_store_app.version) {
     return software.app_store_app.version;
@@ -298,7 +298,7 @@ export const getUiStatus = (
   // Script packages with an uninstall script fall through to the regular
   // install statuses so the UI shows Install/Reinstall/Uninstall/Installed
   // instead of Run/Rerun/Ran.
-  if (isScriptPackage && !software.software_package?.has_uninstall_script) {
+  if (isScriptPackage && !software.package?.has_uninstall_script) {
     if (status === "failed_install") {
       return "failed_script";
     }
