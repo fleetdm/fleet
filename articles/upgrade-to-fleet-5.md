@@ -1214,9 +1214,8 @@ GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
 
 #### What to do
 
-1. Remove the option from your server configuration.
-   - If it's still passed as a command-line flag (`--osquery_min_software_last_opened_at_diff`), Fleet 5 doesn't start.
-   - If it's still set as an environment variable or in the config file, Fleet ignores it.
+1. Remove the option from your server configuration in the same deploy that upgrades to Fleet 5.
+   - Fleet 5 doesn't start if it's still set as a command-line flag, an environment variable, or a config file key.
 
 GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
