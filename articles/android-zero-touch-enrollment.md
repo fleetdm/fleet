@@ -96,7 +96,7 @@ If the device has no network connection during setup, zero-touch is skipped. The
 
 - Confirm that the configuration in the zero-touch portal uses the latest DPC extras from Fleet. See [Update your DPC extras after upgrading](#update-your-dpc-extras-after-upgrading).
 - Confirm that the passcode profile targets all hosts on the fleet and doesn't use variables. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-a-passcode-on-android).
-- Check the passcode profile's status on the host's **Host details > OS settings**. If Google rejects the passcode settings, Fleet still enrolls the host and applies the profile after setup.
+- Check the passcode profile's status on the host's **Controls** tab. If it's **Failed**, the error message shows why Android didn't apply the passcode settings.
 
 ## Further reading
 
