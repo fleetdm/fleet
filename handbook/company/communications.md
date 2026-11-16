@@ -344,6 +344,16 @@ Chats under the enterprise account are covered by Anthropic's commercial terms a
 
 Questions? Ask in #help-it.
 
+##### Requesting more Claude tokens
+
+Token limits are per user. If you hit your limit, or expect a heavy workload, post in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) and include:
+
+- What you're working on and why it matters.
+- Roughly how many tokens you expect to need, and for how long.
+- What you've already tried to reduce token use, such as choosing a lighter model or narrowing the scope of the work.
+
+The [IT team](https://fleetdm.com/handbook/it) reviews the request, then raises your token limit or follows up with ideas for reducing token use. A team member responds within one business day. If your request is urgent, mention a [team member](https://fleetdm.com/handbook/it#team) in #help-it. For new tools or licenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) instead.
+
 
 ### Integrated AI tools
 

@@ -25,7 +25,6 @@ import (
 var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":         "q.id",
 	"name":       "q.name",
-	"team_id":    "q.team_id",
 	"fleet_id":   "q.team_id",
 	"created_at": "q.created_at",
 	"updated_at": "q.updated_at",
@@ -699,20 +698,15 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 // Errors are logged and not returned.
 func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	// Delete stats for each host.
-	stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
-	stmt, args, err := sqlx.In(stmt, queryIDs)
-	if err != nil {
-		ds.logger.ErrorContext(ctx, "error creating delete query stats statement", "err", err)
-	} else {
-		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		if err != nil {
+	for _, queryID := range queryIDs {
+		if err := ds.deleteQueryStatsInBatches(ctx, queryID); err != nil {
 			ds.logger.ErrorContext(ctx, "error deleting query stats", "err", err)
 		}
 	}
 
 	// Delete aggregated stats
-	stmt = fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
-	stmt, args, err = sqlx.In(stmt, queryIDs)
+	stmt := fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
+	stmt, args, err := sqlx.In(stmt, queryIDs)
 	if err != nil {
 		ds.logger.ErrorContext(ctx, "error creating delete aggregated stats statement", "err", err)
 	} else {

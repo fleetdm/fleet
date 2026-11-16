@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -60,7 +61,7 @@ func TestHasPathPrefix(t *testing.T) {
 	}{
 		{"/a/b/c", "/a/b", true},
 		{"/a/b", "/a/b", true},
-		{"/a/bc", "/a/b", false},  // component-wise: "bc" != "b"
+		{"/a/bc", "/a/b", false},   // component-wise: "bc" != "b"
 		{"/a/b2/c", "/a/b", false}, // sibling
 		{"/a", "/a/b", false},      // p shorter than prefix
 		{"/x/y", "/a/b", false},
@@ -89,5 +90,50 @@ func TestHasExt(t *testing.T) {
 		if got := HasExt(c.path, c.allowed...); got != c.want {
 			t.Errorf("HasExt(%q, %v) = %v, want %v", c.path, c.allowed, got, c.want)
 		}
+	}
+}
+
+func TestOnDisk(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "Code", "Fleet")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := OnDisk(real); got != real {
+		t.Errorf("OnDisk(%q) = %q, want it unchanged", real, got)
+	}
+	// A missing element is kept as given after the ones that exist.
+	if got, want := OnDisk(filepath.Join(real, "nope")), filepath.Join(real, "nope"); got != want {
+		t.Errorf("OnDisk with a missing element = %q, want %q", got, want)
+	}
+	// Relative input isn't touched: cleaning link/../fleet as text could point
+	// somewhere other than where the OS would go.
+	for _, rel := range []string{"relative/path", "link/../fleet"} {
+		if got := OnDisk(rel); got != rel {
+			t.Errorf("relative path %q changed to %q", rel, got)
+		}
+	}
+
+	// ".." after a symlink is applied where the link points, as the OS does.
+	if err := os.MkdirAll(filepath.Join(base, "elsewhere", "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(base, "elsewhere", "fleet"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(base, "elsewhere", "sub"), filepath.Join(base, "link")); err != nil {
+		t.Fatal(err)
+	}
+	wantReal, _ := filepath.EvalSymlinks(filepath.Join(base, "elsewhere", "fleet"))
+	if got := OnDisk(filepath.Join(base, "link") + "/../fleet"); got != wantReal {
+		t.Errorf("OnDisk(link/../fleet) = %q, want %q", got, wantReal)
+	}
+
+	other := filepath.Join(base, "code", "fleet")
+	if _, err := os.Stat(other); err != nil {
+		t.Skip("case-sensitive volume: code/fleet is a different (missing) folder")
+	}
+	if got := OnDisk(other); got != real {
+		t.Errorf("OnDisk(%q) = %q, want %q", other, got, real)
 	}
 }

@@ -41,7 +41,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Auto Patching](#auto-patching-group)      | Reduce the amount of time before software is patched after vulnerabilities are discovered. Measured by number of policies with software automations enabled. |
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
 | [BYOD](#byod-group)                        | The goal of BYOD product group is to increase enrollment of Android devices in Fleet. Measured by Android devices enrolled. |
-| [First impressions](#first-impressions) | Improve first impressions of Fleet and increase and exceed Fleet's product maturity goals for fleetdm.com. Primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements. |
+| [First impressions](#first-impressions) | Improve first impressions of Fleet and increase and exceed Fleet's product maturity goals for fleetdm.com. Measured by new ICP logo opportunities created. |
 
 
 ### Orchestration group
@@ -76,6 +76,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_
 | Quality Assurance                 | [Marcus Allen](https://www.linkedin.com/in/marcus-a-785b3b7/) _([@MarcusAllen](https://github.com/marcusallen97))_
+| Software Engineer                 | [Arend Peter Castelein](https://www.linkedin.com/in/arend-peter-castelein-530a5070/) _([@ArendPeter](https://github.com/ArendPeter))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-supply-chain) for this product group is `#g-supply-chain`.
 
@@ -352,7 +353,7 @@ If there are design changes, the user story stays in drafting to address the gap
 
 ### Release demo (every 3 weeks)
 
-On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
+On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://github.com/fleetdm/confidential/labels?q=customer-).)
 
 ### Release retro (30 minutes, every 3 weeks)
 

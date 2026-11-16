@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1044.0.6",
+      "version": "1045.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.electron' AND version_compare(bundle_short_version, '1044.0.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.electron' AND version_compare(bundle_short_version, '1045.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superhuman.electron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://storage.googleapis.com/download.superhuman.com/supertron-update/Superhuman-1044.0.6-arm64-latest-mac.zip",
+      "installer_url": "https://storage.googleapis.com/download.superhuman.com/supertron-update/Superhuman-1045.0.0-arm64-latest-mac.zip",
       "install_script_ref": "ea0d9e0a",
       "uninstall_script_ref": "c7d461f8",
-      "sha256": "f410008b6c969003037382c9490057f91d92e67f2711286745a393c8cc955a25",
+      "sha256": "fe12c91e4af2a4a01e16ec54c8128db06c111a4101768c7679b56983f5133d05",
       "default_categories": [
         "Communication"
       ]

@@ -17,6 +17,17 @@ import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import AgentOptionsPage from "./AgentOptionsPage";
 
+// Fire the debounced validator synchronously so tests don't wait 3s for the
+// on-type validation pass.
+jest.mock("use-debounce", () => ({
+  useDebouncedCallback: <T extends (...args: unknown[]) => unknown>(fn: T) => {
+    const callback = (...args: Parameters<T>) => fn(...args);
+    callback.cancel = () => undefined;
+    callback.flush = () => undefined;
+    return callback;
+  },
+}));
+
 // react-ace doesn't render an editable field under jsdom, so stand in a plain
 // textarea that calls the same onChange.
 jest.mock("components/YamlAce", () => ({
@@ -83,7 +94,8 @@ const renderAgentOptionsPage = () => {
 
 describe("AgentOptionsPage", () => {
   // Regression (#52677): submitting invalid YAML threw out of yaml.load before
-  // the request promise, leaving the Save button spinning forever.
+  // the request promise, leaving the Save button spinning forever. Save stays
+  // enabled now; the submit handler re-validates and bails before the API call.
   it("blocks submit while the YAML has a syntax error", async () => {
     const updateSpy = jest
       .spyOn(osqueryOptionsAPI, "updateTeam")
@@ -95,7 +107,7 @@ describe("AgentOptionsPage", () => {
     await user.type(editor, "config: 1\n  bad: 2");
 
     const saveButton = screen.getByRole("button", { name: "Save" });
-    expect(saveButton).toBeDisabled();
+    expect(saveButton).toBeEnabled();
 
     await user.click(saveButton);
     expect(updateSpy).not.toHaveBeenCalled();
@@ -126,7 +138,7 @@ describe("AgentOptionsPage", () => {
     expect(await screen.findByText(/Syntax Error:/)).toBeInTheDocument();
   });
 
-  it("re-enables Save once the syntax error is fixed", async () => {
+  it("submits once the syntax error is fixed", async () => {
     const updateSpy = jest
       .spyOn(osqueryOptionsAPI, "updateTeam")
       .mockResolvedValue({} as never);
@@ -135,7 +147,7 @@ describe("AgentOptionsPage", () => {
     const editor = await screen.findByLabelText("YAML");
     await user.clear(editor);
     await user.type(editor, "config: 1\n  bad: 2");
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(await screen.findByText(/Syntax Error:/)).toBeInTheDocument();
 
     await user.clear(editor);
     await user.type(editor, "config: null");

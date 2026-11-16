@@ -66,17 +66,16 @@
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
     width: 100%;
     max-width: 560px;
     text-align: left;
     [purpose='hero-email-input'] {
       flex: 1 1 auto;
       input {
-        height: 48px;
-        padding: 12px 16px;
-        font-size: 16px;
-        border-radius: 8px;
+        .text-input(large);
+        // Matches the large button beside it; other inputs use the standard 8px.
+        border-radius: 16px;
         border: 1px solid @core-fleet-black-10;
         background-color: #FFF;
         color: @core-fleet-black;
@@ -94,11 +93,7 @@
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
-      height: 48px;
-      padding: 0px 24px;
-      font-size: 16px;
       font-weight: @bold;
-      border-radius: 8px;
       .button-text {
         display: flex;
         flex-direction: row;
@@ -106,13 +101,38 @@
         gap: 8px;
         white-space: nowrap;
       }
-      img {
-        width: 16px;
-        height: 16px;
-      }
     }
   }
-
+  // Rotating ticker ("One agent for ..."). Sized in ems so it scales with the heading at every breakpoint.
+  [purpose='ticker-container'] {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  [purpose='option-container'] {
+    display: flex;
+    flex-direction: column;
+    height: 1.2em;
+  }
+  [purpose='bottom-cta-ticker-option'] {
+    display: block;
+    visibility: hidden;
+    height: 0px;
+    transform: translateY(1.6em);
+    transition: transform 0.3s ease-in-out;
+    &.visible {
+      visibility: visible;
+      position: relative;
+      transform: translateY(0%);
+    }
+    &.animating-out {
+      visibility: visible;
+      transform: translateY(-1.6em);
+    }
+  }
   [purpose='page-container'] {
     .page-container();
     padding-top: @section-160;
@@ -135,11 +155,9 @@
       text-decoration: none;
     }
     [purpose='cta-button'] {
-      .cta-button();
+      .primary-button();
+      display: flex;
       margin-right: 24px;
-      border-radius: 8px;
-      padding: 8px 16px;
-      height: 36px;
     }
   }
 
@@ -195,6 +213,9 @@
     h2 {
       margin-bottom: 16px;
     }
+    > p {
+      margin-bottom: @section-gap;
+    }
   }
 
   // Everything you need, nothing you don't
@@ -248,37 +269,21 @@
         background-color: #FFF;
       }
       [purpose='linux-logo'] {
-        width: 24px;
-        height: 24px;
+        width: 30px;
+        height: 30px;
       }
       [purpose='android-logo'] {
-        width: 28px;
-        height: 16px;
+        width: 35px;
+        height: 20px;
       }
       &:hover {
         box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
       }
     }
     [purpose='no-icon'] {
-      border: 1px solid @core-fleet-black-10;
-      background-color: #FFF;
       img {
-        width: 26px;
-        height: 26px;
-      }
-      [purpose='entra-icon'] {
-        width: 32px;
-        height: 32px;
-      }
-      &::after {
-        content: ' ';
-        position: absolute;
-        top: -1px;
-        left: -1px;
         width: 64px;
         height: 64px;
-        background-image: url('/images/icon-no-sign-64x64.svg');
-        background-size: 64px 64px;
       }
     }
   }
@@ -332,7 +337,7 @@
   }
   [purpose='islands'] {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
   [purpose='island'] {
@@ -377,14 +382,15 @@
       }
     }
     [purpose='island-content'] {
+      container: island-content / inline-size;
       display: flex;
       flex-direction: column;
       gap: 24px;
     }
     [purpose='island-label'] {
-      font-size: 13px;
-      line-height: normal;
-      font-weight: 500;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 400;
       color: #6B7088;
     }
     [purpose='island-logos'] {
@@ -400,6 +406,46 @@
       }
       [purpose='fleet-logo'] {
         height: 24px;
+      }
+      [purpose='duo-logo'] {
+        height: 32px;
+      }
+      [purpose='google-workspace-logo'] {
+        height: 22px;
+      }
+      [purpose='sophos-logo'] {
+        height: 14px;
+      }
+      // Groups of four logos in a true grid: 2×2, or a single row of 4 when the island is wide enough (see @container rule at the bottom of this file). Never 3+1.
+      [purpose='logo-grid'] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, max-content));
+        align-items: center;
+        justify-items: start;
+        gap: 20px 24px;
+        min-width: 0;
+        max-width: 100%;
+        img {
+          max-width: 100%;
+          object-fit: contain;
+          object-position: left center;
+        }
+      }
+      // Smaller groups of four logos are split into two pairs that never break apart, so they show as a single row of 4 or as 2×2. Never 3+1.
+      [purpose='logo-pair'] {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 24px;
+        min-width: 0;
+        max-width: 100%;
+        img {
+          flex: 0 1 auto;
+          min-width: 0;
+          object-fit: contain;
+          object-position: left center;
+        }
       }
     }
   }
@@ -455,14 +501,10 @@
         margin-bottom: 0px;
       }
       [purpose='cta-button'] {
-        .cta-button();
+        .primary-button();
+        display: flex;
         margin-top: @inner-padding-xs;
-        height: 36px;
         min-width: 140px;
-        padding: 8px 16px;
-        font-size: 14px;
-        line-height: 150%;
-        border-radius: 8px;
       }
     }
   }
@@ -527,8 +569,11 @@
     }
   }
   [purpose='testimonials-masonry'] {
-    columns: 3;
+    // Cards read left to right across each row (same order as the 1-column mobile layout).
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 24px;
+    align-items: start;
   }
   [purpose='testimonials-fade'] {
     position: absolute;
@@ -601,7 +646,7 @@
   [purpose='show-more-row'] {
     display: flex;
     justify-content: center;
-    margin-top: @section-64;
+    margin-top: @section-gap;
   }
   // Same as the "Show all features" button on the pricing page.
   [purpose='show-more-button'] {
@@ -638,15 +683,6 @@
     text-align: center;
     h1 span {
       color: @core-fleet-black-75;
-    }
-  }
-
-  [purpose='comparison-section'] {
-    [purpose='button-row'] {
-      [purpose='cta-button'] {
-        padding: 16px 32px;
-        height: 53px;
-      }
     }
   }
 
@@ -844,7 +880,9 @@
   [purpose='comparison-table'] {
     border-radius: 8px;
     border: 1px solid #E2E4EA;
-    margin-bottom: 64px;
+    // Clip the striped rows' square backgrounds to the rounded corners.
+    overflow: hidden;
+    margin-bottom: @section-gap;
     [purpose='table-row'] {
       [purpose='red-x'] {
         height: 12px;
@@ -982,6 +1020,44 @@
     }
   }
 
+  // Newsletter signup
+  [purpose='newsletter-container'] {
+    padding: @section-gap @page-padding-mobile;
+  }
+  [purpose='newsletter-banner'] {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    max-width: 660px;
+    margin: 0 auto;
+    padding: 8px 8px 8px 16px;
+    // Clears the sticky header (and the announcement banner, when shown) when linked to as /#newsletter.
+    scroll-margin-top: ~'calc(81px + var(--announcement-banner-height, 0px) + 24px)';
+    border-radius: 16px;
+    border: 1px solid @core-fleet-black-10;
+    background-color: @ui-off-white;
+    p {
+      font-size: 14px;
+      margin-bottom: 0px;
+    }
+    [parasails-component='cloud-error'] {
+      margin: 0px;
+      padding: 0px;
+      background: none;
+    }
+  }
+  [purpose='newsletter-form'] {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  [purpose='newsletter-form-input'] {
+    width: 235px;
+  }
+
   [purpose='video-modal'] {
     [purpose='modal-dialog'] {
       width: 100%;
@@ -1045,7 +1121,7 @@
       }
     }
     [purpose='show-more-row'] {
-      margin-top: @section-64-lg;
+      margin-top: 28px;
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
@@ -1109,7 +1185,7 @@
       }
     }
     [purpose='testimonials-masonry'] {
-      columns: 2;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     [purpose='logo-tiles'] {
       grid-template-columns: repeat(3, 1fr);
@@ -1120,7 +1196,7 @@
       }
     }
     [purpose='show-more-row'] {
-      margin-top: @section-64-md;
+      margin-top: @section-gap-sm;
     }
     [purpose='comparison-column'] {
       max-width: 140px;
@@ -1209,6 +1285,21 @@
     [purpose='homepage-hero'] {
       gap: @section-64-sm;
     }
+    [purpose='newsletter-container'] {
+      padding: @section-gap-sm @page-padding-mobile;
+    }
+    [purpose='newsletter-banner'] {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      padding: 16px;
+    }
+    [purpose='newsletter-form'] {
+      flex-direction: column;
+    }
+    [purpose='newsletter-form-input'] {
+      width: 100%;
+    }
     [purpose='page-container'] {
       padding-top: @section-160-sm;
     }
@@ -1234,7 +1325,7 @@
       gap: @section-gap;
     }
     [purpose='islands'] {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
     [purpose='islands-footer'] {
       flex-direction: column;
@@ -1251,7 +1342,7 @@
       }
     }
     [purpose='testimonials-masonry'] {
-      columns: 1;
+      grid-template-columns: minmax(0, 1fr);
     }
     [purpose='testimonials-section'] {
       h2 {
@@ -1259,7 +1350,7 @@
       }
     }
     [purpose='show-more-row'] {
-      margin-top: @section-64-sm;
+      margin-top: 20px;
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
@@ -1323,6 +1414,22 @@
       }
     }
     [purpose='bottom-cta'] {
+      // On narrow screens the longer ticker options wrap, so reserve two lines.
+      [purpose='ticker-container'] {
+        white-space: normal;
+      }
+      [purpose='option-container'] {
+        height: 2.4em;
+      }
+      [purpose='bottom-cta-ticker-option'] {
+        transform: translateY(2.8em);
+        &.visible {
+          transform: translateY(0%);
+        }
+        &.animating-out {
+          transform: translateY(-2.8em);
+        }
+      }
       [purpose='button-row'] {
         max-width: 224px;
         margin-left: auto;
@@ -1349,5 +1456,13 @@
         width: calc(~' 100% - 40px');
       }
     }
+  }
+}
+
+// Show a logo grid as a single row of 4 once its island is wide enough for the widest group (Endpoint protection: 539px).
+// Note: This lives outside of #homepage because the version of LESS this website uses cannot nest @container rules.
+@container island-content (min-width: 540px) {
+  #homepage [purpose='island'] [purpose='island-logos'] [purpose='logo-grid'] {
+    grid-template-columns: repeat(4, max-content);
   }
 }

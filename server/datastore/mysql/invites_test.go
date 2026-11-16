@@ -152,7 +152,7 @@ func testInvitesByToken(t *testing.T, ds *Datastore) {
 		},
 		{
 			token:   "nosuchtoken",
-			wantErr: errors.New("Invite with token nosuchtoken was not found in the datastore"),
+			wantErr: errors.New("Invite with provided token was not found in the datastore"),
 		},
 	}
 

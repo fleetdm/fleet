@@ -124,14 +124,12 @@ func (s *integrationTestSuite) TestTranslator() {
 	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), tm.ID)) })
-	for _, typ := range []string{fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet} {
-		payload = translatorResponse{}
-		params = translatorRequest{List: []fleet.TranslatePayload{{Type: typ, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
-		s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
-		require.Len(t, payload.List, 1)
-		assert.Equal(t, typ, payload.List[0].Type)
-		assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
-	}
+	payload = translatorResponse{}
+	params = translatorRequest{List: []fleet.TranslatePayload{{Type: fleet.TranslatorTypeFleet, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+	s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
+	require.Len(t, payload.List, 1)
+	assert.Equal(t, fleet.TranslatorTypeFleet, payload.List[0].Type)
+	assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
 
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)
@@ -353,11 +351,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
 
-	// try to update the enable_release_device_manually setting, requires premium.
+	// try to update the apple_enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+		"mdm": { "setup_experience": { "apple_enable_release_device_manually": true } }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")

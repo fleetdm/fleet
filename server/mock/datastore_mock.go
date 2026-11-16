@@ -210,12 +210,6 @@ type AllLabelIDsByNameFunc func(ctx context.Context, names []string, filter flee
 
 type LabelsByNameFunc func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error)
 
-type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
-
-type AsyncBatchDeleteLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
-
-type AsyncBatchUpdateLabelTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
-
 type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
 
 type DeleteHostFunc func(ctx context.Context, hid uint) error
@@ -489,6 +483,8 @@ type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, ho
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
+
+type UpdateTeamUsersFunc func(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error)
 
 type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
@@ -788,10 +784,6 @@ type GetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint) (string, e
 
 type DeleteHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
 
-type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
-
-type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
-
 type MigrateTablesFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
@@ -889,8 +881,6 @@ type TeamFeaturesFunc func(ctx context.Context, teamID uint) (*fleet.Features, e
 type TeamMDMConfigFunc func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error)
 
 type SaveHostPackStatsFunc func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error
-
-type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error)
 
@@ -2884,15 +2874,6 @@ type DataStore struct {
 	LabelsByNameFunc        LabelsByNameFunc
 	LabelsByNameFuncInvoked bool
 
-	AsyncBatchInsertLabelMembershipFunc        AsyncBatchInsertLabelMembershipFunc
-	AsyncBatchInsertLabelMembershipFuncInvoked bool
-
-	AsyncBatchDeleteLabelMembershipFunc        AsyncBatchDeleteLabelMembershipFunc
-	AsyncBatchDeleteLabelMembershipFuncInvoked bool
-
-	AsyncBatchUpdateLabelTimestampFunc        AsyncBatchUpdateLabelTimestampFunc
-	AsyncBatchUpdateLabelTimestampFuncInvoked bool
-
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
 
@@ -3303,6 +3284,9 @@ type DataStore struct {
 
 	SaveTeamFunc        SaveTeamFunc
 	SaveTeamFuncInvoked bool
+
+	UpdateTeamUsersFunc        UpdateTeamUsersFunc
+	UpdateTeamUsersFuncInvoked bool
 
 	TeamWithExtrasFunc        TeamWithExtrasFunc
 	TeamWithExtrasFuncInvoked bool
@@ -3751,12 +3735,6 @@ type DataStore struct {
 	DeleteHostGoogleDeviceIDFunc        DeleteHostGoogleDeviceIDFunc
 	DeleteHostGoogleDeviceIDFuncInvoked bool
 
-	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
-	AsyncBatchInsertPolicyMembershipFuncInvoked bool
-
-	AsyncBatchUpdatePolicyTimestampFunc        AsyncBatchUpdatePolicyTimestampFunc
-	AsyncBatchUpdatePolicyTimestampFuncInvoked bool
-
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
 
@@ -3903,9 +3881,6 @@ type DataStore struct {
 
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
-
-	AsyncBatchSaveHostsScheduledQueryStatsFunc        AsyncBatchSaveHostsScheduledQueryStatsFunc
-	AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked bool
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
@@ -7129,27 +7104,6 @@ func (s *DataStore) LabelsByName(ctx context.Context, names []string, filter fle
 	return s.LabelsByNameFunc(ctx, names, filter)
 }
 
-func (s *DataStore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
-	s.mu.Lock()
-	s.AsyncBatchInsertLabelMembershipFuncInvoked = true
-	s.mu.Unlock()
-	return s.AsyncBatchInsertLabelMembershipFunc(ctx, batch)
-}
-
-func (s *DataStore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error {
-	s.mu.Lock()
-	s.AsyncBatchDeleteLabelMembershipFuncInvoked = true
-	s.mu.Unlock()
-	return s.AsyncBatchDeleteLabelMembershipFunc(ctx, batch)
-}
-
-func (s *DataStore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
-	s.mu.Lock()
-	s.AsyncBatchUpdateLabelTimestampFuncInvoked = true
-	s.mu.Unlock()
-	return s.AsyncBatchUpdateLabelTimestampFunc(ctx, ids, ts)
-}
-
 func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.NewHostFuncInvoked = true
@@ -8107,6 +8061,13 @@ func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	s.SaveTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveTeamFunc(ctx, team)
+}
+
+func (s *DataStore) UpdateTeamUsers(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error) {
+	s.mu.Lock()
+	s.UpdateTeamUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateTeamUsersFunc(ctx, teamID, set, removeIDs)
 }
 
 func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
@@ -9152,20 +9113,6 @@ func (s *DataStore) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, g
 	return s.DeleteHostGoogleDeviceIDFunc(ctx, hostID, googleDeviceID)
 }
 
-func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
-	s.mu.Lock()
-	s.AsyncBatchInsertPolicyMembershipFuncInvoked = true
-	s.mu.Unlock()
-	return s.AsyncBatchInsertPolicyMembershipFunc(ctx, batch)
-}
-
-func (s *DataStore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
-	s.mu.Lock()
-	s.AsyncBatchUpdatePolicyTimestampFuncInvoked = true
-	s.mu.Unlock()
-	return s.AsyncBatchUpdatePolicyTimestampFunc(ctx, ids, ts)
-}
-
 func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.mu.Lock()
 	s.MigrateTablesFuncInvoked = true
@@ -9507,13 +9454,6 @@ func (s *DataStore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID 
 	s.SaveHostPackStatsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveHostPackStatsFunc(ctx, teamID, hostID, stats)
-}
-
-func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
-	s.mu.Lock()
-	s.AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked = true
-	s.mu.Unlock()
-	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats, batchSize)
 }
 
 func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {

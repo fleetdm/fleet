@@ -75,14 +75,13 @@ export interface ITeam extends ITeamSummary {
       macos_require_all_software: boolean | null;
       windows_require_all_software: boolean | null;
       lock_end_user_info: boolean | null;
-      enable_create_local_admin_account?: boolean;
-      end_user_local_account_type?: EndUserLocalAccountType;
-      enable_managed_local_account?: boolean;
+      macos_managed_local_account_enabled?: boolean;
+      macos_end_user_local_account_type?: EndUserLocalAccountType;
+      windows_managed_local_account_enabled?: boolean;
     };
     windows_settings?: {
       enable_disk_encryption?: boolean;
       require_bitlocker_pin?: boolean;
-      enable_managed_local_account?: boolean;
     };
     linux_settings?: {
       enable_escrow_disk_encryption_key?: boolean;

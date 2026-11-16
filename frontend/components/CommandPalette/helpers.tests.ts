@@ -279,7 +279,7 @@ describe("CommandPalette helpers", () => {
       const configNoAbm = createMockConfig();
       configNoAbm.mdm = {
         ...configNoAbm.mdm,
-        apple_bm_enabled_and_configured: false,
+        apple_business_enabled_and_configured: false,
       };
 
       const items = buildPaletteItems({

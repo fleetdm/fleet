@@ -22,6 +22,7 @@ org_settings:
       idp_name: Okta
       metadata_url: "$DOGFOOD_OKTA_METADATA_URL_END_USERS"
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
+    windows_eula: ../it-and-security/lib/windows/misc/eula.md
     apple_business:
       - organization_name: Fleet Device Management Inc.
         macos_fleet: "💻 Workstations"

@@ -18,6 +18,7 @@ import { GitopsTab } from "./components/tabs/GitopsTab";
 import { ScepTab } from "./components/tabs/ScepTab";
 import { MdmAssetsTab } from "./components/tabs/MdmAssetsTab";
 import { TufTab } from "./components/tabs/TufTab";
+import { InstallersTab } from "./components/tabs/InstallersTab";
 import {
   api,
   type BranchStatus,
@@ -27,7 +28,7 @@ import {
   type ProcInfo,
   type Settings,
 } from "./lib/ipc";
-import { activeServer } from "./lib/servers";
+import { activeServer, apnsMockProcId } from "./lib/servers";
 import {
   useMultiServerHealth,
   type DockerHealth,
@@ -150,6 +151,13 @@ export default function App() {
       (p.state === "running" || p.state === "stopping"),
   );
 
+  const activeApnsMockId = settings ? apnsMockProcId(activeServer(settings)) : null;
+  const apnsMockRunning = procs.some(
+    (p) =>
+      p.id === activeApnsMockId &&
+      (p.state === "running" || p.state === "stopping"),
+  );
+
   // Tray reflects the active server's serve/docker plus the global services.
   const trayState = {
     branch: branchStatus?.branch ?? null,
@@ -195,7 +203,13 @@ export default function App() {
         await startAll({
           server: srv,
           settings,
-          health: { serveUp: serve.up, dockerUp: docker.up, ngrokRunning, pythonRunning },
+          health: {
+            serveUp: serve.up,
+            dockerUp: docker.up,
+            ngrokRunning,
+            pythonRunning,
+            apnsMockRunning,
+          },
         });
       } catch (e) {
         console.error("tray:start-all failed", e);
@@ -205,7 +219,13 @@ export default function App() {
       try {
         await stopAll({
           server: srv,
-          health: { serveUp: serve.up, dockerUp: docker.up, ngrokRunning, pythonRunning },
+          health: {
+            serveUp: serve.up,
+            dockerUp: docker.up,
+            ngrokRunning,
+            pythonRunning,
+            apnsMockRunning,
+          },
         });
       } catch (e) {
         console.error("tray:stop-all failed", e);
@@ -216,7 +236,7 @@ export default function App() {
       cancelled = true;
       unlistens.forEach((u) => u());
     };
-  }, [settings, serve.up, docker.up, ngrokRunning, pythonRunning]);
+  }, [settings, serve.up, docker.up, ngrokRunning, pythonRunning, apnsMockRunning]);
 
   // Quit flow. anyRunning + shutdown targets span ALL servers, so Cmd+Q tears
   // down every stack, not just the active one. Read via a ref so the
@@ -226,7 +246,10 @@ export default function App() {
         (s) => healthMap[s.id]?.serve.up || healthMap[s.id]?.docker.up,
       )
     : false;
-  const anyRunning = anyServerUp || ngrokRunning || pythonRunning;
+  // Shutdown stops every managed process (osquery-perf, SCEP servers, package
+  // builds, ...), so any of them running means asking first.
+  const anyProcRunning = procs.some((p) => p.state === "running" || p.state === "stopping");
+  const anyRunning = anyServerUp || ngrokRunning || pythonRunning || anyProcRunning;
   const shutdownTargets: ComposeTarget[] = settings
     ? settings.servers
         .filter((s) => s.worktree_path)
@@ -390,6 +413,13 @@ export default function App() {
             procs={procs}
           />
         )}
+        {active === "installers" && (
+          <InstallersTab
+            settings={settings}
+            onSettingsChange={setSettings}
+            procs={procs}
+          />
+        )}
       </main>
       <StatusRail
         branchStatus={branchStatus}
@@ -449,9 +479,11 @@ function QuitModal({
               className="dim"
               style={{ fontSize: "var(--fs-x-small)", lineHeight: 1.5 }}
             >
-              This will stop every server's fleet serve, ngrok, the python
-              server, and run <span className="mono">docker compose down</span>{" "}
-              for each server before closing the app.
+              This will stop everything Hangar is running (every server's
+              fleet serve, ngrok, the python server, SCEP servers, osquery-perf,
+              package builds) and run{" "}
+              <span className="mono">docker compose down</span> for each server
+              before closing the app.
             </div>
             <div
               style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}

@@ -10,7 +10,7 @@
             <div class="invalid-feedback" v-if="heroFormErrors.emailAddress || heroCloudError === 'invalidEmailDomain'">Please enter a valid work email address.</div>
             <cloud-error class="p-0 mt-1 mb-0 bg-transparent" v-if="heroCloudError && heroCloudError !== 'invalidEmailDomain'"></cloud-error>
           </div>
-          <ajax-button purpose="hero-email-button" type="submit" syncing-message="Looking up availability…" :syncing="syncing" class="btn btn-primary">Get a demo<img alt="" src="/images/arrow-right-white-16x16@2x.png"></ajax-button>
+          <ajax-button purpose="hero-email-button" type="submit" syncing-message="Looking up availability…" :syncing="syncing" class="btn btn-primary">Get a demo</ajax-button>
         </ajax-form>
       </div>
       <ai-tool-graphic></ai-tool-graphic>
@@ -26,7 +26,7 @@
           <img alt="Kenny Botelho" src="/images/testimonial-author-kenny-botelho-134x134@2x.png">
         </div>
         <div purpose="featured-quote-content">
-          <p purpose="featured-quote-text">“We wanted an MDM that delivers the best possible experience for our employees, and keep security happy.”</p>
+          <p purpose="featured-quote-text">“We wanted an MDM that delivers the best possible experience for our employees, and keeps security happy.”</p>
           <div purpose="featured-quote-author">
             <p purpose="featured-quote-author-name">Kenny Botelho</p>
             <p purpose="featured-quote-author-title">Lead Client Platform Engineer</p>
@@ -432,8 +432,7 @@
         </div>
 
         <div purpose="button-row">
-          <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button href="/customers">See case studies</animated-arrow-button>
+          <animated-arrow-button href="/pricing">Compare all features</animated-arrow-button>
         </div>
       </div>
 
@@ -456,12 +455,11 @@
             <h3>Nothing you don’t</h3>
             <p>No waiting days to patch or hours to test a change. No duplicative work in different tools. No Microsoft E3/E5 bundle required. No black box: ask your AI exactly how Fleet works.</p>
           </div>
-          <%/* TODO: These icons aren't final. They match the current Figma (v6) placeholders. */%>
           <div purpose="platform-card-icons">
-            <div purpose="no-icon"><img alt="No Microsoft bundle" src="/images/icon-bundle-26x26.svg"></div>
-            <div purpose="no-icon"><img purpose="entra-icon" alt="No waiting on Microsoft Entra" src="/images/icon-microsoft-entra-32x32.svg"></div>
-            <div purpose="no-icon"><img alt="No tool sprawl" src="/images/icon-tool-sprawl-26x26.svg"></div>
-            <div purpose="no-icon"><img alt="No black box" src="/images/icon-black-box-26x26.svg"></div>
+            <div purpose="no-icon"><img alt="No waiting" src="/images/icon-no-waiting-64x64.svg"></div>
+            <div purpose="no-icon"><img alt="No duplicative work" src="/images/icon-no-duplicate-work-64x64.svg"></div>
+            <div purpose="no-icon"><img alt="No Microsoft E3/E5 bundle" src="/images/icon-no-e3-e5-64x64.svg"></div>
+            <div purpose="no-icon"><img alt="No black box" src="/images/icon-no-black-box-64x64.svg"></div>
           </div>
         </div>
       </div>
@@ -487,34 +485,49 @@
             <div purpose="island">
               <div purpose="island-header">
                 <p purpose="island-title">Identity</p>
-                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Entra</span></p>
+                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Entra</span><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Microsoft Entra ID (P1, P2), Entra ID Governance, Entra Verified ID, and Defender for Identity">+ 3 more</a></p>
               </div>
               <div purpose="island-content">
                 <p purpose="island-label">You keep:</p>
                 <div purpose="island-logos">
-                  <img alt="Okta" src="/images/logo-okta-85x28@2x.png">
-                  <img alt="Ping Identity" src="/images/logo-ping-identity-164x28@2x.png">
+                  <div purpose="logo-grid">
+                    <img alt="Okta" src="/images/logo-okta-85x28@2x.png">
+                    <img alt="Ping Identity" src="/images/logo-ping-identity-164x28@2x.png">
+                    <img purpose="google-workspace-logo" alt="Google Workspace" src="/images/logo-google-workspace-170x22@2x.png">
+                    <img purpose="duo-logo" alt="Cisco Duo" src="/images/logo-cisco-duo-65x32@2x.png">
+                  </div>
                 </div>
               </div>
             </div>
             <div purpose="island">
               <div purpose="island-header">
                 <p purpose="island-title">Endpoint protection</p>
-                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Defender</span></p>
+                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Defender</span><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Microsoft Defender (P1, P2, XDR) and Purview Endpoint DLP">+ 1 more</a></p>
               </div>
               <div purpose="island-content">
                 <p purpose="island-label">You keep:</p>
                 <div purpose="island-logos">
-                  <img alt="SentinelOne" src="/images/logo-sentinelone-105x20.svg">
-                  <img alt="CrowdStrike" src="/images/logo-crowdstrike-red-113x20.svg">
-                  <img alt="Cortex" src="/images/logo-cortex-116x20.svg">
+                  <div purpose="logo-grid">
+                    <img alt="SentinelOne" src="/images/logo-sentinelone-105x20.svg">
+                    <img alt="CrowdStrike" src="/images/logo-crowdstrike-red-113x20.svg">
+                    <img alt="Cortex" src="/images/logo-cortex-116x20.svg">
+                    <img purpose="sophos-logo" alt="Sophos" src="/images/logo-sophos-133x14@2x.png">
+                  </div>
                 </div>
               </div>
             </div>
             <div purpose="island">
               <div purpose="island-header">
                 <p purpose="island-title">Device management</p>
-                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Intune</span></p>
+                <!--
+                  why include Agent 365 here?  Technically, Fleet nor any other MDM covers the Gemini-esque integrations and features of Agent 365.
+                  But that's clear from context, since this is the device management section.
+                  The other aspects of Agent 365 are covered by other products, such as Google, or can be kept in Microsoft, no bundle required!
+                  Rather than making this harder to read and trying to add all that complexity, we keep it simple.
+                  Besides, this sort of psychological backflipping and meaningless debate is how Microsoft succeeded at scaling this pricing and bundling in the first place.
+                  Let's keep things simple and direct.
+                -->
+                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Intune</span><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Microsoft Intune (Plan 1, Plan 2, Suite), Windows Autopatch, Enterprise App Management, and Agent 365">+ 3 more</a></p>
               </div>
               <div purpose="island-content">
                 <p purpose="island-label">Switch to:</p>
@@ -531,16 +544,20 @@
               <div purpose="island-content">
                 <p purpose="island-label">You keep:</p>
                 <div purpose="island-logos">
-                  <img alt="Dell" src="/images/logo-dell-60x20.svg">
-                  <img alt="Lenovo" src="/images/logo-lenovo-60x20.svg">
-                  <img alt="HP" src="/images/logo-hp-20x20.svg">
-                  <img alt="Apple" src="/images/logo-apple-black-16x20.svg">
+                  <div purpose="logo-pair">
+                    <img alt="Dell" src="/images/logo-dell-60x20.svg">
+                    <img alt="Lenovo" src="/images/logo-lenovo-60x20.svg">
+                  </div>
+                  <div purpose="logo-pair">
+                    <img alt="HP" src="/images/logo-hp-20x20.svg">
+                    <img alt="Apple" src="/images/logo-apple-black-16x20.svg">
+                  </div>
                 </div>
               </div>
             </div>
           </div>
           <div purpose="islands-footer">
-            <p><strong>Prefer Entra or Defender?</strong> Fleet works great with both, and fully supports Autopilot and Microsoft conditional access.</p>
+            <p><strong>Prefer Microsoft?</strong> Fleet works great with Entra, Defender, Teams, and Copilot, and fully supports Autopilot and Microsoft conditional access.</p>
             <animated-arrow-button href="/guides/windows-zero-touch-without-entra-or-autopilot">Learn about zero touch, $0</animated-arrow-button>
           </div>
         </div>
@@ -549,7 +566,7 @@
       <%/* AI certification */%>
       <div purpose="workshop-banner">
         <div purpose="banner-image">
-          <img alt="" src="/images/workshop-banner-366x225@2x.png">
+          <img alt="" src="/images/workshop-banner-ai-certification-366x225@2x.png">
         </div>
         <div purpose="banner-text">
           <h4>Get your team AI certified</h4>
@@ -610,7 +627,52 @@
 
       <%/* Bottom CTA */%>
       <div purpose="bottom-cta">
-        <h1>One agent for<br><span>device management</span></h1>
+        <h1>
+          One agent for<br>
+          <div purpose="ticker-container" class="d-flex align-items-center flex-row">
+            <div purpose="option-container" class="pl-sm-2 pl-0 d-flex flex-column">
+              <span purpose="bottom-cta-ticker-option" class="visible">device management</span>
+              <span purpose="bottom-cta-ticker-option">AI governance</span>
+              <span purpose="bottom-cta-ticker-option">endpoint modernization</span>
+              <span purpose="bottom-cta-ticker-option">patch management</span>
+              <!--<span purpose="bottom-cta-ticker-option">vulnerability management</span>-->
+              <span purpose="bottom-cta-ticker-option">employee experience</span>
+              <span purpose="bottom-cta-ticker-option">hardware rightsizing</span>
+              <span purpose="bottom-cta-ticker-option">software license savings</span>
+              <span purpose="bottom-cta-ticker-option">actual software usage</span>
+              <!--<span purpose="bottom-cta-ticker-option">license cost savings</span>-->
+              <span purpose="bottom-cta-ticker-option">shadow AI / IT</span>
+              <span purpose="bottom-cta-ticker-option">MCPs &amp; IDE extensions</span>
+              <span purpose="bottom-cta-ticker-option">browser plugins</span>
+              <span purpose="bottom-cta-ticker-option">local agent sessions</span>
+              <!--<span purpose="bottom-cta-ticker-option">Adobe plugins</span>-->
+              <span purpose="bottom-cta-ticker-option">npm, homebrew, etc</span>
+              <span purpose="bottom-cta-ticker-option">critical CVEs</span>
+              <span purpose="bottom-cta-ticker-option">kernel vulnerabilities</span>
+              <!--<span purpose="bottom-cta-ticker-option">detection &amp; response</span>-->
+              <span purpose="bottom-cta-ticker-option">endpoint telemetry</span>
+              <span purpose="bottom-cta-ticker-option">real-time visibility</span>
+              <span purpose="bottom-cta-ticker-option">new hire automation</span>
+              <span purpose="bottom-cta-ticker-option">zero-touch onboarding</span>
+              <span purpose="bottom-cta-ticker-option">Platform SSO</span>
+              <span purpose="bottom-cta-ticker-option">policy automation</span>
+              <!--<span purpose="bottom-cta-ticker-option">conditional access</span>-->
+              <!--<span purpose="bottom-cta-ticker-option">compliance benchmarks</span>-->
+              <span purpose="bottom-cta-ticker-option">OS updates</span>
+              <span purpose="bottom-cta-ticker-option">every OS</span>
+              <span purpose="bottom-cta-ticker-option">every integration</span>
+              <span purpose="bottom-cta-ticker-option">patching 1,000+ apps</span>
+              <span purpose="bottom-cta-ticker-option">self service</span>
+              <!--<span purpose="bottom-cta-ticker-option">certificate deployment</span>-->
+              <!--<span purpose="bottom-cta-ticker-option">BYOD</span>-->
+              <!--<span purpose="bottom-cta-ticker-option">Windows, Apple, Linux</span>-->
+              <span purpose="bottom-cta-ticker-option">DDM &amp; .mobileconfig</span>
+              <span purpose="bottom-cta-ticker-option">CSP &amp; .admx</span>
+              <span purpose="bottom-cta-ticker-option">MDM, UEM, DEX</span>
+              <!-- FUTURE: Consider ticker per-landing page.  so much good stuff in here, but kinda too much for any one place on the website.  Too many concepts rapidly switching in front of my eyes makes me feel like an overstimulated pig in the middle of pep rally -->
+            </div>
+          </div>
+        </h1>
         <div purpose="button-row">
           <a purpose="cta-button" href="/register">Try it yourself</a>
           <animated-arrow-button href="/contact?talkToUs">Get a demo</animated-arrow-button>
@@ -621,6 +683,25 @@
   </div>
   <%/* Cloud city banner */%>
   <cloud-city></cloud-city>
+  <%/* Newsletter signup */%>
+  <div purpose="newsletter-container">
+    <div purpose="newsletter-banner" id="newsletter">
+      <p id="newsletter-error" class="text-danger" role="alert" v-if="newsletterFormErrors.emailAddress || newsletterCloudError === 'invalidEmailDomain'" focus-first>
+        Please enter a valid work email
+      </p>
+      <cloud-error role="alert" v-else-if="newsletterCloudError"></cloud-error>
+      <p v-else-if="newsletterCloudSuccess">
+        Thanks for subscribing!
+      </p>
+      <p v-else>
+        <strong>Curious?</strong> Get product updates and news
+      </p>
+      <ajax-form purpose="newsletter-form" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="newsletterFormErrors" :form-data="newsletterFormData" :form-rules="newsletterFormRules" :syncing.sync="newsletterSyncing" :cloud-error.sync="newsletterCloudError" @submitted="submittedNewsletterForm()">
+        <input purpose="newsletter-form-input" class="form-control form-control-sm" type="email" aria-label="Work email" autocomplete="email" v-model.trim="newsletterFormData.emailAddress" placeholder="Enter your work email" :aria-invalid="newsletterFormErrors.emailAddress || newsletterCloudError === 'invalidEmailDomain' ? 'true' : false" :aria-describedby="newsletterFormErrors.emailAddress || newsletterCloudError === 'invalidEmailDomain' ? 'newsletter-error' : false">
+        <ajax-button purpose="subscribe-button" type="submit" :syncing="newsletterSyncing" class="btn btn-primary btn-sm">Subscribe</ajax-button>
+      </ajax-form>
+    </div>
+  </div>
   <modal v-if="modal === 'unsubscribed'" @close="closeModal()">
     <p class="mb-0">Your email preferences have been updated.</p>
   </modal>
