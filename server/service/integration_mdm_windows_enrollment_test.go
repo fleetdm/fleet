@@ -148,7 +148,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 			mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
 			err := mdmDevice.Enroll()
 			require.NoError(t, err)
-			updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, mdmDevice.DeviceID)
+			updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, mdmDevice.DeviceID, "")
 			require.NoError(t, err)
 			// No update should have been made because the orbit enrolled path results in an immediately linked hostUUID->windows enrollment
 			require.False(t, updated)
@@ -1322,7 +1322,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 
 	// simulate fleetd installed and enrolled
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID, "")
 	require.NoError(t, err)
 	require.True(t, updated)
 	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
@@ -1404,7 +1404,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 			TeamID:  &tm.ID,
 			HostIDs: []uint{host.ID},
 		}, http.StatusOK, &addHostsToTeamResponse{})
-		updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+		updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID, "")
 		require.NoError(t, err)
 		require.True(t, updated)
 		err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
@@ -1928,7 +1928,7 @@ func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
 	require.Empty(t, gotDevice.HostUUID)
 
 	// simulate first report osquery host details
-	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, d.MDMDeviceID)
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, d.MDMDeviceID, "")
 	require.NoError(t, err)
 	require.True(t, updated)
 
@@ -2198,7 +2198,7 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	newHostDevice.HardwareID = winMDMClient.HardwareID
 	err = newHostDevice.Enroll()
 	require.NoError(t, err)
-	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID, "")
 	require.NoError(t, err)
 	// The MDM Enrollment should have linked the host UUID to the Windows enrollment so there should have been no update
 	require.False(t, updated)
@@ -2314,7 +2314,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 	require.NoError(t, victim.Enroll())
 	requireEnrollment(t, victim.HardwareID, victim.DeviceID, victim.EntraDeviceID)
 	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
-	_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, victim.DeviceID)
+	_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, victim.DeviceID, "")
 	require.NoError(t, err)
 
 	t.Run("another host enrolling through Entra with the hardware ID is refused", func(t *testing.T) {
@@ -2355,7 +2355,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 		requireEnrollment(t, victim.HardwareID, reenrolled.DeviceID, victim.EntraDeviceID)
 
 		// a fleetd re-enrollment of its host keeps the Entra binding
-		_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, reenrolled.DeviceID)
+		_, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, reenrolled.DeviceID, "")
 		require.NoError(t, err)
 		// fleetd only enrolls a host whose osquery reports MDM off.
 		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, s.server.URL, false, fleet.WellKnownMDMFleet, "",

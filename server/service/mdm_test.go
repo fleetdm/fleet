@@ -5221,7 +5221,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			return &fleet.HostLite{ID: testHostID, UUID: testHostUUID}, nil
 		}
 		ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
-		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(_ context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(_ context.Context, hostUUID, mdmDeviceID string, _ string) (bool, error) {
 			assert.Equal(t, testHostUUID, hostUUID)
 			assert.Equal(t, testDeviceID, mdmDeviceID)
 			return updated, nil

@@ -3827,7 +3827,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	// Plain osquery reports the device ID too, so only an orbit node key proves fleetd is on the device.
 	// Covers edge case where plain osquery is enrolled in Fleet when end user enrolls in MDM.
 	fleetdOnDevice := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
-	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"], fleetdOnDevice)
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, host.HardwareSerial, rows[0]["data"], fleetdOnDevice)
 	return err
 }
 
@@ -3836,15 +3836,18 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // the enrollment's host was deleted and this host came back), it also reconciles the host's IDP device mapping, SCIM
 // user attribution, and DEP flag for Azure (Entra) enrollments.
 //
+// hostHardwareSerial is the serial of the claiming host; when the enrollment is already linked to a different host and
+// both serials are known and differ, the relink is refused to prevent enrollment hijacking.
+//
 // Returns true when UpdateMDMWindowsEnrollmentsHostUUID reported a new link, false when it did not. The "no change"
 // case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to this
 // same hostUUID and its host was not deleted since; (b) no row matched mdmDeviceID at all (e.g. the enrollment was
 // deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
 // rather than infer it from the boolean alone.
 func LinkWindowsHostMDMEnrollment(
-	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string, fleetdOnDevice bool,
+	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, hostHardwareSerial, mdmDeviceID string, fleetdOnDevice bool,
 ) (bool, error) {
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID, hostHardwareSerial)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
 	}

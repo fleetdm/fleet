@@ -74,7 +74,7 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 				svc, ds := newSvc(t, secret)
 				var linkedHostUUID, linkedDeviceID string
 				ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
-				ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
+				ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string, _ string) (bool, error) {
 					linkedHostUUID, linkedDeviceID = hostUUID, id
 					return true, nil
 				}
@@ -114,7 +114,7 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 				return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: "windows"}, nil
 			}
 			ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
-			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string, _ string) (bool, error) {
 				return true, nil
 			}
 

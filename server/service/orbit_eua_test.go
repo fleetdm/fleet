@@ -430,7 +430,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			return device, nil
 		}
 		ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
-		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string, _ string) (bool, error) {
 			require.Equal(t, "host-uuid-1", hostUUID)
 			require.Equal(t, "device-1", deviceID)
 			return true, nil

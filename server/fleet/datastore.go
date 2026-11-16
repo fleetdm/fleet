@@ -2798,8 +2798,11 @@ type Datastore interface {
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID. It returns true when the host UUID
-	// changed, or when the enrollment's host was deleted and this is its first link since.
-	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+	// changed, or when the enrollment's host was deleted and this is its first link since. When the enrollment is already
+	// linked to a different host AND carries a non-empty serial that differs from hostHardwareSerial, the update is refused
+	// (returns false, nil) to prevent a rogue agent from hijacking a linked enrollment. When hostHardwareSerial is empty and
+	// the enrollment has a serial, the update is also refused (deferred until the caller's serial is known).
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string, hostHardwareSerial string) (bool, error)
 
 	// MDMWindowsClearDeletedHostTeam clears the deleted host marker of the device's enrollments.
 	MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error

@@ -101,7 +101,7 @@ func windowsHostProfilesByName(t *testing.T, ds fleet.Datastore, hostUUID string
 // enrollWindowsHostInMDMViaOrbit it ignores whether the link changed a row, because a programmatic enrollment already
 // carries the host UUID from the orbit node key it enrolled with.
 func linkWindowsHostToMDMEnrollment(t *testing.T, ds fleet.Datastore, fleetServerURL string, host *fleet.Host, d *mdmtest.TestWindowsMDMClient) {
-	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), host.UUID, d.DeviceID)
+	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), host.UUID, d.DeviceID, "")
 	require.NoError(t, err)
 	require.NoError(t, ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 }
