@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/service/svctest"
@@ -80,7 +79,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string, opts ...SuiteOption) *Suite
 		FleetConfig:   &fleetCfg,
 		Pool:          redisPool,
 		Logger:        slogLogger,
-		FeatureRoutes: []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
+		AndroidModule: androidSvc,
 		DBConns:       dbConns,
 	})
 
