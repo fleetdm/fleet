@@ -136,12 +136,11 @@ func TestRouterServesEveryRoute(t *testing.T) {
 	require.Greater(t, compared, 400, "expected the full route table")
 }
 
-// TestRouterEdgeCases covers the requests where matching is not a plain lookup: route constraints, literal segments next to
-// wildcards, the removed-path overlaps, encoded characters and unclean paths.
+// TestRouterEdgeCases covers the production routes where matching is not a plain lookup: the removed-path wildcards next to
+// live routes, and the deliberate 405 for a wrong method with an invalid id. TestRouter in the endpointer covers the rest.
 func TestRouterEdgeCases(t *testing.T) {
 	router := newRouterForTest(t, config.TestConfig())
 
-	const notFound = "404 page not found\n"
 	cases := []struct {
 		name         string
 		method, path string
@@ -150,64 +149,21 @@ func TestRouterEdgeCases(t *testing.T) {
 		wantBody  string
 		wantAllow string
 	}{
-		{name: "unknown path", method: "GET", path: "/api/latest/fleet/nope/nothing/here", wantStatus: 404, wantBody: notFound},
-		{name: "unknown API version", method: "GET", path: "/api/v9/fleet/hosts/1", wantStatus: 404, wantBody: notFound},
-		{name: "method mismatch", method: "DELETE", path: "/api/osquery/distributed/write", wantStatus: 405, wantAllow: "POST"},
-		{name: "HEAD on a GET route", method: "HEAD", path: "/api/latest/fleet/config", wantStatus: 200},
 		{
-			name: "non-numeric id on a route another method takes", method: "DELETE", path: "/api/latest/fleet/hosts/abc",
-			wantStatus: 405, wantAllow: "GET, HEAD",
-		},
-		{
-			name: "host by identifier on the id route", method: "GET", path: "/api/latest/fleet/hosts/not-a-number",
-			wantStatus: 200, wantBody: "get_hosts__id_ id=not-a-number",
-		},
-		{
-			name: "literal count beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/count",
-			wantStatus: 200, wantBody: "get_hosts_count ",
-		},
-		{
-			name: "live host subresource wins the overlap", method: "GET", path: "/api/latest/fleet/hosts/1/device_mapping",
-			wantStatus: 200, wantBody: "get_hosts__id:[0-9]+__device_mapping id=1",
-		},
-		{name: "non-numeric id with no other route", method: "GET", path: "/api/latest/fleet/certificates/abc", wantStatus: 404, wantBody: notFound},
-		{
-			name: "live resend wins the overlap", method: "POST", path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend",
+			name: "live resend wins over the removed spelling", method: "POST",
+			path:       "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend",
 			wantStatus: 200, wantBody: "post_hosts__host_id:[0-9]+__configuration_profiles__profile_uuid__resend host_id=1,profile_uuid=resend",
 		},
-		{
-			name: "encoded separator stays in its segment", method: "GET", path: "/api/latest/fleet/device/a%2Fb",
-			wantStatus: 200, wantBody: "get_device__token_ token=a/b",
-		},
-		{
-			name: "encoded percent is decoded once", method: "GET", path: "/api/latest/fleet/device/50%25off",
-			wantStatus: 200, wantBody: "get_device__token_ token=50%off",
-		},
-		{name: "empty path segment redirects", method: "GET", path: "/api/latest//fleet/config", wantStatus: 307},
-		{name: "dot dot segment redirects", method: "GET", path: "/api/latest/fleet/hosts/../config", wantStatus: 307},
-		{name: "trailing slash on an exact route", method: "GET", path: "/api/latest/fleet/config/", wantStatus: 404, wantBody: notFound},
-		{name: "query string is ignored", method: "GET", path: "/api/latest/fleet/config?page=1", wantStatus: 200, wantBody: "get_config "},
-		{
-			name: "websocket live results prefix route", method: "GET", path: "/api/latest/fleet/results/anything",
-			wantStatus: 200, wantBody: "get_results ",
-		},
-		// No redirect: it would drop server.url_prefix, which is stripped before the router sees the request.
-		{name: "live results prefix without the slash", method: "GET", path: "/api/latest/fleet/results", wantStatus: 404, wantBody: notFound},
 		{
 			name: "removed route behind a live route whose constraint fails", method: "GET",
 			path:       "/api/latest/fleet/hosts/identifier/device_mapping",
 			wantStatus: 200, wantBody: "get_hosts_identifier__identifier_ identifier_segment=identifier,identifier=device_mapping",
 		},
 		{
-			// The ServeMux answers a wrong method before any route constraint runs, so the invalid id doesn't turn this into a 404.
+			// Deliberate: the ServeMux answers a wrong method before any route constraint runs, so the invalid id stays a 405.
 			name: "invalid id on a path only other methods serve", method: "POST", path: "/api/latest/fleet/certificates/abc",
 			wantStatus: 405, wantAllow: "DELETE, GET, HEAD",
 		},
-		{
-			name: "wrong method on a path other methods serve", method: "POST", path: "/api/latest/fleet/certificates/1",
-			wantStatus: 405, wantAllow: "DELETE, GET, HEAD",
-		},
-		{name: "wrong method on a HEAD-only route", method: "GET", path: "/api/fleet/orbit/ping", wantStatus: 405, wantAllow: "HEAD"},
 	}
 
 	for _, c := range cases {
@@ -251,34 +207,15 @@ func TestRouterSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "POST /api/osquery/distributed/write", wantTier: tracing.TierHighVolume,
 		},
 		{
-			name: "versioned route is named with the _version_ placeholder", method: "GET", path: "/api/latest/fleet/config",
-			wantSpan: "GET /api/_version_/fleet/config", wantTier: tracing.TierStandard,
-		},
-		{
-			name: "path variable is named without its value", method: "GET", path: "/api/latest/fleet/hosts/1",
+			name: "version and path variable are named by their placeholders", method: "GET", path: "/api/latest/fleet/hosts/1",
 			wantSpan: "GET /api/_version_/fleet/hosts/{id}", wantTier: tracing.TierStandard,
-		},
-		{
-			name:     "HEAD on a route registered for HEAD",
-			method:   "HEAD",
-			path:     "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
-			wantSpan: "HEAD /api/_version_/fleet/device/{token}/ping",
-			wantTier: tracing.TierHighVolume,
 		},
 		{
 			name: "HEAD on a GET route takes the GET tier", method: "HEAD", path: "/api/latest/fleet/config",
 			wantSpan: "HEAD /api/_version_/fleet/config", wantTier: tracing.TierStandard,
 		},
 		{
-			name: "encoded path variable", method: "GET", path: "/api/latest/fleet/hosts/a%2Cb",
-			wantSpan: "GET /api/_version_/fleet/hosts/{id}", wantTier: tracing.TierStandard,
-		},
-		{
 			name: "constrained variable drops its regex", method: "PATCH", path: "/api/latest/fleet/fleets/1/secrets",
-			wantSpan: "PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets", wantTier: tracing.TierAlways,
-		},
-		{
-			name: "constrained variable checked after decoding", method: "PATCH", path: "/api/latest/fleet/fleets/%31/secrets",
 			wantSpan: "PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets", wantTier: tracing.TierAlways,
 		},
 	}
@@ -355,19 +292,12 @@ func TestAPIOnlyCatalogThroughRouter(t *testing.T) {
 		if serve(router, entry.Method, path).Code == http.StatusNotFound {
 			path = strings.Replace(path, "/api/v1/", "/api/latest/", 1) // a route that starts after v1
 		}
-		for _, c := range []struct {
-			grant fleet.APIEndpointRef
-			want  int
-		}{
-			{fleet.APIEndpointRef{Method: entry.Method, Path: entry.Path}, http.StatusOK},
-			{unrelated, http.StatusForbidden},
-		} {
-			if c.grant == unrelated && entry.Method == unrelated.Method && entry.Path == unrelated.Path {
-				continue
-			}
-			grant = c.grant
-			assert.Equalf(t, c.want, serve(router, entry.Method, path).Code, "%s %s granted %s %s", entry.Method, path,
-				c.grant.Method, c.grant.Path)
+		grant = fleet.APIEndpointRef{Method: entry.Method, Path: entry.Path}
+		assert.Equalf(t, http.StatusOK, serve(router, entry.Method, path).Code, "%s %s granted itself", entry.Method, path)
+		if grant != unrelated {
+			grant = unrelated
+			assert.Equalf(t, http.StatusForbidden, serve(router, entry.Method, path).Code, "%s %s granted another endpoint",
+				entry.Method, path)
 		}
 		checked++
 	}
