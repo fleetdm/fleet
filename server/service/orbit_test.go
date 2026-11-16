@@ -1428,8 +1428,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
-		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), false)
 
 		hctx := hostctx.NewContext(ctx, host)
@@ -1461,8 +1460,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
-		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""), false)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
