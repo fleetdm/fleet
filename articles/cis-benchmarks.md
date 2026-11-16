@@ -51,11 +51,11 @@ If either of these conditions fails, the host is considered to be failing the po
 
 CIS policies are stored in GitOps format in [`docs/solutions/cis/`](https://github.com/fleetdm/fleet/tree/main/docs/solutions/cis), with one folder per platform. Each folder has a `policies/` folder with the policy YAML.
 
-To add the policies, copy the YAML file into your GitOps repository and reference it in your `default.yml` file or the fleet's YAML file (fleets are Fleet Premium only). For example:
+To add the policies, copy the YAML file into your GitOps repository and reference it in your `default.yml` file or the fleet's YAML file (fleets are Fleet Premium only). Most platform folders use the same filename, so give each copy a unique name, like `cis-macos-15.yml`. The `path` is relative to the YAML file that references it. For example:
 
 ```yaml
 policies:
-  - path: ../lib/cis-policy-queries.yml
+  - path: ../lib/cis-macos-15.yml
 ```
 
 To add only some of the policies, copy the ones you want into your own YAML file. Learn more about [Fleet's YAML files](https://fleetdm.com/docs/configuration/yaml-files#policies).
