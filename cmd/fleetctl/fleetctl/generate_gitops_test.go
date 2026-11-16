@@ -4195,3 +4195,19 @@ func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateSMTPSettingsPassword(t *testing.T) {
+	cmd := &GenerateGitopsCommand{}
+
+	settings := cmd.generateSMTPSettings(&fleet.SMTPSettings{SMTPServer: "smtp.example.com", SMTPPassword: fleet.MaskedPassword})
+	require.Len(t, cmd.Comments, 1)
+	require.Equal(t, cmd.Comments[0].Token, settings["password"])
+	require.Equal(t, []SecretWarning{{Filename: "default.yml", Key: "smtp_settings.password"}}, cmd.Messages.SecretWarnings)
+	require.NotContains(t, settings, "configured")
+
+	cmd = &GenerateGitopsCommand{}
+	settings = cmd.generateSMTPSettings(&fleet.SMTPSettings{SMTPServer: "smtp.example.com"})
+	require.Empty(t, settings["password"])
+	require.Empty(t, cmd.Comments)
+	require.Empty(t, cmd.Messages.SecretWarnings)
+}

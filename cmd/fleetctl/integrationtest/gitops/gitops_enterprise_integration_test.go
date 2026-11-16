@@ -7249,3 +7249,185 @@ software:
 	}
 	require.Equal(t, readTree(genDir), readTree(genDir2))
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestOmittedSettingsResetToDefaults() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	globalFile := s.writeConfigFile(t, `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`)
+	teamName := uuid.NewString()
+	teamSecret := uuid.NewString()
+	teamFile := s.writeConfigFile(t, fmt.Sprintf(`
+name: %s
+agent_options:
+controls:
+policies:
+reports:
+software:
+settings:
+  secrets: [{"secret":"%s"}]
+`, teamName, teamSecret))
+	blankKeysGlobalFile := s.writeConfigFile(t, `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+    report_cap:
+  org_info:
+    org_name: Fleet
+  secrets:
+  host_expiry_settings:
+  smtp_settings:
+  gitops:
+policies:
+reports:
+`)
+	blankKeysTeamFile := s.writeConfigFile(t, fmt.Sprintf(`
+name: %s
+agent_options:
+controls:
+policies:
+reports:
+software:
+settings:
+  secrets: [{"secret":"%s"}]
+  host_expiry_settings:
+`, teamName, teamSecret))
+
+	run := func(args ...string) string {
+		return fleetctltest.RunAppForTest(t, append([]string{"gitops", "--config", fleetctlConfig.Name()}, args...))
+	}
+
+	run("-f", globalFile, "-f", teamFile)
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = s.DS.DeleteTeam(context.Background(), team.ID) })
+
+	defaults, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+
+	setNonDefaults := func() {
+		ac, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.OrgInfo.ContactURL = "https://example.com/contact"
+		ac.OrgInfo.OrgLogoURLDarkMode = "https://example.com/logo.png"
+		ac.OrgInfo.OrgLogoURLLightMode = "https://example.com/logo-light.png"
+		ac.ServerSettings.LiveQueryDisabled = true
+		ac.ServerSettings.DebugHostIDs = []uint{1, 2}
+		ac.ServerSettings.DeferredSaveHost = true
+		ac.ServerSettings.QueryReportsDisabled = true
+		ac.ServerSettings.AIFeaturesDisabled = true
+		ac.ServerSettings.MCPDisabled = true
+		ac.ServerSettings.QueryReportCap = 4321
+		ac.SMTPSettings = &fleet.SMTPSettings{
+			SMTPSenderAddress: "a@example.com", SMTPServer: "smtp.example.com", SMTPPort: 2525,
+			SMTPAuthenticationType: fleet.AuthTypeNameNone, SMTPUserName: "u", SMTPPassword: "p", SMTPDomain: "example.com",
+		}
+		ac.HostExpirySettings = fleet.HostExpirySettings{HostExpiryEnabled: true, HostExpiryWindow: 33}
+		ac.ActivityExpirySettings = fleet.ActivityExpirySettings{ActivityExpiryEnabled: true, ActivityExpiryWindow: 44, PreserveHostActivitiesOnReenrollment: true}
+		ac.FleetDesktop.TransparencyURL = "https://example.com/transparency"
+		ac.FleetDesktop.AlternativeBrowserHost = "browser.example.com"
+		ac.WebhookSettings.Interval = fleet.Duration{Duration: 7 * time.Hour}
+		ac.WebhookSettings.ActivitiesWebhook = fleet.ActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/act"}
+		ac.WebhookSettings.HostStatusWebhook = fleet.HostStatusWebhookSettings{Enable: true, DestinationURL: "https://example.com/hs", HostPercentage: 12, DaysCount: 3}
+		ac.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
+			Enable: true, DestinationURL: "https://example.com/fp", HostBatchSize: 9, PolicyIDs: ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs,
+		}
+		ac.WebhookSettings.VulnerabilitiesWebhook = fleet.VulnerabilitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/vuln", HostBatchSize: 8}
+		ac.GitOpsConfig.GitopsModeEnabled = true
+		ac.GitOpsConfig.RepositoryURL = "https://example.com/repo"
+		require.NoError(t, s.DS.SaveAppConfig(ctx, ac))
+
+		tm, err := s.DS.TeamByName(ctx, teamName)
+		require.NoError(t, err)
+		tm.Config.HostExpirySettings = fleet.HostExpirySettings{HostExpiryEnabled: true, HostExpiryWindow: 55}
+		_, err = s.DS.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+	}
+
+	assertDefaults := func() {
+		ac, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, defaults.OrgInfo, ac.OrgInfo)
+		assert.Equal(t, defaults.ServerSettings, ac.ServerSettings)
+		assert.Equal(t, defaults.SMTPSettings, ac.SMTPSettings)
+		assert.Equal(t, defaults.HostExpirySettings, ac.HostExpirySettings)
+		assert.Equal(t, defaults.ActivityExpirySettings, ac.ActivityExpirySettings)
+		assert.Equal(t, defaults.FleetDesktop, ac.FleetDesktop)
+		assert.Equal(t, defaults.WebhookSettings, ac.WebhookSettings)
+		assert.False(t, ac.GitOpsConfig.GitopsModeEnabled)
+		assert.Empty(t, ac.GitOpsConfig.RepositoryURL)
+
+		tm, err := s.DS.TeamByName(ctx, teamName)
+		require.NoError(t, err)
+		assert.Equal(t, fleet.HostExpirySettings{}, tm.Config.HostExpirySettings)
+	}
+
+	for _, c := range []struct {
+		name               string
+		globalFile, teamFn string
+	}{
+		{"keys omitted", globalFile, teamFile},
+		{"keys blank", blankKeysGlobalFile, blankKeysTeamFile},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			setNonDefaults()
+
+			dryRunOutput := run("-f", c.globalFile, "-f", c.teamFn, "--dry-run")
+			assert.Contains(t, dryRunOutput, "[!] would've set org_settings.gitops to defaults because not defined in YAML: gitops_mode_enabled, repository_url")
+			assert.Contains(t, dryRunOutput, "[!] would've set org_settings.server_settings to defaults because not defined in YAML: ai_features_disabled")
+			assert.Contains(t, dryRunOutput, "report_cap")
+			ac, err := s.DS.AppConfig(ctx)
+			require.NoError(t, err)
+			require.True(t, ac.GitOpsConfig.GitopsModeEnabled, "dry run must not reset")
+
+			output := run("-f", c.globalFile, "-f", c.teamFn)
+			assert.Contains(t, output, "[!] set org_settings.gitops to defaults because not defined in YAML: gitops_mode_enabled, repository_url")
+			assertDefaults()
+
+			// Nothing left to reset, so nothing to warn about.
+			assert.NotContains(t, run("-f", c.globalFile, "-f", c.teamFn), "to defaults because not defined in YAML")
+		})
+	}
+
+	t.Run("blank smtp password keeps the stored one", func(t *testing.T) {
+		setNonDefaults()
+		for _, password := range []string{"", "\n    password:", "\n    password: \"\""} {
+			run("-f", s.writeConfigFile(t, `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  smtp_settings:
+    server: smtp2.example.com`+password+`
+policies:
+reports:
+`), "-f", teamFile)
+			ac, err := s.DS.AppConfig(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, "smtp2.example.com", ac.SMTPSettings.SMTPServer)
+			assert.Equal(t, "p", ac.SMTPSettings.SMTPPassword)
+			assert.Empty(t, ac.SMTPSettings.SMTPUserName)
+		}
+	})
+}

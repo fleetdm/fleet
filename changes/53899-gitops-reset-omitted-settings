@@ -1,0 +1,1 @@
+- Changed GitOps to reset every setting omitted from `org_settings` and fleet `settings` to its default, including `gitops`, `host_expiry_settings`, and `smtp_settings`. `fleetctl generate-gitops` now outputs `gitops` and `smtp_settings`, and `fleetctl gitops` warns before resetting `smtp_settings`, `gitops`, or `server_settings` values.

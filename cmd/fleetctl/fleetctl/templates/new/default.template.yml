@@ -45,6 +45,35 @@ org_settings:
   #   metadata_url: "https://okta.com/replace-this-url" # This must exactly match the "IdP metadata URL" provided by your identity provider (IdP) when setting up this integration.
   #   entity_id: "fleet-admins" # This must exactly match the "Entity ID" field you chose when setting up this integration in your identity provider (IdP).
 
+  ###########################################################
+  # Uncomment if you self-host Fleet and want it to send user
+  # invite and password reset emails through your SMTP server.
+  #
+  # Note: Any setting left out of this file is reset to its
+  # default, so keep this section once you rely on it.
+  #
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#smtp-settings
+  ###########################################################
+  # smtp_settings:
+  #   enable_smtp: true
+  #   sender_address: "fleet@example.com"
+  #   server: "smtp.example.com"
+  #   port: 587
+  #   user_name: "fleet@example.com"
+  #   password: "your-smtp-password" # Keep this out of the repo: reference a CI/CD secret here instead.
+
+  ###########################################################
+  # Uncomment to make GitOps-managed settings read-only in the
+  # Fleet UI (GitOps mode).
+  #
+  # Read more:
+  #   • https://fleetdm.com/docs/configuration/yaml-files#gitops
+  ###########################################################
+  # gitops:
+  #   gitops_mode_enabled: true
+  #   repository_url: "https://github.com/your-org/your-fleet-gitops-repo"
+
   mdm:
     ###########################################################
     # Uncomment to use single sign-on (SSO) to authenticate

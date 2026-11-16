@@ -11,7 +11,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -124,6 +127,11 @@ func (c *Client) planAndStripOrgLogos(
 		_, pathPresent := orgInfo[s.pathKey]
 		_, urlPresent := orgInfo[s.urlKey]
 		if !pathPresent && !urlPresent {
+			// Left alone when only the deprecated key is set: it carries the value.
+			if _, deprecatedPresent := orgInfo[s.deprecatedURLKey]; !deprecatedPresent {
+				orgInfo[s.urlKey] = ""
+				orgInfo[s.deprecatedURLKey] = ""
+			}
 			continue
 		}
 
@@ -275,4 +283,190 @@ func (c *Client) GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, content
 		return nil, "", fmt.Errorf("reading org logo (%s) body: %w", mode, err)
 	}
 	return body, resp.Header.Get("Content-Type"), nil
+}
+
+// gitOpsHighRiskOrgSettings are the org_settings sections whose reset is called
+// out to the user, because it loses a secret, unlocks the UI, or deletes data.
+var gitOpsHighRiskOrgSettings = []string{"smtp_settings", "gitops", "server_settings"}
+
+// gitOpsOrgSettingsDefaults returns the org_settings a GitOps run falls back to
+// for anything the YAML leaves out. Only sections that the PATCH would
+// otherwise merge onto the stored config are listed here.
+func gitOpsOrgSettingsDefaults() (map[string]any, error) {
+	var cfg fleet.AppConfig
+	cfg.ApplyDefaultsForNewInstalls()
+
+	raw, err := json.Marshal(map[string]any{
+		"host_expiry_settings":     cfg.HostExpirySettings,
+		"activity_expiry_settings": cfg.ActivityExpirySettings,
+		"smtp_settings":            cfg.SMTPSettings,
+		"server_settings":          cfg.ServerSettings,
+		"fleet_desktop":            cfg.FleetDesktop,
+		"webhook_settings":         cfg.WebhookSettings,
+		"org_info":                 map[string]any{"contact_url": fleet.DefaultOrgInfoContactURL},
+		"gitops":                   map[string]any{"gitops_mode_enabled": false, "repository_url": ""},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal org_settings defaults: %w", err)
+	}
+	var defaults map[string]any
+	if err := json.Unmarshal(raw, &defaults); err != nil {
+		return nil, fmt.Errorf("unmarshal org_settings defaults: %w", err)
+	}
+
+	serverSettings := defaults["server_settings"].(map[string]any)
+	// The server URL has no default to fall back to.
+	delete(serverSettings, "server_url")
+	// Tagged omitempty, so it has to be sent explicitly to be cleared.
+	serverSettings["debug_host_ids"] = []any{}
+	// Computed by the server from the test email.
+	delete(defaults["smtp_settings"].(map[string]any), "configured")
+	// Policy IDs come from the policies themselves, not from this section.
+	delete(defaults["webhook_settings"].(map[string]any)["failing_policies_webhook"].(map[string]any), "policy_ids")
+
+	return defaults, nil
+}
+
+// fillGitOpsDefaults sets every key of defaults that dst omits or leaves blank,
+// descending into nested sections. It returns the dotted paths it filled, using
+// the old (json tag) key names. A key supplied under its renamed alias counts
+// as present, since sending both names is rejected as a conflict.
+func fillGitOpsDefaults(dst, defaults map[string]any, aliases map[string]string, prefix string) []string {
+	var filled []string
+	for key, def := range defaults {
+		path := key
+		if prefix != "" {
+			path = prefix + "." + key
+		}
+		dstKey := key
+		if _, ok := dst[key]; !ok {
+			if alias, hasAlias := aliases[key]; hasAlias {
+				if _, ok := dst[alias]; ok {
+					dstKey = alias
+				}
+			}
+		}
+
+		defMap, defIsMap := def.(map[string]any)
+		cur := dst[dstKey]
+		if cur == nil {
+			dst[dstKey] = def
+			if defIsMap {
+				filled = append(filled, leafPaths(defMap, path)...)
+			} else {
+				filled = append(filled, path)
+			}
+			continue
+		}
+		if curMap, ok := cur.(map[string]any); ok && defIsMap {
+			filled = append(filled, fillGitOpsDefaults(curMap, defMap, aliases, path)...)
+		}
+	}
+	return filled
+}
+
+func leafPaths(m map[string]any, prefix string) []string {
+	var paths []string
+	for key, val := range m {
+		path := prefix + "." + key
+		if sub, ok := val.(map[string]any); ok {
+			paths = append(paths, leafPaths(sub, path)...)
+			continue
+		}
+		paths = append(paths, path)
+	}
+	return paths
+}
+
+func lookupPath(m map[string]any, path string) (any, bool) {
+	var cur any = m
+	for part := range strings.SplitSeq(path, ".") {
+		asMap, ok := cur.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		if cur, ok = asMap[part]; !ok {
+			return nil, false
+		}
+	}
+	return cur, true
+}
+
+// applyGitOpsOrgSettingsDefaults resets the org_settings the YAML omits and
+// returns, per high-risk section, the omitted keys whose value on the server
+// is not already the default.
+func applyGitOpsOrgSettingsDefaults(orgSettings map[string]any, current *fleet.EnrichedAppConfig) (map[string][]string, error) {
+	defaults, err := gitOpsOrgSettingsDefaults()
+	if err != nil {
+		return nil, err
+	}
+	aliases := make(map[string]string)
+	for _, rule := range endpointer.ExtractAliasRules(fleet.AppConfig{}) {
+		aliases[rule.OldKey] = rule.NewKey
+	}
+	// The API never returns the password, so a repo generated from the server
+	// holds a blank one. Sending no password keeps the stored one; omitting the
+	// whole section is what clears it.
+	smtp, _ := orgSettings["smtp_settings"].(map[string]any)
+	keepSMTPPassword := false
+	if smtp != nil {
+		password, _ := smtp["password"].(string)
+		keepSMTPPassword = password == ""
+	}
+
+	filled := fillGitOpsDefaults(orgSettings, defaults, aliases, "")
+	if keepSMTPPassword {
+		delete(smtp, "password")
+		filled = slices.DeleteFunc(filled, func(path string) bool { return path == "smtp_settings.password" })
+	}
+
+	if current == nil {
+		return nil, nil
+	}
+	raw, err := json.Marshal(current.AppConfig)
+	if err != nil {
+		return nil, fmt.Errorf("marshal current config: %w", err)
+	}
+	var currentMap map[string]any
+	if err := json.Unmarshal(raw, &currentMap); err != nil {
+		return nil, fmt.Errorf("unmarshal current config: %w", err)
+	}
+
+	resets := make(map[string][]string)
+	for _, path := range filled {
+		section, key, _ := strings.Cut(path, ".")
+		if !slices.Contains(gitOpsHighRiskOrgSettings, section) {
+			continue
+		}
+		// A section the token can't read (smtp_settings for non-admins) is
+		// absent here, so nothing can be said about it.
+		currentVal, ok := lookupPath(currentMap, path)
+		if !ok {
+			continue
+		}
+		defaultVal, _ := lookupPath(defaults, path)
+		if reflect.DeepEqual(currentVal, defaultVal) || isEmptyJSONValue(currentVal) && isEmptyJSONValue(defaultVal) {
+			continue
+		}
+		if alias, ok := aliases[key]; ok {
+			key = alias
+		}
+		resets[section] = append(resets[section], key)
+	}
+	for section := range resets {
+		slices.Sort(resets[section])
+	}
+	return resets, nil
+}
+
+func isEmptyJSONValue(v any) bool {
+	switch tv := v.(type) {
+	case nil:
+		return true
+	case []any:
+		return len(tv) == 0
+	case string:
+		return tv == ""
+	}
+	return false
 }
