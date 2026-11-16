@@ -183,4 +183,24 @@ describe("EditSoftwareModal — multi-package title", () => {
       expect(softwareAPI.editAppStoreApp).toHaveBeenCalled();
     });
   });
+
+  // In-house iOS/iPadOS edits take the same package save path. The backend
+  // (updateInHouseAppInstaller) only cancels pending installs on real
+  // side-effect edits (new installer file, label targeting, managed app
+  // configuration), so the FE treats self-service-only the same as any
+  // other package.
+  it("saves an in-house iOS/iPadOS self-service-only edit without the cancel-installs confirm modal", async () => {
+    const { user } = renderModal({
+      isIosOrIpadosApp: true,
+      softwareInstaller: createMockSoftwarePackage({ self_service: false }),
+    });
+
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByText("Save changes?")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(softwareAPI.editSoftwarePackage).toHaveBeenCalled();
+    });
+  });
 });
