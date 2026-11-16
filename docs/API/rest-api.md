@@ -3649,13 +3649,7 @@ the `software` table.
 
 `GET /api/v1/fleet/hosts`
 
-> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
-
-> `populate_end_users` runs several extra database queries for each host in the response. Note that `other_emails` is built from the same data as the `device_mapping` parameter, so there's no need to request both.
-
-> Searching with `query` and setting `device_mapping=true` or `populate_end_users=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
-
-> `group_tag` is the Windows Autopilot group tag, and is only returned for hosts synced from a tenant's Autopilot registry. See [Connect Fleet to Microsoft Graph](https://fleetdm.com/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph).
+> `query`, `device_mapping`, `populate_software`, and `populate_end_users` can overload the Fleet server when combined with large page lengths (`per_page`). When using them use a lower `per_page` (e.g. `50`).
 
 #### Parameters
 
@@ -3694,10 +3688,10 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
-| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. For vulnerability details across many hosts, use `without_vulnerability_details` and the [Get vulnerability](#get-vulnerability) endpoint, which returns details once per vulnerability instead of once per host. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
-| populate_end_users     | boolean | query | If `true`, the response will include end user data for each host, including identity provider (IdP) details and other emails. |
+| populate_end_users     | boolean | query | If `true`, the response will include end user data for each host, including identity provider (IdP) details and other emails. `other_emails` uses the same data as `device_mapping`, so you don't need both. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 | include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
@@ -3966,6 +3960,8 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
+
+`group_tag` is the Windows Autopilot group tag. It's only returned for hosts synced from a tenant's Autopilot registry. See [Connect Fleet to Microsoft Graph](https://fleetdm.com/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph).
 
 Response payload with the `mdm_id` filter provided:
 
