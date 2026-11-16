@@ -34,6 +34,10 @@ set -ex
 # USE_UPDATE_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST: Alternative host:port to use for the Fleet Desktop browser URLs.
 # DEBUG: Whether or not to build the package with --debug.
+#
+# Output file for each package type (defaults to fleetctl's naming, e.g. fleet-linux-amd64.deb):
+# PKG_OUTFILE (default: fleet-macos.pkg), DEB_OUTFILE, DEB_ARM64_OUTFILE, RPM_OUTFILE,
+# RPM_ARM64_OUTFILE, PKG_TAR_ZST_OUTFILE, PKG_TAR_ZST_ARM64_OUTFILE, MSI_OUTFILE, MSI_ARM64_OUTFILE.
 
 ENABLE_SCRIPTS="1"
 if [[ -n $DISABLE_SCRIPTS ]]; then
@@ -74,7 +78,7 @@ if [ -n "$GENERATE_PKG" ]; then
         --update-url=$PKG_TUF_URL \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         --disable-keystore \
-        --outfile=fleet-macos.pkg
+        --outfile="${PKG_OUTFILE:-fleet-macos.pkg}"
 fi
 
 if [ -n "$GENERATE_DEB" ]; then
@@ -102,6 +106,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         ${FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
+        ${DEB_OUTFILE:+--outfile=$DEB_OUTFILE} \
         --update-url=$DEB_TUF_URL
 fi
 
@@ -130,6 +135,7 @@ if [ -n "$GENERATE_DEB_ARM64" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         ${FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
+        ${DEB_ARM64_OUTFILE:+--outfile=$DEB_ARM64_OUTFILE} \
         --update-url=$DEB_TUF_URL
 fi
 
@@ -158,6 +164,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         ${FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
+        ${RPM_OUTFILE:+--outfile=$RPM_OUTFILE} \
         --update-url=$RPM_TUF_URL
 fi
 
@@ -186,6 +193,7 @@ if [ -n "$GENERATE_RPM_ARM64" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         ${FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
+        ${RPM_ARM64_OUTFILE:+--outfile=$RPM_ARM64_OUTFILE} \
         --update-url=$RPM_TUF_URL
 fi
 
@@ -214,6 +222,7 @@ if [ -n "$GENERATE_PKG_TAR_ZST" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         ${FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
+        ${PKG_TAR_ZST_OUTFILE:+--outfile=$PKG_TAR_ZST_OUTFILE} \
         --update-url=$PKG_TAR_ZST_TUF_URL
 fi
 
@@ -242,6 +251,7 @@ if [ -n "$GENERATE_PKG_TAR_ZST_ARM64" ]; then
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
         ${FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
+        ${PKG_TAR_ZST_ARM64_OUTFILE:+--outfile=$PKG_TAR_ZST_ARM64_OUTFILE} \
         --update-url=$PKG_TAR_ZST_TUF_URL
 fi
 
@@ -268,6 +278,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
+        ${MSI_OUTFILE:+--outfile=$MSI_OUTFILE} \
         --update-url=$MSI_TUF_URL
 fi
 
@@ -295,11 +306,12 @@ if [ -n "$GENERATE_MSI_ARM64" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
+        ${MSI_ARM64_OUTFILE:+--outfile=$MSI_ARM64_OUTFILE} \
         --update-url=$MSI_TUF_URL
 fi
 
 echo "Packages generated."
 
 if [[ $OSTYPE == 'darwin'* && -n "$INSTALL_PKG" ]]; then
-    sudo installer -pkg fleet-macos.pkg -target /
+    sudo installer -pkg "${PKG_OUTFILE:-fleet-macos.pkg}" -target /
 fi
