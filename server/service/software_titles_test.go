@@ -383,7 +383,7 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, title.SoftwarePackage)
 			require.Len(t, title.Packages, 1)
-			require.NotNil(t, title.AppStoreApp)
+			require.Len(t, title.AppStoreApps, 1)
 
 			// Both the single package and the packages list are serialized.
 			for _, pkg := range []*fleet.SoftwareInstaller{title.SoftwarePackage, &title.Packages[0]} {
@@ -411,11 +411,11 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			}
 
 			if tc.canReadInstaller {
-				require.NotEmpty(t, title.AppStoreApp.Configuration)
+				require.NotEmpty(t, title.AppStoreApps[0].Configuration)
 			} else {
-				require.Empty(t, title.AppStoreApp.Configuration)
+				require.Empty(t, title.AppStoreApps[0].Configuration)
 			}
-			require.Equal(t, "Bar", title.AppStoreApp.Name)
+			require.Equal(t, "Bar", title.AppStoreApps[0].Name)
 
 			// get the title without a fleet, the request should succeed without any installer data
 			ds.TeamExistsFuncInvoked = false
@@ -424,7 +424,7 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			require.False(t, ds.TeamExistsFuncInvoked)
 			require.Nil(t, noTeamTitle.SoftwarePackage)
 			require.Empty(t, noTeamTitle.Packages)
-			require.Nil(t, noTeamTitle.AppStoreApp)
+			require.Nil(t, noTeamTitle.AppStoreApps)
 
 			// An explicit "no team" is authorized up front, so it still fails.
 			_, err = svc.SoftwareTitleByID(ctx, 1, new(uint(0)))
@@ -574,24 +574,24 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		versionTokenID = new(uint(2))
 		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
 		require.NoError(t, err)
-		require.NotNil(t, title.AppStoreApp)
-		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApp.VPPToken)
+		require.Len(t, title.AppStoreApps, 1)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApps[0].VPPToken)
 	})
 
 	t.Run("app without a token", func(t *testing.T) {
 		versionTokenID = nil
 		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
 		require.NoError(t, err)
-		require.NotNil(t, title.AppStoreApp)
-		require.Nil(t, title.AppStoreApp.VPPToken)
+		require.Len(t, title.AppStoreApps, 1)
+		require.Nil(t, title.AppStoreApps[0].VPPToken)
 	})
 
 	t.Run("deleted token", func(t *testing.T) {
 		versionTokenID = new(uint(3))
 		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
 		require.NoError(t, err)
-		require.NotNil(t, title.AppStoreApp)
-		require.Nil(t, title.AppStoreApp.VPPToken)
+		require.Len(t, title.AppStoreApps, 1)
+		require.Nil(t, title.AppStoreApps[0].VPPToken)
 	})
 
 	t.Run("no fleet", func(t *testing.T) {
@@ -599,7 +599,7 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		ds.GetVPPTokenFuncInvoked = false
 		title, err := svc.SoftwareTitleByID(ctx, 1, nil)
 		require.NoError(t, err)
-		require.Nil(t, title.AppStoreApp)
+		require.Nil(t, title.AppStoreApps)
 		require.False(t, ds.GetVPPTokenFuncInvoked)
 	})
 
@@ -612,6 +612,5 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		require.Len(t, title.AppStoreApps, 2)
 		require.Nil(t, title.AppStoreApps[0].VPPToken)
 		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApps[1].VPPToken)
-		require.Nil(t, title.AppStoreApp.VPPToken)
 	})
 }

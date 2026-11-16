@@ -387,7 +387,7 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 		require.EqualValues(t, 1, *opt.TeamID)
 		return []fleet.SoftwareTitleListResult{
 			{ID: 10, Name: "VPPApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform}}},
-			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
+			{ID: 20, Name: "Pkg", Packages: []fleet.SoftwarePackageListItem{{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}}},
 			{ID: 30, Name: "VersionsApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform}}},
 		}, 3, &fleet.PaginationMetadata{}, nil
 	}
@@ -432,9 +432,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   10,
 				Name: "VPPApp",
-				AppStoreApps: []fleet.AppStoreAppVersion{{
-					Name:        fleet.DefaultAppStoreAppVersionName,
-					AppStoreID:  "123",
+				AppStoreApps: []*fleet.VPPAppStoreApp{{
+					VersionName: fleet.DefaultAppStoreAppVersionName,
+					AdamID:      "123",
 					Platform:    fleet.MacOSPlatform,
 					SelfService: true,
 				}},
@@ -443,10 +443,10 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   20,
 				Name: "Pkg",
-				SoftwarePackage: &fleet.SoftwareInstaller{
+				Packages: []fleet.SoftwareInstaller{{
 					URL:       "https://example.com/pkg.pkg",
 					StorageID: "abc123",
-				},
+				}},
 			}, nil
 		case 30:
 			return &fleet.SoftwareTitle{
@@ -730,6 +730,14 @@ func TestGetHosts(t *testing.T) {
 			require.Contains(t, spec, "fleet_name", "spec should contain 'fleet_name' key")
 			require.NotContains(t, spec, "team_name", "spec should not contain deprecated 'team_name' key with --remove-deprecated-keys")
 		}
+	})
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		_, err := runAppNoChecks([]string{"get", "hosts", "test_host"})
+		require.ErrorContains(t, err, fleet.GitOpsViewHostByIdentifierErrorMessage)
 	})
 }
 
@@ -1053,8 +1061,7 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- app_store_app: null
-  app_store_apps: null
+- app_store_apps: null
   hosts_count: 2
   icon_url: null
   id: 0
@@ -1079,8 +1086,7 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- app_store_app: null
-  app_store_apps: null
+- app_store_apps: null
   hosts_count: 0
   icon_url: null
   id: 0
@@ -1137,7 +1143,6 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null,
       "app_store_apps": null
     },
     {
@@ -1158,7 +1163,6 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null,
       "app_store_apps": null
     }
   ]
@@ -2245,7 +2249,7 @@ func TestEnrichedAppConfig(t *testing.T) {
       {
         "org_info": {
           "org_name": "Fleet for osquery",
-          "org_logo_url": ""
+          "org_logo_url_dark_mode": ""
         },
         "server_settings": {
           "server_url": "https://localhost:8412",

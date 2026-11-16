@@ -78,7 +78,7 @@ export interface IDepAssignmentHostResponse {
     response_updated_at: string;
     added_at: string;
     deleted_at: string | null;
-    abm_token_id: number;
+    ab_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
   } | null;

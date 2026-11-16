@@ -299,11 +299,6 @@ type Datastore interface {
 	// LabelsByName retrieves the labels associated with the given label names
 	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 
-	// Methods used for async processing of host label query results.
-	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
-	AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error
-	AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error
-
 	///////////////////////////////////////////////////////////////////////////////
 	// HostStore
 
@@ -750,6 +745,10 @@ type Datastore interface {
 	NewTeam(ctx context.Context, team *Team) (*Team, error)
 	// SaveTeam saves any changes to the team.
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
+	// UpdateTeamUsers sets the role of each user in set and removes the users in removeIDs from the team, in one
+	// transaction. It returns the identity and roles from before the change of each named user that exists, by ID, read
+	// under a lock on each user.
+	UpdateTeamUsers(ctx context.Context, teamID uint, set []TeamUser, removeIDs []uint) (map[uint]User, error)
 	// TeamWithExtras retrieves the Team by ID, including extra fields.
 	TeamWithExtras(ctx context.Context, tid uint) (*Team, error)
 	// TeamLite retrieves a Team by ID, including only id, created_at, name, filename, description, config fields.
@@ -1196,10 +1195,6 @@ type Datastore interface {
 	// reports whether it did.
 	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
 
-	// Methods used for async processing of host policy query results.
-	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
-	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
-
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
@@ -1349,11 +1344,6 @@ type Datastore interface {
 
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []PackStats) error
-	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
-	// pack stats of scheduled queries. It is the async and batch version of
-	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE
-	// statements that were executed (for reporting purpose) or an error.
-	AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]ScheduledQueryStats, batchSize int) (int, error)
 
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`

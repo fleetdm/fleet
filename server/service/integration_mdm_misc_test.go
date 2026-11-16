@@ -48,8 +48,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"org_info": {
-			"org_logo_url": "http://test-image.com",
-			"org_logo_url_light_background": "http://test-image-light.com"
+			"org_logo_url_dark_mode": "http://test-image.com",
+			"org_logo_url_light_mode": "http://test-image-light.com"
 		}
 	}`), http.StatusOK, &acResp)
 
@@ -64,8 +64,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+	require.Equal(t, "http://test-image.com", getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+	require.Equal(t, "http://test-image-light.com", getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 }
 
 func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
@@ -532,7 +532,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			var wantMacOSSetup fleet.MacOSSetup
 			if checkMDM != nil {
 				if checkMDM.MacOSSetup != nil {
-					wantMacOSSetup = *checkMDM.MacOSSetup
+					wantMacOSSetup = checkMDM.MacOSSetup.MacOSSetup
+					wantMacOSSetup.EnableEndUserAuthentication = checkMDM.MacOSSetup.EnableEndUserAuthentication.Value
 					// bootstrap package always ignored by modify team endpoint so expect original value
 					wantMacOSSetup.BootstrapPackage = team.Config.MDM.MacOSSetup.BootstrapPackage
 					// setup assistant always ignored by modify team endpoint so expect original value
@@ -588,9 +589,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				"mdm all zero values",
 				&fleet.TeamPayloadMDM{
 					EnableDiskEncryption: optjson.SetBool(false),
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						BootstrapPackage:            optjson.SetString(""),
-						EnableEndUserAuthentication: false,
+						EnableEndUserAuthentication: optjson.SetBool(false),
 						MacOSSetupAssistant:         optjson.SetString(""),
 					},
 				},
@@ -599,7 +600,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"bootstrap package",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						BootstrapPackage: optjson.SetString("some-package"),
 					},
 				},
@@ -609,7 +610,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"setup assistant",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
 					},
 				},
@@ -627,8 +628,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"enable end user auth",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
-						EnableEndUserAuthentication: true,
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
+						EnableEndUserAuthentication: optjson.SetBool(true),
 					},
 				},
 				// disk encryption requires mdm enabled and configured
@@ -878,7 +879,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -893,7 +894,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -923,7 +924,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -958,7 +959,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -970,7 +971,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -998,7 +999,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -1010,7 +1011,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},
@@ -1038,7 +1039,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -1073,7 +1074,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},

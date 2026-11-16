@@ -3,6 +3,7 @@
   "slug": "garmin-basecamp/windows",
   "package_identifier": "Garmin.BaseCamp",
   "unique_identifier": "Garmin BaseCamp",
+  "open_process_names": ["basecamp.exe"],
   "installer_arch": "x86",
   "installer_type": "exe",
   "installer_scope": "machine",
@@ -11,5 +12,5 @@
   "default_categories": [
     "Productivity"
   ],
-  "program_publisher": "Garmin Ltd. or its subsidiaries"
+  "program_publisher": "Garmin Ltd or its subsidiaries"
 }

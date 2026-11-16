@@ -1,0 +1,1 @@
+- Fixed host memory showing "-0.0 GB" when osquery cannot report it (for example on some Hyper-V VMs). It now shows "---".

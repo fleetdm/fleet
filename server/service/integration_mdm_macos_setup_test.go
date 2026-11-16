@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -345,7 +346,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
 			  "macos_fleet": %q,
 			  "ios_fleet": %q,
@@ -356,7 +357,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -989,7 +990,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {}
+				"setup_experience": {}
 			}`,
 			expectedEUA:    false,
 			expectedLEUI:   false,
@@ -997,7 +998,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}`,
@@ -1007,7 +1008,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true, "lock_end_user_info": false
 				}
 			}`,
@@ -1017,7 +1018,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true, "lock_end_user_info": true
 				}
 			}`,
@@ -1027,7 +1028,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}`,
@@ -1037,7 +1038,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false, "lock_end_user_info": true
 				}
 			}`,
@@ -1149,10 +1150,10 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				macSetup := map[string]any{}
 				if c.enableRelease != nil {
-					macSetup["enable_release_device_manually"] = *c.enableRelease
+					macSetup["apple_enable_release_device_manually"] = *c.enableRelease
 				}
 				if c.setupAssistant != "" {
-					macSetup["macos_setup_assistant"] = c.setupAssistant
+					macSetup["apple_setup_assistant"] = c.setupAssistant
 				}
 
 				uploadSucceeded := true
@@ -1169,7 +1170,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				if uploadSucceeded {
 					acResp = appConfigResponse{}
 					s.DoJSON("PATCH", path,
-						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"macos_setup": macSetup}})),
+						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"setup_experience": macSetup}})),
 						c.expectedStatus, &acResp)
 					require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 					require.Equal(t, c.expectedAssistant, acResp.MDM.MacOSSetup.MacOSSetupAssistant.Value)
@@ -1249,7 +1250,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 						"fleet_id": tm.ID,
 					}
 					if c.enableRelease != nil {
-						payload["enable_release_device_manually"] = *c.enableRelease
+						payload["apple_enable_release_device_manually"] = *c.enableRelease
 					}
 					s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), expectedPatchStatus)
 				}
@@ -1354,7 +1355,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1379,7 +1380,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}
@@ -1416,7 +1417,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1441,7 +1442,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}
@@ -1466,7 +1467,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"idp_name": "",
 					"metadata_url": ""
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1480,7 +1481,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1918,7 +1919,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 				"organization_name": %q,
 				"macos_fleet": %q,
 				"ios_fleet": "",
@@ -2510,7 +2511,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Enable via PATCH /teams/:id
 		var tmResp teamResponse
 		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
-			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
 		}, http.StatusOK, &tmResp)
 		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
@@ -2519,14 +2520,14 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		// Patching same value again should not create a new activity
 		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
-			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
 		}, http.StatusOK, &tmResp)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
 			``, lastActivityID)
 
 		// Disable
 		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
-			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}},
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}},
 		}, http.StatusOK, &tmResp)
 		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 		require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
@@ -2536,4 +2537,98 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 func (s *integrationMDMTestSuite) uploadWindowsEULA(eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
 	s.uploadEULAFile("windows", "", eula, expectedStatus, wantErr)
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceManagedLocalAccountKeys() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_mdm_enabled": true}}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_mdm_enabled": false}}`), http.StatusOK)
+		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(
+			`{"macos_managed_local_account_enabled": false, "macos_end_user_local_account_type": "admin", "windows_managed_local_account_enabled": false}`),
+			http.StatusNoContent)
+	})
+
+	// "Unassigned" and a fleet both save the three keys, and the Windows one logs its activity.
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(
+		`{"macos_managed_local_account_enabled": true, "macos_end_user_local_account_type": "standard", "windows_managed_local_account_enabled": true}`),
+		http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "platform": "windows"}`, 0)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+		`{"fleet_id": %d, "macos_managed_local_account_enabled": true, "macos_end_user_local_account_type": "none", "windows_managed_local_account_enabled": true}`,
+		team.ID)), http.StatusNoContent)
+	windowsActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "windows"}`, team.ID, team.Name), 0)
+
+	// An unchanged value logs nothing.
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+		`{"fleet_id": %d, "windows_managed_local_account_enabled": true}`, team.ID)), http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "windows"}`, team.ID, team.Name), windowsActivityID)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	require.Equal(t, "standard", acResp.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	require.Equal(t, "none", teamResp.Team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
+
+	// Turning the account off alone would leave the stored "none" without the account it needs.
+	res := s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+		`{"fleet_id": %d, "macos_managed_local_account_enabled": false}`, team.ID)), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `macos_managed_local_account_enabled is required to be enabled when using "none"`)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+
+	// Validation errors name the new keys.
+	res = s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+		`{"fleet_id": %d, "macos_managed_local_account_enabled": false, "macos_end_user_local_account_type": "standard"}`, team.ID)),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "macos_managed_local_account_enabled is required")
+	res = s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(`{"macos_end_user_local_account_type": "root"}`),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `only "admin", "standard", and "none" are supported`)
+
+	// Global maintainers can change the settings, observers can't.
+	for _, role := range []string{fleet.RoleMaintainer, fleet.RoleObserver} {
+		u := &fleet.User{Name: role, Email: role + "-" + t.Name() + "@example.com", GlobalRole: new(role)}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+	}
+	func() {
+		adminToken := s.token
+		defer func() { s.token = adminToken }()
+		s.token = s.getTestToken(fleet.RoleMaintainer+"-"+t.Name()+"@example.com", test.GoodPassword)
+		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+			`{"fleet_id": %d, "windows_managed_local_account_enabled": false}`, team.ID)), http.StatusNoContent)
+		s.token = s.getTestToken(fleet.RoleObserver+"-"+t.Name()+"@example.com", test.GoodPassword)
+		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+			`{"fleet_id": %d, "windows_managed_local_account_enabled": true}`, team.ID)), http.StatusForbidden)
+	}()
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "windows"}`, team.ID, team.Name), 0)
+
+	// With Windows MDM off, turning the Windows setting on fails everywhere, and turning it off still saves.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_mdm_enabled": false}}`), http.StatusOK)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(fmt.Sprintf(
+		`{"fleet_id": %d, "windows_managed_local_account_enabled": true}`, team.ID)), http.StatusBadRequest)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), json.RawMessage(
+		`{"mdm": {"setup_experience": {"windows_managed_local_account_enabled": true}}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "setup_experience.windows_managed_local_account_enabled")
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(`{"windows_managed_local_account_enabled": false}`), http.StatusNoContent)
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(
+		`{"mdm": {"setup_experience": {"windows_managed_local_account_enabled": true}}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "setup_experience.windows_managed_local_account_enabled")
 }

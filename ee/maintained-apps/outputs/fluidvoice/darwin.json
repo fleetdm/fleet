@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.12",
+      "version": "1.6.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.FluidApp.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.FluidApp.app' AND path NOT LIKE '%/Library/Application Support/Fluid/RollbackBackups/%' AND version_compare(bundle_short_version, '1.6.12') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.FluidApp.app' AND path NOT LIKE '%/Library/Application Support/Fluid/RollbackBackups/%' AND version_compare(bundle_short_version, '1.6.13') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.FluidApp.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/altic-dev/FluidVoice/releases/download/v1.6.12/Fluid-oss-1.6.12.dmg",
+      "installer_url": "https://github.com/altic-dev/FluidVoice/releases/download/v1.6.13/Fluid-oss-1.6.13.dmg",
       "install_script_ref": "cb80d3dd",
       "uninstall_script_ref": "67c2062d",
-      "sha256": "1560f07ebd986f6315f569c0e7362e425490dd8227364b6c09fbf77426f46d9f",
+      "sha256": "8da47aba78de572973c287ab5e33d9eefc4b8938f69bbff99249e28900ce49aa",
       "default_categories": [
         "Productivity"
       ]
