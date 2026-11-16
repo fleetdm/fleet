@@ -690,6 +690,12 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusOK, &deleteResp)
 	}
 
+	assertGetReservedFails := func(uid string) {
+		var getResp getMDMConfigProfileResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uid), nil, http.StatusBadRequest, &getResp)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uid), nil, http.StatusBadRequest, "alt", "media")
+	}
+
 	// A declaration that uses a Fleet-reserved name stays protected from deletion
 	// through this endpoint. The reserved-name check is the sole Fleet-managed
 	// gate on the delete path, so make sure removing the upload-time validation
@@ -707,6 +713,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var deleteResp deleteMDMConfigProfileResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusBadRequest, &deleteResp)
+		assertGetReservedFails(declUUID)
 
 		// the API refused to delete it, so remove the seeded row directly
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -725,6 +732,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// try to delete the profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profile.ProfileUUID), nil, http.StatusBadRequest, &deleteResp)
+	assertGetReservedFails(profile.ProfileUUID)
 
 	// make fleet add a Windows OS Updates profile
 	acResp = appConfigResponse{}
@@ -737,6 +745,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profUUID), nil, http.StatusBadRequest, &deleteResp)
 	require.Empty(t, deleteResp.Warning)
+	assertGetReservedFails(profUUID)
 
 	// TODO: Add tests for OS updates declaration when implemented.
 }

@@ -1424,6 +1424,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
 
+		if _, match := mdm.FleetReservedProfileNames()[cp.Name]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", cp.Name)}}, nil
+		}
+
 		if downloadRequested {
 			return fleet.DownloadFileResponse{
 				Content:     cp.Mobileconfig,
@@ -1441,6 +1445,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		decl, err := svc.GetMDMAppleDeclaration(ctx, req.ProfileUUID)
 		if err != nil {
 			return &getMDMConfigProfileResponse{Err: err}, nil
+		}
+
+		if _, match := mdm.FleetReservedProfileNames()[decl.Name]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", decl.Name)}}, nil
 		}
 
 		if downloadRequested {
@@ -1462,6 +1470,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
 
+		if _, match := mdm.FleetReservedProfileNames()[prof.Name]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", prof.Name)}}, nil
+		}
+
 		if downloadRequested {
 			return fleet.DownloadFileResponse{
 				Content:     prof.RawJSON,
@@ -1478,6 +1490,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	if err != nil {
 		return &getMDMConfigProfileResponse{Err: err}, nil
+	}
+
+	if _, match := mdm.FleetReservedProfileNames()[cp.Name]; match {
+		return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", cp.Name)}}, nil
 	}
 
 	if downloadRequested {
