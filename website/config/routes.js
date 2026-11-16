@@ -574,8 +574,6 @@ module.exports.routes = {
   'GET /google-conditional-access/done': {
     action: 'google-proxy/view-google-conditional-access-done',
     locals: {
-      pageTitleForMeta: 'TODO',
-      pageDescriptionForMeta: 'TODO',
       showConfigurationProfileLayout: true,
       disableChatbotAndIndexing: true,
     }
@@ -584,8 +582,6 @@ module.exports.routes = {
   'GET /google-conditional-access/not-allowed': {
     action: 'google-proxy/view-google-conditional-access-not-allowed',
     locals: {
-      pageTitleForMeta: 'TODO',
-      pageDescriptionForMeta: 'TODO',
       showConfigurationProfileLayout: true,
       disableChatbotAndIndexing: true,
     }
@@ -594,8 +590,6 @@ module.exports.routes = {
   'GET /google-conditional-access/not-found': {
     action: 'google-proxy/view-google-conditional-access-not-found',
     locals: {
-      pageTitleForMeta: 'TODO',
-      pageDescriptionForMeta: 'TODO',
       showConfigurationProfileLayout: true,
       disableChatbotAndIndexing: true,
     }
@@ -604,8 +598,6 @@ module.exports.routes = {
   'GET /google-conditional-access/error': {
     action: 'google-proxy/view-google-conditional-access-error',
     locals: {
-      pageTitleForMeta: 'TODO',
-      pageDescriptionForMeta: 'TODO',
       showConfigurationProfileLayout: true,
       disableChatbotAndIndexing: true,
     }
