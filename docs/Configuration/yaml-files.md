@@ -1802,6 +1802,8 @@ If you're using Fleet's managed-cloud offering, an SMTP server is already setup 
 
 For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
 
+If `password` is blank or left out, Fleet keeps the current SMTP password. To delete the password, remove `smtp_settings` from your YAML. This resets all SMTP settings to their defaults.
+
 Can only be configured for "All fleets" (`org_settings`).
 
 ##### Example
