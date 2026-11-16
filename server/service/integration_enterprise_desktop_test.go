@@ -36,11 +36,11 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(`{
 		"org_info":{
-			"org_logo_url": "http://example.com/logo",
+			"org_logo_url_dark_mode": "http://example.com/logo",
 			"contact_url": "http://example.com/contact"
 		}
 	}`), http.StatusOK, &acResp)
-	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL) //nolint:staticcheck // set through the deprecated org_logo_url key above
+	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURLDarkMode)
 	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -189,7 +189,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
-	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURLDarkMode)
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	// hidden policies are left out by default, but still counted
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)

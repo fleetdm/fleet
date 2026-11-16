@@ -37,7 +37,7 @@ const MdmSettings = ({
   // migration relies on it too, so both need Apple MDM and Apple Business
   // Manager.
   const isAppleBusinessSetUp =
-    isMdmEnabled && !!appConfig?.mdm.apple_bm_enabled_and_configured;
+    isMdmEnabled && !!appConfig?.mdm.apple_business_enabled_and_configured;
 
   // Currently the status of this API call is what determines various UI states on
   // this page. Because of this we will not render any of this components UI until this API

@@ -245,7 +245,7 @@ type MDMAppleConfigProfile struct {
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `db:"team_id" json:"fleet_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
@@ -765,7 +765,7 @@ type MDMCustomEnrollmentProfileItem struct {
 
 // MDMAppleSettingsPayload is the authorization subject for updating disk encryption settings of a fleet (or "No fleet").
 type MDMAppleSettingsPayload struct {
-	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID               *uint `json:"fleet_id"`
 	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
 }
 
@@ -777,7 +777,7 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                                            *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID                                            *uint   `json:"fleet_id"`
 	EnableEndUserAuthentication                       *bool   `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually                       *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
 	ManualAgentInstall                                *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
@@ -786,8 +786,9 @@ type MDMAppleSetupPayload struct {
 	MacOSEnableBootstrapPackageDuringManualEnrollment *bool   `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
 	MacOSEnableBootstrapPackageDuringMigration        *bool   `json:"macos_enable_bootstrap_package_during_migration"`
 	LockEndUserInfo                                   *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount                         *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType                           *string `json:"end_user_local_account_type"`
+	EnableManagedLocalAccount                         *bool   `json:"macos_managed_local_account_enabled" removedkey:"enable_managed_local_account,enable_create_local_admin_account"`
+	EndUserLocalAccountType                           *string `json:"macos_end_user_local_account_type" removedkey:"end_user_local_account_type"`
+	EnableManagedLocalAccountWindows                  *bool   `json:"windows_managed_local_account_enabled"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -798,14 +799,24 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 // Validate validates the MDMAppleSetupPayload and updates the provided MacOSSetup with the new values if they are valid.
 // It returns an error if any of the values are invalid, and a boolean indicating whether any updates were made to the MacOSSetup.
 func (p MDMAppleSetupPayload) Validate(macOSSetupConfig *MacOSSetup) (didUpdate bool, err error) {
-	if p.EndUserLocalAccountType != nil {
-		if !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
-			return false, NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
-		}
-		if PrimaryAccountType(*p.EndUserLocalAccountType).RequiresLocalAdminAccount() && (!macOSSetupConfig.EnableManagedLocalAccount.Valid || !macOSSetupConfig.EnableManagedLocalAccount.Value) {
-			return false, NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, *p.EndUserLocalAccountType))
-		}
+	if p.EndUserLocalAccountType != nil && !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
+		return false, NewInvalidArgumentError("macos_end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
 
+	// Check the pair as it will be saved, so turning the account off alone can't strand a stored account type that
+	// needs it. The caller has already applied EnableManagedLocalAccount. Only when the request touches the pair, so an
+	// already invalid stored pair doesn't block unrelated settings.
+	if p.EndUserLocalAccountType != nil || p.EnableManagedLocalAccount != nil {
+		accountType := macOSSetupConfig.EndUserLocalAccountType.Value
+		if p.EndUserLocalAccountType != nil {
+			accountType = *p.EndUserLocalAccountType
+		}
+		if PrimaryAccountType(accountType).RequiresLocalAdminAccount() && !macOSSetupConfig.EnableManagedLocalAccount.Value {
+			return false, NewInvalidArgumentError("macos_managed_local_account_enabled", fmt.Sprintf(`macos_managed_local_account_enabled is required to be enabled when using %q for the macos_end_user_local_account_type`, accountType))
+		}
+	}
+
+	if p.EndUserLocalAccountType != nil {
 		if !macOSSetupConfig.EndUserLocalAccountType.Valid || macOSSetupConfig.EndUserLocalAccountType.Value != *p.EndUserLocalAccountType {
 			macOSSetupConfig.EndUserLocalAccountType = optjson.SetString(*p.EndUserLocalAccountType)
 			didUpdate = true
@@ -928,7 +939,7 @@ type NanoUser struct {
 // or no team.
 type MDMAppleSetupAssistant struct {
 	ID         uint            `json:"-" db:"id"`
-	TeamID     *uint           `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID     *uint           `json:"fleet_id" db:"team_id"`
 	Name       string          `json:"name" db:"name"`
 	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
 	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
@@ -981,7 +992,7 @@ type MDMAppleDeclaration struct {
 
 	// TeamID is the id of the team with which the declaration is associated. A nil team id
 	// represents a declaration that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `db:"team_id" json:"fleet_id"`
 
 	// Identifier corresponds to the "Identifier" key of the associated declaration.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
@@ -2023,7 +2034,7 @@ type RawDDMAssetPayloadReference struct {
 // DDMAssetAuthz is used to check user authorization to read/write an
 // DDM asset.
 type DDMAssetAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID *uint `json:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.

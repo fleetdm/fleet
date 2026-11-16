@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os/exec"
 	"strings"
 	"sync"
@@ -144,16 +145,29 @@ func (m *Manager) procDone(id string) context.Context {
 	return nil
 }
 
-// finishLifecycle cancels and removes id's termination context, signaling
-// any Stop/Restart waiters that the process is gone. Idempotent.
-func (m *Manager) finishLifecycle(id string) {
-	m.stateMu.Lock()
-	lc := m.lifecycles[id]
-	delete(m.lifecycles, id)
-	m.stateMu.Unlock()
-	if lc != nil {
-		lc.cancel()
+// Done returns a channel that's closed once id has fully terminated (final
+// state recorded). Call it right after Start; for an id that isn't running the
+// channel is already closed.
+func (m *Manager) Done(id string) <-chan struct{} {
+	if ctx := m.procDone(id); ctx != nil {
+		return ctx.Done()
 	}
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}
+
+// finishLifecycle cancels lc, the termination context of one run of id,
+// signaling its Stop/Restart/Done waiters that the process is gone. The entry
+// is removed only if it's still lc: once the final state is recorded, id can
+// be started again before this runs, and that newer run's context must stay.
+func (m *Manager) finishLifecycle(id string, lc *procLifecycle) {
+	m.stateMu.Lock()
+	if m.lifecycles[id] == lc {
+		delete(m.lifecycles, id)
+	}
+	m.stateMu.Unlock()
+	lc.cancel()
 }
 
 func (m *Manager) collectPidRecords() []PidRecord {
@@ -225,8 +239,12 @@ func (m *Manager) Start(id string, a StartArgs) error {
 	cmd := shellpath.Command(a.Program, a.Args...)
 	cmd.Dir = a.Cwd
 	extra := map[string]string{}
+	envKeys := []string{}
 	for _, p := range a.Env {
 		if p.Key != "" {
+			if _, dup := extra[p.Key]; !dup {
+				envKeys = append(envKeys, p.Key)
+			}
 			extra[p.Key] = p.Value
 		}
 	}
@@ -261,6 +279,8 @@ func (m *Manager) Start(id string, a StartArgs) error {
 		State:       "running",
 		StartedAtMS: &now,
 		RecentLog:   []string{},
+		EnvKeys:     envKeys,
+		Meta:        maps.Clone(a.Meta),
 	}
 	lc := &procLifecycle{}
 	lc.ctx, lc.cancel = context.WithCancel(context.Background())
@@ -279,14 +299,14 @@ func (m *Manager) Start(id string, a StartArgs) error {
 	m.spawnLogReader(id, a.LogChannel, "stdout", stdout, &wg)
 	m.spawnLogReader(id, a.LogChannel, "stderr", stderr, &wg)
 
-	go m.waitAndFinalize(id, cmd, &wg)
+	go m.waitAndFinalize(id, cmd, &wg, lc)
 	return nil
 }
 
 // waitAndFinalize waits for the readers to drain the pipes (required before
 // cmd.Wait when using StdoutPipe), reaps the process, then records the final
 // state and emits proc:state.
-func (m *Manager) waitAndFinalize(id string, cmd *exec.Cmd, wg *sync.WaitGroup) {
+func (m *Manager) waitAndFinalize(id string, cmd *exec.Cmd, wg *sync.WaitGroup, lc *procLifecycle) {
 	wg.Wait()
 	waitErr := cmd.Wait()
 	ok := waitErr == nil
@@ -344,7 +364,7 @@ func (m *Manager) waitAndFinalize(id string, cmd *exec.Cmd, wg *sync.WaitGroup) 
 	m.emitState(id, final, exitCode, exitSignal)
 	// Signal Stop/Restart waiters that this process is fully gone (state
 	// recorded, pid removed). Done last so ctx.Done ⟺ finalized.
-	m.finishLifecycle(id)
+	m.finishLifecycle(id, lc)
 }
 
 // signalStop SIGTERMs a process (its group), escalating to SIGKILL after

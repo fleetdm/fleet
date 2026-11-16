@@ -31,7 +31,6 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
-	withReportsFlagName         = "with-reports"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
 )
@@ -127,16 +126,6 @@ func printQuerySpec(c *cli.Context, query *fleet.QuerySpec) error {
 		Kind:    fleet.ReportKind,
 		Version: fleet.ApiVersion,
 		Spec:    query,
-	}
-
-	return printSpec(c, spec)
-}
-
-func printPack(c *cli.Context, pack *fleet.PackSpec) error {
-	spec := specGeneric{
-		Kind:    fleet.PackKind,
-		Version: fleet.ApiVersion,
-		Spec:    pack,
 	}
 
 	return printSpec(c, spec)
@@ -327,16 +316,17 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// The setup experience membership is the source of truth in the setup
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
+	setupAppsByName := make(map[string]struct{})
 	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
 	}
 	for _, sw := range setupSoftware {
-		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+		if len(sw.Packages) > 0 && sw.Packages[0].InstallDuringSetup != nil && *sw.Packages[0].InstallDuringSetup {
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
-			setupSoftwareByTitleID[sw.ID] = struct{}{}
+			setupAppsByName[fleet.VPPAppID{AdamID: sw.AppStoreApps[0].AppStoreID, Platform: sw.AppStoreApps[0].Platform}.String()] = struct{}{}
 		}
 	}
 
@@ -374,8 +364,8 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		}
 
 		switch {
-		case detail.SoftwarePackage != nil:
-			pkg := detail.SoftwarePackage
+		case len(detail.Packages) > 0:
+			pkg := detail.Packages[0]
 			if pkg.FleetMaintainedAppID != nil {
 				slug, err := resolveFMASlug(*pkg.FleetMaintainedAppID)
 				if err != nil {
@@ -404,16 +394,20 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 			})
 		case len(detail.AppStoreApps) > 0:
 			app := detail.AppStoreApps[0]
+			var installDuringSetup optjson.Bool
+			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
+				installDuringSetup = optjson.SetBool(true)
+			}
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AppStoreID,
+				AppStoreID:         app.AdamID,
 				Platform:           string(app.Platform),
-				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+				InstallDuringSetup: installDuringSetup,
 			}
 			// Output one object instead of a versions array when the app only has one version
-			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+			if len(detail.AppStoreApps) > 1 || app.VersionName != fleet.DefaultAppStoreAppVersionName {
 				for _, version := range detail.AppStoreApps {
 					appStoreAppSpec.Versions = append(appStoreAppSpec.Versions, fleet.TeamSpecAppStoreAppVersion{
-						Name:             version.Name,
+						Name:             version.VersionName,
 						SelfService:      version.SelfService,
 						LabelsIncludeAny: scopeLabelNames(version.LabelsIncludeAny),
 						LabelsExcludeAny: scopeLabelNames(version.LabelsExcludeAny),
@@ -504,7 +498,6 @@ func getCommand() *cli.Command {
 		Usage: "Get/list resources",
 		Subcommands: withLogTopicFlags([]*cli.Command{
 			getReportsCommand(),
-			getPacksCommand(),
 			getLabelsCommand(),
 			getHostsCommand(),
 			getEnrollSecretCommand(),
@@ -753,139 +746,6 @@ func userIsObserver(user fleet.User) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func getPacksCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "packs",
-		Aliases: []string{"pack", "p"},
-		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
-		Before: func(c *cli.Context) error {
-			logDeprecatedFlagName(c, "with-queries", withReportsFlagName)
-			return nil
-		},
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    withReportsFlagName,
-				Aliases: []string{"with-queries"},
-				Usage:   "Output reports included in pack(s) too, when used alongside --yaml or --json",
-			},
-			jsonFlag(),
-			yamlFlag(),
-			removeDeprecatedKeysFlag(),
-			configFlag(),
-			contextFlag(),
-			debugFlag(),
-		},
-		Action: func(c *cli.Context) error {
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return err
-			}
-
-			name := c.Args().First()
-			shouldPrintQueries := c.Bool(withReportsFlagName)
-			queriesToPrint := make(map[string]bool)
-
-			addQueries := func(pack *fleet.PackSpec) {
-				if shouldPrintQueries {
-					for _, q := range pack.Queries {
-						queriesToPrint[q.QueryName] = true
-					}
-				}
-			}
-
-			printQueries := func() error {
-				if !shouldPrintQueries {
-					return nil
-				}
-
-				// Get global queries (teamID==nil), because 2017 packs reference global queries.
-				queries, err := client.GetQueries(nil, nil)
-				if err != nil {
-					return fmt.Errorf("could not list queries: %w", err)
-				}
-
-				// Getting all queries then filtering is usually faster than getting
-				// one query at a time.
-				for _, query := range queries {
-					if !queriesToPrint[query.Name] {
-						continue
-					}
-
-					if err := printQuerySpec(c, &fleet.QuerySpec{
-						Name:        query.Name,
-						Description: query.Description,
-						Query:       query.Query,
-					}); err != nil {
-						return fmt.Errorf("unable to print query: %w", err)
-					}
-				}
-
-				return nil
-			}
-
-			// if name wasn't provided, list all packs
-			if name == "" {
-				packs, err := client.GetPacksSpecs()
-				if err != nil {
-					return fmt.Errorf("could not list packs: %w", err)
-				}
-
-				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
-					for _, pack := range packs {
-						if err := printPack(c, pack); err != nil {
-							return fmt.Errorf("unable to print pack: %w", err)
-						}
-						addQueries(pack)
-					}
-					return printQueries()
-				}
-
-				if len(packs) == 0 {
-					log(c, "No 2017 \"Packs\" found.\n")
-					return nil
-				}
-
-				data := [][]string{}
-
-				for _, pack := range packs {
-					data = append(data, []string{
-						pack.Name,
-						pack.Platform,
-						pack.Description,
-						strconv.FormatBool(pack.Disabled),
-					})
-				}
-
-				columns := []string{"name", "platform", "description", "disabled"}
-				printTable(c, columns, data)
-				log(c, fmt.Sprintf(`Found %d 2017 "Packs".
-
-Querying in Fleet is becoming more powerful. To learn more, visit:
-https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
-
-To retrieve "Pack" data in a portable format for upgrading, run `+"`fleetctl upgrade-packs`"+`.
-`, len(packs)))
-
-				return nil
-			}
-
-			// Name was specified
-			pack, err := client.GetPackSpec(name)
-			if err != nil {
-				return err
-			}
-
-			addQueries(pack)
-
-			if err := printPack(c, pack); err != nil {
-				return fmt.Errorf("unable to print pack: %w", err)
-			}
-
-			return printQueries()
-		},
-	}
 }
 
 func getLabelsCommand() *cli.Command {

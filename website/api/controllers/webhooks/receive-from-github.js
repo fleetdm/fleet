@@ -351,6 +351,8 @@ ${issueSummary}`;
         let DRI_BY_PATH = {};
         if (repo === 'fleet') {
           DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+        } else if (repo === 'confidential') {
+          DRI_BY_PATH = sails.config.custom.confidentialGithubRepoDRIByPath;
         } else {
           // Other repos don't have this configured.
           // FUTURE: Configure it for them
@@ -517,6 +519,48 @@ ${issueSummary}`;
         // if(!isMainBranchFrozen && pocketOfPrNumbersUnfrozen.length > 0) {
         //   await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: []});
         // }
+        // If this PR would have been auto-approved, except that it changes too many files, leave a comment
+        // for the author explaining why, so they know to split it up (or ask for a review) instead of waiting.
+        // (Only once per PR: the hidden marker keeps later pushes and edits from posting it again.)
+        let numChangedFiles = issueOrPr.changed_files;// « exact count from the webhook payload  (changedPaths above is capped at 100)
+        if (!isAutoApprovalExpected && numChangedFiles >= 100 && issueOrPr.user.login !== 'fleet-release') {
+          let isAutoApprovalExpectedIfSmaller = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+            repo: repo,
+            prNumber: prNumber,
+            githubUserToCheck: sender.login,
+            isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()),
+            ignoreSizeLimit: true,
+          });
+          if (isAutoApprovalExpectedIfSmaller) {
+            let TOO_MANY_FILES_COMMENT_MARKER = '<!-- fleet-release: auto-approval skipped, too many changed files -->';
+            // [?] https://docs.github.com/en/rest/issues/comments#list-issue-comments
+            let existingComments = await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`, {
+              per_page: 100,//eslint-disable-line camelcase
+            }, baseHeaders)
+            .retry()
+            .tolerate((err)=>{
+              sails.log.warn(`When the receive-from-github webhook sent a request to list comments on a pull request (${owner}/${repo} #${prNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+              return undefined;
+            });
+            let isAlreadyExplained = !existingComments || _.any(existingComments, (comment)=> _.isString(comment.body) && comment.body.includes(TOO_MANY_FILES_COMMENT_MARKER));// « if we couldn't check, err on the side of not posting a duplicate
+            if (!isAlreadyExplained) {
+              let tooManyFilesComment =
+              `Hi @${issueOrPr.user.login}! This pull request wasn't auto-approved because it changes ${numChangedFiles} files, and auto-approval only works for pull requests that change fewer than 100.\n`+
+              `\n`+
+              `The first 100 changed files are all in paths you can merge without a review, so splitting this into pull requests of fewer than 100 files each should get them auto-approved. Or, ask someone to review it.\n`+
+              `\n`+
+              TOO_MANY_FILES_COMMENT_MARKER;
+              // [?] https://docs.github.com/en/rest/issues/comments#create-an-issue-comment
+              await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`, {
+                body: tooManyFilesComment
+              }, baseHeaders)
+              .tolerate((err)=>{
+                sails.log.warn(`When the receive-from-github webhook sent a request to comment on a pull request that was too large to auto-approve (${owner}/${repo} #${prNumber}), an error occured. Full error: ${require('util').inspect(err)}`);
+              });
+            }//ﬁ
+          }//ﬁ
+        }//ﬁ
+
         if (isAutoApprovalExpected && issueOrPr.user.login !== 'fleet-release') {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {

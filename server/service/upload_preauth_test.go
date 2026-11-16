@@ -21,7 +21,6 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,9 +93,12 @@ func serveUploadPreAuth(t *testing.T, svc fleet.Service, route uploadPreAuthRout
 		assert.NoError(t, err)
 		w.WriteHeader(http.StatusNoContent)
 	})
-	router := mux.NewRouter()
-	router.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet"+route.template,
-		uploadPreAuth(svc, slog.New(slog.DiscardHandler))(next)).Methods(route.method)
+	router := endpointer.NewRouter()
+	router.Handle(endpointer.Route{
+		Methods:  []string{route.method},
+		Path:     "/api/_version_/fleet" + route.template,
+		Versions: []string{"v1", "2022-04", "latest"},
+	}, uploadPreAuth(svc, slog.New(slog.DiscardHandler))(next))
 	req := httptest.NewRequest(route.method, route.path, body)
 	req.Header.Set("Authorization", "Bearer "+strings.ReplaceAll(bearer, " ", "_"))
 	w := &uploadPreAuthRecorder{ResponseRecorder: httptest.NewRecorder()}

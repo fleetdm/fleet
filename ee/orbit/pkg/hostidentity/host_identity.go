@@ -15,12 +15,15 @@ import (
 	mathrand "math/rand/v2"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/rs/zerolog"
 )
 
@@ -278,26 +281,69 @@ func RenewCertificate(
 		return nil, fmt.Errorf("failed to get signer from old key: %w", err)
 	}
 
-	// Create renewal data with proof-of-possession
 	serialHex := fmt.Sprintf("0x%x", credentials.Certificate.SerialNumber.Bytes())
-	hash := sha256.Sum256([]byte(serialHex))
-	signature, err := oldSigner.Sign(rand.Reader, hash[:], crypto.SHA256)
+	newPubKey, err := newKey.Public()
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign renewal data: %w", err)
+		return nil, fmt.Errorf("failed to get public key from renewal key: %w", err)
 	}
-
-	renewalData := types.RenewalData{
-		SerialNumber: serialHex,
-		Signature:    base64.StdEncoding.EncodeToString(signature),
-	}
-
-	renewalDataJSON, err := json.Marshal(renewalData)
+	newPubKeyDER, err := x509.MarshalPKIXPublicKey(newPubKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal renewal data: %w", err)
+		return nil, fmt.Errorf("failed to marshal renewal public key: %w", err)
 	}
 
-	// Create SCEP client with custom CSR that includes the renewal extension
-	renewedCert, err := fetchCertWithRenewal(ctx, newKey, scepURL, credentials.Certificate.Subject.CommonName, rootCA, insecure, renewalDataJSON, logger)
+	// newRenewalClient returns a SCEP client whose CSR carries the renewal extension, with the old key's proof over proofMessage.
+	newRenewalClient := func(proofMessage []byte) (*scep.Client, error) {
+		hash := sha256.Sum256(proofMessage)
+		signature, err := oldSigner.Sign(rand.Reader, hash[:], crypto.SHA256)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign renewal data: %w", err)
+		}
+		renewalDataJSON, err := json.Marshal(types.RenewalData{
+			SerialNumber: serialHex,
+			Signature:    base64.StdEncoding.EncodeToString(signature),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal renewal data: %w", err)
+		}
+
+		opts := []scep.Option{
+			scep.WithRootCA(rootCA),
+			scep.WithSigningKey(newKey),
+			scep.WithLogger(logger),
+			scep.WithURL(scepURL),
+			scep.WithCommonName(credentials.Certificate.Subject.CommonName),
+			scep.WithExtraExtensions([]pkix.Extension{{Id: types.RenewalExtensionOID, Value: renewalDataJSON}}),
+		}
+		if insecure {
+			opts = append(opts, scep.Insecure())
+		}
+		scepClient, err := scep.NewClient(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create SCEP client: %w", err)
+		}
+		return scepClient, nil
+	}
+
+	renewalClient, err := newRenewalClient(types.RenewalChallenge(serialHex, newPubKeyDER))
+	if err != nil {
+		return nil, err
+	}
+	renewedCert, err := renewalClient.FetchCert(ctx)
+	if _, rejected := errors.AsType[enrollment.RejectedError](err); rejected {
+		// Servers that predate key-bound proofs reject them. Only those get the legacy proof, which any key can reuse.
+		caps, capsErr := renewalClient.Capabilities(ctx)
+		switch {
+		case capsErr != nil:
+			logger.Warn().Err(capsErr).Msg("could not read Fleet server SCEP capabilities, not retrying renewal with the legacy proof")
+		case !slices.Contains(strings.Fields(string(caps)), types.RenewalKeyBindingCapability):
+			logger.Warn().Msg("Fleet server rejected the key-bound renewal proof, retrying with the legacy proof")
+			renewalClient, err = newRenewalClient([]byte(serialHex))
+			if err != nil {
+				return nil, err
+			}
+			renewedCert, err = renewalClient.FetchCert(ctx)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch renewed certificate: %w", err)
 	}
@@ -318,43 +364,4 @@ func RenewCertificate(
 	credentials.SecureHWKey = newKey
 
 	return renewedCert, nil
-}
-
-// fetchCertWithRenewal performs SCEP certificate fetch with renewal extension
-func fetchCertWithRenewal(
-	ctx context.Context,
-	signingKey securehw.Key,
-	scepURL string,
-	commonName string,
-	rootCA string,
-	insecure bool,
-	renewalDataJSON []byte,
-	logger zerolog.Logger,
-) (*x509.Certificate, error) {
-	// Create the renewal extension
-	renewalExtension := pkix.Extension{
-		Id:    types.RenewalExtensionOID,
-		Value: renewalDataJSON,
-	}
-
-	// Create SCEP client with the renewal extension
-	opts := []scep.Option{
-		scep.WithRootCA(rootCA),
-		scep.WithSigningKey(signingKey),
-		scep.WithLogger(logger),
-		scep.WithURL(scepURL),
-		scep.WithCommonName(commonName),
-		scep.WithExtraExtensions([]pkix.Extension{renewalExtension}),
-	}
-	if insecure {
-		opts = append(opts, scep.Insecure())
-	}
-
-	scepClient, err := scep.NewClient(opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create SCEP client: %w", err)
-	}
-
-	// Fetch the certificate with the renewal extension in the CSR
-	return scepClient.FetchCert(ctx)
 }

@@ -77,13 +77,9 @@
   }
 
   [purpose='cta-button'] {
-    .cta-button();
+    .primary-button();
     display: flex;
-    height: 36px;
     min-width: 140px;
-    padding: 8px 16px;
-    line-height: @text-lineheight;
-    font-size: 14px;
     gap: 4px;
   }
 
@@ -93,6 +89,13 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 48px;
+  }
+
+  // A small version of the Slack demo, which sizes itself to this width.
+  [purpose='ai-demo'] {
+    width: 100%;
+    max-width: 560px;
+    align-self: center;
   }
 
   [purpose='section-heading'] {
@@ -591,10 +594,6 @@
       font-weight: 400;
       line-height: @text-lineheight;
       max-width: 600px;
-    }
-    [purpose='cta-button'] {
-      padding: 8px 24px;
-      height: 40px;
     }
   }
 

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "15.19-5",
+      "version": "15.20-1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE TRIM(name) = 'PostgreSQL 15' AND publisher = 'PostgreSQL Global Development Group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE TRIM(name) = 'PostgreSQL 15' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '15.19-5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE TRIM(name) = 'PostgreSQL 15' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '15.20-1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'postgresql 15.exe');"
       },
-      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-15.19-5-windows-x64.exe",
+      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-15.20-1-windows-x64.exe",
       "install_script_ref": "016c3005",
       "uninstall_script_ref": "e520dad0",
-      "sha256": "7a4d8d7e041abdbd05aaaa068e41ae248bf2ccaa93e8ea5701a30fb970dcb55b",
+      "sha256": "105ccd558c9b7ae633f76910a32ba2c68e10a0f6a150a246c27122564db91c66",
       "default_categories": [
         "Developer tools"
       ]

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/rs/zerolog"
@@ -24,7 +25,6 @@ var (
 	WindowsMDMNotConfiguredMessage               = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
 	AndroidMDMNotConfiguredMessage               = "Android MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
 	AppleMDMNotConfiguredMessage                 = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
-	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
@@ -197,15 +197,50 @@ func (e *ParamRequiredDeprecationError) Error() string {
 	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
 }
 
-// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
-const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
-	Fleet5MigrationGuide
+// Messages returned to GitOps users for actions the role lost in Fleet 5.
+const (
+	GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+		Fleet5MigrationGuide
+	GitOpsViewHostByIdentifierErrorMessage = "Users with the GitOps role can no longer view hosts by identifier. What to use instead: " +
+		Fleet5MigrationGuide
+	GitOpsDeleteHostErrorMessage = "Users with the GitOps role can no longer delete hosts. What to use instead: " +
+		Fleet5MigrationGuide
+	GitOpsTransferHostErrorMessage = "Users with the GitOps role can no longer transfer hosts between fleets. What to use instead: " +
+		Fleet5MigrationGuide
+)
 
 // BadRequestError makes the error encoder return a 400.
 func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
 
 // IsClientError implements ErrWithIsClientError.
 func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
+// RemovedFleetVariableError is a Fleet variable that Fleet 5 removed. It renders as a 422 with the variable's removal message, which is
+// also the failure detail when a profile, app configuration, or certificate authority saved before the upgrade still uses it.
+type RemovedFleetVariableError struct {
+	message string
+}
+
+// FindRemovedFleetVariable returns a *RemovedFleetVariableError for the first of names that Fleet 5 removed, and nil if there is none.
+// Names are without the FLEET_VAR_ prefix, as variables.Find returns them.
+func FindRemovedFleetVariable(names ...string) error {
+	for _, name := range names {
+		if entry, ok := removednames.Find(removednames.KindFleetVariable, FleetVarName(name).WithPrefix(), ""); ok {
+			return &RemovedFleetVariableError{message: entry.Message()}
+		}
+	}
+	return nil
+}
+
+func (e *RemovedFleetVariableError) Error() string { return e.message }
+
+// Invalid makes the error encoder return a 422.
+func (e *RemovedFleetVariableError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "base", "reason": e.message}}
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *RemovedFleetVariableError) IsClientError() bool { return true }
 
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError
