@@ -75,7 +75,6 @@ locals {
     FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
     FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
-    FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     FLEET_OSQUERY_POLICY_UPDATE_INTERVAL       = "30m"
     FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
     # Webhook Results & Status Logging Destination

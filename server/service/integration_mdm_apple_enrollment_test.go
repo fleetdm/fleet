@@ -406,18 +406,18 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q
 			}]
 		}
 	}`, tmOrgName, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -440,7 +440,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 
@@ -485,7 +485,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	require.NotNil(t, tok)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/fleets", tok.ID), json.RawMessage(fmt.Sprintf(`{
-    "ios_team_id": %d
+    "ios_fleet_id": %d
 	}`, team.ID)), http.StatusOK, &updateABMTokenTeamsResponse{})
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -596,9 +596,9 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_business_manager": [
-					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""},
-					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				"apple_business": [
+					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""},
+					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""}
 				]
 			}
 		}`, orgA, teamA.Name, orgB, teamB.Name)),
@@ -620,8 +620,8 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_business_manager": [
-					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				"apple_business": [
+					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""}
 				]
 			}
 		}`, orgA, teamA.Name)),
@@ -1189,18 +1189,18 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q
 			}]
 		}
 	}`, t.Name(), tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})

@@ -330,7 +330,8 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
-		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
+		// The standard encoder HTML-escapes angle brackets as \u003c and \u003e.
+		require.Contains(t, body, `"configuration":"\u003cdict\u003e\u003ckey\u003eK\u003c/key\u003e\u003cstring\u003ev\u003c/string\u003e\u003c/dict\u003e"`)
 	})
 
 	t.Run("android wire format", func(t *testing.T) {
@@ -1969,6 +1970,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
 		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
-	}, http.StatusBadRequest, "team_name", team.Name)
+	}, http.StatusBadRequest, "fleet_name", team.Name)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
 }

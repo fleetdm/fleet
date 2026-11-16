@@ -223,7 +223,6 @@ type entity struct {
 var (
 	hostsTable    = entity{"hosts"}
 	invitesTable  = entity{"invites"}
-	packsTable    = entity{"packs"}
 	queriesTable  = entity{"queries"}
 	sessionsTable = entity{"sessions"}
 	usersTable    = entity{"users"}

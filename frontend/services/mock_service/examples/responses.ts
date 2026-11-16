@@ -63,7 +63,6 @@ const HOST_ID = {
       failing_policies_count: 7,
     },
     labels: [],
-    packs: [],
     policies: [],
     status: "online",
     display_text: "myf1337d3v1c3",

@@ -1,0 +1,10 @@
+{
+  "name": "noTunes",
+  "unique_identifier": "digital.twisted.noTunes",
+  "token": "notunes",
+  "installer_format": "zip",
+  "slug": "notunes/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

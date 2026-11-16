@@ -3,7 +3,7 @@
   "slug": "putty/windows",
   "package_identifier": "PuTTY.PuTTY",
   "unique_identifier": "PuTTY release",
-  "fuzzy_match_name": true,
+  "fuzzy_match_name": "PuTTY release % (64-bit)",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

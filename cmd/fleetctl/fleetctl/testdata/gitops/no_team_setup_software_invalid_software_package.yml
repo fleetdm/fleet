@@ -1,6 +1,6 @@
 name: Unassigned
 controls:
-  macos_setup:
+  setup_experience:
     software:
       - package_path: lib/no_such_software.yml
 policies:
