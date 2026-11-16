@@ -1,10 +1,22 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { createMockSoftwarePackage } from "__mocks__/softwareMock";
+import {
+  createMockAppStoreApp,
+  createMockSoftwarePackage,
+} from "__mocks__/softwareMock";
+import softwareAPI from "services/entities/software";
 import { createCustomRenderer } from "test/test-utils";
 
 import EditSoftwareModal from "./EditSoftwareModal";
+
+jest.mock("services/entities/software", () => ({
+  __esModule: true,
+  default: {
+    editSoftwarePackage: jest.fn().mockResolvedValue({}),
+    editAppStoreApp: jest.fn().mockResolvedValue({}),
+  },
+}));
 
 const BASE_PROPS: React.ComponentProps<typeof EditSoftwareModal> = {
   softwareId: 1,
@@ -133,5 +145,62 @@ describe("EditSoftwareModal — multi-package title", () => {
         /Pre-install query won't run when install is triggered via self-service/
       )
     ).not.toBeInTheDocument();
+  });
+
+  // Regression (#56506): currentData must mirror formData's shape so that
+  // deepDifference only reports fields that actually changed. If currentData
+  // regresses on `software` (the installer reference) or `automaticInstall`,
+  // the self-service-only diff gains an extra key, hasChangeSideEffects
+  // flips to true, and the "cancel pending installs" modal shows for an
+  // edit that cancels nothing. Save flow is the right place to catch this
+  // since the helper tests use hand-rolled diff objects and wouldn't see a
+  // shape regression.
+  it("saves a package self-service-only edit without the cancel-installs confirm modal", async () => {
+    const { user } = renderModal({
+      softwareInstaller: createMockSoftwarePackage({ self_service: false }),
+    });
+
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByText("Save changes?")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(softwareAPI.editSoftwarePackage).toHaveBeenCalled();
+    });
+  });
+
+  it("saves a VPP self-service-only edit without the cancel-installs confirm modal", async () => {
+    const { user } = renderModal({
+      installerType: "app-store",
+      softwareInstaller: createMockAppStoreApp({ self_service: false }),
+    });
+
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByText("Save changes?")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(softwareAPI.editAppStoreApp).toHaveBeenCalled();
+    });
+  });
+
+  // In-house iOS/iPadOS edits take the same package save path. The backend
+  // (updateInHouseAppInstaller) only cancels pending installs on real
+  // side-effect edits (new installer file, label targeting, managed app
+  // configuration), so the FE treats self-service-only the same as any
+  // other package.
+  it("saves an in-house iOS/iPadOS self-service-only edit without the cancel-installs confirm modal", async () => {
+    const { user } = renderModal({
+      isIosOrIpadosApp: true,
+      softwareInstaller: createMockSoftwarePackage({ self_service: false }),
+    });
+
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByText("Save changes?")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(softwareAPI.editSoftwarePackage).toHaveBeenCalled();
+    });
   });
 });
