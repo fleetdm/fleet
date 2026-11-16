@@ -2979,6 +2979,7 @@ CREATE TABLE `policies` (
   `notify_before_patching` tinyint(1) NOT NULL DEFAULT '0',
   `hidden` tinyint(1) NOT NULL DEFAULT '0',
   `patch_deadline` tinyint(1) NOT NULL DEFAULT '0',
+  `webhooks_and_tickets_enabled` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policies_checksum` (`checksum`),
   UNIQUE KEY `idx_team_id_patch_software_title_id` (`team_id`,`patch_software_title_id`),
@@ -2998,7 +2999,7 @@ CREATE TABLE `policies` (
   CONSTRAINT `policies_ibfk_5` FOREIGN KEY (`vpp_apps_teams_id`) REFERENCES `vpp_apps_teams` (`id`),
   CONSTRAINT `policies_queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `ck_policies_resend_profile_uuid` CHECK (((if((`resend_apple_profile_uuid` is null),0,1) + if((`resend_windows_profile_uuid` is null),0,1)) <= 1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

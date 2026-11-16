@@ -293,7 +293,6 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 	if err != nil {
 		return err
 	}
-	allAutoPolicies := automationPolicies(ac.WebhookSettings.FailingPoliciesWebhook, ac.Integrations.Jira, ac.Integrations.Zendesk)
 	pIDs := make(map[uint]struct{})
 	for _, id := range policyIDs {
 		pIDs[id] = struct{}{}
@@ -312,6 +311,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 	}
 	hasGlobal := false
 	tIDs := make(map[uint]struct{})
+	webhookPolicies := make(map[uint]*uint)
 	for id := range pIDs {
 		p, err := svc.ds.Policy(ctx, id)
 		if err != nil {
@@ -322,7 +322,11 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		} else {
 			tIDs[*p.TeamID] = struct{}{}
 		}
+		if p.WebhooksAndTicketsEnabled {
+			webhookPolicies[p.ID] = p.TeamID
+		}
 	}
+	enabledTeams := make(map[uint]bool, len(tIDs))
 	for id := range tIDs {
 		var teamConfig fleet.TeamConfigLite
 		if id == 0 {
@@ -346,9 +350,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 			}
 			teamConfig = t.Config
 		}
-		for pID := range teamAutomationPolicies(teamConfig.WebhookSettings.FailingPoliciesWebhook, teamConfig.Integrations.Jira, teamConfig.Integrations.Zendesk) {
-			allAutoPolicies[pID] = struct{}{}
-		}
+		enabledTeams[id] = teamPolicyAutomationsEnabled(teamConfig.WebhookSettings, teamConfig.Integrations)
 	}
 	if hasGlobal {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
@@ -359,8 +361,9 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		svc.authz.SkipAuthorization(ctx)
 		return nil
 	}
-	for id := range pIDs {
-		if _, ok := allAutoPolicies[id]; !ok {
+	globalEnabled := globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations)
+	for id, teamID := range webhookPolicies {
+		if (teamID == nil && !globalEnabled) || (teamID != nil && !enabledTeams[*teamID]) {
 			continue
 		}
 		if err := svc.ds.IncreasePolicyAutomationIteration(ctx, id); err != nil {
@@ -368,50 +371,6 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		}
 	}
 	return nil
-}
-
-func automationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet.JiraIntegration, zi []*fleet.ZendeskIntegration) map[uint]struct{} {
-	enabled := wh.Enable
-	for _, j := range ji {
-		if j.EnableFailingPolicies {
-			enabled = true
-		}
-	}
-	for _, z := range zi {
-		if z.EnableFailingPolicies {
-			enabled = true
-		}
-	}
-	pols := make(map[uint]struct{}, len(wh.PolicyIDs))
-	if !enabled {
-		return pols
-	}
-	for _, pid := range wh.PolicyIDs {
-		pols[pid] = struct{}{}
-	}
-	return pols
-}
-
-func teamAutomationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet.TeamJiraIntegration, zi []*fleet.TeamZendeskIntegration) map[uint]struct{} {
-	enabled := wh.Enable
-	for _, j := range ji {
-		if j.EnableFailingPolicies {
-			enabled = true
-		}
-	}
-	for _, z := range zi {
-		if z.EnableFailingPolicies {
-			enabled = true
-		}
-	}
-	pols := make(map[uint]struct{}, len(wh.PolicyIDs))
-	if !enabled {
-		return pols
-	}
-	for _, pid := range wh.PolicyIDs {
-		pols[pid] = struct{}{}
-	}
-	return pols
 }
 
 /////////////////////////////////////////////////////////////////////////////////

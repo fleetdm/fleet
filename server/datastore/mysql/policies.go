@@ -45,7 +45,8 @@ const policyCols = `
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
 	p.patch_software_title_id, p.continuous_automations_enabled, p.patch_when_closed,
 	p.notify_before_patching, p.patch_deadline,
-	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid, p.hidden
+	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid, p.hidden,
+	p.webhooks_and_tickets_enabled
 `
 
 const (
@@ -2955,6 +2956,88 @@ func (ds *Datastore) IncreasePolicyAutomationIteration(ctx context.Context, poli
 	})
 }
 
+func (ds *Datastore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+	if len(policyIDs) == 0 {
+		return nil, nil
+	}
+	query, args, err := sqlx.In(`SELECT id, team_id FROM policies WHERE id IN (?) AND webhooks_and_tickets_enabled = 1`, policyIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build webhooks and tickets policies query")
+	}
+	var policies []fleet.PolicyIDAndTeam
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "filter webhooks and tickets policies")
+	}
+	return policies, nil
+}
+
+func (ds *Datastore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
+	query := `SELECT id FROM policies WHERE team_id IS NULL AND webhooks_and_tickets_enabled = 1 ORDER BY id`
+	var args []any
+	if teamID != nil {
+		query = `SELECT id FROM policies WHERE team_id = ? AND webhooks_and_tickets_enabled = 1 ORDER BY id`
+		args = append(args, *teamID)
+	}
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list webhooks and tickets policy IDs")
+	}
+	return ids, nil
+}
+
+func (ds *Datastore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+	if len(teamIDs) == 0 {
+		return nil, nil
+	}
+	query, args, err := sqlx.In(`SELECT id, team_id FROM policies WHERE team_id IN (?) AND webhooks_and_tickets_enabled = 1 ORDER BY id`, teamIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build webhooks and tickets policy IDs by team query")
+	}
+	var policies []fleet.PolicyIDAndTeam
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list webhooks and tickets policy IDs by team")
+	}
+	byTeam := make(map[uint][]uint, len(teamIDs))
+	for _, p := range policies {
+		byTeam[*p.TeamID] = append(byTeam[*p.TeamID], p.ID)
+	}
+	return byTeam, nil
+}
+
+func (ds *Datastore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
+	scopeWhere, scopeArgs := "team_id IS NULL", []any{}
+	if teamID != nil {
+		scopeWhere, scopeArgs = "team_id = ?", []any{*teamID}
+	}
+	// IDs from other scopes or of deleted policies match nothing, as they did in policy_ids. Only rows
+	// whose flag changes are written.
+	clearStmt, clearArgs := `UPDATE policies SET webhooks_and_tickets_enabled = 0 WHERE `+scopeWhere+` AND webhooks_and_tickets_enabled = 1`, scopeArgs
+	if len(policyIDs) > 0 {
+		var err error
+		clearStmt, clearArgs, err = sqlx.In(clearStmt+` AND id NOT IN (?)`, append(slices.Clone(scopeArgs), policyIDs)...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build clear webhooks and tickets policies query")
+		}
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, clearStmt, clearArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear webhooks and tickets policies")
+		}
+		if len(policyIDs) == 0 {
+			return nil
+		}
+		setStmt, setArgs, err := sqlx.In(`UPDATE policies SET webhooks_and_tickets_enabled = 1 WHERE `+scopeWhere+
+			` AND webhooks_and_tickets_enabled = 0 AND id IN (?)`, append(slices.Clone(scopeArgs), policyIDs)...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build set webhooks and tickets policies query")
+		}
+		if _, err := tx.ExecContext(ctx, setStmt, setArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "set webhooks and tickets policies")
+		}
+		return nil
+	})
+}
+
 // OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 func (ds *Datastore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
 	var failures []fleet.PolicyFailure
@@ -3741,26 +3824,10 @@ func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) er
 const policiesSoftwareAutomationClause = `(p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)`
 
 func (ds *Datastore) createAutomationClause(ctx context.Context, automationType fleet.PolicyAutomationType, teamID uint) (string, []any, error) {
-	// TODO: improve filtering by "other"
-	if automationType == fleet.PolicyAutomationTypeOther {
-		team, err := ds.TeamLite(ctx, teamID)
-		if err != nil {
-			return "", nil, ctxerr.Wrap(ctx, err, "getting team config")
-		}
-
-		policyIDs := team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
-		if len(policyIDs) == 0 {
-			return " AND FALSE", nil, nil
-		}
-
-		clause, args, err := sqlx.In(` AND p.id IN (?)`, policyIDs)
-		if err != nil {
-			return "", nil, ctxerr.Wrap(ctx, err, "building in statement for automation filter")
-		}
-		return clause, args, nil
-	}
-
 	switch automationType {
+	case fleet.PolicyAutomationTypeOther:
+		// Only the fleet's own policies, as when this filter read the fleet's policy_ids.
+		return " AND p.team_id = ? AND p.webhooks_and_tickets_enabled = 1", []any{teamID}, nil
 	case fleet.PolicyAutomationTypeSoftware:
 		return " AND " + policiesSoftwareAutomationClause, nil, nil
 	case fleet.PolicyAutomationTypePatch:

@@ -1182,6 +1182,14 @@ type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID 
 
 type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
 
+type FilterWebhooksAndTicketsPoliciesFunc func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error)
+
+type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]uint, error)
+
+type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
+
+type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
+
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
@@ -4329,6 +4337,18 @@ type DataStore struct {
 
 	GetNanoMDMEnrollmentDetailsFunc        GetNanoMDMEnrollmentDetailsFunc
 	GetNanoMDMEnrollmentDetailsFuncInvoked bool
+
+	FilterWebhooksAndTicketsPoliciesFunc        FilterWebhooksAndTicketsPoliciesFunc
+	FilterWebhooksAndTicketsPoliciesFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsFunc        WebhooksAndTicketsPolicyIDsFunc
+	WebhooksAndTicketsPolicyIDsFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
+	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
+
+	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
+	SetWebhooksAndTicketsPoliciesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -10499,6 +10519,34 @@ func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID st
 	s.GetNanoMDMEnrollmentDetailsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMEnrollmentDetailsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+	s.mu.Lock()
+	s.FilterWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.FilterWebhooksAndTicketsPoliciesFunc(ctx, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsFunc(ctx, teamID)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
+}
+
+func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.SetWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetWebhooksAndTicketsPoliciesFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

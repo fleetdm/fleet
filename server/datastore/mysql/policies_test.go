@@ -60,6 +60,7 @@ func TestPolicies(t *testing.T) {
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
+		{"WebhooksAndTicketsPolicies", testWebhooksAndTicketsPolicies},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
@@ -10462,10 +10463,9 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 
 	// TODO: test ticket integration policies?
 
-	config := fleet.TeamConfig{}
-	config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = []uint{teamWebhookPolicy.ID}
-	err = ds.SaveDefaultTeamConfig(ctx, &config)
-	require.NoError(t, err)
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, new(uint(0)), []uint{teamWebhookPolicy.ID}))
+	// The "other" filter only matches the fleet's own policies, not inherited ones.
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, nil, []uint{gpol.ID}))
 
 	// All policies are listed
 	merged, err := ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -11584,4 +11584,89 @@ func testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks(t *testing.T, ds *Da
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), got.PassingHostCount)
 	assert.Equal(t, uint(1), got.FailingHostCount)
+}
+
+func testWebhooksAndTicketsPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	newPolicy := func(name string, teamID *uint) uint {
+		payload := fleet.PolicyPayload{Name: name, Query: "SELECT 1;"}
+		var p *fleet.Policy
+		var err error
+		if teamID == nil {
+			p, err = ds.NewGlobalPolicy(ctx, nil, payload)
+		} else {
+			p, err = ds.NewTeamPolicy(ctx, *teamID, nil, payload)
+		}
+		require.NoError(t, err)
+		require.False(t, p.WebhooksAndTicketsEnabled)
+		return p.ID
+	}
+	global1, global2 := newPolicy("global1", nil), newPolicy("global2", nil)
+	team1a, team1b := newPolicy("team1a", &team1.ID), newPolicy("team1b", &team1.ID)
+	team2a := newPolicy("team2a", &team2.ID)
+	noTeam := newPolicy("no team", new(uint(0)))
+	const deletedID = 999999
+
+	enabled := func(teamID *uint) []uint {
+		ids, err := ds.WebhooksAndTicketsPolicyIDs(ctx, teamID)
+		require.NoError(t, err)
+		return ids
+	}
+
+	// IDs from other scopes and deleted IDs are ignored.
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, nil, []uint{global1, team1a, deletedID}))
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, &team1.ID, []uint{team1a, team1b, global2, team2a}))
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, new(uint(0)), []uint{noTeam, global2}))
+	require.Equal(t, []uint{global1}, enabled(nil))
+	require.Equal(t, []uint{team1a, team1b}, enabled(&team1.ID))
+	require.Empty(t, enabled(&team2.ID))
+	require.Equal(t, []uint{noTeam}, enabled(new(uint(0))))
+
+	p, err := ds.Policy(ctx, team1a)
+	require.NoError(t, err)
+	require.True(t, p.WebhooksAndTicketsEnabled)
+
+	byTeam, err := ds.WebhooksAndTicketsPolicyIDsByTeam(ctx, []uint{team1.ID, team2.ID, 0})
+	require.NoError(t, err)
+	require.Equal(t, map[uint][]uint{team1.ID: {team1a, team1b}, 0: {noTeam}}, byTeam)
+	byTeam, err = ds.WebhooksAndTicketsPolicyIDsByTeam(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, byTeam)
+
+	filtered, err := ds.FilterWebhooksAndTicketsPolicies(ctx, []uint{global1, global2, team1b, team2a, noTeam, deletedID})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []fleet.PolicyIDAndTeam{
+		{ID: global1}, {ID: team1b, TeamID: &team1.ID}, {ID: noTeam, TeamID: new(uint(0))},
+	}, filtered)
+	filtered, err = ds.FilterWebhooksAndTicketsPolicies(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, filtered)
+
+	// Only policies whose flag changes are written, so unchanged ones keep their updated_at.
+	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET updated_at = ? WHERE id IN (?, ?)`, old, team1a, team1b)
+		return err
+	})
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, &team1.ID, []uint{team1b}))
+	require.Equal(t, []uint{team1b}, enabled(&team1.ID))
+	var updatedAt []time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &updatedAt, `SELECT updated_at FROM policies WHERE id IN (?, ?) ORDER BY id`, team1a, team1b)
+	})
+	require.Len(t, updatedAt, 2)
+	require.NotEqual(t, old, updatedAt[0].UTC())
+	require.Equal(t, old, updatedAt[1].UTC())
+
+	// An empty list turns the scope off without touching other scopes.
+	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, &team1.ID, nil))
+	require.Empty(t, enabled(&team1.ID))
+	require.Equal(t, []uint{global1}, enabled(nil))
+	require.Equal(t, []uint{noTeam}, enabled(new(uint(0))))
 }
