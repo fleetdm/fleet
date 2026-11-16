@@ -1794,8 +1794,6 @@ The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned
 
 `auth` is read-only. `auth.mdm_apple_one_time_enroll_secrets` reports the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration and is only returned when that setting is enabled.
 
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` only include the settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list the settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
-
 `auth` is read-only and only returned when one of its settings is enabled. `auth.mdm_windows_one_time_enroll_secrets` reports the [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) server configuration.
 
 `GET /api/v1/fleet/config`
@@ -1912,25 +1910,7 @@ None.
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "macos_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ]
-    },
     "apple_settings": {
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
-        },
-        {
-          "path": "path/to/declaration.json",
-          "labels": ["Label 1", "Label 2"]
-        }
-      ],
       "enable_disk_encryption": true,
       "enable_escrow_disk_encryption_key": true,
       "assets": [
@@ -1940,25 +1920,12 @@ None.
       ]
     },
     "windows_settings": {
-      "custom_settings": [
-        {
-         "path": "path/to/profile2.xml",
-         "labels": ["Label 3", "Label 4"]
-        }
-      ],
-      "configuration_profiles": [
-        {
-         "path": "path/to/profile2.xml",
-         "labels": ["Label 3", "Label 4"]
-        }
-      ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true
     },
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true
     },
-    "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
       "entity_id": "",
       "metadata": "",
@@ -1971,9 +1938,7 @@ None.
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "apple_setup_assistant": "path/to/config.json",
       "apple_enable_release_device_manually": false,
       "macos_manual_agent_install": false
       "macos_managed_local_account_enabled": false,
@@ -2159,8 +2124,6 @@ Modifies the Fleet's configuration with the supplied information.
 
 `PATCH /api/v1/fleet/config`
 
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` only include the settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list the settings added in the UI or API, use [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), the GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
-
 #### Parameters
 
 | Name                     | Type    | In    | Description   |
@@ -2306,37 +2269,7 @@ Modifies the Fleet's configuration with the supplied information.
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "macos_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels_exclude_any": ["Label 1", "Label 2"]
-        },
-        {
-          "path": "path/to/profile2.json",
-          "labels_include_all": ["Label 3", "Label 4"]
-        },
-        {
-          "path": "path/to/profile3.json",
-          "labels_include_any": ["Label 5", "Label 6"]
-        }
-      ]
-    },
     "apple_settings": {
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile1.mobileconfig",
-          "labels_exclude_any": ["Label 1", "Label 2"]
-        },
-        {
-          "path": "path/to/profile2.json",
-          "labels_include_all": ["Label 3", "Label 4"]
-        },
-        {
-          "path": "path/to/profile3.json",
-          "labels_include_any": ["Label 5", "Label 6"]
-        },
-      ],
       "enable_disk_encryption": true,
       "enable_escrow_disk_encryption_key": true,
       "assets": [
@@ -2346,18 +2279,6 @@ Modifies the Fleet's configuration with the supplied information.
       ]
     },
     "windows_settings": {
-      "custom_settings": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels_exclude_any": ["Label 1", "Label 2"]
-        }
-      ],
-      "configuration_profiles": [
-        {
-          "path": "path/to/profile3.xml",
-          "labels_exclude_any": ["Label 1", "Label 2"]
-        }
-      ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true
     },
@@ -2376,10 +2297,8 @@ Modifies the Fleet's configuration with the supplied information.
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
-      "apple_setup_assistant": "path/to/config.json",
       "macos_managed_local_account_enabled": false,
       "macos_end_user_local_account_type": "admin",
       "windows_managed_local_account_enabled": false
@@ -2492,8 +2411,7 @@ Modifies the Fleet's configuration with the supplied information.
             "enable_log_compression": false
           }
       }
-  },
-  "scripts": []
+  }
 }
 ```
 
@@ -16553,8 +16471,6 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/fleets`
 
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
-
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
@@ -16663,8 +16579,6 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/fleets/:id`
 
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
-
 "Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
 
 #### Parameters
@@ -16736,29 +16650,7 @@ _Available in Fleet Premium_
         "deadline_days": 5,
         "grace_period_days": 1
       },
-      "macos_settings": {
-        "custom_settings": [
-          {
-            "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"]
-          }
-        ]
-      },
       "apple_settings": {
-        "configuration_profiles": [
-          {
-            "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"],
-            "self_service": true
-          },
-          {
-            "path": "path/to/declaration.json",
-            "labels": ["Label 1", "Label 2"]
-          },
-          {
-            "path": "path/to/assets/asset.json"
-          }
-        ],
         "enable_disk_encryption": true,
         "enable_escrow_disk_encryption_key": true,
         "assets": [
@@ -16768,18 +16660,6 @@ _Available in Fleet Premium_
         ]
       },
       "windows_settings": {
-        "custom_settings": [
-          {
-            "path": "path/to/profile2.xml",
-            "labels": ["Label 3", "Label 4"]
-          }
-        ],
-        "configuration_profiles": [
-          {
-            "path": "path/to/profile2.xml",
-            "labels": ["Label 3", "Label 4"]
-          }
-        ],
         "enable_disk_encryption": true,
         "require_bitlocker_pin": true
       },
@@ -16787,9 +16667,7 @@ _Available in Fleet Premium_
         "enable_escrow_disk_encryption_key": true
       },
       "setup_experience": {
-        "macos_bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "apple_setup_assistant": "path/to/config.json",
         "apple_enable_release_device_manually": false,
         "macos_manual_agent_install": false
         "macos_managed_local_account_enabled": false,
@@ -16808,8 +16686,6 @@ _Available in Fleet Premium_
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/fleets`
-
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 #### Parameters
 
@@ -16897,8 +16773,6 @@ Returned when the requested name only differs from an existing fleet's name by l
 _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/fleets/:id`
-
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 #### Parameters
 
@@ -17400,8 +17274,6 @@ _Available in Fleet Premium_
 
 This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from fleet), which returns the same fleet object shape.
 
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
-
 #### Parameters
 
 | Name             | Type    | In   | Description                                  |
@@ -17481,29 +17353,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "deadline_days": 5,
         "grace_period_days": 1
       },
-      "macos_settings": {
-        "custom_settings": [
-          {
-           "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
-          }
-        ]
-      },
       "apple_settings": {
-        "configuration_profiles": [
-          {
-           "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"],
-           "self_service": true
-          },
-          {
-           "path": "path/to/declaration.json",
-           "labels": ["Label 1", "Label 2"]
-          },
-          {
-           "path": "path/to/assets/asset.json"
-          }
-        ],
         "enable_disk_encryption": true,
         "enable_escrow_disk_encryption_key": true,
         "assets": [
@@ -17513,18 +17363,6 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         ]
       },
       "windows_settings": {
-        "custom_settings": [
-          {
-           "path": "path/to/profile2.xml",
-           "labels": ["Label 3", "Label 4"]
-          }
-        ],
-        "configuration_profiles": [
-          {
-           "path": "path/to/profile2.xml",
-           "labels": ["Label 3", "Label 4"]
-          }
-        ],
         "enable_disk_encryption": true,
         "require_bitlocker_pin": false
       },
@@ -17532,9 +17370,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "enable_escrow_disk_encryption_key": true
       },
       "setup_experience": {
-        "macos_bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "apple_setup_assistant": "path/to/config.json"
+        "enable_end_user_authentication": false
       }
     },
     "users": [
@@ -17578,8 +17414,6 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/fleets/:id/agent_options`
-
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 #### Parameters
 
