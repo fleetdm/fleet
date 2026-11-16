@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/policies"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/google/uuid"
@@ -4617,5 +4618,113 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRunCountsAfterClean
 			require.Equal(t, uint(c.expected), total)
 			require.Equal(t, c.expected, rows)
 		})
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRetriesSkipHostsOutOfPolicyScope() {
+	t := s.T()
+	ctx := t.Context()
+
+	testFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+	require.NoError(t, err)
+	labelA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + " A", Query: "SELECT 1"})
+	require.NoError(t, err)
+	labelB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + " B", Query: "SELECT 2"})
+	require.NoError(t, err)
+
+	fleetScript, err := s.ds.NewScript(ctx, &fleet.Script{Name: "exit1.sh", ScriptContents: "exit 1", TeamID: &testFleet.ID})
+	require.NoError(t, err)
+	unassignedScript, err := s.ds.NewScript(ctx, &fleet.Script{Name: "exit1.sh", ScriptContents: "exit 1"})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{InstallScript: "install", Filename: "dummy_installer.pkg", TeamID: &testFleet.ID}, http.StatusOK, "")
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{InstallScript: "install", Filename: "dummy_installer.pkg"}, http.StatusOK, "")
+	var titlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
+		"query", "DummyApp", "fleet_id", fmt.Sprint(testFleet.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	fleetInstaller, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &testFleet.ID, titlesResp.SoftwareTitles[0].ID, false)
+	require.NoError(t, err)
+	unassignedInstaller, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titlesResp.SoftwareTitles[0].ID, false)
+	require.NoError(t, err)
+
+	fleetScriptAutomation := fleet.PolicyPayload{ScriptID: &fleetScript.ID}
+	unassignedScriptAutomation := fleet.PolicyPayload{ScriptID: &unassignedScript.ID}
+	fleetInstallerAutomation := fleet.PolicyPayload{SoftwareInstallerID: &fleetInstaller.InstallerID}
+	unassignedInstallerAutomation := fleet.PolicyPayload{SoftwareInstallerID: &unassignedInstaller.InstallerID}
+
+	submitFailedScriptResult := func(host *fleet.Host, executionID string) {
+		body := fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 1}`, *host.OrbitNodeKey, executionID)
+		s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(body), http.StatusOK)
+	}
+	submitFailedInstallResult := func(host *fleet.Host, installUUID string) {
+		body := fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 1}`, *host.OrbitNodeKey, installUUID)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(body), http.StatusNoContent)
+	}
+	changePolicyToLabelB := func(host *fleet.Host, policyURL string) {
+		labelBScope := fleet.ModifyTeamPolicyRequest{LabelsIncludeAny: []string{labelB.Name}}
+		s.DoJSON("PATCH", policyURL, labelBScope, http.StatusOK, &fleet.ModifyTeamPolicyResponse{})
+	}
+	moveHostToOtherFleet := func(host *fleet.Host, policyURL string) {
+		transfer := addHostsToTeamRequest{TeamID: &otherFleet.ID, HostIDs: []uint{host.ID}}
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", transfer, http.StatusOK, &addHostsToTeamResponse{})
+	}
+
+	cases := []struct {
+		name               string
+		fleetID            *uint
+		automation         fleet.PolicyPayload
+		submitFailedResult func(host *fleet.Host, id string)
+		changeScope        func(host *fleet.Host, policyURL string)
+	}{
+		{"script on a host in a fleet", &testFleet.ID, fleetScriptAutomation, submitFailedScriptResult, changePolicyToLabelB},
+		{"script on an Unassigned host", nil, unassignedScriptAutomation, submitFailedScriptResult, changePolicyToLabelB},
+		{"install on a host in a fleet", &testFleet.ID, fleetInstallerAutomation, submitFailedInstallResult, changePolicyToLabelB},
+		{"install on an Unassigned host", nil, unassignedInstallerAutomation, submitFailedInstallResult, changePolicyToLabelB},
+		{"script on a host that moves to another fleet", &testFleet.ID, fleetScriptAutomation, submitFailedScriptResult, moveHostToOtherFleet},
+	}
+	for _, c := range cases {
+		host := createOrbitEnrolledHost(t, "darwin", c.name, s.ds)
+		err := s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(c.fleetID, []uint{host.ID}))
+		require.NoError(t, err, c.name)
+		err = s.ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err, c.name)
+		upcomingURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID)
+
+		// create the policy to run the automation on hosts in label A
+		policyPayload := c.automation
+		policyPayload.Name = c.name
+		policyPayload.Query = "SELECT 1 FROM osquery_info WHERE start_time < 0;"
+		policyPayload.Platform = "darwin"
+		policyPayload.LabelsIncludeAny = []string{labelA.Name}
+		policy, err := s.ds.NewTeamPolicy(ctx, ptr.ValOrZero(c.fleetID), nil, policyPayload)
+		require.NoError(t, err, c.name)
+		policyURL := fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", ptr.ValOrZero(c.fleetID), policy.ID)
+
+		// fail the policy on the host, the first script/install run should be queued
+		failedPolicy := genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(false)})
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", failedPolicy, http.StatusOK, &submitDistributedQueryResultsResponse{})
+
+		var upcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", upcomingURL, nil, http.StatusOK, &upcoming)
+		require.Len(t, upcoming.Activities, 1, c.name)
+
+		// fail the first script/install run while the host is in label A, a retry should be queued
+		c.submitFailedResult(host, upcoming.Activities[0].UUID)
+
+		upcoming = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", upcomingURL, nil, http.StatusOK, &upcoming)
+		require.Len(t, upcoming.Activities, 1, c.name)
+
+		// take the host out of the policy scope and fail the queued retry, no other retry should be queued
+		c.changeScope(host, policyURL)
+		c.submitFailedResult(host, upcoming.Activities[0].UUID)
+
+		upcoming = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", upcomingURL, nil, http.StatusOK, &upcoming)
+		require.Empty(t, upcoming.Activities, c.name)
 	}
 }

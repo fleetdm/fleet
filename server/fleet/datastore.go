@@ -1125,8 +1125,7 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
-	// PolicyQueriesForHostFiltered is PolicyQueriesForHost restricted to the given policy IDs. It is used to un-skip only the
-	// setup-experience-gating policies for a host in setup experience, rather than the host's entire team policy set.
+	// PolicyQueriesForHostFiltered is PolicyQueriesForHost restricted to the given policy IDs.
 	PolicyQueriesForHostFiltered(ctx context.Context, host *Host, policyIDs []uint) (map[string]string, error)
 
 	// GetSetupExperiencePolicyResult returns the host's fresh (recorded at or after `since`) pass/fail result for the given
