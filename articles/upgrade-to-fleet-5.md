@@ -1154,6 +1154,21 @@ GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 
 
+### fleetctl 4 can't connect to Fleet 5
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl` 4 shows a warning when its version doesn't match your Fleet server's, then keeps running. | `fleetctl` 4 stops with an error: `Fleet 5.x isn't compatible with fleetctl 4.x. Upgrade fleetctl.` |
+
+
+#### What to do
+
+1. Upgrade `fleetctl` to 5 wherever you run it, including CI, when you upgrade your Fleet server.
+   - If you use the GitOps GitHub Action or GitLab template that `fleetctl new` creates, you don't need to do anything. It installs the `fleetctl` version that matches your Fleet server. You only need to act if you pinned a `fleetctl` 4 version.
+
+GitHub issue: [#58780](https://github.com/fleetdm/fleet/issues/58780)
+
+
 ## Fleet server configuration
 
 ### Apple Business options renamed
