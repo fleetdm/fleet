@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.11.2",
+      "version": "1.13.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dwarvesv.minimalbar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dwarvesv.minimalbar' AND version_compare(bundle_short_version, '1.11.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dwarvesv.minimalbar' AND version_compare(bundle_short_version, '1.13.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dwarvesv.minimalbar' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/dwarvesf/hidden/releases/download/v1.11.2/Hidden-Bar-v1.11.2-macos.zip",
+      "installer_url": "https://github.com/dwarvesf/hidden/releases/download/v1.13.0/Hidden-Bar-v1.13.0-macos.zip",
       "install_script_ref": "73ff698e",
       "uninstall_script_ref": "27db0be0",
-      "sha256": "5a51251bbd212da8d547c431d413e3b99ba6d29e7f9fd2c4e044159c4db46bd6",
+      "sha256": "a811717d84faba478ea66caa224f3360a9e5d844a7a50fa09009f32d78131a44",
       "default_categories": [
         "Developer tools"
       ]
