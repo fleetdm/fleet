@@ -1210,11 +1210,13 @@ GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `osquery_min_software_last_opened_at_diff` (`FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`) | Removed |
+| `osquery_min_software_last_opened_at_diff` (`FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`) | Removed. Fleet updates a software item's "Last opened" time when a host reports a time at least 5 seconds later than the stored one. |
 
 #### What to do
 
-Remove it from your server configuration.
+1. Remove the option from your server configuration.
+   - If it's still passed as a command-line flag (`--osquery_min_software_last_opened_at_diff`), Fleet 5 doesn't start.
+   - If it's still set as an environment variable or in the config file, Fleet ignores it.
 
 GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
