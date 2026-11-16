@@ -61,7 +61,7 @@ describe("MdmSettings end user agreement section", () => {
   it("shows the section on a Windows-only server", async () => {
     renderPage({
       enabled_and_configured: false,
-      apple_bm_enabled_and_configured: false,
+      apple_business_enabled_and_configured: false,
       windows_mdm_enabled: true,
       android_enabled_and_configured: false,
     });
@@ -75,7 +75,7 @@ describe("MdmSettings end user agreement section", () => {
   it("shows the section when Apple MDM and Apple Business Manager are set up", async () => {
     renderPage({
       enabled_and_configured: true,
-      apple_bm_enabled_and_configured: true,
+      apple_business_enabled_and_configured: true,
       windows_mdm_enabled: false,
     });
 
@@ -85,7 +85,7 @@ describe("MdmSettings end user agreement section", () => {
   it("hides the section when neither platform can show an agreement", async () => {
     renderPage({
       enabled_and_configured: true,
-      apple_bm_enabled_and_configured: false,
+      apple_business_enabled_and_configured: false,
       windows_mdm_enabled: false,
       android_enabled_and_configured: true,
     });
@@ -100,7 +100,7 @@ describe("MdmSettings end user agreement section", () => {
     renderPage(
       {
         enabled_and_configured: false,
-        apple_bm_enabled_and_configured: false,
+        apple_business_enabled_and_configured: false,
         windows_mdm_enabled: true,
       },
       false
@@ -120,7 +120,7 @@ describe("MdmSettings end user agreement section", () => {
     });
     const { user } = renderPage({
       enabled_and_configured: false,
-      apple_bm_enabled_and_configured: false,
+      apple_business_enabled_and_configured: false,
       windows_mdm_enabled: true,
     });
 

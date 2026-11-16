@@ -1,7 +1,7 @@
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
-  createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
 
 import { generateSoftwareOptionHelpText } from "./helpers";
@@ -10,7 +10,7 @@ describe("generateSoftwareOptionHelpText", () => {
   it("builds the platform/extension and version subtitle for a package", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: createMockSoftwarePackage({
         name: "Notepad++.exe",
         version: "8.9.6.4",
@@ -25,7 +25,7 @@ describe("generateSoftwareOptionHelpText", () => {
   it("maps the source to its platform display name (macOS package)", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: createMockSoftwarePackage({
         name: "TestPackage-1.2.3.pkg",
         version: "1.2.3",
@@ -41,7 +41,7 @@ describe("generateSoftwareOptionHelpText", () => {
     // outer dropdown carries the actual version.
     const title = createMockSoftwareTitle({
       source: "apps",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: createMockSoftwarePackage({
         name: "TestPackage-1.2.3.pkg",
         version: "1.2.3",
@@ -73,7 +73,7 @@ describe("generateSoftwareOptionHelpText", () => {
   it("keeps the single-version treatment when a title has exactly one package", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: createMockSoftwarePackage({
         name: "TestPackage-1.2.3.pkg",
         version: "1.2.3",
@@ -90,10 +90,10 @@ describe("generateSoftwareOptionHelpText", () => {
     expect(generateSoftwareOptionHelpText(title)).toBe("macOS (.pkg) • 1.2.3");
   });
 
-  it("labels App Store (VPP) apps and uses the app_store_app version", () => {
+  it("labels App Store (VPP) apps and uses the first app_store_apps entry's version", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
-      app_store_app: createMockAppStoreApp({ version: "5.0.0" }),
+      app_store_apps: [createMockAppStoreAppVersion({ version: "5.0.0" })],
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe(
@@ -104,8 +104,7 @@ describe("generateSoftwareOptionHelpText", () => {
   it("omits the version for a VPP app that has none", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
-      // default app_store_app mock has no `version`
-      app_store_app: createMockAppStoreApp(),
+      app_store_apps: [createMockAppStoreAppVersion({ version: "" })],
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe("macOS (App Store)");
@@ -114,7 +113,7 @@ describe("generateSoftwareOptionHelpText", () => {
   it("omits the version when the package has none", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: createMockSoftwarePackage({
         name: "MyApp.exe",
         version: "",
@@ -128,7 +127,7 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       // null-platform source -> empty platform string, but the package has a version
       source: "go_binaries",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: createMockSoftwarePackage({
         name: "mytool",
         version: "1.2.3",
@@ -141,7 +140,7 @@ describe("generateSoftwareOptionHelpText", () => {
   it("returns an empty string when neither platform nor version is available", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
-      app_store_app: null,
+      app_store_apps: null,
       software_package: null,
     });
 

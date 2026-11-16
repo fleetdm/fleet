@@ -66,7 +66,7 @@ func TestWarnSetupAssistantsWithoutABMTokens(t *testing.T) {
 			checker: &fakeABMChecker{
 				tokens: []*fleet.ABMToken{abmToken("Workstations", "", "", "")},
 				hostCounts: map[string]int{
-					fmt.Sprintf("team_id=7&mdm_enrollment_status=%s", fleet.MDMEnrollStatusPending): 2,
+					fmt.Sprintf("fleet_id=7&mdm_enrollment_status=%s", fleet.MDMEnrollStatusPending): 2,
 				},
 			},
 			fleets:       map[string]uint{"Lab": 7},
