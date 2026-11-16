@@ -54,20 +54,9 @@ After a device is factory reset or unboxed and connected to a network: The devic
 
 > Zero-touch enrollment doesn't support [end-user authentication (EUA)](https://fleetdm.com/guides/setup-experience#end-user-authentication). There's no browser-based identity provider (IdP) sign-in during zero-touch provisioning, so IdP variables in certificates won't work on these hosts.
 
-## Require a passcode during setup
+## Update your DPC extras after upgrading
 
-Fleet can ask the end user to set a screen lock during setup, before they reach the home screen. This way, no one can use work apps on a host that doesn't have a passcode.
-
-To require a passcode during setup, add a passcode profile to the fleet that hosts enroll to. Use the [example passcode profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/android/configuration-profiles/password-policy.json) as a starting point. Learn more about adding profiles in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
-
-A passcode profile is any Android profile with `passwordPolicies` or `passwordRequirements`. For Fleet to apply it during setup:
-
-- Target all hosts on the fleet. Fleet can't apply a profile that includes or excludes labels during setup because the host doesn't have labels until it enrolls. These profiles are applied after setup.
-- Don't use variables. Fleet sends the same passcode settings to every host before it knows which host is enrolling. Fleet rejects passcode profiles that use Fleet variables (`$FLEET_VAR_*`), secrets (`$FLEET_SECRET_*`), or custom host vitals.
-
-Fleet's other profiles are applied after the host enrolls, the same as before.
-
-### Update your DPC extras after upgrading
+Fleet can ask the end user to set a passcode during setup, before they reach the home screen. Learn how in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-a-passcode-on-android).
 
 If you set up zero-touch before Fleet 4.96.0, your configurations in the zero-touch portal use old DPC extras. Hosts still enroll to the right fleet, but the end user isn't asked for a passcode until after setup.
 
@@ -106,7 +95,7 @@ If the device has no network connection during setup, zero-touch is skipped. The
 **End user isn't asked for a passcode during setup**
 
 - Confirm that the configuration in the zero-touch portal uses the latest DPC extras from Fleet. See [Update your DPC extras after upgrading](#update-your-dpc-extras-after-upgrading).
-- Confirm that the passcode profile targets all hosts on the fleet. Profiles that include or exclude labels are applied after setup.
+- Confirm that the passcode profile targets all hosts on the fleet and doesn't use variables. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-a-passcode-on-android).
 - Check the passcode profile's status on the host's **Host details > OS settings**. If Google rejects the passcode settings, Fleet still enrolls the host and applies the profile after setup.
 
 ## Further reading

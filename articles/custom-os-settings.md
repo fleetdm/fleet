@@ -345,6 +345,8 @@ The error message will provide the reason from the Android Management API (AMAPI
 
 Note that the "Resend" button is only available for certificates. Fleet pushes certificates via Fleet's Android app. Other configuration profiles don't have the "Resend" button because they are sent via a different mechanism: the host checks in for these profiles periodically similarly to Apple declaration (DDM) profiles, rather than Fleet pushing them. 
 
+Passcode profiles (`passwordPolicies` or `passwordRequirements`) that target all hosts on a fleet are applied during setup on company-owned hosts. These profiles can't use Fleet variables, secrets, or custom host vitals. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-a-passcode-on-android).
+
 #### Biometric unlock on personally-owned (BYOD) hosts
 
 Android applies the biometric values of `keyguardDisabledFeatures` to the work profile lock. By default, the end user has one lock for both the work profile and the host ("Use one lock"). There is no separate work profile lock to restrict, so Android restricts the host's lock instead. The profile below turns off fingerprint and face unlock for the whole host, including the end user's personal apps:
