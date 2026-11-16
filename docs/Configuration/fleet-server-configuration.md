@@ -1301,18 +1301,6 @@ to the amount of time it takes for Fleet to give the host the label queries.
     max_jitter_percent: 10
   ```
 
-### osquery_min_software_last_opened_at_diff
-
-The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
-
-- Default value: 1h
-- Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
-- Config file format:
-  ```yaml
-  osquery:
-    min_software_last_opened_at_diff: 4h
-  ```
-
 ### osquery_max_concurrent_query_report_reads
 
 The maximum number of osquery log requests that each Fleet server checks against stored report results at the same time. Fleet reads a host's stored results from the database (the read replica, if configured) so it can skip writing results that haven't changed. When a server is at the limit, it skips storing report results for the request instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. Set it to 0 to remove the limit.
