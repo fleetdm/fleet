@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Create Google conditional access customer',
 
 
-  description: 'Registers a Fleet server for a provided Google customer ID and returns a generated secret and Fleet\'s Web OAuth client ID.',
+  description: 'Registers a Fleet server for a provided Google customer ID and returns a generated secret.',
 
 
   inputs: {
@@ -24,12 +24,7 @@ module.exports = {
 
   fn: async function ({googleCustomerId}) {
 
-    if(!sails.config.custom.googleConditionalAccessOauthClientId) {
-      throw new Error('Missing sails.config.custom.googleConditionalAccessOauthClientId! Please set this value and try again.');
-    }
-
-    // TODO: #56649 has the Fleet server store the customer ID without the leading "C", but the website spec stores it
-    // with one. This accepts both forms.
+    // Google's device APIs use the customer ID without the leading "C", so accept either form and store it with one.
     googleCustomerId = 'C' + googleCustomerId.replace(/^C/, '');
 
     // Return a badRequest response if the origin header is missing.
@@ -55,10 +50,8 @@ module.exports = {
       .intercept('E_UNIQUE', 'connectionAlreadyExists');
     }
 
-    // TODO: The website spec marks whether the Fleet Android app needs Fleet's Web OAuth client ID as open.
     return {
       fleetServerSecret: fleetServerSecret,
-      oauthClientId: sails.config.custom.googleConditionalAccessOauthClientId,
     };
 
   }
