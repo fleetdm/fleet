@@ -37,12 +37,10 @@ func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if err != nil {
 		return listTeamsResponse{Err: err}, nil
 	}
-	if err := addTeamConfigLists(ctx, svc, teams...); err != nil {
-		return listTeamsResponse{Err: err}, nil
-	}
 
 	resp := listTeamsResponse{Teams: []fleet.Team{}}
 	for _, team := range teams {
+		team.ClearRecordedLists()
 		resp.Teams = append(resp.Teams, *team)
 	}
 	return resp, nil
@@ -105,9 +103,7 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		return defaultTeamResponse{Team: defaultTeam}, nil
 	}
 
-	if err := addTeamConfigLists(ctx, svc, team); err != nil {
-		return getTeamResponse{Err: err}, nil
-	}
+	team.ClearRecordedLists()
 	return getTeamResponse{Team: team}, nil
 }
 
@@ -141,9 +137,7 @@ func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	if err := addTeamConfigLists(ctx, svc, team); err != nil {
-		return teamResponse{Err: err}, nil
-	}
+	team.ClearRecordedLists()
 	return teamResponse{Team: team}, nil
 }
 
@@ -202,10 +196,8 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return defaultTeamResponse{Team: defaultTeam}, nil
 	}
 
-	if err := addTeamConfigLists(ctx, svc, team); err != nil {
-		return teamResponse{Err: err}, nil
-	}
-	return teamResponse{Team: team}, nil
+	team.ClearRecordedLists()
+	return teamResponse{Team: team}, err
 }
 
 func (svc *Service) ModifyTeam(ctx context.Context, id uint, payload fleet.TeamPayload) (*fleet.Team, error) {
@@ -358,10 +350,8 @@ func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, sv
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	if err := addTeamConfigLists(ctx, svc, team); err != nil {
-		return teamResponse{Err: err}, nil
-	}
-	return teamResponse{Team: team}, nil
+	team.ClearRecordedLists()
+	return teamResponse{Team: team}, err
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
@@ -421,10 +411,8 @@ func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	if err := addTeamConfigLists(ctx, svc, team); err != nil {
-		return teamResponse{Err: err}, nil
-	}
-	return teamResponse{Team: team}, nil
+	team.ClearRecordedLists()
+	return teamResponse{Team: team}, err
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -441,10 +429,8 @@ func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
-	if err := addTeamConfigLists(ctx, svc, team); err != nil {
-		return teamResponse{Err: err}, nil
-	}
-	return teamResponse{Team: team}, nil
+	team.ClearRecordedLists()
+	return teamResponse{Team: team}, err
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {

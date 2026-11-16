@@ -67,17 +67,6 @@ func withCreateDefaults(m fleet.TeamMDM) fleet.TeamMDM {
 	return m
 }
 
-// Config and fleet responses always include the lists, empty when nothing's saved.
-func withEmptyResponseLists(m fleet.TeamMDM) fleet.TeamMDM {
-	m.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-	m.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-	m.AndroidSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-	m.MacOSSetup.BootstrapPackage = optjson.SetString(m.MacOSSetup.BootstrapPackage.Value)
-	m.MacOSSetup.MacOSSetupAssistant = optjson.SetString(m.MacOSSetup.MacOSSetupAssistant.Value)
-	m.MacOSSetup.Script = optjson.SetString(m.MacOSSetup.Script.Value)
-	return m
-}
-
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
@@ -181,8 +170,8 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 }
 
 // defaultExpectedWindowsSettings returns the WindowsSettings shape produced by a team config
-// save/load round trip with nothing configured: an empty custom settings slice and the managed
-// local account toggle force-defaulted to disabled.
+// save/load round trip with nothing configured: the managed local account toggle force-defaulted
+// to disabled.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
 	return fleet.WindowsSettings{
 		EnableManagedLocalAccount: optjson.SetBool(false),

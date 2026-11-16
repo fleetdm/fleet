@@ -936,12 +936,11 @@ func TestGetConfig(t *testing.T) {
 			},
 		})
 
-		// Same as the global admin, except the "No fleet" lists, which fleet users can't read.
-		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigTeamAdminYaml.yml"))
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigYaml.yml"))
 		require.NoError(t, err)
 		expectedYaml := string(b)
 
-		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigTeamAdminJson.json"))
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigJson.json"))
 		require.NoError(t, err)
 		expectedJson := string(b)
 

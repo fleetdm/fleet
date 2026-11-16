@@ -1172,13 +1172,13 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"macos_setup": macSetup}})),
 						c.expectedStatus, &acResp)
 					require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-					require.Equal(t, c.expectedAssistant, acResp.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+					require.Equal(t, c.expectedAssistant, storedAppConfig(t, s.ds).MDM.MacOSSetup.MacOSSetupAssistant.Value)
 				}
 
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
 				require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-				require.Equal(t, c.expectedAssistant, acResp.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+				require.Equal(t, c.expectedAssistant, storedAppConfig(t, s.ds).MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			})
 		}
 	})
@@ -1257,7 +1257,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
 				require.Equal(t, c.expectedRelease, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-				require.Equal(t, c.expectedAssistant, teamResp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+				require.Equal(t, c.expectedAssistant, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			})
 		}
 	})

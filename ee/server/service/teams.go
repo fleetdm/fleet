@@ -1802,9 +1802,6 @@ func (svc *Service) createTeamFromSpec(
 	macOSSettings.EnableDiskEncryption = optjson.SetBool(macOSSettings.EnableDiskEncryption.Value)
 	macOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(macOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	windowsSettings := spec.MDM.WindowsSettings
-	windowsSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(windowsSettings.CustomSettings, optjson.Slice[fleet.MDMProfileSpec]{})
-	androidSettings := spec.MDM.AndroidSettings
-	androidSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(androidSettings.CustomSettings, optjson.Slice[fleet.MDMProfileSpec]{})
 	if spec.MDM.EnableDiskEncryption.Valid {
 		windowsSettings.EnableDiskEncryption = spec.MDM.EnableDiskEncryption
 	}
@@ -1853,8 +1850,8 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
-	fleet.ValidateMDMProfileSpecs(invalid, "windows", windowsSettings.CustomSettings.Value)
-	fleet.ValidateMDMProfileSpecs(invalid, "android", androidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -1936,7 +1933,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSettings:              macOSSettings,
 				MacOSSetup:                 macOSSetup,
 				WindowsSettings:            windowsSettings,
-				AndroidSettings:            androidSettings,
+				AndroidSettings:            spec.MDM.AndroidSettings,
 				LinuxSettings:              linuxSettings,
 				HostNameTemplate:           nameTemplate,
 			},
@@ -2247,14 +2244,11 @@ func (svc *Service) editTeamFromSpec(
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
-	// Responses leave these out for roles that can't read them, but a client may still send
-	// null (older responses returned it), so null is ignored rather than deleting the saved
-	// item. "" still clears it, and that's what GitOps sends.
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Valid {
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
 	}
-	if spec.MDM.MacOSSetup.BootstrapPackage.Valid {
+	if spec.MDM.MacOSSetup.BootstrapPackage.Set {
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
@@ -2364,7 +2358,7 @@ func (svc *Service) editTeamFromSpec(
 	// the configured flag, and gating it here can spuriously reject team
 	// edits when the cached AppConfig lags behind a recent enable.
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		team.Config.MDM.WindowsSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(spec.MDM.WindowsSettings.CustomSettings, team.Config.MDM.WindowsSettings.CustomSettings)
+		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
 	var didUpdateWindowsManagedLocalAccount bool
 	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
@@ -2377,7 +2371,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
-		team.Config.MDM.AndroidSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(spec.MDM.AndroidSettings.CustomSettings, team.Config.MDM.AndroidSettings.CustomSettings)
+		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
 	}
 
 	if spec.Scripts.Set {
@@ -2560,7 +2554,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if the macos setup assistant was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Valid &&
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
 		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
 		oldMacOSSetup.MacOSSetupAssistant.Value != "" {
 		if err := svc.DeleteMDMAppleSetupAssistant(ctx, &team.ID); err != nil {
@@ -2569,7 +2563,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if the bootstrap package was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.BootstrapPackage.Valid &&
+	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
 		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
@@ -2702,7 +2696,6 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 	if err != nil {
 		return nil, fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
-	applyUpon.CustomSettings = fleet.WithoutEchoedProfileSpecs(applyUpon.CustomSettings, oldCustomSettings)
 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {

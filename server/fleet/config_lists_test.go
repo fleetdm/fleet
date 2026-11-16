@@ -5,139 +5,152 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestWithoutEchoedProfileSpecs(t *testing.T) {
-	recorded := []MDMProfileSpec{{Path: "lib/a.mobileconfig"}}
-	cases := []struct {
-		name         string
-		incoming     []MDMProfileSpec
-		want         []MDMProfileSpec
-		keepRecorded bool
-	}{
-		{name: "nil", incoming: nil, want: nil},
-		{name: "empty", incoming: []MDMProfileSpec{}, want: []MDMProfileSpec{}},
-		{
-			name:     "paths only",
-			incoming: []MDMProfileSpec{{Path: "lib/b.mobileconfig"}, {Paths: "lib/*.json"}},
-			want:     []MDMProfileSpec{{Path: "lib/b.mobileconfig"}, {Paths: "lib/*.json"}},
-		},
-		{name: "echoed only", incoming: []MDMProfileSpec{{Name: "Wi-Fi"}, {Name: "Passcode"}}, keepRecorded: true},
-		{
-			name:     "mixed",
-			incoming: []MDMProfileSpec{{Name: "Wi-Fi"}, {Path: "lib/b.mobileconfig", Name: "B"}},
-			want:     []MDMProfileSpec{{Path: "lib/b.mobileconfig", Name: "B"}},
-		},
+func TestClearRecordedLists(t *testing.T) {
+	profiles := []MDMProfileSpec{{Path: "profile"}}
+	macOSSettings := MacOSSettings{CustomSettings: profiles}
+	windowsSettings := WindowsSettings{CustomSettings: optjson.SetSlice(profiles)}
+	androidSettings := AndroidSettings{CustomSettings: optjson.SetSlice(profiles)}
+	macOSSetup := MacOSSetup{
+		BootstrapPackage:    optjson.SetString("https://example.com/bootstrap.pkg"),
+		MacOSSetupAssistant: optjson.SetString("assistant.json"),
+		Script:              optjson.SetString("script.sh"),
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			want := c.want
-			if c.keepRecorded {
-				want = recorded
+
+	recordedKeysByObject := map[string][]string{
+		"macos_settings":   {"custom_settings", "configuration_profiles"},
+		"apple_settings":   {"custom_settings", "configuration_profiles"},
+		"windows_settings": {"custom_settings", "configuration_profiles"},
+		"android_settings": {"custom_settings", "configuration_profiles"},
+		"macos_setup":      {"bootstrap_package", "macos_setup_assistant", "script"},
+		"setup_experience": {"macos_bootstrap_package", "apple_setup_assistant", "macos_script"},
+	}
+
+	// Responses carry every renamed key under both names, which the response encoder adds.
+	marshalToMap := func(t *testing.T, value any) map[string]any {
+		raw, err := json.Marshal(value)
+		require.NoError(t, err)
+		raw = endpointer.DuplicateJSONKeys(raw, endpointer.ExtractAliasRules(value))
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal(raw, &decoded))
+		return decoded
+	}
+
+	// Returns the recorded keys found, so the same walk proves they were there before clearing.
+	recordedKeysPresent := func(t *testing.T, config map[string]any, topLevelMDMKeys ...string) []string {
+		var present []string
+		if _, ok := config["scripts"]; ok {
+			present = append(present, "scripts")
+		}
+		mdm, ok := config["mdm"].(map[string]any)
+		require.True(t, ok)
+		for _, key := range topLevelMDMKeys {
+			if _, ok := mdm[key]; ok {
+				present = append(present, "mdm."+key)
 			}
-			require.Equal(t, want, WithoutEchoedProfileSpecs(c.incoming, recorded))
-			require.Equal(t, optjson.SetSlice(want), WithoutEchoedProfileSpecsOpt(optjson.SetSlice(c.incoming), optjson.SetSlice(recorded)))
-		})
+		}
+		for objectName, keys := range recordedKeysByObject {
+			object, ok := mdm[objectName].(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, key := range keys {
+				if _, ok := object[key]; ok {
+					present = append(present, "mdm."+objectName+"."+key)
+				}
+			}
+		}
+		return present
 	}
 
-	// The incoming slice isn't modified.
-	incoming := []MDMProfileSpec{{Name: "Wi-Fi"}, {Path: "lib/b.mobileconfig"}}
-	WithoutEchoedProfileSpecs(incoming, nil)
-	require.Equal(t, []MDMProfileSpec{{Name: "Wi-Fi"}, {Path: "lib/b.mobileconfig"}}, incoming)
-}
-
-func TestConfigListsApply(t *testing.T) {
-	var ac AppConfig
-	ac.MDM.MacOSSettings.CustomSettings = []MDMProfileSpec{{Path: "stale.mobileconfig"}}
-	ac.Scripts = optjson.SetSlice([]string{"stale.sh"})
-	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com/stale.pkg")
-
-	var nilLists *ConfigLists
-	nilLists.ApplyToAppConfig(&ac)
-	require.Equal(t, []MDMProfileSpec{}, ac.MDM.MacOSSettings.CustomSettings)
-	require.Equal(t, optjson.SetSlice([]MDMProfileSpec{}), ac.MDM.WindowsSettings.CustomSettings)
-	require.Equal(t, optjson.SetSlice([]string{}), ac.Scripts)
-	require.Equal(t, optjson.SetString(""), ac.MDM.MacOSSetup.BootstrapPackage)
-	require.Equal(t, optjson.SetSlice([]MDMAppleVolumePurchasingProgramInfo{}), ac.MDM.VolumePurchasingProgram)
-
-	l := NewConfigLists()
-	l.WindowsProfiles = []MDMProfileSpec{{Name: "Firewall"}}
-	l.Scripts = []string{"hello.sh"}
-	l.SetupAssistant = "assistant.json"
-	var tc TeamConfig
-	l.ApplyToTeamConfig(&tc)
-	require.Equal(t, optjson.SetSlice([]MDMProfileSpec{{Name: "Firewall"}}), tc.MDM.WindowsSettings.CustomSettings)
-	require.Equal(t, optjson.SetSlice([]string{"hello.sh"}), tc.Scripts)
-	require.Equal(t, optjson.SetString("assistant.json"), tc.MDM.MacOSSetup.MacOSSetupAssistant)
-}
-
-func TestConfigListsApplyHidden(t *testing.T) {
-	filled := func() *ConfigLists {
-		l := NewConfigLists()
-		l.AppleProfiles = []MDMProfileSpec{{Name: "Wi-Fi"}}
-		l.WindowsProfiles = []MDMProfileSpec{{Name: "Firewall"}}
-		l.Scripts = []string{"hello.sh"}
-		l.SetupScript = "setup.sh"
-		l.BootstrapPackage = "bootstrap.pkg"
-		l.SetupAssistant = "assistant.json"
-		l.VolumePurchasingProgram = []MDMAppleVolumePurchasingProgramInfo{{Location: "loc", Teams: []string{"Engineering"}}}
-		return l
-	}
-	l := filled()
-	l.Hide(ConfigListsHidden{Profiles: true, Scripts: true, BootstrapPackage: true, SetupAssistant: true, VolumePurchasingProgram: true})
-	require.Equal(t, ConfigLists{Hidden: l.Hidden}, *l)
-
-	var ac AppConfig
-	l.ApplyToAppConfig(&ac)
-	require.Nil(t, ac.MDM.MacOSSettings.CustomSettings)
-	require.Zero(t, ac.MDM.WindowsSettings.CustomSettings)
-	require.Zero(t, ac.MDM.AndroidSettings.CustomSettings)
-	require.Zero(t, ac.Scripts)
-	require.Zero(t, ac.MDM.MacOSSetup.Script)
-	require.Zero(t, ac.MDM.MacOSSetup.BootstrapPackage)
-	require.Zero(t, ac.MDM.MacOSSetup.MacOSSetupAssistant)
-	require.Zero(t, ac.MDM.VolumePurchasingProgram)
-
-	// Hidden lists are left out of the JSON, not rendered as null.
-	b, err := json.Marshal(ac)
-	require.NoError(t, err)
-	var got struct {
-		Scripts json.RawMessage `json:"scripts"`
-		MDM     map[string]json.RawMessage
-	}
-	require.NoError(t, json.Unmarshal(b, &got))
-	require.Nil(t, got.Scripts)
-	require.NotContains(t, got.MDM, "volume_purchasing_program")
-	for _, key := range []string{"macos_settings", "windows_settings", "android_settings"} {
-		require.NotContains(t, string(got.MDM[key]), "custom_settings", key)
-	}
-	for _, key := range []string{"bootstrap_package", "macos_setup_assistant", "script"} {
-		require.NotContains(t, string(got.MDM["macos_setup"]), `"`+key+`"`, key)
+	requireOtherKeysKept := func(t *testing.T, config map[string]any) {
+		mdm := config["mdm"].(map[string]any)
+		appleSettings, ok := mdm["apple_settings"].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, appleSettings, "enable_disk_encryption")
+		setupExperience, ok := mdm["setup_experience"].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, setupExperience, "enable_end_user_authentication")
+		assert.Contains(t, mdm["windows_settings"], "enable_disk_encryption")
+		assert.Contains(t, mdm["android_settings"], "certificates")
 	}
 
-	// Each list is hidden on its own.
-	l = filled()
-	l.Hide(ConfigListsHidden{Profiles: true})
-	require.Nil(t, l.AppleProfiles)
-	require.Equal(t, []string{"hello.sh"}, l.Scripts)
-	var tc TeamConfig
-	l.ApplyToTeamConfig(&tc)
-	require.Nil(t, tc.MDM.MacOSSettings.CustomSettings)
-	require.Equal(t, optjson.SetSlice([]string{"hello.sh"}), tc.Scripts)
-	require.Equal(t, optjson.SetString("setup.sh"), tc.MDM.MacOSSetup.Script)
-	require.Equal(t, optjson.SetString("assistant.json"), tc.MDM.MacOSSetup.MacOSSetupAssistant)
-}
+	t.Run("app config", func(t *testing.T) {
+		appConfig := &AppConfig{
+			Scripts: optjson.SetSlice([]string{"script.sh"}),
+			MDM: MDM{
+				VolumePurchasingProgram: optjson.SetSlice([]MDMAppleVolumePurchasingProgramInfo{{Location: "location", Teams: []string{"fleet"}}}),
+				MacOSSettings:           macOSSettings,
+				WindowsSettings:         windowsSettings,
+				AndroidSettings:         androidSettings,
+				MacOSSetup:              macOSSetup,
+			},
+		}
+		require.ElementsMatch(t, []string{
+			"scripts",
+			"mdm.volume_purchasing_program",
+			"mdm.macos_settings.custom_settings",
+			"mdm.apple_settings.configuration_profiles",
+			"mdm.windows_settings.custom_settings",
+			"mdm.windows_settings.configuration_profiles",
+			"mdm.android_settings.custom_settings",
+			"mdm.android_settings.configuration_profiles",
+			"mdm.macos_setup.bootstrap_package",
+			"mdm.macos_setup.macos_setup_assistant",
+			"mdm.macos_setup.script",
+			"mdm.setup_experience.macos_bootstrap_package",
+			"mdm.setup_experience.apple_setup_assistant",
+			"mdm.setup_experience.macos_script",
+		}, recordedKeysPresent(t, marshalToMap(t, appConfig), "volume_purchasing_program"))
 
-func TestVolumePurchasingProgramFromTokens(t *testing.T) {
-	require.Nil(t, VolumePurchasingProgramFromTokens(nil))
-	require.Equal(t, []MDMAppleVolumePurchasingProgramInfo{
-		{Location: "all", Teams: []string{DisplayNameAllTeams}},
-		{Location: "some", Teams: []string{TeamNameNoTeam, "Engineering"}},
-		{Location: "none", Teams: []string{}},
-	}, VolumePurchasingProgramFromTokens([]*VPPTokenDB{
-		{Location: "all", Teams: []TeamTuple{}},
-		{Location: "some", Teams: []TeamTuple{{ID: 0, Name: TeamNameNoTeam}, {ID: 1, Name: "Engineering"}}},
-		{Location: "none"},
-	}))
+		appConfig.ClearRecordedLists()
+
+		cleared := marshalToMap(t, appConfig)
+		require.Empty(t, recordedKeysPresent(t, cleared, "volume_purchasing_program"))
+		requireOtherKeysKept(t, cleared)
+	})
+
+	t.Run("fleet", func(t *testing.T) {
+		team := &Team{
+			Name: "fleet",
+			Config: TeamConfig{
+				Scripts: optjson.SetSlice([]string{"script.sh"}),
+				MDM: TeamMDM{
+					MacOSSettings:   macOSSettings,
+					WindowsSettings: windowsSettings,
+					AndroidSettings: androidSettings,
+					MacOSSetup:      macOSSetup,
+				},
+			},
+		}
+		require.ElementsMatch(t, []string{
+			"scripts",
+			"mdm.macos_settings.custom_settings",
+			"mdm.apple_settings.configuration_profiles",
+			"mdm.windows_settings.custom_settings",
+			"mdm.windows_settings.configuration_profiles",
+			"mdm.android_settings.custom_settings",
+			"mdm.android_settings.configuration_profiles",
+			"mdm.macos_setup.bootstrap_package",
+			"mdm.macos_setup.macos_setup_assistant",
+			"mdm.macos_setup.script",
+			"mdm.setup_experience.macos_bootstrap_package",
+			"mdm.setup_experience.apple_setup_assistant",
+			"mdm.setup_experience.macos_script",
+		}, recordedKeysPresent(t, marshalToMap(t, team)))
+
+		team.ClearRecordedLists()
+
+		cleared := marshalToMap(t, team)
+		require.Empty(t, recordedKeysPresent(t, cleared))
+		requireOtherKeysKept(t, cleared)
+	})
+
+	t.Run("nil fleet", func(t *testing.T) {
+		require.NotPanics(t, func() { (*Team)(nil).ClearRecordedLists() })
+	})
 }

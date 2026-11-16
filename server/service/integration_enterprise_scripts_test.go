@@ -1818,69 +1818,51 @@ VALUES
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {
 	t := s.T()
-	ctx := t.Context()
-
-	// The YAML paths are still stored, but responses list the saved scripts instead.
-	storedScripts := func() []string {
-		ac, err := s.ds.AppConfig(ctx)
-		require.NoError(t, err)
-		return ac.Scripts.Value
-	}
 
 	// set the script fields
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", "bar"] }`), http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, storedScripts())
+	assert.ElementsMatch(t, []string{"foo", "bar"}, storedAppConfig(t, s.ds).Scripts.Value)
 
-	assert.NotContains(t, acResp.Scripts.Value, "foo")
-
+	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.NotNil(t, acResp.Scripts.Value)
-	assert.NotContains(t, acResp.Scripts.Value, "foo")
+	assert.ElementsMatch(t, []string{"foo", "bar"}, storedAppConfig(t, s.ds).Scripts.Value)
 
 	// patch without specifying the scripts fields, should not remove them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, storedScripts())
+	assert.ElementsMatch(t, []string{"foo", "bar"}, storedAppConfig(t, s.ds).Scripts.Value)
 
 	// patch with explicitly empty scripts fields, would remove
 	// them but this is a dry-run
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": null }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.ElementsMatch(t, []string{"foo", "bar"}, storedScripts())
+	assert.ElementsMatch(t, []string{"foo", "bar"}, storedAppConfig(t, s.ds).Scripts.Value)
 
 	// patch with explicitly empty scripts fields, removes them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": null }`), http.StatusOK, &acResp)
-	assert.Empty(t, storedScripts())
+	assert.Empty(t, storedAppConfig(t, s.ds).Scripts.Value)
 
 	// set the script fields again
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", "bar"] }`), http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, storedScripts())
+	assert.ElementsMatch(t, []string{"foo", "bar"}, storedAppConfig(t, s.ds).Scripts.Value)
 
 	// patch with an empty array sets the scripts to an empty array as well
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": [] }`), http.StatusOK, &acResp)
-	assert.Empty(t, storedScripts())
+	assert.Empty(t, storedAppConfig(t, s.ds).Scripts.Value)
 
 	// patch with an invalid array returns an error
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", 1] }`), http.StatusBadRequest, &acResp)
-	assert.Empty(t, storedScripts())
+	assert.Empty(t, storedAppConfig(t, s.ds).Scripts.Value)
 }
 
 func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	t := s.T()
-	ctx := t.Context()
-
-	// The YAML paths are still stored, but responses list the saved scripts instead.
-	storedScripts := func(teamID uint) []string {
-		tm, err := s.ds.TeamWithExtras(ctx, teamID)
-		require.NoError(t, err)
-		return tm.Config.Scripts.Value
-	}
 
 	// create a team through the service so it initializes the agent ops
 	teamName := t.Name() + "team1"
@@ -1906,11 +1888,10 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
-	require.Equal(t, []string{"foo", "bar"}, storedScripts(team.ID))
+	// retrieving the team returns the scripts
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.NotNil(t, teamResp.Team.Config.Scripts.Value)
-	require.Empty(t, teamResp.Team.Config.Scripts.Value)
+	require.Equal(t, []string{"foo", "bar"}, storedTeam(t, s.ds, teamResp.Team.ID).Config.Scripts.Value)
 
 	// apply without custom scripts specified, should not replace existing scripts
 	teamSpecs = map[string]any{
@@ -1921,7 +1902,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
-	require.Equal(t, []string{"foo", "bar"}, storedScripts(team.ID))
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, storedTeam(t, s.ds, teamResp.Team.ID).Config.Scripts.Value)
 
 	// apply with explicitly empty custom scripts would clear the existing
 	// scripts, but dry-run
@@ -1934,7 +1917,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
-	require.Equal(t, []string{"foo", "bar"}, storedScripts(team.ID))
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, storedTeam(t, s.ds, teamResp.Team.ID).Config.Scripts.Value)
 
 	// apply with explicitly empty scripts clears the existing scripts
 	teamSpecs = map[string]any{
@@ -1946,7 +1931,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
-	require.Empty(t, storedScripts(team.ID))
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, storedTeam(t, s.ds, teamResp.Team.ID).Config.Scripts.Value)
 
 	// patch with an invalid array returns an error
 	teamSpecs = map[string]any{
@@ -1958,7 +1945,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
-	require.Empty(t, storedScripts(team.ID))
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, storedTeam(t, s.ds, teamResp.Team.ID).Config.Scripts.Value)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {

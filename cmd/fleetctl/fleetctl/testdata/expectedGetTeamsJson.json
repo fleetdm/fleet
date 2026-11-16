@@ -27,11 +27,9 @@
       },
       "mdm": {
         "android_settings": {
-          "certificates": null,
-          "configuration_profiles": []
+          "certificates": null
         },
         "apple_settings": {
-          "configuration_profiles": [],
           "enable_disk_encryption": false,
           "enable_escrow_disk_encryption_key": false
         },
@@ -61,23 +59,19 @@
         "name_template": "",
         "setup_experience": {
           "apple_enable_release_device_manually": false,
-          "apple_setup_assistant": "",
           "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
           "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
-          "macos_bootstrap_package": "",
           "macos_enable_bootstrap_package_during_manual_enrollment": false,
           "macos_enable_bootstrap_package_during_migration": false,
           "macos_manual_agent_install": null,
           "macos_require_all_software": false,
-          "macos_script": "",
           "software": null,
           "windows_require_all_software": false
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "configuration_profiles": [],
           "enable_disk_encryption": false,
           "enable_managed_local_account": false,
           "require_bitlocker_pin": false
@@ -88,7 +82,6 @@
         }
       },
       "name": "team1",
-      "scripts": [],
       "user_count": 99,
       "webhook_settings": {
         "failing_policies_webhook": {
@@ -147,11 +140,9 @@
       },
       "mdm": {
         "android_settings": {
-          "certificates": null,
-          "configuration_profiles": []
+          "certificates": null
         },
         "apple_settings": {
-          "configuration_profiles": [],
           "enable_disk_encryption": false,
           "enable_escrow_disk_encryption_key": false
         },
@@ -181,23 +172,19 @@
         "name_template": "",
         "setup_experience": {
           "apple_enable_release_device_manually": false,
-          "apple_setup_assistant": "",
           "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
           "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
-          "macos_bootstrap_package": "",
           "macos_enable_bootstrap_package_during_manual_enrollment": false,
           "macos_enable_bootstrap_package_during_migration": false,
           "macos_manual_agent_install": null,
           "macos_require_all_software": false,
-          "macos_script": "",
           "software": null,
           "windows_require_all_software": false
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "configuration_profiles": [],
           "enable_disk_encryption": false,
           "enable_managed_local_account": false,
           "require_bitlocker_pin": false
@@ -208,7 +195,6 @@
         }
       },
       "name": "team2",
-      "scripts": [],
       "user_count": 87,
       "webhook_settings": {
         "failing_policies_webhook": {

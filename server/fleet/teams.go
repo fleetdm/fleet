@@ -961,7 +961,7 @@ type TeamSpec struct {
 	Secrets            *[]EnrollSecret         `json:"secrets,omitempty"`
 	Features           *json.RawMessage        `json:"features"`
 	MDM                TeamSpecMDM             `json:"mdm"`
-	Scripts            optjson.Slice[string]   `json:"scripts"`
+	Scripts            optjson.Slice[string]   `json:"scripts,omitzero"`
 	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
 	Integrations       TeamSpecIntegrations    `json:"integrations"`
 	Software           *SoftwareSpec           `json:"software,omitempty"`
@@ -1026,8 +1026,11 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsUpdates = mdm.WindowsUpdates
 	mdmSpec.MacOSSettings = mdm.MacOSSettings.ToMap()
 	// assets are only present in ToMap for GitOps request validation; they are
-	// not stored on the team config, so keep them out of the generated spec.
+	// not stored on the team config. custom_settings is left out of fleet
+	// responses, so it would only print as null. Keep both out of the
+	// generated spec.
 	delete(mdmSpec.MacOSSettings, "assets")
+	delete(mdmSpec.MacOSSettings, "custom_settings")
 	mdmSpec.MacOSSetup = mdm.MacOSSetup
 	// emit the deprecated flat toggle only when it agrees with every
 	// per-platform setting: the flat toggle wins when provided, so emitting it
@@ -1074,7 +1077,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
 		Integrations:       integrations,
-		Scripts:            t.Config.Scripts,
 		Software:           t.Config.Software,
 	}, nil
 }

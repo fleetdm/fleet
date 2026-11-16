@@ -1190,7 +1190,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	require.ElementsMatch(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
 		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
-	}, storedTeamConfig(t, s.ds, team.ID).MDM.WindowsSettings.CustomSettings.Value)
+	}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
@@ -1204,7 +1204,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	require.ElementsMatch(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
 		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
-	}, storedTeamConfig(t, s.ds, team.ID).MDM.WindowsSettings.CustomSettings.Value)
+	}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
@@ -1219,7 +1219,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	require.ElementsMatch(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
 		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
-	}, storedTeamConfig(t, s.ds, team.ID).MDM.WindowsSettings.CustomSettings.Value)
+	}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
@@ -1230,7 +1230,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Empty(t, storedTeamConfig(t, s.ds, team.ID).MDM.WindowsSettings.CustomSettings.Value)
+	require.Empty(t, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// apply with invalid mix of labels fails
 	res := s.Do("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`

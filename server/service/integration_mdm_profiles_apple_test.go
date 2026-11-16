@@ -1072,10 +1072,10 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
 
-	// GET /config lists the saved profiles, not the stored YAML paths
+	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.NotContains(t, acResp.MDM.MacOSSettings.CustomSettings, fleet.MDMProfileSpec{Path: "bar"})
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
 
 	// set the windows custom settings fields with included/excluded labels
 	acResp = appConfigResponse{}
@@ -1093,11 +1093,11 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
 	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), storedAppConfig(t, s.ds).MDM.WindowsSettings.CustomSettings)
 
-	// GET /config lists the saved profiles, not the stored YAML paths
+	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.NotContains(t, acResp.MDM.MacOSSettings.CustomSettings, fleet.MDMProfileSpec{Path: "bar"})
-	assert.NotContains(t, acResp.MDM.WindowsSettings.CustomSettings.Value, fleet.MDMProfileSpec{Path: "bar", LabelsIncludeAll: []string{"a", "b"}})
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), storedAppConfig(t, s.ds).MDM.WindowsSettings.CustomSettings)
 
 	// patch without specifying the windows/macos custom settings fields and an unrelated
 	// field, should not remove them
@@ -1240,7 +1240,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
-	}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
+	}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1278,7 +1278,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
-	}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
+	}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
@@ -1294,7 +1294,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
-	}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
+	}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1306,7 +1306,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{}, storedTeam(t, s.ds, teamResp.Team.ID).Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid mix of labels fails
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
