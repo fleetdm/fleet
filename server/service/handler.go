@@ -140,6 +140,12 @@ func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestF
 // apiVersions are the versions the Fleet API routes are registered for, in addition to "latest".
 var apiVersions = []string{"v1", "2022-04"}
 
+// FeatureRoutes lists the routes of the bounded contexts that MakeHandler serves next to the core API. cmd/fleet and the route
+// tests both build the list with it, so a context added to one can't be left out of the other.
+func FeatureRoutes(android, activity, notifications, acme, chart endpointer.HandlerRoutesFunc) []endpointer.HandlerRoutesFunc {
+	return []endpointer.HandlerRoutesFunc{android, activity, notifications, acme, chart}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(
 	svc fleet.Service,
@@ -178,12 +184,12 @@ func MakeHandler(
 		),
 	}
 
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 
 	if config.OTELEnabled() {
 		// otelmux takes the route from r.Pattern when it is set, so this runs first to give it the readable template.
-		r.Use(cleanRoutePattern)
-		r.Use(otmiddleware.Middleware(
+		r.Gorilla().Use(cleanRoutePattern)
+		r.Gorilla().Use(otmiddleware.Middleware(
 			"service",
 			otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
 				// Use the guideline for span names: {method} {target}
@@ -218,7 +224,7 @@ func MakeHandler(
 	}
 
 	for _, mw := range middlewares {
-		r.Use(mw)
+		r.Gorilla().Use(mw)
 	}
 
 	if eopts.mcpConn == nil {
@@ -325,12 +331,10 @@ func PrometheusMetricsHandler(name string, handler http.Handler) http.Handler {
 }
 
 // addMetrics decorates each handler with prometheus instrumentation
-func addMetrics(r *mux.Router) {
-	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
-		return nil
-	}
-	r.Walk(walkFn) //nolint:errcheck
+func addMetrics(r *endpointer.Router) {
+	r.WrapHandlers(func(rt endpointer.Route, h http.Handler) http.Handler {
+		return PrometheusMetricsHandler(rt.Name, h)
+	})
 }
 
 // These are defined as const so that they can be used in tests.
@@ -351,7 +355,7 @@ const (
 	DeviceIPBanTime                                     = 1 * time.Minute
 )
 
-func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
+func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config.FleetConfig,
 	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
