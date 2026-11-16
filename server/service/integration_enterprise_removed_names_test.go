@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -16,7 +17,8 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	t := s.T()
 	reportsBefore := len(s.listReports())
 
-	reject := func(method, path, body, key string, query ...string) {
+	// rejectNamed expects the error to name the field param, which differs from key only when key is a removed value.
+	rejectNamed := func(method, path, body, param, key string, query ...string) {
 		t.Run(method+" "+path+" "+key, func(t *testing.T) {
 			resp := s.DoRaw(method, "/api/latest/fleet"+path, []byte(body), http.StatusUnprocessableEntity, query...)
 			var got struct {
@@ -26,9 +28,12 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
 			require.Equal(t, "Validation Failed", got.Message)
 			require.Equal(t, []map[string]string{{
-				"name": key, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+				"name": param, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
 			}}, got.Errors)
 		})
+	}
+	reject := func(method, path, body, key string, query ...string) {
+		rejectNamed(method, path, body, key, key, query...)
 	}
 
 	// Request body keys: fleet roles, selected fleets and the fleet of a created or targeted entity.
@@ -54,6 +59,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"POST", "/software/app_store_apps", `{"app_store_id": "a", "team_id": 1}`, "team_id"},
 		{"PATCH", "/software/titles/1/app_store_app", `{"team_id": 1}`, "team_id"},
 		{"PATCH", "/fleets/1/secrets", `{"secrets": [{"secret": "a", "team_id": 1}]}`, "team_id"},
+		{"POST", "/software/fleet_maintained_apps", `{"fleet_maintained_app_id": 1, "team_id": 1}`, "team_id"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
@@ -68,15 +74,31 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"GET", "/hosts"}, {"GET", "/hosts/count"}, {"GET", "/hosts/report"}, {"GET", "/users"},
 		{"GET", "/vulnerabilities"}, {"GET", "/vulnerabilities/CVE-2021-1234"},
 		{"GET", "/software/fleet_maintained_apps"}, {"GET", "/software/fleet_maintained_apps/1"}, {"GET", "/software/app_store_apps"},
-		{"GET", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
+		{"GET", "/software/titles/1/icon"}, {"PUT", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
 	} {
 		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
 	}
 	reject("POST", "/scripts/batch", "", "team_name", "team_name", "a")
 	reject("POST", "/software/app_store_apps/batch", "", "team_name", "team_name", "a")
 
+	// Removed sort keys are values of order_key, so the error names that parameter.
+	for _, tc := range [][]string{
+		{"/hosts", "team_name"}, {"/hosts", "team_id"}, {"/labels", "team_id"}, {"/labels/1/hosts", "team_name"},
+		{"/fleets/0/policies", "team_id"}, {"/reports", "team_id"}, {"/configuration_profiles", "team_id"},
+	} {
+		rejectNamed("GET", tc[0], "", "order_key", tc[1], "order_key", tc[1])
+	}
+	rejectNamed("GET", "/fleets/0/policies", "", "inherited_order_key", "team_id", "inherited_order_key", "team_id")
+	rejectNamed("POST", "/translate", `{"list": [{"type": "team", "payload": {"identifier": "a"}}]}`, "type", "team")
+
 	// The rejected create calls did not create anything, and the new name is accepted.
 	require.Len(t, s.listReports(), reportsBefore)
+
+	// A report's result column can be called team_id, so sorting its results by it is allowed.
+	var created fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(t.Name()), Query: new("SELECT 1 AS team_id")}, http.StatusOK,
+		&created)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d/report", created.Query.ID), nil, http.StatusOK, "order_key", "team_id")
 }
 
 func (s *integrationEnterpriseTestSuite) listReports() []fleet.Query {
