@@ -2,6 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
@@ -19,6 +20,9 @@ import {
 } from "../statusDisplayConfig";
 
 const baseClass = "control-details-modal";
+
+const WINDOWS_STATUS_CODES_URL =
+  "https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes";
 
 interface IControlDetailsModalProps {
   control: IHostMdmProfileWithAddedStatus;
@@ -122,6 +126,12 @@ const ControlDetailsModal = ({
   const showDetailBlock =
     !!detailText && !detailReplacesMessage && !guidance?.supersedesDetail;
 
+  // Windows failures report bare SyncML codes, like "<LocURI>: status 405".
+  const showWindowsStatusCodesLink =
+    showDetailBlock &&
+    control.platform === "windows" &&
+    /: status \d+/.test(detailText);
+
   return (
     <Modal title="Details" onExit={onExit} className={baseClass}>
       <>
@@ -154,6 +164,17 @@ const ControlDetailsModal = ({
             >
               {detailText}
             </Textarea>
+          )}
+          {showWindowsStatusCodesLink && (
+            <p className={`${baseClass}__details-help`}>
+              To find out what a status code means, see{" "}
+              <CustomLink
+                url={WINDOWS_STATUS_CODES_URL}
+                text="Microsoft's SyncML status codes"
+                newTab
+              />
+              .
+            </p>
           )}
         </div>
         {/* .modal-cta-wrap is row-reverse, so the primary action comes first. */}
