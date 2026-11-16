@@ -187,6 +187,9 @@ WHERE
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 		{"utf8mb4_bin", "verification_tokens", "token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_scep_challenges", "challenge", "utf8mb4"},
+		// Session IDs come from the host and compare exactly, trailing spaces included (NO PAD).
+		{"utf8mb4_0900_bin", "host_ai_sessions", "agent", "utf8mb4"},
+		{"utf8mb4_0900_bin", "host_ai_sessions", "agent_session_id", "utf8mb4"},
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)

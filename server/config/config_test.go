@@ -1468,6 +1468,18 @@ func TestOsqueryConfigValidate(t *testing.T) {
 		cfg.Validate(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+
+	t.Run("no AI session tool calls is allowed", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "uuid", AISessionMaxToolCalls: 0}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("negative AI session tool calls are rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "uuid", AISessionMaxToolCalls: -1}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
 }
 
 func TestServerConfigValidate(t *testing.T) {

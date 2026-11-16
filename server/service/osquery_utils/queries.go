@@ -4441,9 +4441,16 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	// IdP host vitals are a premium feature.
+	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
+		if appConfig == nil || !appConfig.ServerSettings.AISessionsDisabled {
+			generatedMap["ai_agent_sessions"] = aiAgentSessions
+			if fleetConfig.Osquery.AISessionMaxToolCalls > 0 {
+				generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
+					fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+			}
+		}
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

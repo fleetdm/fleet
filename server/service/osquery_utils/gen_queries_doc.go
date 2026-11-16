@@ -20,6 +20,9 @@ func main() {
 	// premium so that premium-only detail queries are documented too
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	detailQueriesMap := osquery_utils.GetDetailQueries(ctx, config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			AISessionMaxToolCalls: fleet.DefaultHostAISessionMaxEvents,
+		},
 		Vulnerabilities: config.VulnerabilitiesConfig{
 			DisableWinOSVulnerabilities: false,
 		},

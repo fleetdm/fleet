@@ -3,6 +3,43 @@
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
+## ai_agent_session_events
+
+- Description: Fleet Premium only. Built for each host at every refresh from the AI sessions Fleet already stored, so a session's tool calls trail the session by a refresh. Asks for the tool calls of up to 5 sessions that still need them, resuming after the calls Fleet already has, up to the session's first 10,000 by default (`osquery_ai_session_max_tool_calls`) and, when `osquery_ai_session_max_tool_calls_per_refresh` is set, at most that many new calls per session. Each session's tool calls are preceded by a constant row naming the session as requested, so Fleet can tell a session that returned no calls from one it didn't ask for. After 3 requests in a row return no calls for a session, such as when its transcript is gone from the host, Fleet stops asking until the session is active again. Requires `fleetd`
+
+- Platforms: darwin, windows, linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_agent_session_messages') AND EXISTS (SELECT 1 FROM pragma_table_info('ai_agent_session_messages') WHERE name = 'tool_call_index')
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## ai_agent_sessions
+
+- Description: Fleet Premium only. Reads the AI coding agent sessions active in the last 7 days, by the host's clock. Sessions that are gone from the host's result are kept until 30 days after they were last active. Requires `fleetd`
+
+- Platforms: darwin, windows, linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_agent_sessions') AND EXISTS (SELECT 1 FROM pragma_table_info('ai_agent_sessions') WHERE name = 'account_identifier')
+```
+
+- Query:
+```sql
+SELECT
+  agent, session_id, agent_version, username, account_identifier, model, project_path, git_repository, git_branch,
+  started_at, ended_at, user_messages, assistant_messages, tool_calls, input_tokens, output_tokens, cache_read_tokens,
+  cache_write_tokens, transcript_path, transcript_size_bytes
+FROM ai_agent_sessions
+WHERE ended_at >= (SELECT unix_time FROM time) - 604800
+```
+
 ## battery
 
 - Platforms: windows, darwin

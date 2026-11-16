@@ -392,11 +392,11 @@ type CleanupSoftDeletedHostCertificatesFunc func(ctx context.Context, olderThan 
 
 type UpsertHostAISessionsFunc func(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error
 
-type ListHostAISessionsNeedingEventsFunc func(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error)
+type ListHostAISessionsNeedingEventsFunc func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error)
 
 type UpsertHostAISessionEventsFunc func(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error
 
-type CleanupHostAISessionsFunc func(ctx context.Context, before time.Time) (int64, error)
+type CleanupHostAISessionsFunc func(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error)
 
 type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
@@ -7871,11 +7871,11 @@ func (s *DataStore) UpsertHostAISessions(ctx context.Context, hostID uint, sessi
 	return s.UpsertHostAISessionsFunc(ctx, hostID, sessions)
 }
 
-func (s *DataStore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+func (s *DataStore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
 	s.mu.Lock()
 	s.ListHostAISessionsNeedingEventsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostAISessionsNeedingEventsFunc(ctx, hostID, limit)
+	return s.ListHostAISessionsNeedingEventsFunc(ctx, hostID, limit, maxEvents)
 }
 
 func (s *DataStore) UpsertHostAISessionEvents(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error {
@@ -7885,11 +7885,11 @@ func (s *DataStore) UpsertHostAISessionEvents(ctx context.Context, hostID uint, 
 	return s.UpsertHostAISessionEventsFunc(ctx, hostID, requested, events)
 }
 
-func (s *DataStore) CleanupHostAISessions(ctx context.Context, before time.Time) (int64, error) {
+func (s *DataStore) CleanupHostAISessions(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error) {
 	s.mu.Lock()
 	s.CleanupHostAISessionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupHostAISessionsFunc(ctx, before)
+	return s.CleanupHostAISessionsFunc(ctx, before, maxRunTime)
 }
 
 func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {
