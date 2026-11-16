@@ -105,7 +105,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
 	}
 
-	conflict, err := svc.ds.TeamConflictsWithName(ctx, *p.Name, 0)
+	conflict, err := svc.ds.TeamConflictsWithName(ctxdb.RequirePrimary(ctx, true), *p.Name, 0)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
 	}
@@ -200,7 +200,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
 		}
 
-		conflict, err := svc.ds.TeamConflictsWithName(ctx, *payload.Name, teamID)
+		conflict, err := svc.ds.TeamConflictsWithName(ctxdb.RequirePrimary(ctx, true), *payload.Name, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
 		}
@@ -1626,7 +1626,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		// lets a self-rename to a variant of its own name ("ABC" → "abc")
 		// succeed while still catching names that collide with a different
 		// team.
-		conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, tmID)
+		conflict, err := svc.ds.TeamConflictsWithName(ctxdb.RequirePrimary(ctx, true), spec.Name, tmID)
 		if err != nil {
 			return nil, err
 		}
