@@ -79,6 +79,13 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - name: Start tunnel
       env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
@@ -104,7 +111,7 @@ jobs:
 
     - name: Run Fleet server
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl preview --no-hosts --disable-open-browser
@@ -194,10 +201,17 @@ jobs:
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
         done
 
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - id: login
       name: Attempt login
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }}
@@ -246,9 +260,16 @@ jobs:
     runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - name: Install fleetctl
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
@@ -354,9 +375,16 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - name: Install fleetctl
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}

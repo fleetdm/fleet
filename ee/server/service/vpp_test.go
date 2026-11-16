@@ -1279,10 +1279,29 @@ func TestAddAppStoreAppToken(t *testing.T) {
 			require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
 		})
 
-		t.Run("another token conflicts", func(t *testing.T) {
+		for _, name := range []string{"", "US copy"} {
+			t.Run("another token conflicts/name="+name, func(t *testing.T) {
+				fx := withExisting(t, new(uint(2)))
+				fx.ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+					return 1, name == "", nil
+				}
+				app := iosApp(new(uint(1)))
+				app.VersionName = name
+				_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, app)
+				require.ErrorContains(t, err, `Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+				require.Equal(t, http.StatusConflict, vppErrStatus(err))
+				require.Empty(t, fx.seenAuth)
+				require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+			})
+		}
+
+		t.Run("same token with an existing name conflicts", func(t *testing.T) {
 			fx := withExisting(t, new(uint(2)))
-			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(1))))
-			require.ErrorContains(t, err, `Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+			fx.ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+				return 1, true, nil
+			}
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+			require.ErrorContains(t, err, `A version named "Default version" already exists`)
 			require.Equal(t, http.StatusConflict, vppErrStatus(err))
 			require.Empty(t, fx.seenAuth)
 			require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)

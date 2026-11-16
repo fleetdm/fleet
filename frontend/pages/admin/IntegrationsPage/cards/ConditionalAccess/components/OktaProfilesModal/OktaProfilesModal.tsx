@@ -1,27 +1,22 @@
-import React, { useContext, useEffect, useState } from "react";
+import React from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import Editor from "components/Editor";
-import MainContent from "components/MainContent";
+import Modal from "components/Modal";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
-import { AppContext } from "context/app";
-import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
-import PATHS from "router/paths";
 import conditionalAccessAPI, {
   IConditionalAccessWindowsProfilesResponse,
 } from "services/entities/conditional_access";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import OktaConditionalAccessModal from "../components/OktaConditionalAccessModal";
+import { getConditionalAccessErrorMessage } from "../../helpers";
 
-const baseClass = "okta-conditional-access-page";
+const baseClass = "okta-profiles-modal";
 
 interface IProfileEditorProps {
   label: string;
@@ -75,10 +70,10 @@ const MacOSProfileTab = () => {
           errorReason = getErrorReason(e);
         }
 
-        const message = errorReason
-          ? `Failed to load Apple profile: ${errorReason}`
-          : "Failed to load Apple profile.";
-        notify.error(message, { response: e });
+        notify.error(
+          getConditionalAccessErrorMessage("load Apple profile", errorReason),
+          { response: e }
+        );
       },
     }
   );
@@ -101,11 +96,11 @@ const WindowsProfilesTab = () => {
   >(["windowsProfiles"], conditionalAccessAPI.getIdpWindowsProfiles, {
     ...DEFAULT_USE_QUERY_OPTIONS,
     onError: (e: unknown) => {
-      const reason = getErrorReason(e);
       notify.error(
-        reason
-          ? `Failed to load Windows profiles: ${reason}`
-          : "Failed to load Windows profiles.",
+        getConditionalAccessErrorMessage(
+          "load Windows profiles",
+          getErrorReason(e)
+        ),
         { response: e }
       );
     },
@@ -128,73 +123,43 @@ const WindowsProfilesTab = () => {
   );
 };
 
-interface IOktaConditionalAccessPageProps {
-  router: InjectedRouter;
+const PLATFORM_TABS = [
+  { name: "macOS", Panel: MacOSProfileTab },
+  { name: "Windows", Panel: WindowsProfilesTab },
+];
+
+interface IOktaProfilesModalProps {
+  onExit: () => void;
 }
 
-const OktaConditionalAccessPage = ({
-  router,
-}: IOktaConditionalAccessPageProps) => {
-  const { config, setConfig } = useContext(AppContext);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+const OktaProfilesModal = ({ onExit }: IOktaProfilesModalProps) => (
+  <Modal
+    title="Okta conditional access profiles"
+    onExit={onExit}
+    className={baseClass}
+    width="large"
+  >
+    <TabNav>
+      <Tabs>
+        <TabList>
+          {PLATFORM_TABS.map(({ name }) => (
+            // data-text reserves the bold width so the active tab doesn't shift
+            <Tab key={name} data-text={name}>
+              <TabText>{name}</TabText>
+            </Tab>
+          ))}
+        </TabList>
+        {PLATFORM_TABS.map(({ name, Panel }) => (
+          <TabPanel key={name}>
+            <Panel />
+          </TabPanel>
+        ))}
+      </Tabs>
+    </TabNav>
+    <div className="modal-cta-wrap">
+      <Button onClick={onExit}>Close</Button>
+    </div>
+  </Modal>
+);
 
-  const oktaConfigured = isOktaConditionalAccessConfigured(config);
-
-  useEffect(() => {
-    if (config && !oktaConfigured) {
-      router.replace(PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS);
-    }
-  }, [config, oktaConfigured, router]);
-
-  if (!oktaConfigured) {
-    return null;
-  }
-
-  const onSettingsSaved = (updatedConfig: IConfig) => {
-    setShowSettingsModal(false);
-    setConfig(updatedConfig);
-  };
-
-  return (
-    <MainContent className={baseClass}>
-      <div className={`${baseClass}__header-links`}>
-        <BackButton
-          text="Back to conditional access"
-          path={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
-        />
-      </div>
-      <h1>Okta conditional access</h1>
-      <div className={`${baseClass}__content`}>
-        <TabNav secondary>
-          <Tabs>
-            <TabList>
-              <Tab>
-                <TabText>macOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Windows</TabText>
-              </Tab>
-            </TabList>
-            <TabPanel>
-              <MacOSProfileTab />
-            </TabPanel>
-            <TabPanel>
-              <WindowsProfilesTab />
-            </TabPanel>
-          </Tabs>
-        </TabNav>
-        <div className={`${baseClass}__actions`}>
-          <Button onClick={() => setShowSettingsModal(true)}>Settings</Button>
-        </div>
-      </div>
-      {showSettingsModal && (
-        <OktaConditionalAccessModal
-          onCancel={() => setShowSettingsModal(false)}
-          onSuccess={onSettingsSaved}
-        />
-      )}
-    </MainContent>
-  );
-};
-
-export default OktaConditionalAccessPage;
+export default OktaProfilesModal;

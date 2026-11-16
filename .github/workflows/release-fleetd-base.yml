@@ -147,6 +147,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
+            website/assets/resources/install-fleetctl.sh
             .github/actions/r2-upload/action.yml
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
@@ -154,7 +155,7 @@ jobs:
 
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Import package signing keys
@@ -244,9 +245,16 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Build MSI

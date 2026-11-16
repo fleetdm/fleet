@@ -486,6 +486,12 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		}
 		return &androidmanagement.Policy{}, nil
 	}
+	// sorted packages last removed from each host's policy, by host UUID
+	removedApps := map[string][]string{}
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		removedApps[policyName[strings.LastIndex(policyName, "/")+1:]] = slices.Sorted(slices.Values(packageNames))
+		return &androidmanagement.Policy{}, nil
+	}
 
 	// set the device's applied policy to its own policy, so the app reconciler sends to it
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -542,10 +548,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		assert.Contains(t, assoc, a)
 	}
 
-	// run the Android profile schedule, the host should get an app list without Chrome
+	// run the Android profile schedule, the host should get only a removal of Chrome
 	s.awaitTriggerAndroidProfileSchedule(t)
-	require.Equal(t, map[string][]string{enterpriseSpecificID1: {"com.fleetdm.agent", driveAppID}}, sentAppLists)
-	clear(sentAppLists)
+	require.Empty(t, sentAppLists)
+	require.Equal(t, map[string][]string{enterpriseSpecificID1: {chromeAppID}}, removedApps)
+	clear(removedApps)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
