@@ -5286,6 +5286,14 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
 	}
 
+	// Only schedule rotation for a password verified in the response snapshot.
+	// A pending password may be verified while recording the activity, but the
+	// user still received the previous password.
+	if password.Status == nil || *password.Status != fleet.MDMDeliveryVerified {
+		password.AutoRotateAt = nil
+		return password, nil
+	}
+
 	// Schedule auto-rotation by marking the password as viewed.
 	// This sets auto_rotate_at to 1 hour from now.
 	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)

@@ -7649,8 +7649,41 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		require.NotNil(t, password.Password)
 		assert.Equal(t, "current-password", *password.Password)
 		assert.Nil(t, password.AutoRotateAt)
-		assert.True(t, ds.MarkRecoveryLockPasswordViewedFuncInvoked)
+		assert.False(t, ds.MarkRecoveryLockPasswordViewedFuncInvoked)
 		assert.True(t, opts.ActivityMock.NewActivityFuncInvoked, "viewing the password is still logged")
+	})
+
+	t.Run("pending snapshot does not schedule rotation after verification", func(t *testing.T) {
+		staleRotateAt := time.Now().Add(time.Hour)
+		svc, ctx, ds, opts := newArmHostSvc(t, &fleet.HostRecoveryLockPassword{
+			Password:     new("current-password"),
+			Status:       &fleet.MDMDeliveryPending,
+			AutoRotateAt: &staleRotateAt,
+		})
+		status := fleet.MDMDeliveryPending
+		var scheduled bool
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			// Simulate verification promoting the new password after the read.
+			status = fleet.MDMDeliveryVerified
+			return nil
+		}
+		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
+			if status == fleet.MDMDeliveryVerified {
+				scheduled = true
+				return time.Now().Add(time.Hour), nil
+			}
+			return time.Time{}, nil
+		}
+
+		password, err := svc.GetHostRecoveryLockPassword(ctx, 6)
+		require.NoError(t, err)
+		require.NotNil(t, password.Password)
+		assert.Equal(t, "current-password", *password.Password)
+		assert.Equal(t, fleet.MDMDeliveryVerified, status)
+		assert.False(t, scheduled)
+		assert.False(t, ds.MarkRecoveryLockPasswordViewedFuncInvoked)
+		assert.Nil(t, password.AutoRotateAt)
+		assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("no password and no side effects when the host holds no known password", func(t *testing.T) {
