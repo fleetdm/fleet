@@ -7298,6 +7298,16 @@ org_settings:
 policies:
 reports:
 `)
+	noOrgInfoGlobalFile := s.writeConfigFile(t, `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  secrets:
+policies:
+reports:
+`)
 	blankKeysTeamFile := s.writeConfigFile(t, fmt.Sprintf(`
 name: %s
 agent_options:
@@ -7317,7 +7327,7 @@ settings:
 	run("-f", globalFile, "-f", teamFile)
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = s.DS.DeleteTeam(context.Background(), team.ID) })
+	t.Cleanup(func() { _ = s.DS.DeleteTeam(context.WithoutCancel(ctx), team.ID) })
 
 	defaults, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
@@ -7385,6 +7395,7 @@ settings:
 	}{
 		{"keys omitted", globalFile, teamFile},
 		{"keys blank", blankKeysGlobalFile, blankKeysTeamFile},
+		{"org_info omitted", noOrgInfoGlobalFile, teamFile},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			setNonDefaults()
@@ -7393,12 +7404,14 @@ settings:
 			assert.Contains(t, dryRunOutput, "[!] would've set org_settings.gitops to defaults because not defined in YAML: gitops_mode_enabled, repository_url")
 			assert.Contains(t, dryRunOutput, "[!] would've set org_settings.server_settings to defaults because not defined in YAML: ai_features_disabled")
 			assert.Contains(t, dryRunOutput, "report_cap")
+			assert.Regexp(t, `\[!\] would've set org_settings\.smtp_settings to defaults because not defined in YAML: .*password.*server`, dryRunOutput)
 			ac, err := s.DS.AppConfig(ctx)
 			require.NoError(t, err)
 			require.True(t, ac.GitOpsConfig.GitopsModeEnabled, "dry run must not reset")
 
 			output := run("-f", c.globalFile, "-f", c.teamFn)
 			assert.Contains(t, output, "[!] set org_settings.gitops to defaults because not defined in YAML: gitops_mode_enabled, repository_url")
+			assert.Contains(t, output, "[!] set org_settings.smtp_settings to defaults because not defined in YAML: ")
 			assertDefaults()
 
 			// Nothing left to reset, so nothing to warn about.

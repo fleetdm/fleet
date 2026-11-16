@@ -693,6 +693,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling value: %s\n", err)
 			return ErrGeneric
 		}
+		for _, comment := range cmd.Comments {
+			if comment.Filename == fileName {
+				b = bytes.ReplaceAll(b, []byte(comment.Token), []byte("# "+comment.Comment))
+			}
+		}
 		fmt.Fprintf(cmd.CLI.App.Writer, "%s", string(b))
 		return nil
 	}
@@ -967,7 +972,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		jsonFieldName(gitOpsT, "RepositoryURL"):     cmd.AppConfig.GitOpsConfig.RepositoryURL,
 	}
 
-	// Only returned to admins; left out otherwise rather than exported as empty.
+	// Not returned to every role; left out then rather than exported as empty.
 	if cmd.AppConfig.SMTPSettings != nil {
 		orgSettings[jsonFieldName(t, "SMTPSettings")] = cmd.generateSMTPSettings(cmd.AppConfig.SMTPSettings)
 	}

@@ -185,11 +185,18 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 
 	// Only admins should see SMTP and SSO settings
+	isGlobalGitOps := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleGitOps
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
 	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
+	}
+	// Global GitOps users can already write the SMTP settings. They get to
+	// read them too so that fleetctl can warn when a run is about to clear
+	// them, including the password.
+	if isGlobalGitOps {
+		smtpSettings = appConfig.SMTPSettings
 	}
 
 	// Only global admins should see osquery agent settings.

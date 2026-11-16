@@ -109,7 +109,12 @@ func (c *Client) planAndStripOrgLogos(
 ) ([]orgLogoAction, error) {
 	orgInfo, _ := orgSettings["org_info"].(map[string]any)
 	if orgInfo == nil {
-		return nil, nil
+		if orgSettings == nil || orgSettings["org_info"] != nil {
+			return nil, nil
+		}
+		// An omitted section still has to clear the stored logos.
+		orgInfo = map[string]any{}
+		orgSettings["org_info"] = orgInfo
 	}
 
 	type modeSpec struct {
@@ -406,8 +411,8 @@ func applyGitOpsOrgSettingsDefaults(orgSettings map[string]any, current *fleet.E
 	smtp, _ := orgSettings["smtp_settings"].(map[string]any)
 	keepSMTPPassword := false
 	if smtp != nil {
-		password, _ := smtp["password"].(string)
-		keepSMTPPassword = password == ""
+		// Anything else, including a non-string, is left for the server to accept or reject.
+		keepSMTPPassword = smtp["password"] == nil || smtp["password"] == ""
 	}
 
 	filled := fillGitOpsDefaults(orgSettings, defaults, aliases, "")
@@ -434,8 +439,8 @@ func applyGitOpsOrgSettingsDefaults(orgSettings map[string]any, current *fleet.E
 		if !slices.Contains(gitOpsHighRiskOrgSettings, section) {
 			continue
 		}
-		// A section the token can't read (smtp_settings for non-admins) is
-		// absent here, so nothing can be said about it.
+		// A section the token can't read (smtp_settings on servers that only
+		// return it to admins) is absent here, so nothing can be said about it.
 		currentVal, ok := lookupPath(currentMap, path)
 		if !ok {
 			continue
