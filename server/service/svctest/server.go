@@ -257,7 +257,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	apiHandler, err := service.MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
-	// that gorilla/mux can't introspect, so surface their routes to the validator
+	// that the API router's route table doesn't list, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
 	extraInitFeatureRoutes = append(extraInitFeatureRoutes, scim.RegisterValidationRoutes)
 	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {

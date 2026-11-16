@@ -13,7 +13,7 @@ import (
 // should expose a RegisterTracingTiers function the serve command calls during startup. The platform/tracing package itself
 // stays free of route knowledge.
 //
-// Paths use "_version_" as the placeholder for the gorilla/mux fleetversion segment. The sampler normalizes incoming span
+// Paths use "_version_" as the placeholder for the route template's fleetversion segment. The sampler normalizes incoming span
 // names back to that form before lookup. Alternate path forms (e.g. /api/v1/osquery/...) are registered separately.
 //
 // Unregistered routes (including all cron jobs, enroll, SCEP, MDM checkin, command ack/result, GitOps batch, etc.) fall to

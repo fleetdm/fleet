@@ -255,7 +255,7 @@ func newMCPHandler(svc fleet.Service, logger *slog.Logger, conn *MCPConn, urlPre
 		ctx = logging.WithUserEmailer(ctx, v)
 		// Raw handlers skip the API-only endpoint allowlist, so run it here for
 		// this route, together with the checks that follow authentication.
-		probeCtx := kithttp.PopulateRequestContext(auth.RouteTemplateRequestFunc(ctx, r), r)
+		probeCtx := kithttp.PopulateRequestContext(ctx, r)
 		if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
 			reject(slog.LevelInfo, "route not allowed for this user", err, user...)
 			return

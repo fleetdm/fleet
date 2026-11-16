@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// muxVersionSegment is the gorilla/mux route template version segment that
-// RouteTemplateRequestFunc would extract from a real mux router.
+// muxVersionSegment is the version segment of the route template the router puts
+// in context.
 const muxVersionSegment = "/api/{fleetversion:(?:v1|2022-04|latest)}/"
 
 // testCatalogEndpoints is the minimal set of endpoints used across tests.
@@ -41,7 +41,7 @@ func testIsInCatalog() func(string) bool {
 	}
 }
 
-// muxTemplate returns a gorilla/mux route template for the given path suffix, simulating
+// muxTemplate returns a route template for the given path suffix, simulating
 // what the router puts in context for the matched route.
 func muxTemplate(pathSuffix string) string {
 	return muxVersionSegment + pathSuffix
@@ -411,23 +411,4 @@ func TestEndpointRestrictionDeniedEncoding(t *testing.T) {
 
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), EndpointRestrictionDeniedMessage)
-}
-
-func TestRouteTemplateRequestFunc(t *testing.T) {
-	t.Run("copies the route template from the request context", func(t *testing.T) {
-		// The router puts the matched route template on the request context.
-		req := httptest.NewRequest("GET", "/api/v1/fleet/hosts/42", nil)
-		req = req.WithContext(eu.WithRouteTemplate(req.Context(), "/api/v1/fleet/hosts/{id:[0-9]+}"))
-		tpl, ok := eu.RouteTemplateFromContext(RouteTemplateRequestFunc(t.Context(), req))
-		require.True(t, ok, "route template must be stored in context")
-		require.Equal(t, "/api/v1/fleet/hosts/{id:[0-9]+}", tpl)
-	})
-
-	t.Run("no matched route leaves context unchanged", func(t *testing.T) {
-		// A request that never went through the router has no route template.
-		req := httptest.NewRequest("GET", "/whatever", nil)
-		got := RouteTemplateRequestFunc(t.Context(), req)
-		_, ok := eu.RouteTemplateFromContext(got)
-		require.False(t, ok, "no route template should be stored when no route is matched")
-	})
 }

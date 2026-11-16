@@ -48,23 +48,13 @@ func IsInCatalog(fingerprint string) bool {
 	return ok
 }
 
-// routerProvider is implemented by handlers that wrap the router rather than being one.
-type routerProvider interface {
-	Router() *endpointer.Router
-}
-
 // Validate checks that every endpoint in the embedded catalog is registered on the provided handler or one of the given
 // feature routes, reading the routes recorded by the endpointer. Feature routes are registered on a throwaway router so
 // callers can validate routes that are declared elsewhere.
 func Validate(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 	r, ok := h.(*endpointer.Router)
 	if !ok {
-		// The API handler may be wrapped by a faster router that keeps the route table for introspection.
-		provider, isProvider := h.(routerProvider)
-		if !isProvider {
-			return fmt.Errorf("expected *endpointer.Router, got %T", h)
-		}
-		r = provider.Router()
+		return fmt.Errorf("expected *endpointer.Router, got %T", h)
 	}
 
 	registered := make(map[string]struct{})

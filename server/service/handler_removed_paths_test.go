@@ -66,12 +66,19 @@ func TestRemovedPaths(t *testing.T) {
 					t.Parallel() // requests with different methods share the route, so -race catches state shared between them
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
-					if method == http.MethodHead || (entry.Context != "" && method != entry.Context) {
-						// This router holds only the removed paths, so a method they don't remove gets 405, not 410. HEAD is one of them.
+					removedMethod := method
+					if method == http.MethodHead {
+						removedMethod = http.MethodGet // the GET pattern serves HEAD
+					}
+					if entry.Context != "" && removedMethod != entry.Context {
+						// This router holds only the removed paths, so a method they don't remove gets 405, not 410.
 						require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 						return
 					}
 					require.Equal(t, http.StatusGone, rec.Code)
+					if method == http.MethodHead {
+						return
+					}
 
 					var body struct {
 						Message string              `json:"message"`
@@ -89,16 +96,14 @@ func TestRemovedPaths(t *testing.T) {
 	}
 }
 
-// TestRemovedPathsThroughHandler sends requests through the stdlib fast path built over the removed paths. TestRemovedPaths uses the gorilla
-// router alone, which cannot show a path the fast path serves differently. It does not use MakeHandler, whose metrics are global counters
-// that TestAPIRoutesMetrics asserts exactly; TestAPIRoutesConflicts checks these routes against the real router.
+// TestRemovedPathsThroughHandler sends requests to removed paths that sit next to a literal or a wildcard of another removed path. It
+// does not use MakeHandler, whose metrics are global counters that TestAPIRoutesMetrics asserts exactly; TestAPIRoutesConflicts checks
+// these routes against the real router.
 func TestRemovedPathsThroughHandler(t *testing.T) {
 	t.Parallel()
 
-	router := endpointer.NewRouter()
-	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
-	handler, err := newFastPathHandler(router, nil, config.TestConfig())
-	require.NoError(t, err)
+	handler := endpointer.NewRouter()
+	endpointer.RegisterRemovedPaths(handler, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	for _, c := range []struct{ path, template string }{
 		{"/api/v1/fleet/team/1/policies", "/team/{fleet_id}/policies"},
@@ -127,11 +132,11 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		}
 	}
 
-	// HEAD is not one of the removed methods: a HEAD pattern next to the GET pattern of a sibling is ambiguous on a stdlib mux.
-	t.Run("HEAD gets 405", func(t *testing.T) {
+	// HEAD is not one of the removed methods, but the GET pattern serves it.
+	t.Run("HEAD gets 410", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/v1/fleet/teams/1/policies/count", nil))
-		require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+		require.Equal(t, http.StatusGone, rec.Code)
 	})
 }
 

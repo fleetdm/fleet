@@ -916,8 +916,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		// SCIM endpoints are served by a prefix-mounted handler (see
-		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
-		// their routes to the validator explicitly.
+		// scim.RegisterSCIM) that the API router's route table doesn't list, so
+		// surface their routes to the validator explicitly.
 		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}

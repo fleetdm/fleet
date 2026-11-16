@@ -47,7 +47,7 @@ func TestIdIsConstructedCorrectly(t *testing.T) {
 			path:   "/UPPER/CASE",
 			want:   "|GET|/upper/case|",
 		},
-		// gorilla/mux brace-style placeholders
+		// brace-style placeholders
 		{
 			method: "post",
 			path:   "/api/v1/fleet/hosts/{id:[0-9]+}",

@@ -35,9 +35,7 @@ type RemovedPathOverlap struct {
 }
 
 // removedPathMethods are the methods that get 410. They are listed, not left open, because every route in the API has methods, and
-// the route tests (and metrics) rely on that. HEAD is left out: a stdlib ServeMux treats a HEAD pattern next to the GET pattern of a
-// sibling path (".../policies/{id}" beside ".../policies/count") as ambiguous, so a HEAD request gets 405 until the stdlib mux is the
-// only router, where the GET pattern serves it.
+// the route tests (and metrics) rely on that. HEAD is left out because the GET pattern serves it.
 var removedPathMethods = []string{
 	http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions,
 }

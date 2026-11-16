@@ -43,7 +43,7 @@ func NewRegistry() *Registry {
 	return &Registry{routes: make(map[string]Tier)}
 }
 
-// Register classifies a method and path. Paths are normalized on write the same way they are on Lookup. The gorilla/mux
+// Register classifies a method and path. Paths are normalized on write the same way they are on Lookup. The route template
 // version segment is collapsed to "_version_". Regex constrained params (e.g. "{id:[0-9]+}") are stripped to "{id}". Callers
 // can therefore register in either the readable form ("/api/_version_/fleet/hosts/{id}") or the raw template form, and lookups
 // will still match. Both alternate path forms (e.g. "/api/v1/osquery/..." and "/api/osquery/...") still need separate
@@ -57,7 +57,7 @@ func (r *Registry) Register(method, path string, tier Tier) {
 }
 
 // Lookup returns the tier for a span name and a bool indicating whether the route was found in the registry. Span names are
-// normalized before lookup so the gorilla version regex is stripped to "_version_". Cron and other non HTTP span names (no
+// normalized before lookup so the route template's version list is stripped to "_version_". Cron and other non HTTP span names (no
 // leading "METHOD ") simply won't be in the registry and return (TierAlways, false).
 func (r *Registry) Lookup(spanName string) (Tier, bool) {
 	normalized := CleanRouteTemplate(spanName)
@@ -67,18 +67,18 @@ func (r *Registry) Lookup(spanName string) (Tier, bool) {
 	return t, ok
 }
 
-// versionTemplatePattern matches the gorilla/mux version segment Fleet inserts via /_version_/, replacing it with
+// versionTemplatePattern matches the version segment of a route template, where Fleet replaces /_version_/ with
 // /{fleetversion:(?:v1|2022-04|latest)}/ at registration time. We normalize it back to /_version_/ so the registry stays
 // decoupled from the configured version list.
 var versionTemplatePattern = regexp.MustCompile(`\{fleetversion:[^}]*\}`)
 
-// muxParamRegexPattern strips regex constraints from gorilla/mux path params. For example {id:[0-9]+} becomes {id}, and
+// muxParamRegexPattern strips regex constraints from route template path params. For example {id:[0-9]+} becomes {id}, and
 // {fleet_id:[0-9]+} becomes {fleet_id}. Fleet uses this style extensively, and the route tier policy in
 // server/service/tracing_tiers.go registers the simpler {id} form. Without this normalization, spans whose mux template
 // includes the regex would miss the registry and silently fall to TierAlways at 100% sampling.
 var muxParamRegexPattern = regexp.MustCompile(`\{([a-zA-Z0-9_]+):[^}]+\}`)
 
-// CleanRouteTemplate rewrites a gorilla/mux route template, or a span name built from one, into the readable form used for
+// CleanRouteTemplate rewrites a route template, or a span name built from one, into the readable form used for
 // span names and the http.route attribute: "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}" becomes
 // "/api/_version_/fleet/hosts/{id}".
 func CleanRouteTemplate(name string) string {

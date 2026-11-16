@@ -977,8 +977,6 @@ go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 h1:5sHc4ToTFjfSZCtGAAM6jPunICAmJX73htv372T4ipc=
 go.opentelemetry.io/contrib/bridges/otelslog v0.20.1/go.mod h1:oa6kgvyz/3GYW04dohd0++xJIH4xdQY8PAbpeCMaM8M=
-go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.71.0 h1:jCSatxkz7I19oUOz3UOJSnKx49hlXuE00OuPzaJCa7k=
-go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.71.0/go.mod h1:bACfoFljYysuN0gZsGRCKBQMjKslSDiEAzmSEiZNlRI=
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.70.0 h1:oECp5f+hN7nkwjU/8BxQ/q23bGPb8FIrD839owX222E=
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.70.0/go.mod h1:DqEFwLumhzMBDQv9PcWbyoDxHI/4lAk6CM4nJBH39sc=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0 h1:LMuyCAyfalSjDyjdC65nK6N0zoTT63+E/u95X0JovZI=

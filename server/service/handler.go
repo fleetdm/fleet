@@ -49,13 +49,12 @@ import (
 
 	"github.com/docker/go-units"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/klauspost/compress/gzhttp"
 	nanomdm_log "github.com/micromdm/nanolib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/realclientip/realclientip-go"
 	"github.com/throttled/throttled/v2"
-	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.ResponseWriter) context.Context {
@@ -75,7 +74,7 @@ type extraHandlerOpts struct {
 	loginRateLimit  *throttled.Rate
 	mdmSsoRateLimit *throttled.Rate
 	ssoRateLimit    *throttled.Rate
-	httpSigVerifier mux.MiddlewareFunc
+	httpSigVerifier func(http.Handler) http.Handler
 	agentWSHub      *agentws.Hub
 	mcpConn         *MCPConn
 	mcpHandler      http.Handler
@@ -107,7 +106,7 @@ func WithSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	}
 }
 
-func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
+func WithHTTPSigVerifier(m func(http.Handler) http.Handler) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.httpSigVerifier = m
 	}
@@ -185,47 +184,7 @@ func MakeHandler(
 	}
 
 	r := endpointer.NewRouter()
-
-	if config.OTELEnabled() {
-		// otelmux takes the route from r.Pattern when it is set, so this runs first to give it the readable template.
-		r.Gorilla().Use(cleanRoutePattern)
-		r.Gorilla().Use(otmiddleware.Middleware(
-			"service",
-			otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
-				// Use the guideline for span names: {method} {target}
-				// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-				return r.Method + " " + route
-			}),
-		))
-	}
-
-	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
-	var middlewares []mux.MiddlewareFunc
-
-	if config.Server.GzipResponses {
-		middlewares = append(middlewares, func(h http.Handler) http.Handler {
-			return gzhttp.GzipHandler(h)
-		})
-	}
-
-	// Add middleware to extract the client IP and set it in the request context.
-	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
-			if ip != "" {
-				r.RemoteAddr = ip
-			}
-			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
-		})
-	})
-
-	if eopts.httpSigVerifier != nil {
-		middlewares = append(middlewares, eopts.httpSigVerifier)
-	}
-
-	for _, mw := range middlewares {
-		r.Gorilla().Use(mw)
-	}
+	useRouteMiddleware(r, config, ipStrategy, eopts.httpSigVerifier)
 
 	if eopts.mcpConn == nil {
 		eopts.mcpConn = NewMCPConn()
@@ -239,24 +198,39 @@ func MakeHandler(
 	for _, featureRoute := range featureRoutes {
 		featureRoute(r, fleetAPIOptions)
 	}
-	// Last, so the wildcard of an overlap never shadows a live route in gorilla, which takes the first match.
 	endpointer.RegisterRemovedPaths(r, apiVersions, logger, removedPaths())
 	addMetrics(r)
 
-	return newFastPathHandler(r, middlewares, config)
+	return r, nil
 }
 
-// cleanRoutePattern sets r.Pattern to the matched gorilla route template without its regex syntax, so spans read
-// "GET /api/_version_/fleet/hosts/{id}" instead of "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}".
-func cleanRoutePattern(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if route := mux.CurrentRoute(r); route != nil {
-			if tpl, err := route.GetPathTemplate(); err == nil {
-				r.Pattern = tracing.CleanRouteTemplate(tpl)
+// useRouteMiddleware adds the route-agnostic middleware, outermost first. It is route middleware rather than a wrapper around
+// the router, so a request no route matches (a 404 or 405) never reaches it.
+func useRouteMiddleware(r *endpointer.Router, cfg config.FleetConfig, ipStrategy realclientip.Strategy,
+	httpSigVerifier func(http.Handler) http.Handler,
+) {
+	if cfg.OTELEnabled() {
+		r.Use(func(rt endpointer.Route, next http.Handler) http.Handler {
+			// Spans read "GET /api/_version_/fleet/hosts/{id}" instead of the full template.
+			route := tracing.CleanRouteTemplate(rt.Template())
+			return otel.WrapHandler(otel.WithRouteTag(route, next), route, cfg)
+		})
+	}
+	if cfg.Server.GzipResponses {
+		r.Use(func(_ endpointer.Route, next http.Handler) http.Handler { return gzhttp.GzipHandler(next) })
+	}
+	r.Use(func(_ endpointer.Route, next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ip := ipStrategy.ClientIP(req.Header, req.RemoteAddr)
+			if ip != "" {
+				req.RemoteAddr = ip
 			}
-		}
-		next.ServeHTTP(w, r)
+			next.ServeHTTP(w, req.WithContext(publicip.NewContext(req.Context(), ip)))
+		})
 	})
+	if httpSigVerifier != nil {
+		r.Use(func(_ endpointer.Route, next http.Handler) http.Handler { return httpSigVerifier(next) })
+	}
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -543,7 +517,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/google_device_id", putHostGoogleDeviceIDEndpoint, putHostGoogleDeviceIDRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/google_device_id", deleteHostGoogleDeviceIDEndpoint, deleteHostGoogleDeviceIDRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
-	// {id} also accepts other host identifiers, so it has to stay after the literal GET /hosts/<word> routes: gorilla takes the first match.
 	ue.GET("/api/_version_/fleet/hosts/{id}", getHostEndpoint, getHostRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
@@ -1664,7 +1637,7 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 				return
 			}
 			// Runs the forced password reset and API-only checks that follow decode, in the same order.
-			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(auth.RouteTemplateRequestFunc(ctx, r), r), *v)
+			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(ctx, r), *v)
 			noop := func(context.Context, any) (any, error) { return nil, nil }
 			if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
 				reject(err)

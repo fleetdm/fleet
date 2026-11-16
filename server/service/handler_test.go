@@ -32,7 +32,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	cfg := config.TestConfig()
 	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
 	require.NoError(t, err)
-	router := h.(interface{ Router() *endpointer.Router }).Router()
+	router := h.(*endpointer.Router)
 
 	type testCase struct {
 		name string
@@ -80,7 +80,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	limitStore, _ := memstore.New(0)
 	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
 	require.NoError(t, err)
-	router := h.(interface{ Router() *endpointer.Router }).Router()
+	router := h.(*endpointer.Router)
 
 	// collect the requests to make to each route, then replace all handlers with mocks
 	var reqs []*http.Request
@@ -331,9 +331,8 @@ func TestGzipResponses(t *testing.T) {
 	})
 	testRoute := func(r *endpointer.Router, opts []kithttp.ServerOption) {
 		r.Handle(endpointer.Route{Name: "test_gzip", Path: "/api/test-gzip"}, gzipTestHandler)
-		// A method-scoped route is served by the stdlib fast path rather than gorilla, which applies the router middleware
-		// itself, so gzip has to be exercised on both.
-		r.Handle(endpointer.Route{Name: "test_gzip_fast", Methods: []string{"GET"}, Path: "/api/test-gzip-fast"}, gzipTestHandler)
+		// A route with methods registers a different ServeMux pattern than one without.
+		r.Handle(endpointer.Route{Name: "test_gzip_get", Methods: []string{"GET"}, Path: "/api/test-gzip-get"}, gzipTestHandler)
 	}
 
 	t.Run("Enabled", func(t *testing.T) {
@@ -347,7 +346,7 @@ func TestGzipResponses(t *testing.T) {
 		})
 		defer server.Close()
 
-		for _, path := range []string{"/api/test-gzip", "/api/test-gzip-fast"} {
+		for _, path := range []string{"/api/test-gzip", "/api/test-gzip-get"} {
 			t.Run("WithAcceptEncoding "+path, func(t *testing.T) {
 				req, err := http.NewRequest("GET", server.URL+path, nil)
 				require.NoError(t, err)
