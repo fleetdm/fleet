@@ -117,9 +117,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/throttled/throttled/v2"
-	"go.elastic.co/apm/module/apmhttp/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -187,7 +184,10 @@ func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerCo
 
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
-	config := configManager.LoadConfig()
+	config, err := configManager.LoadConfig()
+	if err != nil {
+		initFatal(err, "loading config")
+	}
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
@@ -211,6 +211,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
+	// Elastic APM support was removed. Turning tracing off avoids exporting OpenTelemetry to a default endpoint nobody set up.
+	elasticAPMConfigured := config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm"
+	if elasticAPMConfigured {
+		config.Logging.TracingEnabled = false
+		// OTEL logs require tracing, and the logger setup panics without a logger provider.
+		config.Logging.OtelLogsEnabled = false
+	}
+
 	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
 	// platform/tracing package stays free of cross context coupling. Infra paths (/healthz, /version, /metrics) are registered
 	// alongside their WrapHandler calls further down in this function.
@@ -224,6 +232,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
+
+	if elasticAPMConfigured {
+		logger.WarnContext(cmd.Context(), `The "logging.tracing_type: elasticapm" value is not available anymore, so tracing is off. `+
+			"What to use instead: "+fleet.Fleet5MigrationGuide)
+	}
 
 	// If you want to disable any logs by default, this is where to do it.
 	//
@@ -356,8 +369,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			// The longest TTL of the cached fleet and global orbit config
 			// inputs (1m).
 			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
-			// A host moved to another fleet reads its packs from a per-host
-			// cache (1m).
+			// A host moved to another fleet reads its new fleet's agent
+			// options from a cache (1m).
 			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
 			// The ETag write fence (3m), which outlasts the cached osquery
 			// config inputs plus the pack config cache built from them. Hosts
@@ -390,7 +403,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-	task := async.NewTask(ds, redisPool, clock.C, &config)
+	task := async.NewTask(ds, config.OTELEnabled())
 
 	if config.Sentry.Dsn != "" {
 		v := version.Version()
@@ -830,20 +843,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal:              initFatal,
 	})
 
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, logger.With("cron", "async_task"))
-
-	// Flush seen hosts every second
-	hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
-	if !hostsAsyncCfg.Enabled {
-		go func() {
-			for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-				if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
-					logger.InfoContext(ctx, "failed to update host seen times", "err", err)
-				}
+	go func() {
+		for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) { //nolint:gosec // jitter, not security sensitive
+			if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
+				logger.InfoContext(ctx, "failed to update host seen times", "err", err)
 			}
-		}()
-	}
+		}
+	}()
 
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
@@ -1206,13 +1212,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// of the response.
 	liveQueryRestPeriod += 10 * time.Second
 
-	// Create the handler based on whether tracing should be there
-	var handler http.Handler
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-		handler = launcher.Handler(apmhttp.Wrap(rootMux))
-	} else {
-		handler = launcher.Handler(rootMux)
-	}
+	handler := launcher.Handler(rootMux)
 
 	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {

@@ -99,18 +99,6 @@ func (svc *Service) GetScriptIDByName(ctx context.Context, scriptName string, te
 const maxPendingScripts = 1000
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// Must check for presence of mutually exclusive parameters before
 	// authorization, as the permissions are not the same in all cases.
 	// There's no harm in returning the error if this validation fails,
@@ -240,7 +228,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false)
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
@@ -438,7 +426,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
@@ -701,9 +689,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 
 	// cursor-based pagination is not supported for scripts
 	opt.After = ""
-	// custom ordering is not supported, always by name
+	// only name ordering is supported; direction comes from the request (ascending by default)
 	opt.OrderKey = "name"
-	opt.OrderDirection = fleet.OrderAscending
 	// no matching query support
 	opt.MatchQuery = ""
 	// always include metadata for scripts
@@ -916,7 +903,8 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 		return ctxerr.Wrap(ctx, err, "canceling batch script")
 	}
 
-	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	// Read from the primary, a replica may not have the canceled count written above yet.
+	batchActivity, err := svc.ds.GetBatchActivity(ctxdb.RequirePrimary(ctx, true), batchExecutionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting canceled activity stats")
 	}
@@ -1087,18 +1075,6 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	// If we are given both host IDs and filters, return an error
 	if len(hostIDs) > 0 && filters != nil {
 		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
-	}
-
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return "", err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
 	}
 
 	// Use the authorize script by ID to handle authz
@@ -1297,7 +1273,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -1309,7 +1285,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	// requirement and is what happens for macOS platforms.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// On Fleet Free, Wipe is only available for Android hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS

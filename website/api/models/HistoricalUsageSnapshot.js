@@ -76,6 +76,9 @@ module.exports = {
     idpGoogleWorkspaceConfigured: {required: true, type: 'boolean'},
     certificateAuthorityConfigured: {required: true, type: 'boolean'},
     numPoliciesAutomationEnabledSoftware: {required: true, type: 'number'},
+    numAppleAiGeneratedProfiles: {required: true, type: 'number'},
+    numWindowsAiGeneratedProfiles: {required: true, type: 'number'},
+    numAndroidAiGeneratedProfiles: {required: true, type: 'number'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

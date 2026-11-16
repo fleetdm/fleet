@@ -185,17 +185,6 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 
 func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet.Policy) error {
 	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
-	const insertLabelStmt = `
-		INSERT INTO policy_labels (
-			policy_id,
-			label_id,
-			exclude,
-			require_all
-		)
-		SELECT ?, id, ?, ?
-		FROM labels
-		WHERE name IN (?)
-	`
 
 	if err := policy.VerifyLabelScopes(); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating policy label scopes")
@@ -215,24 +204,26 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		for _, label := range labels {
 			names = append(names, label.LabelName)
 		}
-
-		stmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, requireAll, names)
+		ids, err := resolveLabelNamesTx(ctx, tx, names, policy.TeamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "constructing policy label update query")
+			return ctxerr.Wrap(ctx, err, "resolving policy labels")
 		}
 
-		res, err := tx.ExecContext(ctx, stmt, args...)
-		if err != nil {
+		values := make([]string, 0, len(ids))
+		args := make([]any, 0, len(ids)*4)
+		inserted := make(map[uint]struct{}, len(ids))
+		for _, name := range names {
+			id := ids[name]
+			if _, ok := inserted[id]; ok {
+				continue
+			}
+			inserted[id] = struct{}{}
+			values = append(values, "(?, ?, ?, ?)")
+			args = append(args, policy.ID, id, exclude, requireAll)
+		}
+		stmt := `INSERT INTO policy_labels (policy_id, label_id, exclude, require_all) VALUES ` + strings.Join(values, ", ")
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating policy labels")
-		}
-
-		rowsAffected, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "listing number of policy labels affected")
-		}
-
-		if rowsAffected != int64(len(names)) {
-			return ctxerr.Errorf(ctx, "invalid label")
 		}
 		return nil
 	}
@@ -669,8 +660,9 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 	if scriptID != nil {
 		var scriptTeamID uint
-		// Lock scripts as well to maintain consistent ordering
-		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ? FOR UPDATE", scriptID)
+		// No FOR UPDATE: activating a queued policy script locks the policy row before the script row, so
+		// locking the script here, before the caller writes the policy, deadlocks with it.
+		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -904,17 +896,6 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 			vals = append(vals, updated, policyID, host.ID, matches)
 		}
 	}
-
-	// NOTE: as of #44191, the sync path here narrows the UPSERT batch to only
-	// rows whose stored value differs from incoming, while
-	// AsyncBatchInsertPolicyMembership still UPSERTs every incoming row. As a
-	// result, policy_membership.updated_at means "last state change" under
-	// sync processing and "last reported" under async. The
-	// hosts.policy_updated_at column remains the per-host "last reported"
-	// signal under both paths and is updated below regardless. Narrowing the
-	// async path is a natural follow-up; until then keep the two write paths
-	// aware of this divergence rather than treating them as semantically
-	// equivalent.
 
 	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if len(vals) > 0 {
@@ -1655,6 +1636,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			ID:               policyID,
+			TeamID:           &teamID,
 			LabelsIncludeAny: fleet.LabelNamesToIdents(args.LabelsIncludeAny),
 			LabelsIncludeAll: fleet.LabelNamesToIdents(args.LabelsIncludeAll),
 			LabelsExcludeAny: fleet.LabelNamesToIdents(args.LabelsExcludeAny),
@@ -1909,18 +1891,35 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 	}
 
-	// Get the query and platforms of the current policies so that we can check if the query or platform changed later, if needed
+	// Get every column the upsert below writes, so that we can skip unchanged specs and tell what changed in the rest.
 	type policyLite struct {
-		Name                       string  `db:"name"`
-		Query                      string  `db:"query"`
-		Platforms                  string  `db:"platforms"`
-		SoftwareInstallerID        *uint   `db:"software_installer_id"`
-		VPPAppsTeamsID             *uint   `db:"vpp_apps_teams_id"`
-		ScriptID                   *uint   `db:"script_id"`
-		ResendAppleProfileUUID     *string `db:"resend_apple_profile_uuid"`
-		ResendWindowsProfileUUID   *string `db:"resend_windows_profile_uuid"`
-		NeedsFullMembershipCleanup bool    `db:"needs_full_membership_cleanup"`
+		Name                         string  `db:"name"`
+		Query                        string  `db:"query"`
+		Description                  string  `db:"description"`
+		AuthorID                     *uint   `db:"author_id"`
+		Resolution                   *string `db:"resolution"`
+		Platforms                    string  `db:"platforms"`
+		Critical                     bool    `db:"critical"`
+		CalendarEventsEnabled        bool    `db:"calendar_events_enabled"`
+		SoftwareInstallerID          *uint   `db:"software_installer_id"`
+		VPPAppsTeamsID               *uint   `db:"vpp_apps_teams_id"`
+		ScriptID                     *uint   `db:"script_id"`
+		ConditionalAccessEnabled     bool    `db:"conditional_access_enabled"`
+		Type                         string  `db:"type"`
+		PatchSoftwareTitleID         *uint   `db:"patch_software_title_id"`
+		ContinuousAutomationsEnabled bool    `db:"continuous_automations_enabled"`
+		PatchWhenClosed              bool    `db:"patch_when_closed"`
+		NotifyBeforePatching         bool    `db:"notify_before_patching"`
+		PatchDeadline                bool    `db:"patch_deadline"`
+		ResendAppleProfileUUID       *string `db:"resend_apple_profile_uuid"`
+		ResendWindowsProfileUUID     *string `db:"resend_windows_profile_uuid"`
+		Hidden                       bool    `db:"hidden"`
+		NeedsFullMembershipCleanup   bool    `db:"needs_full_membership_cleanup"`
 	}
+	const policyLiteColumns = `name, query, description, author_id, resolution, platforms, critical, calendar_events_enabled,
+		software_installer_id, vpp_apps_teams_id, script_id, conditional_access_enabled, type, patch_software_title_id,
+		continuous_automations_enabled, patch_when_closed, notify_before_patching, patch_deadline, resend_apple_profile_uuid,
+		resend_windows_profile_uuid, hidden, needs_full_membership_cleanup`
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	teamIDToPolicyLabelsByName := make(map[*uint]map[string]map[policyLabelScope]struct{}, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1934,10 +1933,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		var args []any
 		var err error
 		if teamID == nil {
-			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, resend_apple_profile_uuid, resend_windows_profile_uuid, needs_full_membership_cleanup FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+			query, args, err = sqlx.In("SELECT "+policyLiteColumns+" FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id, resend_apple_profile_uuid, resend_windows_profile_uuid, needs_full_membership_cleanup FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
+				"SELECT "+policyLiteColumns+" FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
@@ -2078,25 +2077,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
 				}
-				if scriptID != nil {
-					// Same reasoning as the profile check below: this path never
-					// reaches assertTeamMatches, and global specs were rejected above.
-					if err := assertTeamMatches(ctx, tx, *teamID, nil, scriptID, nil, nil); err != nil {
-						return ctxerr.Wrap(ctx, err, "apply policy specs")
-					}
-				}
 
 				resendProf, err := fleet.ResolvePolicyResendProfile(spec.ProfileUUID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "apply policy specs")
-				}
-				if resendProf.AppleUUID != nil || resendProf.WindowsUUID != nil {
-					// This path never reaches assertTeamMatches, so check the profile's
-					// team here. teamID is non-nil: global specs carrying a profile UUID
-					// were rejected above.
-					if err := assertProfileTeamMatches(ctx, tx, *teamID, *spec.ProfileUUID); err != nil {
-						return ctxerr.Wrap(ctx, err, "apply policy specs")
-					}
 				}
 
 				fmaTitleID := fmaTitleIDs[teamNameToID[spec.Team]][spec.FleetMaintainedAppSlug]
@@ -2169,6 +2153,49 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// install until the app is closed.
 				if spec.PatchWhenClosed || spec.NotifyBeforePatching || spec.PatchDeadline {
 					spec.ContinuousAutomationsEnabled = true
+				}
+
+				// Upserting identical values still X-locks the row until commit, which stalls every host write that
+				// references the policy, so an unchanged spec issues no locking statement.
+				labelsChanged := !maps.Equal(teamIDToPolicyLabelsByName[teamID][spec.Name], policySpecLabelScopes(spec))
+				if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok && !labelsChanged && !prev.NeedsFullMembershipCleanup &&
+					prev.Query == spec.Query &&
+					prev.Description == spec.Description &&
+					ptr.Equal(prev.AuthorID, &authorID) &&
+					ptr.Equal(prev.Resolution, &spec.Resolution) &&
+					prev.Platforms == spec.Platform &&
+					prev.Critical == spec.Critical &&
+					prev.CalendarEventsEnabled == spec.CalendarEventsEnabled &&
+					ptr.Equal(prev.SoftwareInstallerID, softwareInstallerID) &&
+					ptr.Equal(prev.VPPAppsTeamsID, vppAppsTeamsID) &&
+					ptr.Equal(prev.ScriptID, scriptID) &&
+					prev.ConditionalAccessEnabled == spec.ConditionalAccessEnabled &&
+					prev.Type == spec.Type &&
+					ptr.Equal(prev.PatchSoftwareTitleID, patchSoftwareTitleIDArg) &&
+					prev.ContinuousAutomationsEnabled == spec.ContinuousAutomationsEnabled &&
+					prev.PatchWhenClosed == spec.PatchWhenClosed &&
+					prev.NotifyBeforePatching == spec.NotifyBeforePatching &&
+					prev.PatchDeadline == spec.PatchDeadline &&
+					ptr.Equal(prev.ResendAppleProfileUUID, resendProf.AppleUUID) &&
+					ptr.Equal(prev.ResendWindowsProfileUUID, resendProf.WindowsUUID) &&
+					prev.Hidden == spec.Hidden {
+					continue
+				}
+
+				if scriptID != nil {
+					// Same reasoning as the profile check below: this path never
+					// reaches assertTeamMatches, and global specs were rejected above.
+					if err := assertTeamMatches(ctx, tx, *teamID, nil, scriptID, nil, nil); err != nil {
+						return ctxerr.Wrap(ctx, err, "apply policy specs")
+					}
+				}
+				if resendProf.AppleUUID != nil || resendProf.WindowsUUID != nil {
+					// This path never reaches assertTeamMatches, so check the profile's
+					// team here. teamID is non-nil: global specs carrying a profile UUID
+					// were rejected above.
+					if err := assertProfileTeamMatches(ctx, tx, *teamID, *spec.ProfileUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "apply policy specs")
+					}
 				}
 
 				res, err := tx.ExecContext(
@@ -2258,6 +2285,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
+						TeamID:           teamID,
 						LabelsIncludeAny: fleet.LabelNamesToIdents(spec.LabelsIncludeAny),
 						LabelsIncludeAll: fleet.LabelNamesToIdents(spec.LabelsIncludeAll),
 						LabelsExcludeAny: fleet.LabelNamesToIdents(spec.LabelsExcludeAny),
@@ -2270,7 +2298,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				// Only clean up membership when the policy or its labels changed.
 				_, prevFound := teamIDToPoliciesByName[teamID][spec.Name]
-				labelsChanged := !maps.Equal(teamIDToPolicyLabelsByName[teamID][spec.Name], policySpecLabelScopes(spec))
 				needsCleanup := !prevFound || policyRowChanged || shouldRemoveAllPolicyMemberships || labelsChanged
 
 				// Mark this policy for cleanup, so that the policy cleanup cron job can pick it up
@@ -2344,103 +2371,6 @@ func amountPoliciesAutomationEnabledSoftwareDB(ctx context.Context, db sqlx.Quer
 		return 0, err
 	}
 	return amount, nil
-}
-
-// AsyncBatchInsertPolicyMembership inserts into the policy_membership table
-// the batch of policy membership results.
-func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
-	// NOTE: this is tested via the server/service/async package tests.
-
-	// INSERT IGNORE, to avoid failing if policy / host does not exist (as this
-	// runs asynchronously, they could get deleted in between the data being
-	// received and being upserted).
-	sql := `INSERT IGNORE INTO policy_membership (policy_id, host_id, passes) VALUES `
-	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
-	sql = strings.TrimSuffix(sql, ",")
-	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
-
-	vals := make([]interface{}, 0, len(batch)*3)
-	hostIDs := make([]uint, 0, len(batch))
-	// Group incoming results per host for flip detection.
-	incomingByHost := make(map[uint]map[uint]*bool, len(batch))
-	for _, tup := range batch {
-		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
-		hostIDs = append(hostIDs, tup.HostID)
-		m, ok := incomingByHost[tup.HostID]
-		if !ok {
-			m = make(map[uint]*bool)
-			incomingByHost[tup.HostID] = m
-		}
-		m[tup.PolicyID] = tup.Passes
-	}
-	// Compute newly-passing policies per host before upserting membership so we compare against previous state.
-	newPassingByHost := make(map[uint][]uint)
-	for hid, incoming := range incomingByHost {
-		_, newPassing, err := ds.FlippingPoliciesForHost(ctx, hid, incoming)
-		if err != nil {
-			return err
-		}
-		if len(newPassing) > 0 {
-			slices.Sort(newPassing)
-			newPassingByHost[hid] = newPassing
-		}
-	}
-
-	err := ds.withRetryTxx(
-		ctx, func(tx sqlx.ExtContext) error {
-			if _, err := tx.ExecContext(ctx, sql, vals...); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert into policy_membership")
-			}
-
-			// Reset attempt_number to 0 for policies that flipped failing -> passing per host.
-			for hid, newPassing := range newPassingByHost {
-				q1, a1, err := sqlx.In(resetScriptAttemptsStmt, hid, newPassing)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "building reset script attempts query (async)")
-				}
-				if _, err := tx.ExecContext(ctx, q1, a1...); err != nil {
-					return ctxerr.Wrap(ctx, err, "reset script attempt numbers (async)")
-				}
-
-				q2, a2, err := sqlx.In(resetInstallAttemptsStmt, hid, newPassing)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "building reset install attempts query (async)")
-				}
-				if _, err := tx.ExecContext(ctx, q2, a2...); err != nil {
-					return ctxerr.Wrap(ctx, err, "reset install attempt numbers (async)")
-				}
-			}
-			return nil
-		})
-	if err != nil {
-		return err
-	}
-	if err = ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs); err != nil {
-		return err
-	}
-	return nil
-}
-
-// AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
-// for the batch of host ids provided.
-func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
-	// NOTE: this is tested via the server/service/async package tests.
-
-	sql := `
-		UPDATE
-		  hosts
-		SET
-		  policy_updated_at = ?
-		WHERE
-		  id IN (?)`
-	query, args, err := sqlx.In(sql, ts, ids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query to update hosts.policy_updated_at")
-	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, query, args...)
-		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
-	})
 }
 
 func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {

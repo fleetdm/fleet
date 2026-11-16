@@ -46,10 +46,10 @@ const useSetWindowsMdm = ({
         {
           enable_turn_on_windows_mdm_manually:
             enableMdm && !turnOnProgrammatically,
-          windows_enabled_and_configured: enableMdm,
+          windows_mdm_enabled: enableMdm,
           // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is disabled otherwise), so
           // derive the value to avoid re-saving a stale "enabled" state.
-          windows_migration_enabled:
+          windows_mdm_migration_enabled:
             enableMdm && turnOnProgrammatically && enableAutoMigration,
           // The default fleet for user-driven enrollment is Premium only; the backend rejects it otherwise.
           ...(isPremiumTier && {
@@ -78,11 +78,9 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const { config, isPremiumTier, availableTeams } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const [mdmOn, setMdmOn] = useState(
-    config?.mdm?.windows_enabled_and_configured ?? false
-  );
+  const [mdmOn, setMdmOn] = useState(config?.mdm?.windows_mdm_enabled ?? false);
   const [autoMigration, setAutoMigration] = useState(
-    config?.mdm?.windows_migration_enabled ?? false
+    config?.mdm?.windows_mdm_migration_enabled ?? false
   );
   const [turnOnProgrammatically, setTurnOnProgrammatically] = useState(
     !(config?.mdm?.enable_turn_on_windows_mdm_manually ?? false)

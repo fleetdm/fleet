@@ -78,13 +78,12 @@ org_settings:
     live_query_disabled: false
     query_report_cap: 2000
     query_reports_disabled: false
-    scripts_disabled: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true
   org_info:
     contact_url: https://fleetdm.com/company/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: $ORG_NAME
   smtp_settings:
     authentication_method: authmethod_plain

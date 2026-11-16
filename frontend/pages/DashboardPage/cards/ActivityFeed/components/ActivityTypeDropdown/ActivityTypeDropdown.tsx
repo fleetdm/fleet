@@ -91,7 +91,7 @@ const CustomValueContainer = ({
 }: ValueContainerProps<CustomOptionType, false>) => {
   return (
     <components.ValueContainer {...props}>
-      <Icon name="filter-alt" className="filter-icon" />
+      <Icon name="filter" className="filter-icon" />
       {children}
     </components.ValueContainer>
   );

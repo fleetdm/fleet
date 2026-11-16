@@ -172,8 +172,8 @@ func (r *retryClient) EnterprisesDevicesIssueCommand(ctx context.Context, device
 	})
 }
 
-// EnterprisesDevicesOperationsGet is deliberately not retried: the command reconciler, its only caller,
-// stops its run on a 429 and resumes on the next run rather than waiting out the quota.
+// EnterprisesDevicesOperationsGet is deliberately not retried: its callers, the command reconciler and
+// the Pub/Sub COMMAND handler, retry on their next run or delivery rather than waiting out the quota.
 func (r *retryClient) EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 	return r.next.EnterprisesDevicesOperationsGet(ctx, operationName)
 }

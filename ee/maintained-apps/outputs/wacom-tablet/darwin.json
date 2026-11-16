@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.4.15-1",
+      "version": "6.4.15-2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.wacom.WacomCenter';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wacom.WacomCenter' AND version_compare(bundle_short_version, '6.4.15-1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.wacom.WacomCenter' AND version_compare(bundle_short_version, '6.4.15-2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.wacom.WacomCenter' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.wacom.com/u/productsupport/drivers/mac/professional/WacomTablet_6.4.15-1.dmg",
+      "installer_url": "https://cdn.wacom.com/u/productsupport/drivers/mac/professional/WacomTablet_6.4.15-2.dmg",
       "install_script_ref": "54cc7403",
       "uninstall_script_ref": "243c6369",
-      "sha256": "1eb81473e03345f6cd06c55aa05ba40a5bbe602b3a4dabc83fe6bc9b8395cbc5",
+      "sha256": "84af01a189e7416b01c2f37c51e3f47ae16de60b6211bfc6cdd190d2567c90c0",
       "default_categories": [
         "Productivity"
       ]

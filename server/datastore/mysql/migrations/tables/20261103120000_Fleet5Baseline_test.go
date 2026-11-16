@@ -71,27 +71,46 @@ func TestFleet5BaselineFleet4Database(t *testing.T) {
 
 	t.Run("older than fleet 4_95", func(t *testing.T) {
 		db := newFleet4DB(t, Fleet4Migrations[:last], fleet4DataMigrations)
-		requireBaselineRefused(t, db)
+		requireBaselineRefused(t, db, "1 of 690 Fleet 4.95.0 migrations not applied (first missing 20261102142138, latest applied 20261102134303)")
+	})
+
+	t.Run("fleet 4_94_0", func(t *testing.T) {
+		// 4.94.0 shipped the first 666 Fleet 4.95 migrations.
+		db := newFleet4DB(t, Fleet4Migrations[:666], fleet4DataMigrations)
+		requireBaselineRefused(t, db, "24 of 690 Fleet 4.95.0 migrations not applied (first missing 20261014132040, latest applied 20261014074522)")
 	})
 
 	t.Run("missing a fleet 4_95 migration", func(t *testing.T) {
 		db := newFleet4DB(t, slices.Concat(Fleet4Migrations[:10], Fleet4Migrations[11:]), fleet4DataMigrations)
-		requireBaselineRefused(t, db)
+		requireBaselineRefused(t, db, "1 of 690 Fleet 4.95.0 migrations not applied (first missing 20161118212621, latest applied 20261102142138)")
 	})
 
 	t.Run("missing a data migration", func(t *testing.T) {
 		db := newFleet4DB(t, Fleet4Migrations, fleet4DataMigrations[:len(fleet4DataMigrations)-1])
-		requireBaselineRefused(t, db)
+		requireBaselineRefused(t, db, "Fleet 4 data migrations not applied (20230525175650)")
 	})
 
 	t.Run("newer than fleet 4_95", func(t *testing.T) {
 		db := newFleet4DB(t, append(slices.Clone(Fleet4Migrations), Fleet4Migrations[last]+1), fleet4DataMigrations)
-		requireBaselineRefused(t, db)
+		requireBaselineRefused(t, db, "applied migrations not part of Fleet 4.95.0 (20261102142139)")
+	})
+
+	t.Run("many unknown migrations", func(t *testing.T) {
+		extra := []int64{20261102142143, 20261102142139, 20261102142142, 20261102142140, 20261102142141}
+		db := newFleet4DB(t, slices.Concat(Fleet4Migrations, extra), fleet4DataMigrations)
+		requireBaselineRefused(t, db, "applied migrations not part of Fleet 4.95.0 (20261102142139, 20261102142140, 20261102142141, and 2 more)")
+	})
+
+	t.Run("every mismatch", func(t *testing.T) {
+		db := newFleet4DB(t, append(slices.Clone(Fleet4Migrations[:last]), 20250101000000), nil)
+		requireBaselineRefused(t, db, "1 of 690 Fleet 4.95.0 migrations not applied (first missing 20261102142138, latest applied 20261102134303); "+
+			"applied migrations not part of Fleet 4.95.0 (20250101000000); "+
+			"Fleet 4 data migrations not applied (20161229171615, 20170223171234, 20170301093653, and 6 more)")
 	})
 
 	t.Run("data migrations only", func(t *testing.T) {
 		db := newFleet4DB(t, nil, fleet4DataMigrations)
-		requireBaselineRefused(t, db)
+		requireBaselineRefused(t, db, "690 of 690 Fleet 4.95.0 migrations not applied (first missing 20161118193812)")
 	})
 }
 
@@ -110,9 +129,9 @@ func runBaseline(t *testing.T, db *sqlx.DB) error {
 	return err
 }
 
-func requireBaselineRefused(t *testing.T, db *sqlx.DB) {
+func requireBaselineRefused(t *testing.T, db *sqlx.DB, reason string) {
 	err := runBaseline(t, db)
-	require.ErrorContains(t, err, "upgrade to the latest Fleet 4.95.x")
+	require.EqualError(t, err, "this database must be upgraded to Fleet 4.95.0 or later before upgrading to Fleet 5: "+reason)
 	requireNoBaselineTables(t, db)
 }
 

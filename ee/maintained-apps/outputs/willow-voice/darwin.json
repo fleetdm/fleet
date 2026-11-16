@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.6.15",
+      "version": "2.6.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.seewillow.WillowMac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.seewillow.WillowMac' AND version_compare(bundle_short_version, '2.6.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.seewillow.WillowMac' AND version_compare(bundle_short_version, '2.6.17') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.seewillow.WillowMac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/LiuLawrence45/stt-sparkle-update/releases/download/v2.6.15/Willow.Installer.dmg",
+      "installer_url": "https://github.com/LiuLawrence45/stt-sparkle-update/releases/download/v2.6.17/Willow.Installer.dmg",
       "install_script_ref": "71382969",
       "uninstall_script_ref": "576943bd",
-      "sha256": "e8cb59cac232b15b78e661f0c274c1ba074dbb18b6cea5d759af85e913e4011a",
+      "sha256": "c33141f4466c6f7e8fb8b34d1597907e644680af2f28d6f8362def5ddcd3afb1",
       "default_categories": [
         "Productivity"
       ]

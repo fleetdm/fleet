@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.12",
+      "version": "3.4.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.streetwriters.notesnook';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.streetwriters.notesnook' AND version_compare(bundle_short_version, '3.4.12') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.streetwriters.notesnook' AND version_compare(bundle_short_version, '3.4.13') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.streetwriters.notesnook' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.12/notesnook_mac_arm64.dmg",
+      "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.13/notesnook_mac_arm64.dmg",
       "install_script_ref": "805fc791",
       "uninstall_script_ref": "90513dfd",
-      "sha256": "dead4a0564b37fc29e408c759bfb623d9740f48444b759696144037178ca2c28",
+      "sha256": "b3cd3ddf0d272fdd2e200cb8d59e3d9c336c4d5a6fbfd4c6b9eab5c6fcbcf3ca",
       "default_categories": [
         "Productivity"
       ]

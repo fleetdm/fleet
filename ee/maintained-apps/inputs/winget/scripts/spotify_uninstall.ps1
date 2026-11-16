@@ -1,83 +1,331 @@
-# Attempts to locate Spotify's uninstaller from registry and execute it silently
+# Spotify installs per user, so its uninstall entry is in the installing user's
+# registry hive rather than SYSTEM's, and its uninstaller removes the copy in the
+# profile of whoever runs it. So search every hive and run the uninstaller as the
+# user who owns the entry. A copy belonging to a user who isn't signed in can't be
+# removed and fails the uninstall.
 
 $displayName = "Spotify"
 $publisher = "Spotify AB"
+$taskName = "fleet-uninstall-spotify"
+$appDir = "AppData\Roaming\Spotify"  # in each user's profile
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$timeoutSeconds = 300
+$exitCode = 0
 
-# Spotify is user-scope, so check HKCU first, then HKLM as fallback
-$paths = @(
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
+function Get-AppEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
+    # LocalService and NetworkService can write their own hives, and an entry
+    # there would run as SYSTEM.
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-$uninstall = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher)
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if ("$($key.DisplayName)".Trim() -ne $displayName) { continue }
+            if ("$($key.Publisher)".Trim() -ne $publisher) { continue }
+
+            # Only a real user's entry needs the uninstaller run for them; HKLM and
+            # SYSTEM's hive are already in the right context.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
+
+            $entries += [PSCustomObject]@{
+                KeyPath = $sub.PSPath
+                Sid     = $sid
+                Command = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+            }
+        }
+    }
+    return $entries
 }
 
-if (-not $uninstall -or -not $uninstall.UninstallString) {
-  Write-Host "Uninstall entry not found"
-  Exit 0
+# Registry hives of users who aren't signed in aren't loaded, so find their
+# copies by the app folder in their profiles instead.
+function Get-SignedOutInstalls {
+    foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
+        $sid = $profileKey.PSChildName
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
+        if (-not $profilePath) { continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $profilePath "$appDir\Spotify.exe"))) { continue }
+        try {
+            (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
+        } catch {
+            $sid
+        }
+    }
 }
 
-# Kill any running Spotify processes before uninstalling
-Stop-Process -Name "Spotify" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "SpotifyWebHelper" -Force -ErrorAction SilentlyContinue
+function Resolve-Uninstaller {
+    param([string]$Command)
 
-$uninstallString = $uninstall.UninstallString
-$exePath = ""
-$arguments = ""
+    $exePath = ""
+    $arguments = ""
+    if ($Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    }
 
-# Parse the uninstall string to extract executable path and existing arguments
-# Handles both quoted and unquoted paths
-if ($uninstallString -match '^"([^"]+)"(.*)') {
-    $exePath = $matches[1]
-    $arguments = $matches[2].Trim()
-} elseif ($uninstallString -match '^([^\s]+)(.*)') {
-    $exePath = $matches[1]
-    $arguments = $matches[2].Trim()
-} else {
-    Write-Host "Error: Could not parse uninstall string: $uninstallString"
-    Exit 1
+    # A user's entry could point at a share that collects the computer account's
+    # credentials, so only a drive-letter path is touched as SYSTEM. PowerShell
+    # also reaches a share without a leading \\, as FileSystem::\\host\share.
+    if ($exePath -and $exePath -notmatch '^[A-Za-z]:[\\/]') { return $null }
+
+    if ($arguments -notmatch '(?i)(^|\s)/silent(\s|$)') { $arguments = "$arguments /silent".Trim() }
+
+    return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
 }
 
-# Build argument list array, preserving existing arguments and adding /silent for silent
-$argumentList = @()
-if ($arguments -ne '') {
-    # Split existing arguments and add them
-    $argumentList += $arguments -split '\s+'
-}
-# Append /silent if not already present
-if ($argumentList -notcontains "/silent" -and $arguments -notmatch '\b/silent\b') {
-    $argumentList += "/silent"
+function Invoke-AsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
+
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running as ${account}: $ExePath $Arguments"
+
+    try {
+        $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
+
+        $startDate = Get-Date
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop).LastRunTime
+        Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
+
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls. A task that's still queued hasn't updated
+        # LastRunTime yet.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
+            if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
+                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the task to finish."
+                return 1460  # ERROR_TIMEOUT
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 }
 
-Write-Host "Uninstall executable: $exePath"
-Write-Host "Uninstall arguments: $($argumentList -join ' ')"
+# Spotify keeps its settings in the same folder as the app, and its uninstaller
+# removes the whole folder. A user can write to their own profile, including
+# swapping the folder for a link elsewhere, so their folder is removed as them
+# rather than as SYSTEM. cmd expands %VAR% even inside quotes, so a path
+# containing % is never passed to it.
+function Remove-AppDir {
+    param([string]$Path, [string]$Sid)
+
+    if (-not (Test-Path -LiteralPath $Path)) { return $true }
+    if ($Sid) {
+        if ($Path.Contains('%')) {
+            Write-Host "  Could not remove Spotify from $Path."
+            return $false
+        }
+        try {
+            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c rd /s /q `"$Path`""
+        } catch {
+            Write-Host "  $_"
+        }
+    } else {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path -LiteralPath (Join-Path $Path "Spotify.exe")) {
+        Write-Host "  Could not remove Spotify from $Path."
+        return $false
+    }
+    return $true
+}
+
+# Shortcuts the uninstaller didn't get to. Match on where they point rather than on
+# a filename. Read as SYSTEM, a user's shortcut resolves its target through SYSTEM's
+# profile, so the working directory is checked too, and only the owning profile is
+# searched. A user's shortcuts are deleted as that user, like their folder.
+function Remove-Shortcuts {
+    param([string]$Dir, [string]$ProfilePath, [string]$Sid)
+
+    if ($ProfilePath) {
+        $roots = @((Join-Path $ProfilePath 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'), (Join-Path $ProfilePath 'Desktop'))
+    } else {
+        $roots = @('Programs', 'Desktop') | ForEach-Object { [Environment]::GetFolderPath($_) }
+    }
+    $found = @()
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($root in $roots) {
+        if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
+        foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+            try { $link = $shell.CreateShortcut($lnk.FullName) } catch { continue }
+            foreach ($path in @($link.TargetPath, $link.WorkingDirectory)) {
+                if ($path -and ($path -eq $Dir -or $path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase))) {
+                    $found += $lnk.FullName
+                    break
+                }
+            }
+        }
+    }
+    if (-not $found) { return }
+    if ($Sid) {
+        $quoted = ($found | Where-Object { -not $_.Contains('%') } | ForEach-Object { "`"$_`"" }) -join ' '
+        if ($quoted) {
+            try {
+                $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c del /f /q $quoted"
+            } catch {
+                Write-Host "  $_"
+            }
+        }
+    } else {
+        $found | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
+    }
+    $found | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Write-Host "  Could not remove shortcut $_." }
+}
 
 try {
-    $processOptions = @{
-        FilePath = $exePath
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
+    $entries = @(Get-AppEntries)
+
+    foreach ($entry in $entries) {
+        Write-Host "Removing Spotify ($($entry.KeyPath))"
+        $uninstaller = Resolve-Uninstaller $entry.Command
+        if (-not $uninstaller) {
+            Write-Host "  Skipping this copy: its uninstaller isn't on a local drive."
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
+
+        # Spotify always installs into the profile of the user who ran the installer.
+        # A user's uninstall string comes from a hive that user can write to, so only
+        # that folder in their own profile is touched.
+        $profilePath = $null
+        if ($entry.Sid) {
+            $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($entry.Sid)" -ErrorAction SilentlyContinue).ProfileImagePath
+            if (-not $profilePath) {
+                Write-Host "  Leaving this copy registered because the user's profile can't be found."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+        } elseif ($entry.KeyPath -match 'HKEY_USERS\\S-1-5-18\\') {
+            $profilePath = Split-Path ([Environment]::GetFolderPath('ApplicationData')) | Split-Path
+        }
+        $installDir = if ($profilePath) { Join-Path $profilePath $appDir } else { "" }
+        if (-not $installDir -and $uninstaller.ExePath) { $installDir = Split-Path $uninstaller.ExePath -Parent }
+        $isAppDir = $installDir -and $uninstaller.ExePath -and
+            ((Split-Path $uninstaller.ExePath -Parent) -eq $installDir)
+
+        if ($installDir) {
+            # Anything running out of this install directory blocks removal. Matching on the
+            # directory rather than a process name keeps another user's Spotify running.
+            Get-Process -ErrorAction SilentlyContinue |
+                Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+                Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+
+        if (-not $isAppDir -or -not (Test-Path -LiteralPath $uninstaller.ExePath)) {
+            Write-Host "  Spotify's uninstaller isn't in $installDir; removing what's left of this copy."
+            if ($profilePath -and -not (Remove-AppDir $installDir $entry.Sid)) {
+                Write-Host "  Leaving this copy registered because $installDir is still there."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+            if (-not $profilePath -and $installDir -and (Test-Path -LiteralPath (Join-Path $installDir "Spotify.exe"))) {
+                Write-Host "  Leaving this copy registered because Spotify.exe is still in $installDir."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+            if ($profilePath) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        # Caught here so one copy's failure doesn't skip the others.
+        try {
+            if ($entry.Sid) {
+                $result = Invoke-AsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+            } else {
+                Write-Host "  Uninstall command: $($uninstaller.ExePath) $($uninstaller.Arguments)"
+                $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                    -NoNewWindow -PassThru -ErrorAction Stop
+                $null = $process.Handle  # keeps ExitCode readable after the process exits
+                if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                    $result = $process.ExitCode
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Timed out waiting for the uninstaller to finish."
+                    $result = 1460  # ERROR_TIMEOUT
+                }
+            }
+        } catch {
+            Write-Host "  Could not run the uninstaller: $_"
+            $result = 1
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($result -ne 0) {
+            Write-Host "  Leaving this copy registered so the uninstall can be retried."
+            if ($exitCode -eq 0) { $exitCode = $result }
+            continue
+        }
+
+        # The uninstaller relaunches itself from %TEMP% and exits while removal is
+        # still in flight.
+        for ($waited = 0; $waited -lt 120; $waited++) {
+            if (-not (Test-Path -LiteralPath (Join-Path $installDir "Spotify.exe")) -and
+                -not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) { break }
+            Start-Sleep -Seconds 1
+        }
+
+        if (Test-Path -LiteralPath (Join-Path $installDir "Spotify.exe")) {
+            Write-Host "  Uninstaller left Spotify in $installDir; removing it."
+            if (-not $profilePath -or -not (Remove-AppDir $installDir $entry.Sid)) {
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+        }
+        if ($profilePath) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
+
+        if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
-    
-    if ($argumentList.Count -gt 0) {
-        $processOptions.ArgumentList = $argumentList
+
+    $remaining = @(Get-AppEntries)
+    $signedOut = @(Get-SignedOutInstalls)
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Spotify registration(s) still present:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.KeyPath)" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
     }
-    
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
+    if ($signedOut.Count -gt 0) {
+        Write-Host "Spotify is still installed for users who aren't signed in: $($signedOut -join ', '). Run the uninstall again while they're signed in."
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($exitCode -eq 0) {
+        if ($entries.Count) { Write-Host "Spotify removed." } else { Write-Host "Spotify is not installed." }
+    }
+
 } catch {
     Write-Host "Error running uninstaller: $_"
-    Exit 1
+    $exitCode = 1
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
+Exit $exitCode

@@ -154,7 +154,6 @@ server_settings:
   mcp_disabled: false
   report_cap: 1
   discard_reports_data: false
-  scripts_disabled: false
   server_url: https://dogfood.fleetdm.com
 sso_settings:
   enable_jit_provisioning: true

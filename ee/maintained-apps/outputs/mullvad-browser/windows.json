@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "16.0",
+      "version": "16.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mullvad Browser' AND publisher = 'Mullvad VPN';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mullvad Browser' AND publisher = 'Mullvad VPN' AND version_compare(version, '16.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mullvad Browser' AND publisher = 'Mullvad VPN' AND version_compare(version, '16.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mullvad browser.exe');"
       },
-      "installer_url": "https://github.com/mullvad/mullvad-browser/releases/download/16.0/mullvad-browser-windows-x86_64-16.0.exe",
+      "installer_url": "https://github.com/mullvad/mullvad-browser/releases/download/16.0.1/mullvad-browser-windows-x86_64-16.0.1.exe",
       "install_script_ref": "aa4c554f",
       "uninstall_script_ref": "3c0885d6",
-      "sha256": "4b60828972ba5dca193ccc5a9fd47af811873c390aa59bc6d7d93ec1eb39b44d",
+      "sha256": "72b997c487b4949e76a98a62ddc585d5a4b297eab6e54a608e36b6fb31c70462",
       "default_categories": [
         "Browsers"
       ]

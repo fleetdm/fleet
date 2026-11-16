@@ -59,7 +59,7 @@ export const FmaPlatformFilter = ({
         isSearchable={false}
         placeholder="Filter by platform"
         className={platformBaseClass}
-        iconName="filter-alt"
+        iconName="filter"
       />
     </div>
   );

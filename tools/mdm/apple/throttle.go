@@ -25,7 +25,7 @@
 //	  -from 1 \
 //	  -to 2
 //
-// Use -from=-1 or -to=-1 to target "No team" (team_id: null).
+// Use -from=-1 or -to=-1 to target "No team" (fleet_id: null).
 package main
 
 import (
@@ -143,7 +143,7 @@ type client struct {
 // transfer moves the host to the given team. A nil team means "No team".
 func (c *client) transfer(ctx context.Context, teamID *uint) error {
 	body, err := json.Marshal(struct {
-		TeamID  *uint  `json:"team_id"` // nolint:apiparamcheck // custom tool
+		TeamID  *uint  `json:"fleet_id"` // nolint:apiparamcheck // custom tool
 		HostIDs []uint `json:"hosts"`
 	}{TeamID: teamID, HostIDs: []uint{c.hostID}})
 	if err != nil {
@@ -211,7 +211,7 @@ func (c *client) do(ctx context.Context, method, path string, body []byte) ([]by
 }
 
 // teamPtr converts a team-ID flag to the *uint the API expects: a negative
-// value means "No team" (team_id: null).
+// value means "No team" (fleet_id: null).
 func teamPtr(id int) *uint {
 	if id < 0 {
 		return nil

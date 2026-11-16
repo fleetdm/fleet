@@ -131,6 +131,7 @@ The only exceptions are:
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 4. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+5. **Customer-specific post-sale work:** Repositories whose names begin with the prefix `customer-` are for a specific purpose: tracking post-sale activation, services, and other post-sale work that is specific to a given customer.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
@@ -354,6 +355,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣 open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵 fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+
+
+## Why not market our competitors' outages, unless we can help right away?
+
+"Ambulance chasing" means rushing to people in a crisis to sell them something. The phrase comes from lawyers who followed ambulances to find clients. We avoid it because it profits from someone else's worst day, and an IT person who is already stressed doesn't need a sales pitch that offers no relief.
+
+The exception is when we can offer an immediate ride to the hospital: a real fix for the problem happening right now. If a competitor like Jamf or Intune went down, Fleet could keep teams managing their devices, so we'd speak up quickly. An outage like Microsoft's, which stops email and meetings, is different: Fleet can't fix it, so we stay quiet.
 
 
 ## Why short emails?

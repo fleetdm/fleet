@@ -39,12 +39,12 @@ controls:
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
-  enable_recovery_lock_password: true
+  macos_recovery_lock_password_enabled: true
   windows_require_bitlocker_pin: true
-  macos_setup:
-    bootstrap_package: null
+  setup_experience:
+    macos_bootstrap_package: null
     enable_end_user_authentication: false
-    macos_setup_assistant: null
+    apple_setup_assistant: null
   macos_updates:
     deadline: null
     minimum_version: null
@@ -61,8 +61,8 @@ controls:
     enable: false
     mode: ""
     webhook_url: ""
-  windows_enabled_and_configured: true
-  windows_migration_enabled: false
+  windows_mdm_enabled: true
+  windows_mdm_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
   windows_entra_tenant_ids: []
   windows_entra_client_ids: []

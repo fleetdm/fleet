@@ -39,8 +39,8 @@ describe("TooltipWrapper", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId("external-link-small-icon")
-      ).toBeInTheDocument();
+        screen.getByTestId("external-link-icon").querySelector("svg")
+      ).toHaveAttribute("viewBox", "0 0 12 12");
     });
   });
 

@@ -74,7 +74,8 @@ describe("EditLabelPage", () => {
           fleet_id: 2,
           fleet_name: "Mobile",
           platform: "ios",
-          os_version: "iOS 14.7.1",
+          os_name: "iOS",
+          os_version: "14.7.1",
           hardware_serial: "test-serial-1",
         },
         {
@@ -84,7 +85,8 @@ describe("EditLabelPage", () => {
           fleet_id: 2,
           fleet_name: "Mobile",
           platform: "ios",
-          os_version: "iOS 14.7.1",
+          os_name: "iOS",
+          os_version: "14.7.1",
           hardware_serial: "test-serial-2",
         },
       ])

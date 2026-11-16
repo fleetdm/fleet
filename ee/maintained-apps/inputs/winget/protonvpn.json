@@ -3,6 +3,7 @@
   "slug": "protonvpn/windows",
   "package_identifier": "Proton.ProtonVPN",
   "unique_identifier": "Proton VPN",
+  "open_process_names": ["proton vpn.exe", "protonvpn.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/protonvpn_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/protonvpn_uninstall.ps1",
   "installer_arch": "x64",

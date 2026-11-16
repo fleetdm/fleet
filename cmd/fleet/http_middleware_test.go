@@ -50,7 +50,7 @@ func TestAPITimeoutOverrideHandler(t *testing.T) {
 		{
 			name:              "bootstrap package upload threads configured max size",
 			method:            http.MethodPost,
-			path:              "/api/latest/fleet/mdm/bootstrap",
+			path:              "/api/latest/fleet/bootstrap",
 			wantInstallerSize: customMax,
 		},
 		{
