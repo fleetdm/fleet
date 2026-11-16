@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.2",
+      "version": "2.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhighfives.Pika';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhighfives.Pika' AND version_compare(bundle_short_version, '2.0.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhighfives.Pika' AND version_compare(bundle_short_version, '2.0.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superhighfives.Pika' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/superhighfives/pika/releases/download/2.0.2/Pika-2.0.2.dmg",
+      "installer_url": "https://github.com/superhighfives/pika/releases/download/2.0.3/Pika-2.0.3.dmg",
       "install_script_ref": "d4e57a42",
       "uninstall_script_ref": "1bee8df6",
-      "sha256": "03d1856ae0ce43659e23b60af74b1ce4c217ea03e24b2c3dbb0c569ed8ba9734",
+      "sha256": "0c089146dd1c89a47dbb66dcca023b8af2427bf38ccd4f40c907214c037f8b3f",
       "default_categories": [
         "Productivity"
       ]
