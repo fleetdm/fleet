@@ -131,6 +131,7 @@ The only exceptions are:
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 4. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+5. **Customer-specific post-sale work:** Repositories whose names begin with the prefix `customer-` are for a specific purpose: tracking post-sale activation, services, and other post-sale work that is specific to a given customer.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
@@ -356,6 +357,13 @@ Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.
 - **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
+## Why not market our competitors' outages, unless we can help right away?
+
+"Ambulance chasing" means rushing to people in a crisis to sell them something. The phrase comes from lawyers who followed ambulances to find clients. We avoid it because it profits from someone else's worst day, and an IT person who is already stressed doesn't need a sales pitch that offers no relief.
+
+The exception is when we can offer an immediate ride to the hospital: a real fix for the problem happening right now. If a competitor like Jamf or Intune went down, Fleet could keep teams managing their devices, so we'd speak up quickly. An outage like Microsoft's, which stops email and meetings, is different: Fleet can't fix it, so we stay quiet.
+
+
 ## Why short emails?
 
 Short emails that stick to a single ask tend to get better responses, since everyone's inbox is already overwhelming. When an email bundles in more than one link or question, it's easy to put off, leave marked as unread, and start to feel more like homework than something to act quickly on. 
@@ -517,6 +525,11 @@ A: Those personal blocks (childcare, etc.) are fine and necessary.  The advice i
 A: You're better off booking 30-minute blocks instead.  Calendly is configured to start at clean :00 or :30 for a better prospect experience, so a 15-minute block creates unusable gaps.
 
 The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
+
+
+## Why do we use either Keynote or PDFs for presentations and collateral?
+
+Google Slides doesn't export PDFs properly sometimes, and it also has bad defaults around including skipped slides. Instead, at Fleet we use Keynote for all [public-facing slide decks and customer materials](/handbook/company/go-to-market-operations#slide-decks) (customers, prospects, investors, any time the audience is outside the company). [Prebuilt PDFs from the Fleet design team](/handbook/company/go-to-market-operations#slide-decks) can also be used.
 
 
 #### Stubs

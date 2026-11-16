@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -66,7 +67,13 @@ func writeFakeSSHD(t *testing.T, script string) (sshd sshdBinary, calls func() [
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sshd")
-	require.NoError(t, os.WriteFile(path, []byte(script), 0o755)) //nolint:gosec // test script must be executable
+	// Block forks while the script is open for writing: a child forked by a
+	// parallel test would inherit the write fd, and exec of the script would
+	// fail with ETXTBSY (golang/go#22315).
+	syscall.ForkLock.RLock()
+	err := os.WriteFile(path, []byte(script), 0o755) //nolint:gosec // test script must be executable
+	syscall.ForkLock.RUnlock()
+	require.NoError(t, err)
 	return sshdBinary{path: path, id: path}, func() []string {
 		data, err := os.ReadFile(filepath.Join(dir, "calls"))
 		if err != nil {

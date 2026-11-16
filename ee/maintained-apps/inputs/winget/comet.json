@@ -3,7 +3,7 @@
   "slug": "comet/windows",
   "package_identifier": "Perplexity.Comet",
   "unique_identifier": "Comet",
-  "program_publisher": "PERPLEXITY AI, INC.",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Comet' AND publisher LIKE '%Comet%';",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/comet_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/comet_uninstall.ps1",
   "installer_arch": "x64",

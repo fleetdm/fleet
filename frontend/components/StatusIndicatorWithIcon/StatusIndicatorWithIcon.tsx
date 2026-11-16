@@ -8,6 +8,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 const baseClass = "status-indicator-with-icon";
 
 export type IndicatorStatus =
+  | "verified"
   | "success"
   | "successPartial"
   | "pending"
@@ -32,12 +33,13 @@ interface IStatusIndicatorWithIconProps {
 }
 
 const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
+  verified: "success-filled",
   success: "success",
-  successPartial: "success-outline",
+  successPartial: "success",
   pending: "pending",
-  pendingPartial: "pending-outline",
+  pendingPartial: "pending",
   error: "error",
-  failure: "error-outline",
+  failure: "error",
   actionRequired: "error",
 };
 

@@ -1590,24 +1590,12 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
 		tables         []int64
-		data           []int64
 		wantSubstrings []string
 	}{
 		{
-			name:           "tables only",
+			name:           "tables",
 			tables:         []int64{1, 2, 3},
 			wantSubstrings: []string{"tables=[1 2 3]", "missing required migrations"},
-		},
-		{
-			name:           "data only",
-			data:           []int64{4, 5},
-			wantSubstrings: []string{"data=[4 5]"},
-		},
-		{
-			name:           "tables and data",
-			tables:         []int64{1},
-			data:           []int64{2},
-			wantSubstrings: []string{"tables=[1], data=[2]"},
 		},
 		{
 			name:           "neither",
@@ -1616,7 +1604,7 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			printMissingMigrationsWarning(&buf, tc.tables, tc.data)
+			printMissingMigrationsWarning(&buf, tc.tables)
 			out := buf.String()
 			for _, sub := range tc.wantSubstrings {
 				assert.Contains(t, out, sub)

@@ -10,7 +10,7 @@ import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
   IUser,
-  "global_role" | "teams" | "name" | "email" | "sso_enabled" | "mfa_enabled"
+  "global_role" | "fleets" | "name" | "email" | "sso_enabled" | "mfa_enabled"
 >;
 
 export interface IRoleOptionsParams {
@@ -31,7 +31,7 @@ const generateUpdateData = (
 ): IUpdateUserFormData => {
   const updatableFields = [
     "global_role",
-    "teams",
+    "fleets",
     "name",
     "email",
     "sso_enabled",
@@ -72,23 +72,26 @@ export const roleOptions = ({
     },
   ];
 
-  if (isPremiumTier) {
+  if (isApiOnly) {
     roles.splice(1, 0, {
-      label: "Observer+",
-      value: "observer_plus",
+      label: "GitOps",
+      value: "gitops",
     });
+  }
 
-    roles.splice(2, 0, {
-      label: "Technician",
-      value: "technician",
-    });
-
-    if (isApiOnly) {
-      roles.splice(3, 0, {
-        label: "GitOps",
-        value: "gitops",
-      });
-    }
+  if (isPremiumTier) {
+    roles.splice(
+      1,
+      0,
+      {
+        label: "Observer+",
+        value: "observer_plus",
+      },
+      {
+        label: "Technician",
+        value: "technician",
+      }
+    );
   }
 
   return roles;

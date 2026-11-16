@@ -39,11 +39,7 @@ const TeamHostExpiryToggle = ({
           >
             <>
               Add custom expiry window
-              <Icon
-                name="chevron-right"
-                color="ui-fleet-black-75"
-                size="small"
-              />
+              <Icon name="chevron-right" color="ui-fleet-black-75" />
             </>
           </Button>
         )}

@@ -182,7 +182,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Install \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Install (pending)"));
     await waitFor(() => {
@@ -257,7 +257,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Run \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Run (pending)"));
     await waitFor(() => {
@@ -335,7 +335,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Uninstall \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Uninstall (pending)"));
     await waitFor(() => {
@@ -398,7 +398,7 @@ describe("InstallStatusCell - component", () => {
 
     const button = screen.getByRole("button", { name: /patch skipped/i });
     expect(button).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(button);
     await waitFor(() => {
@@ -610,7 +610,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Update available/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Update available"));
     await waitFor(() => {
@@ -639,7 +639,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Update available/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Update available"));
     await waitFor(() => {
@@ -704,7 +704,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Update \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Update (pending)"));
     await waitFor(() => {

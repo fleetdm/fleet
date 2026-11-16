@@ -1163,7 +1163,7 @@ func TestResolveHost_IdentifierSingleAndFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(struct {
 				Hosts []Endpoint `json:"hosts"`
 			}{Hosts: hosts})
-		case r.URL.Path == "/api/v1/fleet/hosts/identifier/ghost":
+		case r.URL.Path == "/api/v1/fleet/hosts/ghost":
 			_ = json.NewEncoder(w).Encode(struct {
 				Host Endpoint `json:"host"`
 			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
@@ -1201,8 +1201,8 @@ func TestResolveHostWithUsers_SingleMatchAndFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(struct {
 				Host HostWithUsers `json:"host"`
 			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 5, Name: "solo.local"}, Users: []HostUser{{UID: 501, Username: "alice"}}}})
-		case "/api/v1/fleet/hosts/identifier/ghost":
-			// identifier endpoint resolves the host but carries NO users
+		case "/api/v1/fleet/hosts/ghost":
+			// the identifier lookup resolves the host but carries NO users
 			_ = json.NewEncoder(w).Encode(struct {
 				Host Endpoint `json:"host"`
 			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
@@ -1302,7 +1302,7 @@ func TestGetPolicies_IncludesQueryField(t *testing.T) {
 				{"id":2,"name":"empty sql","query":""}
 			]}`))
 		case "/api/v1/fleet/fleets":
-			_, _ = w.Write([]byte(`{"teams":[]}`))
+			_, _ = w.Write([]byte(`{"fleets":[]}`))
 		default:
 			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
 		}
@@ -1373,5 +1373,21 @@ func TestRunAdHocSingleHostFallsBackToDefaultClient(t *testing.T) {
 	}
 	if res.RespondedHostCount != 1 || len(res.Results) != 1 {
 		t.Fatalf("unexpected result %+v", res)
+	}
+}
+
+func TestGetHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"host": map[string]any{"id": 42, "uuid": "1234567"}})
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	for identifier, wantFound := range map[string]bool{"42": false, "1234567": true} {
+		_, err := fc.GetHostByIdentifier(t.Context(), identifier)
+		_, policiesErr := fc.GetHostByIdentifierWithPolicies(t.Context(), identifier)
+		if (err == nil) != wantFound || (policiesErr == nil) != wantFound {
+			t.Errorf("identifier %q: errors %v, %v, want found=%v", identifier, err, policiesErr, wantFound)
+		}
 	}
 }

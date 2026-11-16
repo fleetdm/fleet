@@ -19,11 +19,6 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
-export type ITokenTeam = {
-  team_id: number;
-  name: string;
-};
-
 export type ITokenFleet = {
   fleet_id: number;
   name: string;
@@ -55,7 +50,7 @@ export interface IMdmVppToken {
    */
   country_code: string;
   renew_date: string;
-  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
+  fleets: ITokenFleet[] | null; // null means token isn't configured to a fleet; empty array means all fleets
   /** Null for rows the backend can't date. Renders "---". */
   created_at: string | null;
 }
@@ -212,7 +207,7 @@ export const isMDMConfiguredForPlatform = (
   }
 
   if (isWindows(platform)) {
-    return mdmConfig.windows_enabled_and_configured;
+    return mdmConfig.windows_mdm_enabled;
   }
 
   if (isAppleDevice(platform)) {
@@ -232,7 +227,7 @@ export const isMDMConfiguredForPlatform = (
 export const isAnyMDMConfigured = (mdmConfig: IMdmConfig | undefined) =>
   !!mdmConfig &&
   (mdmConfig.enabled_and_configured ||
-    mdmConfig.windows_enabled_and_configured ||
+    mdmConfig.windows_mdm_enabled ||
     mdmConfig.android_enabled_and_configured);
 
 export const platformToMDMLabel = (platform: ProfilePlatform) => {

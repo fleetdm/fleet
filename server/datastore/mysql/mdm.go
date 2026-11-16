@@ -25,6 +25,7 @@ import (
 var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"profile_uuid": "profile_uuid",
 	"team_id":      "team_id",
+	"fleet_id":     "team_id",
 	"name":         "name",
 	"platform":     "platform",
 	"identifier":   "identifier",
@@ -54,15 +55,8 @@ END AS platform
 	return p, nil
 }
 
-// getMDMCommandsSubqueries returns the Apple, Windows, and Android command-list
-// sub-statements separately. The caller is responsible for wrapping each
-// branch with the per-branch pagination (team filter, request_type filter,
-// cursor predicate, ORDER BY, inner LIMIT) before merging them with
-// UNION ALL. Paginating inside each branch keeps work per branch at
-// O(page_size) instead of O(total commands).
-//
-// These subqueries are only used for the all-hosts listing; host-scoped
-// requests go through listMDMCommandsByHostIdentifier instead.
+// getMDMCommandsSubqueries returns the Apple, Windows, and Android command sub-statements that
+// getCombinedMDMCommandsQuery merges for single-command lookups.
 func getMDMCommandsSubqueries() (appleStmt, windowsStmt, androidStmt string) {
 	// Apple branch joins the underlying nano_* tables directly instead of
 	// going through the nano_view_queue VIEW. The view bakes
@@ -154,7 +148,7 @@ WHERE TRUE
 }
 
 // mdmCommandsOrderAllowlist is the closed set of order_key values accepted
-// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands.
+// by GET /api/v1/fleet/commands.
 var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"host_uuid":    "host_uuid",
 	"command_uuid": "command_uuid",
@@ -165,10 +159,8 @@ var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"name":         "name",
 }
 
-// getCombinedMDMCommandsQuery returns the legacy combined statement
-// (Apple UNION ALL Windows) ending in `WHERE `. Used by getMDMCommand for
-// single-command lookups; the list-commands path builds its own form
-// (see getMDMCommandsSubqueries).
+// getCombinedMDMCommandsQuery returns the combined statement (Apple UNION ALL Windows UNION ALL
+// Android) ending in `WHERE `. Used by getMDMCommand for single-command lookups.
 func getCombinedMDMCommandsQuery() string {
 	appleStmt, windowsStmt, androidStmt := getMDMCommandsSubqueries()
 	return fmt.Sprintf(
@@ -185,96 +177,11 @@ func (ds *Datastore) ListMDMCommands(
 	if listOpts == nil || listOpts.PerPage == 0 {
 		return nil, nil, nil, ctxerr.Wrap(ctx, errors.New("ListMDMCommands requires listOpts.PerPage > 0"))
 	}
-	if listOpts.Filters.HostIdentifier != "" {
-		// separate codepath for more performant query by host identifier
-		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
-	}
-
-	if listOpts.OrderKey == "" {
-		listOpts.OrderKey = "updated_at"
-		listOpts.OrderDirection = fleet.OrderDescending
-	}
-
-	appleStmt, windowsStmt, androidStmt := getMDMCommandsSubqueries()
-
-	// Per-branch pagination: without this, the UNION ALL would materialize every command on
-	// both sides before pagination, which times out at scale (#44170).
-	innerOpts := listOpts.ListOptions
-	// For page-based pagination, inner LIMIT = page*per_page + per_page;
-	// the secure helper adds +1 because IncludeMetadata is true. For
-	// cursor-based pagination (After != ""), the helper ignores Page, so
-	// don't inflate the inner LIMIT (per_page+1 is sufficient). Inner
-	// Page=0 suppresses the inner OFFSET; the outer wrapper handles
-	// offset slicing.
-	if innerOpts.After == "" {
-		innerOpts.PerPage = innerOpts.PerPage*innerOpts.Page + innerOpts.PerPage
-	}
-	innerOpts.Page = 0
-	innerOpts.IncludeMetadata = true
-
-	paginateBranch := func(branch string, params []any) (string, []any, error) {
-		wrapped := fmt.Sprintf("SELECT * FROM (%s) AS branch WHERE ", branch)
-		wrapped += ds.whereFilterHostsByTeams(tmFilter, "branch")
-		wrapped, params = addRequestTypeFilter(wrapped, &listOpts.Filters, params)
-		return appendListOptionsWithCursorToSQLSecure(wrapped, params, &innerOpts, mdmCommandsOrderAllowlist)
-	}
-
-	// Each branch needs its own params slice; sqlx.SelectContext binds
-	// placeholders left-to-right across the merged statement.
-	var appleParams, windowsParams, androidParams []any
-	var err error
-	if appleStmt, appleParams, err = paginateBranch(appleStmt, appleParams); err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate apple commands branch")
-	}
-	if windowsStmt, windowsParams, err = paginateBranch(windowsStmt, windowsParams); err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate windows commands branch")
-	}
-	if androidStmt, androidParams, err = paginateBranch(androidStmt, androidParams); err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate android commands branch")
-	}
-
-	mergedStmt := fmt.Sprintf(
-		"SELECT * FROM ((%s) UNION ALL (%s) UNION ALL (%s)) AS combined_commands",
-		appleStmt, windowsStmt, androidStmt,
-	)
-	mergedParams := append([]any{}, appleParams...)
-	mergedParams = append(mergedParams, windowsParams...)
-	mergedParams = append(mergedParams, androidParams...)
-
-	// Outer pagination: ORDER BY + LIMIT + OFFSET only. The cursor
-	// predicate is already applied inside each branch, so clear After
-	// here. If the original request used cursor pagination, also clear
-	// Page so the outer query does not apply an OFFSET on top of the
-	// per-branch cursor filtering.
-	outerOpts := listOpts.ListOptions
-	if outerOpts.After != "" {
-		outerOpts.After = ""
-		outerOpts.Page = 0
-	}
-	mergedStmt, mergedParams, err = appendListOptionsWithCursorToSQLSecure(mergedStmt, mergedParams, &outerOpts, mdmCommandsOrderAllowlist)
-	if err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "merge mdm commands pagination")
-	}
-
-	var results []*fleet.MDMCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, mergedStmt, mergedParams...); err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if listOpts.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: listOpts.Page > 0}
-		if len(results) > int(listOpts.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			results = results[:len(results)-1]
-		}
-	}
-	return results, nil, metaData, nil
+	return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
 }
 
-// listMDMCommandsByHostIdentifier retrieves MDM commands by host identifier. It is implemented as a
-// distinct code path to optimize the query for use cases where a client may be polling for the
-// status of commands for a specific host.
+// listMDMCommandsByHostIdentifier retrieves MDM commands by host identifier, optimized for clients
+// polling for the status of a host's commands.
 //
 // TODO: Additional optimizations not implemented yet:
 //   - restrict ordering by date to a new sorted index (probably `nano_enrollment_queue (id,
@@ -325,8 +232,8 @@ WHERE ` + whereTeam
 	case err != nil:
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
 	case len(dest) == 0:
-		// TODO: should we return an empty slice or an error?
-		return []*fleet.MDMCommand{}, nil, nil, nil
+		// The lookup is filtered by team, so a host the caller can't see is not found too.
+		return nil, nil, nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
 		ds.logger.DebugContext(

@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "26.0.2.17",
+      "version": "26.0.3.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'AVS Image Converter %' AND publisher = 'Ascensio System SIA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'AVS Image Converter %' AND publisher = 'Ascensio System SIA' AND version_compare(version, '26.0.2.17') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'AVS Image Converter %' AND publisher = 'Ascensio System SIA' AND version_compare(version, '26.0.3.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'avsimageconverter.exe');"
       },
       "installer_url": "https://downloads.avs4you.com/distributives/AVSImageConverter.exe",

@@ -76,8 +76,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_on_package.yml", ""},
-		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
-		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within setup_experience, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within setup_experience, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that fleet"},
 		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
@@ -389,7 +389,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 				return nil
 			}
 			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
@@ -407,7 +407,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -445,7 +445,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/unassigned.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -510,7 +510,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 				return nil
 			}
 			labelToIDs := map[string]uint{
@@ -554,7 +554,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 				// the controls section is in the no-team test file, so use a global file without that section
 				globalFile = "../../fleetctl/testdata/gitops/global_config_no_paths_no_controls.yml"
 			}
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -589,35 +589,42 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{
 			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
-			map[string]uint{}, false,
+			map[string]uint{},
+			false,
 		},
 		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_all.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_both.yml",
 			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
-			map[string]uint{}, false,
+			map[string]uint{},
+			false,
 		},
 		// The dry run must report an unavailable app the same way the real apply
 		// does, including for a team that does not exist yet.
@@ -1047,7 +1054,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1061,7 +1068,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1186,7 +1193,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1200,7 +1207,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1338,7 +1345,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1447,9 +1454,6 @@ func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
 		}
 		return []*fleet.VPPTokenDB{&tok}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
-		return []uint{}, nil
-	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{}, nil }
@@ -1476,7 +1480,7 @@ org_settings:
 
 	newTeamCfg := fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "new-secret"
 agent_options:
@@ -1527,7 +1531,7 @@ org_settings:
 	team := func(name string) string {
 		return fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
 agent_options:
@@ -1554,7 +1558,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1592,10 +1596,10 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Acme Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
 				workstations,
@@ -1637,7 +1641,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1657,7 +1661,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "No team"`),
@@ -1694,7 +1698,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All teams"`),
 				workstations,
 				iosTeam,
@@ -1727,7 +1731,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All fleets"`),
 				workstations,
 				iosTeam,
@@ -1760,7 +1764,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},
@@ -1790,7 +1794,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Does not exist
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},

@@ -79,8 +79,8 @@ export interface IButtonProps {
   /** Small: 1/2 the padding, Wide: 200px */
   size?: "small" | "wide" | "default";
   /**
-   * Icon rendered inside the button. Sized automatically (16px on default,
-   * 12px on `size="small"`) and colored to match the variant's text.
+   * Icon rendered inside the button. Always 16px, colored to match the
+   * variant's text.
    * With no `children`, renders an icon-only square (secondary/subdued only).
    */
   icon?: IconNames;
@@ -195,8 +195,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     // Variants with white text (dark backgrounds) — icons and the loading
     // spinner both render white so they're visible.
     const hasWhiteText = WHITE_TEXT_VARIANTS.includes(variant!);
-    // Icons: 16px on default-size buttons, 12px on small-size buttons.
-    const iconSize = size === "small" ? "small" : "medium";
     // Match the icon to the button text: white on dark-fill variants,
     // ui-fleet-black-75 on the light secondary/subdued variants.
     let iconColor: "core-fleet-white" | "ui-fleet-black-75" | undefined;
@@ -209,7 +207,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     // renders unspaced against the label, since the `--with-icon` gap rule is
     // scoped to ICON_ENABLED_VARIANTS in _styles.scss.
     const iconElement = icon && ICON_ENABLED_VARIANTS.includes(variant!) && (
-      <Icon name={icon} size={iconSize} color={iconColor} />
+      <Icon name={icon} size="medium" color={iconColor} />
     );
     // Icon-only buttons need an explicit accessible name. Browsers fall back
     // to `title` when `aria-label` is missing, so either satisfies a screen

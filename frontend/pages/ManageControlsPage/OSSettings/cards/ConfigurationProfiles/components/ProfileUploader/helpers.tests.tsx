@@ -1,4 +1,6 @@
+import { render, screen } from "@testing-library/react";
 import { AxiosResponse } from "axios";
+import React from "react";
 
 import { IApiError } from "interfaces/errors";
 import { IMdmProfile } from "interfaces/mdm";
@@ -101,6 +103,28 @@ describe("getErrorMessage", () => {
     expect(getErrorMessage(createErrResponse(""), "edit")).toEqual(
       DEFAULT_EDIT_ERROR_MESSAGE
     );
+  });
+
+  it("links the guide in a Fleet 5 removed variable error", () => {
+    render(
+      <div>
+        {getErrorMessage(
+          createErrResponse(
+            'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration'
+          ),
+          "edit"
+        )}
+      </div>
+    );
+
+    expect(
+      screen.getByText(
+        /Couldn't edit\. The "\$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore/
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /fleet-5-migration/ })
+    ).toBeInTheDocument();
   });
 
   it("returns the api reason verbatim when it isn't specially handled", () => {

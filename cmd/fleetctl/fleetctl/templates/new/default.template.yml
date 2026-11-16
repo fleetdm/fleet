@@ -112,7 +112,7 @@ controls:
   # Read more:
   #   • https://fleetdm.com/guides/windows-mdm-setup
   ###########################################################
-  # windows_enabled_and_configured: true
+  # windows_mdm_enabled: true
 
 
 ###########################################################

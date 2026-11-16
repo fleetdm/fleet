@@ -32,9 +32,6 @@ export interface IQueriesTableProps {
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onAddReportClick?: () => void;
   canAddReport?: boolean;
-  isOnlyObserver?: boolean;
-  isObserverPlus?: boolean;
-  isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
     platform?: string; // which targeted platform to filter queries by
@@ -91,9 +88,6 @@ const QueriesTable = ({
   onDeleteQueryClick,
   onAddReportClick,
   canAddReport,
-  isOnlyObserver,
-  isObserverPlus,
-  isAnyTeamObserverPlus,
   router,
   queryParams,
   currentTeamId,
@@ -266,7 +260,7 @@ const QueriesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
-        iconName="filter-alt"
+        iconName="filter"
         isDisabled={isTrulyEmpty}
       />
     );

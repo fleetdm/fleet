@@ -1,0 +1,1 @@
+- Removed the deprecated Puppet module. Its `POST /api/v1/fleet/mdm/apple/profiles/preassign` and `POST /api/v1/fleet/mdm/apple/profiles/match` endpoints now return 410.

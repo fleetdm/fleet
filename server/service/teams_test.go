@@ -35,6 +35,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
+	ds.UpdateTeamUsersFunc = func(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error) {
+		return nil, nil
+	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
@@ -281,8 +284,18 @@ func TestGitOpsCannotManageTeamMembers(t *testing.T) {
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid}, nil
 	}
-	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		return team, nil
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid}, nil
+	}
+	ds.UpdateTeamUsersFunc = func(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error) {
+		previous := make(map[uint]fleet.User, len(set)+len(removeIDs))
+		for _, user := range set {
+			previous[user.ID] = fleet.User{ID: user.ID}
+		}
+		for _, id := range removeIDs {
+			previous[id] = fleet.User{ID: id}
+		}
+		return previous, nil
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id}, nil

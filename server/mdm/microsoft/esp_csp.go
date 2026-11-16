@@ -24,7 +24,7 @@ const espContinuableErrorSuffix = "Reset your device to try again, or proceed an
 const espMaxFailedNamesShown = 3
 
 // ESPSoftwareFailureContinuableErrorText returns the message shown on the Windows ESP failure screen when one or more
-// software installs failed but "Cancel setup if software fails" (require_all_software_windows) is off, so the end user
+// software installs failed but "Cancel setup if software fails" (windows_require_all_software) is off, so the end user
 // is allowed to continue to the desktop.
 func ESPSoftwareFailureContinuableErrorText(failedNames []string) string {
 	list := joinFailedNames(failedNames)

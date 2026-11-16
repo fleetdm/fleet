@@ -426,14 +426,16 @@ const NewLabelPage = ({
     setIsUpdating(false);
   };
 
-  const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
-    // A blank query is reported by formErrors as a required field instead.
-    if (!queryString.trim()) {
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax error without flashing mid-token. Blur / submit still fire
+  // immediately.
+  const debounceValidateSql = useDebouncedCallback((query: string) => {
+    if (!query.trim()) {
       setQuerySyntaxError(null);
       return;
     }
-    setQuerySyntaxError(validateQuery(queryString).error);
-  }, 500);
+    setQuerySyntaxError(validateQuery(query).error);
+  }, 3000);
 
   const onQueryChange = (newQuery: string) => {
     const newFormData = { ...formData, labelQuery: newQuery };
@@ -458,7 +460,25 @@ const NewLabelPage = ({
       return next;
     });
 
-    debounceValidateSQL(newQuery);
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (querySyntaxError) {
+      setQuerySyntaxError(null);
+    }
+    debounceValidateSql(newQuery);
+  };
+
+  // Validate SQL on blur so incomplete queries don't flash a syntax error
+  // mid-type. Also run the full form validation on blur so the required-
+  // field error ("Enter a query") still appears when the user clears the
+  // query and tabs away.
+  const onQueryBlur = () => {
+    setFormErrors(validateNewLabelFormData(formData));
+    if (!formData.labelQuery.trim()) {
+      setQuerySyntaxError(null);
+      return;
+    }
+    setQuerySyntaxError(validateQuery(formData.labelQuery).error);
   };
 
   // form rendering helpers
@@ -509,7 +529,7 @@ const NewLabelPage = ({
               error={formErrors.labelQuery?.message || querySyntaxError}
               name="query"
               onChange={onQueryChange}
-              onBlur={onInputBlur}
+              onBlur={onQueryBlur}
               value={labelQuery}
               label="Query"
               labelActionComponent={
@@ -679,7 +699,7 @@ const NewLabelPage = ({
             <Button
               type="submit"
               isLoading={isUpdating}
-              disabled={disableChildren || isUpdating || !formErrors.isValid}
+              disabled={disableChildren || isUpdating}
             >
               Save
             </Button>

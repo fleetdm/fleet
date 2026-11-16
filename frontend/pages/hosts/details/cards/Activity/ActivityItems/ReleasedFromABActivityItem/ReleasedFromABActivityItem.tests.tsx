@@ -30,6 +30,6 @@ describe("ReleasedFromABActivityItem", () => {
   it("does not render the show details icon", () => {
     render(<ReleasedFromABActivityItem tab="past" activity={mockActivity} />);
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 });

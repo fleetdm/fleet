@@ -7,7 +7,6 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "policy_response",
   "apple_settings",
   "macos_settings",
-  "software_id",
   "software_version_id",
   "software_title_id",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
@@ -39,7 +38,6 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
 export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   "policy_id",
   "policy_response",
-  "software_id",
   "software_version_id",
   "software_title_id",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,

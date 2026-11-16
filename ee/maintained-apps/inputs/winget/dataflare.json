@@ -3,6 +3,7 @@
   "slug": "dataflare/windows",
   "package_identifier": "Dataflare.Dataflare",
   "unique_identifier": "Dataflare",
+  "program_publisher": "dataflare",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",

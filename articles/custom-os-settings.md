@@ -82,16 +82,23 @@ Fleet UI:
 2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
 3. Select either **Profiles** or **Assets** from the sub menu.
-  - To add a configuration profile, select **Add profile** and choose your configuration profile and target.
+  - To add a configuration profile, select **Add profile**. On the **Add profile** page, select **Upload a profile** or paste your profile into the editor. Fleet detects the profile type from its contents.
   - To add an asset, select **Add asset** and choose your asset.
 
-Once the profile is saved, you can edit the profile's targets or replace the configuration file. Hover over the profile row and select the **pencil/edit button** to edit the following:
+4. For a configuration profile, you can enter a **Name** and **Description** (optional). If you leave **Name** empty, Fleet uses the profile's `PayloadDisplayName` (.mobileconfig) or file name (.json and .xml).
 
+5. Select **Edit targets** to target all hosts or custom labels. Targeting is available in Fleet Premium. Then select **Add profile**.
+
+Once the profile is saved, you can edit it. Hover over the profile row and select the **pencil/edit button** to open the **Edit profile** page, where you can edit the following:
+
+  - Name and description.
   - Targets (all hosts or custom). For custom targets, you can edit the labels (include and/or exclude).
-  - Configuration profile. In the edit modal, hover over the uploaded file and select the **pencil/edit button** to upload a replacement file.
-  > The replacement file must match the original:
-  > - **DDM profiles:** same declaration identifier and file name
-  > - **.mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
+  - Configuration profile. Edit the profile in the editor, or select **Upload a profile** to upload a replacement file.
+  > The replacement must match the original:
+  > - **DDM profiles:** same declaration identifier
+  > - **.mobileconfig profiles:** same `PayloadIdentifier`
+
+  Select **Update profile** to save your changes. Changing only the name or description doesn't resend the profile to hosts.
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
@@ -109,7 +116,7 @@ When you combine an include mode with **Exclude any**, the profile applies to ho
 
 If you don't select any labels, the profile applies to all hosts that support its platform.
 
-Fleet UI: on the **Add profile** modal, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
+Fleet UI: on the **Add profile** or **Edit profile** page, select **Edit targets**, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
 
 GitOps: on the profile, set `labels_include_all` or `labels_include_any`, and/or `labels_exclude_any`. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
 
@@ -229,9 +236,9 @@ Fleet UI:
 
 1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
 
-2. Click **Add profile**, and upload a `.mobileconfig` configuration profile.
+2. Click **Add profile**, then upload or paste a `.mobileconfig` configuration profile.
 
-3. Select **End user initiated (manual)** in the **Deploy** dropdown.
+3. Expand **Advanced options** and select **End user initiated (manual)** in the **Deploy** dropdown.
 
 4. Click **Add profile**.
 
@@ -318,6 +325,16 @@ SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\emp
 ```
 
 > If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
+
+#### Conflicting settings in multiple profiles
+
+If two Windows profiles set the same setting (`<LocURI>`) to different values, Fleet accepts both and doesn't show a warning. The host ends up with the value from whichever profile it processes last. The order isn't guaranteed, so the result can differ between hosts.
+
+Only the overlapping setting is affected. For example, if one profile sets the camera and microphone settings, and a second profile only sets the camera, the microphone setting from the first profile still applies. Both profiles show as "Verified" because Fleet only checks that the host returned a success status code, not which value is in effect. If you delete one of the profiles, Fleet doesn't remove the shared setting because the other profile still enforces it. The host keeps its current value, which can be the value from the profile you deleted.
+
+To avoid unexpected results, make sure each setting is in only one profile that applies to a host. If you need different values for different hosts, use [labels](#target-hosts-with-labels) to target each profile.
+
 
 ### Special Android behavior
 

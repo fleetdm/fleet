@@ -8,7 +8,6 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
@@ -75,12 +74,7 @@ const generateTableHeaders = (
       accessor: "cve",
       Cell: (cellProps: ITextCellPropsWithRow) => {
         if (!configOptions?.includeIcon) {
-          return (
-            <TextCell
-              value={cellProps.cell.value}
-              formatter={(name) => formatOperatingSystemDisplayName(name)}
-            />
-          );
+          return <TextCell value={cellProps.cell.value} />;
         }
 
         const { cve } = cellProps.row.original;

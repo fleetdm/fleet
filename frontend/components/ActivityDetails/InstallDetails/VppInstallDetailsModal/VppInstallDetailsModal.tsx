@@ -58,6 +58,7 @@ interface IGetStatusMessageProps {
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  activityCreatedAt?: string;
   platform?: string;
   vppVerifyTimeoutSeconds?: number;
   /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
@@ -91,6 +92,7 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  activityCreatedAt,
   platform,
   vppVerifyTimeoutSeconds,
   canOverrideFailureWithInstalled = false,
@@ -105,8 +107,8 @@ export const getStatusMessage = ({
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-    commandUpdatedAt
-      ? ` (${timeAgo(new Date(commandUpdatedAt), {
+    (activityCreatedAt || commandUpdatedAt)
+      ? ` (${timeAgo(new Date(activityCreatedAt || commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -344,6 +346,7 @@ export type IVppInstallDetails = {
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
+  activityCreatedAt?: string;
   platform?: string;
   /**
    * Set when Fleet failed the install before reaching the device (e.g. an
@@ -399,6 +402,7 @@ export const VppInstallDetailsModal = ({
     fleetInitiated,
     selfService,
     vppTokenLocation,
+    activityCreatedAt,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -565,6 +569,7 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
+    activityCreatedAt,
     platform,
     vppVerifyTimeoutSeconds: Number.isFinite(vppVerifyTimeoutSeconds)
       ? vppVerifyTimeoutSeconds
