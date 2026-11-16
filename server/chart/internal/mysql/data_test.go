@@ -134,6 +134,7 @@ func TestCleanupSCDData(t *testing.T) {
 		{"PreservesOpenAndRecent", testCleanupPreservesOpenAndRecent},
 		{"MultipleBatches", testCleanupMultipleBatches},
 		{"HonorsCtxCancellation", testCleanupHonorsCtxCancellation},
+		{"RecordSnapshotClosesAcrossBatches", testRecordSnapshotClosesAcrossBatches},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -199,6 +200,24 @@ func testCleanupHonorsCtxCancellation(t *testing.T, tdb *testutils.TestDB, ds *D
 	err := ds.CleanupSCDData(ctx, 30)
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, 1, tdb.CountSCDRows(t), "no rows should be deleted when ctx was canceled before the first batch")
+}
+
+func testRecordSnapshotClosesAcrossBatches(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	ctx := t.Context()
+
+	prev := scdCloseBatch
+	scdCloseBatch = 2
+	t.Cleanup(func() { scdCloseBatch = prev })
+
+	bucket := time.Now().UTC().Truncate(time.Hour).Add(-time.Hour)
+	open := map[string]*roaring.Bitmap{"e0": chart.NewBitmap([]uint{1}), "e1": chart.NewBitmap([]uint{1}), "e2": chart.NewBitmap([]uint{1})}
+	require.NoError(t, ds.RecordBucketData(ctx, "cve", bucket, time.Hour, api.SampleStrategySnapshot, open))
+	// An empty snapshot closes every open row: three closes span two batches.
+	require.NoError(t, ds.RecordBucketData(ctx, "cve", bucket.Add(time.Hour), time.Hour, api.SampleStrategySnapshot, nil))
+
+	var stillOpen int
+	require.NoError(t, tdb.DB.GetContext(ctx, &stillOpen, `SELECT COUNT(*) FROM host_scd_data WHERE valid_to = ?`, scdOpenSentinel))
+	assert.Zero(t, stillOpen)
 }
 
 func TestApplyScrubMaskToDataset(t *testing.T) {

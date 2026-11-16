@@ -32,7 +32,7 @@ type HostCustomHostVital struct {
 
 // HostCustomHostVitalValue is the authz subject for setting a host's custom host vital value.
 type HostCustomHostVitalValue struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `json:"fleet_id"`
 }
 
 func (HostCustomHostVitalValue) AuthzType() string {

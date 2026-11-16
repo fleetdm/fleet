@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "11.37.1",
+      "version": "11.39.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.missiveapp.osx';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.missiveapp.osx' AND version_compare(bundle_short_version, '11.37.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.missiveapp.osx' AND version_compare(bundle_short_version, '11.39.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.missiveapp.osx' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.missiveapp.com/11.37.1/Missive-11.37.1.dmg",
+      "installer_url": "https://downloads.missiveapp.com/11.39.0/Missive-11.39.0.dmg",
       "install_script_ref": "9293ee1b",
       "uninstall_script_ref": "e67aed90",
-      "sha256": "de74f51cb9afe85a259b573246aaa124a9218de1d84ac87106ece9e509f719aa",
+      "sha256": "970f1165761a26d003690a47752d1477e301bcc736bcc394b3fba6759f26d2b6",
       "default_categories": [
         "Communication"
       ]

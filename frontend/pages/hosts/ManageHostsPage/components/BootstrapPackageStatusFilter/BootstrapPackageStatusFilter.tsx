@@ -44,7 +44,7 @@ const BootstrapPackageStatusFilter = ({
         options={BOOTSTRAP_PACKAGE_STATUS}
         searchable={false}
         onChange={onChange}
-        iconName="filter-alt"
+        iconName="filter"
       />
     </div>
   );

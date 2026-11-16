@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "24.0.37.92",
+      "version": "24.0.37",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitrixsoft.bitrix24desktop';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitrixsoft.bitrix24desktop' AND version_compare(bundle_version, '24.0.37.92') < 0);",

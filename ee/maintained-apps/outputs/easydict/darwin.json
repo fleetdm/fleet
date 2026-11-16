@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.25.0",
+      "version": "2.26.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.izual.Easydict';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.izual.Easydict' AND version_compare(bundle_short_version, '2.25.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.izual.Easydict' AND version_compare(bundle_short_version, '2.26.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.izual.Easydict' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/tisfeng/Easydict/releases/download/2.25.0/Easydict.dmg",
+      "installer_url": "https://github.com/tisfeng/Easydict/releases/download/2.26.0/Easydict.dmg",
       "install_script_ref": "aa92100e",
       "uninstall_script_ref": "b410f968",
-      "sha256": "a8b6893cd3366c864eaac22fd8fadd52968c5119dd40fe5d61947cad3d2bfd16",
+      "sha256": "b88e29e8ffb62ecad2159964e2b2c06150c522c1de34f41c62faadd750d5715e",
       "default_categories": [
         "Productivity"
       ]

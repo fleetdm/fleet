@@ -10,7 +10,6 @@ const buildCommandsItems = (
   derived: IDerivedContext
 ): ICommandItem[] => {
   const {
-    search,
     canAccessSettings,
     canRunLiveReport,
     canWrite,
@@ -40,21 +39,6 @@ const buildCommandsItems = (
   } = derived;
 
   return [
-    // Add new pack — companion to the "Packs" page in pages.ts. Shares
-    // the same search-regex condition. Kept here so the Commands group
-    // stays self-contained.
-    ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
-      ? [
-          {
-            id: "new-pack",
-            label: "Add new pack",
-            group: "Commands" as const,
-            path: paths.NEW_PACK,
-            keywords: ["packs", "add new pack", "create new pack"],
-          },
-        ]
-      : []),
-
     // View commands — open picker pages with searchable lists. Placed at
     // the top of the Commands group so view actions appear before write
     // actions like Add hosts within this group.

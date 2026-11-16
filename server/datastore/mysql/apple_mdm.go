@@ -537,10 +537,6 @@ ORDER BY name`
 	return res, nil
 }
 
-func (ds *Datastore) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
-	return ds.getMDMAppleConfigProfileByIDOrUUID(ctx, profileID, "")
-}
-
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
 	return ds.getMDMAppleConfigProfileByIDOrUUID(ctx, 0, profileUUID)
 }
@@ -707,12 +703,6 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get declaration custom activation")
 	}
 	return &act, nil
-}
-
-func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, profileID, "")
-	})
 }
 
 func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
@@ -1514,59 +1504,6 @@ WHERE
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
-	}
-	return results, nil
-}
-
-var mdmAppleCommandsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"command_uuid": "nvq.command_uuid",
-	"request_type": "nvq.request_type",
-	"status":       "COALESCE(NULLIF(nvq.status, ''), 'Pending')",
-	"updated_at":   "COALESCE(nvq.result_updated_at, nvq.created_at)",
-	"hostname":     "h.hostname",
-	"device_id":    "ne.device_id",
-	"name":         "nvq.name",
-}
-
-func (ds *Datastore) ListMDMAppleCommands(
-	ctx context.Context,
-	tmFilter fleet.TeamFilter,
-	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMAppleCommand, error) {
-	// Note that right now we are explicitly filtering by ne.type IN ('Device', 'User Enrollment (Device)') but we may want to change
-	// the API to allow and show user channel commands in the future
-	stmt := fmt.Sprintf(`
-SELECT
-    ne.device_id as device_id,
-    nvq.command_uuid,
-    COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
-    COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
-    nvq.request_type,
-    h.hostname,
-    h.team_id,
-    nvq.name
-FROM
-    nano_view_queue nvq
-INNER JOIN
-	nano_enrollments ne
-ON
-	nvq.id = ne.id AND ne.type IN ('Device', 'User Enrollment (Device)')
-INNER JOIN
-    hosts h
-ON
-    ne.id = h.uuid
-WHERE
-   nvq.active = 1 AND
-    %s
-`, ds.whereFilterHostsByTeams(tmFilter, "h"))
-	stmt, params, err := appendListOptionsWithCursorToSQLSecure(stmt, nil, &listOpts.ListOptions, mdmAppleCommandsAllowedOrderKeys)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list commands")
-	}
-
-	var results []*fleet.MDMAppleCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
 }
@@ -3132,15 +3069,6 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context
 		ds.logger.DebugContext(ctx, "userID from nano does not match expected deviceID prefixed format", "deviceID", deviceID, "userID", nanoUser.ID)
 	}
 	return username, userID, nil
-}
-
-// NOTE: this is only called from a deprecated endpoint that does not support
-// Fleet variables in profiles.
-func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles, nil)
-		return err
-	})
 }
 
 // seedSelfServiceProfileOptInsDB opts in every host that has the profiles installed.

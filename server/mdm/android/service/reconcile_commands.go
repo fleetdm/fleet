@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 const (
@@ -80,6 +81,16 @@ func ReconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, logger *s
 		time.Minute/androidCommandReconcileCallsPerMinute)
 }
 
+func reconcileDeviceGetter(client androidmgmt.Client) amapiDeviceGetter {
+	return func(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+		device, err := client.EnterprisesDevicesGet(ctx, deviceName)
+		if androidmgmt.IsNotFoundError(err) {
+			return nil, nil
+		}
+		return device, err
+	}
+}
+
 // reconcileAndroidCommands is the testable core of ReconcileAndroidCommands. now anchors both the
 // pending-age cutoff and the NotFound grace period; callInterval is the delay between AMAPI calls.
 func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client, logger *slog.Logger,
@@ -128,6 +139,22 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 		}
 
 		op, err := client.EnterprisesDevicesOperationsGet(ctx, cmd.OperationName)
+		switch {
+		case err == nil && !op.Done:
+			var wiped bool
+			wiped, err = isWipeOfGoneCurrentDevice(ctx, ds, reconcileDeviceGetter(client), cmd)
+			if wiped {
+				op = &androidmanagement.Operation{Name: op.Name, Done: true, Metadata: op.Metadata}
+			}
+		case androidmgmt.IsNotFoundError(err):
+			wiped, wipeErr := isWipeOfGoneCurrentDevice(ctx, ds, reconcileDeviceGetter(client), cmd)
+			switch {
+			case wipeErr != nil:
+				err = wipeErr
+			case wiped:
+				op, err = &androidmanagement.Operation{Name: cmd.OperationName, Done: true}, nil
+			}
+		}
 		switch {
 		case androidmgmt.IsTooManyRequestsError(err):
 			// Out of AMAPI quota. Stop the run rather than hammering a rate-limited API; the remaining rows

@@ -47,14 +47,6 @@ func (c *Client) ListUsers() ([]fleet.User, error) {
 	return responseBody.Users, nil
 }
 
-// ApplyUsersRoleSecretSpec applies the global and team roles for users.
-func (c *Client) ApplyUsersRoleSecretSpec(spec *fleet.UsersRoleSpec) error {
-	req := applyUserRoleSpecsRequest{Spec: spec}
-	verb, path := "POST", "/api/latest/fleet/users/roles/spec"
-	var responseBody applyUserRoleSpecsResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
-}
-
 func (c *Client) userIdFromEmail(email string) (uint, error) {
 	verb, path := "POST", "/api/latest/fleet/translate"
 	var responseBody translatorResponse

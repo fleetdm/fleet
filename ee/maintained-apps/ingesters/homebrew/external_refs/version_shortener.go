@@ -64,6 +64,23 @@ var (
 	KritaVersionShortener               = makeVersionShortener(3) // re-signed DMG "5.3.4.1" → "5.3.4"
 )
 
+// Apps whose CFBundleVersion is the full cask version. Their patched queries
+// compare bundle_version against the unshortened cask version (see the
+// homebrew ingester), so the shortened version only changes what Fleet shows.
+var (
+	OpenMediaVersionShortener               = makeVersionShortener(2) // 4K apps: "26.3.5" → "26.3"
+	GoogleEarthProVersionShortener          = makeVersionShortener(2) // "7.3.7.1327" → "7.3"
+	DiskDrillVersionShortener               = makeVersionShortener(2) // "6.3.2326" → "6.3"
+	KdenliveVersionShortener                = makeVersionShortener(2) // "26.08.3" → "26.08"
+	SyncMateVersionShortener                = makeVersionShortener(2) // "8.11.604" → "8.11"
+	REDCINEXProVersionShortener             = makeVersionShortener(2) // "65.2.1" → "65.2"
+	Bitrix24VersionShortener                = makeVersionShortener(3) // "24.0.37.92" → "24.0.37"
+	ChromeRemoteDesktopHostVersionShortener = makeVersionShortener(3) // "157.0.8103.38" → "157.0.8103"
+	MalwarebytesVersionShortener            = makeVersionShortener(3) // "5.29.2.4310" → "5.29.2"
+	PlexMediaServerVersionShortener         = makeVersionShortener(3) // "1.43.5.11079" → "1.43.5"
+	SigmaOSVersionShortener                 = makeVersionShortener(3) // "1.19.0.4" → "1.19.0"
+)
+
 // makeTrailingZeroTrimmer returns a manifest enricher that drops trailing ".0"
 // segments from the Homebrew version, keeping at least minSegments, for apps
 // whose bundle_short_version omits them ("4.6" for "4.6.0") but keeps a

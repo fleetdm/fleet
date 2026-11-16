@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "276.4.5325",
+      "version": "278.4.4020",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox' AND version_compare(bundle_short_version, '276.4.5325') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getdropbox.dropbox' AND version_compare(bundle_short_version, '278.4.4020') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.getdropbox.dropbox' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20276.4.5325.arm64.dmg",
+      "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20278.4.4020.arm64.dmg",
       "install_script_ref": "5fe973f6",
       "uninstall_script_ref": "f1144b32",
-      "sha256": "8f85b633f43dbd6d9b4a0d98d7183f0094ac2491225863f272edd7419368264d",
+      "sha256": "361138512d9f367516fa536230d96f838f5e643b9613a9d1d2c6a706869f45ed",
       "default_categories": [
         "Productivity"
       ]

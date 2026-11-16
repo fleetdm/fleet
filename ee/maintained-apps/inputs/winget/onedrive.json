@@ -3,6 +3,7 @@
   "slug": "onedrive/windows",
   "package_identifier": "Microsoft.OneDrive",
   "unique_identifier": "Microsoft OneDrive",
+  "open_process_name_prefix": "onedrive",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

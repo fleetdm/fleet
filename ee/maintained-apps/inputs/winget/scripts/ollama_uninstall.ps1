@@ -254,6 +254,12 @@ try {
         # touch the Ollama folder in that user's own profile.
         $installDir = ""
         if ($uninstaller.ExePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $uninstaller.ExePath -Parent)) } catch {} }
+        # Resolve-Uninstaller redirects only an uninstaller it can find, so without one
+        # a 32-bit installer's SYSTEM-profile copy still points into system32.
+        if (-not $entry.Sid -and $installDir -and -not (Test-Path -LiteralPath $installDir)) {
+            $redirected = $installDir -replace '(?i)\\system32\\', '\SysWOW64\'
+            if (Test-Path -LiteralPath $redirected) { $installDir = $redirected }
+        }
         $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq "Ollama"
         $profilePath = $null
         if ($entry.Sid) {

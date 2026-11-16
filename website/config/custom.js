@@ -42,6 +42,16 @@ module.exports.custom = {
 
   /**************************************************************************
   *                                                                         *
+  * How many requests each Fleet Free registration can make to the          *
+  * configuration profile generator in a UTC calendar month.  Fleet         *
+  * Premium is not limited.                                                 *
+  *                                                                         *
+  **************************************************************************/
+  profileGeneratorMonthlyProfileLimit: 15,
+  profileGeneratorMonthlyNameAndDescriptionLimit: 45,
+
+  /**************************************************************************
+  *                                                                         *
   * Automated email configuration                                           *
   *                                                                         *
   * Sandbox Sendgrid credentials for use during development, as well as any *
@@ -206,7 +216,15 @@ module.exports.custom = {
     'ee/maintained-apps/inputs': 'allenhouchins',
   },
 
-  // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
+  /***************************************************************************
+  *                                                                          *
+  * Same as above, but for fleetdm/confidential.  (Paths without a DRI here  *
+  * fall back to the CODEOWNERS file in fleetdm/confidential.)               *
+  *                                                                          *
+  ***************************************************************************/
+  confidentialGithubRepoDRIByPath: {// fleetdm/confidential
+    '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+  },
 
 
   //  ███╗   ███╗ █████╗ ██╗███╗   ██╗████████╗ █████╗ ██╗███╗   ██╗███████╗██████╗ ███████╗
@@ -352,6 +370,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
     '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
     '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/fasttrack.md': ['zayhanlon', 'ireedy', 'sampfluger88', 'ddribeiro', 'mikermcneil'],
 
     // GTM
     'go-to-market': ['sampfluger88'],

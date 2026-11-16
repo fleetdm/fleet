@@ -207,7 +207,7 @@ export const isMDMConfiguredForPlatform = (
   }
 
   if (isWindows(platform)) {
-    return mdmConfig.windows_enabled_and_configured;
+    return mdmConfig.windows_mdm_enabled;
   }
 
   if (isAppleDevice(platform)) {
@@ -227,7 +227,7 @@ export const isMDMConfiguredForPlatform = (
 export const isAnyMDMConfigured = (mdmConfig: IMdmConfig | undefined) =>
   !!mdmConfig &&
   (mdmConfig.enabled_and_configured ||
-    mdmConfig.windows_enabled_and_configured ||
+    mdmConfig.windows_mdm_enabled ||
     mdmConfig.android_enabled_and_configured);
 
 export const platformToMDMLabel = (platform: ProfilePlatform) => {

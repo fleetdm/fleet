@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -412,8 +413,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.MDM.EnableRecoveryLockPassword.Valid {
 			recoveryLockPasswordUpdated = team.Config.MDM.EnableRecoveryLockPassword != payload.MDM.EnableRecoveryLockPassword.Value
 			if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
-					`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`)
+				return nil, fleet.NewInvalidArgumentError("mdm.macos_recovery_lock_password_enabled",
+					`Couldn't update macos_recovery_lock_password_enabled because MDM features aren't turned on in Fleet.`)
 			}
 			team.Config.MDM.EnableRecoveryLockPassword = payload.MDM.EnableRecoveryLockPassword.Value
 		}
@@ -462,19 +463,26 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSetup != nil {
-			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			enableEUA := payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			macOSEnableEndUserAuthUpdated = enableEUA.Set && team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != enableEUA.Value
+			if macOSEnableEndUserAuthUpdated && enableEUA.Value && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 				// TODO: update this error message to include steps to resolve the issue once docs for IdP
 				// config are available
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
 					`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`))
 			}
 
-			if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
-				return nil, err
+			// Like Update setup experience, only when the request turns end user authentication on, so other
+			// setup_experience changes (such as the Windows managed local account) aren't blocked.
+			if enableEUA.Valid && enableEUA.Value {
+				if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
+					return nil, err
+				}
 			}
 
-			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			if enableEUA.Set {
+				team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = enableEUA.Value
+			}
 			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
 			// Also sync when EUA was just disabled so the Lock-requires-EUA invariant below stays satisfied.
 			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid &&
@@ -497,8 +505,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			macOSManagedLocalAccountUpdated = payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set &&
 				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 			if macOSManagedLocalAccountUpdated && payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value && !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("setup_experience.enable_managed_local_account",
-					`Couldn't update setup_experience.enable_managed_local_account because MDM features aren't turned on in Fleet.`)
+				return nil, fleet.NewInvalidArgumentError("setup_experience.macos_managed_local_account_enabled",
+					`Couldn't update setup_experience.macos_managed_local_account_enabled because MDM features aren't turned on in Fleet.`)
 			}
 
 			// move over values that we just validated, so they get updated, but only if set since this is partial patch.
@@ -510,14 +518,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-			newEnabled := payload.MDM.WindowsSettings.EnableManagedLocalAccount
-			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newEnabled.Value
+		if payload.MDM.MacOSSetup != nil && payload.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+			newEnabled := payload.MDM.MacOSSetup.EnableManagedLocalAccountWindows
+			windowsManagedLocalAccountUpdated = team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != newEnabled.Value
 			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
-					"Couldn't update windows_settings.enable_managed_local_account because Windows MDM isn't turned on in Fleet.")
+				return nil, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
+					"Couldn't update setup_experience.windows_managed_local_account_enabled because Windows MDM isn't turned on in Fleet.")
 			}
-			team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newEnabled
+			team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newEnabled
 		}
 	}
 
@@ -797,7 +805,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 	if windowsManagedLocalAccountUpdated {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
@@ -984,27 +992,22 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		}
 	}
 
-	team, err := svc.ds.TeamWithExtras(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Replace existing
-	for i, existingUser := range team.Users {
-		if user, ok := idMap[existingUser.ID]; ok {
-			team.Users[i] = user
-			delete(idMap, user.ID)
+	previous, err := svc.ds.UpdateTeamUsers(ctx, teamID, slices.Collect(maps.Values(idMap)), nil)
+	if err != nil {
+		return nil, err
+	}
+	for id, user := range idMap {
+		if err := svc.logTeamRoleChange(ctx, team, previous[id], user.Role); err != nil {
+			return nil, err
 		}
 	}
 
-	// Add new (that have not already been replaced)
-	for _, user := range idMap {
-		team.Users = append(team.Users, user)
-	}
-
-	logging.WithExtras(ctx, "users", team.Users)
-
-	return svc.ds.SaveTeam(ctx, team)
+	return svc.teamAfterUsersChange(ctx, teamID)
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -1017,24 +1020,52 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.TeamWithExtras(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	newUsers := []fleet.TeamUser{}
-	// Delete existing
-	for _, existingUser := range team.Users {
-		if _, ok := idMap[existingUser.ID]; !ok {
-			// Only add non-deleted users
-			newUsers = append(newUsers, existingUser)
+	previous, err := svc.ds.UpdateTeamUsers(ctx, teamID, nil, slices.Collect(maps.Keys(idMap)))
+	if err != nil {
+		return nil, err
+	}
+	for _, user := range previous {
+		if err := svc.logTeamRoleChange(ctx, team, user, ""); err != nil {
+			return nil, err
 		}
 	}
-	team.Users = newUsers
 
+	return svc.teamAfterUsersChange(ctx, teamID)
+}
+
+// logTeamRoleChange logs the activity for a change to previous's role in team. An empty newRole means no role in the team.
+func (svc *Service) logTeamRoleChange(ctx context.Context, team *fleet.TeamLite, previous fleet.User, newRole string) error {
+	var oldRoles []fleet.UserTeam
+	for _, userTeam := range previous.Teams {
+		if userTeam.ID == team.ID {
+			oldRoles = append(oldRoles, userTeam)
+		}
+	}
+	changed := previous
+	changed.Teams = nil
+	if newRole != "" {
+		changed.Teams = []fleet.UserTeam{{ID: team.ID, Name: team.Name, Role: newRole}}
+	}
+	if err := fleet.LogRoleChangeActivities(
+		ctx, svc, authz.UserFromContext(ctx), previous.GlobalRole, oldRoles, &changed, false,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "log activities for role change")
+	}
+	return nil
+}
+
+func (svc *Service) teamAfterUsersChange(ctx context.Context, teamID uint) (*fleet.Team, error) {
+	team, err := svc.ds.TeamWithExtras(ctxdb.RequirePrimary(ctx, true), teamID)
+	if err != nil {
+		return nil, err
+	}
 	logging.WithExtras(ctx, "users", team.Users)
-
-	return svc.ds.SaveTeam(ctx, team)
+	return team, nil
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
@@ -1656,7 +1687,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				})
 			}
 
-			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
+			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
@@ -1720,7 +1751,7 @@ func (svc *Service) createTeamFromSpec(
 	spec *fleet.TeamSpec,
 	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
-	dryRun bool,
+	opts fleet.ApplyTeamSpecOptions,
 ) (*fleet.Team, error) {
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
@@ -1756,6 +1787,9 @@ func (svc *Service) createTeamFromSpec(
 	if !macOSSetup.EndUserLocalAccountType.Valid {
 		macOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !macOSSetup.EnableManagedLocalAccountWindows.Valid {
+		macOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
+	}
 
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
 		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value ||
@@ -1770,9 +1804,18 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`))
 	}
 
-	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
-			`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+	// A dry run validates against the Windows MDM state the global config would set, as editTeamFromSpec does.
+	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
+	}
+	if macOSSetup.RequireAllSoftwareWindows && !windowsEnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
+			`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+	}
+	if macOSSetup.EnableManagedLocalAccountWindows.Value && !windowsEnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
+			`Couldn't enable setup_experience.windows_managed_local_account_enabled. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	// Default the value of "lock_end_user_info" to the value of "enable_end_user_authentication" if not explicitly set in the spec to keep prior
@@ -1876,7 +1919,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
@@ -1895,7 +1938,7 @@ func (svc *Service) createTeamFromSpec(
 		conditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
 			if err != nil {
@@ -1912,7 +1955,7 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		return &fleet.Team{Name: spec.Name}, nil
 	}
 
@@ -2209,8 +2252,8 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.EnableRecoveryLockPassword.Valid {
 		didUpdateRecoveryLockPassword = team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
 		if didUpdateRecoveryLockPassword && !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
-				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.macos_recovery_lock_password_enabled",
+				`Couldn't update macos_recovery_lock_password_enabled because MDM features aren't turned on in Fleet.`))
 		}
 		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
 	}
@@ -2240,6 +2283,9 @@ func (svc *Service) editTeamFromSpec(
 	}
 	if !team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if !team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
@@ -2316,8 +2362,8 @@ func (svc *Service) editTeamFromSpec(
 	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
 	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
 		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software",
-				`Couldn't update setup_experience.require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_require_all_software",
+				`Couldn't update setup_experience.macos_require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
@@ -2347,8 +2393,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 	if didUpdateWindowsRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftwareWindows {
 		if !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
-				`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
+				`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
@@ -2361,14 +2407,14 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
 	var didUpdateWindowsManagedLocalAccount bool
-	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.EnableManagedLocalAccount
-		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newWindowsManagedLocalAccount.Value
+	if spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		newWindowsManagedLocalAccount := spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows
+		didUpdateWindowsManagedLocalAccount = team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != newWindowsManagedLocalAccount.Value
 		if didUpdateWindowsManagedLocalAccount && newWindowsManagedLocalAccount.Value && !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
-				"Couldn't enable windows_settings.enable_managed_local_account. "+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
+				"Couldn't enable setup_experience.windows_managed_local_account_enabled. "+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
-		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
@@ -2602,7 +2648,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if didUpdateWindowsManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
@@ -2972,6 +3018,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	var didUpdateWindowsManagedLocalAccount bool
+	if payload.EnableManagedLocalAccountWindows != nil && tm.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != *payload.EnableManagedLocalAccountWindows {
+		tm.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(*payload.EnableManagedLocalAccountWindows)
+		didUpdateWindowsManagedLocalAccount = true
+		didUpdate = true
+	}
+
 	if didUpdateFromValidation, err := payload.Validate(&tm.Config.MDM.MacOSSetup); err != nil {
 		return err
 	} else if didUpdateFromValidation {
@@ -2989,6 +3042,11 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 		if didUpdateMacOSManagedLocalAccount {
 			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &tm.ID, &tm.Name); err != nil {
+				return err
+			}
+		}
+		if didUpdateWindowsManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", &tm.ID, &tm.Name); err != nil {
 				return err
 			}
 		}

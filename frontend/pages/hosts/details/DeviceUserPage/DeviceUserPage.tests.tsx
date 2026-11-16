@@ -279,7 +279,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is not true", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is not true", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -317,7 +317,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is true but the device is not on macos", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is true but the device is not on macos", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -332,7 +332,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -369,7 +369,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+    it("renders the setup experience failure page if some software failed and macos_require_all_software is true and the host is a mac", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -384,7 +384,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -633,7 +633,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -658,7 +658,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -683,7 +683,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: false,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -709,7 +709,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -899,13 +899,13 @@ describe("Device User Page", () => {
           })
         );
         // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
-        await screen.findByText(/fetching fresh vitals/i);
+        await screen.findByText(/refetching\.\.\./i);
         // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
         mockNow += 200000;
         await waitFor(
           () =>
             expect(
-              screen.queryByText(/fetching fresh vitals/i)
+              screen.queryByText(/refetching\.\.\./i)
             ).not.toBeInTheDocument(),
           { timeout: 4000 }
         );

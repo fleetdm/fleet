@@ -78,7 +78,8 @@ const ManageFleetsPage = ({
     if (!isCreateFleetDisabled) {
       setShowCreateFleetModal(true);
     }
-    const { create_fleet, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.create_fleet;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,

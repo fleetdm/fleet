@@ -62,6 +62,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerConflictingFMA", testMatchOrCreateSoftwareInstallerConflictingFMA},
 		{"MatchOrCreateSoftwareInstallerConflictingFMAWindows", testMatchOrCreateSoftwareInstallerConflictingFMAWindows},
 		{"ConflictingFMAReplicaLag", testConflictingFMAReplicaLag},
+		{"SharedUpgradeCodeFMATitleName", testSharedUpgradeCodeFMATitleName},
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -356,13 +357,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost1))
 	require.Equal(t, hostInstall1, pendingHost1[0])
 	require.Equal(t, hostInstall2, pendingHost1[1])
 
-	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingHost2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost2))
 	require.Equal(t, hostInstall3, pendingHost2[0])
@@ -395,11 +396,11 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	installDetailsList1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
 
-	installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	installDetailsList2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 
@@ -461,7 +462,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
 	require.NoError(t, err)
 
-	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
+	hostInstalls4, err := ds.listUpcomingSoftwareInstalls(ctx, host3.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, hostInstalls4)
 
@@ -1611,7 +1612,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1634,7 +1635,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingHost1, 1)
 
@@ -1702,7 +1703,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1941,7 +1942,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.NoError(t, err)
 	require.NotNil(t, kept.SoftwareInstallerID)
 	require.Equal(t, firstID, *kept.SoftwareInstallerID)
-	pending, err := ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	pending, err := ds.listUpcomingSoftwareInstalls(ctx, host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 
@@ -5542,6 +5543,83 @@ func testConflictingFMAReplicaLag(t *testing.T, _ *Datastore) {
 	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
 }
 
+// The x64 and ARM64 Chrome MSIs share an upgrade code, so the two FMAs land on one title
+// when added to different fleets. The title takes the x64 FMA's name whichever is added
+// first, instead of being renamed on every add.
+func testSharedUpgradeCodeFMATitleName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	teamX64, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " x64"})
+	require.NoError(t, err)
+	teamARM, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " arm64"})
+	require.NoError(t, err)
+
+	chrome, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Google Chrome", Slug: "google-chrome/windows", Platform: "windows", UniqueIdentifier: "Google Chrome",
+	})
+	require.NoError(t, err)
+	chromeARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Google Chrome (ARM64)", Slug: "google-chrome-arm64/windows", Platform: "windows", UniqueIdentifier: "Google Chrome",
+	})
+	require.NoError(t, err)
+
+	mkFMA := func(teamID uint, app *fleet.MaintainedApp, storage, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			Extension:            "msi",
+			StorageID:            storage,
+			Filename:             storage + ".msi",
+			Title:                app.Name,
+			UpgradeCode:          "{C1DFDF69-5945-32F2-A35E-EE94C99C7CF4}",
+			Version:              version,
+			Source:               "programs",
+			Platform:             "windows",
+			FleetMaintainedAppID: new(app.ID),
+			FMAName:              app.Name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &teamID,
+		}
+	}
+	titleName := func(titleID uint) string {
+		var name string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &name, `SELECT name FROM software_titles WHERE id = ?`, titleID)
+		})
+		return name
+	}
+
+	x64InstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamX64.ID, chrome, "chrome-x64", "156.0.8078.48"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, armTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64", "156.0.8078.48"))
+	require.NoError(t, err)
+	require.Equal(t, titleID, armTitleID)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-next", "157.0.8100.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	// Once the ARM64 FMA is the only one on the title, its adds rename it as before.
+	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, x64InstallerID))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-later", "158.0.8200.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome (ARM64)", titleName(titleID))
+
+	// Adding the x64 FMA after the ARM64 one takes the name back, and it stays.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamX64.ID, chrome, "chrome-x64-later", "158.0.8200.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-latest", "159.0.8300.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+}
+
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -7552,19 +7630,19 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// A literal pin round-trips.
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "1.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "1.0"))
 	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("1.0"), pin)
 
 	// Upsert overwrites in place (literal -> caret).
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "^1"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "^1"))
 	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// A different team's pin on the same title is independent.
-	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, "2.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *otherTeam, titleID, "2.0"))
 	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)

@@ -1,0 +1,2 @@
+- Fixed a bug where the global activity feed showed 0 hosts for a canceled batch script run.
+- Fixed a bug where hosts that reported script results after a batch script run was canceled did not count as canceled.

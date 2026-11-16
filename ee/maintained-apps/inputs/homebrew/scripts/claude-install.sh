@@ -116,7 +116,7 @@ relaunch_application() {
 
 
 # extract contents
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+unzip "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
 # copy to the applications folder
 quit_and_track_application 'com.anthropic.claudefordesktop' || exit 1
 if [ -d "$APPDIR/Claude.app" ]; then

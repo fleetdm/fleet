@@ -35,7 +35,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserCreateAssociatesAllMatchingHosts", testScimUserCreateAssociatesAllMatchingHosts},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"ReplaceScimUserRenameUpdatesHostIdPMapping", testReplaceScimUserRenameUpdatesHostIdPMapping},
-		{"ReplaceScimUserRenameResendsEmailIdPProfiles", testReplaceScimUserRenameResendsEmailIdPProfiles},
+		{"ReplaceScimUserRenameResendsIdPUsernameProfiles", testReplaceScimUserRenameResendsIdPUsernameProfiles},
 		{"ReplaceScimUserEmails", testReplaceScimUserEmails},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
 		{"DeleteScimUser", testDeleteScimUser},
@@ -3006,7 +3006,7 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// "ca" is a prefix of "ca_groups", so a resend for "ca" must not match the "ca_groups" profile.
-	newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
+	newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithBraces(), nil)
 	newDigiCertCA(t, ds, "ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
 	serialCA := newDigiCertCA(t, ds, "ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
 
@@ -3048,7 +3048,7 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	checkResend(fleet.FleetVarHostEndUserIDPUsername, profUsername)
-	checkResend(fleet.FleetVarHostEndUserEmailIDP, profUsername)
+	checkResend(fleet.FleetVarHostEndUserIDPUsernameLocalPart, profUsername)
 	checkResend(fleet.FleetVarHostEndUserIDPGroups, profGroups)
 	checkResend(fleet.FleetVarHostEndUserIDPFullname)
 	checkResend(fleet.FleetVarHostEndUserIDPDepartment, profEJBCA)
@@ -3665,7 +3665,7 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		// rewritten in place: same row id, same source
 		require.Equal(t, rowID, requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName))
 
-		// $FLEET_VAR_HOST_END_USER_EMAIL_IDP resolves from this source only
+		// a host without a SCIM user takes its IdP username from this source
 		emails, err := ds.GetHostEmails(ctx, fx.host.UUID, fleet.DeviceMappingMDMIdpAccounts)
 		require.NoError(t, err)
 		require.Equal(t, []string{newName}, emails)
@@ -3941,125 +3941,71 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 	})
 }
 
-func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastore) {
+func testReplaceScimUserRenameResendsIdPUsernameProfiles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	const oldName, newName = "kate@example.com", "kate.long@example.com"
-	fx := newScimIdPMappingHost(t, ds, "resend", "kate", oldName, oldName)
-
-	profEmail, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("email", "email", 0), nil)
+	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("username", "username", 0), nil)
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
 	require.NoError(t, err)
-
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
-			SELECT ?, id FROM fleet_variables WHERE name = ?`, profEmail.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP))
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profUsername.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername))
 		return err
 	})
 
-	forceSetAppleHostProfileStatus(t, ds, fx.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-	forceSetAppleHostProfileStatus(t, ds, fx.host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-
-	// userName unchanged: nothing resent
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: oldName, Department: new("Support")})
+	// a host on the IdP account without a SCIM link takes its IdP username from the IdP email, so its profiles are resent
+	// when the email moves with the account, along with those of the linked host. A host on the account that another SCIM
+	// user is linked to takes its IdP username from that user, so it has nothing to resend.
+	const oldName, newName = "mia@example.com", "mia.chen@example.com"
+	linked := newScimIdPMappingHost(t, ds, "resendshared", "mia", oldName, oldName)
+	unlinked := newScimIdPMappingHostOnly(t, ds, "resendunlinked")
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, linked.acct.UUID)
 	require.NoError(t, err)
-	assertHostProfileStatus(t, ds, fx.host.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
-
-	// address-to-address rename: the profile using the IdP email is resent
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: newName, Department: new("Support")})
+	requireHostIdPDeviceMapping(t, ds, unlinked.ID, oldName)
+	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
+	require.True(t, fleet.IsNotFound(err))
+	otherUser := newScimIdPMappingHostOnly(t, ds, "resendotheruser")
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, otherUser.UUID, linked.acct.UUID)
 	require.NoError(t, err)
-	assertHostProfileStatus(t, ds, fx.host.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending},
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
-
-	// renames to or from a bare login leave the IdP email in place
-	forceSetAppleHostProfileStatus(t, ds, fx.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-	for _, name := range []string{"klong", "kate.long@example.com"} {
-		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: name, Department: new("Support")})
-		require.NoError(t, err)
-		assertHostProfileStatus(t, ds, fx.host.UUID,
-			hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying},
+	otherScimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "zoe@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, otherUser.ID, otherScimUserID))
+	setVerifying := func() {
+		for _, h := range []*fleet.Host{linked.host, unlinked, otherUser} {
+			forceSetAppleHostProfileStatus(t, ds, h.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+			forceSetAppleHostProfileStatus(t, ds, h.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		}
+	}
+	assertUnlinked := func(status fleet.MDMDeliveryStatus) {
+		assertHostProfileStatus(t, ds, unlinked.UUID,
+			hostProfileStatus{profUsername.ProfileUUID, status},
 			hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
 	}
 
-	// an address-to-address rename that moves no mapping resends nothing: an
-	// operator pointed this host at a different user, so the value the profile
-	// resolves is untouched
-	const otherOld, otherNew = "liam@example.com", "liam.jones@example.com"
-	other := newScimIdPMappingHost(t, ds, "resendmanual", "liam", otherOld, otherOld)
-	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, other.host.ID, "someone.else@example.com")
-	require.NoError(t, err)
-	forceSetAppleHostProfileStatus(t, ds, other.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	// userName unchanged, or renamed to a bare login that leaves the IdP email in place: nothing to resend on the unlinked host
+	setVerifying()
+	for _, name := range []string{oldName, "mchen", oldName} {
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: linked.scimUserID, UserName: name, Department: new("Support")})
+		require.NoError(t, err)
+		assertUnlinked(fleet.MDMDeliveryVerifying)
+	}
 
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: other.scimUserID, UserName: otherNew})
+	setVerifying()
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: linked.scimUserID, UserName: newName, Department: new("Support")})
 	require.NoError(t, err)
-	requireHostIdPDeviceMapping(t, ds, other.host.ID, "someone.else@example.com")
-	assertHostProfileStatus(t, ds, other.host.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
-
-	// a host on the same IdP account without a SCIM link moves with the account
-	const sharedOld, sharedNew = "mia@example.com", "mia.chen@example.com"
-	shared := newScimIdPMappingHost(t, ds, "resendshared", "mia", sharedOld, sharedOld)
-	unlinked := newScimIdPMappingHostOnly(t, ds, "resendunlinked")
-	_, err = ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, shared.acct.UUID)
-	require.NoError(t, err)
-	requireHostIdPDeviceMapping(t, ds, unlinked.ID, sharedOld)
-	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
-	require.True(t, fleet.IsNotFound(err))
-	forceSetAppleHostProfileStatus(t, ds, shared.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-	forceSetAppleHostProfileStatus(t, ds, unlinked.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-	forceSetAppleHostProfileStatus(t, ds, unlinked.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: shared.scimUserID, UserName: sharedNew})
-	require.NoError(t, err)
-	requireHostIdPDeviceMapping(t, ds, shared.host.ID, sharedNew)
-	requireHostIdPDeviceMapping(t, ds, unlinked.ID, sharedNew)
-	assertHostProfileStatus(t, ds, shared.host.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending})
-	assertHostProfileStatus(t, ds, unlinked.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending},
+	requireHostIdPDeviceMapping(t, ds, linked.host.ID, newName)
+	requireHostIdPDeviceMapping(t, ds, unlinked.ID, newName)
+	assertHostProfileStatus(t, ds, linked.host.UUID,
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
-	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
-	require.True(t, fleet.IsNotFound(err))
-
-	// a host already showing the new address has nothing to resolve again
-	const dualOld, dualNew = "opal@example.com", "opal.vance@example.com"
-	dual := newScimIdPMappingHost(t, ds, "resenddualold", "opal", dualOld, dualOld)
-	dualNewHost := newScimIdPMappingHostOnly(t, ds, "resenddualnew")
-	dualNewAcct := insertScimIdPAccount(t, ds, "opal.vance", dualNew)
-	_, err = ds.AssociateHostMDMIdPAccount(ctx, dualNewHost.UUID, dualNewAcct.UUID)
+	assertUnlinked(fleet.MDMDeliveryPending)
+	requireHostIdPDeviceMapping(t, ds, otherUser.ID, newName)
+	assertHostProfileStatus(t, ds, otherUser.UUID,
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+	endUsers, err := fleet.GetEndUsers(ctx, ds, unlinked.ID)
 	require.NoError(t, err)
-	requireHostIdPDeviceMapping(t, ds, dualNewHost.ID, dualNew)
-	require.NoError(t, ds.associateHostWithScimUser(ctx, dualNewHost.ID, dual.scimUserID))
-	forceSetAppleHostProfileStatus(t, ds, dual.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-	forceSetAppleHostProfileStatus(t, ds, dualNewHost.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: dual.scimUserID, UserName: dualNew})
-	require.NoError(t, err)
-
-	assertHostProfileStatus(t, ds, dual.host.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryPending})
-	assertHostProfileStatus(t, ds, dualNewHost.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
-
-	// a manual-only mapping is not a source for the IdP email variable: no resend
-	const manualOld, manualNew = "noah@example.com", "noah.kim@example.com"
-	manual := newScimIdPMappingHostOnly(t, ds, "resendmanualonly")
-	_, err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, manual.ID, manualOld)
-	require.NoError(t, err)
-	manualScimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: manualOld})
-	require.NoError(t, err)
-	manualScimUser, err := ds.ScimUserByHostID(ctx, manual.ID)
-	require.NoError(t, err)
-	require.Equal(t, manualScimUserID, manualScimUser.ID)
-	forceSetAppleHostProfileStatus(t, ds, manual.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: manualScimUserID, UserName: manualNew})
-	require.NoError(t, err)
-	requireHostIdPDeviceMapping(t, ds, manual.ID, manualNew)
-	assertHostProfileStatus(t, ds, manual.UUID,
-		hostProfileStatus{profEmail.ProfileUUID, fleet.MDMDeliveryVerifying})
+	require.Len(t, endUsers, 1)
+	require.Equal(t, newName, endUsers[0].IdpUserName)
 }

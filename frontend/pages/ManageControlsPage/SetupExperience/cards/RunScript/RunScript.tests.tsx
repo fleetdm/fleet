@@ -65,7 +65,7 @@ describe("RunScript", () => {
       createGetConfigHandler({
         mdm: createMockMdmConfig({
           enabled_and_configured: true,
-          apple_bm_enabled_and_configured: false,
+          apple_business_enabled_and_configured: false,
         }),
       })
     );

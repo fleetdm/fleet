@@ -45,10 +45,8 @@ const CustomLink = ({
   disableKeyboardNavigation = false,
   variant = "default",
 }: ICustomLinkProps): JSX.Element => {
-  const iconName =
-    useContext(CustomLinkSizeContext) === "small"
-      ? "external-link-small"
-      : "external-link";
+  const iconSize =
+    useContext(CustomLinkSizeContext) === "small" ? "small" : "medium";
 
   const getIconColor = (): Colors => {
     switch (variant) {
@@ -87,7 +85,8 @@ const CustomLink = ({
         <span className={`${baseClass}__last-word`}>{lastWord}</span>
         {newTab && (
           <Icon
-            name={iconName}
+            name="external-link"
+            size={iconSize}
             className={`${baseClass}__external-icon`}
             color={getIconColor()}
           />
@@ -99,7 +98,8 @@ const CustomLink = ({
       {text}
       {newTab && variant !== "button" && (
         <Icon
-          name={iconName}
+          name="external-link"
+          size={iconSize}
           className={`${baseClass}__external-icon`}
           color={getIconColor()}
         />

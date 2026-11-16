@@ -22,17 +22,13 @@ org_settings:
       idp_name: Okta
       metadata_url: "$DOGFOOD_OKTA_METADATA_URL_END_USERS"
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
+    windows_eula: ../it-and-security/lib/windows/misc/eula.md
     apple_business:
       - organization_name: Fleet Device Management Inc.
         macos_fleet: "💻 Workstations"
         ios_fleet: "📱🏢 Employee-issued mobile devices"
         ipados_fleet: "📱🏢 Employee-issued mobile devices"
         byod_fleet: "📱🔐 Personal mobile devices"
-      - organization_name: Mactivate LLC
-        macos_fleet: "🧪 Testing & QA"
-        ios_fleet: "🧪 Testing & QA"
-        ipados_fleet: "🧪 Testing & QA"
-        byod_fleet: "🧪 Testing & QA"
     windows_automatic_enrollment:
       default_fleet: "💻 Workstations"
     volume_purchasing_program:
@@ -117,8 +113,6 @@ labels:
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
   - path: ./lib/all/labels/x86-based-linux-hosts.yml
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
-  - path: ./lib/all/labels/macos-15-and-older-hosts.yml
-  - path: ./lib/all/labels/macs-not-enrolled-through-ade.yml
   - path: ./lib/all/labels/keynote-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/macos-screen-lock-exclusions.yml

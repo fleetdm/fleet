@@ -159,6 +159,24 @@ describe("useProfileGeneration", () => {
     });
   });
 
+  it("ends the run on the limit from the name request alone", async () => {
+    const { result } = start();
+    await act(async () =>
+      nameDescription.reject({
+        status: 429,
+        headers: { "retry-after": "2505600" },
+        data: { errors: [{ name: "base", reason: "Limit reached." }] },
+      })
+    );
+    expect(result.current.status).toBe("error");
+    expect(result.current.error).toEqual({
+      kind: "limit",
+      reason: "Limit reached.",
+      retryAfterDays: 29,
+    });
+    expect(contentSpy.mock.calls[0][0].signal.aborted).toBe(true);
+  });
+
   it("treats Fleet's own AI service timeout as the cap", async () => {
     const onTimeout = jest.fn();
     const { result } = start(onTimeout);
