@@ -64,11 +64,11 @@ To ask for a passcode during setup, update each configuration:
 
 1. In Fleet, head to **Settings > Integrations > Mobile device management (MDM)**.
 2. Under **Android zero-touch**, select **Setup**.
-3. Pick the fleet. The first time you view a fleet after upgrading, Fleet creates new DPC extras for it.
-4. Copy the **DPC extras** JSON.
+3. Pick the fleet.
+4. Copy the new **DPC extras** JSON.
 5. In the [Android zero-touch portal](https://enterprise.google.com/android/zero-touch/customers), select **Configurations** and open the configuration for that fleet.
 6. Replace the **DPC extras** with the JSON you copied, then save the configuration.
-7. Repeat for each fleet that has a passcode profile. If hosts enroll to **Unassigned**, repeat for **Unassigned** too.
+7. Repeat for each fleet that has a passcode profile. 
 
 The old DPC extras keep working, so there's no deadline to update them. Hosts that are already enrolled aren't affected.
 
