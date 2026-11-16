@@ -1307,7 +1307,8 @@ function ActiveProcessesPanel({
     try {
       await api.stopProcess(serveId);
       await waitForExit(serveId, 10_000);
-      await startServe(server, apnsMockLive);
+      // Read now: the mock may have been stopped or started during the wait.
+      await startServe(server, apnsMockLiveUrl(server, await api.listProcesses()));
     } catch (e) {
       setRestartError(String(e));
     }

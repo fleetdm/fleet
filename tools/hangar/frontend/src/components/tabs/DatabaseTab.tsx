@@ -200,7 +200,6 @@ export function DatabaseTab({
         }
         server={server}
         serveProcId={serveProcId}
-        apnsMockUrl={apnsMockLiveUrl(server, procs)}
         lastBackup={lastBackup}
         backupCount={backups.length}
         backupsDir={activeCentralDir}
@@ -318,7 +317,6 @@ function StatusHeader({
   serveOwned,
   server,
   serveProcId,
-  apnsMockUrl,
   lastBackup,
   backupCount,
   backupsDir,
@@ -332,8 +330,6 @@ function StatusHeader({
   serveOwned: boolean;
   server: ServerProfile;
   serveProcId: string;
-  /// The server's running mock APNs, which a started serve pushes to.
-  apnsMockUrl: string | null;
   lastBackup: BackupEntry | null;
   backupCount: number;
   backupsDir: string | null;
@@ -362,7 +358,8 @@ function StatusHeader({
     setServeBusy("starting");
     setError(null);
     try {
-      await startServe(server, apnsMockUrl);
+      // Pushes go to the server's mock APNs if it's running now.
+      await startServe(server, apnsMockLiveUrl(server, await api.listProcesses()));
     } catch (e) {
       setError(String(e));
       setServeBusy(null);
