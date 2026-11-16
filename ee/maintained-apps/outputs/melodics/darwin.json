@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0.1849",
+      "version": "5.0.1871",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.melodics.Melodics';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.melodics.Melodics' AND version_compare(bundle_short_version, '5.0.1849') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.melodics.Melodics' AND version_compare(bundle_short_version, '5.0.1871') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.melodics.Melodics' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://web-cdn.melodics.com/download/D8D49553-BEEE-4CF7-8A52-97797FB71F33.zip",
+      "installer_url": "https://web-cdn.melodics.com/download/008F4028-D6B1-4E44-8D19-81C3EA9DFC39.zip",
       "install_script_ref": "47be358f",
       "uninstall_script_ref": "267dd95b",
-      "sha256": "7d628f8c73e1be2bbadc2bad4fcbdbe15dfd6100325fb9117c0312f1ed0d1e72",
+      "sha256": "f4e1c5fff2a61c140aa371f7b1054d626e79252caa087b6eaf994563de0cb0a8",
       "default_categories": [
         "Productivity"
       ]

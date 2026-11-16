@@ -798,7 +798,7 @@ def transfer_host_to_team(
         fleet_api(
             fleet_url, token, "POST",
             "/api/v1/fleet/hosts/transfer",
-            body={"team_id": team_id, "hosts": [host_id]},
+            body={"fleet_id": team_id, "hosts": [host_id]},
         )
     except HTTPError as e:
         log_error(f"Failed to transfer host {host_id} to team {team_id}: {e}")
@@ -2100,7 +2100,7 @@ def main() -> int:
         if team.host_id and team.team_id:
             host_info = get_host_by_hostname(fleet_url, fleet_token, hostname)
             if host_info:
-                host_team_id = host_info.get("team_id") or host_info.get("fleet_id")
+                host_team_id = host_info.get("fleet_id")
                 if host_team_id == team.team_id:
                     log(f"Host is in the correct team (ID: {team.team_id})")
                 else:

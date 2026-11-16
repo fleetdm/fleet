@@ -18,9 +18,10 @@
     the fix ship a bundle that trusts emSign ECC Root CA - G3, and osquery doesn't check revocation. Anyone holding one of the
     eight compromised eMudhra intermediate keys could impersonate your Fleet server to osquery on this host.
   resolution: >-
-    If you are failing this policy, drop a note in #help-it. Then, IT will run the remove-emudhra-roots-fleetd.sh script
-    (it-and-security/lib/all/scripts/remove-emudhra-roots-fleetd.sh) on this host, or reinstall fleetd with a package
-    built by a fleetctl release that excludes the emSign roots.
+    No action needed from you. IT runs the remove-emudhra-roots-fleetd.sh script
+    (it-and-security/lib/all/scripts/remove-emudhra-roots-fleetd.sh) on failing hosts, or reinstalls fleetd with a
+    package built by a fleetctl release that excludes the emSign roots.
+  hidden: true
   platform: darwin,linux
   calendar_events_enabled: false
 
@@ -80,9 +81,11 @@
     disallowed certificate list that Windows downloads automatically. The policy passes when that list was last
     synced on or after 2026-10-21 (UTC), or when all 16 certificates are in the Untrusted Certificates store.
   resolution: >-
-    If you are failing this policy, drop a note in #help-it. Then, make sure the host can reach Windows Update and
-    that the "Turn off Automatic Root Certificates Update" Group Policy (DisableRootAutoUpdate) isn't enabled. IT can
-    run the remove-emudhra-roots-fleetd.ps1 script (it-and-security/lib/windows/scripts/remove-emudhra-roots-fleetd.ps1)
+    No action needed from you. Windows downloads the updated disallowed certificate list automatically. If it keeps
+    failing, IT checks that the host can reach Windows Update and that the "Turn off Automatic Root Certificates
+    Update" Group Policy (DisableRootAutoUpdate) isn't enabled. IT can also run the
+    remove-emudhra-roots-fleetd.ps1 script (it-and-security/lib/windows/scripts/remove-emudhra-roots-fleetd.ps1)
     to report the host's last sync time and remove the affected roots from fleetd's CA bundle.
+  hidden: true
   platform: windows
   calendar_events_enabled: false

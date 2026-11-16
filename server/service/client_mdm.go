@@ -58,7 +58,7 @@ func (c *Client) ListABTokens() ([]*fleet.ABMToken, error) {
 }
 
 // CountHosts returns the number of hosts matching the given raw query string
-// (e.g. "team_id=1&mdm_enrollment_status=pending").
+// (e.g. "fleet_id=1&mdm_enrollment_status=pending").
 func (c *Client) CountHosts(query string) (int, error) {
 	verb, path := "GET", "/api/latest/fleet/hosts/count"
 	var responseBody countHostsResponse

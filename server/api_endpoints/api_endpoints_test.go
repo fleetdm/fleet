@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,9 +28,9 @@ func TestValidateAPIEndpoints(t *testing.T) {
 
 	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *mux.Router {
 		r := mux.NewRouter()
+		ep := &endpointer.CommonEndpointer[any]{Router: r, Versions: []string{"v1"}}
 		for _, e := range endpoints {
-			path := strings.Replace(e.Path, "/_version_/", "/{fleetversion:(?:v1|latest)}/", 1)
-			r.Handle(path, http.NotFoundHandler()).Methods(e.Method)
+			ep.HandleHTTPHandler(e.Path, http.NotFoundHandler(), e.Method)
 		}
 		return r
 	}

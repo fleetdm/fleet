@@ -1,7 +1,5 @@
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	OrgInfo	fleet.OrgInfo
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgName	string
-github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURL	string
-github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLLightBackground	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLDarkMode	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLLightMode	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	ContactURL	string
@@ -129,7 +127,6 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleServerURL	string
-github.com/fleetdm/fleet/v4/server/fleet/MDM	DeprecatedAppleBMDefaultTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBusinessManager	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Valid	bool
@@ -195,6 +192,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageD
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageDuringMigration	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccountWindows	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
@@ -224,7 +222,7 @@ github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Value	[]fleet.MDMProfileSpec
-github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	EnableManagedLocalAccount	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	_	struct {}
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	EnableDiskEncryption	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	RequireBitLockerPIN	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	VolumePurchasingProgram	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]
@@ -250,6 +248,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleAccountProvisioning	fleet.Appl
 github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPTokenURL	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientID	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientSecret	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MDM	_	struct {}
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	GitOpsConfig	fleet.GitOpsConfig
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	RepositoryURL	string

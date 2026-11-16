@@ -1,0 +1,1 @@
+* Fixed Add software > App Store showing "VPP isn't enabled" to a fleet admin whose fleet simply isn't added to a VPP token; the page now shows the "ask your admin to add this fleet to VPP" empty state in that case.

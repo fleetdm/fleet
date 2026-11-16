@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
+	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -397,4 +399,104 @@ func TestProcessLog(t *testing.T) {
 	require.Len(t, runner.errorNotifyCh, 1)
 	msg = <-runner.errorNotifyCh
 	assert.Equal(t, string(logErrorMissingExecMsg), msg)
+}
+
+type fakeSetupExperienceClient struct {
+	initResult  fleet.SetupExperienceInitResult
+	initErr     error
+	status      *fleet.SetupExperienceStatusPayload
+	statusErr   error
+	statusCalls int
+	receivers   []fleet.OrbitConfigReceiver
+}
+
+func (f *fakeSetupExperienceClient) GetServerCapabilities() fleet.CapabilityMap {
+	return fleet.CapabilityMap{fleet.CapabilityWebSetupExperience: {}}
+}
+
+func (f *fakeSetupExperienceClient) InitiateSetupExperience() (fleet.SetupExperienceInitResult, error) {
+	return f.initResult, f.initErr
+}
+
+func (f *fakeSetupExperienceClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
+	f.receivers = append(f.receivers, cr)
+}
+
+func (f *fakeSetupExperienceClient) GetSetupExperienceStatus(bool) (*fleet.SetupExperienceStatusPayload, error) {
+	f.statusCalls++
+	return f.status, f.statusErr
+}
+
+func (f *fakeSetupExperienceClient) poll() []error {
+	var errs []error
+	for _, r := range f.receivers {
+		if err := r.Run(&fleet.OrbitConfig{}); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+func TestProcessSetupExperience(t *testing.T) {
+	pending := &fleet.SetupExperienceStatusPayload{
+		Software: []*fleet.SetupExperienceStatusResult{{Name: "Firefox", Status: fleet.SetupExperienceStatusPending}},
+	}
+	cases := []struct {
+		name            string
+		client          *fakeSetupExperienceClient
+		wantEnabled     bool
+		wantStatusCalls int
+	}{
+		{
+			name: "Fleet Free",
+			client: &fakeSetupExperienceClient{
+				initErr:   fleetclient.ErrMissingLicense,
+				statusErr: fleetclient.ErrMissingLicense,
+			},
+		},
+		{
+			name: "setup experience not enabled for the host",
+			client: &fakeSetupExperienceClient{
+				initResult: fleet.SetupExperienceInitResult{Enabled: false},
+				status:     &fleet.SetupExperienceStatusPayload{},
+			},
+		},
+		{
+			name: "setup experience enabled",
+			client: &fakeSetupExperienceClient{
+				initResult: fleet.SetupExperienceInitResult{Enabled: true},
+				status:     pending,
+			},
+			wantEnabled:     true,
+			wantStatusCalls: 3,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rootDir := t.TempDir()
+			var pageOpens int
+			err := processSetupExperience(c.client, rootDir, func() error {
+				pageOpens++
+				return nil
+			})
+			require.NoError(t, err)
+
+			info, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
+			require.NoError(t, err)
+			require.NotNil(t, info)
+			require.Equal(t, c.wantEnabled, info.Enabled)
+
+			var pollErrs []error
+			for range 3 {
+				pollErrs = append(pollErrs, c.client.poll()...)
+			}
+			require.Equal(t, c.wantStatusCalls, c.client.statusCalls, "setup experience status requests over 3 config polls")
+			require.Empty(t, pollErrs)
+			if c.wantEnabled {
+				require.Equal(t, 1, pageOpens)
+			} else {
+				require.Zero(t, pageOpens)
+			}
+		})
+	}
 }

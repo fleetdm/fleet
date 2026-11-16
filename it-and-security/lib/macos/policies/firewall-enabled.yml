@@ -3,7 +3,8 @@
   critical: false
   description: |-
     Verifies the macOS Application Layer Firewall is on (global_state 1 = enabled, 2 = enabled blocking all inbound).
-  resolution: |-
-    Firewall should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
-    If it still fails, drop a note in #help-it.
+  resolution: >-
+    No action needed from you. Fleet turns on the firewall with a configuration profile.
+    If it keeps failing, IT checks the host's OS settings in Fleet.
+  hidden: true
   platform: darwin
