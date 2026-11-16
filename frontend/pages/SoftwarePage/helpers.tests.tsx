@@ -40,7 +40,7 @@ it("keeps custom software names while identifying script filenames", () => {
     name: "hello",
     display_name: "Setup script",
     source: "py_packages",
-    software_package: createMockSoftwarePackage({ name: "hello.py" }),
+    packages: [createMockSoftwarePackage({ name: "hello.py" })],
   });
 
   expect(getSoftwareListName(title)).toBe("Setup script (hello.py)");
@@ -108,12 +108,14 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
   policyCounts.forEach((count) => {
     describe(`when there are ${count} automatic install policies`, () => {
-      it(`returns ${count} for software_package (ISoftwareTitle)`, () => {
+      it(`returns ${count} for packages (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
-          software_package: {
-            ...createMockSoftwarePackage(),
-            automatic_install_policies: makePolicies(count),
-          },
+          packages: [
+            {
+              ...createMockSoftwarePackage(),
+              automatic_install_policies: makePolicies(count),
+            },
+          ],
           app_store_apps: null,
         });
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
@@ -121,7 +123,7 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
       it(`returns ${count} for app_store_apps[0] (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
-          software_package: null,
+          packages: null,
           app_store_apps: [
             createMockAppStoreAppVersion({
               automatic_install_policies: makePolicies(count),
@@ -131,9 +133,9 @@ describe("getAutomaticInstallPoliciesCount", () => {
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
       });
 
-      it(`returns ${count} for software_package (IHostSoftware)`, () => {
+      it(`returns ${count} for package (IHostSoftware)`, () => {
         const hostSoftware = createMockHostSoftware({
-          software_package: {
+          package: {
             ...createMockHostSoftwarePackage(),
             automatic_install_policies: makePolicies(count),
           },
@@ -144,7 +146,7 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
       it(`returns ${count} for app_store_app (IHostSoftware)`, () => {
         const hostSoftware = createMockHostSoftware({
-          software_package: null,
+          package: null,
           app_store_app: {
             ...createMockHostAppStoreApp(),
             automatic_install_policies: makePolicies(count),
@@ -155,17 +157,17 @@ describe("getAutomaticInstallPoliciesCount", () => {
     });
   });
 
-  it("returns 0 if neither software_package nor app_store_app is present (IHostSoftware)", () => {
+  it("returns 0 if neither package nor app_store_app is present (IHostSoftware)", () => {
     const hostSoftware = createMockHostSoftware({
-      software_package: null,
+      package: null,
       app_store_app: null,
     });
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
   });
 
-  it("returns 0 if neither software_package nor app_store_apps is present (ISoftwareTitle)", () => {
+  it("returns 0 if neither packages nor app_store_apps is present (ISoftwareTitle)", () => {
     const softwareTitle = createMockSoftwareTitle({
-      software_package: null,
+      packages: null,
       app_store_apps: null,
     });
     expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(0);
