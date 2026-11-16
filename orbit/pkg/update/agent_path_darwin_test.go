@@ -71,6 +71,7 @@ func TestMoveAgentPath(t *testing.T) {
 		allowed      []string
 		profilesErr  error
 		checkErr     error
+		updatesOff   bool
 		wantMoved    bool
 		wantErr      bool
 		wantProgram  string
@@ -92,6 +93,19 @@ func TestMoveAgentPath(t *testing.T) {
 			allowed: []string{fleetFile}, wantErr: true, wantProgram: otherProgram},
 		{name: "an executable outside the updater's directory is left alone", running: otherProgram, program: "link",
 			allowed: []string{fleetFile}, wantProgram: "link"},
+		{name: "with updates off it also links bin/orbit/orbit to the copy", running: orbitFile, program: "link",
+			allowed: []string{fleetFile}, updatesOff: true,
+			wantMoved: true, wantProgram: "entry", wantCopiedTo: fleetFile},
+		{name: "with updates off it also links bin/orbit/orbit back to the copy", running: fleetFile, program: "entry",
+			allowed: []string{orbitFile}, updatesOff: true,
+			wantMoved: true, wantProgram: "link", wantCopiedTo: orbitFile},
+		// The link already points at the copy, but the LaunchDaemon wasn't changed yet.
+		{name: "with updates off it finishes a move cut short after the relink", running: fleetFile, program: "link",
+			allowed: []string{fleetFile}, updatesOff: true,
+			wantMoved: true, wantProgram: "entry", wantCopiedTo: fleetFile},
+		{name: "with updates off a failed check leaves the link alone", running: orbitFile, program: "link",
+			allowed: []string{fleetFile}, updatesOff: true,
+			checkErr: errors.New("killed"), wantErr: true, wantProgram: "link"},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -132,6 +146,7 @@ func TestMoveAgentPath(t *testing.T) {
 					checked = append(checked, path)
 					return tt.checkErr
 				},
+				relinkOrbit: tt.updatesOff,
 			})
 			require.Equal(t, tt.wantErr, err != nil, err)
 			require.Equal(t, tt.wantMoved, moved)
@@ -142,10 +157,14 @@ func TestMoveAgentPath(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, programs[tt.wantProgram], program)
 
-			// bin/orbit/orbit is the update runner's to change.
+			// bin/orbit/orbit is the update runner's to change, unless updates are off.
+			wantLink := exe
+			if tt.updatesOff && tt.wantMoved {
+				wantLink = filepath.Join(channelDir, tt.wantCopiedTo)
+			}
 			target, err := os.Readlink(linkPath)
 			require.NoError(t, err)
-			require.Equal(t, exe, target)
+			require.Equal(t, wantLink, target)
 
 			if tt.wantCopiedTo != "" {
 				copied, err := os.ReadFile(filepath.Join(channelDir, tt.wantCopiedTo))

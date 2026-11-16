@@ -70,9 +70,10 @@ func resolvedExecutable() (string, error) {
 
 // ensureAgentPath moves orbit to bin/orbit/macos/<channel>/Fleet, started through bin/orbit/Fleet, when Full Disk Access
 // allows that path (see chooseFleetPath), and back otherwise. It copies the running executable to the other name and
-// changes the path the LaunchDaemon starts; after the restart, the update runner points bin/orbit/orbit at the copy.
-// It returns whether orbit must restart.
-func ensureAgentPath(rootDir string) (bool, error) {
+// changes the path the LaunchDaemon starts. bin/orbit/orbit must then point at the copy: the update runner does that after
+// the restart, and with updates off, when nothing else changes that link, this does it. It returns whether orbit must
+// restart.
+func ensureAgentPath(rootDir string, updatesDisabled bool) (bool, error) {
 	if !isLaunchDaemonProcess() {
 		return false, nil
 	}
@@ -87,6 +88,7 @@ func ensureAgentPath(rootDir string) (bool, error) {
 		profiles:          profilesShowXML,
 		hasFullDiskAccess: hasFullDiskAccess,
 		checkExecutable:   checkExecutable,
+		relinkOrbit:       updatesDisabled,
 	})
 }
 
@@ -98,6 +100,7 @@ type agentPathEnv struct {
 	profiles          func() ([]byte, error)
 	hasFullDiskAccess func() bool
 	checkExecutable   func(path string) error
+	relinkOrbit       bool // no update runner, so the move also points bin/orbit/orbit at the copy
 }
 
 func moveAgentPath(env agentPathEnv) (bool, error) {
@@ -149,6 +152,12 @@ func moveAgentPath(env agentPathEnv) (bool, error) {
 	}
 	if err := ensureSymlink(entryPoint, orbitLink); err != nil {
 		return false, err
+	}
+	// Both names hold the same executable, so orbit still starts if anything after this fails.
+	if env.relinkOrbit {
+		if err := ensureSymlink(orbitLink, target); err != nil {
+			return false, err
+		}
 	}
 	// Last, because launchd reads it at the next boot: everything it starts must already be in place.
 	newData, err := setLaunchDaemonProgram(data, newProgram)

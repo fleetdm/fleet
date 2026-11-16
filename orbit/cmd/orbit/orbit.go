@@ -1560,10 +1560,11 @@ func orbitAction(c *cli.Context) error {
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(orbitClient.GetServerCapabilities))
-	// The update runner finishes a move by relinking bin/orbit/orbit, and it manages orbit only in this case.
-	if runtime.GOOS == "darwin" && !c.Bool("disable-updates") && !c.Bool("dev-mode") {
+	// In dev mode the updater doesn't manage orbit's executable, so there's nothing to move.
+	if runtime.GOOS == "darwin" && !c.Bool("dev-mode") {
 		orbitClient.RegisterConfigReceiver(update.NewAgentPathReceiver(
-			c.String("root-dir"), orbitClient.GetServerCapabilities, orbitClient.TriggerOrbitRestart,
+			c.String("root-dir"), c.Bool("disable-updates"),
+			orbitClient.GetServerCapabilities, orbitClient.TriggerOrbitRestart,
 		))
 	}
 

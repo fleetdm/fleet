@@ -8,4 +8,4 @@ func UsesFleetPath(string) bool { return false }
 // ReexecAsFleet does nothing outside macOS.
 func ReexecAsFleet(string) {}
 
-func ensureAgentPath(string) (bool, error) { return false, nil }
+func ensureAgentPath(string, bool) (bool, error) { return false, nil }

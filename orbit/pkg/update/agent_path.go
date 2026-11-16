@@ -48,11 +48,14 @@ type AgentPathReceiver struct {
 	retryWait time.Duration // after a failed check, 0 after a successful one
 }
 
-func NewAgentPathReceiver(rootDir string, serverCapabilities func() fleet.CapabilityMap, triggerRestart func(reason string)) *AgentPathReceiver {
+// NewAgentPathReceiver returns the receiver for rootDir. updatesDisabled is whether orbit runs without its update runner.
+func NewAgentPathReceiver(
+	rootDir string, updatesDisabled bool, serverCapabilities func() fleet.CapabilityMap, triggerRestart func(reason string),
+) *AgentPathReceiver {
 	return &AgentPathReceiver{
 		serverCapabilities: serverCapabilities,
 		triggerRestart:     triggerRestart,
-		ensure:             func() (bool, error) { return ensureAgentPath(rootDir) },
+		ensure:             func() (bool, error) { return ensureAgentPath(rootDir, updatesDisabled) },
 	}
 }
 
