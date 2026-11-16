@@ -7,6 +7,7 @@ import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
 import { WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
 import OSSettingsActionsCell from "../OSSettingsActionsCell";
@@ -20,9 +21,6 @@ import {
 } from "../statusDisplayConfig";
 
 const baseClass = "control-details-modal";
-
-const WINDOWS_STATUS_CODES_URL =
-  "https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes";
 
 interface IControlDetailsModalProps {
   control: IHostMdmProfileWithAddedStatus;
@@ -129,6 +127,7 @@ const ControlDetailsModal = ({
   // Windows failures report bare SyncML codes, like "<LocURI>: status 405".
   const showWindowsStatusCodesLink =
     showDetailBlock &&
+    control.status === "failed" &&
     control.platform === "windows" &&
     /: status \d+/.test(detailText);
 
@@ -167,13 +166,12 @@ const ControlDetailsModal = ({
           )}
           {showWindowsStatusCodesLink && (
             <p className={`${baseClass}__details-help`}>
-              To find out what a status code means, see{" "}
+              Windows returns a status code for each setting.{" "}
               <CustomLink
-                url={WINDOWS_STATUS_CODES_URL}
-                text="Microsoft's SyncML status codes"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/windows-profile-status-codes`}
+                text="Learn more"
                 newTab
               />
-              .
             </p>
           )}
         </div>
