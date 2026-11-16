@@ -3035,7 +3035,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if len(pendingDeletion) == 0 {
 			svc.logger.DebugContext(
 				ctx, "software batch dry-run skipped: empty payload and no existing installers",
-				"fleet_id", teamID,
+				"fleet_id", teamIDForLog(teamID),
 			)
 			return "", nil
 		}
@@ -3128,7 +3128,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	svc.logger.InfoContext(
 		ctx, "software batch start",
 		"request_uuid", requestUUID,
-		"fleet_id", teamID,
+		"fleet_id", teamIDForLog(teamID),
 		"payloads", len(payloads),
 	)
 
@@ -3443,7 +3443,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 		logger := svc.logger.With(
 			"request_uuid", requestUUID,
-			"fleet_id", teamID,
+			"fleet_id", teamIDForLog(teamID),
 			"payloads", len(payloads),
 			"status", status,
 			"took", time.Since(start),
@@ -4308,7 +4308,7 @@ func (svc *Service) softwareBatchUpload(
 		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
 			svc.logger.WarnContext(
 				ctx, "reconciling Windows software titles after a software batch",
-				"fleet_id", teamID,
+				"fleet_id", teamIDForLog(teamID),
 				"err", err,
 			)
 		}
