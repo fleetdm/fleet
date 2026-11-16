@@ -217,6 +217,8 @@ On that scenario, after hitting "Continue" the user will be redirected to https:
 Users enroll their hosts to Entra via the [Settings > Access work or school workflow](
 https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973).
 
+If your Fleet server sets [`microsoft_compliance_partner.windows_trusted_device_id_only`](https://fleetdm.com/docs/configuration/fleet-server-configuration#microsoft-compliance-partner-windows-trusted-device-id-only), only Entra joined or hybrid joined hosts, and registered hosts that enrolled to Fleet's MDM through Entra, are reported to Entra. Other registered hosts are blocked by Entra policies that require a compliant device.
+
 ### Access blocked experience
 
 When a Fleet policy configured for conditional access starts failing on a host, then the user will be logged out and blocked from logging in to Entra ID.
