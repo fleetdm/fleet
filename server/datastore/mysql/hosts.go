@@ -1219,6 +1219,14 @@ const (
 	hostFilterList
 )
 
+const hostListJoins = `
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN teams t ON (h.team_id = t.id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL`
+
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 // applyHostFilters splices the WHERE clause and its associated joins onto sqlStmt.
 func (ds *Datastore) applyHostFilters(
@@ -1229,6 +1237,15 @@ func (ds *Datastore) applyHostFilters(
 	}
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
+
+	// A sorted query builds the SELECT for every matching host before LIMIT applies, so for a
+	// sorted page, select the page's host IDs first and build the columns only for those rows.
+	// PerPage 0 (e.g. CSV export) wants every host and keeps the single query.
+	pageIDsFirst := mode == hostFilterList && opt.ListOptions.OrderKey != "" && opt.ListOptions.PerPage > 0
+	selectStmt := sqlStmt
+	if pageIDsFirst {
+		sqlStmt = "SELECT h.id "
+	}
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
@@ -1446,13 +1463,7 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	sqlStmt += fmt.Sprintf(
-		`FROM hosts h
-    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN teams t ON (h.team_id = t.id)
-    LEFT JOIN host_disks hd ON hd.host_id = h.id
-    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
-    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+		`FROM hosts h`+hostListJoins+`
     %s
     %s
     %s
@@ -1540,6 +1551,18 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams, err = appendListOptionsWithCursorToSQLSecure(sqlStmt, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
+
+	if pageIDsFirst {
+		// Only the joins the SELECT and ORDER BY use; each has at most one row per host.
+		sqlStmt = selectStmt + `FROM (` + sqlStmt + `) page_hosts JOIN hosts h ON h.id = page_hosts.id` +
+			hostListJoins + hostMDMJoin + failingPoliciesJoin + hostOSJoin + displayNameJoin + hostMobileMDMSeenTimeJoin
+		outerOpts := opt.ListOptions
+		outerOpts.Page, outerOpts.After = 0, ""
+		sqlStmt, _, err = appendListOptionsWithCursorToSQLSecure(sqlStmt, nil, &outerOpts, hostAllowedOrderKeys)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "apply list options to page")
+		}
 	}
 
 	params := selectParams

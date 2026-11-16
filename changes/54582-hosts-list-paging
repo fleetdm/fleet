@@ -1,0 +1,1 @@
+- Improved performance of the hosts list when sorted (e.g. by display name, the default), so each page only loads its own hosts.

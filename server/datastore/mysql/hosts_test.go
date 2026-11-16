@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -204,6 +205,7 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
+		{"ListHostsSortedPagesMatchFullList", testListHostsSortedPagesMatchFullList},
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
@@ -13547,6 +13549,207 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 	count, err := ds.CountHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, hostCount, count)
+}
+
+// A sorted page is built from a page of host IDs; it must match the same slice of the
+// full sorted list, which PerPage 0 still loads with a single query.
+func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	q := test.NewQuery(t, ds, nil, "q1", "select 1", 0, true)
+	pol, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	require.NoError(t, err)
+	enableMacOSDiskEncryptionForTest(t, ds, &team1.ID)
+
+	platforms := []string{"darwin", "windows", "ubuntu", "ios"}
+	teams := []*uint{&team1.ID, &team2.ID, nil}
+	now := time.Now()
+	hostIDs := make([]uint, 0, 24)
+	for i := range 24 {
+		computerName := fmt.Sprintf("Mac %d", i%5) // repeated display names
+		if i%6 == 0 {
+			computerName = "" // display name falls back to the hostname
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   new(fmt.Sprint(i)),
+			NodeKey:         new(fmt.Sprint(i)),
+			UUID:            fmt.Sprintf("uuid-%d", i),
+			Hostname:        fmt.Sprintf("host-%02d", i),
+			ComputerName:    computerName,
+			HardwareSerial:  fmt.Sprintf("serial-%d", i%7),
+			Platform:        platforms[i%4],
+			OsqueryVersion:  fmt.Sprintf("5.%d.0", i%3),
+			Memory:          int64(i%4) * 1024,
+			PrimaryIP:       fmt.Sprintf("10.0.0.%d", i%6),
+			TeamID:          teams[i%3],
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now.Add(-time.Duration(i%4) * 20 * 24 * time.Hour),
+		})
+		require.NoError(t, err)
+		hostIDs = append(hostIDs, h.ID)
+
+		if i%3 != 2 {
+			require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h.ID, float64(i*3), float64(i*4), 500, nil))
+		}
+		if i%2 == 0 {
+			require.NoError(t, ds.SetOrUpdateHostOrbitInfo(ctx, h.ID, fmt.Sprintf("1.%d.0", i%5),
+				sql.NullString{String: "1.0.0", Valid: i%4 == 0}, sql.NullBool{}))
+			_, err = ds.UpdateHostSoftware(ctx, h.ID, []fleet.Software{{Name: "foo", Version: fmt.Sprint(i % 3), Source: "apps"}})
+			require.NoError(t, err)
+		}
+		if i%3 == 0 {
+			require.NoError(t, ds.ReplaceHostDeviceMapping(ctx, h.ID, []*fleet.HostDeviceMapping{
+				{HostID: h.ID, Email: fmt.Sprintf("u%d@example.com", i%4), Source: fleet.DeviceMappingGoogleChromeProfiles},
+			}, fleet.DeviceMappingGoogleChromeProfiles))
+		}
+		additional := json.RawMessage(fmt.Sprintf(`{"foo": "bar%d"}`, i))
+		require.NoError(t, ds.SaveHostAdditional(ctx, h.ID, &additional))
+		if i%4 != 3 {
+			_, err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: new(i%2 == 0)}, now, false, nil)
+			require.NoError(t, err)
+		}
+		if i%5 == 0 {
+			require.NoError(t, ds.SetOrUpdateMunkiInfo(ctx, h.ID, "1.0.0", []string{"err"}, nil))
+		}
+		if h.Platform == "darwin" || h.Platform == "ios" {
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, i%8 < 4, "https://fleet.example.com", i%8 == 0,
+				fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
+			if i%8 < 4 {
+				nanoEnroll(t, ds, h, false)
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+						(host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+						VALUES (?, 'a-prof', ?, ?, UNHEX(MD5('a')), 'install', ?)`,
+						h.UUID, mobileconfig.FleetFileVaultPayloadIdentifier, "cmd-"+h.UUID, []string{"pending", "verified"}[min(i%16, 1)])
+					return err
+				})
+			}
+		}
+		if i%5 == 1 {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, hardware_serial, assign_profile_response)
+					VALUES (?, ?, 'FAILED')`, h.ID, h.HardwareSerial)
+				return err
+			})
+		}
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+			Name: "macOS", Version: fmt.Sprintf("14.%d", i%2), Arch: "arm64", KernelVersion: "23.0", Platform: "darwin",
+		}))
+	}
+	require.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+
+	var softwareID, titleID, munkiID, mdmID, osID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &softwareID, `SELECT id FROM software WHERE name = 'foo' AND version = '0'`); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &titleID, `SELECT id FROM software_titles WHERE name = 'foo'`); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &munkiID, `SELECT id FROM munki_issues WHERE name = 'err'`); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &mdmID, `SELECT id FROM mobile_device_management_solutions LIMIT 1`); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &osID, `SELECT id FROM operating_systems WHERE version = '14.1'`)
+	})
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{CVE: "CVE-2021-1234", SoftwareID: softwareID}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	admin := fleet.TeamFilter{User: test.UserAdmin}
+	observer := fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}}}, IncludeObserver: true}
+	depFailed := fleet.DEPAssignProfileResponseFailed
+	cases := []struct {
+		name   string
+		filter fleet.TeamFilter
+		opt    fleet.HostListOptions
+	}{
+		{"none", admin, fleet.HostListOptions{}},
+		{"fleet", admin, fleet.HostListOptions{TeamFilter: &team1.ID}},
+		{"no fleet", admin, fleet.HostListOptions{TeamFilter: new(uint(0))}},
+		{"fleet observer", observer, fleet.HostListOptions{}},
+		{"online", admin, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}},
+		{"offline", admin, fleet.HostListOptions{StatusFilter: fleet.StatusOffline}},
+		{"missing", admin, fleet.HostListOptions{StatusFilter: fleet.StatusMissing}},
+		{"mia", admin, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}},
+		{"new", admin, fleet.HostListOptions{StatusFilter: fleet.StatusNew}},
+		{"search", admin, fleet.HostListOptions{MatchQuery: "mac"}},
+		{"search email", admin, fleet.HostListOptions{MatchQuery: "u1@example"}},
+		{"device mapping", admin, fleet.HostListOptions{DeviceMapping: true}},
+		{"disable issues", admin, fleet.HostListOptions{DisableIssues: true}},
+		{"additional", admin, fleet.HostListOptions{AdditionalFilters: []string{"foo"}}},
+		{"additional all", admin, fleet.HostListOptions{AdditionalFilters: []string{"*"}}},
+		{"policy passing", admin, fleet.HostListOptions{PolicyIDFilter: &pol.ID, PolicyResponseFilter: new(true)}},
+		{"policy no response", admin, fleet.HostListOptions{PolicyIDFilter: &pol.ID}},
+		{"software version", admin, fleet.HostListOptions{SoftwareVersionIDFilter: &softwareID}},
+		{"software title", admin, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID}},
+		{"munki", admin, fleet.HostListOptions{MunkiIssueIDFilter: &munkiID}},
+		{"low disk", admin, fleet.HostListOptions{LowDiskSpaceFilter: new(32)}},
+		{"os id", admin, fleet.HostListOptions{OSIDFilter: &osID}},
+		{"os name version", admin, fleet.HostListOptions{OSNameFilter: new("macOS"), OSVersionFilter: new("14.1")}},
+		{"mdm id", admin, fleet.HostListOptions{MDMIDFilter: &mdmID}},
+		{"mdm name", admin, fleet.HostListOptions{MDMNameFilter: new(fleet.WellKnownMDMFleet)}},
+		{"mdm enrolled", admin, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}},
+		{"mdm unenrolled", admin, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusUnenrolled}},
+		{"connected to fleet", admin, fleet.HostListOptions{ConnectedToFleetFilter: new(true)}},
+		{"os settings", admin, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}},
+		{"macos settings", admin, fleet.HostListOptions{MacOSSettingsFilter: fleet.OSSettingsPending}},
+		{"disk encryption", admin, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}},
+		{"macos disk encryption", admin, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}},
+		{"vulnerability", admin, fleet.HostListOptions{VulnerabilityFilter: new("CVE-2021-1234")}},
+		{"dep profile", admin, fleet.HostListOptions{DEPAssignProfileResponseFilter: &depFailed}},
+		{"combined", admin, fleet.HostListOptions{
+			TeamFilter: &team1.ID, StatusFilter: fleet.StatusOnline, MatchQuery: "host", DeviceMapping: true,
+			AdditionalFilters: []string{"foo"}, PolicyIDFilter: &pol.ID, PolicyResponseFilter: new(true),
+		}},
+	}
+	cursors := map[string]string{"hostname": "host-10", "display_name": "Mac 2", "computer_name": "Mac 2"}
+	const perPage = 5
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var nonEmpty bool
+			for _, key := range slices.Sorted(maps.Keys(hostAllowedOrderKeys)) {
+				for _, dir := range []fleet.OrderDirection{fleet.OrderAscending, fleet.OrderDescending} {
+					opt := c.opt
+					opt.ListOptions = fleet.ListOptions{OrderKey: key, OrderDirection: dir, TestSecondaryOrderKey: "id"}
+					all, err := ds.ListHosts(ctx, c.filter, opt)
+					if err != nil {
+						opt.PerPage = perPage
+						_, pageErr := ds.ListHosts(ctx, c.filter, opt)
+						require.Error(t, pageErr, key)
+						continue
+					}
+					nonEmpty = nonEmpty || len(all) > 0
+					for page := range uint(len(all)/perPage + 2) {
+						opt.ListOptions.Page, opt.PerPage, opt.IncludeMetadata = page, perPage, page%2 == 1
+						got, err := ds.ListHosts(ctx, c.filter, opt)
+						require.NoError(t, err)
+						start := min(int(page)*perPage, len(all))
+						end := min(start+perPage+int(page%2), len(all))
+						require.Equal(t, all[start:end], got, "%s %s page %d", key, dir, page)
+					}
+					if after, ok := cursors[key]; ok {
+						opt.ListOptions = fleet.ListOptions{OrderKey: key, OrderDirection: dir, TestSecondaryOrderKey: "id", After: after}
+						all, err := ds.ListHosts(ctx, c.filter, opt)
+						require.NoError(t, err)
+						opt.PerPage = perPage
+						got, err := ds.ListHosts(ctx, c.filter, opt)
+						require.NoError(t, err)
+						require.Equal(t, all[:min(perPage, len(all))], got, "%s %s after %s", key, dir, after)
+					}
+				}
+			}
+			require.True(t, nonEmpty, "the filter should match some hosts")
+		})
+	}
 }
 
 func testHostHealth(t *testing.T, ds *Datastore) {
