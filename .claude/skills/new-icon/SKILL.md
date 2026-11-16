@@ -9,14 +9,32 @@ effort: medium
 
 Icon to add or change: $ARGUMENTS
 
-Figma is the source of truth for icons. The design rules live in the **Icon guidelines** spec in the [icon redesign Figma file](https://www.figma.com/design/eYvWn9C9wIrZUnN72Gx2GU/?node-id=5358-209). The code rules live in `frontend/docs/patterns.md` under "Icon rules". Read both before drawing or adding anything.
+The source of truth is the **Icons (new) - available from Fleet 5.0** page in the [🧩 Design system (current)](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/?node-id=3514-52) Figma file. Its **Icon guidelines** spec has the full design rules. The code rules live in `frontend/docs/patterns.md` under "Icon rules". The "Icons (deprecated in Fleet 5)" page is the old set; don't use it.
+
+## 0. Find out who you're helping
+
+Ask the user, unless it's already clear:
+
+1. **Is this a standalone icon task, or part of feature work?**
+2. **Are they designing the icon or implementing it in code?**
+
+Then follow the matching path. When a product designer and an engineer split the work, each one runs the skill for their part.
+
+| | **Designing** | **Implementing** |
+| --- | --- | --- |
+| **Standalone task** | Steps 1–2, then add it to the design system page (step 2b) | Steps 1, 3–6 |
+| **Feature work** | Steps 1–2 in the feature's Figma file, get approval (step 2a), then step 2b | Steps 1, 3–6, from the design system page only |
+
+**Engineers implement icons only from the design system page.** If the link you're given points to a feature or story file instead, stop. Ask the designer to get the icon approved and added to the design system page first (step 2a and 2b), then continue with that component link. Don't ship an icon that isn't in the design system.
 
 ## 1. Check whether an icon already exists
 
-- Search `ICON_MAP` in `frontend/components/icons/index.ts` for an icon with the same meaning. Reuse it instead of adding a near-duplicate or a variant.
+- Search `ICON_MAP` in `frontend/components/icons/index.ts` and the design system Icons page for an icon with the same meaning. Reuse it instead of adding a near-duplicate or a variant.
 - Use simple names: `error`, `pending`, `info`, `success`, `close`. Don't add `-alt`, `-outline`, or size suffixes for the same meaning.
 
-## 2. Draw it in Figma first
+## 2. Draw it in Figma
+
+For feature work, draw the icon in the feature's Figma file. For a standalone task, draw it on a scratch page or straight in the design system file.
 
 Every icon must follow these rules. If you're given an SVG that breaks them, fix it in Figma (or ask the designer) before adding it to code.
 
@@ -38,11 +56,21 @@ Every icon must follow these rules. If you're given an SVG that breaks them, fix
 
 After editing paths in Figma, check again that caps and joins are still round. Replacing path data resets them.
 
+If the Figma MCP server is connected, check the drawn icon against these rules with a read-only `use_figma` script: frame size, stroke weight, round caps and joins on every stroked vector, no groups or masks, all ink inside the frame, `#515774` paints only, and the `icon/<name>` name. Report anything that breaks a rule instead of fixing it silently.
+
+### 2a. Get approval (new icons)
+
+A new icon is a design system change. Follow the handbook's [design system request process](https://fleetdm.com/handbook/company/product-groups#design-system) to get approval from the Head of Design.
+
+### 2b. Add it to the design system
+
+After approval, add the icon as an `icon/<name>` (or `icon-32/<name>`) component on the **Icons (new) - available from Fleet 5.0** page. Then put that component's link (not the feature file) in the issue's dev notes, so the engineer implements from the design system.
+
 ## 3. Convert strokes to filled paths
 
 Code icons use filled paths only. Several stylesheets recolor icons by setting `path { fill }` on hover or focus, so a stroked path would render as a solid shape.
 
-- In Figma, select the icon's vectors and use **Outline stroke**, then copy the icon as SVG.
+- Start from the component on the design system Icons page. In Figma, select the icon's vectors and use **Outline stroke**, then copy the icon as SVG. With the Figma MCP server, export the component as SVG (`exportAsync({ format: "SVG_STRING" })`) and convert it locally instead.
 - Without Figma, convert a stroked SVG with [picosvg](https://github.com/googlefonts/picosvg) (`pip install picosvg`, then `picosvg icon.svg`).
 - Compare the result with the Figma design at large size before using it.
 
