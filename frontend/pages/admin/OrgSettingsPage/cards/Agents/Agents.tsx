@@ -139,7 +139,7 @@ const Agents = ({
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              disabled={disableChildren}
+              disabled={disableChildren || isUpdatingSettings}
               className="button-wrap"
               isLoading={isUpdatingSettings}
             >

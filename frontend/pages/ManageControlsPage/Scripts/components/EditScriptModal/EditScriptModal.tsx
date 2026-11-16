@@ -223,7 +223,7 @@ const EditScriptModal = ({
                       <Button
                         onClick={onSave}
                         isLoading={isSubmitting}
-                        disabled={gitopsEnabled}
+                        disabled={gitopsEnabled || isSubmitting}
                       >
                         Save
                       </Button>
