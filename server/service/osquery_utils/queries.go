@@ -1075,12 +1075,160 @@ func withCachedUsers(query string) string {
 // an Entra-joined or Entra-registered device; its subject is the Entra device ID.
 const entraDeviceCertIssuerLike = "net + windows + MS-Organization-Access%"
 
-// windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
+// windowsEntraIDDetails reads the Entra device ID (the device certificate's subject). A certificate is anchored when
+// it's in the machine store and an admin-only HKLM join record is named after its thumbprint. The DISTINCT keeps SQLite
+// from flattening the registry subquery into a nested loop that rescans certificates, which osquery enumerates in full.
 var windowsEntraIDDetails = DetailQuery{
-	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
-	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE '" + entraDeviceCertIssuerLike + "' LIMIT 1;",
+	Query: `SELECT c.subject AS device_id, c.not_valid_after,
+  CASE WHEN r.key IS NOT NULL AND c.store_location = 'LocalMachine' THEN 'anchored' ELSE 'unanchored' END AS source
+FROM certificates c
+LEFT JOIN (
+  SELECT DISTINCT key FROM registry
+  WHERE key LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\%'
+) r ON UPPER(c.sha1) = UPPER(SUBSTR(r.key, LENGTH('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\') + 1))
+WHERE c.issuer LIKE '` + entraDeviceCertIssuerLike + `';`,
 	Platforms:        []string{"windows"},
-	DirectIngestFunc: directIngestEntraIDDetails,
+	DirectIngestFunc: entraDeviceIDIngester(false, nil),
+}
+
+// EntraDeviceUnmarker reports to Entra that a device ID a host no longer holds is not managed and not compliant. It's
+// best effort and runs after the host drops the device ID: gating the drop on it would pin hosts to device IDs deleted
+// from Entra, which the proxy can't tell apart from an outage.
+type EntraDeviceUnmarker func(ctx context.Context, dropped *fleet.HostConditionalAccessStatus)
+
+type entraDeviceIDCandidate struct {
+	deviceID      string
+	notValidAfter int64
+	anchored      bool
+}
+
+// entraDeviceIDIngester returns the ingest function for windowsEntraIDDetails. Device IDs signed by Microsoft (from the
+// host's Entra MDM enrollment or Autopilot record) only verify a reported certificate, they never replace it, so a stale
+// signed ID can't redirect compliance. With trustedOnly, an unanchored certificate is accepted only when it matches a
+// signed ID, since any user on the host can plant one.
+func entraDeviceIDIngester(trustedOnly bool, unmark EntraDeviceUnmarker) func(
+	ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string,
+) error {
+	return func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+		if host.Platform != "windows" {
+			if len(rows) == 0 {
+				return nil
+			}
+			// Results are matched to detail queries by name only, and macOS hosts must prove their device ID
+			// with an Entra-signed token instead.
+			return ctxerr.New(ctx, "Entra ID device_id is only accepted from Windows hosts")
+		}
+
+		candidates := make([]entraDeviceIDCandidate, 0, len(rows))
+		for _, row := range rows {
+			if row["device_id"] == "" {
+				continue
+			}
+			candidates = append(candidates, entraDeviceIDCandidate{
+				deviceID:      row["device_id"],
+				notValidAfter: cast.ToInt64(row["not_valid_after"]),
+				anchored:      row["source"] == "anchored",
+			})
+		}
+		if len(rows) > 0 && len(candidates) == 0 {
+			return ctxerr.New(ctx, "empty Entra ID device_id")
+		}
+
+		// Most hosts report no Entra certificate. Default mode then keeps the stored device ID (a registered device's
+		// certificate is hidden while its user is signed out), so there's nothing to read.
+		if len(candidates) == 0 && !trustedOnly {
+			return nil
+		}
+		state, err := ds.GetWindowsHostEntraDeviceIDState(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get Entra device ID state")
+		}
+		current := state.Status
+		signedIDs := entraSignedDeviceIDs(state)
+		isSigned := func(deviceID string) bool {
+			parsed, ok := fleet.ParseNonNilUUID(deviceID)
+			return ok && slices.Contains(signedIDs, parsed.String())
+		}
+
+		accepted, verified := pickEntraDeviceID(candidates, isSigned, trustedOnly)
+		if accepted != "" && len(signedIDs) > 0 && !verified {
+			logger.InfoContext(ctx, "reported Entra device ID doesn't match the device ID Microsoft signed for this host",
+				"host_id", host.ID, "reported_device_id", accepted, "signed_device_ids", signedIDs)
+		}
+
+		if accepted == "" {
+			// A signed device ID stays: its certificate may be hidden because its user is signed out.
+			if current == nil || isSigned(current.DeviceID) {
+				return nil
+			}
+			if err := ds.DeleteHostConditionalAccessStatus(ctx, host.ID, current.DeviceID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host conditional access status")
+			}
+			logger.InfoContext(ctx, "cleared Entra device ID not backed by a trusted certificate",
+				"host_id", host.ID, "device_id", current.DeviceID, "untrusted_certificates", len(candidates))
+			unmarkEntraDevice(ctx, unmark, current)
+			return nil
+		}
+
+		// CreateHostConditionalAccessStatus skips an unchanged row too, but checking here saves its read.
+		if current == nil || current.DeviceID != accepted || current.UserPrincipalName != "" || state.StatusVerified != verified {
+			if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, accepted, "", verified); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
+			}
+		}
+		if trustedOnly && current != nil && !strings.EqualFold(current.DeviceID, accepted) {
+			unmarkEntraDevice(ctx, unmark, current)
+		}
+		return nil
+	}
+}
+
+// pickEntraDeviceID prefers a certificate matching a signed device ID, then the newest anchored one, then (unless
+// trustedOnly) the newest unanchored one.
+func pickEntraDeviceID(candidates []entraDeviceIDCandidate, isSigned func(string) bool, trustedOnly bool) (deviceID string, verified bool) {
+	for _, c := range candidates {
+		if isSigned(c.deviceID) {
+			return c.deviceID, true
+		}
+	}
+	newest := func(anchored bool) string {
+		var best *entraDeviceIDCandidate
+		for i, c := range candidates {
+			if c.anchored == anchored && (best == nil || c.notValidAfter > best.notValidAfter) {
+				best = &candidates[i]
+			}
+		}
+		if best == nil {
+			return ""
+		}
+		return best.deviceID
+	}
+	if id := newest(true); id != "" {
+		return id, false
+	}
+	if trustedOnly {
+		return "", false
+	}
+	return newest(false), false
+}
+
+// entraSignedDeviceIDs returns the valid Entra device IDs Microsoft signed for the host, normalized.
+func entraSignedDeviceIDs(state *fleet.WindowsHostEntraDeviceIDState) []string {
+	var ids []string
+	for _, s := range []string{state.EnrollmentEntraDeviceID, state.AutopilotEntraDeviceID} {
+		if id, ok := fleet.ParseNonNilUUID(s); ok {
+			ids = append(ids, id.String())
+		}
+	}
+	return ids
+}
+
+// unmarkEntraDevice skips device IDs Fleet never reported, since Entra holds no status from Fleet for them.
+func unmarkEntraDevice(ctx context.Context, unmark EntraDeviceUnmarker, dropped *fleet.HostConditionalAccessStatus) {
+	if unmark == nil || (dropped.Managed == nil && dropped.Compliant == nil) {
+		return
+	}
+	unmark(ctx, dropped)
 }
 
 // windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
@@ -2442,36 +2590,6 @@ func generateBatteryHealth(ctx context.Context, row map[string]string, logger *s
 	}
 
 	return batteryStatusGood, count, nil
-}
-
-func directIngestEntraIDDetails(
-	ctx context.Context,
-	logger *slog.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-	rows []map[string]string,
-) error {
-	if len(rows) == 0 {
-		// Device maybe hasn't logged in to Entra ID yet.
-		return nil
-	}
-	// Results are matched to detail queries by name only, and macOS hosts must prove their device ID
-	// with an Entra-signed token instead.
-	if host.Platform != "windows" {
-		return ctxerr.New(ctx, "Entra ID device_id is only accepted from Windows hosts")
-	}
-	row := rows[0]
-
-	deviceID := row["device_id"]
-	if deviceID == "" {
-		return ctxerr.New(ctx, "empty Entra ID device_id")
-	}
-
-	// The user principal name isn't reported on Windows.
-	if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, "", false); err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
-	}
-	return nil
 }
 
 func directIngestEntraJoinUser(
@@ -4350,6 +4468,8 @@ var tpmPINQueries = map[string]DetailQuery{
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool
+	// UnmarkMicrosoftDevice is called when a Windows host stops holding an Entra device ID in trusted-only mode.
+	UnmarkMicrosoftDevice EntraDeviceUnmarker
 }
 
 func GetDetailQueries(
@@ -4432,7 +4552,11 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
+		q := windowsEntraIDDetails
+		q.DirectIngestFunc = entraDeviceIDIngester(
+			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly, integrations.UnmarkMicrosoftDevice,
+		)
+		generatedMap["conditional_access_microsoft_device_id_windows"] = q
 	}
 
 	// IdP host vitals are a premium feature.

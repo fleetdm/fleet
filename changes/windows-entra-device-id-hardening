@@ -1,0 +1,1 @@
+- Hardened the Microsoft Entra device ID check for Windows hosts that use conditional access.

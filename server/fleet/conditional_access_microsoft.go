@@ -44,3 +44,16 @@ type HostConditionalAccessStatus struct {
 	// UpdateCreateTimestamps holds the timestamps of the entry.
 	UpdateCreateTimestamps
 }
+
+// WindowsHostEntraDeviceIDState is what the Windows Entra device ID ingestion reads about a host.
+type WindowsHostEntraDeviceIDState struct {
+	// Status is the host's stored status, nil if it has none.
+	Status *HostConditionalAccessStatus
+	// StatusVerified is whether Status's device ID was verified.
+	StatusVerified bool
+	// EnrollmentEntraDeviceID is the deviceid claim signed into the host's latest Windows MDM enrollment, if any.
+	EnrollmentEntraDeviceID string
+	// AutopilotEntraDeviceID is the Entra device ID of the host's Autopilot record, if any. Graph reports the
+	// all-zero UUID when the record has no device.
+	AutopilotEntraDeviceID string
+}

@@ -122,3 +122,109 @@ func TestWindowsEntraJoinUserQuery(t *testing.T) {
 		require.Empty(t, run(t, nil, nil))
 	})
 }
+
+// TestWindowsEntraDeviceIDQuery runs the device ID query against SQLite tables shaped like
+// osquery's registry and certificates tables.
+func TestWindowsEntraDeviceIDQuery(t *testing.T) {
+	const joinInfo = `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo`
+	const entraIssuer = "net + windows + MS-Organization-Access + 82dbaca4-3e81-46ca-9c73-0950c1eaca97"
+
+	type cert struct {
+		sha1, subject, issuer, storeLocation string
+		notValidAfter                        int64
+	}
+	type row struct{ deviceID, notValidAfter, source string }
+	run := func(t *testing.T, joinKeys []string, certs []cert) []row {
+		db, err := sql.Open("sqlite3", ":memory:")
+		require.NoError(t, err)
+		defer db.Close()
+		_, err = db.Exec(`CREATE TABLE registry (key TEXT, path TEXT, name TEXT, type TEXT, data TEXT);
+			CREATE TABLE certificates (sha1 TEXT, subject TEXT, issuer TEXT, store_location TEXT, not_valid_after INTEGER);`)
+		require.NoError(t, err)
+		for _, k := range joinKeys {
+			// A join record holds several values, so osquery returns one row per value.
+			for _, name := range []string{"TenantId", "UserEmail"} {
+				_, err = db.Exec(`INSERT INTO registry VALUES (?, ?, ?, 'REG_SZ', 'x')`, k, k+`\`+name, name)
+				require.NoError(t, err)
+			}
+		}
+		for _, c := range certs {
+			_, err = db.Exec(`INSERT INTO certificates VALUES (?, ?, ?, ?, ?)`, c.sha1, c.subject, c.issuer, c.storeLocation, c.notValidAfter)
+			require.NoError(t, err)
+		}
+		rows, err := db.Query(windowsEntraIDDetails.Query)
+		require.NoError(t, err)
+		defer rows.Close()
+		var got []row
+		for rows.Next() {
+			var r row
+			require.NoError(t, rows.Scan(&r.deviceID, &r.notValidAfter, &r.source))
+			got = append(got, r)
+		}
+		require.NoError(t, rows.Err())
+		return got
+	}
+
+	t.Run("joined device certificate is anchored", func(t *testing.T) {
+		got := run(t,
+			[]string{joinInfo + `\9B7310A6E10ACB7182BEF560EDEDA2C7C9055106`},
+			[]cert{{"9b7310a6e10acb7182bef560ededa2c7c9055106", "joined-id", entraIssuer, "LocalMachine", 2000000000}})
+		require.Equal(t, []row{{"joined-id", "2000000000", "anchored"}}, got)
+	})
+
+	t.Run("registered device certificate is unanchored", func(t *testing.T) {
+		got := run(t, nil, []cert{{"AAAA", "registered-id", entraIssuer, "CurrentUser", 2000000000}})
+		require.Equal(t, []row{{"registered-id", "2000000000", "unanchored"}}, got)
+	})
+
+	t.Run("user store certificate matching a join record is not anchored", func(t *testing.T) {
+		got := run(t,
+			[]string{joinInfo + `\AAAA`},
+			[]cert{{"AAAA", "planted-id", entraIssuer, "CurrentUser", 2000000000}})
+		require.Equal(t, []row{{"planted-id", "2000000000", "unanchored"}}, got)
+	})
+
+	t.Run("planted certificate next to a joined one", func(t *testing.T) {
+		got := run(t,
+			[]string{joinInfo + `\AAAA`},
+			[]cert{
+				{"AAAA", "joined-id", entraIssuer, "LocalMachine", 1000000000},
+				{"BBBB", "planted-id", entraIssuer, "CurrentUser", 2000000000},
+			})
+		require.ElementsMatch(t, []row{
+			{"joined-id", "1000000000", "anchored"},
+			{"planted-id", "2000000000", "unanchored"},
+		}, got)
+	})
+
+	t.Run("machine certificate without a join record is not anchored", func(t *testing.T) {
+		got := run(t,
+			[]string{joinInfo + `\AAAA`},
+			[]cert{{"BBBB", "stale-id", entraIssuer, "LocalMachine", 2000000000}})
+		require.Equal(t, []row{{"stale-id", "2000000000", "unanchored"}}, got)
+	})
+
+	t.Run("each join record anchors its own certificate", func(t *testing.T) {
+		got := run(t,
+			[]string{joinInfo + `\AAAA`, joinInfo + `\BBBB`},
+			[]cert{
+				{"AAAA", "old-id", entraIssuer, "LocalMachine", 1000000000},
+				{"BBBB", "new-id", entraIssuer, "LocalMachine", 2000000000},
+			})
+		require.ElementsMatch(t, []row{
+			{"old-id", "1000000000", "anchored"},
+			{"new-id", "2000000000", "anchored"},
+		}, got)
+	})
+
+	t.Run("certificates from other issuers are ignored", func(t *testing.T) {
+		got := run(t,
+			[]string{joinInfo + `\AAAA`},
+			[]cert{{"AAAA", "other", "CN=Some Other CA", "LocalMachine", 2000000000}})
+		require.Empty(t, got)
+	})
+
+	t.Run("no Entra certificate", func(t *testing.T) {
+		require.Empty(t, run(t, nil, nil))
+	})
+}

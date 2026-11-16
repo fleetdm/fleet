@@ -4248,6 +4248,11 @@ type Datastore interface {
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
+	// DeleteHostConditionalAccessStatus removes the host's status entry if it still holds deviceID, releasing it.
+	DeleteHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string) error
+	// GetWindowsHostEntraDeviceIDState returns, in one read, the host's status entry and the Entra device IDs
+	// Microsoft signed for it.
+	GetWindowsHostEntraDeviceIDState(ctx context.Context, hostID uint) (*WindowsHostEntraDeviceIDState, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Host identity certificates

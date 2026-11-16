@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +19,8 @@ func TestConditionalAccess(t *testing.T) {
 		{"Setup", testConditionalAccessSetup},
 		{"Hosts", testConditionalAccessHosts},
 		{"DeviceIDOneHost", testConditionalAccessDeviceIDOneHost},
+		{"DeleteHostStatus", testConditionalAccessDeleteHostStatus},
+		{"WindowsEntraDeviceIDState", testConditionalAccessWindowsEntraDeviceIDState},
 	}
 
 	for _, c := range cases {
@@ -366,4 +369,111 @@ func testConditionalAccessDeviceIDOneHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, changed)
 	assertDeviceID(win2.ID, "macDeviceID")
+}
+
+func testConditionalAccessDeleteHostStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	win1 := newTestHostWithPlatform(t, ds, "win1", "windows", nil)
+	win2 := newTestHostWithPlatform(t, ds, "win2", "windows", nil)
+
+	// Deleting a host without a status is a no-op.
+	require.NoError(t, ds.DeleteHostConditionalAccessStatus(ctx, win1.ID, "deviceID1"))
+
+	_, err := ds.CreateHostConditionalAccessStatus(ctx, win1.ID, "deviceID1", "", false)
+	require.NoError(t, err)
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, win2.ID, "deviceID2", "", false)
+	require.NoError(t, err)
+
+	// A host that no longer holds the given device ID keeps its status.
+	require.NoError(t, ds.DeleteHostConditionalAccessStatus(ctx, win1.ID, "deviceID2"))
+	status, err := ds.LoadHostConditionalAccessStatus(ctx, win1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "deviceID1", status.DeviceID)
+
+	require.NoError(t, ds.DeleteHostConditionalAccessStatus(ctx, win1.ID, "deviceID1"))
+	_, err = ds.LoadHostConditionalAccessStatus(ctx, win1.ID)
+	require.True(t, fleet.IsNotFound(err), err)
+	status, err = ds.LoadHostConditionalAccessStatus(ctx, win2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "deviceID2", status.DeviceID)
+
+	// The released device ID can be claimed by another host.
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, win2.ID, "deviceID1", "", false)
+	require.NoError(t, err)
+}
+
+func testConditionalAccessWindowsEntraDeviceIDState(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		enrollmentID = "4f1c2a3b-5d6e-4f70-8a9b-0c1d2e3f4a5b"
+		autopilotID  = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+		otherID      = "11111111-1111-4111-8111-111111111111"
+	)
+	exec := func(stmt string, args ...any) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+	getState := func(hostID uint) *fleet.WindowsHostEntraDeviceIDState {
+		state, err := ds.GetWindowsHostEntraDeviceIDState(ctx, hostID)
+		require.NoError(t, err)
+		return state
+	}
+
+	bare := newTestHostWithPlatform(t, ds, "bare", "windows", nil)
+	require.Equal(t, &fleet.WindowsHostEntraDeviceIDState{}, getState(bare.ID))
+
+	win := newTestHostWithPlatform(t, ds, "win", "windows", nil)
+	exec(`UPDATE hosts SET os_version = 'Windows 11 Pro 24H2 10.0.26100.1000' WHERE id = ?`, win.ID)
+	_, err := ds.CreateHostConditionalAccessStatus(ctx, win.ID, "stored-id", "", true)
+	require.NoError(t, err)
+	require.NoError(t, ds.SetHostConditionalAccessStatus(ctx, win.ID, true, false))
+	insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hostUUID: win.UUID, entraDeviceID: enrollmentID})
+	exec(`INSERT INTO host_autopilot_devices (host_id, autopilot_device_id, entra_device_id) VALUES (?, 'ap-win', ?)`, win.ID, autopilotID)
+	// Another host's records must not leak in.
+	other := newTestHostWithPlatform(t, ds, "other", "windows", nil)
+	insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hostUUID: other.UUID, entraDeviceID: otherID})
+	exec(`INSERT INTO host_autopilot_devices (host_id, autopilot_device_id, entra_device_id) VALUES (?, 'ap-other', 'other')`, other.ID)
+
+	state := getState(win.ID)
+	require.True(t, state.StatusVerified)
+	require.Equal(t, enrollmentID, state.EnrollmentEntraDeviceID)
+	require.Equal(t, autopilotID, state.AutopilotEntraDeviceID)
+	loaded, err := ds.LoadHostConditionalAccessStatus(ctx, win.ID)
+	require.NoError(t, err)
+	require.Equal(t, "10.0.26100.1000", loaded.OSVersion)
+	loaded.UpdateCreateTimestamps = fleet.UpdateCreateTimestamps{}
+	require.Equal(t, loaded, state.Status)
+
+	// The latest enrollment counts, even without a claim.
+	insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hostUUID: win.UUID})
+	require.Empty(t, getState(win.ID).EnrollmentEntraDeviceID)
+
+	// A deleted Autopilot record doesn't count.
+	exec(`UPDATE host_autopilot_devices SET deleted_at = NOW(6) WHERE host_id = ?`, win.ID)
+	require.Empty(t, getState(win.ID).AutopilotEntraDeviceID)
+
+	// The status is still returned without a display name.
+	exec(`DELETE FROM host_display_names WHERE host_id = ?`, win.ID)
+	state = getState(win.ID)
+	require.NotNil(t, state.Status)
+	require.Equal(t, "stored-id", state.Status.DeviceID)
+	require.Empty(t, state.Status.DisplayName)
+
+	// When hosts share a UUID, the enrollment can't be attributed to one of them, so no host gets its claim.
+	require.Equal(t, otherID, getState(other.ID).EnrollmentEntraDeviceID)
+	dup := newTestHostWithPlatform(t, ds, "dup", "windows", nil)
+	exec(`UPDATE hosts SET uuid = ? WHERE id = ?`, other.UUID, dup.ID)
+	require.Empty(t, getState(other.ID).EnrollmentEntraDeviceID)
+	require.Empty(t, getState(dup.ID).EnrollmentEntraDeviceID)
+
+	// A host without a UUID doesn't pick up unlinked enrollments.
+	exec(`UPDATE hosts SET uuid = '' WHERE id = ?`, bare.ID)
+	insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{entraDeviceID: enrollmentID})
+	require.Empty(t, getState(bare.ID).EnrollmentEntraDeviceID)
+
+	_, err = ds.GetWindowsHostEntraDeviceIDState(ctx, 999_999)
+	require.True(t, fleet.IsNotFound(err), err)
 }

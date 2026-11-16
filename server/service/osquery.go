@@ -1319,6 +1319,7 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 		features,
 		osquery_utils.Integrations{
 			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+			UnmarkMicrosoftDevice:      svc.unmarkConditionalAccessMicrosoftDeviceAsync,
 		},
 		mdmTeamConfig,
 	)
@@ -3834,6 +3835,42 @@ func (svc *Service) setHostConditionalAccess(
 		recordSingleSignOnBlockedActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, logger)
 	}
 
+	return nil
+}
+
+// unmarkConditionalAccessMicrosoftDeviceAsync runs off the ingestion path, like setHostConditionalAccessAsync.
+func (svc *Service) unmarkConditionalAccessMicrosoftDeviceAsync(ctx context.Context, dropped *fleet.HostConditionalAccessStatus) {
+	ctx = context.WithoutCancel(ctx)
+	go func() {
+		if err := svc.unmarkConditionalAccessMicrosoftDevice(ctx, dropped); err != nil {
+			svc.logger.ErrorContext(ctx, "unmark dropped Entra device ID",
+				"host_id", dropped.HostID, "device_id", dropped.DeviceID, "err", err)
+		}
+	}()
+}
+
+// unmarkConditionalAccessMicrosoftDevice reports a device ID the host no longer holds as not managed and not compliant,
+// since Entra otherwise keeps the last status Fleet sent for it. Only Windows device IDs are dropped this way.
+func (svc *Service) unmarkConditionalAccessMicrosoftDevice(ctx context.Context, dropped *fleet.HostConditionalAccessStatus) error {
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get integration")
+	}
+	if _, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(
+		ctx,
+		integration.TenantID,
+		integration.ProxyServerSecret,
+		dropped.DeviceID,
+		"",
+		false,
+		dropped.DisplayName,
+		"windows",
+		dropped.OSVersion,
+		false,
+		time.Now().UTC(),
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "set compliance status of dropped device ID")
+	}
 	return nil
 }
 

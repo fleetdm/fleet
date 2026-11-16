@@ -84,7 +84,14 @@ SELECT email FROM users
 
 - Query:
 ```sql
-SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;
+SELECT c.subject AS device_id, c.not_valid_after,
+  CASE WHEN r.key IS NOT NULL AND c.store_location = 'LocalMachine' THEN 'anchored' ELSE 'unanchored' END AS source
+FROM certificates c
+LEFT JOIN (
+  SELECT DISTINCT key FROM registry
+  WHERE key LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\%'
+) r ON UPPER(c.sha1) = UPPER(SUBSTR(r.key, LENGTH('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\') + 1))
+WHERE c.issuer LIKE 'net + windows + MS-Organization-Access%';
 ```
 
 ## disk_encryption_darwin

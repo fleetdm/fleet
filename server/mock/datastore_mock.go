@@ -2394,6 +2394,10 @@ type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
+type DeleteHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string) error
+
+type GetWindowsHostEntraDeviceIDStateFunc func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error)
+
 type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 
 type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
@@ -6149,6 +6153,12 @@ type DataStore struct {
 
 	SetHostConditionalAccessStatusFunc        SetHostConditionalAccessStatusFunc
 	SetHostConditionalAccessStatusFuncInvoked bool
+
+	DeleteHostConditionalAccessStatusFunc        DeleteHostConditionalAccessStatusFunc
+	DeleteHostConditionalAccessStatusFuncInvoked bool
+
+	GetWindowsHostEntraDeviceIDStateFunc        GetWindowsHostEntraDeviceIDStateFunc
+	GetWindowsHostEntraDeviceIDStateFuncInvoked bool
 
 	GetHostIdentityCertBySerialNumberFunc        GetHostIdentityCertBySerialNumberFunc
 	GetHostIdentityCertBySerialNumberFuncInvoked bool
@@ -14746,6 +14756,20 @@ func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID u
 	s.SetHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
+}
+
+func (s *DataStore) DeleteHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string) error {
+	s.mu.Lock()
+	s.DeleteHostConditionalAccessStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostConditionalAccessStatusFunc(ctx, hostID, deviceID)
+}
+
+func (s *DataStore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
+	s.mu.Lock()
+	s.GetWindowsHostEntraDeviceIDStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsHostEntraDeviceIDStateFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {

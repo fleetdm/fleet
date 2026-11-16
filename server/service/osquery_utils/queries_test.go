@@ -6686,3 +6686,275 @@ func TestLuksVerifyQuerySelectsRootLUKSDevice(t *testing.T) {
 		})
 	}
 }
+
+func TestEntraDeviceIDIngester(t *testing.T) {
+	const (
+		joinedID     = "11111111-1111-1111-1111-111111111111"
+		registeredID = "22222222-2222-2222-2222-222222222222"
+		plantedID    = "33333333-3333-3333-3333-333333333333"
+		otherJoined  = "44444444-4444-4444-4444-444444444444"
+	)
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 7, UUID: "win-uuid", Platform: "windows"}
+	anchored := func(id, notValidAfter string) map[string]string {
+		return map[string]string{"device_id": id, "not_valid_after": notValidAfter, "source": "anchored"}
+	}
+	unanchored := func(id, notValidAfter string) map[string]string {
+		return map[string]string{"device_id": id, "not_valid_after": notValidAfter, "source": "unanchored"}
+	}
+	stored := func(id string) *fleet.HostConditionalAccessStatus {
+		return &fleet.HostConditionalAccessStatus{HostID: host.ID, DeviceID: id, Managed: new(true), Compliant: new(true)}
+	}
+	type created struct {
+		deviceID string
+		verified bool
+	}
+
+	cases := []struct {
+		name           string
+		trustedOnly    bool
+		rows           []map[string]string
+		enrollmentID   string
+		autopilotID    string
+		stored         *fleet.HostConditionalAccessStatus
+		storedVerified bool
+		wantCreated    *created
+		wantDeleted    bool
+		wantUnmarked   []string
+	}{
+		{
+			name:        "default: registered certificate is accepted unverified",
+			rows:        []map[string]string{unanchored(registeredID, "2000")},
+			wantCreated: &created{registeredID, false},
+		},
+		{
+			name:        "default: rows without a source are treated as unanchored",
+			rows:        []map[string]string{{"device_id": registeredID}},
+			wantCreated: &created{registeredID, false},
+		},
+		{
+			name:        "default: anchored certificate beats a newer unanchored one",
+			rows:        []map[string]string{anchored(joinedID, "1000"), unanchored(joinedID, "1000"), unanchored(plantedID, "3000")},
+			wantCreated: &created{joinedID, false},
+		},
+		{
+			name:        "default: newest anchored certificate wins",
+			rows:        []map[string]string{anchored(otherJoined, "1000"), anchored(joinedID, "2000")},
+			wantCreated: &created{joinedID, false},
+		},
+		{
+			name:        "default: newest unanchored certificate wins",
+			rows:        []map[string]string{unanchored(plantedID, "1000"), unanchored(registeredID, "2000")},
+			wantCreated: &created{registeredID, false},
+		},
+		{
+			name:         "default: certificate matching the enrollment device ID is verified and beats an anchored one",
+			rows:         []map[string]string{anchored(otherJoined, "3000"), unanchored(registeredID, "1000")},
+			enrollmentID: registeredID,
+			wantCreated:  &created{registeredID, true},
+		},
+		{
+			name:        "default: certificate matching the Autopilot device ID is verified",
+			rows:        []map[string]string{anchored(joinedID, "1000")},
+			autopilotID: joinedID,
+			wantCreated: &created{joinedID, true},
+		},
+		{
+			name:         "default: signed device ID matches case-insensitively",
+			rows:         []map[string]string{unanchored("2222222A-2222-2222-2222-222222222222", "1000")},
+			enrollmentID: "2222222a-2222-2222-2222-222222222222",
+			wantCreated:  &created{"2222222A-2222-2222-2222-222222222222", true},
+		},
+		{
+			name:         "default: stale signed device ID falls back to the other rules",
+			rows:         []map[string]string{anchored(joinedID, "1000")},
+			enrollmentID: otherJoined,
+			wantCreated:  &created{joinedID, false},
+		},
+		{
+			name:         "default: signed device ID that isn't a UUID is ignored",
+			rows:         []map[string]string{unanchored("not-a-uuid", "1000")},
+			enrollmentID: "not-a-uuid",
+			wantCreated:  &created{"not-a-uuid", false},
+		},
+		{
+			name:   "default: unchanged device ID isn't stored again",
+			rows:   []map[string]string{anchored(joinedID, "1000")},
+			stored: stored(joinedID),
+		},
+		{
+			name:           "default: unchanged verified device ID isn't stored again",
+			rows:           []map[string]string{unanchored(registeredID, "1000")},
+			enrollmentID:   registeredID,
+			stored:         stored(registeredID),
+			storedVerified: true,
+		},
+		{
+			name:         "default: device ID that becomes verified is stored again",
+			rows:         []map[string]string{unanchored(registeredID, "1000")},
+			enrollmentID: registeredID,
+			stored:       stored(registeredID),
+			wantCreated:  &created{registeredID, true},
+		},
+		{
+			name:   "default: no rows keeps the stored device ID",
+			rows:   nil,
+			stored: stored(registeredID),
+		},
+		{
+			name:        "default: replacing the device ID does not unmark the old one",
+			rows:        []map[string]string{unanchored(registeredID, "1000")},
+			stored:      stored(plantedID),
+			wantCreated: &created{registeredID, false},
+		},
+		{
+			name:        "trusted only: anchored certificate is accepted unverified",
+			trustedOnly: true,
+			rows:        []map[string]string{anchored(joinedID, "1000"), unanchored(joinedID, "1000")},
+			wantCreated: &created{joinedID, false},
+		},
+		{
+			name:         "trusted only: unanchored certificate matching a signed device ID is accepted",
+			trustedOnly:  true,
+			rows:         []map[string]string{unanchored(registeredID, "1000")},
+			enrollmentID: registeredID,
+			wantCreated:  &created{registeredID, true},
+		},
+		{
+			name:        "trusted only: unanchored certificate without a host status is ignored",
+			trustedOnly: true,
+			rows:        []map[string]string{unanchored(plantedID, "1000")},
+		},
+		{
+			name:        "trusted only: all-zero Autopilot device ID doesn't admit a certificate",
+			trustedOnly: true,
+			rows:        []map[string]string{unanchored("00000000-0000-0000-0000-000000000000", "1000")},
+			autopilotID: "00000000-0000-0000-0000-000000000000",
+		},
+		{
+			name:         "trusted only: rejected certificate clears and unmarks the stored device ID",
+			trustedOnly:  true,
+			rows:         []map[string]string{unanchored(plantedID, "1000")},
+			stored:       stored(plantedID),
+			wantDeleted:  true,
+			wantUnmarked: []string{plantedID},
+		},
+		{
+			name:         "trusted only: no rows clears and unmarks a device ID that is not signed",
+			trustedOnly:  true,
+			stored:       stored(joinedID),
+			wantDeleted:  true,
+			wantUnmarked: []string{joinedID},
+		},
+		{
+			name:         "trusted only: no rows keeps a signed device ID",
+			trustedOnly:  true,
+			enrollmentID: registeredID,
+			stored:       stored(registeredID),
+		},
+		{
+			name:         "trusted only: another user's certificate keeps a signed device ID",
+			trustedOnly:  true,
+			rows:         []map[string]string{unanchored(plantedID, "1000")},
+			enrollmentID: registeredID,
+			stored:       stored(registeredID),
+		},
+		{
+			name:        "trusted only: clearing a device ID never reported to Entra does not unmark it",
+			trustedOnly: true,
+			stored:      &fleet.HostConditionalAccessStatus{HostID: host.ID, DeviceID: plantedID},
+			wantDeleted: true,
+		},
+		{
+			name:         "trusted only: replacing the device ID unmarks the old one",
+			trustedOnly:  true,
+			rows:         []map[string]string{anchored(joinedID, "1000")},
+			stored:       stored(plantedID),
+			wantCreated:  &created{joinedID, false},
+			wantUnmarked: []string{plantedID},
+		},
+		{
+			name:        "trusted only: unchanged device ID is neither stored again nor unmarked",
+			trustedOnly: true,
+			rows:        []map[string]string{anchored(joinedID, "1000")},
+			stored:      stored(joinedID),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
+				require.Equal(t, host.ID, hostID)
+				return &fleet.WindowsHostEntraDeviceIDState{
+					Status: c.stored, StatusVerified: c.storedVerified,
+					EnrollmentEntraDeviceID: c.enrollmentID, AutopilotEntraDeviceID: c.autopilotID,
+				}, nil
+			}
+			var gotCreated *created
+			ds.CreateHostConditionalAccessStatusFunc = func(ctx context.Context, hostID uint, deviceID string, upn string, verified bool) (bool, error) {
+				require.Equal(t, host.ID, hostID)
+				gotCreated = &created{deviceID, verified}
+				return c.stored == nil || c.stored.DeviceID != deviceID, nil
+			}
+			ds.DeleteHostConditionalAccessStatusFunc = func(ctx context.Context, hostID uint, deviceID string) error {
+				require.Equal(t, host.ID, hostID)
+				require.Equal(t, c.stored.DeviceID, deviceID)
+				return nil
+			}
+			var gotUnmarked []string
+			unmark := func(ctx context.Context, dropped *fleet.HostConditionalAccessStatus) {
+				// The host drops the device ID before the unmark, so a failed unmark can't pin it.
+				require.Equal(t, c.wantCreated, gotCreated)
+				require.Equal(t, c.wantDeleted, ds.DeleteHostConditionalAccessStatusFuncInvoked)
+				gotUnmarked = append(gotUnmarked, dropped.DeviceID)
+			}
+
+			fleetConfig := config.FleetConfig{}
+			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly = c.trustedOnly
+			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil,
+				Integrations{ConditionalAccessMicrosoft: true, UnmarkMicrosoftDevice: unmark}, nil)
+			q, ok := queries["conditional_access_microsoft_device_id_windows"]
+			require.True(t, ok)
+			require.NoError(t, q.DirectIngestFunc(t.Context(), logger, host, ds, c.rows))
+			require.Equal(t, c.wantCreated, gotCreated)
+			require.Equal(t, c.wantDeleted, ds.DeleteHostConditionalAccessStatusFuncInvoked)
+			require.Equal(t, c.wantUnmarked, gotUnmarked)
+		})
+	}
+
+	t.Run("no rows skips the read in default mode", func(t *testing.T) {
+		for _, trustedOnly := range []bool{false, true} {
+			ds := new(mock.Store)
+			ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
+				return &fleet.WindowsHostEntraDeviceIDState{}, nil
+			}
+			require.NoError(t, entraDeviceIDIngester(trustedOnly, nil)(t.Context(), logger, host, ds, nil))
+			require.Equal(t, trustedOnly, ds.GetWindowsHostEntraDeviceIDStateFuncInvoked, "trustedOnly=%v", trustedOnly)
+		}
+	})
+
+	t.Run("rejects results from other platforms", func(t *testing.T) {
+		ds := new(mock.Store)
+		mac := &fleet.Host{ID: 8, Platform: "darwin"}
+		err := entraDeviceIDIngester(false, nil)(t.Context(), logger, mac, ds, []map[string]string{unanchored(registeredID, "1000")})
+		require.Error(t, err)
+		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
+	})
+
+	t.Run("rejects an empty device ID", func(t *testing.T) {
+		ds := new(mock.Store)
+		err := entraDeviceIDIngester(false, nil)(t.Context(), logger, host, ds, []map[string]string{unanchored("", "1000")})
+		require.Error(t, err)
+		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
+	})
+
+	t.Run("read errors are returned", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetWindowsHostEntraDeviceIDStateFunc = func(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
+			return nil, errors.New("db down")
+		}
+		err := entraDeviceIDIngester(true, nil)(t.Context(), logger, host, ds, []map[string]string{anchored(joinedID, "1000")})
+		require.Error(t, err)
+		require.False(t, ds.CreateHostConditionalAccessStatusFuncInvoked)
+	})
+}

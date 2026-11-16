@@ -94,11 +94,17 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 			return nil, ctxerr.Wrap(ctx, notFound("HostConditionalAccessStatus").WithID(hostID))
 		}
 	}
-	hostConditionalAccessStatus.OSVersion = strings.TrimPrefix(hostConditionalAccessStatus.OSVersion, "macOS ")
-	if strings.HasPrefix(hostConditionalAccessStatus.OSVersion, "Windows") {
-		hostConditionalAccessStatus.OSVersion = extractWindowsBuildVersion(hostConditionalAccessStatus.OSVersion)
-	}
+	hostConditionalAccessStatus.OSVersion = conditionalAccessOSVersion(hostConditionalAccessStatus.OSVersion)
 	return &hostConditionalAccessStatus, nil
+}
+
+// conditionalAccessOSVersion converts hosts.os_version to the OS version reported to Entra.
+func conditionalAccessOSVersion(osVersion string) string {
+	osVersion = strings.TrimPrefix(osVersion, "macOS ")
+	if strings.HasPrefix(osVersion, "Windows") {
+		osVersion = extractWindowsBuildVersion(osVersion)
+	}
+	return osVersion
 }
 
 // extractWindowsBuildVersion extracts the build version from a Windows' hosts.os_version.
@@ -202,6 +208,79 @@ func (ds *Datastore) SetHostConditionalAccessStatus(ctx context.Context, hostID 
 		managed, compliant, hostID,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "update host conditional access status")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetWindowsHostEntraDeviceIDState(ctx context.Context, hostID uint) (*fleet.WindowsHostEntraDeviceIDState, error) {
+	var row struct {
+		OSVersion               string  `db:"os_version"`
+		DisplayName             string  `db:"display_name"`
+		DeviceID                *string `db:"device_id"`
+		UserPrincipalName       string  `db:"user_principal_name"`
+		Managed                 *bool   `db:"managed"`
+		Compliant               *bool   `db:"compliant"`
+		Verified                bool    `db:"verified"`
+		EnrollmentEntraDeviceID string  `db:"enrollment_entra_device_id"`
+		AutopilotEntraDeviceID  string  `db:"autopilot_entra_device_id"`
+	}
+	// The latest enrollment, as in MDMWindowsGetEnrolledDeviceWithHostUUID. Its claim proves nothing when hosts share
+	// the UUID, since it can't be attributed to one of them. The replica is fine: an enrollment linked in the same
+	// request may be ingested after this query anyway, and the next check-in picks it up.
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		SELECT
+			h.os_version,
+			COALESCE(hdn.display_name, '') AS display_name,
+			mcphs.device_id,
+			COALESCE(mcphs.user_principal_name, '') AS user_principal_name,
+			mcphs.managed,
+			mcphs.compliant,
+			COALESCE(mcphs.verified, FALSE) AS verified,
+			COALESCE((
+				SELECT BIN_TO_UUID(e.entra_device_id) FROM mdm_windows_enrollments e
+				WHERE e.host_uuid = h.uuid AND h.uuid != ''
+					AND NOT EXISTS (SELECT 1 FROM hosts dup WHERE dup.uuid = h.uuid AND dup.id != h.id)
+				ORDER BY e.created_at DESC, e.id DESC LIMIT 1
+			), '') AS enrollment_entra_device_id,
+			COALESCE((
+				SELECT a.entra_device_id FROM host_autopilot_devices a WHERE a.host_id = h.id AND a.deleted_at IS NULL
+			), '') AS autopilot_entra_device_id
+		FROM hosts h
+		LEFT JOIN microsoft_compliance_partner_host_statuses mcphs ON mcphs.host_id = h.id
+		LEFT JOIN host_display_names hdn ON hdn.host_id = h.id
+		WHERE h.id = ?`,
+		hostID,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get windows host Entra device ID state")
+	}
+
+	state := &fleet.WindowsHostEntraDeviceIDState{
+		EnrollmentEntraDeviceID: row.EnrollmentEntraDeviceID,
+		AutopilotEntraDeviceID:  row.AutopilotEntraDeviceID,
+	}
+	if row.DeviceID != nil {
+		state.Status = &fleet.HostConditionalAccessStatus{
+			HostID:            hostID,
+			DeviceID:          *row.DeviceID,
+			UserPrincipalName: row.UserPrincipalName,
+			Managed:           row.Managed,
+			Compliant:         row.Compliant,
+			DisplayName:       row.DisplayName,
+			OSVersion:         conditionalAccessOSVersion(row.OSVersion),
+		}
+		state.StatusVerified = row.Verified
+	}
+	return state, nil
+}
+
+func (ds *Datastore) DeleteHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id = ? AND device_id = ?`, hostID, deviceID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host conditional access status")
 	}
 	return nil
 }
