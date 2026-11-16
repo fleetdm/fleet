@@ -54,6 +54,12 @@ func TestRegistry_LookupNormalizes(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name:   "HEAD takes the GET tier",
+			input:  "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}",
+			want:   TierStandard,
+			wantOK: true,
+		},
+		{
 			name:   "unregistered route",
 			input:  "POST /not/in/registry",
 			want:   TierAlways, // zero value. Sampler interprets the !ok as the catch all.

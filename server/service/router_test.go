@@ -1,16 +1,20 @@
 package service
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -20,7 +24,9 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -164,7 +170,7 @@ func TestRouterEdgeCases(t *testing.T) {
 			name: "live host subresource wins the overlap", method: "GET", path: "/api/latest/fleet/hosts/1/device_mapping",
 			wantStatus: 200, wantBody: "get_hosts__id:[0-9]+__device_mapping id=1",
 		},
-		{name: "non-numeric id on a host subresource", method: "GET", path: "/api/latest/fleet/hosts/abc/activities", wantStatus: 404},
+		{name: "non-numeric id with no other route", method: "GET", path: "/api/latest/fleet/certificates/abc", wantStatus: 404, wantBody: notFound},
 		{
 			name: "live resend wins the overlap", method: "POST", path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend",
 			wantStatus: 200, wantBody: "post_hosts__host_id:[0-9]+__configuration_profiles__profile_uuid__resend host_id=1,profile_uuid=resend",
@@ -185,7 +191,19 @@ func TestRouterEdgeCases(t *testing.T) {
 			name: "websocket live results prefix route", method: "GET", path: "/api/latest/fleet/results/anything",
 			wantStatus: 200, wantBody: "get_results ",
 		},
-		{name: "live results prefix without the slash redirects", method: "GET", path: "/api/latest/fleet/results", wantStatus: 307},
+		// No redirect: it would drop server.url_prefix, which is stripped before the router sees the request.
+		{name: "live results prefix without the slash", method: "GET", path: "/api/latest/fleet/results", wantStatus: 404, wantBody: notFound},
+		{
+			name: "removed route behind a live route whose constraint fails", method: "GET",
+			path:       "/api/latest/fleet/hosts/identifier/device_mapping",
+			wantStatus: 200, wantBody: "get_hosts_identifier__identifier_ identifier_segment=identifier,identifier=device_mapping",
+		},
+		{name: "invalid id on a path only other methods serve", method: "POST", path: "/api/latest/fleet/certificates/abc", wantStatus: 404},
+		{
+			name: "wrong method on a path other methods serve", method: "POST", path: "/api/latest/fleet/certificates/1",
+			wantStatus: 405, wantAllow: "DELETE, GET, HEAD",
+		},
+		{name: "wrong method on a HEAD-only route", method: "GET", path: "/api/fleet/orbit/ping", wantStatus: 405, wantAllow: "HEAD"},
 	}
 
 	for _, c := range cases {
@@ -244,6 +262,10 @@ func TestRouterSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantTier: tracing.TierHighVolume,
 		},
 		{
+			name: "HEAD on a GET route takes the GET tier", method: "HEAD", path: "/api/latest/fleet/config",
+			wantSpan: "HEAD /api/_version_/fleet/config", wantTier: tracing.TierStandard,
+		},
+		{
 			name: "encoded path variable", method: "GET", path: "/api/latest/fleet/hosts/a%2Cb",
 			wantSpan: "GET /api/_version_/fleet/hosts/{id}", wantTier: tracing.TierStandard,
 		},
@@ -280,7 +302,7 @@ func TestRouterSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 	t.Run("a request no route matches has no span", func(t *testing.T) {
 		recorder.Reset()
 		require.Equal(t, http.StatusNotFound, serve(router, "GET", "/api/latest/fleet/nope").Code)
-		require.Equal(t, http.StatusNotFound, serve(router, "GET", "/api/latest/fleet/hosts/abc/activities").Code)
+		require.Equal(t, http.StatusNotFound, serve(router, "GET", "/api/latest/fleet/certificates/abc").Code)
 		require.Empty(t, recorder.Ended())
 	})
 }
@@ -294,4 +316,56 @@ func spanRoutes(span sdktrace.ReadOnlySpan) []string {
 		}
 	}
 	return routes
+}
+
+// TestAPIOnlyCatalogThroughRouter routes a request to every catalog entry and runs the API-only check behind the router. A user
+// granted that entry must pass and a user granted another one must not, which fails if the router hands authorization a route
+// template that maps to the wrong catalog entry, or none.
+func TestAPIOnlyCatalogThroughRouter(t *testing.T) {
+	ds := new(mock.Store)
+	svc, _ := newTestService(t, ds, nil, nil)
+	router := newAPIHandler(t, config.TestConfig(), productionFeatureRoutes(t, svc))
+
+	var grant fleet.APIEndpointRef
+	allowed := func(context.Context, any) (any, error) { return nil, nil }
+	router.WrapHandlers(func(_ endpointer.Route, _ http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user := &fleet.User{APIOnly: true, APIEndpoints: []fleet.APIEndpointRef{grant}}
+			ctx := viewer.NewContext(kithttp.PopulateRequestContext(r.Context(), r), viewer.Viewer{User: user})
+			if _, err := auth.APIOnlyEndpointCheck(allowed)(ctx, nil); err != nil {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		})
+	})
+
+	unrelated := fleet.APIEndpointRef{Method: http.MethodGet, Path: "/api/v1/fleet/version"}
+	placeholder := regexp.MustCompile(`:[a-zA-Z_]+`)
+	var checked int
+	for _, entry := range apiendpoints.GetAPIEndpoints() {
+		if strings.Contains(entry.Path, "/scim/") {
+			continue // served by the SCIM handler, not this router
+		}
+		path := placeholder.ReplaceAllString(entry.Path, "1")
+		if serve(router, entry.Method, path).Code == http.StatusNotFound {
+			path = strings.Replace(path, "/api/v1/", "/api/latest/", 1) // a route that starts after v1
+		}
+		for _, c := range []struct {
+			grant fleet.APIEndpointRef
+			want  int
+		}{
+			{fleet.APIEndpointRef{Method: entry.Method, Path: entry.Path}, http.StatusOK},
+			{unrelated, http.StatusForbidden},
+		} {
+			if c.grant == unrelated && entry.Method == unrelated.Method && entry.Path == unrelated.Path {
+				continue
+			}
+			grant = c.grant
+			assert.Equalf(t, c.want, serve(router, entry.Method, path).Code, "%s %s granted %s %s", entry.Method, path,
+				c.grant.Method, c.grant.Path)
+		}
+		checked++
+	}
+	require.Greater(t, checked, 200, "expected the whole catalog")
 }

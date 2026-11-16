@@ -1,7 +1,9 @@
 package tracing
 
 import (
+	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -64,6 +66,12 @@ func (r *Registry) Lookup(spanName string) (Tier, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	t, ok := r.routes[normalized]
+	if !ok {
+		// The GET route serves HEAD, so a HEAD span takes the GET tier unless HEAD is registered itself.
+		if path, isHead := strings.CutPrefix(normalized, http.MethodHead+" "); isHead {
+			t, ok = r.routes[spanKey(http.MethodGet, path)]
+		}
+	}
 	return t, ok
 }
 

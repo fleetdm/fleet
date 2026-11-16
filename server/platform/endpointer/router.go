@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -41,6 +42,7 @@ func (rt Route) clone() Route {
 type Router struct {
 	mux        *http.ServeMux
 	routes     []*registeredRoute
+	patterns   []muxPattern
 	middleware []func(rt Route, next http.Handler) http.Handler
 }
 
@@ -58,10 +60,18 @@ type registeredRoute struct {
 }
 
 func (rr *registeredRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if mw, ok := w.(*muxWriter); ok {
+		mw.routed = true
+		w = mw.ResponseWriter
+	}
 	if !rr.allows(req.PathValue) {
-		rr.router.constraintFailed(w, req)
+		rr.router.unmatched(w, req)
 		return
 	}
+	rr.serve(w, req)
+}
+
+func (rr *registeredRoute) serve(w http.ResponseWriter, req *http.Request) {
 	rr.served.ServeHTTP(w, req.WithContext(WithRouteTemplate(req.Context(), rr.template)))
 }
 
@@ -75,32 +85,114 @@ func (rr *registeredRoute) allows(pathValue func(name string) string) bool {
 	return true
 }
 
-// allowMethods are the methods constraintFailed tries.
-var allowMethods = []string{
-	http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions,
+// muxPattern is one ServeMux pattern of a route, kept so the router can match a request against every pattern, not only the
+// most specific one the ServeMux picks.
+type muxPattern struct {
+	pattern  string
+	method   string   // "" matches every method
+	segments []string // the path split on "/", a wildcard written "{name}"
+	prefix   bool
+	rr       *registeredRoute
+	literals int
 }
 
-// constraintFailed answers a request whose route had a path variable fail its constraint. A ServeMux wildcard matches any
-// segment, so the router enforces constraints itself, and answers what a router that matched on them would: 405 when another
-// method serves the path, and 404 otherwise, rather than letting the request reach a decoder.
-func (r *Router) constraintFailed(w http.ResponseWriter, req *http.Request) {
+func newMuxPattern(pattern string, rr *registeredRoute) muxPattern {
+	method, path, ok := strings.Cut(pattern, " ")
+	if !ok {
+		method, path = "", pattern
+	}
+	p := muxPattern{pattern: pattern, method: method, rr: rr}
+	path = strings.TrimSuffix(path, "{$}")
+	if strings.HasSuffix(path, "/") && rr.Prefix {
+		p.prefix = true
+		path = strings.TrimSuffix(path, "/")
+	}
+	p.segments = strings.Split(path, "/")
+	for _, segment := range p.segments {
+		if !strings.HasPrefix(segment, "{") {
+			p.literals++
+		}
+	}
+	return p
+}
+
+// match reports whether the decoded request path segments match the pattern and satisfy the route's constraints, and returns
+// the path values.
+func (p muxPattern) match(segments []string) (map[string]string, bool) {
+	if len(segments) < len(p.segments) || (!p.prefix && len(segments) != len(p.segments)) ||
+		(p.prefix && len(segments) == len(p.segments)) {
+		return nil, false
+	}
+	values := make(map[string]string)
+	for i, segment := range p.segments {
+		if name, isVar := strings.CutPrefix(segment, "{"); isVar {
+			values[strings.TrimSuffix(name, "}")] = segments[i]
+		} else if segment != segments[i] {
+			return nil, false
+		}
+	}
+	return values, p.rr.allows(func(name string) string { return values[name] })
+}
+
+// resolve returns the most specific pattern serving method on the path whose constraints the values satisfy.
+func (r *Router) resolve(method string, segments []string) (muxPattern, map[string]string, bool) {
+	var best muxPattern
+	var bestValues map[string]string
+	found := false
+	for _, p := range r.patterns {
+		if p.method != "" && p.method != method && (method != http.MethodHead || p.method != http.MethodGet) {
+			continue
+		}
+		values, ok := p.match(segments)
+		if !ok {
+			continue
+		}
+		if !found || p.literals > best.literals || (p.literals == best.literals && best.prefix && !p.prefix) {
+			best, bestValues, found = p, values, true
+		}
+	}
+	return best, bestValues, found
+}
+
+// allowMethods are the methods unmatched offers in an Allow header.
+var allowMethods = []string{
+	http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions,
+}
+
+// unmatched answers a request the ServeMux matched without the route constraints: the route it picked had a path variable
+// fail its constraint, or it found the path only on other methods. A ServeMux wildcard matches any segment, so the router
+// enforces constraints itself and answers what a router matching on them would. It serves the request with a less specific
+// route that takes it, or answers 405 when another method serves the path, and 404 otherwise.
+func (r *Router) unmatched(w http.ResponseWriter, req *http.Request) {
+	segments := strings.Split(req.URL.EscapedPath(), "/")
+	for i, segment := range segments {
+		decoded, err := url.PathUnescape(segment)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		segments[i] = decoded
+	}
+	if p, values, ok := r.resolve(req.Method, segments); ok {
+		routed := new(http.Request)
+		*routed = *req
+		routed.Pattern = p.pattern
+		for name, value := range values {
+			routed.SetPathValue(name, value)
+		}
+		p.rr.serve(w, routed)
+		return
+	}
+
 	var allow []string
 	for _, method := range allowMethods {
-		if method == req.Method || (method == http.MethodGet && req.Method == http.MethodHead) {
+		if method == req.Method || (method == http.MethodGet && req.Method == http.MethodHead) || slices.Contains(allow, method) {
 			continue
 		}
-		probe := *req
-		probe.Method = method
-		h, pattern := r.mux.Handler(&probe)
-		other, ok := h.(*registeredRoute)
-		if !ok || pattern == "" {
-			continue
-		}
-		values := patternValues(pattern, req.URL.EscapedPath())
-		if other.allows(func(name string) string { return values[name] }) {
+		if p, _, ok := r.resolve(method, segments); ok {
 			allow = append(allow, method)
-			if method == http.MethodGet {
-				allow = append(allow, http.MethodHead)
+			if p.method == http.MethodGet && method == http.MethodGet && req.Method != http.MethodHead {
+				allow = append(allow, http.MethodHead) // the GET pattern serves HEAD
 			}
 		}
 	}
@@ -113,22 +205,43 @@ func (r *Router) constraintFailed(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 }
 
-// patternValues returns the path variables of a ServeMux pattern, as "METHOD /path", that matched escapedPath. A ServeMux
-// only returns them for the request it serves.
-func patternValues(pattern, escapedPath string) map[string]string {
-	_, patternPath, _ := strings.Cut(pattern, " ")
-	patternSegments := strings.Split(patternPath, "/")
-	pathSegments := strings.Split(escapedPath, "/")
-	values := make(map[string]string)
-	for i, segment := range patternSegments {
-		if i >= len(pathSegments) || !strings.HasPrefix(segment, "{") || segment == "{$}" {
-			continue
-		}
-		if v, err := url.PathUnescape(pathSegments[i]); err == nil {
-			values[strings.Trim(segment, "{}")] = v
-		}
+// muxWriter holds back the 405 the ServeMux writes when it finds the path only on other methods, since it does so without
+// the route constraints. Until a route takes the request, it keeps the headers the ServeMux sets apart from the real ones.
+type muxWriter struct {
+	http.ResponseWriter
+	header http.Header
+	// routed is set by the route the ServeMux dispatched to, which then writes to the real ResponseWriter.
+	routed bool
+	// heldBack is set when the ServeMux answered 405.
+	heldBack    bool
+	wroteHeader bool
+}
+
+func (mw *muxWriter) Header() http.Header {
+	if mw.header == nil {
+		mw.header = make(http.Header)
 	}
-	return values
+	return mw.header
+}
+
+func (mw *muxWriter) WriteHeader(code int) {
+	if code == http.StatusMethodNotAllowed {
+		mw.heldBack = true
+		return
+	}
+	mw.wroteHeader = true
+	maps.Copy(mw.ResponseWriter.Header(), mw.header)
+	mw.ResponseWriter.WriteHeader(code)
+}
+
+func (mw *muxWriter) Write(b []byte) (int, error) {
+	if mw.heldBack {
+		return len(b), nil
+	}
+	if !mw.wroteHeader {
+		mw.WriteHeader(http.StatusOK)
+	}
+	return mw.ResponseWriter.Write(b)
 }
 
 // NewRouter returns an empty Router.
@@ -138,7 +251,11 @@ func NewRouter() *Router {
 
 // ServeHTTP serves req with the route that matches it.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	r.mux.ServeHTTP(w, req)
+	mw := &muxWriter{ResponseWriter: w}
+	r.mux.ServeHTTP(mw, req)
+	if mw.heldBack {
+		r.unmatched(w, req)
+	}
 }
 
 // Routes returns a copy of the recorded routes, in registration order.
@@ -183,6 +300,14 @@ func (r *Router) Handle(rt Route, handler http.Handler) {
 	}
 	for _, pattern := range stdlibPatterns(rt) {
 		register(r.mux, rt.Name, pattern, rr)
+		r.patterns = append(r.patterns, newMuxPattern(pattern, rr))
+	}
+	if rt.Prefix {
+		// Without an exact pattern, the ServeMux redirects the path without its trailing slash to the subtree, and the
+		// redirect would drop server.url_prefix, which is stripped before the request gets here.
+		for _, pattern := range stdlibPatterns(Route{Methods: rt.Methods, Path: strings.TrimSuffix(rt.Path, "/"), Versions: rt.Versions}) {
+			register(r.mux, rt.Name, pattern, http.NotFoundHandler())
+		}
 	}
 	r.routes = append(r.routes, rr)
 }

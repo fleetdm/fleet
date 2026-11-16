@@ -140,6 +140,19 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.True(t, *called)
 	})
 
+	t.Run("api-only user with restrictions, HEAD uses the GET grant", func(t *testing.T) {
+		next, called := newNext()
+		ctx := ctxWithMethod("HEAD", muxTemplate("fleet/hosts"))
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly:      true,
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+		}})
+
+		_, err := newEndpoint(next)(ctx, nil)
+		require.NoError(t, err)
+		require.True(t, *called)
+	})
+
 	t.Run("api-only user with restrictions, endpoint not in catalog", func(t *testing.T) {
 		next, called := newNext()
 		ctx := ctxWithMethod("GET", muxTemplate("fleet/secret_admin_endpoint"))

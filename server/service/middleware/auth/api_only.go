@@ -59,6 +59,10 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 			return nil, endpointRestrictionDenied(ctx, routeTemplate, "route template missing from request context")
 		}
 
+		if requestMethod == http.MethodHead {
+			// The GET route serves HEAD, and the catalog lists only the GET.
+			requestMethod = http.MethodGet
+		}
 		fp := fleet.NewAPIEndpointFromTpl(requestMethod, routeTemplate).Fingerprint()
 
 		if !isInCatalog(fp) {

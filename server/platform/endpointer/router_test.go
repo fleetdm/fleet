@@ -140,3 +140,30 @@ func TestRouterRejectsBadRoutes(t *testing.T) {
 		})
 	}
 }
+
+// TestRouterDecodesPathValuesOnce runs StringFromRequest behind the router, the way request decoders read a name from the path.
+func TestRouterDecodesPathValuesOnce(t *testing.T) {
+	t.Parallel()
+
+	r := NewRouter()
+	r.Handle(Route{Name: "get_label", Methods: []string{http.MethodGet}, Path: "/api/labels/{name}"},
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			name, err := StringFromRequest(req, "name")
+			assert.NoError(t, err)
+			_, _ = w.Write([]byte(name)) //nolint:gosec // test echo, never rendered
+		}))
+
+	for _, tc := range []struct{ path, want string }{
+		{"/api/labels/abc%2Fdef", "abc/def"},
+		{"/api/labels/abc%252Fdef", "abc%2Fdef"},
+		{"/api/labels/50%25off", "50%off"},
+		{"/api/labels/a%20b", "a b"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.want, rec.Body.String())
+		})
+	}
+}
