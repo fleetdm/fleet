@@ -3649,7 +3649,7 @@ the `software` table.
 
 `GET /api/v1/fleet/hosts`
 
-> `query`, `device_mapping`, `populate_software`, and `populate_end_users` are expensive, especially combined. When using them, lower `per_page` (e.g. `50`) to avoid overloading the Fleet server.
+> `query`, `device_mapping`, `populate_software`, and `populate_end_users` can overload the Fleet server when combined with large page lengths (`per_page`). When using them use a lower `per_page` (e.g. `50`).
 
 #### Parameters
 
