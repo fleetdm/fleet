@@ -1058,7 +1058,6 @@ spec:
   icon_url: null
   id: 0
   name: foo
-  software_package: null
   packages: null
   source: chrome_extensions
   extension_for: chrome
@@ -1083,7 +1082,6 @@ spec:
   icon_url: null
   id: 0
   name: bar
-  software_package: null
   packages: null
   source: deb_packages
   extension_for: ""
@@ -1133,7 +1131,6 @@ spec:
           ]
         }
       ],
-      "software_package": null,
       "packages": null,
       "app_store_apps": null
     },
@@ -1153,7 +1150,6 @@ spec:
       "vulnerabilities": null
         }
       ],
-      "software_package": null,
       "packages": null,
       "app_store_apps": null
     }
