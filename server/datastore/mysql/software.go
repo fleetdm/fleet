@@ -8089,6 +8089,25 @@ INNER JOIN software_titles st ON vap.title_id = st.id
 SET hvsi.removed = 1
 WHERE hvsi.host_id = ? AND st.id IN (?)
 `
+	keys, err := discoverVPPAppInstallKeys(ctx, ex, `
+SELECT hvsi.id, hvsi.host_id, hvsi.adam_id, hvsi.platform
+FROM host_vpp_software_installs hvsi
+JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+JOIN software_titles st ON vap.title_id = st.id
+WHERE hvsi.host_id = ? AND st.id IN (?)`, hostID, titleIDs)
+	if err != nil {
+		return err
+	}
+
+	if _, _, err := lockVPPAppInstallRequests(ctx, ex, keys, `
+SELECT hvsi.id, hvsi.host_id, hvsi.adam_id, hvsi.platform
+FROM host_vpp_software_installs hvsi
+JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
+JOIN software_titles st ON vap.title_id = st.id
+WHERE hvsi.host_id = ? AND st.id IN (?)`, hostID, titleIDs); err != nil {
+		return err
+	}
+
 	stmtExpanded, args, err := sqlx.In(stmt, hostID, titleIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build query args to mark host vpp software install removed")
@@ -8096,7 +8115,8 @@ WHERE hvsi.host_id = ? AND st.id IN (?)
 	if _, err := ex.ExecContext(ctx, stmtExpanded, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "mark host vpp software install removed")
 	}
-	return nil
+	// Inventory retries naturally on the next check-in if the state refresh deadlocks.
+	return refreshVPPAppInstallState(ctx, ex, keys)
 }
 
 func (ds *Datastore) ListSoftwareCategories(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {

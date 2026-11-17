@@ -2574,7 +2574,16 @@ func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sq
 }
 
 func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `
+SELECT hvsi.id, hvsi.host_id, hvsi.adam_id, hvsi.platform FROM host_vpp_software_installs hvsi
+JOIN hosts h ON h.id = hvsi.host_id
+WHERE h.uuid = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL`, uuid)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		if err := lockVPPAppInstallKeys(ctx, tx, keys); err != nil {
+			return err
+		}
+
 		var host fleet.Host
 		err := sqlx.GetContext(
 			ctx, tx, &host,
@@ -2639,11 +2648,11 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
-		usersVPP, activitiesVPP, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP)
+		usersVPP, activitiesVPP, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP, keys)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
-		usersInHouse, activitiesInHouse, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeInHouseApp)
+		usersInHouse, activitiesInHouse, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeInHouseApp, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending in house app installs as failed for host")
 		}
@@ -8406,7 +8415,11 @@ func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID s
 		}
 		host := hosts[0]
 
-		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, host.ID); err != nil {
+		keys, err := vppAppInstallUpcomingKeys(ctx, tx, host.ID, nil)
+		if err != nil {
+			return err
+		}
+		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, host.ID, keys); err != nil {
 			return ctxerr.Wrap(ctx, err, "cancel upcoming activities for mdm reset", "host_uuid", hostUUID)
 		}
 

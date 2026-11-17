@@ -489,9 +489,11 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 // activities.
 func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
 	var canceled []fleet.ActivityDetails
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return vppAppInstallUpcomingKeys(ctx, ds.writer(ctx), hostID, nil)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
 		var err error
-		canceled, err = ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID)
+		canceled, err = ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID, keys)
 		return err
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "batch cancel upcoming activities transaction")
@@ -503,11 +505,33 @@ func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, h
 // batchCancelAllHostUpcomingActivities is the tx-aware variant of
 // BatchCancelAllHostUpcomingActivities. Call this from within a surrounding
 // withTx/withRetryTxx callback to keep cancellations atomic with the caller's other writes.
-func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, tx sqlx.ExtContext, hostID uint) ([]fleet.ActivityDetails, error) {
+func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, tx sqlx.ExtContext, hostID uint, keys []hostVPPAppKey) ([]fleet.ActivityDetails, error) {
+	// Match completion's key-before-upcoming-activity lock order.
+	if err := lockVPPAppInstallKeys(ctx, tx, keys); err != nil {
+		return nil, err
+	}
+
 	const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
 	var execIDs []string
 	if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
+	}
+
+	var currentKeys []hostVPPAppKey
+	if err := sqlx.SelectContext(ctx, tx, &currentKeys, `
+SELECT ua.host_id, vaua.adam_id, vaua.platform FROM upcoming_activities ua
+JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+WHERE ua.host_id = ? FOR SHARE`, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate vpp cancellation keys")
+	}
+	lockedKeys := make(map[hostVPPAppKey]struct{}, len(keys))
+	for _, key := range keys {
+		lockedKeys[key] = struct{}{}
+	}
+	for _, key := range currentKeys {
+		if _, ok := lockedKeys[key]; !ok {
+			return nil, ctxerr.Wrap(ctx, errVPPAppInstallKeysChanged, "validate vpp cancellation keys")
+		}
 	}
 
 	canceled := make([]fleet.ActivityDetails, 0, len(execIDs))
@@ -709,6 +733,17 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
 	}
 
+	var vppKeys []hostVPPAppKey
+	if act.ActivityType == "vpp_app_install" {
+		vppKeys, err = vppAppInstallUpcomingKeys(ctx, tx, hostID, []string{executionID})
+		if err != nil {
+			return nil, err
+		}
+		if err := lockVPPAppInstallKeys(ctx, tx, vppKeys); err != nil {
+			return nil, err
+		}
+	}
+
 	// in all cases, we must delete the row from upcoming_activities
 	const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
 	if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
@@ -757,7 +792,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		}
 
 	case "vpp_app_install":
-		pastAct, err = cancelHostVPPAppInstallUpcomingActivity(ctx, tx, act, hostID, hostUUID, executionID)
+		pastAct, err = cancelHostVPPAppInstallUpcomingActivity(ctx, tx, act, hostID, hostUUID, executionID, vppKeys)
 		if err != nil {
 			return nil, err
 		}
@@ -824,7 +859,7 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 	}, nil
 }
 
-func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, act activityToCancel, hostID uint, hostUUID, executionID string) (fleet.ActivityDetails, error) {
+func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, act activityToCancel, hostID uint, hostUUID, executionID string, keys []hostVPPAppKey) (fleet.ActivityDetails, error) {
 	// if the VPP install was part of the setup experience, then it must be
 	// marked as "failed" for that setup experience flow (regardless of
 	// whether or not it was activated).
@@ -834,9 +869,26 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 	}
 
 	if act.Activated {
+		ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+			`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ?`, executionID)
+		if err != nil {
+			return nil, err
+		}
+		ids, err = vppAppInstallAttemptIDs(ctx, tx, ids, "canceled = 0")
+		if err != nil {
+			return nil, err
+		}
+
 		const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
 		if _, err := tx.ExecContext(ctx, updVPPStmt, executionID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
+		}
+
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "canceled"); err != nil {
+			return nil, err
+		}
+		if err := refreshVPPAppInstallState(ctx, tx, keys); err != nil {
+			return nil, err
 		}
 
 		const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
@@ -1227,19 +1279,37 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 		FromConfigurationResend bool   `db:"from_configuration_resend"`
 	}
 
+	var installs []reapableInstall
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installs, findInstallsStmt,
+		append([]any{hostID}, reapableActivatedInstallArgs(olderThan)...)...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list stuck activated MDM installs for host")
+	}
+	if len(installs) == 0 {
+		return nil, nil
+	}
+	var vppCommands []string
+	for _, inst := range installs {
+		if inst.ActivityType == "vpp_app_install" {
+			vppCommands = append(vppCommands, inst.ExecutionID)
+		}
+	}
+	const requestsQuery = `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs
+WHERE command_uuid IN (?) AND verification_at IS NULL AND verification_failed_at IS NULL AND canceled = 0`
 	var reaped []fleet.ReapedMDMInstall
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		reaped = nil // a retry re-runs the whole host
-
-		var installs []reapableInstall
-		if err := sqlx.SelectContext(ctx, tx, &installs, findInstallsStmt,
-			append([]any{hostID}, reapableActivatedInstallArgs(olderThan)...)...); err != nil {
-			return ctxerr.Wrap(ctx, err, "list stuck activated MDM installs for host")
+	err := ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		if len(vppCommands) == 0 {
+			return nil, nil
 		}
-		// the host was found on the reader, so its rows may have resolved since
-		if len(installs) == 0 {
-			return nil
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), requestsQuery, vppCommands)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		reaped = nil
+		if len(vppCommands) > 0 {
+			if _, _, err := lockVPPAppInstallRequests(ctx, tx, keys, requestsQuery, vppCommands); err != nil {
+				return err
+			}
 		}
+		var affectedKeys []hostVPPAppKey
+		var failedVPPIDs []uint
 
 		var failedAny bool
 		for _, inst := range installs {
@@ -1248,11 +1318,9 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 				swType = softwareTypeInHouseApp
 			}
 
-			// Eligibility is re-checked here, not trusted from the select above: that
-			// select took the transaction's snapshot while this update reads the latest
-			// committed rows, so a device that checked in between would otherwise be
-			// overruled mid-verification. No rows affected means it did check in, so
-			// nothing is recorded here, though the queue is still advanced past the row.
+			// Discovery precedes the key lock. Recheck eligibility so a device check-in
+			// during that interval isn't overruled. An unaffected row records no failure,
+			// though its queue entry is still advanced.
 			failStmt := fmt.Sprintf(`
 UPDATE %s
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
@@ -1272,8 +1340,24 @@ WHERE command_uuid = ?
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set stuck activated MDM install as failed")
 			}
-			if affected, _ := res.RowsAffected(); affected == 0 {
+			affected, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "count reaped MDM installs")
+			}
+			if affected == 0 {
 				continue
+			}
+			if swType == softwareTypeVPP {
+				var request struct {
+					ID uint `db:"id"`
+					hostVPPAppKey
+				}
+				if err := sqlx.GetContext(ctx, tx, &request, `
+SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ?`, inst.ExecutionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "select reaped vpp install")
+				}
+				failedVPPIDs = append(failedVPPIDs, request.ID)
+				affectedKeys = append(affectedKeys, request.hostVPPAppKey)
 			}
 			failedAny = true
 
@@ -1316,6 +1400,13 @@ WHERE command_uuid = ?
 				entry.User, entry.InHouseActivity = user, act
 			}
 			reaped = append(reaped, entry)
+		}
+
+		if err := appendVPPAppInstallAttempts(ctx, tx, failedVPPIDs, "failed"); err != nil {
+			return err
+		}
+		if err := refreshVPPAppInstallState(ctx, tx, affectedKeys); err != nil {
+			return err
 		}
 
 		// The verify lock is one row per host, not per install, so it is cleared once and
@@ -1767,6 +1858,25 @@ ORDER BY
 	return nil
 }
 
+func vppAppInstallUpcomingKeys(ctx context.Context, q sqlx.QueryerContext, hostID uint, execIDs []string) ([]hostVPPAppKey, error) {
+	query := `SELECT ua.host_id, vaua.adam_id, vaua.platform
+FROM upcoming_activities ua JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+WHERE ua.host_id = ?`
+	args := []any{hostID}
+	if len(execIDs) > 0 {
+		var err error
+		query, args, err = sqlx.In(query+` AND ua.execution_id IN (?)`, hostID, execIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build vpp upcoming activity key selection")
+		}
+	}
+	var keys []hostVPPAppKey
+	if err := sqlx.SelectContext(ctx, q, &keys, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select vpp upcoming activity keys")
+	}
+	return sortedVPPAppKeys(keys), nil
+}
+
 func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	if len(execIDs) == 0 {
 		return nil
@@ -1799,13 +1909,35 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	// insert the host vpp app row
-	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	keys, err := vppAppInstallUpcomingKeys(ctx, tx, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert to activate vpp apps")
+		return err
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
+	insertAndRefresh := func(tx sqlx.ExtContext) error {
+		if err := lockVPPAppInstallKeys(ctx, tx, keys); err != nil {
+			return err
+		}
+
+		// insert the host vpp app row
+		stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare insert to activate vpp apps")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
+		}
+
+		return refreshVPPAppInstallState(ctx, tx, keys)
+	}
+	switch tx.(type) {
+	case *sqlx.Tx, common_mysql.WrappedExtContext:
+		err = insertAndRefresh(tx)
+	default:
+		// Activity callbacks autocommit, so only the VPP request and state share this transaction.
+		err = ds.withRetryTxx(ctx, insertAndRefresh)
+	}
+	if err != nil {
+		return err
 	}
 
 	return ds.nanoEnqueueVPPInstall(ctx, tx, hostID, execIDs)

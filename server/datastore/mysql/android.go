@@ -417,7 +417,13 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 		return nil, nil, ctxerr.New(ctx, "resetting android enrollment requires a host id and uuid")
 	}
 
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), pendingVPPAppInstallRequestsForHostQuery, hostID)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		if err := lockVPPAppInstallKeys(ctx, tx, keys); err != nil {
+			return err
+		}
+
 		// withRetryTxx re-runs this closure on a deadlock, so start from empty rather
 		// than appending a second copy of everything.
 		users, activities = nil, nil
@@ -466,7 +472,7 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 		//
 		// Marking the installs canceled instead would hide them from the host software
 		// list and from the activity feed, losing the record entirely.
-		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP)
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP, keys)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail pending android software installs on reenroll")
 		}
@@ -2664,17 +2670,18 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 		VALUES
 			(?, ?, ?, ?, ?, ?, ?)`
 
-	_, err := ds.writer(ctx).ExecContext(
-		ctx, stmt,
-		payload.HostID,
-		payload.AdamID,
-		payload.CommandUUID,
-		false,
-		payload.AssociatedEventID,
-		fleet.AndroidPlatform,
-		ptr.UintOrNilIfZero(payload.VPPAppTeamID),
-	)
-	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
+	keys := []hostVPPAppKey{{payload.HostID, payload.AdamID, string(fleet.AndroidPlatform)}}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := lockVPPAppInstallKeys(ctx, tx, keys); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, stmt, payload.HostID, payload.AdamID, payload.CommandUUID,
+			false, payload.AssociatedEventID, fleet.AndroidPlatform, ptr.UintOrNilIfZero(payload.VPPAppTeamID))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
+		}
+		return refreshVPPAppInstallState(ctx, tx, keys)
+	})
 }
 
 func (ds *Datastore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
@@ -2779,7 +2786,22 @@ WHERE
 	command_uuid IN (?)
 `, setFinalState)
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid IN (?)`, commandUUIDs)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+			`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid IN (?)`, commandUUIDs)
+		if err != nil {
+			return err
+		}
+		outcome, condition := "failed", "verification_failed_at IS NULL"
+		if strings.HasPrefix(setFinalState, "verification_at =") {
+			outcome, condition = "installed", "verification_at IS NULL"
+		}
+		ids, err = vppAppInstallAttemptIDs(ctx, tx, ids, condition)
+		if err != nil {
+			return err
+		}
 		verificationUUID := uuid.NewString()
 		stmt, args, err := sqlx.In(stmt, verificationUUID, commandUUIDs)
 		if err != nil {
@@ -2796,7 +2818,10 @@ WHERE
 		// 	return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
 		// }
 
-		return nil
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, outcome); err != nil {
+			return err
+		}
+		return refreshVPPAppInstallState(ctx, tx, keys)
 	})
 }
 
@@ -2895,11 +2920,26 @@ WHERE
 	-- only if successfull or pending install
 	host_vpp_software_installs.verification_failed_at IS NULL
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, fmt.Sprint(policyVersion), hostUUID, applicationID, fleet.AndroidPlatform)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set android app install pending apply config")
-	}
-	return nil
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `
+SELECT hvsi.id, hvsi.host_id, hvsi.adam_id, hvsi.platform
+FROM host_vpp_software_installs hvsi JOIN hosts h ON h.id = hvsi.host_id
+WHERE h.uuid = ? AND hvsi.adam_id = ? AND hvsi.platform = ?
+AND hvsi.removed = 0 AND hvsi.canceled = 0 AND hvsi.verification_failed_at IS NULL`, hostUUID, applicationID, fleet.AndroidPlatform)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		_, keys, err := lockVPPAppInstallRequests(ctx, tx, keys, `
+SELECT hvsi.id, hvsi.host_id, hvsi.adam_id, hvsi.platform
+FROM host_vpp_software_installs hvsi JOIN hosts h ON h.id = hvsi.host_id
+WHERE h.uuid = ? AND hvsi.adam_id = ? AND hvsi.platform = ?
+AND hvsi.removed = 0 AND hvsi.canceled = 0 AND hvsi.verification_failed_at IS NULL`, hostUUID, applicationID, fleet.AndroidPlatform)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, stmt, fmt.Sprint(policyVersion), hostUUID, applicationID, fleet.AndroidPlatform); err != nil {
+			return ctxerr.Wrap(ctx, err, "set android app install pending apply config")
+		}
+		return refreshVPPAppInstallState(ctx, tx, keys)
+	})
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction

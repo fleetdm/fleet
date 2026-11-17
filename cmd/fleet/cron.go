@@ -1644,6 +1644,12 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_software_installs", func(ctx context.Context) error {
 			return cleanupHostSoftwareInstallsCronJob(ctx, ds, logger, config.Server.SoftwareInstallResultsRetention)
 		}),
+		schedule.WithJob("cleanup_vpp_app_install_attempts", func(ctx context.Context) error {
+			return cleanupVPPAppInstallAttemptsCronJob(ctx, ds, logger, config.Server.VPPInstallAttemptsRetention)
+		}),
+		schedule.WithJob("backfill_vpp_app_install_state", func(ctx context.Context) error {
+			return backfillVPPAppInstallStateCronJob(ctx, ds, logger, config.Server.VPPAppInstallStateBackfill)
+		}),
 		schedule.WithJob("cleanup_host_script_results", func(ctx context.Context) error {
 			return cleanupHostScriptResultsCronJob(ctx, ds, logger, config.Server.ScriptResultsRetention)
 		}),
@@ -1805,6 +1811,85 @@ func cleanupHostSoftwareInstallsCronJob(ctx context.Context, ds fleet.Datastore,
 	if deleted > 0 {
 		logger.InfoContext(ctx, "cleaned up host software installs", "deleted", deleted)
 	}
+	return nil
+}
+
+// cleanupVPPAppInstallAttemptsCronJob is disabled by a non-positive retention,
+// the documented off switch for server.vpp_install_attempts_retention.
+func cleanupVPPAppInstallAttemptsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupVPPAppInstallAttempts(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup vpp app install attempts failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up vpp app install attempts", "deleted", deleted)
+	}
+	return nil
+}
+
+const (
+	vppAppInstallStateBackfillBatchSize  = 500
+	vppAppInstallStateBackfillMaxBatches = 100 // 50k keys per tick
+)
+
+// backfillVPPAppInstallStateCronJob refreshes the install state of every host and app key in batches, resuming from
+// the persisted cursor. Once a pass completes it deletes state for hosts that no longer exist. It does nothing unless
+// server.vpp_app_install_state_backfill is set.
+func backfillVPPAppInstallStateCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, enabled bool) error {
+	if !enabled {
+		return nil
+	}
+	cursor, err := ds.GetVPPAppInstallStateBackfillCursor(ctx)
+	if err != nil {
+		// a lost cursor only costs a restart of the walk
+		logger.WarnContext(ctx, "failed to read vpp app install state backfill cursor, restarting from the start", "err", err)
+		cursor = ""
+	}
+
+	var refreshed int
+	complete := false
+	for range vppAppInstallStateBackfillMaxBatches {
+		next, n, err := ds.RefreshVPPAppInstallStateBatch(ctx, cursor, vppAppInstallStateBackfillBatchSize)
+		refreshed += n
+		if n > 0 {
+			cursor = next
+		}
+		if err != nil {
+			if serr := ds.SetVPPAppInstallStateBackfillCursor(ctx, cursor); serr != nil {
+				logger.WarnContext(ctx, "failed to save vpp app install state backfill cursor", "err", serr)
+			}
+			return ctxerr.Wrap(ctx, err, "refresh vpp app install state")
+		}
+		if n < vppAppInstallStateBackfillBatchSize {
+			complete = true
+			break
+		}
+		if err := ds.SetVPPAppInstallStateBackfillCursor(ctx, cursor); err != nil {
+			return ctxerr.Wrap(ctx, err, "save vpp app install state backfill cursor")
+		}
+	}
+	if !complete {
+		if err := ds.SetVPPAppInstallStateBackfillCursor(ctx, cursor); err != nil {
+			return ctxerr.Wrap(ctx, err, "save vpp app install state backfill cursor")
+		}
+		logger.InfoContext(ctx, "vpp app install state backfill hit its batch cap, continuing on the next run", "refreshed", refreshed)
+		return nil
+	}
+
+	orphans, err := ds.DeleteOrphanVPPAppInstallState(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete orphan vpp app install state")
+	}
+	if err := ds.SetVPPAppInstallStateBackfillCursor(ctx, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset vpp app install state backfill cursor")
+	}
+	logger.InfoContext(ctx, "vpp app install state backfill pass complete", "refreshed", refreshed, "orphans_deleted", orphans)
 	return nil
 }
 

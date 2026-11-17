@@ -298,3 +298,43 @@ func lockVPPAppInstallRequests(ctx context.Context, tx sqlx.ExtContext, keys []h
 	}
 	return ids, keys, nil
 }
+
+// vppAppInstallAttemptIDs captures append eligibility before the transition changes it.
+// The caller holds the request keys, so retention cannot make a replay eligible again.
+func vppAppInstallAttemptIDs(ctx context.Context, tx sqlx.ExtContext, ids []uint, condition string) ([]uint, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT id FROM host_vpp_software_installs WHERE id IN (?) AND `+condition+` FOR SHARE`, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build vpp app install attempt eligibility")
+	}
+	var eligible []uint
+	if err := sqlx.SelectContext(ctx, tx, &eligible, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select vpp app install attempt eligibility")
+	}
+	return eligible, nil
+}
+
+func appendVPPAppInstallAttempts(ctx context.Context, tx sqlx.ExtContext, ids []uint, outcome string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`
+INSERT INTO log_vpp_app_install_attempts (
+	install_id, host_id, adam_id, platform, vpp_app_team_id, command_uuid, associated_event_id,
+	attempt, outcome, mdm_status, user_id, policy_id, self_service, requested_at
+)
+SELECT hvsi.id, hvsi.host_id, hvsi.adam_id, hvsi.platform, hvsi.vpp_app_team_id, hvsi.command_uuid,
+	COALESCE(hvsi.associated_event_id, ''), hvsi.retry_count, ?, ncr.status,
+	hvsi.user_id, hvsi.policy_id, hvsi.self_service, hvsi.created_at
+FROM host_vpp_software_installs hvsi
+LEFT JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE hvsi.id IN (?)
+ON DUPLICATE KEY UPDATE id = log_vpp_app_install_attempts.id`, outcome, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build vpp app install attempt append")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	return ctxerr.Wrap(ctx, err, "append vpp app install attempts")
+}
