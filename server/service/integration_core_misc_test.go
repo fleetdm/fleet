@@ -653,4 +653,10 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 		http.StatusPaymentRequired, &g)
 	var gd deleteGoogleConditionalAccessResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusPaymentRequired, &gd)
+
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}}
+	}`), http.StatusUnprocessableEntity)
+	name, _ := extractServerErrorNameReason(res.Body)
+	s.Require().Equal("integrations.google_conditional_access", name)
 }

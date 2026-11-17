@@ -724,6 +724,19 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 	}
 }
 
+// ValidateGoogleConditionalAccessIntegration validates the app config's Google
+// conditional access settings, reporting errors under their app config field names.
+func ValidateGoogleConditionalAccessIntegration(intg *GoogleConditionalAccessIntegration, invalid *InvalidArgumentError) {
+	if intg == nil {
+		return
+	}
+	var fieldErrs InvalidArgumentError
+	intg.Validate(&fieldErrs)
+	for _, e := range fieldErrs.Errors {
+		invalid.Append("integrations.google_conditional_access."+e.name, e.reason)
+	}
+}
+
 // ValidateGoogleWorkspaceIntegrations validates the Google Workspace IdP
 // integrations. It enforces a single integration and the presence of the service
 // account credentials (client_email, private_key), the Workspace domain, and the

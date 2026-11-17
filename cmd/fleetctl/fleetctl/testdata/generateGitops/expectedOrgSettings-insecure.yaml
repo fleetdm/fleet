@@ -28,10 +28,10 @@ certificate_authorities:
       certificate_profile_name: some-ejbca-certificate-profile-name
       certificate_user_principal_names:
         - some-ejbca-certificate-user-principal-name
-      client_p12: ___GITOPS_COMMENT_0___
+      client_p12: ___GITOPS_COMMENT_1___
       end_entity_profile_name: some-ejbca-end-entity-profile-name
       name: some-ejbca-name
-      password: ___GITOPS_COMMENT_1___
+      password: ___GITOPS_COMMENT_2___
       trust_ca_bundle: |
         -----BEGIN CERTIFICATE-----
         some-ejbca-trust-bundle
@@ -88,6 +88,10 @@ integrations:
     - api_key_json:
         owl: hoot
       domain: fleetdm.com
+  google_conditional_access:
+    admin_email: admin@fleetdm.com
+    api_key_json: ___GITOPS_COMMENT_0___
+    customer_id: C02cajzvg
   google_workspace:
     - api_key_json:
         owl: hoot
