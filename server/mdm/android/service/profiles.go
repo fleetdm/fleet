@@ -21,13 +21,22 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig, batchSize int, retryCounter fleet.SoftwareInstallAttemptCounter) error {
-	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil, androidAgentConfig, batchSize, retryCounter)
+func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig, batchSize int, retryCounter fleet.SoftwareInstallAttemptCounter, opts ...ReconcileOption) error {
+	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil, androidAgentConfig, batchSize, retryCounter, opts...)
+}
+
+// ReconcileOption configures optional behavior of the profile reconciler.
+type ReconcileOption func(*profileReconciler)
+
+// WithReconcileOneTimeEnrollSecrets mirrors the mdm.android_one_time_enroll_secrets server configuration, so the Fleet agent
+// configurations the reconciler sends carry the same enroll secret as the ones the Android service sends.
+func WithReconcileOneTimeEnrollSecrets(enabled bool) ReconcileOption {
+	return func(r *profileReconciler) { r.OneTimeEnrollSecrets = enabled }
 }
 
 // ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
 // If client is nil, a new AMAPI client will be created.
-func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig, batchSize int, retryCounter fleet.SoftwareInstallAttemptCounter) (err error) {
+func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig, batchSize int, retryCounter fleet.SoftwareInstallAttemptCounter, opts ...ReconcileOption) (err error) {
 	// Hosts whose AMAPI call hits the quota are recorded as failed and picked up on a later run; waiting out
 	// the quota here would stall every other host in the batch.
 	ctx = androidmgmt.WithoutRetry(ctx)
@@ -75,6 +84,9 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 		Logger:             logger,
 		RetryCounter:       retryCounter,
 	}
+	for _, opt := range opts {
+		opt(reconciler)
+	}
 	hostCount, err := reconciler.ReconcileProfiles(ctx, cursor, batchSize)
 
 	var nextCursor string
@@ -95,6 +107,18 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 	return err
 }
 
+// agentService returns the Android service the reconciler builds Fleet agent configurations with.
+func (r *profileReconciler) agentService() *Service {
+	return &Service{
+		logger:               r.Logger,
+		ds:                   r.DS,
+		fleetDS:              r.DS,
+		androidAPIClient:     r.Client,
+		androidAgentConfig:   r.AndroidAgentConfig,
+		oneTimeEnrollSecrets: r.OneTimeEnrollSecrets,
+	}
+}
+
 // profileReconciler is a struct to facilitate testability, it should not be
 // used outside of tests.
 type profileReconciler struct {
@@ -104,7 +128,9 @@ type profileReconciler struct {
 	AndroidAgentConfig config.AndroidAgentConfig
 	Logger             *slog.Logger
 	RetryCounter       fleet.SoftwareInstallAttemptCounter
-	lastHostUUID       string
+	// OneTimeEnrollSecrets is passed to the Android service the reconciler uses to build Fleet agent configurations.
+	OneTimeEnrollSecrets bool
+	lastHostUUID         string
 
 	// appInstallsToUpsert and appInstallsToRemove collect the changed app
 	// installs of every host during the run, saved together at the end
@@ -731,13 +757,7 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 		}
 
 		// Process this batch - BuildAndSendFleetAgentConfig handles the state transitions
-		svc := &Service{
-			logger:             r.Logger,
-			ds:                 r.DS,
-			fleetDS:            r.DS,
-			androidAPIClient:   r.Client,
-			androidAgentConfig: r.AndroidAgentConfig,
-		}
+		svc := r.agentService()
 		if err := svc.BuildAndSendFleetAgentConfig(ctx, r.Enterprise.Name(), hostUUIDs, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "build and send fleet agent config with certificates")
 		}
