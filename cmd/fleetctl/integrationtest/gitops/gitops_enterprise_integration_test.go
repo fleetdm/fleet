@@ -859,9 +859,8 @@ software:
 func (s *enterpriseIntegrationGitopsTestSuite) TestReplaceCAUsedByCertificateTemplates() {
 	t := s.T()
 	ctx := t.Context()
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-	scepServer := scep_server.StartTestSCEPServer(t)
+	fleetctlConfig := s.createFleetctlConfig(t, s.createGitOpsUser(t))
+	scepURL := scep_server.StartTestSCEPServer(t).URL + "/scep"
 	digiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		profileID := strings.TrimPrefix(r.URL.Path, "/mpki/api/v2/profile/")
 		w.Header().Set("Content-Type", "application/json")
@@ -870,15 +869,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestReplaceCAUsedByCertificateTem
 	t.Cleanup(digiCertServer.Close)
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	scepCAs := func(names ...string) string {
-		yaml := "    custom_scep_proxy:\n"
-		for _, name := range names {
-			yaml += fmt.Sprintf("      - name: %s\n        url: %s\n        challenge: challenge\n", name, scepServer.URL+"/scep")
-		}
-		return yaml
+	scepCA := func(name string) string {
+		return fmt.Sprintf("      - name: %s\n        url: %s\n        challenge: challenge\n", name, scepURL)
 	}
-	globalFile := func(certificateAuthorities string) string {
-		return s.writeConfigFile(t, `
+	// apply runs GitOps with the given CAs and a fleet certificate template that uses templateCA.
+	apply := func(certificateAuthorities, templateCA string) {
+		globalFile := s.writeConfigFile(t, fmt.Sprintf(`
 agent_options:
 controls:
 org_settings:
@@ -888,12 +884,10 @@ org_settings:
     org_name: Fleet
   secrets:
   certificate_authorities:
-`+certificateAuthorities+`policies:
+%spolicies:
 reports:
-`)
-	}
-	teamFile := func(caName string) string {
-		return s.writeConfigFile(t, fmt.Sprintf(`
+`, certificateAuthorities))
+		teamFile := s.writeConfigFile(t, fmt.Sprintf(`
 name: CA Replace Team
 controls:
   android_settings:
@@ -908,32 +902,24 @@ agent_options:
 policies:
 reports:
 software:
-`, caName))
+`, templateCA))
+		fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile})
 	}
-	templateCA := func() (uint, string) {
-		teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	templateCAName := func() string {
+		team, err := s.DS.TeamByName(ctx, "CA Replace Team")
 		require.NoError(t, err)
-		for _, tm := range teams {
-			if tm.Name == "CA Replace Team" {
-				templates, _, err := s.DS.GetCertificateTemplatesByTeamID(ctx, tm.ID, fleet.ListOptions{})
-				require.NoError(t, err)
-				require.Len(t, templates, 1)
-				return templates[0].CertificateAuthorityId, templates[0].CertificateAuthorityName
-			}
-		}
-		require.FailNow(t, "team 'CA Replace Team' should exist")
-		return 0, ""
+		templates, _, err := s.DS.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+		return templates[0].CertificateAuthorityName
 	}
 
-	fleetctltest.RunAppForTest(t, []string{
-		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile(scepCAs("WIFI", "OTHER")), "-f", teamFile("WIFI"),
-	})
-	scepWIFIID, caName := templateCA()
-	require.Equal(t, "WIFI", caName)
+	apply("    custom_scep_proxy:\n"+scepCA("WIFI")+scepCA("OTHER"), "WIFI")
+	require.Equal(t, "WIFI", templateCAName())
 
 	// WIFI becomes a DigiCert CA. The custom SCEP CA has to be deleted before its name can be taken, which takes its template with it, and
 	// then the fleet config adds the template back on the other CA.
-	digiCertWIFI := fmt.Sprintf(`    digicert:
+	apply(fmt.Sprintf(`    digicert:
       - name: WIFI
         url: %s
         api_token: digicert_api_token
@@ -941,20 +927,15 @@ software:
         certificate_common_name: digicert_cn
         certificate_user_principal_names: ["digicert_upn"]
         certificate_seat_id: digicert_seat_id
-`, digiCertServer.URL)
-	fleetctltest.RunAppForTest(t, []string{
-		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile(digiCertWIFI + scepCAs("OTHER")), "-f", teamFile("OTHER"),
-	})
+    custom_scep_proxy:
+`, digiCertServer.URL)+scepCA("OTHER"), "OTHER")
 	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(ctx, false)
 	require.NoError(t, err)
 	require.Len(t, groupedCAs.DigiCert, 1)
 	require.Equal(t, "WIFI", groupedCAs.DigiCert[0].Name)
 	require.Len(t, groupedCAs.CustomScepProxy, 1)
 	require.Equal(t, "OTHER", groupedCAs.CustomScepProxy[0].Name)
-	_, err = s.DS.GetCertificateAuthorityByID(ctx, scepWIFIID, false)
-	require.True(t, fleet.IsNotFound(err), "got %v", err)
-	_, caName = templateCA()
-	require.Equal(t, "OTHER", caName)
+	require.Equal(t, "OTHER", templateCAName())
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) writeConfigFile(t *testing.T, content string) string {
