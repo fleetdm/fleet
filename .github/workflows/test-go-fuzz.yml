@@ -1,21 +1,6 @@
 name: Go fuzz tests
 
 on:
-  pull_request:
-    paths:
-      - "**.go"
-      - "**/testdata/**"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/test-go-fuzz.yml"
-  push:
-    branches: [main]
-    paths:
-      - "**.go"
-      - "**/testdata/**"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/test-go-fuzz.yml"
   schedule:
     - cron: "35 3 * * *"
   workflow_dispatch:

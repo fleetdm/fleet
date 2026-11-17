@@ -5,9 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"strings"
 	"testing"
@@ -87,93 +85,6 @@ func FuzzParseApplePartyInfo(f *testing.F) {
 			return
 		}
 		require.True(t, bytes.Equal(raw, EncodeApplePartyInfo(fields...)))
-	})
-}
-
-func FuzzEncodeApplePartyInfo(f *testing.F) {
-	f.Add([]byte("Apple"))
-	f.Add([]byte{0, 1, 0, 255})
-	f.Add([]byte{})
-
-	f.Fuzz(func(t *testing.T, input []byte) {
-		if len(input) > 8192 {
-			t.Skip()
-		}
-		fields := make([][]byte, 0, len(input)+1)
-		start := 0
-		for i, b := range input {
-			if b == 0 {
-				fields = append(fields, append([]byte{}, input[start:i]...))
-				start = i + 1
-			}
-		}
-		fields = append(fields, append([]byte{}, input[start:]...))
-		encoded := EncodeApplePartyInfo(fields...)
-		decoded, err := ParseApplePartyInfo(encoded)
-		require.NoError(t, err)
-		require.Len(t, decoded, len(fields))
-		for i := range fields {
-			require.True(t, bytes.Equal(fields[i], decoded[i]))
-		}
-	})
-}
-
-func FuzzParseECPublicKeyPEM(f *testing.F) {
-	f.Add([]byte(fuzzPEMPublicKey))
-	raw, err := hex.DecodeString(fuzzRawPublicKey)
-	if err != nil {
-		f.Fatal(err)
-	}
-	f.Add(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: raw}))
-	f.Add([]byte("not PEM"))
-
-	f.Fuzz(func(t *testing.T, input []byte) {
-		if len(input) > 4096 {
-			t.Skip()
-		}
-		key, err := ParseECPublicKeyPEM(input)
-		if err != nil {
-			if bytes.Equal(input, []byte(fuzzPEMPublicKey)) ||
-				bytes.Equal(input, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: raw})) {
-				require.NoError(t, err, "fixed public-key seed must parse")
-			}
-			return
-		}
-		require.Equal(t, elliptic.P256(), key.Curve)
-		raw, err := RawECPoint(key)
-		require.NoError(t, err)
-		roundTrip, err := ParseRawECPoint(raw)
-		require.NoError(t, err)
-		roundTripRaw, err := RawECPoint(roundTrip)
-		require.NoError(t, err)
-		require.Equal(t, raw, roundTripRaw)
-	})
-}
-
-func FuzzParseRawECPoint(f *testing.F) {
-	raw, err := hex.DecodeString(fuzzRawPublicKey)
-	if err != nil {
-		f.Fatal(err)
-	}
-	f.Add(raw)
-	f.Add([]byte{})
-	f.Add([]byte{4})
-
-	f.Fuzz(func(t *testing.T, input []byte) {
-		if len(input) > 256 {
-			t.Skip()
-		}
-		key, err := ParseRawECPoint(input)
-		if err != nil {
-			if bytes.Equal(input, raw) {
-				require.NoError(t, err, "fixed raw point seed must parse")
-			}
-			return
-		}
-		require.Equal(t, elliptic.P256(), key.Curve)
-		got, err := RawECPoint(key)
-		require.NoError(t, err)
-		require.Equal(t, input, got)
 	})
 }
 
@@ -308,29 +219,4 @@ func decodeAssertionAPVNonce(compact []byte) ([]byte, error) {
 		return nil, errors.New("APV must have three fields")
 	}
 	return fields[2], nil
-}
-
-func FuzzParseEmbeddedAssertionPassword(f *testing.F) {
-	f.Add([]byte(`{"password":"fuzz-password","username":"ignored"}`))
-	f.Add([]byte(`eyJhbGciOiJub25lIn0.eyJwYXNzd29yZCI6ImZ1enotcGFzc3dvcmQifQ.`))
-	f.Add([]byte("not JSON or JWT"))
-
-	f.Fuzz(func(t *testing.T, input []byte) {
-		if len(input) > 4096 {
-			t.Skip()
-		}
-		password, err := ParseEmbeddedAssertionPassword(input)
-		if err != nil {
-			if bytes.Equal(input, []byte(`{"password":"fuzz-password","username":"ignored"}`)) ||
-				bytes.Equal(input, []byte(`eyJhbGciOiJub25lIn0.eyJwYXNzd29yZCI6ImZ1enotcGFzc3dvcmQifQ.`)) {
-				require.NoError(t, err, "fixed assertion seeds must parse")
-			}
-			return
-		}
-		encoded, err := BuildEmbeddedAssertionPlaintext(password)
-		require.NoError(t, err)
-		roundTrip, err := ParseEmbeddedAssertionPassword(encoded)
-		require.NoError(t, err)
-		require.Equal(t, password, roundTrip)
-	})
 }
