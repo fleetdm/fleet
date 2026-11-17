@@ -1263,6 +1263,29 @@ func testBatchSetInHouseInstallersRenamedRelease(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	secondApp := payloads("other.ipa", "other-hash", "1.0.0")
+	for _, p := range secondApp {
+		p.Title = "Other"
+		p.BundleIdentifier = "com.example.other"
+	}
+	current := payloads("example-2.ipa", "new-hash", "2.0.0")
+	require.NoError(t, ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, append(current, secondApp...)))
+	for _, p := range current {
+		p.Filename = "other.ipa"
+	}
+	for _, p := range secondApp {
+		p.Filename = "example-2.ipa"
+	}
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, append(current, secondApp...))
+	require.ErrorContains(t, err, "already used by another app")
+	for _, previous := range before {
+		got, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, *previous.TitleID)
+		require.NoError(t, err)
+		require.Equal(t, "example-2.ipa", got.Name)
+		require.Equal(t, "new-hash", got.StorageID)
+	}
+	require.NoError(t, ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, payloads("example-2.ipa", "new-hash", "2.0.0")))
+
 	// Older servers may already have duplicated the same title. Don't pick
 	// one arbitrarily or delete installer history as part of a normal apply.
 	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO in_house_apps

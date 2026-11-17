@@ -1427,6 +1427,16 @@ WHERE
 			if len(existing) > 1 {
 				return ctxerr.Errorf(ctx, "multiple in-house installers for title %d in fleet %d; reconcile duplicates before applying", titleID, globalOrTeamID)
 			}
+			var filenameConflict bool
+			if err := sqlx.GetContext(ctx, tx, &filenameConflict, `SELECT EXISTS (
+				SELECT 1 FROM in_house_apps
+				WHERE global_or_team_id = ? AND platform = ? AND filename = ? AND title_id <> ?
+			)`, globalOrTeamID, installer.Platform, installer.Filename, titleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "checking in-house installer filename conflict")
+			}
+			if filenameConflict {
+				return ctxerr.Errorf(ctx, "in-house installer filename %q is already used by another app in fleet %d", installer.Filename, globalOrTeamID)
+			}
 			// Keep the app's installer identity when a release changes its filename.
 			// The filename-based unique key alone would insert a second row.
 			var installerIDToUpdate *uint
