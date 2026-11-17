@@ -1721,6 +1721,10 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		return nil
 	}
 
+	if enrolledDevice.LinkedHostID != nil {
+		svc.failInterruptedWindowsReset(ctx, enrolledDevice.ID, *enrolledDevice.LinkedHostID)
+	}
+
 	// Checking if fleetd is present on the device
 	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
 	if err != nil {
@@ -1733,6 +1737,29 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		}
 	}
 	return nil
+}
+
+// failInterruptedWindowsReset logs failed_reset when a session shows the host's acknowledged reset was rolled back. It's
+// best-effort: the next session checks again.
+func (svc *Service) failInterruptedWindowsReset(ctx context.Context, enrollmentID, hostID uint) {
+	failed, err := svc.ds.MDMWindowsFailInterruptedReset(ctx, enrollmentID, hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: check for interrupted reset", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if !failed {
+		return
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to look up host for failed_reset activity", "host_id", hostID, "err", err)
+		return
+	}
+	act := fleet.ActivityTypeFailedReset{HostID: host.ID, HostDisplayName: host.DisplayName()}
+	if err := svc.NewActivity(ctx, nil, act); err != nil {
+		svc.logger.WarnContext(ctx, "failed to create failed_reset activity", "host_id", host.ID, "err", err)
+	}
 }
 
 // Generic Alert Handlers
@@ -2030,13 +2057,17 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					svc.logger.WarnContext(ctx, "failed to look up host for wipe_failed_host activity",
 						"host_uuid", result.WipeFailed.HostUUID, "err", err)
 				} else {
-					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
+					var act fleet.ActivityDetails = fleet.ActivityTypeWipeFailedHost{
 						HostID:          host.ID,
 						HostDisplayName: host.DisplayName(),
 						HostPlatform:    host.Platform,
-					}); err != nil {
-						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
-							"host_id", host.ID, "err", err)
+					}
+					if result.WipeFailed.Reset {
+						act = fleet.ActivityTypeFailedReset{HostID: host.ID, HostDisplayName: host.DisplayName()}
+					}
+					if err := svc.NewActivity(ctx, nil, act); err != nil {
+						svc.logger.WarnContext(ctx, "failed to create activity for failed wipe or reset",
+							"activity", act.ActivityName(), "host_id", host.ID, "err", err)
 					}
 				}
 			}

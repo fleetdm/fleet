@@ -286,6 +286,62 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 	t := s.T()
 	s.setupLifecycleSettings()
 
+	// A host comes back from a wipe or a reset the same way: the command is acknowledged, then fleetd reports it
+	// un-enrolled and it turns MDM on again.
+	wipedHostTurnsOnMDM := func(action, node string) mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient] {
+		return func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/%s", host.ID, action), nil, http.StatusOK)
+
+			status, err := s.ds.GetHostLockWipeStatus(t.Context(), host)
+			require.NoError(t, err)
+
+			cmds, err := device.StartManagementSession()
+			require.NoError(t, err)
+
+			// two status + the wipe command we enqueued
+			require.Len(t, cmds, 3)
+			wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
+			require.NotNil(t, wipeCmd)
+			require.Equal(t, fleet.CmdExec, wipeCmd.Verb)
+			require.Len(t, wipeCmd.Cmd.Items, 1)
+			require.Equal(t, "./Device/Vendor/MSFT/RemoteWipe/"+node, *wipeCmd.Cmd.Items[0].Target)
+
+			msgID, err := device.GetCurrentMsgID()
+			require.NoError(t, err)
+
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &status.WipeMDMCommand.CommandUUID,
+				Cmd:     new("Exec"),
+				Data:    new("200"),
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+			cmds, err = device.SendResponse()
+			require.NoError(t, err)
+			// the ack of the message should be the only returned command
+			require.Len(t, cmds, 1)
+
+			// Simulate the host having fleetd installed and reporting back in as un-enrolled
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(t.Context(), `
+              UPDATE host_mdm
+              SET enrolled = 0, server_url = ''
+              WHERE host_id = ?
+	`, host.ID)
+				return err
+			})
+
+			// re-enroll
+			require.NoError(t, device.Enroll())
+
+			status, err = s.ds.GetHostLockWipeStatus(t.Context(), host)
+			require.NoError(t, err)
+			require.False(t, status.IsWiped(), "re-enrolling in MDM clears the wiped status")
+		}
+	}
+
 	testCases := []struct {
 		Name   string
 		Action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]
@@ -304,62 +360,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 		// invariant the test exists to prove. Draining would turn that into statuses-vs-installs and fail spuriously.
 		DrainEnrollBacklog bool
 	}{
-		{
-			"wiped host turns on MDM",
-			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
-				s.Do(
-					"POST",
-					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
-					json.RawMessage(`{ "windows": {"wipe_type": "doWipe"}}`),
-					http.StatusOK,
-				)
-
-				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
-				require.NoError(t, err)
-
-				cmds, err := device.StartManagementSession()
-				require.NoError(t, err)
-
-				// two status + the wipe command we enqueued
-				require.Len(t, cmds, 3)
-				wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
-				require.NotNil(t, wipeCmd)
-				require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
-				require.Len(t, wipeCmd.Cmd.Items, 1)
-				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipe", *wipeCmd.Cmd.Items[0].Target)
-
-				msgID, err := device.GetCurrentMsgID()
-				require.NoError(t, err)
-
-				device.AppendResponse(fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: fleet.CmdStatus},
-					MsgRef:  &msgID,
-					CmdRef:  &status.WipeMDMCommand.CommandUUID,
-					Cmd:     ptr.String("Exec"),
-					Data:    ptr.String("200"),
-					Items:   nil,
-					CmdID:   fleet.CmdID{Value: uuid.NewString()},
-				})
-				cmds, err = device.SendResponse()
-				require.NoError(t, err)
-				// the ack of the message should be the only returned command
-				require.Len(t, cmds, 1)
-
-				// Simulate the host having fleetd installed and reporting back in as un-enrolled
-				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(context.Background(), `
-	              UPDATE host_mdm
-	              SET enrolled = 0, server_url = ''
-	              WHERE host_id = ?
-		`, host.ID)
-					return err
-				})
-
-				// re-enroll
-				require.NoError(t, device.Enroll())
-			},
-			false,
-		},
+		{"wiped host turns on MDM", wipedHostTurnsOnMDM("wipe", fleet.WindowsRemoteWipeProtected), false},
+		{"wiped host turns on MDM after a reset", wipedHostTurnsOnMDM("reset", fleet.WindowsRemoteWipePersistProvisionedData), false},
 		{
 			"locked host turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {

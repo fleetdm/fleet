@@ -350,6 +350,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/reset", nil, http.StatusPaymentRequired)
 
 	// try to update the apple_enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)

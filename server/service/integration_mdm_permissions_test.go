@@ -199,6 +199,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil},
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h.ID), nil},
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", h.ID), nil},
 			{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil},
 			{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h.ID, uuid.NewString()), nil},
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", h.ID), nil},

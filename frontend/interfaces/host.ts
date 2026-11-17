@@ -204,11 +204,12 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
-export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
+export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped" | "reset";
 export type HostMdmPendingAction =
   | "unlock"
   | "lock"
   | "wipe"
+  | "reset"
   | "clear_passcode"
   | "location"
   | "unenroll"

@@ -29,6 +29,7 @@ func mdmCommand() *cli.Command {
 			mdmLockCommand(),
 			mdmUnlockCommand(),
 			mdmWipeCommand(),
+			mdmResetCommand(),
 			mdmClearPasscodeCommand(),
 		},
 	}
@@ -338,6 +339,39 @@ func mdmWipeCommand() *cli.Command {
 
 			fmt.Fprintf(c.App.Writer, `
 The host will wipe when it comes online.
+
+Copy and run this command to see results:
+
+fleetctl get host %s`, hostIdent)
+
+			return nil
+		},
+	}
+}
+
+func mdmResetCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "reset",
+		Usage: "Reset a Windows host so it can be repurposed for another end user.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by identifier, that you want to reset.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+
+			client, host, err := hostMdmActionSetup(c, hostIdent, "reset")
+			if err != nil {
+				return err
+			}
+
+			if err := client.MDMResetHost(host.ID); err != nil {
+				return fmt.Errorf("Failed to reset host: %w", err)
+			}
+
+			fmt.Fprintf(c.App.Writer, `
+The host will reset when it comes online.
 
 Copy and run this command to see results:
 

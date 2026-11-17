@@ -157,6 +157,7 @@ import VitalsCard from "../cards/Vitals";
 import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
+  getWipeRequestedUIState,
 } from "../helpers";
 import HostReportsTab from "../HostReportsTab";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -185,6 +186,7 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import LockModal from "./modals/LockModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
+import ResetModal from "./modals/ResetModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -335,6 +337,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
   // Undefined used to return to true after closing the lock modal
   const [showLocationModal, setShowLocationModal] = useState<
@@ -950,6 +953,9 @@ const HostDetailsPage = ({
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
   }, [showUnenrollMdmModal, setShowUnenrollMdmModal]);
 
+  const onWipeSuccess = () =>
+    setHostMdmDeviceState(getWipeRequestedUIState(hostMdmDeviceStatus));
+
   const onDestroyHost = async () => {
     if (host) {
       setIsUpdating(true);
@@ -1352,6 +1358,9 @@ const HostDetailsPage = ({
         break;
       case "wipe":
         setShowWipeModal(true);
+        break;
+      case "reset":
+        setShowResetModal(true);
         break;
       case "clearPasscode":
         setShowClearPasscodeModal(true);
@@ -2446,8 +2455,16 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               isWindowsHost={isWindowsHost}
               isLinuxHost={isLinuxHost}
-              onSuccess={() => setHostMdmDeviceState("wiping")}
+              onSuccess={onWipeSuccess}
               onClose={() => setShowWipeModal(false)}
+            />
+          )}
+          {showResetModal && (
+            <ResetModal
+              id={host.id}
+              hostName={host.display_name}
+              onSuccess={() => setHostMdmDeviceState("resetting")}
+              onClose={() => setShowResetModal(false)}
             />
           )}
           {selectedHostSWForInventoryVersions && (

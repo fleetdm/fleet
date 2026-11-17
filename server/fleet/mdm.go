@@ -1677,11 +1677,6 @@ type MDMConfigProfileStatus struct {
 	Failed    uint `json:"failed" db:"failed"`
 }
 
-// MDMWipeMetadata specifies optional metadata for the remote wipe command
-type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata
-}
-
 type MDMCommandResults interface {
 	// Raw returns the raw bytes of the MDM command result XML.
 	Raw() []byte

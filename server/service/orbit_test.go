@@ -2727,6 +2727,9 @@ func newEnrollOrbitEUATestService(
 	ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
 		return false, nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 		// Echo the requested platform so post-enrollment platform-scoped logic runs as it would in production.
 		var cfg fleet.DatastoreEnrollOrbitConfig

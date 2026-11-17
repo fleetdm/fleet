@@ -119,6 +119,9 @@ func newOneTimeEnrollFixtureWithMDM(t *testing.T, setMDM func(*config.MDMConfig)
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: tid}, nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{ID: id, Hostname: "victim-mac"}, nil
 	}

@@ -427,6 +427,30 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
 
+	var hostCreated bool
+	enrollOpts := append([]fleet.DatastoreEnrollOrbitOption{
+		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOrbitHostInfo(hostInfo),
+		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
+		fleet.WithEnrollOrbitTeamID(enrollTeamID),
+		fleet.WithEnrollOrbitIdentityCert(identityCert),
+		fleet.WithEnrollOrbitCreated(&hostCreated),
+		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
+	}, secretOpts...)
+
+	// A Windows host back from a reset belongs to its next end user, so the previous one is forgotten and the host doesn't
+	// count as already enrolled for end user authentication.
+	var windowsResetDone bool
+	enrollingHost := fleet.Host{Platform: hostInfo.Platform, PlatformLike: hostInfo.PlatformLike}
+	if enrollingHost.FleetPlatform() == "windows" && hostInfo.HardwareUUID != "" {
+		windowsResetDone, err = svc.ds.ClearEndUserAfterWindowsReset(ctx, enrollOpts...)
+		if err != nil {
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "failed to clear end user after reset"}
+		}
+	}
+
 	var euaDeviceID, euaIdpAcctUUID string
 
 	if isEndUserAuthRequired {
@@ -479,7 +503,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					recordErrorDetail(ctx, err)
 					return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment"}
 				}
-				if !previouslyEnrolled {
+				if !previouslyEnrolled || windowsResetDone {
 					// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 					// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
 					var teamID any
@@ -501,17 +525,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	var hostCreated bool
-	enrollOpts := append([]fleet.DatastoreEnrollOrbitOption{
-		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
-		fleet.WithEnrollOrbitHostInfo(hostInfo),
-		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
-		fleet.WithEnrollOrbitTeamID(enrollTeamID),
-		fleet.WithEnrollOrbitIdentityCert(identityCert),
-		fleet.WithEnrollOrbitCreated(&hostCreated),
-		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
-		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
-	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
 		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
