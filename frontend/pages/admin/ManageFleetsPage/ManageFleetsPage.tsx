@@ -252,19 +252,9 @@ const ManageFleetsPage = ({
               setBackendValidators({
                 name: "A fleet with this name already exists",
               });
-            } else if (
-              errMsg.includes("all teams") ||
-              errMsg.includes("all fleets")
-            ) {
+            } else if (errMsg.includes("is a reserved fleet name")) {
               setBackendValidators({
-                name: `"All fleets" is a reserved fleet name.`,
-              });
-            } else if (
-              errMsg.includes("no team") ||
-              errMsg.includes("unassigned")
-            ) {
-              setBackendValidators({
-                name: `"Unassigned" is a reserved fleet name. Please try another name.`,
+                name: `"${formData.name}" is a reserved fleet name. Please try another name.`,
               });
             } else {
               notify.error(
