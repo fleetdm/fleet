@@ -564,17 +564,19 @@ const PackageForm = ({
 
   const renderTargetLabelSelector = () => (
     <>
-      {!isEditingSoftware && !isIpaPackage && (
+      {(isEditingSoftware || multiPackageContext) && !isIpaPackage && (
         <InfoBanner
           icon="info"
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
         >
           If multiple versions target the same host, Fleet will deploy the one
-          that was added first.{" "}
+          that was added first.
+          <br />
+          Want to roll out a new version to multiple hosts?{" "}
           <CustomLink
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
-            text="Learn more"
+            text="Learn how"
             newTab
           />
         </InfoBanner>
