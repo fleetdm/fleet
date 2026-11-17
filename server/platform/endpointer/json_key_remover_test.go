@@ -1,6 +1,7 @@
 package endpointer
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,6 +63,21 @@ func TestRemoveJSONKeys(t *testing.T) {
 		assert.Contains(t, string(got), "12345678901234567890")
 	})
 
+	t.Run("keeps the order of the other keys", func(t *testing.T) {
+		got, err := RemoveJSONKeys([]byte(`{"zeta":1,"scripts":[],"alpha":{"mdm":2,"beta":3}}`), paths...)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"zeta":1,"alpha":{"mdm":2,"beta":3}}`, string(got))
+		s := string(got)
+		assert.Less(t, strings.Index(s, `"zeta"`), strings.Index(s, `"alpha"`))
+		assert.Less(t, strings.Index(s, `"mdm"`), strings.Index(s, `"beta"`))
+	})
+
+	t.Run("null is returned as is", func(t *testing.T) {
+		got, err := RemoveJSONKeys([]byte(`null`), paths...)
+		require.NoError(t, err)
+		assert.Equal(t, "null", string(got))
+	})
+
 	t.Run("unchanged input is returned as is", func(t *testing.T) {
 		in := []byte(`{ "a" : 1 }`)
 		got, err := RemoveJSONKeys(in, []string{"b"})
@@ -73,6 +89,8 @@ func TestRemoveJSONKeys(t *testing.T) {
 		_, err := RemoveJSONKeys([]byte(`[1, 2]`), []string{"a"})
 		require.Error(t, err)
 		_, err = RemoveJSONKeys([]byte(`{"a":`), []string{"a"})
+		require.Error(t, err)
+		_, err = RemoveJSONKeys([]byte(`{"a": 1} {"b": 2}`), []string{"a"})
 		require.Error(t, err)
 	})
 }

@@ -1,58 +1,101 @@
 package endpointer
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json/jsontext"
+	"errors"
+	"io"
+)
 
 // RemoveJSONKeys removes the keys at paths, such as {"mdm", "setup_experience", "macos_script"},
-// from a JSON object. A path whose parent is missing or isn't an object is skipped. Values that
-// aren't on a path keep their original bytes, so numbers don't lose precision.
+// from a JSON object. A path whose parent is missing or isn't an object is skipped. Everything else
+// is copied as is, so numbers keep their precision and keys keep their order.
 func RemoveJSONKeys(data []byte, paths ...[]string) ([]byte, error) {
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(data, &obj); err != nil {
+	dec := jsontext.NewDecoder(bytes.NewReader(data), jsontext.AllowDuplicateNames(true))
+	switch dec.PeekKind() {
+	case '{':
+	case 'n':
+		return data, nil
+	default:
+		if _, err := dec.ReadToken(); err != nil {
+			return nil, err
+		}
+		return nil, errors.New("JSON value is not an object")
+	}
+
+	var buf bytes.Buffer
+	enc := jsontext.NewEncoder(&buf, jsontext.AllowDuplicateNames(true))
+	removed, err := copyObjectWithoutKeys(dec, enc, paths)
+	if err != nil {
 		return nil, err
 	}
-	changed, err := removeJSONKeys(obj, paths)
-	if err != nil || !changed {
-		return data, err
+	if _, err := dec.ReadToken(); err != io.EOF {
+		if err == nil {
+			err = errors.New("unexpected data after the JSON object")
+		}
+		return nil, err
 	}
-	return json.Marshal(obj)
+	if !removed {
+		return data, nil
+	}
+	return bytes.TrimSpace(buf.Bytes()), nil
 }
 
-func removeJSONKeys(obj map[string]json.RawMessage, paths [][]string) (bool, error) {
-	var changed bool
-	nested := make(map[string][][]string)
-	for _, path := range paths {
-		switch len(path) {
-		case 0:
-		case 1:
-			if _, ok := obj[path[0]]; ok {
-				delete(obj, path[0])
-				changed = true
-			}
-		default:
-			nested[path[0]] = append(nested[path[0]], path[1:])
-		}
+// copyObjectWithoutKeys copies the object dec is at to enc, leaving out the keys at paths.
+func copyObjectWithoutKeys(dec *jsontext.Decoder, enc *jsontext.Encoder, paths [][]string) (bool, error) {
+	if err := copyToken(dec, enc); err != nil {
+		return false, err
 	}
-	for key, subpaths := range nested {
-		raw, ok := obj[key]
-		if !ok {
-			continue
-		}
-		var child map[string]json.RawMessage
-		// data was valid JSON, so an error here means the value isn't an object.
-		if err := json.Unmarshal(raw, &child); err != nil || child == nil {
-			continue
-		}
-		childChanged, err := removeJSONKeys(child, subpaths)
+	var removed bool
+	for dec.PeekKind() != '}' {
+		key, err := dec.ReadToken()
 		if err != nil {
 			return false, err
 		}
-		if !childChanged {
+		var remove bool
+		var nested [][]string
+		for _, path := range paths {
+			switch {
+			case len(path) == 0 || path[0] != key.String():
+			case len(path) == 1:
+				remove = true
+			default:
+				nested = append(nested, path[1:])
+			}
+		}
+		if remove {
+			if err := dec.SkipValue(); err != nil {
+				return false, err
+			}
+			removed = true
 			continue
 		}
-		if obj[key], err = json.Marshal(child); err != nil {
+		if err := enc.WriteToken(key); err != nil {
 			return false, err
 		}
-		changed = true
+		if len(nested) > 0 && dec.PeekKind() == '{' {
+			nestedRemoved, err := copyObjectWithoutKeys(dec, enc, nested)
+			if err != nil {
+				return false, err
+			}
+			removed = removed || nestedRemoved
+			continue
+		}
+		value, err := dec.ReadValue()
+		if err != nil {
+			return false, err
+		}
+		if err := enc.WriteValue(value); err != nil {
+			return false, err
+		}
 	}
-	return changed, nil
+	return removed, copyToken(dec, enc)
+}
+
+func copyToken(dec *jsontext.Decoder, enc *jsontext.Encoder) error {
+	tok, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	return enc.WriteToken(tok)
 }

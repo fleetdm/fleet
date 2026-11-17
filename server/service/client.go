@@ -622,7 +622,7 @@ func (c *Client) ApplyGroup(
 		return nil, nil, nil, nil, err
 	}
 
-	// GitOps passes the config when the user can read it.
+	// fleetctl gitops passes the config it read at the start of the run.
 	checkConfig := &lazyAppConfig{client: c, config: appconfig, loaded: appconfig != nil || viaGitOps}
 	if err := checkMDMRequirements(specs, checkConfig.get); err != nil {
 		return nil, nil, nil, nil, err
@@ -1833,11 +1833,6 @@ func (l *lazyAppConfig) get() (*fleet.EnrichedAppConfig, error) {
 	}
 	l.loaded = true
 	l.config, l.err = l.client.GetAppConfig()
-	var sce kithttp.StatusCoder
-	if errors.As(l.err, &sce) && sce.StatusCode() == http.StatusForbidden {
-		// some roles (e.g. gitops) can't read the config; leave the checks to the server
-		l.config, l.err = nil, nil
-	}
 	if l.err != nil {
 		l.err = fmt.Errorf("getting fleet config: %w", l.err)
 	}
