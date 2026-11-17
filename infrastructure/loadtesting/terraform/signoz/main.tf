@@ -230,28 +230,45 @@ resource "null_resource" "signoz_drain_gate" {
   ]
 
   provisioner "local-exec" {
-    when       = destroy
-    on_failure = continue
-    command    = <<-EOT
+    when    = destroy
+    command = <<-EOT
       set -x
       CLUSTER="${self.triggers.cluster_name}"
       REGION="${self.triggers.region}"
       KUBECONFIG_TMP=$(mktemp)
-      trap 'rm -f "$KUBECONFIG_TMP"' EXIT
-      if aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER" --kubeconfig "$KUBECONFIG_TMP"; then
-        export KUBECONFIG="$KUBECONFIG_TMP"
-        kubectl delete pvc -n signoz --all --timeout=300s || true
-        for _ in $(seq 1 120); do
-          LEFT=$(kubectl get pv -o jsonpath='{range .items[?(@.spec.claimRef.namespace=="signoz")]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -c .) || LEFT=0
-          [ "$LEFT" = "0" ] && break
+      VOLUMES_TMP=$(mktemp)
+      ERR_TMP=$(mktemp)
+      trap 'rm -f "$KUBECONFIG_TMP" "$VOLUMES_TMP" "$ERR_TMP"' EXIT
+      if ! aws eks describe-cluster --region "$REGION" --name "$CLUSTER" >/dev/null 2>"$ERR_TMP"; then
+        grep -q ResourceNotFoundException "$ERR_TMP" && exit 0
+        echo "ERROR: cannot read the state of cluster $CLUSTER, refusing to tear down the CSI driver blind"
+        exit 1
+      fi
+      aws eks update-kubeconfig --region "$REGION" --name "$CLUSTER" --kubeconfig "$KUBECONFIG_TMP" || exit 1
+      export KUBECONFIG="$KUBECONFIG_TMP"
+      kubectl get pv -o jsonpath='{range .items[?(@.spec.claimRef.namespace=="signoz")]}{.spec.csi.volumeHandle}{"\n"}{end}' >"$VOLUMES_TMP" || exit 1
+      kubectl delete pvc -n signoz --all --timeout=300s || true
+      DRAINED=no
+      for _ in $(seq 1 120); do
+        if PVS=$(kubectl get pv -o jsonpath='{range .items[?(@.spec.claimRef.namespace=="signoz")]}{.metadata.name}{"\n"}{end}' 2>/dev/null); then
+          if [ -z "$(printf '%s' "$PVS" | tr -d '[:space:]')" ]; then DRAINED=yes; break; fi
+        fi
+        sleep 5
+      done
+      [ "$DRAINED" = yes ] || echo "WARNING: signoz PVs still present or unreadable after 10m, falling back to the volume sweep"
+      VOLUME_IDS=$(grep -v '^$' "$VOLUMES_TMP" | tr '\n' ',' | sed 's/,$//')
+      SWEPT=yes
+      if [ -n "$VOLUME_IDS" ]; then
+        SWEPT=no
+        for _ in $(seq 1 60); do
+          ALIVE=$(aws ec2 describe-volumes --region "$REGION" --filters "Name=volume-id,Values=$VOLUME_IDS" --query 'Volumes[].[VolumeId,State]' --output text 2>/dev/null) || { sleep 5; continue; }
+          if [ -z "$ALIVE" ]; then SWEPT=yes; break; fi
+          echo "$ALIVE" | while read -r VOL STATE; do
+            [ "$STATE" = available ] && aws ec2 delete-volume --region "$REGION" --volume-id "$VOL" || true
+          done
           sleep 5
         done
       fi
-      for VOL in $(aws ec2 describe-volumes --region "$REGION" \
-        --filters Name=status,Values=available "Name=tag:Name,Values=$CLUSTER-dynamic-*" \
-        --query 'Volumes[].VolumeId' --output text); do
-        aws ec2 delete-volume --region "$REGION" --volume-id "$VOL" || true
-      done
       for ELB in $(aws elb describe-load-balancers --region "$REGION" \
         --query 'LoadBalancerDescriptions[].LoadBalancerName' --output text); do
         if aws elb describe-tags --region "$REGION" --load-balancer-names "$ELB" \
@@ -259,6 +276,10 @@ resource "null_resource" "signoz_drain_gate" {
           aws elb delete-load-balancer --region "$REGION" --load-balancer-name "$ELB" || true
         fi
       done
+      if [ "$SWEPT" != yes ]; then
+        echo "ERROR: these signoz volumes are still there: $VOLUME_IDS"
+        exit 1
+      fi
     EOT
   }
 }
