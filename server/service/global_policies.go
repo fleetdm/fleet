@@ -265,6 +265,8 @@ const (
 	errPolicyAllFleetsForProfiles                        = "\"All fleets\" policy cannot have profile_uuid set"
 	errPolicyAllFleetsForScripts                         = "\"All fleets\" policy cannot have script_id set"
 	errPolicyAllFleetsForSoftware                        = "\"All fleets\" policy cannot have software_title_id set"
+	errPolicyAllFleetsForSoftwarePackage                 = "\"All fleets\" policy cannot have software_package_id set"
+	errPolicyAllFleetsForPatchOptions                    = "\"All fleets\" policy cannot have patch_when_closed, notify_before_patching, or patch_deadline set"
 	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errPatchDeadlineRequiresContinuousAutomations        = "If \"patch_deadline\" is true, \"continuous_automations_enabled\" can't be set to false."

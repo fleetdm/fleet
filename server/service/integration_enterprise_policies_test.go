@@ -1442,6 +1442,10 @@ func (s *integrationEnterpriseTestSuite) TestCombinedPolicyEndpoints() {
 		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "calendar_events_enabled": true}`, t.Name()),
 		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "platform": "darwin", "conditional_access_enabled": true}`, t.Name()),
 		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "script_id": %d}`, t.Name(), script.ID),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "software_package_id": 1}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "patch_when_closed": true}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "notify_before_patching": true}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "patch_deadline": true}`, t.Name()),
 	} {
 		create("latest", body, http.StatusBadRequest)
 	}
@@ -1582,6 +1586,24 @@ func (s *integrationEnterpriseTestSuite) TestCombinedPolicyEndpoints() {
 	require.NotNil(t, installerID(reportOnly.ID))
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
 		json.RawMessage(`{"patch_when_closed": true, "notify_before_patching": true, "continuous_automations_enabled": true}`), http.StatusBadRequest)
+
+	// With another automation_type, the policy's own app can be sent back and only names the app.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": null, "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	require.Nil(t, installerID(reportOnly.ID))
+	require.Equal(t, titleID, modResp.Policy.PatchSoftware.SoftwareTitleID)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": "webhook_or_ticket", "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modResp.Policy.AutomationType)
+	require.Nil(t, installerID(reportOnly.ID))
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": null, "software_title_id": %d}`, titleID+1000)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be changed")
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": "software", "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.NotNil(t, installerID(reportOnly.ID))
 
 	// Created with automation_type "software", it patches right away.
 	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{reportOnly.ID})

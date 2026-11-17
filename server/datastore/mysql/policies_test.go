@@ -11843,4 +11843,24 @@ func testListAndCountPoliciesInScope(t *testing.T, ds *Datastore) {
 	count, err := ds.CountPoliciesInScope(ctx, &team.ID, true, "calendar", none)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
+
+	afterCursor := func(teamID *uint, merge bool, after string, want ...string) {
+		t.Helper()
+		policies, err := ds.ListPoliciesInScope(ctx, teamID, merge, fleet.ListOptions{OrderKey: "name", After: after}, none)
+		require.NoError(t, err)
+		var got []string
+		for _, p := range policies {
+			got = append(got, p.Name)
+		}
+		require.Equal(t, want, got)
+	}
+	afterCursor(nil, false, "global plain", "global webhook")
+	afterCursor(&team.ID, false, "team script", "team webhook")
+	afterCursor(&team.ID, true, "team calendar", "team script", "team webhook")
+	afterCursor(new(uint(0)), true, "global webhook", "unassigned conditional")
+
+	_, inherited, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{OrderKey: "name", After: "global plain"}, "", "")
+	require.NoError(t, err)
+	require.Len(t, inherited, 1)
+	require.Equal(t, "global webhook", inherited[0].Name)
 }

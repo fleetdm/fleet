@@ -374,7 +374,9 @@ func checkAllFleetsPolicyRequest(req fleet.CreatePolicyRequest) error {
 		{req.SoftwareTitleID != nil && *req.SoftwareTitleID != 0, errPolicyAllFleetsForSoftware},
 		{req.ScriptID != nil && *req.ScriptID != 0, errPolicyAllFleetsForScripts},
 		{req.ProfileUUID != nil && *req.ProfileUUID != "", errPolicyAllFleetsForProfiles},
+		{req.SoftwareInstallerID != nil && *req.SoftwareInstallerID != 0, errPolicyAllFleetsForSoftwarePackage},
 		{req.ContinuousAutomationsEnabled, errPolicyAllFleetsForContinuousAutomations},
+		{req.PatchWhenClosed || req.NotifyBeforePatching || req.PatchDeadline, errPolicyAllFleetsForPatchOptions},
 		{(req.Type != nil && *req.Type == fleet.PolicyTypePatch) || req.PatchSoftwareTitleID != nil,
 			`"All fleets" policy cannot be a patch policy`},
 	} {

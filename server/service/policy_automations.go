@@ -241,7 +241,8 @@ func normalizePatchPolicyCreate(tp *fleet.NewTeamPolicyPayload) error {
 }
 
 // normalizePatchPolicyUpdate applies the update rules of a patch policy: its app can't change, so automation_type
-// "software" alone turns patching on for that app.
+// "software" alone turns patching on for that app. With another automation_type, software_title_id only names the
+// app; without automation_type it keeps its legacy meaning of installing the app.
 func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPayload) error {
 	if policy.Type != fleet.PolicyTypePatch || policy.PatchSoftwareTitleID == nil {
 		return nil
@@ -250,8 +251,12 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 	if titleSet && p.SoftwareTitleID.Value != *policy.PatchSoftwareTitleID {
 		return &fleet.BadRequestError{Message: "a patch policy's software_title_id can't be changed"}
 	}
-	if p.AutomationType.Valid && p.AutomationType.Value == fleet.PolicyAutomationSoftware && !titleSet {
+	patching := p.AutomationType.Valid && p.AutomationType.Value == fleet.PolicyAutomationSoftware
+	switch {
+	case patching && !titleSet:
 		p.SoftwareTitleID = optjson.Any[uint]{Set: true, Valid: true, Value: *policy.PatchSoftwareTitleID}
+	case p.AutomationType.Set && !patching && titleSet:
+		p.SoftwareTitleID = optjson.Any[uint]{}
 	}
 	return nil
 }
