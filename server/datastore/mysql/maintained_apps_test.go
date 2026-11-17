@@ -503,18 +503,18 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, ptr.Uint(0), fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, new(uint(0)), fleet.MaintainedAppListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 4)
 	require.EqualValues(t, 4, meta.TotalResults)
 	require.Nil(t, apps[0].TitleID)
 	require.Nil(t, apps[1].TitleID)
-	require.Equal(t, ptr.Uint(unassignedTitleID), apps[2].TitleID)
+	require.Equal(t, new(unassignedTitleID), apps[2].TitleID)
 	require.Nil(t, apps[3].TitleID)
 
-	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, ptr.Uint(0))
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, new(uint(0)))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(unassignedTitleID), gotApp.TitleID)
+	require.Equal(t, new(unassignedTitleID), gotApp.TitleID)
 
 	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, &team1.ID)
 	require.NoError(t, err)
@@ -953,7 +953,7 @@ func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastor
 	mkApp("Pagedsearch One for macOS", "pagedsearch-one/darwin", "darwin", "com.example.pagedsearch-one")
 	mkApp("Pagedsearch One for Windows", "pagedsearch-one/windows", "windows", "Pagedsearch One")
 	mkApp("Pagedsearch Two", "pagedsearch-two/darwin", "darwin", "com.example.pagedsearch-two")
-	searchOpts := fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{MatchQuery: "Pagedsearch", IncludeMetadata: true, PerPage: 1}}
+	searchOpts := fleet.MaintainedAppListOptions{MatchQuery: "Pagedsearch", IncludeMetadata: true, PerPage: 1}
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
@@ -1655,20 +1655,20 @@ func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 	require.Contains(t, slugs, "firefox@esr/darwin")
 	require.NotContains(t, slugs, "firefox/darwin")
 
-	// add a VPP app for the same Firefox title to another fleet, then move it into the fleet that
-	// has the installer, which the conflict check blocks on add. ESR should still not show as added
+	// add a Firefox VPP app to another fleet, the VPP app should get the same software title as the Firefox installer
 	test.CreateInsertGlobalVPPToken(t, ds)
 	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 43"})
 	require.NoError(t, err)
 	vppFirefox, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-		Name: "Mozilla Firefox",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{AdamID: "firefox", Platform: fleet.MacOSPlatform},
-		},
+		Name:             "Mozilla Firefox",
+		AdamID:           "firefox",
+		Platform:         fleet.MacOSPlatform,
 		BundleIdentifier: "org.mozilla.firefox",
 	}, &otherTeam.ID, nil)
 	require.NoError(t, err)
 	require.Equal(t, titleID, vppFirefox.TitleID)
+
+	// move the Firefox VPP app into this fleet, the Firefox FMA should show as added and the ESR FMA should not
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET team_id = ?, global_or_team_id = ? WHERE adam_id = 'firefox'", team.ID, team.ID)
 		return err

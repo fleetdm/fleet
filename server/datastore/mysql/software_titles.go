@@ -846,7 +846,7 @@ SELECT
 FROM software_titles st
 	{{if and (hasTeamID .) (or .AvailableForInstall .SelfServiceOnly (and .PackagesOnly (not .ListOptions.MatchQuery)))}}
 		-- These filters only keep titles with an installer, VPP app or in-house app in the fleet.
-		-- A search replaces the packages only filter below, so packages only with a search is excluded
+		-- A packages_only with a search query also keeps titles without a package, so it can't use the inner join
 		INNER JOIN ({{fleetInstallableTitleIDs (teamID .)}}) fleet_installable_titles ON fleet_installable_titles.title_id = st.id
 	{{end}}
 	{{if hasTeamID .}}

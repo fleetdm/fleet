@@ -458,12 +458,12 @@ const fleetMaintainedAppsTeamJoin = `
 				INNER JOIN software_titles st ON st.id = si.title_id
 				WHERE si.global_or_team_id = ? AND si.platform IN ('darwin','windows')
 				UNION
-				-- Skip VPP titles that also have an installer, the installer row above wins for them
 				SELECT st.id, st.unique_identifier, st.name, va.platform, NULL
 				FROM vpp_apps_teams vat
 				INNER JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 				INNER JOIN software_titles st ON st.id = va.title_id
 				WHERE vat.global_or_team_id = ? AND vat.platform = 'darwin'
+					-- Skip VPP titles that also have an installer, the installer row above wins for them
 					AND NOT EXISTS (
 						SELECT 1 FROM software_installers si2
 						WHERE si2.title_id = st.id AND si2.global_or_team_id = ? AND si2.platform IN ('darwin','windows')
