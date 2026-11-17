@@ -127,7 +127,7 @@ module.exports = {
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Provisioning failed: Could not parse response from Microsoft's PartnerTenants API (HTTP ${complianceTenantProvisionResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
-      if(!_.isObject(parsedProvisionResponse) || parsedProvisionResponse.Provisioned !== 1 || !_.contains([null, undefined], parsedProvisionResponse.ErrorDetail)) {
+      if(!_.isObject(parsedProvisionResponse) || parsedProvisionResponse.Provisioned !== 1 || parsedProvisionResponse.ErrorDetail !== null) {
         sails.log.warn(`Microsoft's PartnerTenants API did not report that tenant ${informationAboutThisTenant.entraTenantId} was provisioned. Status: ${complianceTenantProvisionResponse.statusCode}. Response headers: ${require('util').inspect(complianceTenantProvisionResponse.headers, {depth: 1})}. Response body: ${require('util').inspect(parsedProvisionResponse, {depth: 3})}`);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Provisioning failed: Microsoft's PartnerTenants API did not provision Fleet as a compliance partner on this Entra tenant (HTTP ${complianceTenantProvisionResponse.statusCode}). Provisioned: ${_.isObject(parsedProvisionResponse) ? parsedProvisionResponse.Provisioned : undefined}. ErrorDetail: ${require('util').inspect(_.isObject(parsedProvisionResponse) ? parsedProvisionResponse.ErrorDetail : parsedProvisionResponse, {depth: 3})}`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
