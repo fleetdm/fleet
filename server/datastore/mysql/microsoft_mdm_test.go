@@ -91,6 +91,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestWindowsPerHostReconcileLoaders", testWindowsPerHostReconcileLoaders},
+		{"TestReconcileWindowsProfilesDuplicateHostUUID", testReconcileWindowsProfilesDuplicateHostUUID},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestCleanupStaleMDMWindowsEnrollments", testCleanupStaleMDMWindowsEnrollments},
@@ -9384,6 +9385,146 @@ func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	require.NotNil(t, row.Status)
 	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
 	require.NotEmpty(t, row.Checksum)
+}
+
+func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	enableWindowsMDMForReconcileTest(ctx, t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "dup-uuid-fleet-a"})
+	require.NoError(t, err)
+	profUUID := InsertWindowsProfileForTest(t, ds, team.ID)
+
+	newHost := func(name, hostUUID string, teamID *uint) *fleet.Host {
+		opts := []test.NewHostOption{test.WithPlatform("windows")}
+		if teamID != nil {
+			opts = append(opts, test.WithTeamID(*teamID))
+		}
+		return test.NewHost(t, ds, name, "10.0.0.1", name+"-key", hostUUID, time.Now(), opts...)
+	}
+	setMDMEnrolled := func(h *fleet.Host, enrolled bool) {
+		serverURL, name := "https://example.com", fleet.WellKnownMDMFleet
+		if !enrolled {
+			serverURL, name = "", ""
+		}
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, serverURL, false, name, "",
+			fleet.PersonalEnrollmentTypeNone))
+	}
+
+	requireReconcilesRow := func(t *testing.T, hostUUID string, want *fleet.Host) {
+		hosts, _, _, _, err := ds.GetWindowsProfileReconcileSnapshot(ctx, "", 10_000)
+		require.NoError(t, err)
+		var batchIDs []uint
+		for _, h := range hosts {
+			if h.UUID == hostUUID {
+				batchIDs = append(batchIDs, h.HostID)
+			}
+		}
+		assert.Equal(t, []uint{want.ID}, batchIDs, "full batch")
+
+		var pagedIDs []uint
+		cursor := ""
+		for range 1000 {
+			page, _, _, _, err := ds.GetWindowsProfileReconcileSnapshot(ctx, cursor, 1)
+			require.NoError(t, err)
+			if len(page) == 0 {
+				break
+			}
+			if page[0].UUID == hostUUID {
+				pagedIDs = append(pagedIDs, page[0].HostID)
+			}
+			cursor = page[0].UUID
+		}
+		assert.Equal(t, []uint{want.ID}, pagedIDs, "pages of one host")
+
+		perHost, err := ds.GetWindowsMDMHostForReconcile(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, perHost)
+		assert.Equal(t, want.ID, perHost.HostID, "per-host loader")
+	}
+
+	verbs := func(hostUUID string) []string {
+		var out []string
+		for _, raw := range rawWindowsCommandsForHost(t, ds, hostUUID) {
+			if strings.Contains(raw, "<Delete>") {
+				out = append(out, "Delete")
+			} else {
+				out = append(out, "Install")
+			}
+		}
+		slices.Sort(out)
+		return out
+	}
+	// Mirrors what a device ack of every sent command leaves behind: an install becomes verified and a remove's row is deleted.
+	ack := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles WHERE operation_type = ? AND status = ?`,
+				fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET status = ? WHERE status = ?`,
+				fleet.MDMDeliveryVerified, fleet.MDMDeliveryPending)
+			return err
+		})
+	}
+	requireOneDelivery := func(t *testing.T, hostUUID string, wantFirst []string) {
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
+		ack()
+		require.Equal(t, wantFirst, verbs(hostUUID), "tick 1")
+		for tick := 2; tick <= 4; tick++ {
+			require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger, false))
+			ack()
+			assert.Equal(t, wantFirst, verbs(hostUUID), "tick %d enqueued a command after the first delivery was acked", tick)
+		}
+	}
+
+	t.Run("newest row on the fleet with the profile", func(t *testing.T) {
+		sharedUUID := strings.ToUpper(uuid.NewString())
+		hNoTeam := newHost("dup-a-no-team", sharedUUID, nil)
+		windowsEnroll(t, ds, hNoTeam)
+		hTeam := newHost("dup-a-fleet-a", sharedUUID, &team.ID)
+		setMDMEnrolled(hTeam, true)
+		other := newHost("dup-a-other", strings.ToUpper(uuid.NewString()), &team.ID)
+		windowsEnroll(t, ds, other)
+
+		requireReconcilesRow(t, sharedUUID, hTeam)
+		requireOneDelivery(t, sharedUUID, []string{"Install"})
+		assert.Equal(t, []string{"Install"}, verbs(other.UUID), "a host with its own UUID gets the profile once")
+	})
+
+	t.Run("newest row on a fleet without the profile", func(t *testing.T) {
+		sharedUUID := strings.ToUpper(uuid.NewString())
+		hTeam := newHost("dup-b-fleet-a", sharedUUID, &team.ID)
+		windowsEnroll(t, ds, hTeam)
+		installWindowsProfilesAsVerified(t, ds, []string{sharedUUID}, []string{profUUID})
+		hNoTeam := newHost("dup-b-no-team", sharedUUID, nil)
+		setMDMEnrolled(hNoTeam, true)
+
+		requireReconcilesRow(t, sharedUUID, hNoTeam)
+		requireOneDelivery(t, sharedUUID, []string{"Delete"})
+	})
+
+	t.Run("newest row not enrolled in MDM", func(t *testing.T) {
+		sharedUUID := strings.ToUpper(uuid.NewString())
+		hTeam := newHost("dup-c-fleet-a", sharedUUID, &team.ID)
+		windowsEnroll(t, ds, hTeam)
+		hNoTeam := newHost("dup-c-no-team", sharedUUID, nil)
+		setMDMEnrolled(hNoTeam, false)
+
+		requireReconcilesRow(t, sharedUUID, hTeam)
+		requireOneDelivery(t, sharedUUID, []string{"Install"})
+	})
+
+	t.Run("newest row on another platform", func(t *testing.T) {
+		sharedUUID := strings.ToUpper(uuid.NewString())
+		hTeam := newHost("dup-d-fleet-a", sharedUUID, &team.ID)
+		windowsEnroll(t, ds, hTeam)
+		hMac := test.NewHost(t, ds, "dup-d-mac", "10.0.0.1", "dup-d-mac-key", sharedUUID, time.Now(), test.WithPlatform("darwin"))
+		setMDMEnrolled(hMac, true)
+
+		requireReconcilesRow(t, sharedUUID, hTeam)
+		requireOneDelivery(t, sharedUUID, []string{"Install"})
+	})
 }
 
 func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
