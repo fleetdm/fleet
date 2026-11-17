@@ -18,10 +18,7 @@ describe("ResetPasswordPage", () => {
     const router = createMockRouter();
     const render = createCustomRenderer({
       context: {
-        app: {
-          currentUser: createMockUser({ global_role: "admin" }),
-          setConfig: jest.fn(),
-        },
+        app: { currentUser: createMockUser({ global_role: "admin" }) },
       },
     });
     const { user } = render(
