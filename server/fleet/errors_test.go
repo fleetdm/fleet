@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,4 +81,63 @@ func TestFleetdErrors(t *testing.T) {
 	assert.JSONEq(t,
 		`{"error_source":"orbit","error_source_version":"1.1.1","error_timestamp":"1969-06-19T21:44:05Z","error_message":"test message","error_additional_info":{"foo":"bar"},"vital":false}`,
 		logBuf.String())
+}
+
+func TestParamRequiredDeprecationError(t *testing.T) {
+	err := NewParamRequiredDeprecationError("host_identifier")
+	require.Equal(t, `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, err.Error())
+
+	// Encoded as a bad request (400) and logged as a client error.
+	var asError error = err
+	_, isBadRequest := asError.(interface{ BadRequestError() []map[string]string })
+	require.True(t, isBadRequest)
+	clientErr, ok := asError.(interface{ IsClientError() bool })
+	require.True(t, ok)
+	require.True(t, clientErr.IsClientError())
+}
+
+func TestRemovedFleetVariable(t *testing.T) {
+	const removedMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. ` +
+		`What to use instead: ` + removednames.GuideURL
+
+	require.NoError(t, FindRemovedFleetVariable())
+	require.NoError(t, FindRemovedFleetVariable("HOST_UUID", "NOT_A_VARIABLE", "HOST_END_USER_EMAIL_IDP_X"))
+	err := FindRemovedFleetVariable("HOST_UUID", "HOST_END_USER_EMAIL_IDP")
+	require.EqualError(t, err, removedMsg)
+
+	// Encoded as a validation error (422) and logged as a client error.
+	invalid, ok := err.(interface{ Invalid() []map[string]string })
+	require.True(t, ok)
+	require.Equal(t, []map[string]string{{"name": "base", "reason": removedMsg}}, invalid.Invalid())
+	clientErr, ok := err.(interface{ IsClientError() bool })
+	require.True(t, ok)
+	require.True(t, clientErr.IsClientError())
+
+	for _, v := range []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"} {
+		androidProfile := MDMAndroidConfigProfile{Name: "p", RawJSON: []byte(`{"name": "` + v + `"}`)}
+		for name, err := range map[string]error{
+			"android profile":    androidProfile.ValidateUserProvided(true),
+			"android app config": ValidateAndroidAppConfiguration([]byte(`{"managedConfiguration": {"email": "` + v + `"}}`)),
+			"apple app config": ValidateAppleAppConfiguration([]byte(
+				`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>email</key><string>` + v + `</string></dict></plist>`)),
+		} {
+			var removedErr *RemovedFleetVariableError
+			require.ErrorAs(t, err, &removedErr, "%s with %s", name, v)
+			require.EqualError(t, err, removedMsg, "%s with %s", name, v)
+		}
+	}
+
+	// The tree walk of an Apple app config catches a variable the raw scan can't see.
+	err = ValidateAppleAppConfiguration([]byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>` +
+		`<key>email</key><string>&#36;FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict></plist>`))
+	require.EqualError(t, err, removedMsg)
+
+	// The removed variable wins over another unsupported one, whatever the order.
+	err = ValidateAppleAppConfiguration([]byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>` +
+		`<key>a</key><string>$FLEET_VAR_BOZO</string><key>b</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict></plist>`))
+	require.EqualError(t, err, removedMsg)
+
+	// A longer name isn't the removed variable.
+	err = ValidateAndroidAppConfiguration([]byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP_X"}}`))
+	require.EqualError(t, err, "Couldn't update configuration. Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_X.")
 }

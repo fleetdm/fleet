@@ -35,7 +35,7 @@ interface InstallIconTooltip {
   autoUpdateWindowEnd?: string;
 }
 
-interface InstallIconConfig {
+interface InstallIcon {
   iconName: IconNames;
   tooltip: (args: InstallIconTooltip) => JSX.Element;
 }
@@ -66,7 +66,10 @@ const hasValidAutoUpdate = ({
   isIosOrIpadosApp &&
   isAppStoreApp;
 
-const installIconMap: Record<InstallType, InstallIconConfig> = {
+const installIconMap: Record<
+  Exclude<InstallType, "automaticSelfService">,
+  InstallIcon
+> = {
   manual: {
     iconName: "install",
     tooltip: ({ pageContext }) => (
@@ -77,12 +80,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
     ),
   },
   selfService: {
-    iconName: "user",
+    iconName: "self-service",
     tooltip: ({ isIosOrIpadosApp = false, isAndroidPlayStoreApp = false }) =>
       getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp),
   },
   automatic: {
-    iconName: "refresh",
+    iconName: "install-auto",
     tooltip: ({
       automaticInstallPoliciesCount = 0,
       autoUpdateEnabled = false,
@@ -116,43 +119,12 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
       );
     },
   },
-  automaticSelfService: {
-    iconName: "automatic-self-service",
-    tooltip: ({
-      automaticInstallPoliciesCount = 0,
-      isIosOrIpadosApp = false,
-      isAndroidPlayStoreApp = false,
-      isAppStoreApp = false,
-      autoUpdateEnabled = false,
-      autoUpdateWindowStart,
-      autoUpdateWindowEnd,
-    }) => {
-      const showAutoUpdate = hasValidAutoUpdate({
-        autoUpdateEnabled,
-        autoUpdateWindowStart,
-        autoUpdateWindowEnd,
-        isIosOrIpadosApp,
-        isAppStoreApp,
-      });
-      return (
-        <>
-          {automaticInstallPoliciesCount > 0 && (
-            <>{getPolicyTooltip(automaticInstallPoliciesCount)} </>
-          )}
-          {showAutoUpdate && (
-            <>
-              {getAutoUpdateTooltip(
-                autoUpdateWindowStart!,
-                autoUpdateWindowEnd!
-              )}{" "}
-            </>
-          )}
-          {getSelfServiceTooltip(isIosOrIpadosApp, isAndroidPlayStoreApp)}
-        </>
-      );
-    },
-  },
 };
+
+const getInstallIcons = (type: InstallType): InstallIcon[] =>
+  type === "automaticSelfService"
+    ? [installIconMap.automatic, installIconMap.selfService]
+    : [installIconMap[type]];
 
 interface IInstallIconWithTooltipProps {
   isSelfService: boolean;
@@ -216,8 +188,7 @@ export const InstallIconWithTooltip = ({
     return null;
   }
 
-  const { iconName, tooltip } = installIconMap[iconType];
-  const tipContent = tooltip({
+  const tooltipArgs: InstallIconTooltip = {
     automaticInstallPoliciesCount,
     pageContext,
     isIosOrIpadosApp,
@@ -226,26 +197,29 @@ export const InstallIconWithTooltip = ({
     autoUpdateEnabled,
     autoUpdateWindowStart,
     autoUpdateWindowEnd,
-  });
+  };
 
   // No role="img"/aria-label here (unlike ConfigurationIconWithTooltip):
   // install state is multi-input and only fully expressed by the tooltip content.
   return (
     <div className={`${baseClass}__install-icon-with-tooltip`}>
-      <TooltipWrapper
-        tipContent={tipContent}
-        showArrow
-        underline={false}
-        position="top"
-        tipOffset={12}
-        fixedPositionStrategy
-      >
-        <Icon
-          name={iconName}
-          className={`${baseClass}__install-icon`}
-          color="ui-fleet-black-50"
-        />
-      </TooltipWrapper>
+      {getInstallIcons(iconType).map(({ iconName, tooltip }) => (
+        <TooltipWrapper
+          key={iconName}
+          tipContent={tooltip(tooltipArgs)}
+          showArrow
+          underline={false}
+          position="top"
+          tipOffset={12}
+          fixedPositionStrategy
+        >
+          <Icon
+            name={iconName}
+            className={`${baseClass}__install-icon`}
+            color="ui-fleet-black-50"
+          />
+        </TooltipWrapper>
+      ))}
     </div>
   );
 };

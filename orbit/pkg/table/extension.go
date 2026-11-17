@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_agent_sessions"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -195,6 +196,13 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// servers, sockets, instruction files, browser extensions) and their risk
 		// factors. Vendored from github.com/karmine05/agentic-detector.
 		table.NewPlugin("ai_tools", ai_tools.Columns(), ai_tools.Generate),
+
+		// ai_agent_sessions / ai_agent_session_messages: sessions of AI coding
+		// agents (Claude Code, Copilot CLI, Cursor CLI, Codex CLI, Gemini CLI)
+		// and their content, from every user's transcripts. Ported from
+		// github.com/allenhouchins/fleet-extensions.
+		table.NewPlugin("ai_agent_sessions", ai_agent_sessions.SessionsColumns(), ai_agent_sessions.GenerateSessions),
+		table.NewPlugin("ai_agent_session_messages", ai_agent_sessions.MessagesColumns(), ai_agent_sessions.GenerateMessages),
 
 		// netskope: local Netskope client state, from `nsdiag -f`.
 		// Registered on every platform: hosts without the client report a single

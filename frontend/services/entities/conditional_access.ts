@@ -8,6 +8,10 @@ export type ConfirmMSConditionalAccessResponse = {
   configuration_completed: boolean;
   setup_error: string;
 };
+export interface IConditionalAccessWindowsProfilesResponse {
+  scep_profile: string;
+  browser_profile: string;
+}
 
 const conditionalAccessService = {
   triggerMicrosoftConditionalAccess: (
@@ -29,6 +33,12 @@ const conditionalAccessService = {
       endpoints.CONDITIONAL_ACCESS_IDP_APPLE_PROFILE,
       undefined,
       "text"
+    );
+  },
+  getIdpWindowsProfiles: (): Promise<IConditionalAccessWindowsProfilesResponse> => {
+    return sendRequest(
+      "GET",
+      endpoints.CONDITIONAL_ACCESS_IDP_WINDOWS_PROFILES
     );
   },
   getIdpSigningCert: (): Promise<Blob> => {

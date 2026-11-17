@@ -1,0 +1,1 @@
+- Fixed an issue with the "New hosts" filter not excluding pending hosts, and not showing newly enrolled AB hosts.

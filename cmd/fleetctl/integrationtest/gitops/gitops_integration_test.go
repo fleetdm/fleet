@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-git/go-git/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -99,39 +98,6 @@ func (s *integrationGitopsTestSuite) TearDownSuite() {
 	appConf.MDM.EnabledAndConfigured = false
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
-}
-
-// TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
-// Changes to that repo may cause this test to fail.
-func (s *integrationGitopsTestSuite) TestFleetGitops() {
-	t := s.T()
-	const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
-
-	fleetctlConfig := s.createFleetctlConfig()
-
-	// Clone git repo
-	repoDir := t.TempDir()
-	_, err := git.PlainClone(
-		repoDir, false, &git.CloneOptions{
-			ReferenceName: "main",
-			SingleBranch:  true,
-			Depth:         1,
-			URL:           fleetGitopsRepo,
-			Progress:      os.Stdout,
-		},
-	)
-	require.NoError(t, err)
-
-	// Set the required environment variables
-	t.Setenv("FLEET_URL", s.Server.URL)
-	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
-	globalFile := path.Join(repoDir, "default.yml")
-
-	// Dry run
-	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
-
-	// Real run
-	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
 }
 
 func (s *integrationGitopsTestSuite) createFleetctlConfig() *os.File {
@@ -384,4 +350,43 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsCustomHostVitals() {
 	globalFileAbsent := s.customHostVitalsGlobalYAML("")
 	fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileAbsent})
 	require.Empty(t, listVitals())
+}
+
+func (s *integrationGitopsTestSuite) TestFleetGitopsPatchDeadlineSettingsFree() {
+	t := s.T()
+	ctx := t.Context()
+	fleetctlConfig := s.createFleetctlConfig()
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	dir := t.TempDir()
+	globalFile := path.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`), 0o644))
+	unassignedFile := path.Join(dir, "unassigned.yml")
+	require.NoError(t, os.WriteFile(unassignedFile, []byte(`name: Unassigned
+controls:
+policies:
+software:
+  patch_deadline_settings:
+    days: [monday]
+    time: "09:30"
+`), 0o644))
+
+	out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", unassignedFile})
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "skipping team config")
+	require.NotContains(t, out.String(), "patch deadline settings")
+	got, err := s.DS.GetPatchDeadlineSettings(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DefaultPatchDeadlineSettings(0), got)
 }

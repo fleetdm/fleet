@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 import React from "react";
 
@@ -30,6 +31,8 @@ import SoftwareInstallDetailsModal, {
 
 describe("SoftwareInstallDetailsModal", () => {
   describe("StatusMessage component", () => {
+    afterEach(() => jest.useRealTimers());
+
     it("renders basic 'is installed' message when not installed by fleet (no installResult provided)", () => {
       render(<StatusMessage softwareName="CoolApp" isMyDevicePage={false} />);
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
@@ -47,7 +50,7 @@ describe("SoftwareInstallDetailsModal", () => {
         />
       );
 
-      expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
+      expect(screen.queryByTestId("pending-icon")).toBeInTheDocument();
       expect(
         screen.getByText(/is installing or will install/)
       ).toBeInTheDocument();
@@ -167,9 +170,13 @@ describe("SoftwareInstallDetailsModal", () => {
         screen.queryByText(/Fleet notifies the end user/)
       ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
-      // Grey "!" (error-outline), not the red failure icon.
-      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
-      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+      // Grey "!" (error), not the red failure icon.
+      expect(
+        screen
+          .getByTestId("error-icon")
+          .querySelector("path")
+          ?.getAttribute("fill")
+      ).toContain("ui-fleet-black-50");
     });
 
     it("renders the notify-variant trailing sentence when pre-install output carries the notify marker", () => {
@@ -193,6 +200,36 @@ describe("SoftwareInstallDetailsModal", () => {
         )
       ).toBeInTheDocument();
       // patch_when_closed copy is misleading here and must not render.
+      expect(
+        screen.queryByText(/It will update once the user closes it/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the deadline-variant sentence when pre-install output carries the deadline marker", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Fleet will notify the end user 1 hour before the patch deadline\./
+        )
+      ).toBeInTheDocument();
+      // Notify-forced copy mentions "patch is forced"; deadline mustn't leak
+      // into that wording.
+      expect(
+        screen.queryByText(/1 hour before the patch is forced/)
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByText(/It will update once the user closes it/)
       ).not.toBeInTheDocument();
@@ -228,9 +265,13 @@ describe("SoftwareInstallDetailsModal", () => {
         screen.queryByText(/update via self service/)
       ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
-      // Grey "!" (error-outline), not the red failure icon.
-      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
-      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+      // Grey "!" (error), not the red failure icon.
+      expect(
+        screen
+          .getByTestId("error-icon")
+          .querySelector("path")
+          ?.getAttribute("fill")
+      ).toContain("ui-fleet-black-50");
     });
 
     it("renders skipped copy as plain text (no policy-automations link) on the My device page", () => {
@@ -272,6 +313,59 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.getByText(/\(com\.cool\.app\)/)).toBeInTheDocument();
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
+    });
+
+    it("on activity feed, renders installed message with the activity's timestamp instead of the install's", async () => {
+      jest.useFakeTimers();
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "installed",
+          })}
+          isMyDevicePage={false}
+          activityCreatedAt={fiveMinutesAgo}
+        />
+      );
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+      expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/5 minutes ago/));
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(
+        screen.queryByText(/Time when Fleet sent install command/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("on host software page, renders installed message with the install's created_at instead of a newer updated_at", async () => {
+      const threeDaysAgo = new Date(
+        Date.now() - 3 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const { user } = renderWithSetup(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "installed",
+            created_at: threeDaysAgo,
+            updated_at: oneMinuteAgo,
+          })}
+          isMyDevicePage={false}
+        />
+      );
+
+      expect(screen.getByText(/3 days ago/)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/3 days ago/));
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Time when Fleet sent install command/)
+        ).toBeInTheDocument();
+      });
     });
   });
 

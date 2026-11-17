@@ -4,6 +4,7 @@
   "package_identifier": "PortSwigger.BurpSuite.Community",
   "unique_identifier": "Burp Suite Community Edition",
   "fuzzy_match_name": true,
+  "open_process_names": ["burpsuitecommunity.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

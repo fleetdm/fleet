@@ -3,6 +3,7 @@ package scim
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -81,34 +82,40 @@ func TestSCIMOTELMiddleware(t *testing.T) {
 			expectedSpan: "GET /api/v1/fleet/scim/ResourceTypes",
 		},
 		{
-			name:         "Unknown path - uses full path",
+			name:         "Unknown path - fixed label",
 			path:         "SomethingElse",
 			method:       "GET",
-			expectedSpan: "GET /api/v1/fleet/scim/SomethingElse",
+			expectedSpan: "GET /api/v1/fleet/scim/{unknown}",
 		},
 		{
-			name:         "Bulk operations endpoint",
+			name:         "Bulk operations endpoint - not served, fixed label",
 			path:         "Bulk",
 			method:       "POST",
-			expectedSpan: "POST /api/v1/fleet/scim/Bulk",
+			expectedSpan: "POST /api/v1/fleet/scim/{unknown}",
 		},
 		{
-			name:         "Search endpoint",
+			name:         "Search endpoint - not served, fixed label",
 			path:         ".search",
 			method:       "POST",
-			expectedSpan: "POST /api/v1/fleet/scim/.search",
+			expectedSpan: "POST /api/v1/fleet/scim/{unknown}",
 		},
 		{
-			name:         "Unknown resource with ID - hides ID",
+			name:         "Unknown resource with ID - fixed label",
 			path:         "CustomResource/abc123",
 			method:       "GET",
-			expectedSpan: "GET /api/v1/fleet/scim/CustomResource/{id}",
+			expectedSpan: "GET /api/v1/fleet/scim/{unknown}",
 		},
 		{
-			name:         "Unknown nested path with ID - hides ID",
+			name:         "Unknown nested path with ID - fixed label",
 			path:         "Custom/Resource/123",
 			method:       "DELETE",
-			expectedSpan: "DELETE /api/v1/fleet/scim/Custom/{id}",
+			expectedSpan: "DELETE /api/v1/fleet/scim/{unknown}",
+		},
+		{
+			name:         "Caller-controlled unknown segment stays out of the trace",
+			path:         "leak-7f3a9c",
+			method:       "GET",
+			expectedSpan: "GET /api/v1/fleet/scim/{unknown}",
 		},
 	}
 
@@ -118,11 +125,10 @@ func TestSCIMOTELMiddleware(t *testing.T) {
 			sr := tracetest.NewSpanRecorder()
 			tp := trace.NewTracerProvider(trace.WithSpanProcessor(sr))
 
-			// Create test configuration with OTEL enabled
+			// tracing_type is left unset, as in the documented configuration.
 			cfg := config.FleetConfig{
 				Logging: config.LoggingConfig{
 					TracingEnabled: true,
-					TracingType:    "opentelemetry",
 				},
 			}
 
@@ -166,15 +172,14 @@ func TestSCIMOTELMiddleware(t *testing.T) {
 			require.NotNil(t, scimSpan, "Should find SCIM span with name: %s", tc.expectedSpan)
 			assert.Equal(t, tc.expectedSpan, scimSpan.Name())
 
-			// Check that the route tag is set correctly (without exposing IDs)
-			attrs := scimSpan.Attributes()
-			for _, attr := range attrs {
+			// The route tag must be the same pattern as the span name, never the raw path.
+			var routes []string
+			for _, attr := range scimSpan.Attributes() {
 				if string(attr.Key) == "http.route" {
-					// The route should match the pattern, not the actual path
-					assert.NotContains(t, attr.Value.AsString(), "123", "Should not expose user ID")
-					assert.NotContains(t, attr.Value.AsString(), "67890", "Should not expose user ID")
+					routes = append(routes, attr.Value.AsString())
 				}
 			}
+			assert.Equal(t, []string{strings.TrimPrefix(tc.expectedSpan, tc.method+" ")}, routes)
 		})
 	}
 }

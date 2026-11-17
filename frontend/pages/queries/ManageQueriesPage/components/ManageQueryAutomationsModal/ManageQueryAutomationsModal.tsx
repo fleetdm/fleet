@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
@@ -214,12 +215,14 @@ const ManageQueryAutomationsModal = ({
             />
           </div>
           <div className={`${baseClass}__configure form-field__help-text`}>
-            Users with the admin role can&nbsp;
-            <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/log-destinations"
-              text="configure a different log destination"
-              newTab
-            />
+            <CustomLinkSizeContext.Provider value="small">
+              Users with the admin role can&nbsp;
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/log-destinations"
+                text="configure a different log destination"
+                newTab
+              />
+            </CustomLinkSizeContext.Provider>
           </div>
         </div>
         <Button

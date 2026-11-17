@@ -3,7 +3,7 @@
   "slug": "canva/windows",
   "package_identifier": "Canva.Canva",
   "unique_identifier": "Canva",
-  "installer_arch": "x86",
+  "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",
   "default_categories": ["Productivity"],

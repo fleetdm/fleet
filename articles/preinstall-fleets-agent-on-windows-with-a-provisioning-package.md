@@ -26,9 +26,9 @@ No web browser is available while Windows applies the package, so fleetd can't o
 
 > **Note:** `--bypass-end-user-auth` works when the Fleet server's [`mdm.allow_orbit_end_user_auth_bypass`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) option is `true`, the default.
 
-`fleetctl` writes `fleet-windows-amd64.msi` to the current directory. Copy it to the Windows computer that runs Windows Configuration Designer, into an otherwise empty folder.
+`fleetctl` writes the package to the current directory as `fleet-windows-amd64.msi`. If you're logged in to `fleetctl` and the enroll secret belongs to a fleet, the name includes the fleet's name, like `fleet-windows-amd64-workstations.msi`. To get the fixed name used below, add `--outfile=fleet-windows-amd64.msi` to the command. Copy the package to the Windows computer that runs Windows Configuration Designer, into an otherwise empty folder.
 
-> **Note:** For Arm-based Windows devices, add `--arch=arm64` and build a separate package for them. `fleetctl` names that file `fleet-windows-arm64.msi`, so use that name in **CommandFile** and **CommandLine** below.
+> **Note:** For Arm-based Windows devices, add `--arch=arm64` and build a separate package for them. Use `--outfile=fleet-windows-arm64.msi`, and use that name in **CommandFile** and **CommandLine** below.
 
 > **Note:** Windows Configuration Designer imports every file in the folder that holds the installer. Extra files in that folder can break the build.
 
@@ -86,7 +86,7 @@ If you have access to Fleet, confirm that fleetd is running and the host has enr
 
 1. On the device, press Shift+F10 at the setup screen and run `sc query "Fleet osquery"`. The service's `STATE` should be `RUNNING`.
 2. In Fleet, go to **Hosts**, select the fleet, and search for the device's serial number.
-3. Select the host and confirm its details, such as the operating system, have loaded. If the **Refetch** button shows **Fetching fresh vitals...this may take a moment**, wait for it to finish.
+3. Select the host and confirm its details, such as the operating system, have loaded. If the host shows **Refetching... This can take up to 1 minute.**, wait for it to finish.
 
 A Hyper-V virtual machine is a fast way to repeat these steps while you test, without resetting real hardware.
 

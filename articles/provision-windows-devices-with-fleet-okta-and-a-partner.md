@@ -39,7 +39,7 @@ Set up Okta's local account provisioning for Windows, so the end user can sign i
 Okta marks the device as managed when it finds a certificate from Okta's certificate authority (CA). Deploy it with a configuration profile:
 
 1. Follow the [Okta Verify on Windows guide](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) to create the `OKTA_SCEP_URL`, `OKTA_SCEP_CHALLENGE`, and `OKTA_CA_THUMBPRINT` variables and get the profile.
-2. Head to **Controls > OS settings > Configuration profiles**, select **Add profile**, and upload the profile to the fleet for the new devices.
+2. Head to **Controls > OS settings > Configuration profiles**, select **Add profile**, select **Create manually**, and upload the profile to the fleet for the new devices.
 
 ## Step 4: Build the provisioning package
 

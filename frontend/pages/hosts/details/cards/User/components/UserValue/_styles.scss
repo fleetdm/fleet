@@ -4,9 +4,21 @@
     @include ellipse-text(270px);
   }
 
+  &__multi-wrapper {
+    white-space: nowrap;
+  }
+
+  // inline-block so the "+ N more" text sits on the same line and shares the
+  // tooltip trigger
   &__multi {
-    display: block;
+    display: inline-block;
+    vertical-align: top;
     @include ellipse-text(197px);
+  }
+
+  // Left-align to override the arrowed tooltip's default centered text.
+  &__tooltip-list {
+    text-align: left;
   }
 
   @media (max-width: $break-lg) {
@@ -27,7 +39,6 @@
     }
 
     &__multi {
-      display: block;
       @include ellipse-text(197px);
     }
   }

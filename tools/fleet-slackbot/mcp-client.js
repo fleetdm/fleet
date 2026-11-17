@@ -1,18 +1,14 @@
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
-const { SSEClientTransport } = require("@modelcontextprotocol/sdk/client/sse.js");
+const { StreamableHTTPClientTransport } = require("@modelcontextprotocol/sdk/client/streamableHttp.js");
 
 // Maximum characters to return from any single tool call.
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
-// Only these errors prove fleet-mcp never started the call, so retrying can't
-// run it twice (e.g. a second live query).
+// Only this error proves the MCP server never started the call, so retrying
+// can't run it twice (e.g. a second live query).
 function wasNeverAccepted(err) {
-  const message = err.message || "";
-  return (
-    message === "Not connected" ||
-    /^Error POSTing to endpoint \(HTTP 400\):.*Invalid session ID/.test(message)
-  );
+  return err.message === "Not connected";
 }
 
 class McpClient {
@@ -47,7 +43,7 @@ class McpClient {
     if (this.authToken) {
       headers.Authorization = `Bearer ${this.authToken}`;
     }
-    const transport = new SSEClientTransport(new URL(this.url), {
+    const transport = new StreamableHTTPClientTransport(new URL(this.url), {
       requestInit: { headers },
     });
 

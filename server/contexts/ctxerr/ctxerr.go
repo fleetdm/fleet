@@ -17,13 +17,11 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"runtime"
 	"strings"
 	"time"
 
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/getsentry/sentry-go"
-	"go.elastic.co/apm/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -68,19 +66,10 @@ func (e *FleetError) Stack() []string {
 	return e.stack.List()
 }
 
-// StackTrace implements the runtimeStackTracer interface understood by the
-// elastic APM package to reuse already-captured stack traces.
-// https://github.com/elastic/apm-agent-go/blob/main/stacktrace/errors.go#L45-L47
-func (e *FleetError) StackTrace() *runtime.Frames {
-	st := e.stack.(stack) // outside of tests, e.stack is always a stack type
-	return runtime.CallersFrames(st)
-}
-
 // StackFrames implements the reflection-based method that Sentry's Go SDK
 // uses to look for a stack trace. It abuses the internals a bit, as it uses
 // the name that sentry looks for, but returns the []uintptr slice (which works
-// because of how they handle the returned value via reflection). A cleaner
-// approach would be if they used an interface detection like APM does.
+// because of how they handle the returned value via reflection).
 // https://github.com/getsentry/sentry-go/blob/master/stacktrace.go#L44-L49
 func (e *FleetError) StackFrames() []uintptr {
 	return e.stack.(stack) // outside of tests, e.stack is always a stack type
@@ -360,9 +349,6 @@ func Handle(ctx context.Context, err error) {
 
 			span.AddEvent("exception", trace.WithAttributes(attrs...))
 		}
-
-		// send to elastic APM
-		apm.CaptureError(ctx, cause).Send()
 
 		// if Sentry is configured, capture the error there
 		if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {

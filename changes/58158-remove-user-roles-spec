@@ -1,0 +1,2 @@
+- **Breaking change:** Removed `POST /api/v1/fleet/users/roles/spec`. It now returns `410 Gone` with a link to the Fleet 5 upgrade guide. Use `PATCH /api/v1/fleet/users/:id` instead.
+- **Breaking change:** Removed support for `kind: user_roles` in `fleetctl apply`, and removed `fleetctl user create-users` and `fleetctl user delete-users`. They now fail with a link to the Fleet 5 upgrade guide. Use `fleetctl user create` and `fleetctl user delete` instead.

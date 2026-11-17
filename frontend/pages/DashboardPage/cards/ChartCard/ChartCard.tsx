@@ -370,7 +370,7 @@ const ChartCard = ({
               tipOffset={8}
               className={`${baseClass}__description-tooltip`}
             >
-              <Icon name="info-outline" />
+              <Icon name="info" />
             </TooltipWrapper>
           )}
           {anyFiltersActive && (

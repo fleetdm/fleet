@@ -1,0 +1,1 @@
+- Added the experimental `websocket.osquery_config_enabled` server setting: hosts connected over the agent WebSocket transport are notified when their osquery config changes (agent options, reports, fleet changes), and fetch it every 10 minutes (`websocket.osquery_config_poll_interval`) as a fallback instead of every minute.

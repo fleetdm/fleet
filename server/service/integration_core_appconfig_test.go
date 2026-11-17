@@ -22,12 +22,14 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,25 +61,73 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
-func (s *integrationTestSuite) TestAppConfigDetailQueriesOverrides() {
+func (s *integrationTestSuite) TestAppConfigDetailQueryOverridesRemoved() {
 	t := s.T()
+	ctx := t.Context()
 
-	spec := []byte(`
+	res := s.Do("PATCH", "/api/latest/fleet/config", map[string]any{
+		"features": map[string]any{"detail_query_overrides": map[string]any{"users": nil}},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `unsupported key provided: "detail_query_overrides"`)
+
+	s.applyConfig([]byte(`
   features:
-    additional_queries:
-      time: SELECT * FROM time
+    enable_software_inventory: true
     enable_host_users: true
-    detail_query_overrides:
-      users: null
-      software_linux: "select * from blah;"
-`)
-	s.applyConfig(spec)
+`))
 
-	config := s.getConfig()
-	require.NotNil(t, config.Features.DetailQueryOverrides)
-	require.Nil(t, config.Features.DetailQueryOverrides["users"])
-	require.NotNil(t, config.Features.DetailQueryOverrides["software_linux"])
-	require.Equal(t, "select * from blah;", *config.Features.DetailQueryOverrides["software_linux"])
+	// Configs saved by an older Fleet can still hold overrides, so seed them directly.
+	var previousRawConfig string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &previousRawConfig, "SELECT json_value FROM app_config_json"); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.features.detail_query_overrides',
+			JSON_OBJECT('users', NULL, 'software_macos', 'SELECT * FROM foo;'))`)
+		return err
+	})
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "UPDATE app_config_json SET json_value = ?", previousRawConfig)
+			return err
+		})
+	})
+
+	var rawConfig map[string]any
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &rawConfig)
+	require.NotContains(t, rawConfig["features"], "detail_query_overrides")
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, host.ID, true))
+
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *host.NodeKey}, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries["fleet_detail_query_users"], "FROM users")
+	require.Contains(t, dqResp.Queries["fleet_detail_query_software_macos"], "FROM apps")
+
+	// Saves re-marshal the whole config from the struct, so the stale key disappears without a migration.
+	s.applyConfig([]byte(`
+  features:
+    enable_host_users: true
+`))
+	var stillStored bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stillStored,
+			`SELECT JSON_CONTAINS_PATH(json_value, 'one', '$.features.detail_query_overrides') FROM app_config_json`)
+	})
+	require.False(t, stillStored)
 }
 
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
@@ -1606,7 +1656,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.Greater(t, len(listActivities.Activities), 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null}`, string(*listActivities.Activities[0].Details))
 
 	// try to set invalid agent options
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1822,7 +1872,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// try to enable Windows MDM, impossible without the WSTEP certs
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": true }
+		"mdm": { "windows_mdm_enabled": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Please configure Fleet with a certificate and key pair first.")
@@ -1898,8 +1948,6 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "mode=light")
-	// Deprecated key is in sync.
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusOK)
 	gotBody, err := io.ReadAll(res.Body)
@@ -1939,7 +1987,6 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
@@ -1952,9 +1999,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	// 7. DELETE on an external URL (no blob) clears the URL field.
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"org_info": {
-			"org_logo_url": "https://placehold.co/100",
 			"org_logo_url_dark_mode": "https://placehold.co/100",
-			"org_logo_url_light_background": "https://placehold.co/200",
 			"org_logo_url_light_mode": "https://placehold.co/200"
 		}
 	}`), http.StatusOK)
@@ -1962,9 +2007,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
-	require.Empty(t, acResp.OrgInfo.OrgLogoURL) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	// 8. PATCH transitioning a Fleet-hosted URL to an external URL must
 	// preserve the external URL and delete the previously-stored blob.
@@ -1975,13 +2018,11 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"org_info": {
-			"org_logo_url_light_mode": "https://placehold.co/300",
-			"org_logo_url_light_background": "https://placehold.co/300"
+			"org_logo_url_light_mode": "https://placehold.co/300"
 		}
 	}`), http.StatusOK)
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	// The orphan blob is actually gone: GET /logo?mode=light returns 404.
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
@@ -2004,4 +2045,55 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 		}
 	}
 	assert.True(t, sawAutoCleanupActivity, "auto-cleanup must emit a deleted_org_logo activity for the affected mode")
+}
+
+func (s *integrationTestSuite) TestRemovedOrgLogoConfigKeys() {
+	t := s.T()
+
+	const darkURL = "https://example.com/dark.png"
+	const lightURL = "https://example.com/light.png"
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(
+		`{"org_info": {"org_logo_url_dark_mode": %q, "org_logo_url_light_mode": %q}}`, darkURL, lightURL)), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config",
+			json.RawMessage(`{"org_info": {"org_logo_url_dark_mode": "", "org_logo_url_light_mode": ""}}`), http.StatusOK)
+	})
+
+	removedMsg := func(key string) string {
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	}
+	for _, tc := range []struct{ name, key string }{
+		{"dark", "org_logo_url"},
+		{"light", "org_logo_url_light_background"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil, `{"org_info": {%q: "https://example.com/new.png"}}`, tc.key),
+				http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), removedMsg(tc.key))
+		})
+	}
+
+	// nothing was saved by the rejected requests, and responses only use the new keys
+	res := s.DoRaw("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	var raw struct {
+		OrgInfo map[string]any `json:"org_info"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&raw))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, darkURL, raw.OrgInfo["org_logo_url_dark_mode"])
+	require.Equal(t, lightURL, raw.OrgInfo["org_logo_url_light_mode"])
+	require.NotContains(t, raw.OrgInfo, "org_logo_url")
+	require.NotContains(t, raw.OrgInfo, "org_logo_url_light_background")
+
+	host := createOrbitEnrolledHost(t, "darwin", t.Name(), s.ds)
+	token := "removed_org_logo_keys_token" //nolint:gosec // G101: test value, not a real credential
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	var deviceResp map[string]any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, darkURL, deviceResp["org_logo_url_dark_mode"])
+	require.Equal(t, lightURL, deviceResp["org_logo_url_light_mode"])
+	require.NotContains(t, deviceResp, "org_logo_url")
+	require.NotContains(t, deviceResp, "org_logo_url_light_background")
 }

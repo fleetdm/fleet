@@ -195,7 +195,7 @@ You can trigger policy automations right when MDM is turned on, because Fleet re
 
 2. Clicking **Turn on MDM** opens a new tab.
    - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
-   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
+   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download an enrollment profile and install it on their macOS host.
 
 ## Volume Purchasing Program (VPP)
 
@@ -209,7 +209,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
 
-4. Head to **Settings > Payments & Billing > Apps & Books** and download the content token for the organization unit you want to use. Each token is based on an organization unit in Apple Business.
+4. Select your organization's name in the top-right corner, then select **Settings > Organizational Units**. Select the organizational unit you want to use, and then select **Download** next to **Content Token**. Each token is based on an organizational unit in Apple Business.
 
 5. Upload the content token (.vpptoken file) to Fleet.
 
@@ -227,7 +227,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 4. Sign in to [Apple Business](https://business.apple.com).
 
-5. Head to **Settings > Payments & Billing > Apps & Books** and download your content token.
+5. Select your organization's name in the top-right corner, then select **Settings > Organizational Units**. Select the organizational unit for the token you're renewing, and then select **Download** next to **Content Token**.
 
 6. Upload the content token (.vpptoken file) to Fleet.
 

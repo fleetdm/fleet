@@ -170,7 +170,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 			_, ok := teamIDs[userTeam.Team.ID]
 			if !ok {
 				return nil, nil, ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("fleet with id %d does not exist", userTeam.Team.ID)),
+					ctx, fleet.NewInvalidArgumentError("fleets.id", fmt.Sprintf("fleet with id %d does not exist", userTeam.Team.ID)),
 				)
 			}
 		}
@@ -315,7 +315,7 @@ type modifyAPIOnlyUserRequest struct {
 	ID           uint                       `json:"-" url:"id"`
 	Name         *string                    `json:"name,omitempty"`
 	GlobalRole   *string                    `json:"global_role,omitempty"`
-	Teams        *[]fleet.UserTeam          `json:"teams,omitempty" renameto:"fleets"`
+	Teams        *[]fleet.UserTeam          `json:"fleets,omitempty"`
 	APIEndpoints fleet.OptionalAPIEndpoints `json:"api_endpoints"`
 }
 
@@ -611,7 +611,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_fleets"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
@@ -812,7 +812,11 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if lic == nil {
 			return nil, ctxerr.New(ctx, "license not found")
 		}
-		if err := fleet.ValidateUserRoles(false, p, *lic); err != nil {
+		// The endpoint rejects api_only, so validate against the stored value to
+		// enforce API-only roles (GitOps).
+		rolesPayload := p
+		rolesPayload.APIOnly = new(user.APIOnly)
+		if err := fleet.ValidateUserRoles(false, rolesPayload, *lic); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
@@ -885,7 +889,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		}
 
 		if p.Teams != nil && len(*p.Teams) > 0 {
-			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
+			return nil, fleet.NewInvalidArgumentError("fleets", "may not be specified with global_role")
 		}
 
 		// Track whether this is a demotion from global admin so we can
@@ -928,7 +932,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			if p.GlobalRole != nil {
 				return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
 			}
-			return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
+			return nil, fleet.NewInvalidArgumentError("fleets", "cannot demote the last global admin")
 		}
 		if err == nil && p.NewPassword != nil {
 			// Clean up password reset requests and sessions like setNewPassword does.

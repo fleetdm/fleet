@@ -1,0 +1,1 @@
+- Fixed an Android host's disk space disappearing from host vitals when a status report carries no storage measurement. Fleet now keeps the host's last measurement until the device reports a new one, and hosts that have never reported a measurement still show "Not supported".

@@ -97,6 +97,8 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 		return nil, nil, ctxerr.Wrap(ctx, err, "list activities")
 	}
 
+	translateStoredDetails(activities)
+
 	// Enrich activities with user data via ACL.
 	if err := s.enrichWithUserData(ctx, activities); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "failed to enrich activities with user data")
@@ -135,6 +137,8 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list host past activities")
 	}
+
+	translateStoredDetails(activities)
 
 	// Enrich activities with user data via ACL
 	if err := s.enrichWithUserData(ctx, activities); err != nil {

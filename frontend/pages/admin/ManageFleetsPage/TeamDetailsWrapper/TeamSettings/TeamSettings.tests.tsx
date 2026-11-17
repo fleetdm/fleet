@@ -33,10 +33,10 @@ const disabledWebhook = {
 const renderTeamSettings = (hostStatusWebhook = disabledWebhook) => {
   mockServer.use(
     createGetConfigHandler(),
-    // teamsAPI.load(1) -> GET /api/latest/fleet/fleets/1; component does select: (d) => d.team
+    // teamsAPI.load(1) -> GET /api/latest/fleet/fleets/1; component does select: (d) => d.fleet
     http.get(baseUrl("/fleets/:id"), () =>
       HttpResponse.json({
-        team: {
+        fleet: {
           id: 1,
           name: "Team 1",
           host_expiry_settings: {

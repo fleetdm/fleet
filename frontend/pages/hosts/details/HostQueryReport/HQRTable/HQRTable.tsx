@@ -5,7 +5,6 @@ import { Row } from "react-table";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import EmptyState from "components/EmptyState";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -19,6 +18,8 @@ import {
 import {
   getPerformanceImpactDescription,
   getPerformanceImpactIndicatorTooltip,
+  humanLastSeen,
+  internationalTimeFormat,
 } from "utilities/helpers";
 
 import generateColumnConfigs from "./HQRTableConfig";
@@ -49,15 +50,16 @@ const PerformanceImpact = ({ queryStats, queryId }: PerformanceImpactProps) => {
   };
 
   return (
-    <TooltipWrapper
-      tipContent={getPerformanceImpactIndicatorTooltip(
-        performanceImpact.indicator
-      )}
-    >
-      <span className="performance-impact">
-        <strong>Performance impact</strong>: {performanceImpact.indicator}
-      </span>
-    </TooltipWrapper>
+    <span className="performance-impact">
+      <strong>Performance impact</strong>:{" "}
+      <TooltipWrapper
+        tipContent={getPerformanceImpactIndicatorTooltip(
+          performanceImpact.indicator
+        )}
+      >
+        {performanceImpact.indicator}
+      </TooltipWrapper>
+    </span>
   );
 };
 
@@ -167,8 +169,16 @@ const HQRTable = ({
       <>
         <TableCount name="results" count={filteredResults.length} />
         <span className="last-fetched">
-          Last fetched{" "}
-          <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetched ?? ""} />
+          <TooltipWrapper
+            tipContent={
+              lastFetched && internationalTimeFormat(new Date(lastFetched))
+            }
+            position="top"
+            underline={false}
+            showArrow
+          >
+            Last fetched {humanLastSeen(lastFetched ?? "")}
+          </TooltipWrapper>
         </span>
       </>
     );
@@ -177,13 +187,13 @@ const HQRTable = ({
   const renderTableInfo = useCallback(
     () => (
       <div className={`${baseClass}__query-info`}>
-        <div className={`${baseClass}__query-info-text`}>
+        <div className={`${baseClass}__query-info-header`}>
           <h2>
             <TooltipTruncatedText value={queryName} fixedPositionStrategy />
           </h2>
-          <h3>{queryDescription}</h3>
+          <PerformanceImpact queryStats={queryStats} queryId={queryId} />
         </div>
-        <PerformanceImpact queryStats={queryStats} queryId={queryId} />
+        {queryDescription && <h3>{queryDescription}</h3>}
       </div>
     ),
     [queryDescription, queryName, queryStats, queryId]
@@ -193,7 +203,7 @@ const HQRTable = ({
     return <Spinner />;
   }
   return (
-    <Card paddingSize="xxlarge" includeShadow className={baseClass}>
+    <Card paddingSize="xxlarge" className={baseClass}>
       {renderTableInfo()}
       {rows.length === 0 ? (
         renderEmptyState()

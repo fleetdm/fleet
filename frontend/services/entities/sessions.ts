@@ -20,7 +20,6 @@ export interface ISSOSettingsResponse {
 
 export interface ILoginResponse {
   user: IUser;
-  available_teams: ITeamSummary[];
   available_fleets: ITeamSummary[];
   token: string;
   token_expires_at?: string;
@@ -63,13 +62,13 @@ export default {
     return sendRequest("POST", CREATE_SESSION, {
       token,
     }).then((response) => {
-      const { user, available_teams } = response;
+      const { user, available_fleets } = response;
       const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
 
       return {
         ...response,
         user: userWithGravatarUrl,
-        available_teams,
+        available_fleets,
       };
     });
   },

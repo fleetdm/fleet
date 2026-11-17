@@ -82,7 +82,6 @@ type TestServerOpts struct {
 	StartCronSchedules              []TestNewScheduleFunc
 	UseMailService                  bool
 	APNSTopic                       string
-	ProfileMatcher                  fleet.ProfileMatcher
 	EnableCachedDS                  bool
 	NoCacheDatastore                bool
 	SoftwareInstallStore            fleet.SoftwareInstallerStore

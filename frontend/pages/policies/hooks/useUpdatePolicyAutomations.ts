@@ -20,6 +20,7 @@ export type IPolicyAutomationUpdate = Pick<
   | "continuous_automations_enabled"
   | "patch_when_closed"
   | "notify_before_patching"
+  | "patch_deadline"
 >;
 
 export interface IUpdatePolicyAutomationsVars {
@@ -55,7 +56,7 @@ const useUpdatePolicyAutomations = ({
   const { setConfig } = useContext(AppContext);
 
   if (!isGlobalPolicy && teamIdForApi === undefined) {
-    throw new Error("Missing fleet id for team-scoped policy automations.");
+    throw new Error("Missing fleet id for fleet-scoped policy automations.");
   }
 
   // Adds or removes this policy from the fleet/global webhook+ticket policy_ids
@@ -100,7 +101,7 @@ const useUpdatePolicyAutomations = ({
       if (policyUpdate) {
         requests.push(
           teamPoliciesAPI.update(policyId, {
-            team_id: teamIdForApi,
+            fleet_id: teamIdForApi,
             ...policyUpdate,
           })
         );

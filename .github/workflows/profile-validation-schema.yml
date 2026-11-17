@@ -81,8 +81,7 @@ jobs:
   update:
     if: github.event_name != 'pull_request'
     permissions:
-      contents: write       # Required to push the branch
-      pull-requests: write  # Required to open the PR
+      contents: read  # The PAT below pushes the branch and opens the PR, not GITHUB_TOKEN
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

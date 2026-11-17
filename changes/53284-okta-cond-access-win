@@ -1,0 +1,1 @@
+- Added Okta conditional access for Windows hosts (Fleet Premium): a new `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` variable for Windows SCEP profiles, a `GET /api/v1/fleet/conditional_access/idp/windows/profiles` endpoint, and a new Okta conditional access page in Settings that shows the macOS and Windows profiles.

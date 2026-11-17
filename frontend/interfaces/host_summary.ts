@@ -6,7 +6,6 @@ export interface IHostSummaryPlatforms {
 }
 
 export interface IHostSummary {
-  all_linux_count: number;
   totals_hosts_count: number;
   platforms: IHostSummaryPlatforms[] | null;
   online_count: number;

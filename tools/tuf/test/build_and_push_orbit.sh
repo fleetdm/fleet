@@ -21,6 +21,11 @@ GOOS=linux GOARCH=amd64 go build -o orbit-linux -ldflags="-s -w -X github.com/fl
 rm orbit-linux
 
 CGO_ENABLED=1 ORBIT_VERSION=$ORBIT_VERSION ORBIT_COMMIT=$ORBIT_COMMIT ORBIT_BINARY_PATH=./orbit-darwin go run ./orbit/tools/build/build.go
+# Without a codesign identity, ad-hoc sign orbit with its release identifier, which the Microsoft
+# SSO extension's AppAllowList matches for the Entra device token.
+if [ -z "$CODESIGN_IDENTITY" ]; then
+    codesign -s - -i com.fleetdm.orbit -f orbit-darwin
+fi
 ./tools/tuf/test/push_target.sh macos orbit orbit-darwin $ORBIT_VERSION
 rm orbit-darwin
 

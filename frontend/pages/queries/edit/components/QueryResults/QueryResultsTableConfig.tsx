@@ -68,10 +68,17 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
             );
           }
 
+          // Wrap in an element so React never removes a bare text node that a
+          // DOM-mutating browser extension may have moved, which throws
+          // NotFoundError on removeChild as live results stream in.
           const val = cellProps?.cell?.value;
-          return !!val?.length && val.length > 300
-            ? internallyTruncateText(val)
-            : val ?? null;
+          return (
+            <span>
+              {!!val?.length && val.length > 300
+                ? internallyTruncateText(val)
+                : val ?? null}
+            </span>
+          );
         },
         Filter: DefaultColumnFilter,
         disableSortBy: false,

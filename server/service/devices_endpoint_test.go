@@ -49,7 +49,7 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
-				OrgLogoURL: "http://example.com/logo.png",
+				OrgLogoURLDarkMode: "http://example.com/logo.png",
 			},
 		}, nil
 	}
@@ -84,9 +84,6 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
@@ -108,7 +105,13 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+		return "sensitive-google-device-id", nil
+	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
@@ -138,6 +141,7 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	assert.Empty(t, deviceResp.Host.HardwareSerial)
 	assert.Empty(t, deviceResp.Host.UUID)
 	assert.Empty(t, deviceResp.Host.PrimaryMac)
+	assert.Nil(t, deviceResp.Host.GoogleDeviceID)
 	assert.Nil(t, deviceResp.Host.TeamName)
 	assert.Nil(t, deviceResp.Host.MDM.Profiles)
 	assert.Nil(t, deviceResp.Host.Labels)
@@ -155,7 +159,7 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	assert.Equal(t, "", deviceResp.Host.DisplayName)
 
 	// Verify other fields are present
-	assert.Equal(t, "http://example.com/logo.png", deviceResp.OrgLogoURL)
+	assert.Equal(t, "http://example.com/logo.png", deviceResp.OrgLogoURLDarkMode)
 }
 
 func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
@@ -201,7 +205,7 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
-				OrgLogoURL: "http://example.com/logo.png",
+				OrgLogoURLDarkMode: "http://example.com/logo.png",
 			},
 		}, nil
 	}
@@ -227,9 +231,6 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
@@ -252,6 +253,9 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
@@ -359,7 +363,7 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
 					OrgInfo: fleet.OrgInfo{
-						OrgLogoURL: "http://example.com/logo.png",
+						OrgLogoURLDarkMode: "http://example.com/logo.png",
 					},
 					ConditionalAccess: tc.conditionalAccessConfig,
 				}, nil
@@ -380,9 +384,6 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 				return nil, nil
 			}
 			ds.ListLabelsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
-				return nil, nil
-			}
-			ds.ListPacksForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.Pack, error) {
 				return nil, nil
 			}
 			ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -407,6 +408,9 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 				return nil, nil
 			}
 			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+				return nil, nil
+			}
+			ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 				return nil, nil
 			}
 			ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {

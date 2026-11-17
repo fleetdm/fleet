@@ -1,0 +1,1 @@
+- Fleet's dashboard now loads its host counts with one request instead of two.

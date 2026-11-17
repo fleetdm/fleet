@@ -1,6 +1,6 @@
 {
   "name": "Cork",
-  "unique_identifier": "com.davidbures.cork",
+  "unique_identifier": "eu.davidbures.cork",
   "token": "cork",
   "installer_format": "zip",
   "slug": "cork/darwin",

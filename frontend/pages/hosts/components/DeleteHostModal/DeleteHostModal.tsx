@@ -16,6 +16,8 @@ import {
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import strUtils from "utilities/strings";
 
+import { getMobileReEnrollAction } from "./helpers";
+
 const baseClass = "delete-host-modal";
 
 interface IDeleteHostModalProps {
@@ -122,10 +124,13 @@ const DeleteHostModal = ({
     return (
       <>
         <p>
-          This will unenroll <b>{hostText()}</b> but won&apos;t remove company
-          data. {learnMoreLink}
+          This will remove <b>{hostText()}</b> from Fleet. It won&apos;t turn
+          off MDM or remove company data. {learnMoreLink}
         </p>
-        <p>{reEnrollInstructions}</p>
+        <p>
+          {theseHosts} won&apos;t re-enroll on {isPlural ? "their" : "its"} own.{" "}
+          {reEnrollInstructions}
+        </p>
       </>
     );
   };
@@ -134,24 +139,25 @@ const DeleteHostModal = ({
     if (!platform) {
       return null;
     }
-    if (isAndroid(platform)) {
-      return (
-        <>
-          <p>
-            This will unenroll <b>{hostText()}</b> and remove company data.
-          </p>
-          <p>This may take up to 24 hours. {learnMoreLink}</p>
-        </>
+    if (isIPadOrIPhone(platform) || isAndroid(platform)) {
+      const action = getMobileReEnrollAction(
+        platform,
+        !!isMdmEnrolledInFleet,
+        mdmEnrollmentStatus ?? null
       );
-    }
-    if (isIPadOrIPhone(platform)) {
       return (
         <>
-          <p>{removeAllDataSentence("")}</p>
           <p>
-            {theseHosts} will re-enroll unless MDM is turned off.{" "}
-            {learnMoreLink}
+            {removeAllDataSentence(" from Fleet")} It won&apos;t remove data
+            from {isPlural ? "the hosts" : "the host"}.
+            {!action && <> {learnMoreLink}</>}
           </p>
+          {action && (
+            <p>
+              {theseHosts} will re-enroll unless you {action} {them} first.{" "}
+              {learnMoreLink}
+            </p>
+          )}
         </>
       );
     }
@@ -195,8 +201,9 @@ const DeleteHostModal = ({
             agent is uninstalled. {learnMoreLink}
           </li>
           <li>
-            iOS and iPadOS will re-enroll unless MDM is turned off. Android will
-            remove company data and may take up to 24 hours.
+            iOS, iPadOS, and personal Android hosts will re-enroll unless you
+            unenroll them first. Company-owned Android hosts will re-enroll
+            unless you wipe them first.
           </li>
         </ul>
       </>

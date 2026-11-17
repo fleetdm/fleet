@@ -3,6 +3,8 @@
   "slug": "reqable/windows",
   "package_identifier": "Reqable.Reqable",
   "unique_identifier": "Reqable",
+  "program_publisher": "Reqable Inc.",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

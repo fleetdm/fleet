@@ -113,12 +113,45 @@ export const buildLibraryVersionRows = ({
   ];
 };
 
+/** Builds an `IAppStoreApp` shape from the first `app_store_apps` entry and
+ * title-level fields (name, display_name, icon_url). This is a frontend-only
+ * adapter: downstream consumers (edit modals and the installer forms) still
+ * expect the pre-5.0 `IAppStoreApp` shape, and #54413 will migrate them to
+ * read per-version data directly when it rewires the edit endpoints. */
+const adaptAppStoreApp = (
+  softwareTitle: ISoftwareTitleDetails
+): IAppStoreApp | undefined => {
+  const version = softwareTitle.app_store_apps?.[0];
+  if (!version) return undefined;
+  return {
+    name: softwareTitle.name,
+    display_name: softwareTitle.display_name,
+    app_store_id: version.app_store_id,
+    latest_version: version.version,
+    version: version.version,
+    created_at: version.created_at,
+    icon_url: softwareTitle.icon_url ?? "",
+    self_service: version.self_service,
+    platform: version.platform,
+    status: version.status,
+    install_during_setup: version.install_during_setup,
+    automatic_install_policies: version.automatic_install_policies,
+    automatic_install: !!version.automatic_install_policies?.length,
+    labels_include_any: version.labels_include_any,
+    labels_include_all: version.labels_include_all,
+    labels_exclude_any: version.labels_exclude_any,
+    categories: version.categories,
+    configuration: version.configuration,
+    vpp_token: version.vpp_token,
+  };
+};
+
 export const getInstallerCardInfo = (
   softwareTitle: ISoftwareTitleDetails
 ): InstallerCardInfo => {
-  const installerData = softwareTitle.software_package
-    ? softwareTitle.software_package
-    : (softwareTitle.app_store_app as IAppStoreApp);
+  const installerData =
+    softwareTitle.software_package ??
+    (adaptAppStoreApp(softwareTitle) as IAppStoreApp);
 
   const isPackage = isSoftwarePackage(installerData);
 

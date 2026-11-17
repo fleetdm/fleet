@@ -104,7 +104,7 @@ Update `TargetOSVersion` to the minimum patch you want to enforce and `TargetLoc
 ### Using the Fleet UI
 
 1. Go to **Controls** > **OS settings**.
-2. Click **Add profile**.
+2. Select **Add profile**, then select **Create manually**.
 3. Upload `macos-15-update-enforcement.json`.
 4. Set **Display name** to something descriptive, like `macOS 15 update enforcement`.
 5. Under **Target**, select **Include any** and choose the `macOS 15 update` label.

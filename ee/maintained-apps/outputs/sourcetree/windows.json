@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.32",
+      "version": "3.4.33",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian' AND version_compare(version, '3.4.32') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian' AND version_compare(version, '3.4.33') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sourcetree.exe');"
       },
-      "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/windows/ga/SourcetreeEnterpriseSetup_3.4.32.msi",
+      "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/windows/ga/SourcetreeEnterpriseSetup_3.4.33.msi",
       "install_script_ref": "e23ea804",
       "uninstall_script_ref": "6b8b2b2a",
-      "sha256": "2dfeae7ab4ec6a11de12b65d2a59221d55bbb6be517dac39a493e34bac16e740",
+      "sha256": "25d2039f5df02ce813959ddba67e88b58c4277144011507161beb5f49cb78e2c",
       "default_categories": [
         "Developer tools"
       ],

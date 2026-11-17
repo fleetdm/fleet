@@ -1,0 +1,1 @@
+- Fixed sorting a label's host list by the Agent column, which returned a 422 "invalid order_key" error.

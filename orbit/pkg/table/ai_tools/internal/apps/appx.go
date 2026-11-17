@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
 )
 
 // This file holds everything about MSIX/Appx detection that is not a Windows
