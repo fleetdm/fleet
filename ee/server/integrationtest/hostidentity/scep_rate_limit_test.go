@@ -43,7 +43,7 @@ func TestSCEPRateLimit(t *testing.T) {
 		// here because a valid certificate for the name already exists.
 		newKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
-		renewal, _ := renewalCSR(t, initialCert, initialKey, newKey)
+		renewal := renewalCSR(t, initialCert, initialKey, newKey, false)
 		_, err = enrollHostIdentityCSR(t, s, renewal)
 		requireRateLimited(t, err)
 

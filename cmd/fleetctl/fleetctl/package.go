@@ -34,6 +34,7 @@ func packageCommand() *cli.Command {
 		Usage:       "Create a fleetd agent",
 		Description: "An easy way to create fully boot-strapped installer packages for Windows, macOS, or Linux",
 		Flags: []cli.Flag{
+			configFlag(),
 			&cli.StringFlag{
 				Name:     "type",
 				Usage:    "Type of package to build",
@@ -268,7 +269,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "outfile",
-				Usage:       "Output file for the generated package",
+				Usage:       "Output file for the generated package (default: named after the platform, architecture and, if fleetctl is logged in to --fleet-url, the fleet)",
 				Value:       "",
 				Destination: &opt.CustomOutfile,
 			},
@@ -472,6 +473,12 @@ func packageCommand() *cli.Command {
 			}
 
 			fmt.Println("Generating your fleetd agent...")
+			// opt is package-level, so reset what no flag sets.
+			opt.FleetName, opt.FleetID, opt.OtherFleets = "", 0, nil
+			if opt.CustomOutfile == "" {
+				f := fleetForPackage(c.String("config"), opt.FleetURL, opt.EnrollSecret, c.App.ErrWriter)
+				opt.FleetName, opt.FleetID, opt.OtherFleets = f.Name, f.ID, f.Others
+			}
 			path, err := buildFunc(opt)
 			if err != nil {
 				return err

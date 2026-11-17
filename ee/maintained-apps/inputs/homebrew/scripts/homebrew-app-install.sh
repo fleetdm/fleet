@@ -110,7 +110,7 @@ relaunch_application() {
 }
 
 # extract contents
-unzip -o -q "$INSTALLER_PATH" -d "$TMPDIR"
+unzip -o -q "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
 
 # Homebrew.app won't launch below its LSMinimumSystemVersion.
 min_os=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$TMPDIR/Homebrew.app/Contents/Info.plist" 2>/dev/null)

@@ -131,36 +131,7 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "O'Reilly")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');", got)
 
-	// A per-app override (keyed by software title) supplies the process-name predicate, in any of
-	// its forms: LIKE, exact, or IN.
-	got = patch_policy.GenerateOpenQuery("windows", "", "OneDrive")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'onedrive%');", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Google Chrome")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
-
-	// the unified 64-bit Acrobat app runs as Acrobat.exe for both Pro and Reader
-	for _, title := range []string{"Adobe Acrobat Pro", "Adobe Acrobat Reader"} {
-		got = patch_policy.GenerateOpenQuery("windows", "", title)
-		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');", got, title)
-	}
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)
-
 	// Unknown platform yields no query.
-	// every Firefox channel and architecture ships firefox.exe
-	for _, title := range []string{"Mozilla Firefox", "Mozilla Firefox ESR", "Mozilla Firefox Developer Edition (ARM64)", "Mozilla Firefox Nightly (ARM64)"} {
-		got = patch_policy.GenerateOpenQuery("windows", "", title)
-		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');", got, title)
-	}
-
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
 

@@ -1,0 +1,1 @@
+- Fixed the GitOps GitLab CI template so overlapping applies (push and scheduled pipelines) run one at a time via a `resource_group`, matching the GitHub workflow's `concurrency` group.

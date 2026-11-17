@@ -119,7 +119,7 @@ fi
 INSTALL_APP="$(/usr/bin/find "$MOUNT_POINT" -maxdepth 5 -type d \( -name "Install.app" -o -iname "*Install*.app" \) -print -quit)"
 
 if [ -z "$INSTALL_APP" ] || [ ! -d "$INSTALL_APP" ]; then
-  hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+  hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
   rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
   echo "Install.app not found"
   exit 1
@@ -130,12 +130,12 @@ BIN="$INSTALL_APP/Contents/MacOS/Install"
 if [ ! -x "$BIN" ]; then
   BIN="$(/usr/bin/find "$INSTALL_APP/Contents/MacOS" -type f -perm +111 -print -quit 2>/dev/null)"
 fi
-[ -n "$BIN" ] && [ -x "$BIN" ] || { hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true; rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true; echo "installer binary not found"; exit 1; }
+[ -n "$BIN" ] && [ -x "$BIN" ] || { hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true; rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true; echo "installer binary not found"; exit 1; }
 
 # Try silent, fall back to normal if needed
 "$BIN" --mode=silent >/dev/null 2>&1 || "$BIN" >/dev/null 2>&1
 
-hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
 rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
 
 relaunch_application "com.adobe.acc.AdobeCreativeCloud"

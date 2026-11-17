@@ -1,7 +1,7 @@
 {
    "name": "Pd",
    "slug": "pd/darwin",
-   "unique_identifier": "org.puredata.pd.pd-gui",
+   "unique_identifier": "info.puredata.pd.pd-gui",
    "token": "pd",
    "installer_format": "zip",
    "default_categories": ["Developer tools"],

@@ -3,9 +3,11 @@
   "slug": "grepwin/windows",
   "package_identifier": "StefansTools.grepWin",
   "unique_identifier": "grepWin",
+  "fuzzy_match_name": "grepWin%",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/grepwin_install.ps1",
   "default_categories": [
     "Developer tools"
   ]

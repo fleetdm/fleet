@@ -1,6 +1,6 @@
 {
   "name": "ScreenFlow",
-  "unique_identifier": "net.telestream.screenflow.globallibrary",
+  "unique_identifier": "net.telestream.screenflow10",
   "token": "screenflow",
   "installer_format": "dmg",
   "slug": "screenflow/darwin",

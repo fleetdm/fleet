@@ -132,7 +132,7 @@ export const ActiveCannotEditSoftware: Story = {
 };
 
 /** Inactive row, user lacks edit permission. The "Select Actions > Versions
- * and pin this version to rollback" hover tooltip is suppressed because the
+ * and pin it to deploy this version instead" hover tooltip is suppressed because the
  * user can't reach that menu anyway. */
 export const InactiveCannotEditSoftware: Story = {
   args: {

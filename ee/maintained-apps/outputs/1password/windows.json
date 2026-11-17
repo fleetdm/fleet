@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.12.42",
+      "version": "8.12.44",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.' AND version_compare(version, '8.12.42') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.' AND version_compare(version, '8.12.44') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE '1password%');"
       },
-      "installer_url": "https://c.1password.com/dist/1P/win8/1PasswordSetup-8.12.42.msi",
+      "installer_url": "https://c.1password.com/dist/1P/win8/1PasswordSetup-8.12.44.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "ac0660b5",
-      "sha256": "215bb0905cd8141fdd5ad157a570757bf5590d358b47a5a87dbce046f44fd409",
+      "sha256": "0fca8c241f491efe21db2a38c5fafe2671eb0993c6d6bcaab45ed31945865aa8",
       "default_categories": [
         "Productivity"
       ]

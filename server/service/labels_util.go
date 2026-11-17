@@ -2,11 +2,35 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
+
+// Only global labels and the entity's fleet's labels count, the labels it can use. Names match case-insensitively, as
+// in the database.
+func foundLabelNames(ctx context.Context, ds fleet.Datastore, names []string, entityTeamID *uint, user *fleet.User) (map[string]struct{}, error) {
+	if entityTeamID == nil {
+		entityTeamID = new(uint(0))
+	}
+	labels, err := ds.AllLabelIDsByName(ctx, names, fleet.TeamFilter{User: user, TeamID: entityTeamID})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+	existing := make(map[string]struct{}, len(labels))
+	for name := range labels {
+		existing[strings.ToLower(name)] = struct{}{}
+	}
+	found := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		if _, ok := existing[strings.ToLower(name)]; ok {
+			found[name] = struct{}{}
+		}
+	}
+	return found, nil
+}
 
 func loadLabelsFromNames(ctx context.Context, ds fleet.Datastore, labelNames []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 	labelsMap, err := ds.LabelsByName(ctx, labelNames, filter)
@@ -23,11 +47,18 @@ func loadLabelsFromNames(ctx context.Context, ds fleet.Datastore, labelNames []s
 }
 
 func verifyLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeamID *uint, labelNames []string, user *fleet.User) error {
+	_, err := loadLabelsToAssociate(ctx, ds, entityTeamID, labelNames, user)
+	return err
+}
+
+// loadLabelsToAssociate is verifyLabelsToAssociate that also returns the verified labels by name. Fleets can share
+// label names, so IDs must come from this lookup rather than one across every fleet the user can see.
+func loadLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeamID *uint, labelNames []string, user *fleet.User) (map[string]*fleet.Label, error) {
 	if len(labelNames) == 0 {
-		return nil
+		return nil, nil
 	}
 	if user == nil {
-		return ctxerr.New(ctx, "Authentication required")
+		return nil, ctxerr.New(ctx, "Authentication required")
 	}
 
 	// Remove duplicate names.
@@ -47,12 +78,25 @@ func verifyLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeam
 
 	labels, err := loadLabelsFromNames(ctx, ds, uniqueLabelNames, fleet.TeamFilter{User: user, TeamID: entityTeamID})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "labels by name")
+		return nil, ctxerr.Wrap(ctx, err, "labels by name")
 	}
 
 	if len(labels) != len(uniqueLabelNames) {
-		return ctxerr.Wrap(ctx, badRequest("one or more labels specified do not exist, or cannot be applied to this entity"))
+		return nil, ctxerr.Wrap(ctx, badRequest("one or more labels specified do not exist, or cannot be applied to this entity"))
 	}
 
+	return labels, nil
+}
+
+// verifyNoBuiltInLabels rejects built-in labels used as custom targets; platform targeting should be used instead.
+func verifyNoBuiltInLabels(ctx context.Context, labelNames []string, labels map[string]*fleet.Label) error {
+	for _, name := range labelNames {
+		if label, ok := labels[name]; ok && label.LabelType == fleet.LabelTypeBuiltIn {
+			return ctxerr.Wrap(ctx, badRequestf(
+				"'%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again.",
+				label.Name,
+			))
+		}
+	}
 	return nil
 }

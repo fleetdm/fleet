@@ -627,7 +627,7 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 // mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
 // registration token bound to hostUUID, using the PSSO signing key asset. The
 // token is not stored: it is minted fresh for the requesting host each time the
-// profile is delivered, so it never lands in the database or on /mdm/commands.
+// profile is delivered, so it never lands in the database or on /commands.
 func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUUID string) (string, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey}, nil)
 	if err != nil {

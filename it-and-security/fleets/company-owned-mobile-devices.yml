@@ -23,6 +23,7 @@ controls:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
+      - path: ../lib/all/declaration-profiles/Inter font.json
   setup_experience:
     enable_end_user_authentication: true
   scripts:

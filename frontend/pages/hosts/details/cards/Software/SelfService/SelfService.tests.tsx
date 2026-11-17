@@ -296,7 +296,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             installed_versions: null,
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "1.1.0",
             }),
           }),
@@ -320,7 +320,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             installed_versions: [DEFAULT_INSTALLED_VERSION], // "1.0.0"
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "1.1.0",
             }),
           }),
@@ -333,10 +333,17 @@ describe("SelfService", () => {
 
     await screen.findAllByText("mock software 1.app");
 
-    // TooltipTruncatedTextCell renders each value twice (visible + tooltip div);
-    // available version also appears in the update card above the table
+    // The update card above the table fetches on its own timeline. Scope the
+    // "available version" check to the card (via its data-testid, not its
+    // class) rather than counting global "1.1.0" occurrences across tooltip-
+    // duplicated row cells.
+    const updatesCard = await screen.findByTestId("updates-card");
+    await within(updatesCard).findByText("1.1.0");
+
+    // Both versions also appear in the software row
+    // (TooltipTruncatedTextCell renders each value twice).
     expect(screen.getAllByText("1.0.0")).toHaveLength(2);
-    expect(screen.getAllByText("1.1.0")).toHaveLength(3);
+    expect(screen.getAllByText("1.1.0").length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
@@ -385,7 +392,7 @@ describe("SelfService", () => {
         installed_versions: [
           { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
         ],
-        software_package: createMockHostSoftwarePackage({
+        package: createMockHostSoftwarePackage({
           version: "2.0.0",
           last_install: {
             install_uuid: "abc-123",

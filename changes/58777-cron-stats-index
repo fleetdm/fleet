@@ -1,0 +1,1 @@
+- Reduced database load from the per-server cron schedule check (runs on every schedule tick) by indexing `cron_stats` on stats type, instead of scanning every row for the schedule name to find triggered runs that don't exist.

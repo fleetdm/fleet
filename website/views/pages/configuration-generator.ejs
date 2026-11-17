@@ -32,7 +32,7 @@
           </div>
           <p v-if="cloudError && cloudErrorExplanation" class="text-danger">Your request could not be processed. {{cloudErrorExplanation}}</p>
           <p v-else-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4">Generate</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn mt-4">Generate</ajax-button>
         </ajax-form>
       </div>
       </div>

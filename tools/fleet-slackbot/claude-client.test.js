@@ -234,3 +234,83 @@ test("ClaudeClient maxToolCalls defaults to DEFAULT_MAX_TOOL_CALLS and accepts o
     assert.equal(c.maxToolCalls, ClaudeClient.DEFAULT_MAX_TOOL_CALLS);
   }
 });
+
+test("runAgentLoop throws instead of returning a response cut off by max_tokens", async () => {
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+  client.client = {
+    messages: {
+      stream() {
+        return makeStreamingResponse("max_tokens", [
+          { type: "text", text: '{"summary": "Adds a policy", "pr_title": "Add' },
+        ]);
+      },
+    },
+  };
+
+  await assert.rejects(client.runAgentLoop("Add a policy"), {
+    message: ClaudeClient.TRUNCATED_RESPONSE_MESSAGE,
+  });
+});
+
+test("_parseResponse throws on an unparseable config change instead of treating it as info", () => {
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+
+  assert.throws(
+    () => client._parseResponse('{"summary": "Adds a policy", "pr_title": "Add policy", "changes": [{"file_path": "a.yml"'),
+    /could not be parsed/
+  );
+  // Cut off before the key check in the old heuristic could see a full key.
+  assert.throws(() => client._parseResponse('{"summary": "Adds a policy", "pr_ti'), /could not be parsed/);
+  assert.throws(
+    () => client._parseResponse('```json\n{"summary": "Adds a policy", "pr_title": "Add policy", "changes": ['),
+    /could not be parsed/
+  );
+
+  for (const text of [
+    "There are 42 macOS hosts.",
+    'Use "pr_title": "Add policy" for the title and "changes": [...] for the edited files.',
+    "The {policy} placeholder is replaced at runtime.",
+  ]) {
+    assert.deepEqual(client._parseResponse(text), { type: "info", text });
+  }
+});
+
+test("runAgentLoop throws when the forced final response is cut off by max_tokens", async () => {
+  let calls = 0;
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: {
+      getAnthropicTools: () => [{ name: "stub_tool", description: "stub", input_schema: { type: "object" } }],
+      callTool: async () => "ok",
+    },
+    maxToolCalls: TEST_MAX_TOOL_CALLS,
+  });
+  client.client = {
+    messages: {
+      stream(params) {
+        calls++;
+        if (calls <= TEST_MAX_TOOL_CALLS) {
+          return makeStreamingResponse("tool_use", [
+            { type: "tool_use", id: `tu_${calls}`, name: "stub_tool", input: {} },
+          ]);
+        }
+        assert.deepEqual(params.tool_choice, { type: "none" });
+        return makeStreamingResponse("max_tokens", [{ type: "text", text: '{"summary": "Adds a' }]);
+      },
+    },
+  };
+
+  await assert.rejects(client.runAgentLoop("Add a policy"), {
+    message: ClaudeClient.TRUNCATED_RESPONSE_MESSAGE,
+  });
+  assert.equal(calls, TEST_MAX_TOOL_CALLS + 1);
+});

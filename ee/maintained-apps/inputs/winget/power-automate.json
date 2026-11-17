@@ -3,6 +3,7 @@
   "slug": "power-automate/windows",
   "package_identifier": "Microsoft.PowerAutomateDesktop",
   "unique_identifier": "Power Automate for desktop",
+  "open_process_names": ["pad.console.host.exe"],
   "program_publisher": "Microsoft Corporation",
   "installer_arch": "x64",
   "installer_type": "exe",

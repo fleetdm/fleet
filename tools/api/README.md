@@ -54,16 +54,9 @@ export FLEET_ENV_PATH=./path/to/env/file/fleet_env
     "query": "SELECT * FROM system_info;",
     "saved": true,
     "author_id": 1,
-    "author_name": "admin",
-    "packs": []
+    "author_name": "admin"
   }
 }
-
-# add query with id=4 to pack with id=2
-./tools/api/fleet/schedule/add_query_to_pack 2 4
-
-# get scheduled queries in a pack
-./tools/api/fleet/packs/scheduled 2 | jq '.scheduled[]|{"name": .name, "schedule_id": .id, "query_id": .query_id}'
 
 # run a live report (formerly "live query") on hosts (queries with id=1 and id=2 on hosts with id=3 and id=4)
 ./tools/api/fleet/queries/run "[1,2]" "[3,4]"

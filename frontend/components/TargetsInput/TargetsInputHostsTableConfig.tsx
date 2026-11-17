@@ -9,6 +9,7 @@ import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIss
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
+import { getHostOSDisplayName } from "utilities/helpers";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
@@ -70,8 +71,12 @@ export const generateTableHeaders = (
     },
     {
       Header: "OS",
-      accessor: "os_version",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      id: "os_version",
+      // These tables sort client-side, so sort on the name and version shown, not the bare version.
+      accessor: (host) => getHostOSDisplayName(host.os_name, host.os_version),
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       Header: "Osquery",

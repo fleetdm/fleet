@@ -29,7 +29,7 @@ const FORM_VALIDATIONS: IFormValidations = {
       {
         name: "required",
         isValid: (formData) => formData.name.trim().length > 0,
-        message: "Label name must be present",
+        message: "Enter a label name",
       },
     ],
   },

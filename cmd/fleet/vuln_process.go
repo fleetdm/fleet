@@ -33,7 +33,10 @@ vulnerability processing. By default the Fleet server command internally manages
 will disable it on the server allowing the user configure their own 'cron' mechanism. Successful processing will be indicated
 by an exit code of zero.`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			cfg := configManager.LoadConfig()
+			cfg, err := configManager.LoadConfig()
+			if err != nil {
+				initFatal(err, "loading config")
+			}
 			if dev_mode.IsEnabled {
 				applyDevFlags(&cfg)
 			}
