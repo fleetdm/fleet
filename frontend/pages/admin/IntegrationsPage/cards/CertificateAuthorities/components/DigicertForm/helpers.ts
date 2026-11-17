@@ -1,6 +1,8 @@
 import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
+import { getCANameConflictError } from "../helpers";
+
 import { IDigicertFormData } from "./DigicertForm";
 
 // TODO: create a validator abstraction for this and the other form validation files
@@ -32,7 +34,7 @@ type IFormValidations = Record<
 
 export const generateFormValidations = (
   certAuthorities: ICertificateAuthorityPartial[],
-  isEditing: boolean
+  editingId?: number
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -53,16 +55,15 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: IDigicertFormData) => {
-            return (
-              isEditing ||
-              certAuthorities.find(
-                (cert) =>
-                  cert.type === "digicert" && cert.name === formData.name
-              ) === undefined
-            );
-          },
-          message: "Name is already used by another DigiCert CA.",
+          isValid: (formData: IDigicertFormData) =>
+            getCANameConflictError(
+              formData.name,
+              certAuthorities,
+              editingId
+            ) === undefined,
+          message: (formData: IDigicertFormData) =>
+            getCANameConflictError(formData.name, certAuthorities, editingId) ??
+            "",
         },
       ],
     },

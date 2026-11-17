@@ -6,6 +6,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import InfoBanner from "components/InfoBanner";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
@@ -19,6 +20,7 @@ import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
 import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
+import { getConflictingCANames } from "./components/helpers";
 
 const CertificateAuthorities = () => {
   const { isPremiumTier } = useContext(AppContext);
@@ -142,6 +144,17 @@ const CertificateAuthorities = () => {
     return (
       <>
         {pageDescription}
+        {getConflictingCANames(certAuthorities).map((group) => (
+          <InfoBanner
+            key={group[0].name.toLowerCase()}
+            color="yellow"
+            icon="warning"
+          >
+            These certificate authorities have conflicting names:{" "}
+            {group.map((ca) => `"${ca.type}:${ca.name}"`).join(" ")}. Please
+            rename one of them and update any profiles that use it.
+          </InfoBanner>
+        ))}
         <CertificateAuthorityList
           certAuthorities={certAuthorities}
           onAddCertAuthority={onAddCertAuthority}

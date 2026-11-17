@@ -26,7 +26,8 @@ interface IHydrantFormProps {
   formData: IHydrantFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
+  /** The CA being edited, which may keep its own name */
+  editingCertAuthorityId?: number;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
@@ -38,15 +39,16 @@ const HydrantForm = ({
   formData,
   submitBtnText,
   isSubmitting,
-  isEditing = false,
+  editingCertAuthorityId,
   isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: IHydrantFormProps) => {
   const validations = useMemo(
-    () => generateFormValidations(certAuthorities ?? [], isEditing),
-    [certAuthorities, isEditing]
+    () =>
+      generateFormValidations(certAuthorities ?? [], editingCertAuthorityId),
+    [certAuthorities, editingCertAuthorityId]
   );
 
   const [formValidation, setFormValidation] = useState<IHydrantFormValidation>(

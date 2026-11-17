@@ -268,7 +268,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		result, err := tx.ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
 		if err != nil {
 			if strings.Contains(err.Error(), "idx_ca_type_name") {
-				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+				return fleet.CANameInUseError{Name: *ca.Name}
 			}
 			return ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 		}
@@ -276,7 +276,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
 		}
-		return ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name)
+		return ensureCANamesNotSharedDB(ctx, tx, *ca.Name)
 	})
 	if err != nil {
 		return nil, err
@@ -285,33 +285,30 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-// ensureEJBCANamesNotSharedDB fails if one of the names is used by an EJBCA certificate authority and by another certificate authority.
-func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
+// ensureCANamesNotSharedDB fails if one of the names is used by more than one certificate authority. It runs after the write, so CAs that
+// shared a name before names had to be unique fail only once they are written.
+func ensureCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
 	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check
-	stmt, args, err := sqlx.In(`SELECT name, type FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
+	stmt, args, err := sqlx.In(`SELECT name FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare check of EJBCA certificate authority names")
+		return ctxerr.Wrap(ctx, err, "prepare check of certificate authority names")
 	}
-	var rows []struct {
-		Name string `db:"name"`
-		Type string `db:"type"`
-	}
+	var rows []string
 	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
+		return ctxerr.Wrap(ctx, err, "check certificate authority names")
 	}
-	// The names are compared without regard to case, like the DB column is.
-	ejbca, other := map[string]string{}, map[string]struct{}{}
-	for _, row := range rows {
-		if row.Type == string(fleet.CATypeEJBCA) {
-			ejbca[strings.ToLower(row.Name)] = row.Name
-		} else {
-			other[strings.ToLower(row.Name)] = struct{}{}
-		}
+	// The names are compared without regard to case, like the DB column is. The error names the CA as it was written.
+	written := make(map[string]string, len(names))
+	for _, name := range names {
+		written[strings.ToLower(name)] = name
 	}
-	for lowerName, name := range ejbca {
-		if _, shared := other[lowerName]; shared {
-			return fleet.EJBCANameInUseError{Name: name}
+	seen := make(map[string]struct{}, len(rows))
+	for _, name := range rows {
+		lowerName := strings.ToLower(name)
+		if _, shared := seen[lowerName]; shared {
+			return fleet.CANameInUseError{Name: written[lowerName]}
 		}
+		seen[lowerName] = struct{}{}
 	}
 	return nil
 }
@@ -550,13 +547,13 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
 		}
-		// Checked after the deletes, so a CA that is replaced by one of another type with the same name, as a rename is in GitOps, is fine.
+		// Checked after the deletes, so a CA that is replaced by one of another type with the same name, as in a GitOps type change, is fine.
 		if len(upserts) > 0 {
 			names := make([]string, 0, len(upserts))
 			for _, ca := range upserts {
 				names = append(names, *ca.Name)
 			}
-			if err := ensureEJBCANamesNotSharedDB(ctx, tx, names...); err != nil {
+			if err := ensureCANamesNotSharedDB(ctx, tx, names...); err != nil {
 				return err
 			}
 		}
@@ -714,14 +711,14 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 
 		if _, err := tx.ExecContext(ctx, stmt, updateArgs...); err != nil {
 			if strings.Contains(err.Error(), "idx_ca_type_name") {
-				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+				return fleet.CANameInUseError{Name: *ca.Name}
 			}
 			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
 		}
-		if ca.Name != nil {
-			if err := ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name); err != nil {
-				return err
-			}
+		// Checked even when the name isn't changing, so that a CA still sharing its name from before names had to be unique can't be
+		// edited until one of the two is renamed.
+		if err := ensureCANamesNotSharedDB(ctx, tx, *cmp.Or(ca.Name, oldCA.Name)); err != nil {
+			return err
 		}
 
 		if resendCAName == nil {

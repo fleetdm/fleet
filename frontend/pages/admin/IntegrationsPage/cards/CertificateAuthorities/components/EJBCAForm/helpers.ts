@@ -6,6 +6,8 @@ import {
 } from "interfaces/certificates";
 import { splitServerErrors } from "interfaces/errors";
 
+import { getCANameConflictError } from "../helpers";
+
 import type { IEJBCAFormData } from "./EJBCAForm";
 
 /** The server rejects a PKCS#12 over 1 MiB. */
@@ -50,17 +52,11 @@ export const validateEJBCAForm = (
     errors.name = "Enter a name";
   } else if (!/^[a-zA-Z0-9_]+$/.test(name)) {
     errors.name = "Enter a name with only letters, numbers, and underscores";
-  } else if (name.toLowerCase() === "ndes") {
-    // The name of the NDES CA is fixed, and an EJBCA CA can't share its name with another CA.
-    errors.name = "Enter a name other than NDES";
-  } else if (
-    certAuthorities.some(
-      (ca) =>
-        ca.id !== editingId && ca.name.toLowerCase() === name.toLowerCase()
-    )
-  ) {
-    errors.name =
-      "Enter a name that isn't used by another certificate authority";
+  } else {
+    const conflict = getCANameConflictError(name, certAuthorities, editingId);
+    if (conflict) {
+      errors.name = conflict;
+    }
   }
 
   const url = formData.url.trim();

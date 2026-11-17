@@ -1,6 +1,8 @@
 import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
+import { getCANameConflictError } from "../helpers";
+
 import { ISmallstepFormData } from "./SmallstepForm";
 
 // TODO: create a validator abstraction for this and the other form validation files
@@ -30,8 +32,8 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  smallstepIntegrations: ICertificateAuthorityPartial[],
-  isEditing: boolean
+  certAuthorities: ICertificateAuthorityPartial[],
+  editingId?: number
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -52,15 +54,15 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: ISmallstepFormData) => {
-            return (
-              isEditing ||
-              smallstepIntegrations.find(
-                (cert) => cert.name === formData.name
-              ) === undefined
-            );
-          },
-          message: "Name is already used by another custom SCEP CA.",
+          isValid: (formData: ISmallstepFormData) =>
+            getCANameConflictError(
+              formData.name,
+              certAuthorities,
+              editingId
+            ) === undefined,
+          message: (formData: ISmallstepFormData) =>
+            getCANameConflictError(formData.name, certAuthorities, editingId) ??
+            "",
         },
       ],
     },

@@ -348,12 +348,12 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	t.Run("the name is used by another CA", func(t *testing.T) {
 		env := newEJBCATestEnv(t, nil)
 		env.ds.NewCertificateAuthorityFunc = func(context.Context, *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
-			return nil, fleet.EJBCANameInUseError{Name: "EJBCA_WIFI"}
+			return nil, fleet.CANameInUseError{Name: "EJBCA_WIFI"}
 		}
 		payload := validEJBCA(p12s.valid)
 		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
-		var badRequest *fleet.BadRequestError
-		require.ErrorAs(t, err, &badRequest)
+		var invalidArg *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArg)
 		require.ErrorContains(t, err, `Couldn't add certificate authority. "EJBCA_WIFI" name is already used by another certificate authority`)
 	})
 

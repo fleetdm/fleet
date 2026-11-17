@@ -2,6 +2,8 @@ import { IFormErrors } from "hooks/useFormValidation";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
+import { getCANameConflictError } from "../helpers";
+
 import { IGoogleCASFormData } from "./GoogleCASForm";
 
 const NAME_REGEX = /^[a-zA-Z0-9_]+$/;
@@ -24,14 +26,16 @@ const isJSONObject = (value: string) => {
 
 interface IValidateOptions {
   certAuthorities: ICertificateAuthorityPartial[];
-  isEditing: boolean;
+  /** The CA being edited, which may keep its own name. Unset when adding a CA. */
+  editingId?: number;
 }
 
 const validateGoogleCASForm = (
   formData: IGoogleCASFormData,
-  { certAuthorities, isEditing }: IValidateOptions
+  { certAuthorities, editingId }: IValidateOptions
 ): IFormErrors => {
   const errors: IFormErrors = {};
+  const isEditing = editingId !== undefined;
   const name = formData.name.trim();
   const projectId = formData.projectId.trim();
   const caPool = formData.caPool.trim();
@@ -42,11 +46,11 @@ const validateGoogleCASForm = (
     errors.name = "Enter a name";
   } else if (!NAME_REGEX.test(name)) {
     errors.name = "Enter a name with only letters, numbers, and underscores";
-  } else if (
-    !isEditing &&
-    certAuthorities.some((ca) => ca.type === "google_cas" && ca.name === name)
-  ) {
-    errors.name = "Enter a name that isn't used by another Google CAS CA";
+  } else {
+    const conflict = getCANameConflictError(name, certAuthorities, editingId);
+    if (conflict) {
+      errors.name = conflict;
+    }
   }
 
   if (!projectId) {

@@ -1,6 +1,8 @@
 import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
+import { getCANameConflictError } from "../helpers";
+
 import { ICustomESTFormData } from "./CustomESTForm";
 
 export interface ICustomESTFormValidation {
@@ -27,8 +29,8 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  customESTIntegrations: ICertificateAuthorityPartial[],
-  isEditing: boolean
+  certAuthorities: ICertificateAuthorityPartial[],
+  editingId?: number
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -49,17 +51,15 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: ICustomESTFormData) => {
-            return (
-              isEditing ||
-              customESTIntegrations.find(
-                (cert) =>
-                  cert.name === formData.name &&
-                  cert.type === "custom_est_proxy"
-              ) === undefined
-            );
-          },
-          message: "Name is already used by another custom EST CA.",
+          isValid: (formData: ICustomESTFormData) =>
+            getCANameConflictError(
+              formData.name,
+              certAuthorities,
+              editingId
+            ) === undefined,
+          message: (formData: ICustomESTFormData) =>
+            getCANameConflictError(formData.name, certAuthorities, editingId) ??
+            "",
         },
       ],
     },

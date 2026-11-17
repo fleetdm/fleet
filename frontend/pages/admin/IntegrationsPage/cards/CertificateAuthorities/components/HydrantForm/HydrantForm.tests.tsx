@@ -50,6 +50,47 @@ describe("HydrantForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
+  const ownCA = { id: 1, name: "TEST_NAME", type: "hydrant" as const };
+  const otherTypeCA = { id: 2, name: "test_name", type: "digicert" as const };
+  it.each([
+    [
+      "adding with a name a CA of another type uses",
+      [otherTypeCA],
+      undefined,
+      false,
+    ],
+    ["editing and keeping the CA's own name", [ownCA], 1, true],
+    [
+      "editing a CA that shares its name with another",
+      [ownCA, otherTypeCA],
+      1,
+      false,
+    ],
+  ])(
+    "checks the name when %s",
+    (_, certAuthorities, editingCertAuthorityId, enabled) => {
+      render(
+        <HydrantForm
+          certAuthorities={certAuthorities}
+          editingCertAuthorityId={editingCertAuthorityId}
+          formData={createTestFormData()}
+          isSubmitting={false}
+          submitBtnText="Submit"
+          onChange={noop}
+          onSubmit={noop}
+          onCancel={noop}
+        />
+      );
+
+      const submit = screen.getByRole("button", { name: "Submit" });
+      if (enabled) {
+        expect(submit).toBeEnabled();
+      } else {
+        expect(submit).toBeDisabled();
+      }
+    }
+  );
+
   it("disables submit when isSubmitting is set to true", () => {
     render(
       <HydrantForm

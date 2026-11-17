@@ -21,7 +21,8 @@ interface ISmallstepFormProps {
   formData: ISmallstepFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
+  /** The CA being edited, which may keep its own name */
+  editingCertAuthorityId?: number;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
@@ -33,15 +34,18 @@ const SmallstepForm = ({
   formData,
   submitBtnText,
   isSubmitting,
-  isEditing = false,
+  editingCertAuthorityId,
   isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: ISmallstepFormProps) => {
   const validationsConfig = useMemo(() => {
-    return generateFormValidations(certAuthorities ?? [], isEditing);
-  }, [certAuthorities, isEditing]);
+    return generateFormValidations(
+      certAuthorities ?? [],
+      editingCertAuthorityId
+    );
+  }, [certAuthorities, editingCertAuthorityId]);
 
   const validations = useMemo(() => {
     return validateFormData(formData, validationsConfig);

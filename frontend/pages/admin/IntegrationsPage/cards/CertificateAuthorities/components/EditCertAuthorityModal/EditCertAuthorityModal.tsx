@@ -38,7 +38,7 @@ const baseClass = "edit-cert-authority-modal";
 
 interface IEditCertAuthorityModalProps {
   certAuthority: ICertificateAuthorityPartial;
-  /** All the CAs, which an EJBCA CA can't share its name with */
+  /** All the CAs, which the edited CA can't share its name with */
   certAuthorities?: ICertificateAuthorityPartial[];
   onExit: () => void;
 }
@@ -184,7 +184,9 @@ const EditCertAuthorityModal = ({
     if (certAuthority.type === "google_cas") {
       return (
         <GoogleCASForm
+          certAuthorities={certAuthorities}
           defaultData={formData as IGoogleCASFormData}
+          editingCertAuthorityId={certAuthority.id}
           submitBtnText="Save"
           isSubmitting={isUpdating}
           onSubmit={onEditCertAuthority}
@@ -200,6 +202,8 @@ const EditCertAuthorityModal = ({
       <FormComponent
         // @ts-ignore TODO: figure out how to fix this type issue
         formData={formData}
+        certAuthorities={certAuthorities}
+        editingCertAuthorityId={certAuthority.id}
         submitBtnText="Save"
         isSubmitting={isUpdating}
         isDirty={isDirty}
