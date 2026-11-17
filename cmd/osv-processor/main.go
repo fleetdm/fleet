@@ -215,6 +215,7 @@ func run(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesWithdrawn := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -232,7 +233,7 @@ func run(cfg Config) error {
 			return nil
 		}
 		if osvData.Withdrawn != "" {
-			filesSkipped++
+			filesWithdrawn++
 			return nil
 		}
 
@@ -346,7 +347,7 @@ func run(cfg Config) error {
 		return fmt.Errorf("error walking directory: %w", err)
 	}
 
-	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
+	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn", filesProcessed, filesSkipped, filesWithdrawn)
 	log.Printf("Discovered %d Ubuntu versions", len(artifacts))
 
 	// Write full artifacts
@@ -645,6 +646,7 @@ func runRHEL(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesWithdrawn := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -662,7 +664,7 @@ func runRHEL(cfg Config) error {
 			return nil
 		}
 		if osvData.Withdrawn != "" {
-			filesSkipped++
+			filesWithdrawn++
 			return nil
 		}
 
@@ -747,7 +749,7 @@ func runRHEL(cfg Config) error {
 		return fmt.Errorf("error walking directory: %w", err)
 	}
 
-	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
+	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn", filesProcessed, filesSkipped, filesWithdrawn)
 	log.Printf("Discovered %d RHEL versions", len(artifacts))
 
 	for ver, artifact := range artifacts {
@@ -922,6 +924,7 @@ func runAndroid(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesWithdrawn := 0
 	skippedNonAndroid := 0
 	skippedNonEcosystem := 0
 	skippedNonVersion := 0
@@ -943,7 +946,7 @@ func runAndroid(cfg Config) error {
 			return nil
 		}
 		if osvData.Withdrawn != "" {
-			filesSkipped++
+			filesWithdrawn++
 			return nil
 		}
 
@@ -1041,7 +1044,7 @@ func runAndroid(cfg Config) error {
 		return fmt.Errorf("error walking directory: %w", err)
 	}
 
-	log.Printf("Processed %d files, skipped %d files in %s", filesProcessed, filesSkipped, time.Since(startTime).Round(time.Millisecond))
+	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn in %s", filesProcessed, filesSkipped, filesWithdrawn, time.Since(startTime).Round(time.Millisecond))
 	log.Printf("Affected entries: %d total, skipped — non-Android ecosystem: %d, non-ECOSYSTEM range: %d, non-version prefix: %d",
 		totalAffectedEntries, skippedNonAndroid, skippedNonEcosystem, skippedNonVersion)
 	log.Printf("Discovered %d Android versions", len(collected))
