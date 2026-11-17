@@ -43,18 +43,18 @@ Use the routing table below. If the table looks stale (line numbers shifted, a c
 | software.source | Platform | Primary scanner | Notes |
 |---|---|---|---|
 | `apps` | macOS | NVD; **macoffice** for Microsoft Office | macoffice match by bundle ID prefix `com.microsoft.{word,excel,powerpoint,outlook,onenote}` — see `server/vulnerabilities/macoffice/release_note.go` |
-| `programs` | Windows | NVD; **winoffice** for Microsoft Office; CustomCVE rules with `SourceMatch="programs"`; **Go vulnerability database** for `Go Programming Language …` | winoffice regex `Microsoft (365\|Office)` excluding "Companion" — see `server/vulnerabilities/winoffice/analyzer.go`. Go toolchain: see the `go_binaries` row |
+| `programs` | Windows | NVD; **winoffice** for Microsoft Office; CustomCVE rules with `SourceMatch="programs"` | winoffice regex `Microsoft (365\|Office)` excluding "Companion" — see `server/vulnerabilities/winoffice/analyzer.go` |
 | `deb_packages` | Ubuntu | OSV when enabled, else OVAL; NVD fallback for `linux-image-*` outside known variants | OVAL routing: `server/vulnerabilities/oval/oval_platform.go`. `linux-image-*` NVD fallback: `BuildLinuxExclusionRegex` in `server/vulnerabilities/nvd/cpe.go` |
 | `deb_packages` | Debian | OVAL | Same source list |
 | `rpm_packages` | RHEL/CentOS/Fedora | OSV when enabled, else OVAL; **goval-dictionary** kernel-only on RHEL | `server/vulnerabilities/goval_dictionary/analyzer.go` |
 | `rpm_packages` | Amazon Linux | goval-dictionary | amzn_01/02/2022/2023 |
-| `pacman_packages` | Arch | NVD; **Go vulnerability database** for `go` | Not covered by OVAL. Go toolchain: see the `go_binaries` row |
-| `homebrew_packages` | macOS | NVD; CustomCVE rules (e.g. `git-gui`); **Go vulnerability database** for `go` and `go@*` | `server/vulnerabilities/customcve/matching_rules.go`. Go toolchain: see the `go_binaries` row |
+| `pacman_packages` | Arch | NVD | Not covered by OVAL |
+| `homebrew_packages` | macOS | NVD; CustomCVE rules (e.g. `git-gui`) | `server/vulnerabilities/customcve/matching_rules.go` |
 | `npm_packages` | any | NVD (target SW = node.js) | `server/vulnerabilities/nvd/cpe.go` |
 | `python_packages` | any | NVD (target SW = python) | Same |
 | `chocolatey_packages` | Windows | NVD | |
 | `vscode_extensions`, `jetbrains_plugins`, `chrome_extensions`, `firefox_addons`, `safari_extensions`, `ie_extensions` | any | NVD | |
-| `go_binaries` | any | **Go vulnerability database** | Matched on module path (`software.extension_id`) and Go toolchain version (`software.release`), not CPE — `server/vulnerabilities/govulndb/`. Excluded from NVD in `server/vulnerabilities/nvd/cpe.go`. Go toolchain installs in other sources (`IsToolchainInstall` in `govulndb/toolchain.go`) are matched by version against `stdlib` and `toolchain` advisories, and `CPEFromSoftware` gives them no CPE |
+| `go_binaries` | any | **Go vulnerability database** | Matched on module path (`software.extension_id`) and Go toolchain version (`software.release`), not CPE — `server/vulnerabilities/govulndb/`. Excluded from NVD in `server/vulnerabilities/nvd/cpe.go` |
 | `portage_packages` | any | NVD | |
 | `ios_apps`, `ipados_apps` | iOS/iPadOS | None — excluded from NVD | `server/vulnerabilities/nvd/cpe.go` `AllSoftwareIterator` |
 | (n/a — `os_versions` table) | Windows | **MSRC** | Operates on `os_versions`, not `software` — `server/vulnerabilities/msrc/analyzer.go` |
