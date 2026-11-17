@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -43,9 +42,7 @@ func updateUninstallFleetdRegistryVersion(newVersion string) error {
 	return nil
 }
 
-// renameUninstallFleetdRegistryEntry sets the name Installed apps shows for fleetd. It leaves an entry with another
-// publisher alone: renaming it would hide it from findUninstallFleetdRegKeyRelPath, which matches the new name only with
-// Fleet's publisher.
+// renameUninstallFleetdRegistryEntry sets the name Installed apps shows for fleetd.
 func renameUninstallFleetdRegistryEntry(name string) error {
 	uninstallFleetdRegRelPath, err := findUninstallFleetdRegKeyRelPath()
 	if err != nil {
@@ -58,9 +55,6 @@ func renameUninstallFleetdRegistryEntry(name string) error {
 	defer key.Close()
 	if current, _, err := key.GetStringValue("DisplayName"); err == nil && current == name {
 		return nil
-	}
-	if publisher, _, _ := key.GetStringValue("Publisher"); publisher != constant.AgentPublisher {
-		return fmt.Errorf(`not renaming '%v\%v': publisher is %q`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, publisher)
 	}
 	if err := key.SetStringValue("DisplayName", name); err != nil {
 		return fmt.Errorf(`couldn't set value 'DisplayName' for '%v\%v': %w`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, err)
