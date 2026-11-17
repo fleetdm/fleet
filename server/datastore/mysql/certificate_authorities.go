@@ -489,16 +489,8 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 		return nil
 	}
 
-	stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (%s)`
-	args := make([]interface{}, 0, len(certificateAuthorities)*2)
-	var placeholders strings.Builder
-	for _, ca := range certificateAuthorities {
-		args = append(args, ca.Name, ca.Type)
-		placeholders.WriteString("(?, ?),")
-	}
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
-
-	_, err := tx.ExecContext(ctx, stmt, args...)
+	placeholders, args := caNameTypeTuples(certificateAuthorities)
+	_, err := tx.ExecContext(ctx, `DELETE FROM certificate_authorities WHERE (name, type) IN (`+placeholders+`)`, args...)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return &fleet.ConflictError{
@@ -511,23 +503,27 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	return nil
 }
 
+// caNameTypeTuples returns the placeholders and args that match the CAs by (name, type).
+func caNameTypeTuples(cas []*fleet.CertificateAuthority) (string, []any) {
+	args := make([]any, 0, len(cas)*2)
+	for _, ca := range cas {
+		args = append(args, ca.Name, ca.Type)
+	}
+	return strings.TrimSuffix(strings.Repeat("(?, ?),", len(cas)), ","), args
+}
+
 // deleteCertificateTemplatesUsingCAsDB deletes the certificate templates that use the CAs, and has the hosts remove the certificates they
 // got from them, like deleting a template does.
 func deleteCertificateTemplatesUsingCAsDB(ctx context.Context, tx sqlx.ExtContext, cas []*fleet.CertificateAuthority) error {
 	if len(cas) == 0 {
 		return nil
 	}
-	var placeholders strings.Builder
-	args := make([]any, 0, len(cas)*2)
-	for _, ca := range cas {
-		args = append(args, ca.Name, ca.Type)
-		placeholders.WriteString("(?, ?),")
-	}
-	stmt := fmt.Sprintf(`
+	placeholders, args := caNameTypeTuples(cas)
+	stmt := `
 		SELECT certificate_templates.id
 		FROM certificate_templates
 		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
-		WHERE (certificate_authorities.name, certificate_authorities.type) IN (%s)`, strings.TrimSuffix(placeholders.String(), ","))
+		WHERE (certificate_authorities.name, certificate_authorities.type) IN (` + placeholders + `)`
 	var templateIDs []uint
 	if err := sqlx.SelectContext(ctx, tx, &templateIDs, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "select certificate templates using deleted certificate authorities")
