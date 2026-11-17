@@ -343,15 +343,22 @@ const TeamDetailsWrapper = ({
       } catch (response) {
         console.error(response);
         const errorObject = formatErrorResponse(response);
+        const reason = errorObject.base.toLowerCase();
         if (errorObject.base.includes("Duplicate")) {
           setBackendValidators({
             name: `A fleet with this name already exists`,
           });
-        } else if (errorObject.base.includes("all teams")) {
+        } else if (
+          reason.includes("all teams") ||
+          reason.includes("all fleets")
+        ) {
           setBackendValidators({
             name: `"All fleets" is a reserved fleet name. Please try another name.`,
           });
-        } else if (errorObject.base.includes("no team")) {
+        } else if (
+          reason.includes("no team") ||
+          reason.includes("unassigned")
+        ) {
           setBackendValidators({
             name: `"Unassigned" is a reserved fleet name. Please try another name.`,
           });

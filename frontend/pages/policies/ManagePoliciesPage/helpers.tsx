@@ -106,7 +106,7 @@ export const getInstallSoftwareErrorMessage = (
 ): JSX.Element => {
   const apiErrorMessage = result.reason.data.errors[0].reason;
   const parts = apiErrorMessage.split(
-    /(Software title with ID \d+|team ID \d+)/i
+    /(Software title with ID \d+|fleet ID \d+)/i
   );
 
   const jsxElement = parts.map((part: string) => {
@@ -122,7 +122,7 @@ export const getInstallSoftwareErrorMessage = (
       ) : (
         part
       );
-    } else if (part.startsWith("team ID")) {
+    } else if (part.startsWith("fleet ID")) {
       return currentTeamName ? <b key={part}>{currentTeamName}</b> : part;
     }
     return <React.Fragment key={part}>{part}</React.Fragment>;
@@ -137,7 +137,7 @@ export const getRunScriptErrorMessage = (
   currentTeamName?: string
 ): JSX.Element => {
   const apiErrorMessage = result.reason.data.errors[0].reason;
-  const parts = apiErrorMessage.split(/(Script with ID \d+|team ID \d+)/i);
+  const parts = apiErrorMessage.split(/(Script with ID \d+|fleet ID \d+)/i);
 
   const jsxElement = parts.map((part: string) => {
     if (part.startsWith("Script with ID")) {
@@ -153,7 +153,7 @@ export const getRunScriptErrorMessage = (
       ) : (
         part
       );
-    } else if (part.startsWith("team ID")) {
+    } else if (part.startsWith("fleet ID")) {
       return currentTeamName ? <b key={part}>{currentTeamName}</b> : part;
     }
     return <React.Fragment key={part}>{part}</React.Fragment>;

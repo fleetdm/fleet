@@ -127,6 +127,35 @@ describe("TeamDetailsWrapper", () => {
     expect(await button("Delete fleet")).toBeEnabled();
   });
 
+  it("shows the reserved name error inline when renaming to a reserved fleet name", async () => {
+    const { user } = renderPage(false);
+    mockServer.use(
+      http.patch(baseUrl("/fleets/1"), () =>
+        HttpResponse.json(
+          {
+            message: "Validation Failed",
+            errors: [
+              { name: "name", reason: `"All fleets" is a reserved fleet name` },
+            ],
+          },
+          { status: 422 }
+        )
+      )
+    );
+
+    await user.click(await button("Rename fleet"));
+    const nameInput = screen.getByLabelText("Fleet name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "All fleets");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText(
+        `"All fleets" is a reserved fleet name. Please try another name.`
+      )
+    ).toBeInTheDocument();
+  });
+
   it("hides the enroll secrets list while the add secret modal is open", async () => {
     const { user } = renderPage(false);
 

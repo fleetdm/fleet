@@ -75,7 +75,7 @@ describe("getInstallSoftwareErrorMessage", () => {
           errors: [
             {
               reason:
-                "Software title with ID 178 on team ID 789 does not have associated package",
+                "Software title with ID 178 on fleet ID 789 does not have associated package",
             },
           ],
         },
@@ -125,7 +125,7 @@ describe("getInstallSoftwareErrorMessage", () => {
         data: {
           errors: [
             {
-              reason: "Error with team ID 789",
+              reason: "Error with fleet ID 789",
             },
           ],
         },
@@ -137,7 +137,7 @@ describe("getInstallSoftwareErrorMessage", () => {
     const resultString = renderToString(result);
 
     expect(resultString).toBe(
-      "Could not update policy. Error with team ID 789"
+      "Could not update policy. Error with fleet ID 789"
     );
   });
 });
@@ -208,7 +208,7 @@ describe("getRunScriptErrorMessage", () => {
         data: {
           errors: [
             {
-              reason: "Script with ID 123 does not belong to team ID 789",
+              reason: "Script with ID 123 does not belong to fleet ID 789",
             },
           ],
         },
@@ -258,7 +258,7 @@ describe("getRunScriptErrorMessage", () => {
         data: {
           errors: [
             {
-              reason: "Error with team ID 789",
+              reason: "Error with fleet ID 789",
             },
           ],
         },
@@ -270,7 +270,7 @@ describe("getRunScriptErrorMessage", () => {
     const resultString = renderToString(result);
 
     expect(resultString).toBe(
-      "Could not update policy. Error with team ID 789"
+      "Could not update policy. Error with fleet ID 789"
     );
   });
 });
