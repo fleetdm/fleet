@@ -12,7 +12,7 @@ import AssessmentPanel from "@/components/start/AssessmentPanel";
 import {
   CROSS_CUTTING,
   handbookRoleForSlug,
-} from "@/components/start/handbook-data";
+} from "@/components/start/handbook";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
 
 const AXIS_KEY = "fleet-atlas:start-axis";

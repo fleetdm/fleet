@@ -7,7 +7,7 @@ import {
   countPremiumOnlyRows,
   countSharedRows,
   type TierSupport,
-} from "@/components/tiers/tiers-data";
+} from "@/components/tiers/tiers";
 import TierQuiz from "@/components/tiers/TierQuiz";
 import { editorLink } from "@/lib/config";
 

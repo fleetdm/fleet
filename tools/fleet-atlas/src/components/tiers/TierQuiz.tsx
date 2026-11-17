@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import QuizFormatChip from "@/components/QuizFormatChip";
-import { TIER_QUESTIONS, type TierQuestion } from "./quiz-questions";
+import { TIER_QUESTIONS, type TierQuestion } from "./questions";
 
 const STORAGE_KEY = "fleet-atlas:tier-quiz-best";
 const IN_PROGRESS_KEY = "fleet-atlas:tier-quiz-in-progress";

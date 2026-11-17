@@ -1,7 +1,7 @@
 import { BUCKETS, poolForBucket } from "@/components/glossary/questions";
 import { MAP_BUCKETS, poolForMapBucket } from "@/components/arch/map-questions";
 import { TRACERS } from "@/components/tracer/tracers";
-import { TIER_QUESTIONS } from "@/components/tiers/quiz-questions";
+import { TIER_QUESTIONS } from "@/components/tiers/questions";
 import { TERMS } from "@/components/glossary/terms";
 import { REVIEW_AI_QUESTIONS } from "@/components/review-ai/questions";
 import { CRON_QUESTIONS } from "@/components/background/cron-questions";

@@ -1,7 +1,7 @@
 import {
   CROSS_CUTTING,
   HANDBOOK_BY_SLUG,
-} from "@/components/start/handbook-data";
+} from "@/components/start/handbook";
 
 export const instant = false;
 
