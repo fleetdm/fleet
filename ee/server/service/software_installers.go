@@ -3534,7 +3534,7 @@ func (svc *Service) softwareBatchUpload(
 	} else {
 		team, err := svc.ds.TeamLite(ctx, tmID)
 		if err != nil {
-			batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+			batchErr = fmt.Errorf("Couldn't get fleet for fleet ID %d: %w", tmID, err)
 			return
 		}
 		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
