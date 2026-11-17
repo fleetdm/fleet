@@ -1719,9 +1719,18 @@ func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string
 func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
 ) (skip bool, err error) {
+	skip, _, err = svc.patchPolicy(ctx, policyID, policyName, policy, metadata)
+	return skip, err
+}
+
+// patchPolicy is PatchPolicy that also returns the AMAPI error, which is otherwise only recorded in the
+// policy request.
+func (svc *Service) patchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, apiErr error, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
-		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		return false, nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
 	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
@@ -1750,9 +1759,9 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 	}
 
 	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+		return false, apiErr, ctxerr.Wrap(ctx, err, "save android policy request")
 	}
-	return skip, nil
+	return skip, apiErr, nil
 }
 
 func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {

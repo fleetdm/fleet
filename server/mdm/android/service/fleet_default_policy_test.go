@@ -384,3 +384,104 @@ func TestEnsureFleetDefaultPolicyAuthenticatesItsClient(t *testing.T) {
 	require.Equal(t, "enterprises/LC00test/policies/fleet2", policyName)
 	require.Equal(t, []string{"auth server-secret", "patch enterprises/LC00test/policies/fleet2"}, calls)
 }
+
+// The reconciler can move a device that is still in setup to its own policy before the software worker
+// replaces that policy's settings, so the worker must keep the fleet's passcode or the setup wizard skips it.
+func TestPrepareHostPolicy(t *testing.T) {
+	const (
+		enterpriseName = "enterprises/LC00test"
+		hostUUID       = "host-uuid"
+		hostPolicyName = enterpriseName + "/policies/" + hostUUID
+	)
+	pin := func(teamID uint, minLength int) *fleet.MDMAndroidConfigProfile {
+		raw, err := json.Marshal(map[string]any{
+			"passwordPolicies":       []map[string]any{{"passwordMinimumLength": minLength}},
+			"policyEnforcementRules": []map[string]any{{"settingName": "passwordPolicies"}},
+		})
+		require.NoError(t, err)
+		return &fleet.MDMAndroidConfigProfile{Name: "pin", TeamID: &teamID, RawJSON: raw}
+	}
+	profilesByTeam := map[uint][]*fleet.MDMAndroidConfigProfile{0: {pin(0, 4)}, 3: {pin(3, 6)}}
+
+	client := android_mock.Client{}
+	client.InitCommonMocks()
+	var patched []*androidmanagement.Policy
+	var patchErr error
+	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		require.Equal(t, hostPolicyName, policyName)
+		require.True(t, opts.ExcludeApps, "the worker sends the app list itself")
+		patched = append(patched, policy)
+		if len(policy.PasswordPolicies) > 0 && patchErr != nil {
+			return nil, patchErr
+		}
+		return &androidmanagement.Policy{Version: int64(len(patched))}, nil
+	}
+	fleetDS := InitCommonDSMocks()
+	fleetDS.Store.ListAndroidFleetDefaultPolicyProfilesFunc = func(_ context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+		require.NotNil(t, teamID)
+		return profilesByTeam[*teamID], nil
+	}
+	var requests []*android.MDMAndroidPolicyRequest
+	fleetDS.Store.NewAndroidPolicyRequestFunc = func(_ context.Context, req *android.MDMAndroidPolicyRequest) error {
+		requests = append(requests, req)
+		return nil
+	}
+	var logs bytes.Buffer
+	svc, err := NewServiceWithClient(slog.New(slog.NewTextHandler(&logs, nil)), fleetDS, &client, "test-private-key",
+		&fleetDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+	require.NoError(t, err)
+	prepare := func(t *testing.T, teamID uint) {
+		patched, requests = nil, nil
+		logs.Reset()
+		require.NoError(t, svc.PrepareHostPolicy(t.Context(), enterpriseName, hostUUID, teamID))
+	}
+
+	for _, c := range []struct {
+		name      string
+		teamID    uint
+		wantMinPw int64
+	}{
+		{"fleet", 3, 6},
+		{"Unassigned", 0, 4},
+	} {
+		t.Run("the "+c.name+"'s passcode is kept", func(t *testing.T) {
+			patchErr = nil
+			prepare(t, c.teamID)
+			require.Len(t, patched, 1)
+			require.Len(t, patched[0].PasswordPolicies, 1)
+			assert.Equal(t, c.wantMinPw, patched[0].PasswordPolicies[0].PasswordMinimumLength)
+			assert.Len(t, patched[0].PolicyEnforcementRules, 1)
+			assert.NotNil(t, patched[0].StatusReportingSettings)
+			require.Len(t, requests, 1)
+			assert.Equal(t, http.StatusOK, requests[0].StatusCode)
+		})
+	}
+
+	t.Run("a fleet without passcode profiles gets the base settings", func(t *testing.T) {
+		patchErr = nil
+		prepare(t, 5)
+		require.Len(t, patched, 1)
+		assert.Empty(t, patched[0].PasswordPolicies)
+		assert.NotNil(t, patched[0].StatusReportingSettings)
+	})
+
+	t.Run("rejected passcode settings are replaced by the base settings", func(t *testing.T) {
+		patchErr = &googleapi.Error{Code: http.StatusBadRequest}
+		prepare(t, 3)
+		require.Len(t, patched, 2)
+		assert.Empty(t, patched[1].PasswordPolicies)
+		assert.NotNil(t, patched[1].StatusReportingSettings)
+		require.Len(t, requests, 2)
+		assert.Equal(t, http.StatusBadRequest, requests[0].StatusCode)
+		assert.Equal(t, http.StatusOK, requests[1].StatusCode)
+		assert.Contains(t, logs.String(), "rejected the passcode settings of the host's policy")
+	})
+
+	t.Run("other AMAPI errors are only recorded, as before", func(t *testing.T) {
+		patchErr = &googleapi.Error{Code: http.StatusInternalServerError}
+		prepare(t, 3)
+		require.Len(t, patched, 1)
+		require.Len(t, requests, 1)
+		assert.Equal(t, http.StatusInternalServerError, requests[0].StatusCode)
+	})
+}

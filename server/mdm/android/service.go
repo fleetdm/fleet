@@ -64,6 +64,9 @@ type Service interface {
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
 	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
+	// PrepareHostPolicy replaces every setting of a host's own policy with its fleet's default policy (teamID 0
+	// is Unassigned), before the device is moved to it.
+	PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error
 
 	// VerifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
 	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.

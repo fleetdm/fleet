@@ -216,6 +216,32 @@ func (r *profileReconciler) syncFleetDefaultPolicy(ctx context.Context, teamID u
 	return nil
 }
 
+// PrepareHostPolicy replaces every setting of a host's own policy with its fleet's default policy, before
+// the device is moved to it. The reconciler may already have moved a device that is still in setup, and the
+// base settings alone would drop the passcode it enrolled with, so the setup wizard would skip the passcode.
+// If AMAPI rejects the passcode settings, the base settings are sent instead, as for the fleet's policy.
+func (svc *Service) PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error {
+	profiles, err := svc.fleetDS.ListAndroidFleetDefaultPolicyProfiles(ctx, &teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list android fleet default policy profiles")
+	}
+	policy, _, _, err := prepareFleetDefaultPolicy(ctx, teamID, profiles)
+	if err != nil {
+		return err
+	}
+	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
+	_, apiErr, err := svc.patchPolicy(ctx, hostUUID, policyName, policy, nil)
+	if err != nil || !androidmgmt.IsBadRequestError(apiErr) {
+		return err
+	}
+	svc.logger.ErrorContext(ctx, "android rejected the passcode settings of the host's policy, sending it without them",
+		"host_uuid", hostUUID, "fleet_id", teamID, "err", apiErr)
+	var base androidmanagement.Policy
+	applyFleetEnforcedSettings(&base)
+	_, err = svc.PatchPolicy(ctx, hostUUID, policyName, &base, nil)
+	return err
+}
+
 // EnsureFleetDefaultPolicy makes sure the default policy of a fleet (0 is Unassigned) was sent to AMAPI
 // and returns its name, for enrollment tokens to point at.
 func (svc *Service) EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName string, teamID uint) (string, error) {
