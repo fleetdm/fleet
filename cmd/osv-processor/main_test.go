@@ -1933,15 +1933,16 @@ func TestRunAndroidDeltaFlagsRejected(t *testing.T) {
 
 func TestWithdrawnAdvisories(t *testing.T) {
 	for _, tc := range []struct {
-		platform  string
-		ecosystem string
-		version   string
-		fixed     string
-		run       func(Config) error
+		platform       string
+		ecosystem      string
+		version        string
+		fixed          string
+		withdrawnFixed string
+		run            func(Config) error
 	}{
-		{"ubuntu", "Ubuntu:24.04:LTS", "2404", "1.2.3", run},
-		{"rhel", "Red Hat:enterprise_linux:9::baseos", "9", "1.2.3", runRHEL},
-		{"android", "Android", "16", "16:2026-10-01", runAndroid},
+		{"ubuntu", "Ubuntu:24.04:LTS", "2404", "1.2.3", "1.2.4", run},
+		{"rhel", "Red Hat:enterprise_linux:9::baseos", "9", "1.2.3", "1.2.4", runRHEL},
+		{"android", "Android", "16", "16:2026-10-01", "16:2026-11-01", runAndroid},
 	} {
 		t.Run(tc.platform, func(t *testing.T) {
 			input, output := t.TempDir(), t.TempDir()
@@ -1952,7 +1953,7 @@ func TestWithdrawnAdvisories(t *testing.T) {
 				RunTime:            time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC),
 			}
 			ids := []string{"CVE-2026-12345", "CVE-2026-23456"}
-			write := func(id, withdrawn string) {
+			write := func(name, id, fixed, withdrawn string) {
 				t.Helper()
 				entry := map[string]any{
 					"id": id, "schema_version": "1.7.5",
@@ -1962,7 +1963,7 @@ func TestWithdrawnAdvisories(t *testing.T) {
 						"package": map[string]string{"name": "test-package", "ecosystem": tc.ecosystem},
 						"ranges": []any{map[string]any{
 							"type":   "ECOSYSTEM",
-							"events": []any{map[string]string{"introduced": "0"}, map[string]string{"fixed": tc.fixed}},
+							"events": []any{map[string]string{"introduced": "0"}, map[string]string{"fixed": fixed}},
 						}},
 						"versions": []string{"1.0"},
 					}},
@@ -1972,20 +1973,14 @@ func TestWithdrawnAdvisories(t *testing.T) {
 				}
 				data, err := json.Marshal(entry)
 				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(filepath.Join(input, id+".json"), data, 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(input, name+".json"), data, 0o600))
 			}
 			for _, id := range ids {
-				write(id, "")
+				write(id, id, tc.fixed, "")
 			}
-			// A withdrawn duplicate must not shadow the active record in RHEL's deduplication.
-			duplicate, err := os.ReadFile(filepath.Join(input, ids[1]+".json"))
-			require.NoError(t, err)
-			var entry map[string]any
-			require.NoError(t, json.Unmarshal(duplicate, &entry))
-			entry["withdrawn"] = "2026-11-01T00:00:00Z"
-			duplicate, err = json.Marshal(entry)
-			require.NoError(t, err)
-			require.NoError(t, os.WriteFile(filepath.Join(input, "000-withdrawn-duplicate.json"), duplicate, 0o600))
+			// Sorts first and carries a different fix, so it would win RHEL's first-seen
+			// deduplication and Android's latest-SPL merge if it were not skipped.
+			write("000-withdrawn-duplicate", ids[1], tc.withdrawnFixed, "2026-11-01T00:00:00Z")
 			files := []string{"osv-" + tc.platform + "-" + tc.version + "-" + cfg.DateStr + ".json.gz"}
 			if tc.platform == "ubuntu" {
 				changed := filepath.Join(t.TempDir(), "changed.txt")
@@ -2029,7 +2024,7 @@ func TestWithdrawnAdvisories(t *testing.T) {
 			}
 			check(ids)
 			// Only withdrawn changes: retained affected data and modified time must not keep the CVE alive.
-			write(ids[0], "2026-11-01T00:00:00Z")
+			write(ids[0], ids[0], tc.fixed, "2026-11-01T00:00:00Z")
 			check(ids[1:])
 		})
 	}
