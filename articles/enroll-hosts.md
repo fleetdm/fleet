@@ -391,7 +391,7 @@ To uninstall fleetd, run `sudo rpm-ostree uninstall fleet-osquery` and reboot. T
 sudo rm -rf /var/opt/orbit /var/log/orbit /var/log/osquery /var/usrlocal/bin/orbit /etc/default/orbit
 ```
 
-Fleet doesn't collect RPM packages from rpm-ostree hosts yet, because osquery's `rpm_packages` table returns no rows on them.
+Fleet doesn't collect RPM packages from rpm-ostree hosts yet, because osquery's `rpm_packages` table returns no rows on them. Learn more in the [bug](https://github.com/fleetdm/fleet/issues/58969).
 
 ### Supported osquery versions
 
