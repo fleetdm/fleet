@@ -2545,6 +2545,52 @@ FROM upcoming
 	return &dest, nil
 }
 
+const vppAppTerminalJoinQuery = `JOIN (
+SELECT
+	ranked.host_id
+FROM (
+	SELECT
+		state.host_id,
+		state.latest_command_uuid AS command_uuid,
+		state.latest_verification_at AS verification_at,
+		state.latest_verification_failed_at AS verification_failed_at,
+		ROW_NUMBER() OVER (
+			PARTITION BY state.host_id
+			ORDER BY state.latest_created_at DESC, state.latest_install_id DESC
+		) AS rn
+	FROM
+		-- Keep the app index stable when a title spans many hosts.
+		host_vpp_app_installs state FORCE INDEX (idx_hvai_app_host)
+	WHERE
+		state.adam_id = :adam_id
+		AND state.platform = :platform
+		AND state.latest_install_id IS NOT NULL
+) ranked
+LEFT JOIN
+	nano_command_results ncr ON ncr.command_uuid = ranked.command_uuid
+WHERE
+	ranked.rn = 1
+	-- Allow rows with no nano_command_results — Fleet-side pre-flight failures
+	-- (unresolvable managed-config Fleet variable) record only the install row
+	-- with verification_failed_at set, no MDM command. See same comment in
+	-- vpp.go GetSummaryHostVPPAppInstalls. Checked after ranking, so a host whose
+	-- most recent row lacks a command result is dropped rather than falling back.
+	AND (ncr.id IS NOT NULL OR ranked.verification_at IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+	AND (%s) = :status
+	AND ranked.host_id NOT IN (
+		SELECT
+			ua.host_id
+		FROM
+			upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		WHERE
+			vaua.adam_id = :adam_id
+			AND vaua.platform = :platform
+			AND ua.activity_type = 'vpp_app_install'
+	)
+) hss ON hss.host_id = h.id
+`
+
 // vppAppJoin builds the status-join for a VPP app title. When vppAppTeamID is
 // non-nil, it matches the hosts counted in that version's status summary.
 func (ds *Datastore) vppAppJoin(ctx context.Context, appID fleet.VPPAppID, vppAppTeamID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
@@ -2632,53 +2678,8 @@ FROM (
 	// NOTE(mna): the pre-unified queue version of this query did not check for
 	// removed = 0, so I am porting the same behavior (there's even a test that
 	// fails if I add removed = 0 condition).
-	// Rank once over the app rather than looking the latest row up per host:
-	// host_vpp_software_installs has no host_id-leading index, so a correlated
-	// per-host lookup rescans the app's whole history for every candidate host.
-	stmt := fmt.Sprintf(`JOIN (
-SELECT
-	ranked.host_id
-FROM (
-	SELECT
-		hvsi.host_id,
-		hvsi.command_uuid,
-		hvsi.verification_at,
-		hvsi.verification_failed_at,
-		ROW_NUMBER() OVER (
-			PARTITION BY hvsi.host_id
-			ORDER BY hvsi.created_at DESC, hvsi.id DESC
-		) AS rn
-	FROM
-		host_vpp_software_installs hvsi
-	WHERE
-		hvsi.adam_id = :adam_id
-		AND hvsi.platform = :platform
-		AND hvsi.canceled = 0
-) ranked
-LEFT JOIN
-	nano_command_results ncr ON ncr.command_uuid = ranked.command_uuid
-WHERE
-	ranked.rn = 1
-	-- Allow rows with no nano_command_results — Fleet-side pre-flight failures
-	-- (unresolvable managed-config Fleet variable) record only the install row
-	-- with verification_failed_at set, no MDM command. See same comment in
-	-- vpp.go GetSummaryHostVPPAppInstalls. Checked after ranking, so a host whose
-	-- most recent row lacks a command result is dropped rather than falling back.
-	AND (ncr.id IS NOT NULL OR ranked.verification_at IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
-	AND (%s) = :status
-	AND ranked.host_id NOT IN (
-		SELECT
-			ua.host_id
-		FROM
-			upcoming_activities ua
-			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-		WHERE
-			vaua.adam_id = :adam_id
-			AND vaua.platform = :platform
-			AND ua.activity_type = 'vpp_app_install'
-	)
-) hss ON hss.host_id = h.id
-`, vppAppHostStatusNamedQuery("ranked", "ncr", ""))
+	// Merge version buckets by request time without scanning request history.
+	stmt := fmt.Sprintf(vppAppTerminalJoinQuery, vppAppHostStatusNamedQuery("ranked", "ncr", ""))
 
 	return sqlx.Named(stmt, map[string]any{
 		"status":                    status,
@@ -2833,9 +2834,7 @@ WHERE
 		status = fleet.SoftwareInstallFailed // TODO: When in-house supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
-	// Rank once over the app rather than looking the latest row up per host:
-	// host_in_house_software_installs has no host_id-leading index, so a correlated
-	// per-host lookup rescans the app's whole history for every candidate host.
+	// Rank once over the app to avoid repeating the host-index lookup for every candidate host.
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	ranked.host_id

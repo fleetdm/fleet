@@ -285,18 +285,17 @@ upcoming AS (
 	GROUP BY ua.host_id, vaua.vpp_app_team_id
 ),
 
--- select the latest successful, failed and unfinished install of each host and version, reading only the index
+-- select the latest successful, failed and unfinished install of each host and version
 -- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 latest_installs AS (
 	SELECT
 		host_id,
 		vpp_app_team_id,
-		MAX(IF(verification_at IS NOT NULL, id, NULL)) AS installed_id,
-		MAX(IF(verification_at IS NULL AND verification_failed_at IS NOT NULL, id, NULL)) AS failed_id,
-		MAX(IF(verification_at IS NULL AND verification_failed_at IS NULL, id, NULL)) AS unfinished_id
-	FROM host_vpp_software_installs
-	WHERE vpp_app_team_id IN (:version_ids) AND canceled = 0 AND removed = 0
-	GROUP BY vpp_app_team_id, host_id
+		installed_install_id AS installed_id,
+		failed_install_id AS failed_id,
+		unfinished_install_id AS unfinished_id
+	FROM host_vpp_app_installs FORCE INDEX (idx_hvai_version_host)
+	WHERE vpp_app_team_id IN (:version_ids)
 ),
 
 -- select the installs of each host and version in the version's fleet, counting unfinished Android installs as pending because Android installs bypass upcoming activities
@@ -307,9 +306,10 @@ attempts AS (
 		li.installed_id,
 		li.failed_id,
 		IF(vat.platform = 'android', li.unfinished_id, NULL) AS pending_id
+	-- Start with the selected versions instead of probing state for every host.
 	FROM latest_installs li
-	JOIN hosts h ON h.id = li.host_id
-	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
+	STRAIGHT_JOIN hosts h ON h.id = li.host_id
+	STRAIGHT_JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
 	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
 
 	UNION ALL
@@ -318,12 +318,13 @@ attempts AS (
 	SELECT
 		hvsi.host_id,
 		NULL,
-		MAX(IF(hvsi.verification_at IS NOT NULL, hvsi.id, NULL)),
-		MAX(IF(hvsi.verification_at IS NULL AND hvsi.verification_failed_at IS NOT NULL, hvsi.id, NULL)),
+		MAX(hvsi.installed_install_id),
+		MAX(hvsi.failed_install_id),
 		NULL
-	FROM host_vpp_software_installs hvsi
-	JOIN (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
-	WHERE hvsi.vpp_app_team_id IS NULL AND hvsi.canceled = 0 AND hvsi.removed = 0
+	-- Restrict deleted-version buckets to the selected apps before reading state.
+	FROM (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app
+	STRAIGHT_JOIN host_vpp_app_installs hvsi FORCE INDEX (idx_hvai_app_host) ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
+	WHERE hvsi.vpp_app_team_id IS NULL
 	GROUP BY hvsi.host_id
 ),
 
@@ -3963,14 +3964,8 @@ ORDER BY vat.id
 	return versionsByTitleIDByFleetID, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
-	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPInstallWithUpcoming)
-	if len(hostIDs) == 0 {
-		return installByHostIDByTitleID, nil
-	}
-
-	// Apps missing from a host's inventory have nothing to configure, so only read installs of apps the host has in inventory
-	const latestInstallsStmt = `
+// Apps missing from a host's inventory have nothing to configure, so only read installs of apps the host has in inventory
+const hostAppStoreAppInstallVersionsQuery = `
 SELECT
 	app.title_id,
 	h.id AS host_id,
@@ -3990,13 +3985,12 @@ FROM
 	-- canceled and failed installs didn't change the app on the host, so read the latest install that wasn't either
 	JOIN LATERAL (
 		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_resend
-		FROM host_vpp_software_installs hvsi
+		FROM host_vpp_app_installs state FORCE INDEX (PRIMARY)
+		STRAIGHT_JOIN host_vpp_software_installs hvsi FORCE INDEX (PRIMARY) ON hvsi.id = state.unfailed_install_id
 		WHERE
-			hvsi.host_id = h.id AND
-			hvsi.adam_id = app.adam_id AND
-			hvsi.platform = app.platform AND
-			hvsi.canceled = 0 AND
-			hvsi.verification_failed_at IS NULL
+			state.host_id = h.id AND
+			state.adam_id = app.adam_id AND
+			state.platform = app.platform
 		ORDER BY hvsi.created_at DESC, hvsi.id DESC
 		LIMIT 1
 	) latest ON TRUE
@@ -4013,7 +4007,14 @@ WHERE
 			s.title_id = app.title_id
 	)
 `
-	latestInstallsQuery, latestInstallsArgs, err := sqlx.In(latestInstallsStmt, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
+
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPInstallWithUpcoming)
+	if len(hostIDs) == 0 {
+		return installByHostIDByTitleID, nil
+	}
+
+	latestInstallsQuery, latestInstallsArgs, err := sqlx.In(hostAppStoreAppInstallVersionsQuery, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}

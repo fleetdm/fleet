@@ -4969,16 +4969,7 @@ func filterInHouseAppsByLabel(
 	return filteredByInHouseID, otherInHouseAppsInInventory, nil
 }
 
-func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
-	var selfServiceFilter string
-	if selfServiceOnly {
-		if isMDMEnrolled {
-			selfServiceFilter = "(vat.self_service = 1) AND "
-		} else {
-			selfServiceFilter = "FALSE AND "
-		}
-	}
-	vppInstallsStmt := fmt.Sprintf(`
+const hostVPPInstallsQuery = `
 	(   -- upcoming_vpp_install
 			SELECT id, last_install_install_uuid, last_install_installed_at, vpp_app_adam_id, vpp_app_self_service, status FROM (
 				SELECT
@@ -5025,15 +5016,18 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				%s
 			FROM
 				(
-					SELECT ranked_hvsi.*, ROW_NUMBER() OVER (
-						PARTITION BY ranked_hvsi.adam_id, ranked_hvsi.platform
-						ORDER BY ranked_hvsi.created_at DESC, ranked_hvsi.id DESC
-					) AS rn
-					FROM host_vpp_software_installs ranked_hvsi
-					WHERE
-						ranked_hvsi.host_id = :host_id AND
-						ranked_hvsi.removed = 0 AND
-						ranked_hvsi.canceled = 0
+					SELECT
+						state.host_id, state.adam_id, state.platform, state.vpp_app_team_id,
+						state.visible_command_uuid AS command_uuid,
+						state.visible_created_at AS created_at,
+						state.visible_verification_at AS verification_at,
+						state.visible_verification_failed_at AS verification_failed_at,
+						ROW_NUMBER() OVER (
+							PARTITION BY state.adam_id, state.platform
+							ORDER BY state.visible_created_at DESC, state.visible_install_id DESC
+						) AS rn
+					FROM host_vpp_app_installs state
+					WHERE state.host_id = :host_id AND state.visible_install_id IS NOT NULL
 				) hvsi
 			LEFT JOIN
 				nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
@@ -5072,7 +5066,18 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 						ua.activity_type = 'vpp_app_install'
 				)
 )
-`, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
+`
+
+func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
+	var selfServiceFilter string
+	if selfServiceOnly {
+		if isMDMEnrolled {
+			selfServiceFilter = "(vat.self_service = 1) AND "
+		} else {
+			selfServiceFilter = "FALSE AND "
+		}
+	}
+	vppInstallsStmt := fmt.Sprintf(hostVPPInstallsQuery, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
 	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
 		"host_id":                   hostID,
 		"global_or_team_id":         globalOrTeamID,
