@@ -285,8 +285,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-// ensureCANamesNotSharedDB fails if one of the names is used by more than one certificate authority. It runs after the write, so CAs that
-// shared a name before names had to be unique fail only once they are written.
+// ensureCANamesNotSharedDB fails if one of the names is used by more than one certificate authority.
 func ensureCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
 	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check
 	stmt, args, err := sqlx.In(`SELECT name FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
