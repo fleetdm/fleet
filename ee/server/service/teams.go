@@ -1943,6 +1943,14 @@ func (svc *Service) createTeamFromSpec(
 		hostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
 	}
 
+	var failingPoliciesWebhook fleet.FailingPoliciesWebhookSettings
+	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
+		failingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+		// A new fleet has no policies for the list to name. TODO(#58577): remove with policy_ids.
+		failingPoliciesWebhook.PolicyIDs = nil
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
@@ -2007,8 +2015,9 @@ func (svc *Service) createTeamFromSpec(
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
-				HostStatusWebhook:     hostStatusWebhook,
-				HostActivitiesWebhook: hostActivitiesWebhook,
+				FailingPoliciesWebhook: failingPoliciesWebhook,
+				HostStatusWebhook:      hostStatusWebhook,
+				HostActivitiesWebhook:  hostActivitiesWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,

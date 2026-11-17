@@ -41,7 +41,7 @@ TOP_LEVEL_KEYS = {"name", "settings", "org_settings", "agent_options", "controls
                   "software", "labels", "custom_host_vitals"}
 DEPRECATED_TOP_LEVEL = {"queries": "reports"}
 MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-migration"
-# Team-related keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
+# Keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
 REMOVED_KEYS = [
     "team_settings",
     "org_settings.mdm.apple_business[].macos_team",
@@ -49,6 +49,8 @@ REMOVED_KEYS = [
     "org_settings.mdm.apple_business[].ipados_team",
     "org_settings.mdm.apple_business[].byod_team",
     "org_settings.mdm.volume_purchasing_program[].teams",
+    "org_settings.webhook_settings.failing_policies_webhook.policy_ids",
+    "settings.webhook_settings.failing_policies_webhook.policy_ids",
 ]
 KEY_ALIASES = {"apple_business": ("apple_business", "apple_business_manager")}
 POLICY_PLATFORMS = {"darwin", "windows", "linux", "chrome"}
@@ -62,7 +64,9 @@ LABEL_RULES = {
     "software": (("labels_include_any", "labels_include_all", "labels_exclude_any"), False),
     "report": (("labels_include_any", "labels_include_all"), False),
 }
-AUTOMATION_KEYS = ("run_script", "install_software", "resend_configuration_profile", "calendar_events_enabled")
+# A policy can turn on one of these. Keep in sync with checkPolicyAutomationKeys in pkg/spec.
+AUTOMATION_KEYS = ("install_software", "run_script", "resend_configuration_profile", "calendar_events_enabled",
+                   "conditional_access_enabled", "webhooks_and_tickets_enabled")
 PATH_KEYS = {"path", "package_path", "apple_setup_assistant", "end_user_license_agreement", "activation"}
 GLOB_CHARS = set("*?[{")
 SCRIPT_EXTS = {".sh", ".ps1", ".py"}
@@ -1020,8 +1024,11 @@ def check_policies(ctx, fs, policies):
             else:
                 check_query(ctx, isrc, what, item["query"], platforms, is_policy=True)
         automations = [k for k in AUTOMATION_KEYS if item.get(k)]
-        if fs.role == "global" and automations:
-            ctx.fail(isrc, f"{what}: {automations} only work on policies in a fleet file, not in default.yml")
+        if len(automations) > 1:
+            ctx.fail(isrc, f"{what}: a policy can only have one automation, but it sets {', '.join(automations)}")
+        fleet_only = [k for k in automations if k != "webhooks_and_tickets_enabled"]
+        if fs.role == "global" and fleet_only:
+            ctx.fail(isrc, f"{what}: {fleet_only} only work on policies in a fleet file, not in default.yml")
         rs = item.get("run_script")
         if rs is not None:
             if not isinstance(rs, dict) or not isinstance(rs.get("path"), str):

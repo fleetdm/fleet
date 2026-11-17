@@ -446,7 +446,29 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 	}, nil
 }
 
-func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+// mockPolicyAutomations is the automation_type the server returns for each mock policy, which generate-gitops writes
+// the calendar, conditional access, and webhook or ticket keys from.
+var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
+	"Global Policy":               fleet.PolicyAutomationConditionalAccess,
+	"Team Policy":                 fleet.PolicyAutomationConditionalAccess,
+	"Team patch policy":           fleet.PolicyAutomationConditionalAccess,
+	"Team VPP policy":             fleet.PolicyAutomationWebhookOrTicket,
+	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
+	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
+	"Team package install policy": fleet.PolicyAutomationSoftware,
+}
+
+func (m MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+	policies, err := m.mockPolicies(teamID)
+	for _, p := range policies {
+		if a, ok := mockPolicyAutomations[p.Name]; ok {
+			p.AutomationType = new(a)
+		}
+	}
+	return policies, err
+}
+
+func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{
 			{
@@ -3094,7 +3116,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil, "default.yml", nil)
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var generatedPolicies []map[string]any
@@ -3120,7 +3142,7 @@ func TestGeneratePolicies(t *testing.T) {
 
 	var expectedTeamPolicies []map[string]any
 	var generatedTeamPolicies []map[string]any
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	policiesRaw, err = cmd.generatePolicies(new(uint(1)), "some_team")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
@@ -3971,7 +3993,7 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 		},
 	}
 
-	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	_, err = cmd.generatePolicies(new(uint(1)), "some_team")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
 }
