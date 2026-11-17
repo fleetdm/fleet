@@ -706,7 +706,6 @@ const HostDetailsPage = ({
       hostId: number;
       pageIndex: number;
       perPage: number;
-      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -715,7 +714,6 @@ const HostDetailsPage = ({
         hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
-        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
@@ -743,7 +741,6 @@ const HostDetailsPage = ({
       hostId: number;
       pageIndex: number;
       perPage: number;
-      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -752,7 +749,6 @@ const HostDetailsPage = ({
         hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
-        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
@@ -792,7 +788,6 @@ const HostDetailsPage = ({
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
-        activeTab: activeActivityTab,
         commandStatus: "ran,failed",
       },
     ],
@@ -824,7 +819,6 @@ const HostDetailsPage = ({
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
-        activeTab: activeActivityTab,
         commandStatus: "pending",
       },
     ],
@@ -1532,13 +1526,6 @@ const HostDetailsPage = ({
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
-  // keepPreviousData holds the current page's data (and its has_next_results) while the
-  // requested page is in flight, so pagination clicks are blocked until it resolves.
-  const isActiveTabPagePending = () =>
-    activeActivityTab === "past"
-      ? pastActivitiesIsPreviousData || pastMDMCommandsIsPreviousData
-      : upcomingActivitiesIsPreviousData || upcomingMDMCommandsIsPreviousData;
-
   const isMacOSHost = isMacOS(host.platform);
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
@@ -1943,9 +1930,14 @@ const HostDetailsPage = ({
                   }
                   isLoading={
                     activeActivityTab === "past"
-                      ? pastActivitiesIsLoading || pastMDMCommandsIsLoading
+                      ? pastActivitiesIsLoading ||
+                        pastMDMCommandsIsLoading ||
+                        pastActivitiesIsPreviousData ||
+                        pastMDMCommandsIsPreviousData
                       : upcomingActivitiesIsLoading ||
-                        upcomingMDMCommandsIsLoading
+                        upcomingMDMCommandsIsLoading ||
+                        upcomingActivitiesIsPreviousData ||
+                        upcomingMDMCommandsIsPreviousData
                   }
                   isError={
                     activeActivityTab === "past"
@@ -1963,17 +1955,8 @@ const HostDetailsPage = ({
                     (upcomingMDMCommands?.count || 0)
                   }
                   onChangeTab={onChangeActivityTab}
-                  onNextPage={() => {
-                    // keepPreviousData keeps meta.has_next_results from the current page while
-                    // the requested page is in flight, so without this guard a rapid second
-                    // click can skip past the real last page into an empty one.
-                    if (isActiveTabPagePending()) return;
-                    setActivityPage(activityPage + 1);
-                  }}
-                  onPreviousPage={() => {
-                    if (isActiveTabPagePending()) return;
-                    setActivityPage(activityPage - 1);
-                  }}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
                   onShowDetails={onShowActivityDetails}
                   onShowCommandDetails={setMdmCommandDetails}
                   onCancel={onCancelActivity}
