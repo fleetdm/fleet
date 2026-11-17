@@ -148,7 +148,7 @@ All new infrastructure at Fleet is first approved by the E-group. Currently appr
 
 Additional infrastructure:
 
-1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, the [Website group](https://fleetdm.com/handbook/company/product-groups#website-group) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
+1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, the [First impressions group](https://fleetdm.com/handbook/company/product-groups#first-impressions) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
 
 2. **Managed Cloud**. All Managed Cloud [customer environments](https://docs.google.com/spreadsheets/d/1nGgy7Gx1Y3sYHinL8kFWnhejghV1QDtv9uQgKu91F9E/edit?usp=sharing) and Fleet's dogfooding environments are hosted at [AWS](https://aws.amazon.com).
 
