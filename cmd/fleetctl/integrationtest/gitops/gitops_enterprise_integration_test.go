@@ -854,6 +854,109 @@ software:
 	assert.Empty(t, certTemplates)
 }
 
+// TestReplaceCAUsedByCertificateTemplates changes the type of a custom SCEP CA that a certificate template uses, keeping its name. A
+// template can only use a custom SCEP CA, so the same run moves the template to another one.
+func (s *enterpriseIntegrationGitopsTestSuite) TestReplaceCAUsedByCertificateTemplates() {
+	t := s.T()
+	ctx := t.Context()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	scepServer := scep_server.StartTestSCEPServer(t)
+	digiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		profileID := strings.TrimPrefix(r.URL.Path, "/mpki/api/v2/profile/")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"id": profileID, "name": "DigiCert", "status": "Active"})
+	}))
+	t.Cleanup(digiCertServer.Close)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	scepCAs := func(names ...string) string {
+		yaml := "    custom_scep_proxy:\n"
+		for _, name := range names {
+			yaml += fmt.Sprintf("      - name: %s\n        url: %s\n        challenge: challenge\n", name, scepServer.URL+"/scep")
+		}
+		return yaml
+	}
+	globalFile := func(certificateAuthorities string) string {
+		return s.writeConfigFile(t, `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+`+certificateAuthorities+`policies:
+reports:
+`)
+	}
+	teamFile := func(caName string) string {
+		return s.writeConfigFile(t, fmt.Sprintf(`
+name: CA Replace Team
+controls:
+  android_settings:
+    certificates:
+      - name: TestCert
+        certificate_authority_name: %s
+        subject_name: "CN=test,O=Fleet"
+settings:
+  secrets:
+    - secret: ca_replace_team_secret
+agent_options:
+policies:
+reports:
+software:
+`, caName))
+	}
+	templateCA := func() (uint, string) {
+		teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+		require.NoError(t, err)
+		for _, tm := range teams {
+			if tm.Name == "CA Replace Team" {
+				templates, _, err := s.DS.GetCertificateTemplatesByTeamID(ctx, tm.ID, fleet.ListOptions{})
+				require.NoError(t, err)
+				require.Len(t, templates, 1)
+				return templates[0].CertificateAuthorityId, templates[0].CertificateAuthorityName
+			}
+		}
+		require.FailNow(t, "team 'CA Replace Team' should exist")
+		return 0, ""
+	}
+
+	fleetctltest.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile(scepCAs("WIFI", "OTHER")), "-f", teamFile("WIFI"),
+	})
+	scepWIFIID, caName := templateCA()
+	require.Equal(t, "WIFI", caName)
+
+	// WIFI becomes a DigiCert CA. The custom SCEP CA has to be deleted before its name can be taken, which takes its template with it, and
+	// then the fleet config adds the template back on the other CA.
+	digiCertWIFI := fmt.Sprintf(`    digicert:
+      - name: WIFI
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn"]
+        certificate_seat_id: digicert_seat_id
+`, digiCertServer.URL)
+	fleetctltest.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile(digiCertWIFI + scepCAs("OTHER")), "-f", teamFile("OTHER"),
+	})
+	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, groupedCAs.DigiCert, 1)
+	require.Equal(t, "WIFI", groupedCAs.DigiCert[0].Name)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	require.Equal(t, "OTHER", groupedCAs.CustomScepProxy[0].Name)
+	_, err = s.DS.GetCertificateAuthorityByID(ctx, scepWIFIID, false)
+	require.True(t, fleet.IsNotFound(err), "got %v", err)
+	_, caName = templateCA()
+	require.Equal(t, "OTHER", caName)
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "*.yml")

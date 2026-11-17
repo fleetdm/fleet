@@ -552,6 +552,9 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 
 	if opts.SkipDeletes {
 		ops.Delete = deletesFreeingNames(ops)
+		// A certificate template can only use a custom SCEP CA, so the templates that use a CA whose name now belongs to a CA of another type
+		// can't be kept. The fleet configs would remove them, but only after this pass, so they are removed with the CA here.
+		ops.DeleteCertificateTemplates = true
 	}
 
 	if opts.DryRun {

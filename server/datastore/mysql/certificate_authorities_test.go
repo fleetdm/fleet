@@ -1109,6 +1109,62 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 		require.ElementsMatch(t, []string{"digicert:digicert", "custom_scep_proxy:renamed", "custom_scep_proxy:ejbca"}, names())
 	})
 
+	t.Run("replace a CA used by certificate templates", func(t *testing.T) {
+		used, err := ds.NewCertificateAuthority(ctx, scepCA("used"))
+		require.NoError(t, err)
+		other, err := ds.NewCertificateAuthority(ctx, scepCA("other"))
+		require.NoError(t, err)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ca names team"})
+		require.NoError(t, err)
+		newTemplate := func(ca *fleet.CertificateAuthority) *fleet.CertificateTemplateResponse {
+			template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+				Name: *ca.Name, TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=" + *ca.Name,
+			})
+			require.NoError(t, err)
+			return template
+		}
+		usedTemplate, otherTemplate := newTemplate(used), newTemplate(other)
+		require.NoError(t, ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{HostUUID: "installed", CertificateTemplateID: usedTemplate.ID, Status: fleet.CertificateTemplateVerified,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "used"},
+			{HostUUID: "pending", CertificateTemplateID: usedTemplate.ID, Status: fleet.CertificateTemplatePending,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "used"},
+			{HostUUID: "installed", CertificateTemplateID: otherTemplate.ID, Status: fleet.CertificateTemplateVerified,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "other"},
+		}))
+		replacement := fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{{
+				Type: string(fleet.CATypeHydrant), Name: new("used"), URL: new("https://hydrant.example.com"), ClientID: new("id"),
+				ClientSecret: new("secret"),
+			}},
+			Delete: []*fleet.CertificateAuthority{used},
+		}
+
+		// The templates keep the CA from being deleted, unless they are deleted with it.
+		err = ds.BatchApplyCertificateAuthorities(ctx, replacement)
+		require.ErrorContains(t, err, fleet.DeleteCAReferencedByTemplatesErrMsg)
+		replacement.DeleteCertificateTemplates = true
+		require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, replacement))
+		require.Subset(t, names(), []string{"hydrant:used", "custom_scep_proxy:other"})
+		require.NotContains(t, names(), "custom_scep_proxy:used")
+
+		// Only the template of the deleted CA is gone, and hosts remove the certificate they got from it, like when a template is deleted.
+		templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+		require.Equal(t, otherTemplate.ID, templates[0].ID)
+		installed, err := ds.GetHostCertificateTemplateRecord(ctx, "installed", usedTemplate.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, installed.Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, installed.OperationType)
+		_, err = ds.GetHostCertificateTemplateRecord(ctx, "pending", usedTemplate.ID)
+		require.True(t, fleet.IsNotFound(err), "got %v", err)
+		otherInstalled, err := ds.GetHostCertificateTemplateRecord(ctx, "installed", otherTemplate.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateVerified, otherInstalled.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, otherInstalled.OperationType)
+	})
+
 	t.Run("legacy shared name", func(t *testing.T) {
 		// Names didn't have to be unique across types before, so a DB can have CAs that share one.
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

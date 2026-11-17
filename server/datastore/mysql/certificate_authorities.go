@@ -511,6 +511,44 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	return nil
 }
 
+// deleteCertificateTemplatesUsingCAsDB deletes the certificate templates that use the CAs, and has the hosts remove the certificates they
+// got from them, like deleting a template does.
+func deleteCertificateTemplatesUsingCAsDB(ctx context.Context, tx sqlx.ExtContext, cas []*fleet.CertificateAuthority) error {
+	if len(cas) == 0 {
+		return nil
+	}
+	var placeholders strings.Builder
+	args := make([]any, 0, len(cas)*2)
+	for _, ca := range cas {
+		args = append(args, ca.Name, ca.Type)
+		placeholders.WriteString("(?, ?),")
+	}
+	stmt := fmt.Sprintf(`
+		SELECT certificate_templates.id
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE (certificate_authorities.name, certificate_authorities.type) IN (%s)`, strings.TrimSuffix(placeholders.String(), ","))
+	var templateIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &templateIDs, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select certificate templates using deleted certificate authorities")
+	}
+	if len(templateIDs) == 0 {
+		return nil
+	}
+
+	if err := setHostCertificateTemplatesToPendingRemoveDB(ctx, tx, templateIDs); err != nil {
+		return err
+	}
+	stmt, deleteArgs, err := sqlx.In(`DELETE FROM certificate_templates WHERE id IN (?)`, templateIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare delete certificate templates using deleted certificate authorities")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, deleteArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete certificate templates using deleted certificate authorities")
+	}
+	return nil
+}
+
 func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations,
 ) error {
 	upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
@@ -543,6 +581,11 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		}
 		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
 			return err
+		}
+		if ops.DeleteCertificateTemplates {
+			if err := deleteCertificateTemplatesUsingCAsDB(ctx, tx, ops.Delete); err != nil {
+				return err
+			}
 		}
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
