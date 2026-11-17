@@ -7247,20 +7247,6 @@
       "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
     },
     {
-      "name": "PyCharm Community Edition",
-      "slug": "pycharm-ce/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.pycharm.ce",
-      "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
-    },
-    {
-      "name": "PyCharm Community Edition",
-      "slug": "pycharm-ce/windows",
-      "platform": "windows",
-      "unique_identifier": "PyCharm Community Edition",
-      "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
-    },
-    {
       "name": "PyCharm",
       "slug": "pycharm/darwin",
       "platform": "darwin",

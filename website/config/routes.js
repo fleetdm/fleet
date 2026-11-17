@@ -1245,7 +1245,7 @@ module.exports.routes = {
   'GET /software-catalog/podman-desktop': '/software-catalog/podman-desktop-darwin',
   'GET /software-catalog/privileges': '/software-catalog/privileges-darwin',
   'GET /software-catalog/pritunl': '/software-catalog/pritunl-darwin',
-  'GET /software-catalog/pycharm-ce': '/software-catalog/pycharm-ce-darwin',
+  'GET /software-catalog/pycharm-ce': '/software-catalog/pycharm-darwin',
   'GET /software-catalog/proton-mail': '/software-catalog/proton-mail-darwin',
   'GET /software-catalog/rancher': '/software-catalog/rancher-darwin',
   'GET /software-catalog/pycharm': '/software-catalog/pycharm-darwin',
