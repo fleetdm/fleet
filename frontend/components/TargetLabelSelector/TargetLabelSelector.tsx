@@ -17,6 +17,8 @@ import { ILabelSummary } from "interfaces/label";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
+import UserTargetingTip from "./UserTargetingTip";
+
 const baseClass = "target-label-selector";
 
 export type LabelTargetMode = "any" | "all";
@@ -458,17 +460,20 @@ const TargetLabelSelector = ({
         disableOptions={disableOptions}
       />
       {selectedTargetType === "Custom" && (
-        <CustomTargetTabs
-          labels={labels || []}
-          include={includeConfig}
-          exclude={excludeConfig}
-          emptyStateDescription={emptyStateDescription}
-          onAddLabel={onAddLabel}
-          isLoadingLabels={isLoadingLabels}
-          isErrorLabels={isErrorLabels}
-          disableOptions={disableOptions}
-          labelsError={labelsError}
-        />
+        <>
+          <CustomTargetTabs
+            labels={labels || []}
+            include={includeConfig}
+            exclude={excludeConfig}
+            emptyStateDescription={emptyStateDescription}
+            onAddLabel={onAddLabel}
+            isLoadingLabels={isLoadingLabels}
+            isErrorLabels={isErrorLabels}
+            disableOptions={disableOptions}
+            labelsError={labelsError}
+          />
+          <UserTargetingTip />
+        </>
       )}
     </div>
   );

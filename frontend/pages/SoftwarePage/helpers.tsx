@@ -141,19 +141,8 @@ export const generateSelectedLabels = (
   );
 };
 
-// Labels say "hosts," so admins don't expect them to target people.
-const USER_TARGETING_HELP_TEXT = (
-  <>
-    To target users, use labels based on IdP groups or departments.{" "}
-    <CustomLink
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/target-users-with-labels`}
-      text="Learn more"
-      newTab
-    />
-  </>
-);
-
-const generateScopeHelpText = (
+// Used in FleetAppDetailsForm and PackageForm
+export const generateHelpText = (
   automaticInstall: boolean,
   customTarget: string
 ) => {
@@ -198,18 +187,6 @@ const generateScopeHelpText = (
     </>
   );
 };
-
-// Used in FleetAppDetailsForm and PackageForm
-export const generateHelpText = (
-  automaticInstall: boolean,
-  customTarget: string
-) => (
-  <>
-    {USER_TARGETING_HELP_TEXT}
-    <br />
-    {generateScopeHelpText(automaticInstall, customTarget)}
-  </>
-);
 
 // Used in FleetAppDetailsForm and PackageForm
 export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
