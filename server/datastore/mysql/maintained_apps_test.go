@@ -1603,6 +1603,39 @@ func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 	}
 	require.Contains(t, slugs, "firefox@esr/darwin")
 	require.NotContains(t, slugs, "firefox/darwin")
+
+	// add a VPP app for the same Firefox title to another fleet, then move it into the fleet that
+	// has the installer, which the conflict check blocks on add. ESR should still not show as added
+	test.CreateInsertGlobalVPPToken(t, ds)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 43"})
+	require.NoError(t, err)
+	vppFirefox, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "Mozilla Firefox",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{AdamID: "firefox", Platform: fleet.MacOSPlatform},
+		},
+		BundleIdentifier: "org.mozilla.firefox",
+	}, &otherTeam.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, titleID, vppFirefox.TitleID)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET team_id = ?, global_or_team_id = ? WHERE adam_id = 'firefox'", team.ID, team.ID)
+		return err
+	})
+	require.Equal(t, &titleID, titleIDFor(firefox.ID))
+	require.Nil(t, titleIDFor(esr.ID))
+
+	gotESR, err := ds.GetMaintainedAppByID(ctx, esr.ID, &team.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotESR.TitleID)
+
+	// delete the Firefox software title, the installer and VPP app lose their title and neither FMA shows as added
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM software_titles WHERE id = ?", titleID)
+		return err
+	})
+	require.Nil(t, titleIDFor(firefox.ID))
+	require.Nil(t, titleIDFor(esr.ID))
 }
 
 func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {

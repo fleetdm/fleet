@@ -952,6 +952,49 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
 	require.NoError(t, err)
 	require.Equal(t, 2, title.SoftwareInstallersCount)
+
+	// list available for install, the title with two active packages should appear once
+	availableOpts := fleet.SoftwareTitleListOptions{TeamID: &team.ID, AvailableForInstall: true}
+	titles, count, _, err := ds.ListSoftwareTitles(ctx, availableOpts, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	require.Equal(t, "Multi App", titles[0].Name)
+	require.Len(t, titles[0].Packages, 2)
+
+	// mark one package inactive, the title should still be available for install
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = 0 WHERE storage_id = 'multi-a'`)
+		return err
+	})
+	titles, count, _, err = ds.ListSoftwareTitles(ctx, availableOpts, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+
+	// mark both packages inactive, the title should not be available for install
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = 0 WHERE title_id = ?`, titleID)
+		return err
+	})
+	titles, count, _, err = ds.ListSoftwareTitles(ctx, availableOpts, adminFilter)
+	require.NoError(t, err)
+	require.Empty(t, titles)
+	require.Equal(t, 0, count)
+
+	// reactivate the packages and delete the software title, the packages have no title and nothing is listed
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = 1 WHERE title_id = ?`, titleID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `DELETE FROM software_titles WHERE id = ?`, titleID)
+		return err
+	})
+	titles, count, _, err = ds.ListSoftwareTitles(ctx, availableOpts, adminFilter)
+	require.NoError(t, err)
+	require.Empty(t, titles)
+	require.Equal(t, 0, count)
 }
 
 // Regression guard for the per-installer policy dispatch loop in
