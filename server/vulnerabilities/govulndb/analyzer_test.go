@@ -72,7 +72,7 @@ func cves(vulns []fleet.SoftwareVulnerability) []string {
 	return out
 }
 
-func TestMatchSoftware(t *testing.T) {
+func TestMatchBinary(t *testing.T) {
 	artifact := testArtifact()
 
 	for _, tc := range []struct {
@@ -162,7 +162,7 @@ func TestMatchSoftware(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := matchSoftware(&tc.software, artifact)
+			got := matchBinary(&tc.software, artifact)
 			require.ElementsMatch(t, tc.wantCVEs, cves(got))
 			for _, v := range got {
 				require.Equal(t, tc.software.ID, v.SoftwareID)

@@ -1,20 +1,16 @@
 package govulndb
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/vulnrepo"
 	"golang.org/x/mod/semver"
 )
 
@@ -106,7 +102,7 @@ func Analyze(
 	// them as known and dropping them would suppress their automations forever.
 	if err := scan("go binaries", fleet.SoftwareIterQueryOptions{
 		IncludedSources: []string{goBinariesSource},
-	}, matchSoftware); err != nil {
+	}, matchBinary); err != nil {
 		return newVulns, err
 	}
 	if opts, ok := toolchains.iterOptions(); ok {
@@ -136,10 +132,10 @@ func Analyze(
 	return newVulns, nil
 }
 
-// matchSoftware returns the vulnerabilities the artifact reports for one Go binary row: module
+// matchBinary returns the vulnerabilities the artifact reports for one Go binary row: module
 // advisories by module path (extension_id) against the binary's own version, and stdlib
 // advisories by the toolchain it was built with (release), since that code is compiled in.
-func matchSoftware(software *fleet.Software, artifact *Artifact) []fleet.SoftwareVulnerability {
+func matchBinary(software *fleet.Software, artifact *Artifact) []fleet.SoftwareVulnerability {
 	vulns := newVulnSet(software.ID)
 
 	if modulePath := software.ExtensionID; modulePath != "" && modulePath != ToolchainModule {
@@ -262,40 +258,4 @@ func toolchainVersion(release string) (string, bool) {
 		return "", false
 	}
 	return version, true
-}
-
-// LoadArtifact reads the newest mirrored artifact in vulnPath, or nil if the directory holds
-// none.
-func LoadArtifact(ctx context.Context, vulnPath string) (*Artifact, error) {
-	latest, err := vulnrepo.NewestLocalAsset(vulnPath, isArtifactAsset)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "finding newest Go vulnerability database artifact")
-	}
-	if latest == "" {
-		return nil, nil
-	}
-	return loadArtifact(ctx, latest)
-}
-
-// loadArtifact reads a gzipped Go vulnerability database artifact from disk.
-func loadArtifact(ctx context.Context, path string) (*Artifact, error) {
-	// #nosec G304 -- path is built from a Fleet-controlled vuln directory listing
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "opening %s", path)
-	}
-	defer f.Close()
-
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "gunzipping %s", path)
-	}
-	defer gz.Close()
-
-	var artifact Artifact
-	if err := json.UnmarshalRead(gz, &artifact); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "decoding %s", path)
-	}
-
-	return &artifact, nil
 }

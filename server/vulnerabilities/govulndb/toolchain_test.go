@@ -29,8 +29,32 @@ func chocolateyRules() *ToolchainInstalls {
 	}
 }
 
-// NewToolchainRules refuses only rules it cannot apply; whether rules are sensible is checked
-// by the mirror before it publishes them.
+// Servers apply the rules as published, and NVD skips everything they claim, so a broad or
+// misdirected rule would remove vulnerabilities from customer hosts.
+func TestPublishedToolchainInstalls(t *testing.T) {
+	installs := PublishedToolchainInstalls()
+	require.Equal(t, ToolchainInstallsVersion, installs.Version)
+	require.NotEmpty(t, installs.Rules)
+	publishedRules(t)
+
+	for _, r := range installs.Rules {
+		t.Run(r.Source, func(t *testing.T) {
+			require.NotEmpty(t, r.Source)
+			// Distributions backport fixes to deb and rpm packages without changing the upstream
+			// version, and Go binaries have their own matcher.
+			require.NotContains(t, []string{"deb_packages", "rpm_packages", goBinariesSource}, r.Source)
+			require.NotEmpty(t, append(r.Names, r.NamePrefixes...))
+			require.NotContains(t, r.Names, "")
+			for _, prefix := range r.NamePrefixes {
+				require.GreaterOrEqual(t, len(prefix), 3, "name prefix %q claims unrelated software", prefix)
+			}
+			require.NotEmpty(t, r.Versions)
+		})
+	}
+}
+
+// NewToolchainRules refuses only rules it cannot apply; TestPublishedToolchainInstalls checks
+// that the published rules are sensible.
 func TestNewToolchainRulesRejects(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

@@ -1,7 +1,10 @@
 package govulndb
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/json/v2"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -35,6 +38,38 @@ func Refresh(ctx context.Context, vulnPath string) (string, error) {
 	}
 
 	return asset.Name, nil
+}
+
+// LoadArtifact reads the newest mirrored artifact in vulnPath, or nil if the directory holds
+// none.
+func LoadArtifact(ctx context.Context, vulnPath string) (*Artifact, error) {
+	path, err := vulnrepo.NewestLocalAsset(vulnPath, isArtifactAsset)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "finding newest Go vulnerability database artifact")
+	}
+	if path == "" {
+		return nil, nil
+	}
+
+	// #nosec G304 -- path is built from a Fleet-controlled vuln directory listing
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "opening %s", path)
+	}
+	defer f.Close()
+
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "gunzipping %s", path)
+	}
+	defer gz.Close()
+
+	var artifact Artifact
+	if err := json.UnmarshalRead(gz, &artifact); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decoding %s", path)
+	}
+
+	return &artifact, nil
 }
 
 // isArtifactAsset reports whether a release asset is a Go vulnerability database artifact; a

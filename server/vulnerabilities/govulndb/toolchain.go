@@ -19,8 +19,9 @@ import (
 const ToolchainInstallsVersion = "1"
 
 // ToolchainInstalls are the rules that identify Go toolchain installs and read their Go version.
-// The mirror publishes them in the artifact, so a rule can be fixed without a Fleet release. The
-// mirror also checks that they are safe to apply; this package only compiles them.
+// The mirror publishes them in the artifact, so a rule can be fixed without a Fleet release.
+// Servers apply them as published, so changes to toolchain_installs.json must keep passing
+// TestPublishedToolchainInstalls.
 type ToolchainInstalls struct {
 	Version string                 `json:"version"`
 	Rules   []ToolchainInstallRule `json:"rules"`
