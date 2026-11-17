@@ -588,9 +588,6 @@ func orbitAction(c *cli.Context) error {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	// Before anything waits for the server, so the Linux process shows its name while the server is unreachable.
-	update.ApplyRememberedAgentNames(c.String("root-dir"))
-
 	// Override flags with values retrieved from Fleet.
 	fallbackServerOverridesCfg := setServerOverrides(c)
 	if !fallbackServerOverridesCfg.empty() {
@@ -978,6 +975,12 @@ func orbitAction(c *cli.Context) error {
 				}
 			}
 		}
+	}
+
+	// After the early update check, so an update can fix a problem here, and before orbit waits for the Fleet server, so
+	// the Linux process shows its name while the server is unreachable.
+	if runtime.GOOS == "linux" {
+		update.ApplyRememberedAgentNames(c.String("root-dir"))
 	}
 
 	// Clear leftover files from updates
@@ -1554,7 +1557,9 @@ func orbitAction(c *cli.Context) error {
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
-	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
+	if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+		orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
+	}
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
