@@ -134,7 +134,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		"patch_when_closed": false,
 		"notify_before_patching": false,
 		"patch_deadline": false,
-		"type": "dynamic"
+		"type": "dynamic",
+		"automation_type": "webhook_or_ticket"
     },
     "hosts": [
         {
@@ -332,7 +333,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		"patch_when_closed": false,
 		"notify_before_patching": false,
 		"patch_deadline": false,
-		"type": "dynamic"
+		"type": "dynamic",
+		"automation_type": "calendar"
     },
     "hosts": [
         {

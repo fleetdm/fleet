@@ -1170,6 +1170,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+	if newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs; !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
+		if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, nil, newIDs); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
+		}
+	}
 
 	if err := applyAndValidateConditionalAccessOktaFields(ctx, appConfig, &newAppConfig, invalid, lic); err != nil {
 		return nil, err

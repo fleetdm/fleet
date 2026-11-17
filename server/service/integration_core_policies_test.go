@@ -1248,3 +1248,30 @@ func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
 	require.NotContains(t, raw.Host.Issues, "failing_unhidden_policies_count")
 	require.NotContains(t, raw.Host.Issues, "hidden_policies_count")
 }
+
+func (s *integrationTestSuite) TestGlobalPolicyAutomationTypeFree() {
+	t := s.T()
+
+	// Fleet Free keeps webhook or ticket on "All fleets" policies.
+	var resp fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "automation_type": "webhook_or_ticket"}`, t.Name())), http.StatusOK, &resp)
+	require.NotNil(t, resp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *resp.Policy.AutomationType)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{resp.Policy.ID})
+		require.NoError(t, err)
+	})
+
+	var modResp fleet.ModifyGlobalPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": null}`),
+		http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": "webhook_or_ticket"}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modResp.Policy.AutomationType)
+
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": "script"}`),
+		http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policies can only have automation_type "webhook_or_ticket"`)
+}

@@ -1188,6 +1188,10 @@ type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]
 
 type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
 
+type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error)
+
+type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
+
 type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
@@ -4346,6 +4350,12 @@ type DataStore struct {
 
 	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
 	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
+
+	PoliciesWithOtherAutomationsFunc        PoliciesWithOtherAutomationsFunc
+	PoliciesWithOtherAutomationsFuncInvoked bool
+
+	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
+	WebhooksAndTicketsByPolicyNameFuncInvoked bool
 
 	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
 	SetWebhooksAndTicketsPoliciesFuncInvoked bool
@@ -10540,6 +10550,20 @@ func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamI
 	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
+}
+
+func (s *DataStore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PoliciesWithOtherAutomationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.PoliciesWithOtherAutomationsFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPolicyNameFunc(ctx, teamID, names)
 }
 
 func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {

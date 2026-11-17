@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 )
 
@@ -13,4 +14,7 @@ func stubWebhookPolicyIDs(ds *mock.Store) {
 	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) { return nil, nil }
 	ds.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) { return nil, nil }
 	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
+	ds.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 }

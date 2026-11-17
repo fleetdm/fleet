@@ -61,6 +61,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"WebhooksAndTicketsPolicies", testWebhooksAndTicketsPolicies},
+		{"WebhooksAndTicketsWrites", testWebhooksAndTicketsWrites},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
@@ -11669,4 +11670,66 @@ func testWebhooksAndTicketsPolicies(t *testing.T, ds *Datastore) {
 	require.Empty(t, enabled(&team1.ID))
 	require.Equal(t, []uint{global1}, enabled(nil))
 	require.Equal(t, []uint{noTeam}, enabled(new(uint(0))))
+}
+
+func testWebhooksAndTicketsWrites(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice-webhook@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "webhook writes"})
+	require.NoError(t, err)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "webhook-writes.sh", ScriptContents: "echo", TeamID: &team.ID})
+	require.NoError(t, err)
+
+	// Create and save keep the flag.
+	global, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{Name: "g", Query: "SELECT 1", WebhooksAndTicketsEnabled: true})
+	require.NoError(t, err)
+	require.True(t, global.WebhooksAndTicketsEnabled)
+	teamPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "t", Query: "SELECT 1", WebhooksAndTicketsEnabled: true})
+	require.NoError(t, err)
+	require.True(t, teamPolicy.WebhooksAndTicketsEnabled)
+	scriptPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "s", Query: "SELECT 1", ScriptID: &script.ID})
+	require.NoError(t, err)
+	teamPolicy.WebhooksAndTicketsEnabled = false
+	require.NoError(t, ds.SavePolicy(ctx, teamPolicy, false, false))
+	got, err := ds.Policy(ctx, teamPolicy.ID)
+	require.NoError(t, err)
+	require.False(t, got.WebhooksAndTicketsEnabled)
+
+	// Only the scope's policies with the flag off and another automation are returned.
+	others, err := ds.PoliciesWithOtherAutomations(ctx, &team.ID, []uint{teamPolicy.ID, scriptPolicy.ID, global.ID, 999999})
+	require.NoError(t, err)
+	require.Len(t, others, 1)
+	require.Equal(t, scriptPolicy.ID, others[0].ID)
+	others, err = ds.PoliciesWithOtherAutomations(ctx, nil, []uint{scriptPolicy.ID, global.ID})
+	require.NoError(t, err)
+	require.Empty(t, others)
+	others, err = ds.PoliciesWithOtherAutomations(ctx, nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, others)
+
+	byName, err := ds.WebhooksAndTicketsByPolicyName(ctx, &team.ID, []string{"t", "s", "g", "missing"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"t": false, "s": false}, byName)
+	byName, err = ds.WebhooksAndTicketsByPolicyName(ctx, nil, []string{"g", "t"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"g": true}, byName)
+
+	// Spec apply writes the flag on new and existing policies, and a change alone is applied.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: "t", Query: "SELECT 1", Team: team.Name, WebhooksAndTicketsEnabled: true},
+		{Name: "spec new", Query: "SELECT 1", Team: team.Name, WebhooksAndTicketsEnabled: true},
+	}))
+	byName, err = ds.WebhooksAndTicketsByPolicyName(ctx, &team.ID, []string{"t", "spec new"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"t": true, "spec new": true}, byName)
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: "t", Query: "SELECT 1", Team: team.Name},
+		{Name: "g", Query: "SELECT 1"},
+	}))
+	byName, err = ds.WebhooksAndTicketsByPolicyName(ctx, &team.ID, []string{"t", "spec new"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"t": false, "spec new": true}, byName)
+	byName, err = ds.WebhooksAndTicketsByPolicyName(ctx, nil, []string{"g"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"g": false}, byName)
 }

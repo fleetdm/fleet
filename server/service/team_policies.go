@@ -49,6 +49,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		NotifyBeforePatching:         req.NotifyBeforePatching,
 		PatchDeadline:                req.PatchDeadline,
 		ProfileUUID:                  req.ProfileUUID,
+		AutomationType:               req.AutomationType,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -70,15 +71,35 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
 
+	if tp.AutomationType != nil {
+		if err := checkAutomationTypeCompanions(tp.AutomationType, policyAutomationCompanions{
+			softwareTitleID: tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0,
+			scriptID:        tp.ScriptID != nil && *tp.ScriptID != 0,
+			profileUUID:     tp.ProfileUUID != nil && *tp.ProfileUUID != "",
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check automation type")
+		}
+		switch *tp.AutomationType {
+		case fleet.PolicyAutomationCalendar:
+			tp.CalendarEventsEnabled = true
+		case fleet.PolicyAutomationConditionalAccess:
+			tp.ConditionalAccessEnabled = true
+		}
+	}
+
 	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp)
 	if err != nil {
 		return nil, err
 	}
+	p.WebhooksAndTicketsEnabled = tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationWebhookOrTicket
 
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
+	}
+	if err := svc.checkNewPolicyAutomations(ctx, &teamID, p); err != nil {
+		return nil, err
 	}
 
 	if p.QueryID != nil {
@@ -719,6 +740,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	automationsBefore := policy.Automations()
+	webhookOrTicketBefore := policy.WebhooksAndTicketsEnabled
+	webhookOrTicketAfter := webhookOrTicketBefore
+	if p.AutomationType.Set {
+		if webhookOrTicketAfter, err = applyAutomationType(teamID, &p); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "apply automation type")
+		}
+	}
+
 	if p.ConditionalAccessEnabled != nil && *p.ConditionalAccessEnabled && teamID == nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf(`policy payload verification: %s`, errPolicyAllFleetsForConditionalAccess),
@@ -801,6 +831,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.Hidden != nil {
 		policy.Hidden = *p.Hidden
 	}
+	policy.WebhooksAndTicketsEnabled = webhookOrTicketAfter
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
@@ -930,6 +961,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
+	}
+
+	if err := checkPolicyAutomations(teamID, automationsBefore, policy.Automations()); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check policy automations")
+	}
+	if policy.WebhooksAndTicketsEnabled != webhookOrTicketBefore {
+		if err := svc.authorizeWebhookOrTicketChange(ctx, teamID); err != nil {
+			return nil, err
+		}
 	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)

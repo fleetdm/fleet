@@ -224,6 +224,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, err
 		}
 		applyTeamWebhookSettings(&team.Config.WebhookSettings, payload.WebhookSettings)
+		if payload.WebhookSettings.FailingPoliciesWebhook != nil {
+			if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, &teamID, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
+			}
+		}
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -2456,6 +2461,9 @@ func (svc *Service) editTeamFromSpec(
 	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
 		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
 		team.Config.WebhookSettings.FailingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+		if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, &team.ID, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
+		}
 	}
 
 	if spec.WebhookSettings.HostActivitiesWebhook != nil {
@@ -3099,6 +3107,11 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 			return nil, err
 		}
 		applyTeamWebhookSettings(&config.WebhookSettings, payload.WebhookSettings)
+		if payload.WebhookSettings.FailingPoliciesWebhook != nil {
+			if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, new(uint(0)), config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
+			}
+		}
 	}
 
 	// Apply integrations if provided
