@@ -4,7 +4,7 @@
   type: patch
   fleet_maintained_app_slug: google-chrome/darwin
   install_software: true
-  patch_when_closed: true
+  patch_deadline: true
   labels_include_any:
     - Macs with Google Chrome installed
 - name: 1Password up to date (macOS)
@@ -36,12 +36,11 @@
     - Macs with Docker Desktop installed
 - name: Firefox up to date (macOS)
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
+  resolution: "Download the latest version from Self-service or check for updates using Firefox's built-in update functionality. You can also delete Firefox if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: firefox/darwin
   install_software: true
-  patch_when_closed: true
-  calendar_events_enabled: true
+  patch_deadline: true
   labels_include_any:
     - Macs with Firefox installed
 - name: Visual Studio Code up to date (macOS)
@@ -59,7 +58,7 @@
   type: patch
   fleet_maintained_app_slug: slack/darwin
   install_software: true
-  patch_when_closed: true
+  patch_deadline: true
   labels_include_any:
     - Macs with Slack installed
 - name: Zoom up to date (macOS)

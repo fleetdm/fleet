@@ -237,6 +237,9 @@ reports:
   - path: ../lib/all/reports/collect-listening-ports.yml
   - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
+  patch_deadline_settings:
+    days: [friday]
+    time: "17:00"
   packages:
     # macOS apps
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
