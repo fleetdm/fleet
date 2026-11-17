@@ -35,4 +35,12 @@ jobs:
           # GHSA-j965-2qgj-vjmq (aws-sdk v2 region validation) has no fixed v2
           # release; the guidance is to migrate to SDK v3. skipper-s3 (used by the
           # fleet-agent-downloader) supports only v2.
-          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq
+          # GHSA-fc5q-39xc-vjpf (picomatch ReDoS) has no patched release in any
+          # version line and only enters our tree transitively through
+          # eslint-config-next's lint-time file globbing in tools/fleet-atlas.
+          # picomatch is dev-only (never ships in the Atlas build output) so the
+          # ReDoS has no runtime attack path here. The atlas-exemption-audit
+          # workflow re-verifies both facts (dev-only, unpatched) weekly and on
+          # any PR that touches Atlas deps; if either flips, remove this entry
+          # and bump picomatch / rework the exemption.
+          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq, GHSA-fc5q-39xc-vjpf
