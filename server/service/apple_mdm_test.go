@@ -175,24 +175,6 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
 		return nil, nil
 	}
-	ds.NewMDMAppleInstallerFunc = func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.MDMAppleInstallerFunc = func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.MDMAppleInstallerDetailsByIDFunc = func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.DeleteMDMAppleInstallerFunc = func(ctx context.Context, id uint) error {
-		return nil
-	}
-	ds.MDMAppleInstallerDetailsByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.ListMDMAppleInstallersFunc = func(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
@@ -308,15 +290,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 
 	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
 		ctx := test.UserContext(ctx, user)
-		_, err := svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.GetMDMAppleInstallerByID(ctx, 42)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.DeleteMDMAppleInstaller(ctx, 42)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleInstallers(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleDevices(ctx)
+		_, err := svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -366,11 +340,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	}
 	// Token authenticated endpoints can be accessed by anyone.
 	ctx = test.UserContext(ctx, test.UserNoRoles)
-	_, err := svc.GetMDMAppleInstallerByToken(ctx, "foo")
-	require.NoError(t, err)
-	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "", &fleet.MDMAppleMachineInfo{})
-	require.NoError(t, err)
-	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
+	_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "", &fleet.MDMAppleMachineInfo{})
 	require.NoError(t, err)
 	_, err = svc.MDMGetEULABytes(ctx, "foo")
 	require.NoError(t, err)

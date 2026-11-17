@@ -731,6 +731,14 @@ func TestGetHosts(t *testing.T) {
 			require.NotContains(t, spec, "team_name", "spec should not contain deprecated 'team_name' key with --remove-deprecated-keys")
 		}
 	})
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		_, err := runAppNoChecks([]string{"get", "hosts", "test_host"})
+		require.ErrorContains(t, err, fleet.GitOpsViewHostByIdentifierErrorMessage)
+	})
 }
 
 func TestGetHostsMDM(t *testing.T) {
@@ -1058,7 +1066,6 @@ spec:
   icon_url: null
   id: 0
   name: foo
-  software_package: null
   packages: null
   source: chrome_extensions
   extension_for: chrome
@@ -1083,7 +1090,6 @@ spec:
   icon_url: null
   id: 0
   name: bar
-  software_package: null
   packages: null
   source: deb_packages
   extension_for: ""
@@ -1133,7 +1139,6 @@ spec:
           ]
         }
       ],
-      "software_package": null,
       "packages": null,
       "app_store_apps": null
     },
@@ -1153,7 +1158,6 @@ spec:
       "vulnerabilities": null
         }
       ],
-      "software_package": null,
       "packages": null,
       "app_store_apps": null
     }

@@ -1,5 +1,7 @@
 fleet-gitops:
   image: debian:bookworm-slim
+  # Prevent concurrent applies: a slower, older run could otherwise finish last and roll back newer changes.
+  resource_group: fleet-gitops
   variables:
     FLEET_DRY_RUN_ONLY: true
   rules:
