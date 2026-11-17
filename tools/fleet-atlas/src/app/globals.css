@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+
+:root:where(.dark) {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Global focus-visible — 1px blackish outline in light mode, zinc-200 in dark.
+   The !important beats Tailwind utilities like focus:outline-none and
+   element-specific focus-visible rules the browser applies to buttons/inputs,
+   so every interactive element across the app shares the same affordance. */
+*:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+*:focus-visible {
+  outline: 1px solid #27272a !important; /* zinc-800 */
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+:where(.dark) *:focus-visible {
+  outline-color: #e4e4e7 !important; /* zinc-200 */
+}
+
+/* Escape hatch for elements where the global focus-visible outline fights an
+   already-strong focus affordance (e.g. the command palette input is inside
+   a modal that visually shouts "this is focused"). */
+[data-no-focus-outline]:focus,
+[data-no-focus-outline]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+}
+
+/* reactflow light-mode defaults */
+.react-flow {
+  background-color: #ffffff;
+}
+.react-flow__controls-button {
+  background: #ffffff;
+  border-bottom: 1px solid #e4e4e7;
+  color: #27272a;
+  fill: #27272a;
+}
+.react-flow__controls-button:hover {
+  background: #f4f4f5;
+}
+
+/* reactflow dark-mode */
+.dark .react-flow {
+  background-color: #09090b;
+}
+.dark .react-flow__pane {
+  background-color: #09090b;
+}
+.dark .react-flow__controls {
+  background: #18181b;
+  border-color: #27272a;
+}
+.dark .react-flow__controls-button {
+  background: #18181b;
+  border-bottom-color: #27272a;
+  color: #d4d4d8;
+  fill: #d4d4d8;
+}
+.dark .react-flow__controls-button:hover {
+  background: #27272a;
+}
+.dark .react-flow__minimap {
+  background-color: #18181b;
+}
+.dark .react-flow__attribution {
+  background: transparent;
+  color: #71717a;
+}

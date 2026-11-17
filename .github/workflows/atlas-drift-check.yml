@@ -1,0 +1,162 @@
+# This file lives at tools/fleet-atlas/ci/atlas-drift-check.yml while Atlas is
+# staged for its initial PR into fleetdm/fleet. When opening that PR, move it
+# to the Fleet repo root:
+#
+#     git mv tools/fleet-atlas/ci/atlas-drift-check.yml .github/workflows/
+#     rmdir tools/fleet-atlas/ci
+#
+# GitHub Actions only reads workflows from `.github/workflows/` at the repo
+# root; keeping the file inside tools/fleet-atlas/ would be dormant.
+
+name: Atlas drift check
+
+# Fires on the same tag push that triggers the goreleaser release workflow.
+on:
+  push:
+    tags:
+      - "fleet-*"
+  # Allow manual re-runs from the Actions tab with a specific tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Fleet tag to audit against (e.g. fleet-v4.56.0). Defaults to the latest fleet-* tag."
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  check-atlas-drift:
+    # Don't run on forks: forks won't have the issues-write token the final
+    # step needs, and a fork publishing drift reports to upstream's issues
+    # would be noise.
+    if: github.repository == 'fleetdm/fleet'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Resolve tag to audit
+        id: resolve
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ -n "$INPUT_TAG" ]]; then
+            tag="$INPUT_TAG"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          if [[ ! "$tag" =~ ^fleet- ]]; then
+            echo "Resolved tag '$tag' does not match fleet-*; nothing to audit." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Auditing against tag: $tag"
+
+      - name: Checkout code at the released tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.resolve.outputs.tag }}
+          persist-credentials: false
+
+      - name: Run Atlas drift audit
+        id: audit
+        env:
+          NO_COLOR: "1"
+        run: |
+          # Script auto-detects FLEET_REPO_PATH as ../../.. of itself when it
+          # lives at tools/fleet-atlas/scripts/, which it does in-tree.
+          set +e
+          output=$(./tools/fleet-atlas/scripts/audit-fleet-claims.py 2>&1)
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo 'report<<EOF'
+            echo "$output"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          # Always print the report to the job log.
+          echo "$output"
+          # Exit codes: 0 clean, 1 drift, 2 config error.
+          # Drift is expected feedback; only config errors should fail the job.
+          if [[ $code -eq 2 ]]; then
+            echo "::error::Atlas audit script reported a configuration error."
+            exit 2
+          fi
+
+      - name: Open drift issue
+        if: steps.audit.outputs.exit_code == '1'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          FLEET_TAG: ${{ steps.resolve.outputs.tag }}
+          AUDIT_REPORT: ${{ steps.audit.outputs.report }}
+        with:
+          script: |
+            const tag = process.env.FLEET_TAG;
+            const report = process.env.AUDIT_REPORT;
+            const title = `Fleet Atlas drift detected after ${tag}`;
+            const runURL = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `The Atlas audit script detected drift after Fleet tag \`${tag}\`.`,
+              ``,
+              `Audit workflow run: ${runURL}`,
+              ``,
+              `## Report`,
+              ``,
+              '```',
+              report,
+              '```',
+              ``,
+              `## What to do`,
+              ``,
+              `Update the relevant content in \`tools/fleet-atlas/\` (cron intervals in \`src/components/background/jobs.ts\`, tables in \`src/components/data/key-tables.ts\`, endpoints in subsystem bodies, premium claims in \`src/components/tiers/tiers-data.ts\`) and re-run the audit locally:`,
+              ``,
+              '```',
+              `cd tools/fleet-atlas && ./scripts/audit-fleet-claims.py`,
+              '```',
+              ``,
+              `---`,
+              `*Automatically created by the atlas-drift-check workflow.*`,
+            ].join('\n');
+
+            // Idempotency: if an open issue with this title already exists
+            // (e.g. a workflow re-run against the same tag), comment on it
+            // instead of opening a duplicate.
+            const { data: existing } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "${title}"`,
+            });
+            const match = existing.items.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: `Re-run found drift again. Latest audit: ${runURL}`,
+              });
+              console.log(`Commented on existing issue #${match.number}`);
+              return;
+            }
+
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['fleet-atlas', 'drift'],
+            });
+            console.log(`Opened issue #${issue.number}: ${title}`);
