@@ -204,12 +204,17 @@ func scanVulnerabilities(
 	scanStart := time.Now()
 
 	// The Go vulnerability database carries the rules for which software is a Go toolchain install.
-	// NVD skips those installs and the govulndb phase matches them, so it is synced and loaded
-	// once, before NVD, and both phases get the same rules.
+	// NVD skips those installs and the govulndb phase matches them, so both get the same rules.
+	// govulndb runs first: it takes over the CVE rows NVD matched before, so NVD's stale cleanup
+	// doesn't delete them only for them to be reinserted and reported as new.
 	phaseStart := time.Now()
 	goVulnDB := syncGoVulnDB(ctx, logger, vulnPath, config)
 	goToolchains := govulndb.ToolchainRulesFrom(ctx, goVulnDB, logger)
 	logger.InfoContext(ctx, "phase completed", "phase", "govulndb_sync", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, goVulnDB, goToolchains, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime, goToolchains)
@@ -248,10 +253,6 @@ func scanVulnerabilities(
 	phaseStart = time.Now()
 	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
-
-	phaseStart = time.Now()
-	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, goVulnDB, goToolchains, vulnAutomationEnabled != "", startTime)
-	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)

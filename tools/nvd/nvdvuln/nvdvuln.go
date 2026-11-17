@@ -314,6 +314,10 @@ func vulnDBSync(ctx context.Context, vulnDBDir string, debug bool, logger *slog.
 	if err != nil {
 		return err
 	}
+	// The Go vulnerability database carries the rules for which software NVD skips.
+	if _, err := govulndb.Refresh(ctx, vulnDBDir); err != nil {
+		return err
+	}
 	return nil
 }
 

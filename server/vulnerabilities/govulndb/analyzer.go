@@ -2,8 +2,6 @@ package govulndb
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -36,15 +34,6 @@ func Analyze(
 	if artifact == nil {
 		logger.DebugContext(ctx, "no Go vulnerability database artifact")
 		return nil, nil
-	}
-
-	// Matching nothing would mark every stored Go vulnerability as remediated, so refuse an
-	// unknown schema or an empty module list (a corrupted or partial download).
-	if artifact.SchemaVersion != SchemaVersion {
-		return nil, fmt.Errorf("Go vulnerability database artifact has schema version %q, want %q", artifact.SchemaVersion, SchemaVersion)
-	}
-	if len(artifact.Modules) == 0 {
-		return nil, errors.New("Go vulnerability database artifact contains no modules (possible corrupted feed)")
 	}
 
 	var (

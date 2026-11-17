@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -15,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -34,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -819,6 +822,111 @@ func TestScanVulnerabilitiesFreeTier(t *testing.T) {
 	require.False(t, ds.DeleteSoftwareVulnerabilitiesFuncInvoked)
 
 	require.NotEmpty(t, webhookCVEs)
+}
+
+// A Go toolchain install's CVEs move from NVD to govulndb. The govulndb phase has to refresh
+// them before NVD's stale cleanup runs, or they are deleted and then inserted again as new,
+// firing vulnerability automations for CVEs hosts already had.
+func TestScanVulnerabilitiesGoToolchainsBeforeNVDCleanup(t *testing.T) {
+	type vulnWrite struct {
+		op     string
+		source fleet.VulnerabilitySource
+	}
+	logger := slog.New(slog.DiscardHandler)
+
+	// The shared NVD fixtures plus a Go vulnerability database artifact.
+	vulnPath := t.TempDir()
+	testdata, err := filepath.Abs(filepath.Join("..", "..", "server", "vulnerabilities", "testdata"))
+	require.NoError(t, err)
+	entries, err := os.ReadDir(testdata)
+	require.NoError(t, err)
+	for _, e := range entries {
+		require.NoError(t, os.Symlink(filepath.Join(testdata, e.Name()), filepath.Join(vulnPath, e.Name())))
+	}
+	var artifact bytes.Buffer
+	gz := gzip.NewWriter(&artifact)
+	require.NoError(t, json.NewEncoder(gz).Encode(govulndb.Artifact{
+		SchemaVersion: govulndb.SchemaVersion,
+		Modules: map[string][]govulndb.Advisory{
+			govulndb.StdlibModule: {{ID: "GO-2099-0001", CVEs: []string{"CVE-2099-0001"}, Ranges: []govulndb.VersionRange{{Introduced: "0", Fixed: "1.30.0"}}}},
+		},
+		ToolchainInstalls: govulndb.PublishedToolchainInstalls(),
+	}))
+	require.NoError(t, gz.Close())
+	require.NoError(t, os.WriteFile(filepath.Join(vulnPath, govulndb.FilePrefix+"2099-01-01"+govulndb.FileExt), artifact.Bytes(), 0o600))
+
+	twisted := &fleet.Software{ID: 1, Name: "Twisted", Version: "22.2.0", Source: "python_packages"}
+	goInstall := &fleet.Software{ID: 2, Name: "go", Version: "1.24.0", Source: "homebrew_packages"}
+
+	var (
+		mu     sync.Mutex
+		events []vulnWrite
+	)
+	record := func(event vulnWrite) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, event)
+	}
+
+	ds := new(mock.Store)
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+		switch {
+		case slices.Contains(query.IncludedSources, "homebrew_packages"):
+			return &softwareIterator{softwares: []*fleet.Software{goInstall}}, nil
+		case len(query.IncludedSources) > 0:
+			return &softwareIterator{}, nil
+		default:
+			return &softwareIterator{softwares: []*fleet.Software{twisted, goInstall}}, nil
+		}
+	}
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		record(vulnWrite{"insert", src})
+		return nil, nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, olderThan time.Time) error {
+		record(vulnWrite{"delete", src})
+		return nil
+	}
+	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+		return []fleet.SoftwareCPE{{ID: 1, SoftwareID: 1, CPE: "cpe:2.3:a:twistedmatrix:twisted:22.2.0:*:*:*:*:python:*:*"}}, nil
+	}
+	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error { return nil }
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) { return 0, nil }
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) { return 0, nil }
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return 0, nil
+	}
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now()}, nil
+	}
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
+		return nil, nil
+	}
+	ds.ListOperatingSystemsFunc = func(ctx context.Context) ([]fleet.OperatingSystem, error) { return nil, nil }
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return nil, nil
+	}
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error { return nil }
+	ds.DeleteOrphanedSoftwareVulnerabilitiesFunc = func(ctx context.Context) error { return nil }
+	ds.DeleteOrphanedOSVulnerabilitiesFunc = func(ctx context.Context) error { return nil }
+
+	vulnsConfig := config.VulnerabilitiesConfig{
+		DatabasesPath:         vulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
+		DisableDataSync:       true,
+	}
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	appConfig := &fleet.AppConfig{Features: fleet.Features{EnableSoftwareInventory: true}}
+	require.NoError(t, scanVulnerabilities(ctx, ds, logger, &vulnsConfig, appConfig, vulnPath))
+
+	insertGo := slices.Index(events, vulnWrite{"insert", fleet.GoVulnDBSource})
+	deleteNVD := slices.Index(events, vulnWrite{"delete", fleet.NVDSource})
+	require.NotEqual(t, -1, insertGo, events)
+	require.NotEqual(t, -1, deleteNVD, events)
+	require.Less(t, insertGo, deleteNVD, events)
 }
 
 func TestUpdateVulnHostCounts(t *testing.T) {

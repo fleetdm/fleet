@@ -69,6 +69,16 @@ func LoadArtifact(ctx context.Context, vulnPath string) (*Artifact, error) {
 		return nil, ctxerr.Wrapf(ctx, err, "decoding %s", path)
 	}
 
+	// Matching nothing would mark every stored Go vulnerability as remediated, and its toolchain
+	// rules would take toolchain installs away from NVD, so refuse an unknown schema or an empty
+	// module list (a corrupted or partial download).
+	if artifact.SchemaVersion != SchemaVersion {
+		return nil, ctxerr.Errorf(ctx, "%s has schema version %q, want %q", path, artifact.SchemaVersion, SchemaVersion)
+	}
+	if len(artifact.Modules) == 0 {
+		return nil, ctxerr.Errorf(ctx, "%s contains no modules (possible corrupted feed)", path)
+	}
+
 	return &artifact, nil
 }
 

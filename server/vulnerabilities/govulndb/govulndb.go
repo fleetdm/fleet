@@ -53,7 +53,7 @@ type Artifact struct {
 	// StdlibModule and the `go` command under ToolchainModule.
 	Modules map[string][]Advisory `json:"modules"`
 	// ToolchainInstalls are the rules identifying Go toolchain installs. Artifacts published
-	// before the rules existed have none, and servers then use the ones built into them.
+	// before the rules existed have none, and servers then leave toolchain installs to NVD.
 	ToolchainInstalls *ToolchainInstalls `json:"toolchain_installs,omitempty"`
 }
 

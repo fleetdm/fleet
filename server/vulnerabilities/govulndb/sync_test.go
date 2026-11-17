@@ -48,6 +48,27 @@ func TestLoadArtifact(t *testing.T) {
 		require.Contains(t, artifact.Modules, "github.com/air-verse/air")
 	})
 
+	t.Run("refuses an unknown schema version", func(t *testing.T) {
+		dir := t.TempDir()
+		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", &Artifact{
+			SchemaVersion: "2",
+			Modules:       map[string][]Advisory{"github.com/air-verse/air": nil},
+		})
+
+		artifact, err := LoadArtifact(t.Context(), dir)
+		require.ErrorContains(t, err, "schema version")
+		require.Nil(t, artifact)
+	})
+
+	t.Run("refuses an artifact with no modules", func(t *testing.T) {
+		dir := t.TempDir()
+		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", &Artifact{SchemaVersion: "1"})
+
+		artifact, err := LoadArtifact(t.Context(), dir)
+		require.ErrorContains(t, err, "no modules")
+		require.Nil(t, artifact)
+	})
+
 	t.Run("errors on a corrupted artifact", func(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "govulndb-2026-09-09.json.gz"), []byte("not gzip"), 0o600))

@@ -437,26 +437,6 @@ func TestAnalyze(t *testing.T) {
 		require.False(t, ds.AllSoftwareIteratorFuncInvoked)
 	})
 
-	t.Run("an artifact with an unknown schema version is refused", func(t *testing.T) {
-		artifact := testArtifact()
-		artifact.SchemaVersion = "2"
-
-		ds, _ := analyzeTestStore(nil, nil)
-
-		_, err := Analyze(t.Context(), ds, artifact, publishedRules(t), true, time.Now(), logger)
-		require.ErrorContains(t, err, "schema version")
-		require.False(t, ds.AllSoftwareIteratorFuncInvoked)
-		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
-	})
-
-	t.Run("an artifact with no modules is refused", func(t *testing.T) {
-		ds, _ := analyzeTestStore(nil, nil)
-
-		_, err := Analyze(t.Context(), ds, &Artifact{SchemaVersion: "1"}, publishedRules(t), true, time.Now(), logger)
-		require.ErrorContains(t, err, "no modules")
-		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
-	})
-
 	t.Run("matches Go binaries and toolchain installs and removes stale rows", func(t *testing.T) {
 
 		startTime := time.Now().Add(-time.Hour)
