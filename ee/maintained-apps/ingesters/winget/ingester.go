@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
@@ -47,6 +48,9 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 		githubClient: githubClient,
 		ghClientOpts: opts,
 		logger:       logger,
+		// Vendor installers can be over 1 GB, so there's no whole-response timeout.
+		vendorClient: fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithResponseHeaderTimeout(time.Minute)),
+		outputPath:   maintained_apps.OutputPath,
 	}
 
 	for _, f := range files {
@@ -81,8 +85,8 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 			return nil, ctxerr.NewWithData(ctx, "missing name for app", map[string]any{"file_name": f.Name()})
 		}
 
-		if input.PackageIdentifier == "" {
-			return nil, ctxerr.NewWithData(ctx, "missing package identifier for app", map[string]any{"file_name": f.Name()})
+		if err := validateSource(input); err != nil {
+			return nil, ctxerr.WrapWithData(ctx, err, "invalid app input", map[string]any{"file_name": f.Name()})
 		}
 
 		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
@@ -94,9 +98,9 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
 			// skip throttled apps; they'll be retried on the next scheduled run
-			if isTransientGitHubError(err) {
+			if isTransientGitHubError(err) || isTransientVendorError(err) {
 				skippedApps++
-				logger.WarnContext(ctx, "skipping app: GitHub rate-limited its ingestion; it will be retried on the next scheduled run",
+				logger.WarnContext(ctx, "skipping app: its upstream source rate-limited or failed transiently; it will be retried on the next scheduled run",
 					"name", input.Name, "err", err)
 				continue
 			}
@@ -107,7 +111,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	}
 
 	if skippedApps > 0 {
-		logger.WarnContext(ctx, "some winget apps were skipped due to GitHub rate limiting", "count", skippedApps)
+		logger.WarnContext(ctx, "some winget apps were skipped due to upstream rate limiting or transient errors", "count", skippedApps)
 	}
 
 	return manifestApps, nil
@@ -131,6 +135,9 @@ type wingetIngester struct {
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
 	logger       *slog.Logger
+	vendorClient *http.Client
+	// outputPath holds the current outputs, so an unchanged vendor installer isn't downloaded again.
+	outputPath string
 }
 
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
@@ -161,7 +168,8 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 	return out
 }
 
-func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+// wingetManifests reads the newest installer and en-US locale manifests for the app's winget package.
+func (i *wingetIngester) wingetManifests(ctx context.Context, input inputApp) (installerManifest, localeManifest, error) {
 	// this is the path within the winget GitHub repo where the manifests are located
 	dirPath := path.Join(
 		"manifests",
@@ -176,12 +184,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		i.ghClientOpts,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("get data from winget repo: %w", err)
+		return installerManifest{}, localeManifest{}, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
 	if len(versionDirs) == 0 {
-		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+		return installerManifest{}, localeManifest{}, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
 			"path": dirPath,
 		})
 	}
@@ -221,16 +229,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
 				continue
 			}
-			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
+			return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
 		}
 
 		contents, err := fileContents.GetContent()
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
+			return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
 		}
 
 		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
+			return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
 		}
 
 		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
@@ -241,16 +249,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			i.ghClientOpts,
 		)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
+			return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
 		}
 
 		contents, err = fileContents.GetContent()
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
+			return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
 		}
 
 		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
+			return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
 		}
 
 		versionFound = true
@@ -258,9 +266,22 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	if !versionFound {
-		return nil, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
+		return installerManifest{}, localeManifest{}, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
 			"path": dirPath,
 		})
+	}
+
+	return m, l, nil
+}
+
+func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+	fetchManifests := i.wingetManifests
+	if input.LatestInstallerURL != "" {
+		fetchManifests = i.vendorManifests
+	}
+	m, l, err := fetchManifests(ctx, input)
+	if err != nil {
+		return nil, err
 	}
 
 	var out maintained_apps.FMAManifestApp
@@ -714,6 +735,10 @@ type inputApp struct {
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
+	// LatestInstallerURL replaces winget as the source for apps whose winget package
+	// stopped updating: a vendor link that redirects to the current versioned installer.
+	// The version is the installer's ProductVersion. Set it instead of PackageIdentifier.
+	LatestInstallerURL string `json:"latest_installer_url"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`
 	InstallScriptPath   string     `json:"install_script_path"`

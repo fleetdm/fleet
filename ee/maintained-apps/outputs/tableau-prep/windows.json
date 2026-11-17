@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "24.3.41107",
+      "version": "26.3.46814",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau Prep Builder 20%' AND publisher = 'Salesforce, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau Prep Builder 20%' AND publisher = 'Salesforce, Inc' AND version_compare(version, '24.3.41107') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau Prep Builder 20%' AND publisher IN ('Salesforce, Inc', 'Tableau Software, LLC');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau Prep Builder 20%' AND publisher IN ('Salesforce, Inc', 'Tableau Software, LLC') AND version_compare(version, '26.3.46814') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tableau prep builder.exe');"
       },
-      "installer_url": "https://downloads.tableau.com/esdalt/tableau_prep/2024.3.4/TableauPrep-2024-3-4.exe",
+      "installer_url": "https://downloads.tableau.com/tssoftware/TableauPrep-2026-3-0.exe",
       "install_script_ref": "f4e35c75",
       "uninstall_script_ref": "8d6294d8",
-      "sha256": "701d117ead4ed4d01c9777730ce097eb2922793d6298c0a38e48c62a1eb7a060",
+      "sha256": "0fc5e888692c566371fa8c41a45907c378ef32d3654a46bb177247cd316f9666",
       "default_categories": [
         "Productivity"
       ]
