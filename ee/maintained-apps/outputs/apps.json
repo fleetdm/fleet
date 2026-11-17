@@ -4307,13 +4307,6 @@
       "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
     },
     {
-      "name": "i1Profiler",
-      "slug": "i1profiler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.x-rite.i1Profiler",
-      "description": "i1Profiler is an automation and creative controls for photographers and designers."
-    },
-    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",
