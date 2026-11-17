@@ -6,5 +6,6 @@
   "slug": "electronmail/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

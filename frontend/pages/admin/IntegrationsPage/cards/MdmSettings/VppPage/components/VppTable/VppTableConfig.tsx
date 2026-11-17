@@ -19,7 +19,7 @@ type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
 type IRenewDateCellProps = CellProps<IMdmVppToken, IMdmVppToken["renew_date"]>;
 type ICreatedAtCellProps = CellProps<IMdmVppToken, IMdmVppToken["created_at"]>;
-type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
+type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["fleets"]>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "editTeams", label: "Edit fleets", disabled: false },
@@ -123,7 +123,7 @@ export const generateTableConfig = (
     },
 
     {
-      accessor: "teams",
+      accessor: "fleets",
       Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (

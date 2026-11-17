@@ -146,6 +146,8 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 
 `mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob` or `mdm_prob_macos`.
 
+`mdm_apns_topic` sets the APNs topic that simulated Apple MDM devices (macOS, iPhone, iPad) send at check-in. Real devices all send the topic of Fleet's APNs certificate, so Fleet keeps a single push provider. To match them, pass the certificate's UID, which you can read with `openssl x509 -in <apns-cert.pem> -noout -subject` (`UID=com.apple.mgmt.External.<uuid>`). The default, `com.apple.mgmt.External.osquery-perf`, is a placeholder that every simulated device shares, which keeps Fleet's push service at one provider too. An empty value (`--mdm_apns_topic ""`) gives each device its own topic, the old behavior: Fleet then loads the APNs certificate and builds a push provider for every device, which inflates Fleet's memory in large Apple load tests.
+
 `mdm_cancelable_command_ack_delay` makes simulated Apple devices log when they fetch a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and wait the given duration before acknowledging it. This opens a window to cancel an already-delivered command (`DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`) and observe the server restoring the host's lock/wipe state when the acknowledgment arrives anyway. The default is 0 (acknowledge immediately, no behavior change).
 
 ### Apple Platform SSO (PSSO)

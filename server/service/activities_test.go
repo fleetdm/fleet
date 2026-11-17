@@ -59,7 +59,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				2: "bar",
 				3: "baz",
 			},
-			expectActivities: []string{"deleted_user_global_role", "changed_user_team_role", "changed_user_team_role", "changed_user_team_role"},
+			expectActivities: []string{"deleted_user_global_role", "changed_user_fleet_role", "changed_user_fleet_role", "changed_user_fleet_role"},
 		}, {
 			name: "DeleteModifyTeam",
 			oldTeamRoles: map[uint]string{
@@ -71,7 +71,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				2: "newRole",
 				3: "baz",
 			},
-			expectActivities: []string{"changed_user_team_role", "deleted_user_team_role"},
+			expectActivities: []string{"changed_user_fleet_role", "deleted_user_fleet_role"},
 		},
 	}
 	ds := new(mock.Store)

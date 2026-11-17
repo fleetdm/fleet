@@ -1,13 +1,14 @@
 {
   "name": "Burp Suite Community Edition",
   "slug": "burp-suite-community/windows",
-  "package_identifier": "PortSwigger.BurpSuite.Community",
-  "unique_identifier": "Burp Suite Community Edition",
-  "fuzzy_match_name": true,
+  "package_identifier": "PortSwigger.BurpSuite",
+  "unique_identifier": "Burp Suite",
+  "exists_query": "SELECT 1 FROM programs WHERE (name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security';",
+  "open_process_names": ["burpsuite.exe", "burpsuitepro.exe", "burpsuitecommunity.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",
   "default_categories": ["Developer tools"],
-  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/burp_suite_community_install.ps1",
-  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/burp_suite_community_uninstall.ps1"
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/burp_suite_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/burp_suite_uninstall.ps1"
 }

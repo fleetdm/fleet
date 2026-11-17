@@ -168,25 +168,3 @@
     white-space: nowrap;
   }
 }
-
-.empty-reports {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: $pad-xxxlarge 0;
-  text-align: center;
-
-  &__heading {
-    font-size: $small;
-    font-weight: $bold;
-    margin-top: $pad-medium;
-    margin-bottom: $pad-xsmall;
-  }
-
-  &__subheading {
-    font-size: $xx-small;
-    color: $ui-fleet-black-75;
-    margin: 0;
-  }
-}

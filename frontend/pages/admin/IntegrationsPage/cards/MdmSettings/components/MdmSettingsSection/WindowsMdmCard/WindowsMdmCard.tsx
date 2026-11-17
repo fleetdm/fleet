@@ -57,8 +57,7 @@ const WindowsMdmCard = ({
 }: IWindowsMdmCardProps) => {
   const { config } = useContext(AppContext);
 
-  const isWindowsMdmEnabled =
-    config?.mdm?.windows_enabled_and_configured ?? false;
+  const isWindowsMdmEnabled = config?.mdm?.windows_mdm_enabled ?? false;
 
   return isWindowsMdmEnabled ? (
     <TurnOffWindowsMdmCard onClickEdit={editWindowsMdm} />

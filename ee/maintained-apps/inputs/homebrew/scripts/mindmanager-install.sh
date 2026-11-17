@@ -5,12 +5,19 @@ APPDIR="/Applications/"
 TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 # functions
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -26,17 +33,26 @@ quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
     sleep 1
     if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
@@ -105,10 +121,10 @@ relaunch_application() {
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
-	hdiutil detach "$MOUNT_POINT" || true
+	hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 	exit 1
 fi
-hdiutil detach "$MOUNT_POINT" || true
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 # MindManager's bundle ID changes with each major version, so read the new one
 # from the installer, quit an older major that's still installed, and relaunch
 # the new version in its place.

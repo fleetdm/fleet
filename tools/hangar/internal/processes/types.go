@@ -29,6 +29,13 @@ type ProcInfo struct {
 	ExitSignal     *int     `json:"exit_signal"`
 	RecentLog      []string `json:"recent_log"`
 	WasUserStopped bool     `json:"was_user_stopped"`
+	// EnvKeys names the env vars the process was started with on top of the
+	// inherited environment (values omitted: they can be secrets). Lets the UI
+	// tell when a running process predates a config change.
+	EnvKeys []string `json:"env_keys"`
+	// Meta is non-secret detail the caller attached at start, returned as
+	// given (e.g. the push URL fleet serve was started with).
+	Meta map[string]string `json:"meta"`
 }
 
 // LogLine is the per-line "proc:log" event payload.
@@ -70,6 +77,7 @@ type StartArgs struct {
 	Args       []string
 	LogChannel string // "" = no structured logging
 	Env        []EnvPair
+	Meta       map[string]string // copied to ProcInfo.Meta; never secrets
 }
 
 // ContainerState is one docker compose service's state.

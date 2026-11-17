@@ -71,6 +71,7 @@ app_store_apps:
       path: ../lib/some-team/software/my-ios-auto-update-app-ios-config.xml
   - app_store_id: "4444333322"
     platform: ios
+    setup_experience: true
     versions:
       - name: Production
         self_service: true

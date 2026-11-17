@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.24.0",
+      "version": "1.24.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox CE %' AND publisher = 'Mediocre Company';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox CE %' AND publisher = 'Mediocre Company' AND version_compare(version, '1.24.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox CE %' AND publisher = 'Mediocre Company' AND version_compare(version, '1.24.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chatbox.exe');"
       },
-      "installer_url": "https://download.chatboxai.app/releases/Chatbox-1.24.0-Setup.exe",
+      "installer_url": "https://download.chatboxai.app/releases/Chatbox-1.24.4-Setup.exe",
       "install_script_ref": "dd2de847",
       "uninstall_script_ref": "ba694131",
-      "sha256": "9cf1c7dc0d79ad3fd63e25714a7f36a97c62c46a72ca6e36fd44b6d7765fd9a7",
+      "sha256": "7d67a0df61c9daf5d3aed57434fcd7d6b0bb98856ec69d16cd3c07bafef24187",
       "default_categories": [
         "Productivity"
       ]

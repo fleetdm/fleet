@@ -16,6 +16,7 @@ const (
 
 // Forbidden is the error type for authorization errors
 type Forbidden struct {
+	message  string
 	internal string
 	subject  *fleet.User
 	object   interface{}
@@ -38,6 +39,9 @@ func ForbiddenWithInternal(internal string, subject *fleet.User, object, action 
 
 // Error implements the error interface.
 func (e *Forbidden) Error() string {
+	if e.message != "" {
+		return e.message
+	}
 	return ForbiddenErrorMessage
 }
 

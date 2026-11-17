@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -140,7 +139,7 @@ func (e *fleetEndpointer) Service() any {
 	return e.svc
 }
 
-func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Full-slice expression prevents aliasing into the caller's backing array
@@ -161,7 +160,7 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 	}
 }
 
-func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
@@ -179,7 +178,7 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 	}
 }
 
-func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newOrbitNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Add the capabilities reported by Orbit to the request context
@@ -213,7 +212,7 @@ func badRequestf(format string, a ...any) error {
 // newDeviceAuthenticatedEndpointer returns the endpointer for device endpoints.
 // Its routes are subject to the Fleet Desktop SSO gate; see
 // newDeviceSSOExemptEndpointer for the exceptions.
-func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return deviceAuthenticatedEndpointer(svc, logger, opts, r, true, versions...)
@@ -222,13 +221,13 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, op
 // newDeviceSSOExemptEndpointer returns an endpointer for the device endpoints
 // that stay reachable with fleet_desktop.sso_enabled on and no device SSO
 // session.
-func newDeviceSSOExemptEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newDeviceSSOExemptEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return deviceAuthenticatedEndpointer(svc, logger, opts, r, false, versions...)
 }
 
-func deviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func deviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *eu.Router,
 	ssoGate bool, versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Make the Fleet Desktop device SSO session available to the auth middleware
@@ -257,7 +256,7 @@ func deviceAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts 
 	return ep.AppendCustomMiddlewareAfterAuth(requireDeviceSSOSession(svc))
 }
 
-func newHostAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newHostAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
@@ -279,7 +278,7 @@ func androidAuthenticatedEndpointer(
 	svc fleet.Service,
 	logger *slog.Logger,
 	opts []kithttp.ServerOption,
-	r *mux.Router,
+	r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
@@ -302,7 +301,7 @@ func androidAuthenticatedEndpointer(
 	}
 }
 
-func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger *slog.Logger, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Inject the fleet.Capabilities header to the response for Orbit hosts

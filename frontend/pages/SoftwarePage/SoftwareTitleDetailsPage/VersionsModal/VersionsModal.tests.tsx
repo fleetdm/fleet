@@ -57,7 +57,7 @@ const renderModal = (pkgOverrides?: Partial<ISoftwarePackage>) => {
     },
   });
   const title = createMockSoftwareTitle({
-    software_package: fmaPackage(pkgOverrides),
+    packages: [fmaPackage(pkgOverrides)],
   });
   const utils = render(
     <VersionsModal

@@ -1,6 +1,6 @@
 {
   "name": "REDCINE-X PRO",
-  "unique_identifier": "com.red.RED-Tether",
+  "unique_identifier": "com.red.RedCineX",
   "token": "redcine-x-pro",
   "installer_format": "pkg",
   "slug": "redcine-x-pro/darwin",

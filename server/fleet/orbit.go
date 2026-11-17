@@ -116,6 +116,18 @@ type OrbitConfig struct {
 	// persistent WebSocket to the server as a check-in notification channel
 	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
 	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+	// EntraDeviceTokenRequest, when set, asks fleetd on macOS to get an Entra ID token
+	// proving the device's Entra device ID and post it to the server, for the Microsoft
+	// "Conditional access" integration. Its values only change with the integration.
+	EntraDeviceTokenRequest *OrbitEntraDeviceTokenRequest `json:"entra_device_token_request,omitempty"`
+}
+
+// OrbitEntraDeviceTokenRequest holds the parameters of the Entra device token request.
+type OrbitEntraDeviceTokenRequest struct {
+	TenantID string `json:"tenant_id"`
+	ClientID string `json:"client_id"`
+	// Nonce binds the token to the host. It's prefixed with the host's hardware UUID.
+	Nonce string `json:"nonce"`
 }
 
 // OrbitWebSocketTransportConfig is the WebSocket transport directive delivered

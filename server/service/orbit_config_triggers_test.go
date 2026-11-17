@@ -22,6 +22,7 @@ var orbitConfigFieldTriggers = map[string]string{
 	"update_channels":            "hook: orbitconfig_notify SaveAppConfig/SaveTeam/AddHostsToTeam",
 	"debug_logging":              "fallback-only: expiry is time-based",
 	"websocket_transport":        "fallback-only: server config, changes on restart",
+	"entra_device_token_request": "hook: orbitconfig_notify AddHostsToTeam; fallback-only for conditional access integration and setting changes",
 	"notifications":              "see the notifications fields",
 
 	// fleet.OrbitConfigNotifications

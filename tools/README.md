@@ -237,7 +237,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `hangar/` | Desktop control panel for the Fleet dev environment (Go + Wails, macOS) — run `fleet serve`, manage branches / DB / fleetctl / GitOps / osquery-perf from one window | `cd tools/hangar && task dev` - See [hangar/README.md](hangar/README.md) |
 | `oncall/` | Find community issues/PRs | `./tools/oncall/oncall.sh issues` or `./tools/oncall/oncall.sh prs` |
 | **Infrastructure** | | |
-| `apm-elastic/` | Elastic APM config | See [apm-elastic/README.md](apm-elastic/README.md) |
 | `calendar/` | Calendar integration tools | See [calendar/README.md](calendar/README.md) |
 | `fdm/` | FleetDM developer tools | `fdm <command>` - Wrapper for Fleet make targets |
 | `fleet-docker/` | Fleet Docker configs | Docker configuration for Fleet |
@@ -257,7 +256,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `mdm/apple/applebmapi/` | Query Apple Business API | `go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name <org>` |
 | `mdm/apple/appmanifest/` | Generate app manifest XML from .pkg | `go run ./tools/mdm/apple/appmanifest -pkg-file app.pkg -pkg-url https://example.com/app.pkg` |
 | `mdm/apple/apnspush/` | Send APNS push to enrolled devices | `go run ./tools/mdm/apple/apnspush -mysql localhost:3306 -server-private-key <key> <HOST_UUID>` |
-| `mdm/apple/loadtest/` | MDM load testing (deprecated — see [dibble](dibble/README.md) for seeding teams + profiles) | `go run ./tools/mdm/apple/loadtest` |
 | `mdm/apple/macos-vm-auto-enroll/` | Auto-enroll macOS VMs in MDM | `./tools/mdm/apple/macos-vm-auto-enroll/macos-vm-auto-enroll.sh` |
 | `mdm/apple/setupexperience/` | Test setup experience flows | `go run ./tools/mdm/apple/setupexperience` |
 | `mdm/assets/` | Export/import MDM assets (SCEP, APNS, etc.) | `go run ./tools/mdm/assets export -key=<key> -dir=<dir>` or `import` |

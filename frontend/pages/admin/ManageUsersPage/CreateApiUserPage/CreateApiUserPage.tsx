@@ -34,7 +34,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ILoadTeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.fleets,
     }
   );
 

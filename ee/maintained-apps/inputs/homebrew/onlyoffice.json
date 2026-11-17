@@ -1,6 +1,6 @@
 {
   "name": "ONLYOFFICE",
-  "unique_identifier": "asc.onlyoffice.editors-helper-renderer",
+  "unique_identifier": "asc.onlyoffice.ONLYOFFICE",
   "token": "onlyoffice",
   "installer_format": "dmg",
   "slug": "onlyoffice/darwin",

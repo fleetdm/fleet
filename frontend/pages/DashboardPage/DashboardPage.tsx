@@ -37,7 +37,6 @@ import {
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import paths from "router/paths";
 import configAPI from "services/entities/config";
@@ -46,8 +45,8 @@ import hostSummaryAPI from "services/entities/host_summary";
 import hosts from "services/entities/hosts";
 import macadminsAPI from "services/entities/macadmins";
 import softwareAPI, {
-  ISoftwareQueryKey,
-  ISoftwareCountQueryKey,
+  ISoftwareVersionsQueryKey,
+  ISoftwareVersionsResponse,
 } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import {
@@ -75,7 +74,11 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 import useInfoCard from "./components/InfoCard";
 import MdmSolutionModal from "./components/MdmSolutionModal";
-import { LOW_DISK_SPACE_GB, PLATFORM_DROPDOWN_OPTIONS } from "./helpers";
+import {
+  getPlatformHostCounts,
+  LOW_DISK_SPACE_GB,
+  PLATFORM_DROPDOWN_OPTIONS,
+} from "./helpers";
 import MetricsHostCounts from "./sections/MetricsHostCounts";
 
 const baseClass = "dashboard-page";
@@ -179,7 +182,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     if (canEditActivityFeedAutomations) {
       setShowActivityFeedAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname, query: rest });
   }, [
     location.query,
@@ -212,7 +216,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   >(["teams"], () => teamsAPI.loadAll(), {
     enabled: !!isPremiumTier,
     select: (data: ILoadTeamsResponse) =>
-      data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      data.fleets.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
   });
 
   const {
@@ -264,34 +268,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
   );
 
-  const totalCounts = useMemo<IHostPlatformCounts>(() => {
-    const base: IHostPlatformCounts = {
-      darwin: 0,
-      windows: 0,
-      linux: 0,
-      chrome: 0,
-      ios: 0,
-      ipados: 0,
-      android: 0,
-    };
-    if (!hostSummaryTotals?.platforms) {
-      return base;
-    }
-    const counts = hostSummaryTotals.platforms.reduce<IHostPlatformCounts>(
-      (acc, item) => {
-        if (item.platform !== "linux" && item.platform in acc) {
-          acc[item.platform as keyof IHostPlatformCounts] =
-            item.hosts_count || 0;
-        }
-        return acc;
-      },
-      { ...base }
-    );
-    return {
-      ...counts,
-      linux: hostSummaryTotals.all_linux_count || 0,
-    };
-  }, [hostSummaryTotals]);
+  const totalCounts = useMemo<IHostPlatformCounts>(
+    () => getPlatformHostCounts(hostSummaryTotals?.platforms),
+    [hostSummaryTotals]
+  );
 
   const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
     IEnrollSecretsResponse,
@@ -366,14 +346,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isFetching: isSoftwareFetching,
     error: errorSoftware,
   } = useQuery<
-    ISoftwareResponse,
+    ISoftwareVersionsResponse,
     Error,
-    ISoftwareResponse,
-    ISoftwareQueryKey[]
+    ISoftwareVersionsResponse,
+    ISoftwareVersionsQueryKey[]
   >(
     [
       {
-        scope: "software",
+        scope: "software-versions",
         page: softwarePageIndex,
         perPage: SOFTWARE_DEFAULT_PAGE_SIZE,
         orderDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
@@ -382,7 +362,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         vulnerable: isViewingVulnerableSoftware,
       },
     ],
-    ({ queryKey }) => softwareAPI.load(queryKey[0]),
+    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
     {
       enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
@@ -408,25 +388,32 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setShowSoftwareCard(false);
       setSoftwareTitleDetail(null);
     }
-    // For vulnerable software with no results, the count query will handle showing the card.
+    // For vulnerable software with no results, the count query handles card visibility.
   }, [software, isViewingVulnerableSoftware]);
 
   // If viewing vulnerable software and no results are returned,
-  // fetch the count of non-vulnerable software to decide if the card should be shown.
+  // check total software count via a 1-row versions request to decide if the card should be shown.
   const shouldFetchSoftwareCount =
     isSoftwareEnabled && // Needed to prevent race condition with isSoftwareFetching
     !isSoftwareFetching &&
     isViewingVulnerableSoftware &&
     (!software?.software || software?.software.length === 0);
 
-  useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
+  useQuery<
+    ISoftwareVersionsResponse,
+    Error,
+    number,
+    ISoftwareVersionsQueryKey[]
+  >(
     [
       {
-        scope: "softwareCount",
+        scope: "software-versions",
+        page: 0,
+        perPage: 1,
         teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
+    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
     {
       enabled: isRouteOk && shouldFetchSoftwareCount,
       keepPreviousData: true,

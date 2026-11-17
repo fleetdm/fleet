@@ -7,7 +7,7 @@ import SearchField from "components/forms/fields/SearchField";
 import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import { APP_CONTEXT_ALL_TEAMS_ID, getTeamDisplayName } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID, getFleetDisplayName } from "interfaces/team";
 
 import { IVppFleetsValue } from "./helpers";
 
@@ -41,7 +41,7 @@ const VppFleetsSelector = ({
         .filter((t) => t.id !== APP_CONTEXT_ALL_TEAMS_ID)
         .map((t) => ({
           id: t.id,
-          label: getTeamDisplayName({ team_id: t.id, name: t.name }),
+          label: getFleetDisplayName({ fleet_id: t.id, name: t.name }),
         })),
     [availableTeams]
   );

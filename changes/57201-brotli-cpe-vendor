@@ -1,1 +1,0 @@
-- Fixed the `Brotli` Python package and the `brotli` Homebrew package being matched to the CPE for the Go port of brotli (`andybalholm:brotli`) instead of Google's, which caused missed vulnerabilities.
