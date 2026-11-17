@@ -92,5 +92,7 @@ func TestRemoveJSONKeys(t *testing.T) {
 		require.Error(t, err)
 		_, err = RemoveJSONKeys([]byte(`{"a": 1} {"b": 2}`), []string{"a"})
 		require.Error(t, err)
+		_, err = RemoveJSONKeys([]byte(`null {"b": 2}`), []string{"a"})
+		require.Error(t, err)
 	})
 }

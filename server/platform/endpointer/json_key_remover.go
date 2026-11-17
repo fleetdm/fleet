@@ -15,6 +15,12 @@ func RemoveJSONKeys(data []byte, paths ...[]string) ([]byte, error) {
 	switch dec.PeekKind() {
 	case '{':
 	case 'n':
+		if _, err := dec.ReadToken(); err != nil {
+			return nil, err
+		}
+		if err := requireEndOfInput(dec); err != nil {
+			return nil, err
+		}
 		return data, nil
 	default:
 		if _, err := dec.ReadToken(); err != nil {
@@ -29,10 +35,7 @@ func RemoveJSONKeys(data []byte, paths ...[]string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := dec.ReadToken(); err != io.EOF {
-		if err == nil {
-			err = errors.New("unexpected data after the JSON object")
-		}
+	if err := requireEndOfInput(dec); err != nil {
 		return nil, err
 	}
 	if !removed {
@@ -90,6 +93,16 @@ func copyObjectWithoutKeys(dec *jsontext.Decoder, enc *jsontext.Encoder, paths [
 		}
 	}
 	return removed, copyToken(dec, enc)
+}
+
+func requireEndOfInput(dec *jsontext.Decoder) error {
+	if _, err := dec.ReadToken(); err != io.EOF {
+		if err == nil {
+			err = errors.New("unexpected data after the JSON value")
+		}
+		return err
+	}
+	return nil
 }
 
 func copyToken(dec *jsontext.Decoder, enc *jsontext.Encoder) error {
