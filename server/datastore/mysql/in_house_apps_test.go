@@ -45,6 +45,7 @@ func TestInHouseApps(t *testing.T) {
 		{"BatchSetInHouseInstallersInstallDuringSetup", testBatchSetInHouseInstallersInstallDuringSetup},
 		{"ManifestURLUsesAppleServerURL", testInHouseAppManifestURLUsesAppleServerURL},
 		{"RemovePendingInstallsSkipsInstallWithDeletedUpcomingActivity", testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity},
+		{"RemovePendingInstallsRemovesQueuedInstalls", testRemovePendingInHouseAppInstallsRemovesQueuedInstalls},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2352,4 +2353,84 @@ func testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity(
 		return sqlx.GetContext(ctx, q, &host1Canceled, `SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, cmdUUID1)
 	})
 	require.False(t, host1Canceled)
+}
+
+// A queued install exists only as an upcoming_activities row joined to
+// in_house_app_upcoming_activities: its host_in_house_software_installs row is
+// created when the activity is activated, i.e. when the InstallApplication
+// command is actually sent. Removing the pending installs of an in-house app
+// must delete those queued installs too, otherwise they get sent later with
+// the post-edit settings (and to hosts the edited labels may exclude).
+func testRemovePendingInHouseAppInstallsRemovesQueuedInstalls(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team queued"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "ihq-host1", "1", "ihq-host1key", "ihq-host1uuid", time.Now(), test.WithPlatform("ios"))
+	host2 := test.NewHost(t, ds, "ihq-host2", "2", "ihq-host2key", "ihq-host2uuid", time.Now(), test.WithPlatform("ios"))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID})))
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+
+	appID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &team.ID, UserID: user.ID,
+		Title: "ihq-one", Filename: "ihq-one.ipa", BundleIdentifier: "com.ihq.one",
+		StorageID: "ihq-one-storage", Platform: "ios", Extension: "ipa", Version: "1.0",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	appID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &team.ID, UserID: user.ID,
+		Title: "ihq-two", Filename: "ihq-two.ipa", BundleIdentifier: "com.ihq.two",
+		StorageID: "ihq-two-storage", Platform: "ios", Extension: "ipa", Version: "1.0",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// host1: the first app1 install is sent (activated), a second app1 install
+	// stays queued behind it and an app2 install queues behind both.
+	sentHost1 := createInHouseAppInstallRequest(t, ds, host1.ID, appID1, titleID1, user)
+	queuedHost1 := createInHouseAppInstallRequest(t, ds, host1.ID, appID1, titleID1, user)
+	nextHost1 := createInHouseAppInstallRequest(t, ds, host1.ID, appID2, titleID2, user)
+	// host2: an app2 install is sent and an app1 install queues behind it.
+	otherHost2 := createInHouseAppInstallRequest(t, ds, host2.ID, appID2, titleID2, user)
+	queuedHost2 := createInHouseAppInstallRequest(t, ds, host2.ID, appID1, titleID1, user)
+
+	checkUpcomingActivities(t, ds, host1, sentHost1, queuedHost1, nextHost1)
+	checkUpcomingActivities(t, ds, host2, otherHost2, queuedHost2)
+
+	require.NoError(t, ds.RemovePendingInHouseAppInstalls(ctx, appID1))
+
+	// The queued app1 installs are gone, the sent one was canceled, and the
+	// next queued activity on host1 was activated to take its place.
+	checkUpcomingActivities(t, ds, host1, nextHost1)
+	checkUpcomingActivities(t, ds, host2, otherHost2)
+
+	var sentCanceled, otherCanceled bool
+	var queuedInstallRows, remainingUpcoming int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &sentCanceled,
+			`SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, sentHost1); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &otherCanceled,
+			`SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, otherHost2); err != nil {
+			return err
+		}
+		if err := sqlx.GetContext(ctx, q, &queuedInstallRows,
+			`SELECT COUNT(*) FROM host_in_house_software_installs WHERE command_uuid IN (?, ?)`,
+			queuedHost1, queuedHost2); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &remainingUpcoming, `
+SELECT COUNT(*) FROM upcoming_activities ua
+INNER JOIN in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
+WHERE ihua.in_house_app_id = ?`, appID1)
+	})
+	require.True(t, sentCanceled, "the sent install of the edited app must be canceled")
+	require.Zero(t, queuedInstallRows, "queued installs must never reach host_in_house_software_installs")
+	require.Zero(t, remainingUpcoming, "no upcoming activity may remain for the edited app")
+	require.False(t, otherCanceled, "another app's sent install must be left alone")
 }

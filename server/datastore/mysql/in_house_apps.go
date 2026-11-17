@@ -412,6 +412,26 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 }
 
 func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHouseAppID uint) error {
+	// Installs that are still queued in a host's upcoming activity queue have
+	// no host_in_house_software_installs row yet - that row is created when
+	// the activity is activated and the InstallApplication command is sent.
+	// Delete the queued activities first: canceling a sent install below
+	// activates the host's next queued activity, which could be a queued
+	// install of this same app.
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN in_house_app_upcoming_activities ihua
+				ON upcoming_activities.id = ihua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'in_house_app_install' AND
+			upcoming_activities.activated_at IS NULL AND
+			ihua.in_house_app_id = ?
+	`, inHouseAppID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete queued in-house app installs")
+	}
+
 	type ipaInstall struct {
 		HostID      uint   `db:"host_id"`
 		ExecutionID string `db:"command_uuid"`
