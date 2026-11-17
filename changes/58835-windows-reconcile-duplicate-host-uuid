@@ -1,0 +1,1 @@
+- Fixed the Windows profile reconciler sending a new MDM command every 30 seconds when more than one host shares a hardware UUID. Fleet now applies the configuration profiles of the fleet that the most recently created MDM-enrolled Windows host with that UUID is on.

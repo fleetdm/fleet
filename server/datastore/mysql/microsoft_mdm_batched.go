@@ -11,12 +11,27 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// windowsReconcileHostPredicate selects the hosts the Windows reconciler manages. The enrollment relationships are EXISTS subqueries
+// rather than JOINs so a host with more than one mdm_windows_enrollments row (the table has no uniqueness on host_uuid) yields one
+// record. A device's enrollment and host_mdm_windows_profiles rows are keyed by UUID, so when hosts rows share a UUID only the eligible
+// row with the highest id is selected. The NOT EXISTS must repeat each per-row condition, or a newer ineligible row would hide it.
+// It forces idx_hosts_uuid because with stale index statistics MySQL scans hosts once per row instead.
+const windowsReconcileHostPredicate = `
+			h.platform = 'windows'
+			AND EXISTS (
+				SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid
+			)
+			AND EXISTS (
+				SELECT 1 FROM host_mdm hmdm WHERE hmdm.host_id = h.id AND hmdm.enrolled = 1
+			)
+			AND NOT EXISTS (
+				SELECT 1 FROM hosts h2 FORCE INDEX (idx_hosts_uuid)
+				JOIN host_mdm hmdm2 ON hmdm2.host_id = h2.id AND hmdm2.enrolled = 1
+				WHERE h2.uuid = h.uuid AND h2.id > h.id AND h2.platform = 'windows'
+			)`
+
 // listWindowsMDMHostsForReconcileBatchTransaction returns up to batchSize Windows-MDM-enrolled hosts with uuid > afterHostUUID,
 // ordered ascending by uuid, along with the fields the batched reconciler needs to compute the desired state in memory.
-//
-// platform 'windows', an mdm_windows_enrollments row, and a host_mdm row with enrolled = 1. The two enrollment relationships are
-// expressed as EXISTS subqueries rather than JOINs so a host with more than one mdm_windows_enrollments row (the table has no
-// uniqueness on host_uuid) yields exactly one host record here.
 func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 	ctx context.Context,
 	tx common_mysql.DBReadTx,
@@ -30,15 +45,7 @@ func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 			h.team_id          AS team_id,
 			h.label_updated_at AS label_updated_at
 		FROM hosts h
-		WHERE
-			h.platform = 'windows'
-			AND h.uuid > ?
-			AND EXISTS (
-				SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid
-			)
-			AND EXISTS (
-				SELECT 1 FROM host_mdm hmdm WHERE hmdm.host_id = h.id AND hmdm.enrolled = 1
-			)
+		WHERE h.uuid > ? AND ` + windowsReconcileHostPredicate + `
 		ORDER BY h.uuid
 		LIMIT ?
 	`
@@ -50,9 +57,8 @@ func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 	return hosts, nil
 }
 
-// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
-// rules as the batched reconciler's host listing (platform 'windows', an mdm_windows_enrollments row, host_mdm.enrolled = 1).
-// Returns (nil, nil) when the host doesn't exist or isn't eligible.
+// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, selecting the same host row as the
+// batched reconciler's listing. Returns (nil, nil) when the host doesn't exist or isn't eligible.
 func (ds *Datastore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 	const stmt = `
 		SELECT
@@ -61,17 +67,7 @@ func (ds *Datastore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID
 			h.team_id          AS team_id,
 			h.label_updated_at AS label_updated_at
 		FROM hosts h
-		WHERE
-			h.platform = 'windows'
-			AND h.uuid = ?
-			AND EXISTS (
-				SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid
-			)
-			AND EXISTS (
-				SELECT 1 FROM host_mdm hmdm WHERE hmdm.host_id = h.id AND hmdm.enrolled = 1
-			)
-		LIMIT 1
-	`
+		WHERE h.uuid = ? AND ` + windowsReconcileHostPredicate
 
 	var host fleet.WindowsHostReconcileInfo
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {

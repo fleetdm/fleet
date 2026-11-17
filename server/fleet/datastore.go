@@ -2943,8 +2943,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
-	// rules as the batched reconciler's host listing. Returns (nil, nil) when the host doesn't exist or isn't eligible.
+	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, selecting the same host row
+	// as the batched reconciler's host listing when several hosts share the UUID. Returns (nil, nil) when the host doesn't exist or
+	// isn't eligible.
 	GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*WindowsHostReconcileInfo, error)
 
 	// ListWindowsProfilesForReconcileByTeam is the per-host variant of the reconcile snapshot's profile loader: it loads only
