@@ -204,7 +204,7 @@ func TestLiveQueryConnectionCloseDoesNotPanic(t *testing.T) {
 		},
 		token: "1234",
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})
@@ -261,7 +261,7 @@ func TestLiveQueryDoneClosesWithoutDrainingErrors(t *testing.T) {
 		},
 		token: "1234",
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})

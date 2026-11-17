@@ -186,10 +186,12 @@ be run on the union of the hosts and hosts with matching labels.
 				timeoutChan = make(chan time.Time)
 			}
 
+			var resultsReceived uint
 			for {
 				select {
 				// Print a result
 				case hostResult := <-res.Results():
+					resultsReceived++
 					s.Stop()
 
 					if err := output.WriteResult(hostResult); err != nil {
@@ -212,8 +214,12 @@ be run on the union of the hosts and hosts with matching labels.
 						default:
 							status := res.Status()
 							totals := res.Totals()
-							if status != nil && totals != nil &&
-								(totals.Total == status.ActualResults || (flExit && status.ActualResults >= totals.Online)) {
+							responded := resultsReceived
+							if status != nil && status.ActualResults > responded {
+								responded = status.ActualResults
+							}
+							if totals != nil && (status != nil || resultsReceived > 0) &&
+								(totals.Total == responded || (flExit && responded >= totals.Online)) {
 								return nil
 							}
 							return errors.New("live query connection closed before report completed")
