@@ -709,6 +709,8 @@ func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
 // across all types and compared without regard to case, because profiles reference a CA by name.
 type CANameInUseError struct {
 	Name string
+	// SameType is set when the other CA is of the same type, which for NDES means an NDES CA already exists.
+	SameType bool
 }
 
 func (e CANameInUseError) Error() string {

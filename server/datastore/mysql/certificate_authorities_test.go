@@ -1027,6 +1027,12 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 		nameInUse, ok := errors.AsType[fleet.CANameInUseError](err)
 		require.True(t, ok, "got %v", err)
 		require.Equal(t, name, nameInUse.Name)
+		require.False(t, nameInUse.SameType)
+	}
+	inUseBySameType := func(t *testing.T, err error, name string) {
+		nameInUse, ok := errors.AsType[fleet.CANameInUseError](err)
+		require.True(t, ok, "got %v", err)
+		require.Equal(t, fleet.CANameInUseError{Name: name, SameType: true}, nameInUse)
 	}
 	names := func() []string {
 		cas, err := ds.ListCertificateAuthorities(ctx)
@@ -1046,22 +1052,27 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 
 	t.Run("create", func(t *testing.T) {
 		cases := []struct {
-			name   string
-			ca     *fleet.CertificateAuthority
-			inUse  string
-			reason string
+			name     string
+			ca       *fleet.CertificateAuthority
+			inUse    string
+			sameType bool
+			reason   string
 		}{
 			{"EJBCA with a DigiCert name", &fleet.CertificateAuthority{
 				Type: string(fleet.CATypeEJBCA), Name: new("digicert"), URL: new("https://ejbca.example.com"),
-			}, "digicert", "different types"},
-			{"SCEP with an EJBCA name", scepCA("ejbca"), "ejbca", "different types"},
-			{"SCEP with a DigiCert name in another case", scepCA("DIGICERT"), "DIGICERT", "names are compared without regard to case"},
-			{"SCEP with a SCEP name", scepCA("Scep"), "Scep", "same type"},
+			}, "digicert", false, "different types"},
+			{"SCEP with an EJBCA name", scepCA("ejbca"), "ejbca", false, "different types"},
+			{"SCEP with a DigiCert name in another case", scepCA("DIGICERT"), "DIGICERT", false, "names are compared without regard to case"},
+			{"SCEP with a SCEP name", scepCA("Scep"), "Scep", true, "same type"},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				_, err := ds.NewCertificateAuthority(ctx, c.ca)
-				inUse(t, err, c.inUse)
+				if c.sameType {
+					inUseBySameType(t, err, c.inUse)
+				} else {
+					inUse(t, err, c.inUse)
+				}
 				require.ElementsMatch(t, unchanged, names(), c.reason)
 			})
 		}

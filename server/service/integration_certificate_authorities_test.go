@@ -3281,6 +3281,17 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	for _, name := range []string{"NDES", "ndes"} {
 		require.Contains(t, apply(true, http.StatusUnprocessableEntity, ejbcaSpec(name, wifi.ClientP12)), "CA name cannot be NDES")
 	}
+	// Also for an unchanged CA that has had the name from before it was reserved in every case.
+	legacyNDESName, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("ndes"), URL: new(scepServer.URL + "/scep"), Challenge: new("challenge"),
+	})
+	require.NoError(t, err)
+	errText := applyCAs(batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: fleet.GroupedCertificateAuthorities{CustomScepProxy: []fleet.CustomSCEPProxyCA{scepSpec("ndes")}}, DryRun: true,
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, errText, "certificate_authorities.custom_scep_proxy.name: CA name cannot be NDES")
+	_, err = s.ds.DeleteCertificateAuthority(ctx, legacyNDESName.ID)
+	require.NoError(t, err)
 
 	// A rename that only changes the case updates the CA, it doesn't delete it.
 	apply(false, http.StatusOK, lowerCase)
@@ -3289,7 +3300,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	// GitOps applies the spec without deletes first and deletes later, after it cleans up the certificate templates. A CA that changes type
 	// and keeps its name has to be replaced in the first pass anyway, because names can't be shared, while the other CAs that aren't in
 	// the spec stay for the later pass.
-	_, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("NOT_IN_SPEC"), URL: new(scepServer.URL + "/scep"), Challenge: new("challenge"),
 	})
 	require.NoError(t, err)

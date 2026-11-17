@@ -268,7 +268,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		result, err := tx.ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
 		if err != nil {
 			if strings.Contains(err.Error(), "idx_ca_type_name") {
-				return fleet.CANameInUseError{Name: *ca.Name}
+				return fleet.CANameInUseError{Name: *ca.Name, SameType: true}
 			}
 			return ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 		}
@@ -711,7 +711,7 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 
 		if _, err := tx.ExecContext(ctx, stmt, updateArgs...); err != nil {
 			if strings.Contains(err.Error(), "idx_ca_type_name") {
-				return fleet.CANameInUseError{Name: *ca.Name}
+				return fleet.CANameInUseError{Name: *ca.Name, SameType: true}
 			}
 			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
 		}

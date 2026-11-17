@@ -172,9 +172,13 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
-		if _, ok := errors.AsType[fleet.CANameInUseError](err); ok {
+		if nameInUse, ok := errors.AsType[fleet.CANameInUseError](err); ok {
 			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
-				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s. Only a single NDES CA can be added.", errPrefix)}
+				if nameInUse.SameType {
+					return nil, &fleet.BadRequestError{Message: errPrefix + "Only a single NDES CA can be added."}
+				}
+				// A CA of another type can hold the name from before names had to be unique.
+				return nil, &fleet.BadRequestError{Message: errPrefix + "Another certificate authority is named NDES. Please rename it and try again."}
 			}
 			return nil, fleet.NewInvalidArgumentError("name", errPrefix+err.Error())
 		}
@@ -594,12 +598,13 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 
-	// Names are unique across all CA types, without regard to case. The NDES CA's name is fixed.
+	// Names are unique across all CA types, without regard to case. The NDES CA's name is fixed, so no other CA can have it. This is checked
+	// for every CA, before the unchanged ones are skipped, so that one keeping a name from before these rules can't be applied either.
 	allNames := make(map[string]struct{})
-	if incoming.NDESSCEP != nil {
-		allNames[caNameKey("NDES")] = struct{}{}
-	}
 	checkAllNames := func(name, caType string) error {
+		if strings.EqualFold(name, "NDES") {
+			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("certificate_authorities.%s.name: CA name cannot be NDES", caType))
+		}
 		key := caNameKey(name)
 		if _, seen := allNames[key]; seen {
 			return fleet.NewInvalidArgumentError("name",
