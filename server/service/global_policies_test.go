@@ -1227,7 +1227,9 @@ func TestApplyPolicySpecsHidden(t *testing.T) {
 func TestApplyPolicySpecsWebhookOrTicketPermission(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) { return &fleet.Team{ID: 1, Name: name}, nil }
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error { return nil }
 	// The stored name is NFC-normalized; the spec below spells it decomposed.
 	ds.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
