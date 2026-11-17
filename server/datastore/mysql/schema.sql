@@ -1648,6 +1648,36 @@ CREATE TABLE `host_users` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_vpp_app_installs` (
+  `host_id` int unsigned NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version_bucket` int unsigned NOT NULL,
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  `installed_install_id` int unsigned DEFAULT NULL,
+  `failed_install_id` int unsigned DEFAULT NULL,
+  `unfinished_install_id` int unsigned DEFAULT NULL,
+  `visible_install_id` int unsigned DEFAULT NULL,
+  `latest_install_id` int unsigned DEFAULT NULL,
+  `unfailed_install_id` int unsigned DEFAULT NULL,
+  `visible_created_at` timestamp NULL DEFAULT NULL,
+  `visible_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `visible_verification_at` datetime(6) DEFAULT NULL,
+  `visible_verification_failed_at` datetime(6) DEFAULT NULL,
+  `latest_created_at` timestamp NULL DEFAULT NULL,
+  `latest_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `latest_verification_at` datetime(6) DEFAULT NULL,
+  `latest_verification_failed_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`,`adam_id`,`platform`,`version_bucket`),
+  KEY `idx_hvai_version_host` (`vpp_app_team_id`,`host_id`),
+  KEY `idx_hvai_app_host` (`adam_id`,`platform`,`host_id`),
+  CONSTRAINT `fk_hvai_app` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE,
+  CONSTRAINT `fk_hvai_version` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_vpp_software_installs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int unsigned NOT NULL,
@@ -2016,6 +2046,31 @@ CREATE TABLE `locks` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `log_vpp_app_install_attempts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `install_id` int unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `associated_event_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `attempt` tinyint unsigned NOT NULL,
+  `outcome` enum('installed','failed','retried','canceled') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mdm_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `requested_at` timestamp NULL DEFAULT NULL,
+  `finished_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_lvaia_event` (`command_uuid`,`outcome`,`associated_event_id`),
+  KEY `idx_lvaia_host_app` (`host_id`,`adam_id`,`platform`,`id`),
+  KEY `idx_lvaia_finished` (`finished_at`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
