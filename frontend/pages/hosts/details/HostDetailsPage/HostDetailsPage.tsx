@@ -693,8 +693,8 @@ const HostDetailsPage = ({
   // wait to show the host details page until we have the activities data.
   const {
     data: pastActivities,
-    isFetching: pastActivitiesIsFetching,
     isLoading: pastActivitiesIsLoading,
+    isPreviousData: pastActivitiesIsPreviousData,
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
@@ -730,8 +730,8 @@ const HostDetailsPage = ({
 
   const {
     data: upcomingActivities,
-    isFetching: upcomingActivitiesIsFetching,
     isLoading: upcomingActivitiesIsLoading,
+    isPreviousData: upcomingActivitiesIsPreviousData,
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
@@ -783,8 +783,8 @@ const HostDetailsPage = ({
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
-    isFetching: pastMDMCommandsIsFetching,
     isLoading: pastMDMCommandsIsLoading,
+    isPreviousData: pastMDMCommandsIsPreviousData,
   } = useQuery(
     [
       {
@@ -815,8 +815,8 @@ const HostDetailsPage = ({
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
-    isFetching: upcomingMDMCommandsIsFetching,
     isLoading: upcomingMDMCommandsIsLoading,
+    isPreviousData: upcomingMDMCommandsIsPreviousData,
   } = useQuery(
     [
       {
@@ -1532,6 +1532,13 @@ const HostDetailsPage = ({
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  // keepPreviousData holds the current page's data (and its has_next_results) while the
+  // requested page is in flight, so pagination clicks are blocked until it resolves.
+  const isActiveTabPagePending = () =>
+    activeActivityTab === "past"
+      ? pastActivitiesIsPreviousData || pastMDMCommandsIsPreviousData
+      : upcomingActivitiesIsPreviousData || upcomingMDMCommandsIsPreviousData;
+
   const isMacOSHost = isMacOS(host.platform);
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
@@ -1956,8 +1963,17 @@ const HostDetailsPage = ({
                     (upcomingMDMCommands?.count || 0)
                   }
                   onChangeTab={onChangeActivityTab}
-                  onNextPage={() => setActivityPage(activityPage + 1)}
-                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onNextPage={() => {
+                    // keepPreviousData keeps meta.has_next_results from the current page while
+                    // the requested page is in flight, so without this guard a rapid second
+                    // click can skip past the real last page into an empty one.
+                    if (isActiveTabPagePending()) return;
+                    setActivityPage(activityPage + 1);
+                  }}
+                  onPreviousPage={() => {
+                    if (isActiveTabPagePending()) return;
+                    setActivityPage(activityPage - 1);
+                  }}
                   onShowDetails={onShowActivityDetails}
                   onShowCommandDetails={setMdmCommandDetails}
                   onCancel={onCancelActivity}
