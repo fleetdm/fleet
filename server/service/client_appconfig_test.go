@@ -240,3 +240,44 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		assert.Contains(t, joined, "would upload org logo (dark)")
 	})
 }
+
+func TestPlanAndStripOrgLogosOmittedOrgInfo(t *testing.T) {
+	t.Parallel()
+
+	for name, orgSettings := range map[string]map[string]any{
+		"omitted": {},
+		"blank":   {"org_info": nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			actions, err := (&Client{}).planAndStripOrgLogos(orgSettings, t.TempDir(), false, func(string, ...any) {})
+			require.NoError(t, err)
+			require.Empty(t, actions)
+			require.Equal(t, map[string]any{"org_logo_url_light_mode": "", "org_logo_url_dark_mode": ""}, orgSettings["org_info"])
+		})
+	}
+}
+
+func TestApplyGitOpsOrgSettingsDefaultsSMTPPassword(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct {
+		name     string
+		smtp     map[string]any
+		expected any
+	}{
+		{"omitted is not sent", map[string]any{}, nil},
+		{"blank is not sent", map[string]any{"password": nil}, nil},
+		{"empty is not sent", map[string]any{"password": ""}, nil},
+		{"string is sent", map[string]any{"password": "secret"}, "secret"},
+		{"non-string is sent", map[string]any{"password": 123456}, 123456},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			orgSettings := map[string]any{"smtp_settings": c.smtp}
+			_, err := applyGitOpsOrgSettingsDefaults(orgSettings, nil)
+			require.NoError(t, err)
+			password, present := c.smtp["password"]
+			require.Equal(t, c.expected != nil, present)
+			require.Equal(t, c.expected, password)
+		})
+	}
+}

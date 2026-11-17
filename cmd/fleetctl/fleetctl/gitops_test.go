@@ -596,9 +596,9 @@ software:
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
 
-	// GitOps should not overwrite GitOps UI Mode.
-	assert.Equal(t, savedAppConfig.GitOpsConfig.GitopsModeEnabled, true)
-	assert.Equal(t, savedAppConfig.GitOpsConfig.RepositoryURL, "https://didsomeonesaygitops.biz")
+	// GitOps mode is reset because the YAML omits it; the exceptions are UI-only and survive.
+	assert.False(t, savedAppConfig.GitOpsConfig.GitopsModeEnabled)
+	assert.Empty(t, savedAppConfig.GitOpsConfig.RepositoryURL)
 	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Labels, false)
 	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Software, true)
 	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Secrets, false)
@@ -5232,16 +5232,14 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
 
-	t.Run("omitted preserves prior value", func(t *testing.T) {
+	t.Run("omitted resets to false", func(t *testing.T) {
 		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-		// Seed the AppConfig with true so we can confirm gitops does not clobber
-		// the value when the field is absent from the YAML.
 		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
 
 		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
 		require.NoError(t, err)
-		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
 }
 
@@ -5996,25 +5994,15 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 		return nil
 	}
 
-	// Do a GitOps run with no smtp settings.
+	// A run with no smtp_settings resets them to the defaults.
 	_, err := runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
-	// Currently we do NOT clear the SMTP settings if they are not in the config,
-	// because the smtp_settings key is not documented in the GitOps config.
-	// TODO - update this test if we change this behavior.
 	require.Equal(t, &fleet.SMTPSettings{
-		SMTPEnabled:              true,
-		SMTPConfigured:           true,
-		SMTPSenderAddress:        "http://example.com",
-		SMTPServer:               "server.example.com",
 		SMTPPort:                 587,
-		SMTPAuthenticationType:   "smoooth",
-		SMTPUserName:             "uzer",
-		SMTPPassword:             "********",
+		SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+		SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
 		SMTPEnableTLS:            true,
-		SMTPAuthenticationMethod: "crunchy",
-		SMTPDomain:               "smtp.example.com",
 		SMTPVerifySSLCerts:       true,
 		SMTPEnableStartTLS:       true,
 	}, appConfig.SMTPSettings)
@@ -9412,7 +9400,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
 	})
 
-	t.Run("YAML omitting gitops preserves stored mode and url", func(t *testing.T) {
+	t.Run("YAML omitting gitops resets stored mode and url", func(t *testing.T) {
 		seed := fleet.GitOpsConfig{
 			GitopsModeEnabled: true,
 			RepositoryURL:     "https://prior.example.com",
@@ -9423,8 +9411,8 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
-		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
-		assert.Equal(t, "https://prior.example.com", saved.GitOpsConfig.RepositoryURL)
+		assert.False(t, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Empty(t, saved.GitOpsConfig.RepositoryURL)
 	})
 
 	t.Run("YAML omitting gitops preserves exceptions", func(t *testing.T) {

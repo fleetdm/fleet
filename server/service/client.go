@@ -2381,6 +2381,20 @@ func (c *Client) DoGitOps(
 			return nil, err
 		}
 
+		resets, err := applyGitOpsOrgSettingsDefaults(incoming.OrgSettings, appConfig)
+		if err != nil {
+			return nil, err
+		}
+		for _, section := range gitOpsHighRiskOrgSettings {
+			if keys := resets[section]; len(keys) > 0 {
+				verb := "set"
+				if dryRun {
+					verb = "would've set"
+				}
+				logFn("[!] %s org_settings.%s to defaults because not defined in YAML: %s\n", verb, section, strings.Join(keys, ", "))
+			}
+		}
+
 		// windows_eula is applied after ApplyGroup, see doGitOpsWindowsEULA. The
 		// file is checked here, before labels or settings are applied, so a bad
 		// path can't leave Windows MDM turned on without its agreement.
@@ -2660,8 +2674,9 @@ func (c *Client) DoGitOps(
 		team = make(map[string]interface{})
 		team["name"] = *incoming.TeamName
 		team["agent_options"] = incoming.AgentOptions
-		if hostExpirySettings, ok := incoming.TeamSettings["host_expiry_settings"]; ok {
-			team["host_expiry_settings"] = hostExpirySettings
+		team["host_expiry_settings"] = incoming.TeamSettings["host_expiry_settings"]
+		if team["host_expiry_settings"] == nil {
+			team["host_expiry_settings"] = fleet.HostExpirySettings{}
 		}
 		if features, ok := incoming.TeamSettings["features"]; ok {
 			team["features"] = features

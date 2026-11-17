@@ -185,11 +185,18 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 
 	// Only admins should see SMTP and SSO settings
+	isGlobalGitOps := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleGitOps
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
 	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
+	}
+	// Global GitOps users can already write the SMTP settings. They get to
+	// read them too so that fleetctl can warn when a run is about to clear
+	// them, including the password.
+	if isGlobalGitOps {
+		smtpSettings = appConfig.SMTPSettings
 	}
 
 	// Only global admins should see osquery agent settings.
@@ -758,6 +765,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
+
+	validateSMTPPasswordForNewDestination(newAppConfig.SMTPSettings, oldSMTPSettings, appConfig.SMTPSettings, invalid)
 
 	// Appends rather than returning early; errors surface at the validation gate below.
 	validateCertificateRequestIdentityControlsLicense(newAppConfig.Integrations, lic, invalid)
@@ -2073,6 +2082,23 @@ func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesk
 		return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 	}
 	return nil
+}
+
+// A request that leaves out the SMTP password keeps the stored one. If the same
+// request also changes where Fleet authenticates, the stored password would be
+// sent to a destination picked by someone who doesn't know it.
+func validateSMTPPasswordForNewDestination(incoming *fleet.SMTPSettings, old fleet.SMTPSettings, merged *fleet.SMTPSettings, invalid *fleet.InvalidArgumentError) {
+	if incoming == nil || merged == nil || incoming.SMTPPassword != "" {
+		return
+	}
+	passwordKept := old.SMTPPassword != "" && merged.SMTPPassword == old.SMTPPassword
+	if !passwordKept || merged.SMTPAuthenticationType != fleet.AuthTypeNameUserNamePassword {
+		return
+	}
+	if merged.SMTPServer != old.SMTPServer || merged.SMTPPort != old.SMTPPort ||
+		merged.SMTPUserName != old.SMTPUserName || merged.SMTPAuthenticationType != old.SMTPAuthenticationType {
+		invalid.Append("smtp_settings.password", "must be provided when changing server, port, user_name, or authentication_type")
+	}
 }
 
 // validateCertificateRequestIdentityControlsLicense premium-gates the request_certificate IdP
