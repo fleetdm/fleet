@@ -62,6 +62,7 @@ func TestPolicies(t *testing.T) {
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"WebhooksAndTicketsPolicies", testWebhooksAndTicketsPolicies},
 		{"WebhooksAndTicketsWrites", testWebhooksAndTicketsWrites},
+		{"WebhooksAndTicketsByPatchPolicySlug", testWebhooksAndTicketsByPatchPolicySlug},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
@@ -11732,4 +11733,44 @@ func testWebhooksAndTicketsWrites(t *testing.T, ds *Datastore) {
 	byName, err = ds.WebhooksAndTicketsByPolicyName(ctx, nil, []string{"g"})
 	require.NoError(t, err)
 	require.Equal(t, map[string]bool{"g": false}, byName)
+}
+
+func testWebhooksAndTicketsByPatchPolicySlug(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice-patch-webhook@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "patch webhook"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "patch webhook other"})
+	require.NoError(t, err)
+
+	addPatchPolicy := func(teamID uint, name string, webhook bool) {
+		fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name: name, Slug: name + "/darwin", Platform: "darwin", UniqueIdentifier: "com.example." + name,
+		})
+		require.NoError(t, err)
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(name), t.TempDir)
+		require.NoError(t, err)
+		_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID: &teamID, Title: name, Source: "apps", Platform: "darwin", BundleIdentifier: "com.example." + name,
+			InstallScript: "echo install", UninstallScript: "echo uninstall",
+			InstallerFile: tfr, StorageID: name, Filename: name + ".pkg", Version: "1.0",
+			UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
+		})
+		require.NoError(t, err)
+		_, err = ds.NewTeamPolicy(ctx, teamID, &user.ID, fleet.PolicyPayload{
+			Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID, WebhooksAndTicketsEnabled: webhook,
+		})
+		require.NoError(t, err)
+	}
+	addPatchPolicy(team.ID, "on", true)
+	addPatchPolicy(team.ID, "off", false)
+	addPatchPolicy(otherTeam.ID, "elsewhere", true)
+
+	bySlug, err := ds.WebhooksAndTicketsByPatchPolicySlug(ctx, team.ID, []string{"on/darwin", "off/darwin", "elsewhere/darwin", "missing/darwin"})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"on/darwin": true, "off/darwin": false}, bySlug)
+
+	bySlug, err = ds.WebhooksAndTicketsByPatchPolicySlug(ctx, team.ID, nil)
+	require.NoError(t, err)
+	require.Empty(t, bySlug)
 }

@@ -142,6 +142,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, nil
 			}
 		}
+		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
+			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
 		if mockDS.WebhooksAndTicketsByPolicyNameFunc == nil {
 			mockDS.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
 				return nil, nil

@@ -1271,7 +1271,26 @@ func (s *integrationTestSuite) TestGlobalPolicyAutomationTypeFree() {
 		http.StatusOK, &modResp)
 	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modResp.Policy.AutomationType)
 
-	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": "script"}`),
-		http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policies can only have automation_type "webhook_or_ticket"`)
+	// Other automation types are Premium, checked before the "All fleets" rule (covered in the Premium tests).
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": "script"}`),
+		http.StatusPaymentRequired)
+	// On "Unassigned" policies, the other automation types are Premium, as are the fields they stand for.
+	var unassigned fleet.TeamPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "platform": "darwin"}`, t.Name()+" unassigned")), http.StatusOK, &unassigned)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteTeamPolicies(context.Background(), 0, []uint{unassigned.Policy.ID})
+		require.NoError(t, err)
+	})
+	s.Do("POST", "/api/latest/fleet/fleets/0/policies", json.RawMessage(fmt.Sprintf(
+		`{"name": %q, "query": "SELECT 1", "platform": "darwin", "automation_type": "conditional_access"}`, t.Name()+" ca")), http.StatusPaymentRequired)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", unassigned.Policy.ID),
+		json.RawMessage(`{"automation_type": "conditional_access"}`), http.StatusPaymentRequired)
+	var modTeamResp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", unassigned.Policy.ID),
+		json.RawMessage(`{"automation_type": "webhook_or_ticket"}`), http.StatusOK, &modTeamResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modTeamResp.Policy.AutomationType)
+	p, err := s.ds.Policy(context.Background(), unassigned.Policy.ID)
+	require.NoError(t, err)
+	require.False(t, p.ConditionalAccessEnabled)
 }

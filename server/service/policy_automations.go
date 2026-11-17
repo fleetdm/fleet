@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"golang.org/x/text/unicode/norm"
 )
@@ -19,6 +20,15 @@ type policyAutomationCompanions struct {
 	softwareTitleID bool
 	scriptID        bool
 	profileUUID     bool
+}
+
+// checkAutomationTypeLicense checks that the automation type is available on the license. Fleet Free has webhook or
+// ticket and no automation; the rest are Premium, like the fields they stand for.
+func checkAutomationTypeLicense(ctx context.Context, automationType *fleet.PolicyAutomation) error {
+	if automationType != nil && *automationType != fleet.PolicyAutomationWebhookOrTicket && !license.IsPremium(ctx) {
+		return fleet.ErrMissingLicense
+	}
+	return nil
 }
 
 // checkAutomationTypeCompanions checks that the request sets the field the automation type needs, and no field of
@@ -140,6 +150,10 @@ func applyAutomationType(teamID *uint, p *fleet.ModifyPolicyPayload) (webhookOrT
 	return is(fleet.PolicyAutomationWebhookOrTicket), nil
 }
 
+func isPatchPolicySpec(spec *fleet.PolicySpec) bool {
+	return spec.Type == fleet.PolicyTypePatch && spec.FleetMaintainedAppSlug != ""
+}
+
 // policySpecTeamID is the spec's scope: nil for "All fleets", 0 for "Unassigned".
 func policySpecTeamID(spec *fleet.PolicySpec, teamIDsByName map[string]uint) *uint {
 	switch spec.Team {
@@ -167,17 +181,31 @@ func (svc *Service) authorizeWebhookOrTicketSpecChanges(ctx context.Context, spe
 		scopes[spec.Team].specs = append(scopes[spec.Team].specs, spec)
 	}
 	for _, sc := range scopes {
-		// Stored names are NFC-normalized.
+		// Stored names are NFC-normalized. Patch policies are matched by app, so a spec can rename one.
 		names := make([]string, 0, len(sc.specs))
+		var slugs []string
 		for _, spec := range sc.specs {
 			names = append(names, norm.NFC.String(spec.Name))
+			if isPatchPolicySpec(spec) && sc.teamID != nil {
+				slugs = append(slugs, spec.FleetMaintainedAppSlug)
+			}
 		}
 		current, err := svc.ds.WebhooksAndTicketsByPolicyName(ctx, sc.teamID, names)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get current webhook and ticket automations")
 		}
+		var currentBySlug map[string]bool
+		if len(slugs) > 0 {
+			if currentBySlug, err = svc.ds.WebhooksAndTicketsByPatchPolicySlug(ctx, *sc.teamID, slugs); err != nil {
+				return ctxerr.Wrap(ctx, err, "get current webhook and ticket automations of patch policies")
+			}
+		}
 		for _, spec := range sc.specs {
-			if spec.WebhooksAndTicketsEnabled != current[norm.NFC.String(spec.Name)] {
+			before := current[norm.NFC.String(spec.Name)]
+			if enabled, ok := currentBySlug[spec.FleetMaintainedAppSlug]; ok && isPatchPolicySpec(spec) {
+				before = enabled
+			}
+			if spec.WebhooksAndTicketsEnabled != before {
 				if err := svc.authorizeWebhookOrTicketChange(ctx, sc.teamID); err != nil {
 					return err
 				}

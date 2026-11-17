@@ -1192,6 +1192,8 @@ type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, po
 
 type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
 
+type WebhooksAndTicketsByPatchPolicySlugFunc func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
+
 type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
@@ -4356,6 +4358,9 @@ type DataStore struct {
 
 	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
 	WebhooksAndTicketsByPolicyNameFuncInvoked bool
+
+	WebhooksAndTicketsByPatchPolicySlugFunc        WebhooksAndTicketsByPatchPolicySlugFunc
+	WebhooksAndTicketsByPatchPolicySlugFuncInvoked bool
 
 	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
 	SetWebhooksAndTicketsPoliciesFuncInvoked bool
@@ -10564,6 +10569,13 @@ func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *
 	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.WebhooksAndTicketsByPolicyNameFunc(ctx, teamID, names)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPatchPolicySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPatchPolicySlugFunc(ctx, teamID, slugs)
 }
 
 func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {

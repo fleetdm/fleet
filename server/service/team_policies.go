@@ -71,6 +71,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
 
+	if err := checkAutomationTypeLicense(ctx, tp.AutomationType); err != nil {
+		return nil, err
+	}
 	if tp.AutomationType != nil {
 		if err := checkAutomationTypeCompanions(tp.AutomationType, policyAutomationCompanions{
 			softwareTitleID: tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0,
@@ -743,6 +746,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	automationsBefore := policy.Automations()
 	webhookOrTicketBefore := policy.WebhooksAndTicketsEnabled
 	webhookOrTicketAfter := webhookOrTicketBefore
+	if p.AutomationType.Valid {
+		if err := checkAutomationTypeLicense(ctx, &p.AutomationType.Value); err != nil {
+			return nil, err
+		}
+	}
 	if p.AutomationType.Set {
 		if webhookOrTicketAfter, err = applyAutomationType(teamID, &p); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "apply automation type")

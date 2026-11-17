@@ -1251,4 +1251,26 @@ func TestApplyPolicySpecsWebhookOrTicketPermission(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "forbidden")
 	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	// Patch policies are matched by app, so renaming one in a spec is still a change to its automation.
+	ds.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+		return nil, nil
+	}
+	ds.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+		require.Equal(t, uint(1), teamID)
+		require.Equal(t, []string{"zoom/darwin"}, slugs)
+		return map[string]bool{"zoom/darwin": true}, nil
+	}
+	patchSpec := func(webhook bool) []*fleet.PolicySpec {
+		return []*fleet.PolicySpec{{
+			Name: "renamed patch policy", Team: "team1", Type: fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/darwin", WebhooksAndTicketsEnabled: webhook,
+		}}
+	}
+	ds.ApplyPolicySpecsFuncInvoked = false
+	err = svc.ApplyPolicySpecs(maintainerCtx, patchSpec(false))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "forbidden")
+	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	require.NoError(t, svc.ApplyPolicySpecs(maintainerCtx, patchSpec(true)))
+	require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 }

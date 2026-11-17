@@ -1133,4 +1133,7 @@ func MockWebhookPolicyIDs(ds *mock.Store) {
 	ds.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
 		return nil, nil
 	}
+	ds.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+		return nil, nil
+	}
 }
