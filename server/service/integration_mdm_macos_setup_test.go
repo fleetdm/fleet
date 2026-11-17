@@ -339,7 +339,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	var lhr listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "fleet_id", "0", "bootstrap_package", "pending")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "fleet_id", "0", "macos_bootstrap_package", "pending")
 	require.Len(t, lhr.Hosts, len(noTeamDevices)-1)
 
 	// set the default bm assignment to `team`
@@ -471,7 +471,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 			expectedSerials = expectedSerialsByTeamAndStatus[*teamID][status]
 		}
 
-		listHostsPath := fmt.Sprintf("/api/latest/fleet/hosts?bootstrap_package=%s", status)
+		listHostsPath := fmt.Sprintf("/api/latest/fleet/hosts?macos_bootstrap_package=%s", status)
 		if teamID != nil {
 			listHostsPath += fmt.Sprintf("&fleet_id=%d", *teamID)
 		}
@@ -496,7 +496,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 			}
 		}
 
-		countPath := fmt.Sprintf("/api/latest/fleet/hosts/count?bootstrap_package=%s", status)
+		countPath := fmt.Sprintf("/api/latest/fleet/hosts/count?macos_bootstrap_package=%s", status)
 		if teamID != nil {
 			countPath += fmt.Sprintf("&fleet_id=%d", *teamID)
 		}
@@ -640,7 +640,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageManualEnrollment() {
 	require.Equal(t, fleet.MDMBootstrapPackageInstalled, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)
 
 	var listResp listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(team.ID), "bootstrap_package", "installed")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(team.ID), "macos_bootstrap_package", "installed")
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, host.ID, listResp.Hosts[0].ID)
 
@@ -2631,4 +2631,26 @@ func (s *integrationMDMTestSuite) TestSetupExperienceManagedLocalAccountKeys() {
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(
 		`{"mdm": {"setup_experience": {"windows_managed_local_account_enabled": true}}}`), http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "setup_experience.windows_managed_local_account_enabled")
+}
+
+func (s *integrationMDMTestSuite) TestRemovedSetupExperienceNames() {
+	t := s.T()
+
+	removedMsg := func(name string) string {
+		return `The "` + name + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	}
+
+	const setupPath = "/api/latest/fleet/setup_experience"
+	for _, name := range []string{"enable_release_device_manually", "manual_agent_install"} {
+		res := s.DoRaw("PATCH", setupPath, []byte(`{"`+name+`": false}`), http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), removedMsg(name))
+	}
+	s.DoRaw("PATCH", setupPath,
+		[]byte(`{"apple_enable_release_device_manually": false, "macos_manual_agent_install": false}`), http.StatusNoContent)
+
+	for _, path := range []string{"/api/latest/fleet/hosts", "/api/latest/fleet/hosts/count"} {
+		res := s.DoRaw("GET", path+"?bootstrap_package=pending", nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), removedMsg("bootstrap_package"), path)
+		s.DoRaw("GET", path+"?macos_bootstrap_package=pending&fleet_id=0", nil, http.StatusOK)
+	}
 }
