@@ -24,7 +24,10 @@ export const getErrorMessage = (err: unknown) => {
     (isAxiosError(err) ? err.response?.status : undefined) ??
     (hasStatusKey(err) ? err.status : undefined);
   const isTimeout =
-    responseStatus === 504 || responseStatus === 408 || responseStatus === 499; // upstream proxy/LB canceled the request
+    responseStatus === 504 ||
+    responseStatus === 408 ||
+    responseStatus === 499 || // upstream proxy/LB canceled the request
+    responseStatus === 524; // Cloudflare origin timeout
   const reason = getErrorReason(err);
 
   if (
