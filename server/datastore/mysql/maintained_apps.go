@@ -574,13 +574,21 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		// differ only by a platform suffix ("R for macOS"/"R for Windows"), the
 		// row drops it, so search must ignore it too. A single-platform app keeps
 		// its suffix ("Google Credential Provider for Windows").
-		// ponytail: correlated subquery per row; fine for the few hundred FMAs.
-		where += ` AND (CASE WHEN EXISTS (
-			SELECT 1 FROM fleet_maintained_apps sib
-			WHERE SUBSTRING_INDEX(sib.slug, '/', 1) = SUBSTRING_INDEX(fma.slug, '/', 1)
-				AND sib.id <> fma.id
-				AND REGEXP_REPLACE(sib.name, ' for (macOS|Mac|Windows)$', '') = REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '')
-		) THEN REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') ELSE fma.name END) LIKE ?`
+		// Find the merged names once in a joined table, a subquery per row is slow with
+		// the full catalog.
+		fromClause += `
+			LEFT JOIN (
+				SELECT names.merged_app_token, names.merged_name
+				FROM (
+					SELECT SUBSTRING_INDEX(slug, '/', 1) AS merged_app_token, REGEXP_REPLACE(name, ' for (macOS|Mac|Windows)$', '') AS merged_name
+					FROM fleet_maintained_apps
+				) names
+				GROUP BY names.merged_app_token, names.merged_name
+				HAVING COUNT(*) > 1
+			) merged_names ON merged_names.merged_app_token = SUBSTRING_INDEX(fma.slug, '/', 1)
+				AND merged_names.merged_name = REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '')`
+
+		where += ` AND (CASE WHEN merged_names.merged_app_token IS NOT NULL THEN merged_names.merged_name ELSE fma.name END) LIKE ?`
 		whereArgs = append(whereArgs, likePattern(match))
 	}
 	if opt.Platform == "darwin" || opt.Platform == "windows" {

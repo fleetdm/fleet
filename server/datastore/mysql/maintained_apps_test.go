@@ -917,6 +917,30 @@ func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastor
 	require.Empty(t, search("for Mac"))
 	require.ElementsMatch(t, []string{"gcpw/windows"}, search("for Windows"))
 	require.ElementsMatch(t, []string{"wechat/darwin", "wechat/windows"}, search("WeChat"))
+
+	// page through a search matching two apps one app per page, the first page should hold both
+	// platforms of the merged app and the second page the single-platform app
+	mkApp("Pagedsearch One for macOS", "pagedsearch-one/darwin", "darwin", "com.example.pagedsearch-one")
+	mkApp("Pagedsearch One for Windows", "pagedsearch-one/windows", "windows", "Pagedsearch One")
+	mkApp("Pagedsearch Two", "pagedsearch-two/darwin", "darwin", "com.example.pagedsearch-two")
+	searchOpts := fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{MatchQuery: "Pagedsearch", IncludeMetadata: true, PerPage: 1}}
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Equal(t, "pagedsearch-one/darwin", apps[0].Slug)
+	require.Equal(t, "pagedsearch-one/windows", apps[1].Slug)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.True(t, meta.HasNextResults)
+
+	searchOpts.Page = 1
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, "pagedsearch-two/darwin", apps[0].Slug)
+	require.False(t, meta.HasNextResults)
+
+	// search for the platform suffix of the merged app, nothing should match
+	require.Empty(t, search("Pagedsearch One for"))
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {

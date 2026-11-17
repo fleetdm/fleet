@@ -844,8 +844,9 @@ SELECT
 		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end
 	{{end}}
 FROM software_titles st
-	{{if and (hasTeamID .) (or .AvailableForInstall .SelfServiceOnly)}}
-		-- These filters only keep titles with an installer, VPP app or in-house app in the fleet
+	{{if and (hasTeamID .) (or .AvailableForInstall .SelfServiceOnly (and .PackagesOnly (not .ListOptions.MatchQuery)))}}
+		-- These filters only keep titles with an installer, VPP app or in-house app in the fleet.
+		-- A search replaces the packages only filter below, so packages only with a search is excluded
 		INNER JOIN ({{fleetInstallableTitleIDs (teamID .)}}) fleet_installable_titles ON fleet_installable_titles.title_id = st.id
 	{{end}}
 	{{if hasTeamID .}}
