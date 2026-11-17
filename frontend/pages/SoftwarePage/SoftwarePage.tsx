@@ -259,7 +259,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     },
     {
       enabled: isRouteOk,
-      select: (data) => ("team" in data ? data.team : data),
+      select: (data) => ("fleet" in data ? data.fleet : data),
     }
   );
 
@@ -283,7 +283,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
     setPendingDeepLinkAutomations(true);
-    const { manage_automations, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [queryParams, location.pathname, router]);
 

@@ -14,7 +14,7 @@ export type ITarget = IHost | ILabel | ITeam;
 export interface ITargets {
   hosts: IHost[];
   labels: ILabel[];
-  teams: ITeam[];
+  fleets: ITeam[];
 }
 
 export interface ITargetsAPIResponse {
@@ -46,19 +46,13 @@ export type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;
 export interface ISelectedTargetsForApi {
   hosts: number[];
   labels: number[];
-  teams: number[];
+  fleets: number[];
 }
 
 export interface ISelectedTargetsByType {
   hosts: IHost[];
   labels: ILabel[];
-  teams: ITeam[];
-}
-
-export interface IPackTargets {
-  host_ids: (number | string)[];
-  label_ids: (number | string)[];
-  fleet_ids: (number | string)[];
+  fleets: ITeam[];
 }
 
 // TODO: Also use for testing
@@ -67,5 +61,5 @@ export const DEFAULT_TARGETS: ITarget[] = [];
 export const DEFAULT_TARGETS_BY_TYPE: ISelectedTargetsByType = {
   hosts: [],
   labels: [],
-  teams: [],
+  fleets: [],
 };

@@ -70,13 +70,10 @@
     gap: @inner-gap-s;
   }
   [purpose='cta-button'] {
-    .cta-button();
-    padding: 8px 16px;
-    height: 36px;
+    .primary-button();
+    display: flex;
     min-width: 140px;
     font-weight: 700;
-    font-size: 14px;
-    line-height: @text-lineheight;
     white-space: nowrap;
   }
 
@@ -357,12 +354,10 @@
       margin-bottom: 8px;
     }
     input {
-      border-radius: 6px;
+      .text-input(large);
       border: 1px solid #C5C7D1;
       background: #FFF;
       display: flex;
-      height: 48px;
-      padding: 0 12px;
       align-items: center;
       gap: 8px;
       align-self: stretch;
@@ -459,7 +454,6 @@
       }
     }
     .form-control {
-      font-size: 14px;
       color: #515774;
       &.is-invalid {
         color: #FF5C83;
@@ -541,9 +535,7 @@
     }
     [purpose='submit-button'] {
       display: flex;
-      height: 36px;
       max-width: 128px;
-      padding: 8px 16px;
       justify-content: center;
       align-items: center;
       gap: 4px;
@@ -552,10 +544,8 @@
 
       /* Body/Emphasis/SM */
       font-family: Inter;
-      font-size: 14px;
       font-style: normal;
       font-weight: 700;
-      line-height: 150%;
     }
   }
 

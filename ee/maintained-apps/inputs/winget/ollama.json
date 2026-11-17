@@ -3,6 +3,7 @@
   "slug": "ollama/windows",
   "package_identifier": "Ollama.Ollama",
   "unique_identifier": "Ollama",
+  "open_process_names": ["ollama.exe", "ollama app.exe"],
   "fuzzy_match_name": "Ollama version %",
   "installer_arch": "x64",
   "installer_type": "exe",

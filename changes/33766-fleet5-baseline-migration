@@ -1,0 +1,1 @@
+- Fleet 5 creates a new database with a single baseline migration instead of replaying every Fleet 4 migration, so `fleet prepare db` on an empty database is much faster. Fleet 4 databases must be on the latest Fleet 4.95.x before upgrading to Fleet 5.

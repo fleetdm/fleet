@@ -34,7 +34,7 @@ export const getWhen = (summary: IScriptBatchSummaryV2) => {
       }
       return (
         <>
-          <Icon name="pending-outline" color="ui-fleet-black-50" size="small" />
+          <Icon name="pending" color="ui-fleet-black-50" />
           Started{" "}
           <HumanTimeDiffWithFleetLaunchCutoff
             timeString={started_at}
@@ -51,7 +51,7 @@ export const getWhen = (summary: IScriptBatchSummaryV2) => {
       }
       return (
         <>
-          <Icon name="clock" color="ui-fleet-black-50" size="small" />
+          <Icon name="clock" color="ui-fleet-black-50" />
           Will start{" "}
           <HumanTimeDiffWithFleetLaunchCutoff
             timeString={not_before}
@@ -69,9 +69,8 @@ export const getWhen = (summary: IScriptBatchSummaryV2) => {
       return (
         <>
           <Icon
-            name={canceled ? "close-filled" : "success"}
+            name={canceled ? "close" : "success"}
             color="ui-fleet-black-50"
-            size="small"
           />
           {canceled ? "Canceled" : "Completed"}
           <HumanTimeDiffWithFleetLaunchCutoff

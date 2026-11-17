@@ -34,7 +34,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| ASM enrollment (Apple) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Windows enrollment | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Windows Autopilot | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Work Profile enrollment (Android) | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |

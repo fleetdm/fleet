@@ -14,7 +14,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: "verified",
     text: "Verified",
-    iconName: "success",
+    iconName: "verified",
     tooltipText: <>These hosts applied all OS settings. Fleet verified.</>,
   },
   {

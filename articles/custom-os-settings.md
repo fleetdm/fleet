@@ -10,6 +10,9 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
+> When you add or edit a configuration profile, Fleet checks that each setting it recognizes has a value of the expected type. For example, a setting Apple or Microsoft documents as a number must be a number. Settings and payload types Fleet doesn't recognize are allowed.
+> To skip this check, turn off **Profile validation** in **Organization settings > Advanced options**.
+
 ### Apple declaration (DDM) profiles
 
 For Apple hosts, Fleet supports uploading declaration (DDM) profiles as `.json` files. Fleet supports the following types:
@@ -325,6 +328,16 @@ SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\emp
 ```
 
 > If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
+
+#### Conflicting settings in multiple profiles
+
+If two Windows profiles set the same setting (`<LocURI>`) to different values, Fleet accepts both and doesn't show a warning. The host ends up with the value from whichever profile it processes last. The order isn't guaranteed, so the result can differ between hosts.
+
+Only the overlapping setting is affected. For example, if one profile sets the camera and microphone settings, and a second profile only sets the camera, the microphone setting from the first profile still applies. Both profiles show as "Verified" because Fleet only checks that the host returned a success status code, not which value is in effect. If you delete one of the profiles, Fleet doesn't remove the shared setting because the other profile still enforces it. The host keeps its current value, which can be the value from the profile you deleted.
+
+To avoid unexpected results, make sure each setting is in only one profile that applies to a host. If you need different values for different hosts, use [labels](#target-hosts-with-labels) to target each profile.
+
 
 ### Special Android behavior
 

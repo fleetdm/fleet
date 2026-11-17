@@ -38,18 +38,18 @@ const getEnabledManagedLocalAccount = (
     return {
       managed_local_account:
         globalConfig?.mdm?.setup_experience
-          ?.enable_create_local_admin_account ?? false,
+          ?.macos_managed_local_account_enabled ?? false,
       local_account_type:
-        globalConfig?.mdm?.setup_experience?.end_user_local_account_type,
+        globalConfig?.mdm?.setup_experience?.macos_end_user_local_account_type,
     };
   }
 
   return {
     managed_local_account:
-      teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+      teamConfig?.mdm?.setup_experience?.macos_managed_local_account_enabled ??
       false,
     local_account_type:
-      teamConfig?.mdm?.setup_experience?.end_user_local_account_type,
+      teamConfig?.mdm?.setup_experience?.macos_end_user_local_account_type,
   };
 };
 
@@ -60,11 +60,13 @@ const getEnabledManagedLocalAccountWindows = (
 ): boolean => {
   if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
     return (
-      globalConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
+      globalConfig?.mdm?.setup_experience
+        ?.windows_managed_local_account_enabled ?? false
     );
   }
   return (
-    teamConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
+    teamConfig?.mdm?.setup_experience?.windows_managed_local_account_enabled ??
+    false
   );
 };
 

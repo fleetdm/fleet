@@ -7,14 +7,6 @@ export interface IAppleBusinessTokenFormData {
   token: File | null;
 }
 
-export interface IGetAppleBMInfoResponse {
-  apple_id: string;
-  default_fleet: string;
-  mdm_server_url: string;
-  org_name: string;
-  renew_date: string;
-}
-
 export interface IGetAbTokensResponse {
   ab_tokens: IMdmAbToken[];
 }
@@ -32,32 +24,6 @@ export interface IReleaseHostsFromABResponse {
 }
 
 export default {
-  getAppleBMInfo: (): Promise<IGetAppleBMInfoResponse> => {
-    const { MDM_APPLE_BM } = endpoints;
-    const path = MDM_APPLE_BM;
-    return sendRequest("GET", path);
-  },
-  loadKeys: () => {
-    const { MDM_APPLE_BM_KEYS } = endpoints;
-    const path = MDM_APPLE_BM_KEYS;
-
-    return sendRequest("POST", path).then(({ private_key, public_key }) => {
-      let decodedPublic;
-      let decodedPrivate;
-      try {
-        decodedPublic = global.window.atob(public_key);
-        decodedPrivate = global.window.atob(private_key);
-      } catch (err) {
-        return Promise.reject(`Unable to decode keys: ${err}`);
-      }
-      if (!decodedPrivate || !decodedPublic) {
-        return Promise.reject("Missing or undefined keys.");
-      }
-
-      return Promise.resolve({ decodedPublic, decodedPrivate });
-    });
-  },
-
   downloadPublicKey: () => {
     const { MDM_APPLE_AB_PUBLIC_KEY } = endpoints;
     return sendRequest("GET", MDM_APPLE_AB_PUBLIC_KEY);

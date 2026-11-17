@@ -48,7 +48,7 @@ func probe(path string) RepoProbe {
 	if !strings.Contains(string(contents), "github.com/fleetdm/fleet") {
 		return invalid(p, "go.mod module is not github.com/fleetdm/fleet")
 	}
-	return RepoProbe{Path: p, Valid: true}
+	return RepoProbe{Path: paths.OnDisk(p), Valid: true}
 }
 
 // ProbeOne validates the given path as a Fleet repo.
@@ -56,7 +56,8 @@ func ProbeOne(path string) RepoProbe { return probe(path) }
 
 // DiscoverFleetRepos walks the well-known dev-root parents (plus ~/fleet)
 // and returns every directory that looks like a Fleet clone, deduped by
-// canonical path so a clone reached via a symlink appears once.
+// identity so a clone reached via a symlink, or via both ~/code and ~/Code
+// on a case-insensitive volume, appears once.
 func DiscoverFleetRepos() []RepoProbe {
 	home, _ := os.UserHomeDir()
 	roots := make([]string, len(devRoots))
@@ -68,23 +69,23 @@ func DiscoverFleetRepos() []RepoProbe {
 
 func discoverFleetRepos(home string, roots []string) []RepoProbe {
 	var results []RepoProbe
-	seen := map[string]bool{}
-
-	canonical := func(p string) string {
-		if c, err := filepath.EvalSymlinks(p); err == nil {
-			return c
-		}
-		return p
-	}
-	maybeAdd := func(path string) {
-		pr := probe(path)
-		if !pr.Valid {
+	var seen []os.FileInfo
+	add := func(pr RepoProbe) {
+		fi, err := os.Stat(pr.Path)
+		if err != nil {
 			return
 		}
-		key := canonical(path)
-		if !seen[key] {
-			seen[key] = true
-			results = append(results, pr)
+		for _, s := range seen {
+			if os.SameFile(s, fi) {
+				return
+			}
+		}
+		seen = append(seen, fi)
+		results = append(results, pr)
+	}
+	maybeAdd := func(path string) {
+		if pr := probe(path); pr.Valid {
+			add(pr)
 		}
 	}
 
@@ -105,11 +106,7 @@ func discoverFleetRepos(home string, roots []string) []RepoProbe {
 			child := filepath.Join(root, entry.Name())
 			// Depth-1 hit?
 			if pr := probe(child); pr.Valid {
-				key := canonical(child)
-				if !seen[key] {
-					seen[key] = true
-					results = append(results, pr)
-				}
+				add(pr)
 				continue // don't descend into a known repo
 			}
 			// Not itself a repo (no go.mod) → treat as a potential org

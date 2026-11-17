@@ -1,6 +1,8 @@
 import classnames from "classnames";
 import React, { KeyboardEvent, ReactElement } from "react";
 
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
+
 const baseClass = "list";
 
 type WithIdKey<TKey extends string = "id"> = Record<TKey, React.Key>;
@@ -80,7 +82,13 @@ function List<TItem extends WithIdKey<TKey>, TKey extends string = "id">({
           );
         })}
       </ul>
-      {helpText && <div className="form-field__help-text">{helpText}</div>}
+      {helpText && (
+        <div className="form-field__help-text">
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
+        </div>
+      )}
     </div>
   );
 }

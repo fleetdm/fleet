@@ -172,7 +172,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isRouteOk && !!teamIdForApi,
-      select: (data) => data.team,
+      select: (data) => data.fleet,
       onSuccess: (tC) => {
         const teamHistoricalData = tC?.features?.historical_data;
         const disableHostsActive = teamHistoricalData

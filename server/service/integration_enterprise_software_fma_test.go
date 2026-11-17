@@ -134,13 +134,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Check apps returned
 	var listMAResp listFleetMaintainedAppsResponse
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
-		&listMAResp, "team_id", fmt.Sprint(team.ID))
+		&listMAResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NoError(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.False(t, listMAResp.Meta.HasNextResults)
@@ -170,7 +170,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		listFleetMaintainedAppsRequest{},
 		http.StatusOK,
 		&listMAResp2,
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 		"per_page", "2",
 		"page", "2",
 	)
@@ -190,7 +190,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		listFleetMaintainedAppsRequest{},
 		http.StatusOK,
 		&listMAWin,
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 		"platform", "windows",
 	)
 	require.NoError(t, listMAWin.Err)
@@ -318,7 +318,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, uint(1), activeInstallerCount, "single-add API must set is_active = 1 for the installer")
 
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
-		&listMAResp, "team_id", fmt.Sprint(team.ID))
+		&listMAResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NoError(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
@@ -354,21 +354,21 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"order_key", "name",
 		"order_direction", "desc",
 		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
+		"fleet_id", fmt.Sprintf("%d", team.ID),
 	)
 
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, new(mapp.UniqueIdentifier), title.BundleIdentifier)
-	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
-	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
-	require.Equal(t, new(req.SelfService), title.SoftwarePackage.SelfService)
+	require.Equal(t, mapp.Version, title.Packages[0].Version)
+	require.Equal(t, "installer.zip", title.Packages[0].Name)
+	require.Equal(t, new(req.SelfService), title.Packages[0].SelfService)
 
 	// Check activity
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, team.Name, team.ID, title.ID),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, title.ID),
 		0,
 	)
 
@@ -412,7 +412,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"order_key", "name",
 		"order_direction", "desc",
 		"available_for_install", "true",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 
 	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, new(uint(0)))
@@ -422,12 +422,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
 	require.Equal(t, title.ID, *mapp.TitleID)
-	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
-	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+	require.Equal(t, mapp.Version, title.Packages[0].Version)
+	require.Equal(t, "installer.zip", title.Packages[0].Name)
 	titleResponse := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, []string{"🖥️ Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
+	require.NotEmpty(t, titleResponse.SoftwareTitle.Packages)
+	require.Equal(t, []string{"🖥️ Productivity"}, titleResponse.SoftwareTitle.Packages[0].Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -454,18 +454,18 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TitleID:       title.ID,
 		InstallerID:   i.InstallerID,
 		InstallScript: new(mapp.InstallScript),
-		Version:       title.SoftwarePackage.Version,
+		Version:       title.Packages[0].Version,
 		SelfService:   new(true),
 		Categories:    []string{cat1.Name, cat2.Name},
 	}
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 
 	titleResponse = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Len(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, 2)
-	require.Contains(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, cat1.Name)
-	require.Contains(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, cat2.Name)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
+	require.NotEmpty(t, titleResponse.SoftwareTitle.Packages)
+	require.Len(t, titleResponse.SoftwareTitle.Packages[0].Categories, 2)
+	require.Contains(t, titleResponse.SoftwareTitle.Packages[0].Categories, cat1.Name)
+	require.Contains(t, titleResponse.SoftwareTitle.Packages[0].Categories, cat2.Name)
 
 	// ===========================================================================================
 	// Adding an automatically installed FMA
@@ -495,7 +495,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		SoftwareTitleID: &addMAResp.SoftwareTitleID,
 	}
 	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &tpResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
@@ -510,15 +510,15 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"order_key", "id",
 		"order_direction", "desc",
 		"available_for_install", "true",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 
 	require.Len(t, resp.SoftwareTitles, 2)
 	// most recently added FMA should have 1 automatic install policy
 	st := resp.SoftwareTitles[0] // sorted by ID above
-	require.NotNil(t, st.SoftwarePackage)
-	require.Len(t, st.SoftwarePackage.AutomaticInstallPolicies, 1)
-	gotPolicy := st.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.NotEmpty(t, st.Packages)
+	require.Len(t, st.Packages[0].AutomaticInstallPolicies, 1)
+	gotPolicy := st.Packages[0].AutomaticInstallPolicies[0]
 	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
@@ -530,12 +530,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:   &noTeamID,
 		TeamName: nil,
 	}
-	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]", "team_id":0}`, gotPolicy.ID), 0)
+	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]"}`, gotPolicy.ID), 0)
 
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
-	require.NotNil(t, st.SoftwarePackage)
-	require.Empty(t, st.SoftwarePackage.AutomaticInstallPolicies)
+	require.NotEmpty(t, st.Packages)
+	require.Empty(t, st.Packages[0].AutomaticInstallPolicies)
 
 	// Get the specific app that we set to be installed automatically
 	var titleResp getSoftwareTitleResponse
@@ -543,20 +543,20 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID),
 		getSoftwareTitleRequest{},
 		http.StatusOK, &titleResp,
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.NotNil(t, titleResp.SoftwareTitle)
 	swTitle := titleResp.SoftwareTitle
-	require.NotNil(t, swTitle.SoftwarePackage)
-	require.Len(t, swTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
-	gotPolicy = swTitle.SoftwarePackage.AutomaticInstallPolicies[0]
+	require.NotEmpty(t, swTitle.Packages)
+	require.Len(t, swTitle.Packages[0].AutomaticInstallPolicies, 1)
+	gotPolicy = swTitle.Packages[0].AutomaticInstallPolicies[0]
 	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
 	// Policy should appear in the list of policies
 	var listPolResp fleet.ListTeamPoliciesResponse
 	s.DoJSON(
-		"GET", "/api/latest/fleet/teams/0/policies",
+		"GET", "/api/latest/fleet/fleets/0/policies",
 		fleet.ListTeamPoliciesRequest{},
 		http.StatusOK, &listPolResp,
 		"page", "0",
@@ -615,17 +615,17 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID),
 		getSoftwareTitleRequest{},
 		http.StatusOK, &titleResp,
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 
 	require.NotNil(t, titleResp.SoftwareTitle)
 	swTitle = titleResp.SoftwareTitle
-	require.NotNil(t, swTitle.SoftwarePackage)
-	require.Empty(t, swTitle.SoftwarePackage.LabelsExcludeAny)
-	require.Empty(t, swTitle.SoftwarePackage.LabelsIncludeAll)
-	require.Len(t, swTitle.SoftwarePackage.LabelsIncludeAny, 2)
+	require.NotEmpty(t, swTitle.Packages)
+	require.Empty(t, swTitle.Packages[0].LabelsExcludeAny)
+	require.Empty(t, swTitle.Packages[0].LabelsIncludeAll)
+	require.Len(t, swTitle.Packages[0].LabelsIncludeAny, 2)
 	gotNames := make(map[string]struct{})
-	for _, lbl := range swTitle.SoftwarePackage.LabelsIncludeAny {
+	for _, lbl := range swTitle.Packages[0].LabelsIncludeAny {
 		gotNames[lbl.LabelName] = struct{}{}
 	}
 	require.Contains(t, gotNames, lbl1.Name)
@@ -736,7 +736,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Add WARP for Windows
@@ -775,7 +775,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 		"order_key", "name",
 		"order_direction", "desc",
 		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
+		"fleet_id", fmt.Sprintf("%d", team.ID),
 	)
 	title := lSTResp.SoftwareTitles[0]
 	require.Equal(t, *warpInstaller.TitleID, title.ID)
@@ -875,7 +875,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 		http.StatusOK, &afterBatch,
 		"per_page", "1",
 		"available_for_install", "true",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, afterBatch.SoftwareTitles, 1)
 	require.Equal(t, warpUpgradeCode, *afterBatch.SoftwareTitles[0].UpgradeCode)
@@ -918,7 +918,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		var resp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 			"per_page", "1", "order_key", "name", "order_direction", "desc",
-			"available_for_install", "true", "team_id", fmt.Sprintf("%d", teamID))
+			"available_for_install", "true", "fleet_id", fmt.Sprintf("%d", teamID))
 		require.Equal(t, 1, resp.Count)
 		return resp.SoftwareTitles[0]
 	}
@@ -992,7 +992,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 
 	// --- setup: team with cloudflare-warp v1.0, self-service on ---
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1000,11 +1000,11 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	var batchResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new(slug), SelfService: true}}, TeamName: team.Name},
-		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchResp, "fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID))
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
 
 	title := activeTitle(team.ID)
-	require.Equal(t, "1.0", title.SoftwarePackage.Version)
+	require.Equal(t, "1.0", title.Packages[0].Version)
 	titleID := title.ID
 	require.True(t, activeSelfService(team.ID, titleID))
 
@@ -1032,8 +1032,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	setManifest("2.0", []byte("def"))
 	runCron()
 	title = activeTitle(team.ID)
-	require.Equal(t, "2.0", title.SoftwarePackage.Version)
-	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "2.0", title.Packages[0].Version)
+	require.Len(t, title.Packages[0].FleetMaintainedVersions, 2)
 	// Per-team config is carried forward onto the new version.
 	require.True(t, activeSelfService(team.ID, titleID), "self-service must survive the auto-update")
 	// The cron flip must rewrite the patch policy query to the newly active 2.0 version.
@@ -1062,25 +1062,25 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	setPin(team.ID, titleID, "2.0")
 	setManifest("3.0", []byte("ghi"))
 	runCron()
-	require.Equal(t, "2.0", activeTitle(team.ID).SoftwarePackage.Version, "literal pin must not advance")
+	require.Equal(t, "2.0", activeTitle(team.ID).Packages[0].Version, "literal pin must not advance")
 
 	// === Section C: caret pin advances within major, never across ===
 	clearPin(team.ID, titleID)
 	runCron() // unpinned: advance to the published 3.0
-	require.Equal(t, "3.0", activeTitle(team.ID).SoftwarePackage.Version)
+	require.Equal(t, "3.0", activeTitle(team.ID).Packages[0].Version)
 
 	setPin(team.ID, titleID, "^3")
 	setManifest("3.1", []byte("j31"))
 	runCron()
-	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version, "caret pin advances within its major")
+	require.Equal(t, "3.1", activeTitle(team.ID).Packages[0].Version, "caret pin advances within its major")
 
 	setManifest("4.0", []byte("k40"))
 	runCron()
-	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version, "caret pin must not cross major")
+	require.Equal(t, "3.1", activeTitle(team.ID).Packages[0].Version, "caret pin must not cross major")
 
 	// === Section D: a re-run with nothing new is a no-op ===
 	runCron()
-	require.Equal(t, "3.1", activeTitle(team.ID).SoftwarePackage.Version)
+	require.Equal(t, "3.1", activeTitle(team.ID).Packages[0].Version)
 
 	// === Section E: admin-customized scripts are carried forward on auto-update ===
 	clearPin(team.ID, titleID)
@@ -1091,7 +1091,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 			{Slug: new(slug), SelfService: true, InstallScript: customInstall, UninstallScript: customUninstall},
 		}, TeamName: team.Name},
-		http.StatusAccepted, &batchRespE, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchRespE, "fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID))
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespE.RequestUUID)
 
 	gotInstall, gotUninstall := activeScripts(team.ID, titleID)
@@ -1106,7 +1106,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 
 	setManifest("5.0", []byte("v50"))
 	runCron()
-	require.Equal(t, "5.0", activeTitle(team.ID).SoftwarePackage.Version)
+	require.Equal(t, "5.0", activeTitle(team.ID).Packages[0].Version)
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.Equal(t, customInstall, gotInstall, "custom install script must survive auto-update")
 	require.Equal(t, customUninstall, gotUninstall, "custom uninstall script must survive auto-update")
@@ -1120,7 +1120,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 			{Slug: new(slug), SelfService: true},
 		}, TeamName: team.Name},
-		http.StatusAccepted, &batchRespF, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchRespF, "fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID))
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespF.RequestUUID)
 	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
 	require.False(t, editedInstall)
@@ -1129,7 +1129,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// The manifest scripts now win on the next published version.
 	setManifest("6.0", []byte("v60"))
 	runCron()
-	require.Equal(t, "6.0", activeTitle(team.ID).SoftwarePackage.Version)
+	require.Equal(t, "6.0", activeTitle(team.ID).Packages[0].Version)
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.NotEqual(t, customInstall, gotInstall, "an unedited install script follows the manifest")
 	require.NotEqual(t, customUninstall, gotUninstall, "an unedited uninstall script follows the manifest")
@@ -1163,7 +1163,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, patchedInstall, gotInstall)
 	setManifest("7.0", []byte("v70"))
 	runCron()
-	require.Equal(t, "7.0", activeTitle(team.ID).SoftwarePackage.Version)
+	require.Equal(t, "7.0", activeTitle(team.ID).Packages[0].Version)
 	patchedUninstall := gotUninstall
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.Equal(t, patchedInstall, gotInstall, "a script the update endpoint marked survives auto-update")
@@ -1198,13 +1198,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, "7.0.1")
 	runCron()
 
-	require.Equal(t, "7.0", activeTitle(team.ID).SoftwarePackage.Version, "no version was published")
+	require.Equal(t, "7.0", activeTitle(team.ID).Packages[0].Version, "no version was published")
 	require.Equal(t, rowsBefore, cachedRows(), "the version can't be cached twice")
 	require.Equal(t, installerBefore, activeInstallerID(team.ID, titleID), "refreshed in place")
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.Equal(t, patchedInstall, gotInstall, "the edited script is still left alone")
 	require.Equal(t, warp.installScript, gotUninstall, "the unedited script follows the manifest")
 	require.Equal(t, warp.patchQuery, activePatchQuery(), "the patch query follows the manifest too")
+	require.Equal(t, warp.patchQuery, patchPolicyQuery(), "so does the patch policy, without a version flip")
 
 	// The queued install would otherwise have run a script it was never queued against.
 	var canceled bool
@@ -1226,6 +1227,15 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
 	})
 	require.False(t, canceled)
+
+	// A patch policy left behind its installer, the way a refresh that didn't reach
+	// the policy leaves it, is caught up on the next run.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, warpQueryV1, patchPolicy.Policy.ID)
+		return err
+	})
+	runCron()
+	require.Equal(t, warp.patchQuery, patchPolicyQuery())
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
@@ -1257,7 +1267,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 	}
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1269,7 +1279,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 	var batchResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
-		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchResp, "fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID))
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
 	require.Equal(t, []string{"1.0", "1.0", "1.0", "1.0"}, activeVersions(team.ID))
 
@@ -1400,7 +1410,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"order_key", "name",
 			"order_direction", "desc",
 			"available_for_install", "true",
-			"team_id", fmt.Sprintf("%d", teamID),
+			"fleet_id", fmt.Sprintf("%d", teamID),
 		)
 		require.Equal(t, 1, resp.Count)
 		return resp.SoftwareTitles[0]
@@ -1413,7 +1423,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// newTeam creates a new team with the given name and returns it.
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 			Name: new(name),
 		}, http.StatusOK, &resp)
 		return *resp.Team
@@ -1433,7 +1443,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 		)
 		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 	}
@@ -1471,12 +1481,12 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.NotNil(t, packages[0].TitleID)
 
 	title := getActiveTitleForTeam(team.ID)
-	require.Equal(t, "1.0", title.SoftwarePackage.Version)
-	require.Equal(t, "cloudflare-warp.msi", title.SoftwarePackage.Name)
+	require.Equal(t, "1.0", title.Packages[0].Version)
+	require.Equal(t, "cloudflare-warp.msi", title.Packages[0].Name)
 
 	// With only one version, fleet_maintained_versions should list it
-	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 1)
-	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Len(t, title.Packages[0].FleetMaintainedVersions, 1)
+	require.Equal(t, "1.0", title.Packages[0].FleetMaintainedVersions[0].Version)
 
 	// Now add a second version
 	resetFMAState(warpState, "2.0", []byte("def"))
@@ -1485,13 +1495,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.Len(t, packages, 2)
 
 	title = getActiveTitleForTeam(team.ID)
-	require.Equal(t, "2.0", title.SoftwarePackage.Version)
-	require.Equal(t, "cloudflare-warp.msi", title.SoftwarePackage.Name)
+	require.Equal(t, "2.0", title.Packages[0].Version)
+	require.Equal(t, "cloudflare-warp.msi", title.Packages[0].Name)
 
 	// fleet_maintained_versions should list both versions (newest first)
-	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
-	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
-	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+	require.Len(t, title.Packages[0].FleetMaintainedVersions, 2)
+	require.Equal(t, "2.0", title.Packages[0].FleetMaintainedVersions[0].Version)
+	require.Equal(t, "1.0", title.Packages[0].FleetMaintainedVersions[1].Version)
 
 	// We should have the previous version cached in the DB
 	installers, err := s.ds.GetSoftwareInstallers(ctx, team.ID)
@@ -1505,12 +1515,12 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.Len(t, packages, 2)
 
 	title = getActiveTitleForTeam(team.ID)
-	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+	require.Equal(t, "3.0", title.Packages[0].Version)
 
 	// Only 2 versions should remain after eviction (max 2 cached)
-	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
-	require.Equal(t, "3.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
-	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+	require.Len(t, title.Packages[0].FleetMaintainedVersions, 2)
+	require.Equal(t, "3.0", title.Packages[0].FleetMaintainedVersions[0].Version)
+	require.Equal(t, "2.0", title.Packages[0].FleetMaintainedVersions[1].Version)
 
 	// DB should also only have 2 installers
 	installers, err = s.ds.GetSoftwareInstallers(ctx, team.ID)
@@ -1527,10 +1537,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// The active version shown in the title should now be "2.0"
 	title = getActiveTitleForTeam(team.ID)
-	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+	require.Equal(t, "2.0", title.Packages[0].Version)
 
 	// Both versions should still be listed
-	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Len(t, title.Packages[0].FleetMaintainedVersions, 2)
 
 	// Create a host in the team, trigger an install, and verify the downloaded bytes match v2.0
 	hostInTeam := newHostInTeam("windows", "orbit-host-rollback", team)
@@ -1571,10 +1581,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// The active version shown in the title should now be "3.0"
 	title = getActiveTitleForTeam(team.ID)
-	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+	require.Equal(t, "3.0", title.Packages[0].Version)
 
 	// Both versions should still be listed
-	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Len(t, title.Packages[0].FleetMaintainedVersions, 2)
 
 	// Trigger an install and verify the downloaded bytes match v3.0
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
@@ -1622,7 +1632,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			},
 			TeamName: team.Name,
 		},
-		http.StatusAccepted, &evictedVersionBatchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &evictedVersionBatchResponse, "fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID))
 	evictedVersionMessage := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, evictedVersionBatchResponse.RequestUUID)
 	require.Contains(t, evictedVersionMessage, "specified version is not available")
 
@@ -1634,7 +1644,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// The active version should still be "3.0" (unchanged)
 	title = getActiveTitleForTeam(team.ID)
-	require.Equal(t, "3.0", title.SoftwarePackage.Version, "active version should remain 3.0 after failed rollback to evicted version")
+	require.Equal(t, "3.0", title.Packages[0].Version, "active version should remain 3.0 after failed rollback to evicted version")
 
 	// ---- Test bumping a pin to a newly-published version ----
 	// A version published upstream but not yet cached must be downloadable in a
@@ -1658,8 +1668,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.True(t, warpDownloaded, "a newly-published pinned version must be downloaded")
 
 	title = getActiveTitleForTeam(team.ID)
-	require.Equal(t, "4.0", title.SoftwarePackage.Version)
-	require.Equal(t, "4.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "4.0", title.Packages[0].Version)
+	require.Equal(t, "4.0", title.Packages[0].FleetMaintainedVersions[0].Version)
 
 	// Attempt to add a custom package that will map to the same software title. Should fail
 	// (this tests the "custom installer vs existing FMA" direction).
@@ -1726,9 +1736,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Verify v1.0 was installed and is the only (active) version.
 		uiTitle := getActiveTitleForTeam(uiTeam.ID)
-		require.Equal(t, "1.0", uiTitle.SoftwarePackage.Version)
-		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 1)
-		require.Equal(t, "1.0", uiTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", uiTitle.Packages[0].Version)
+		require.Len(t, uiTitle.Packages[0].FleetMaintainedVersions, 1)
+		require.Equal(t, "1.0", uiTitle.Packages[0].FleetMaintainedVersions[0].Version)
 
 		uiInstallers, err := s.ds.GetSoftwareInstallers(ctx, uiTeam.ID)
 		require.NoError(t, err)
@@ -1744,8 +1754,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, pkgs, 2, "both v1.0 (UI-added) and v2.0 should be cached")
 
 		uiTitle = getActiveTitleForTeam(uiTeam.ID)
-		require.Equal(t, "2.0", uiTitle.SoftwarePackage.Version)
-		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2)
+		require.Equal(t, "2.0", uiTitle.Packages[0].Version)
+		require.Len(t, uiTitle.Packages[0].FleetMaintainedVersions, 2)
 
 		uiInstallers, err = s.ds.GetSoftwareInstallers(ctx, uiTeam.ID)
 		require.NoError(t, err)
@@ -1759,13 +1769,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Active version should now be v1.0 (the one originally added via the UI).
 		uiTitle = getActiveTitleForTeam(uiTeam.ID)
-		require.Equal(t, "1.0", uiTitle.SoftwarePackage.Version,
+		require.Equal(t, "1.0", uiTitle.Packages[0].Version,
 			"active version should roll back to v1.0 (the version added via UI)")
-		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2,
+		require.Len(t, uiTitle.Packages[0].FleetMaintainedVersions, 2,
 			"both versions should remain cached after rolling back")
 		// Pinning picks which cached version is active without rewriting which one is
 		// newest, so clearing the pin later still resolves Latest to v2.0.
-		require.Equal(t, "2.0", uiTitle.SoftwarePackage.FleetMaintainedVersions[0].Version,
+		require.Equal(t, "2.0", uiTitle.Packages[0].FleetMaintainedVersions[0].Version,
 			"the pinned older version must not become the newest download")
 	})
 
@@ -1894,13 +1904,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			listSoftwareTitlesRequest{},
 			http.StatusOK, &multiTitlesResp,
 			"available_for_install", "true",
-			"team_id", fmt.Sprintf("%d", multiTeam.ID),
+			"fleet_id", fmt.Sprintf("%d", multiTeam.ID),
 		)
 		require.Equal(t, 2, multiTitlesResp.Count)
 
 		activeVersions := map[string]string{}
 		for _, tl := range multiTitlesResp.SoftwareTitles {
-			activeVersions[tl.Name] = tl.SoftwarePackage.Version
+			activeVersions[tl.Name] = tl.Packages[0].Version
 		}
 		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"],
 			"warp should be rolled back to v2.0")
@@ -1920,13 +1930,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			listSoftwareTitlesRequest{},
 			http.StatusOK, &multiTitlesResp,
 			"available_for_install", "true",
-			"team_id", fmt.Sprintf("%d", multiTeam.ID),
+			"fleet_id", fmt.Sprintf("%d", multiTeam.ID),
 		)
 		require.Equal(t, 2, multiTitlesResp.Count)
 
 		activeVersions = map[string]string{}
 		for _, tl := range multiTitlesResp.SoftwareTitles {
-			activeVersions[tl.Name] = tl.SoftwarePackage.Version
+			activeVersions[tl.Name] = tl.Packages[0].Version
 		}
 		require.Equal(t, "2.0", activeVersions["Cloudflare One Client"], "warp should still be at v2.0")
 		require.Equal(t, "2.0", activeVersions["Zoom Workplace (X64)"], "zoom should now be rolled back to v2.0")
@@ -1990,10 +2000,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, instA, 2, "Team A should still have 2 installers after v1.0 eviction")
 
 		titleA := getActiveTitleForTeam(teamA.ID)
-		require.Equal(t, "3.0", titleA.SoftwarePackage.Version, "Team A active version should be v3.0")
-		require.Len(t, titleA.SoftwarePackage.FleetMaintainedVersions, 2)
-		require.Equal(t, "3.0", titleA.SoftwarePackage.FleetMaintainedVersions[0].Version)
-		require.Equal(t, "2.0", titleA.SoftwarePackage.FleetMaintainedVersions[1].Version)
+		require.Equal(t, "3.0", titleA.Packages[0].Version, "Team A active version should be v3.0")
+		require.Len(t, titleA.Packages[0].FleetMaintainedVersions, 2)
+		require.Equal(t, "3.0", titleA.Packages[0].FleetMaintainedVersions[0].Version)
+		require.Equal(t, "2.0", titleA.Packages[0].FleetMaintainedVersions[1].Version)
 
 		// Team B: must be completely unaffected — still has v1.0 + v2.0.
 		instB, err = s.ds.GetSoftwareInstallers(ctx, teamB.ID)
@@ -2001,10 +2011,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, instB, 2, "Team B should still have 2 installers; Team A's eviction must not affect Team B")
 
 		titleB := getActiveTitleForTeam(teamB.ID)
-		require.Equal(t, "2.0", titleB.SoftwarePackage.Version, "Team B active version should remain v2.0")
-		require.Len(t, titleB.SoftwarePackage.FleetMaintainedVersions, 2)
-		require.Equal(t, "2.0", titleB.SoftwarePackage.FleetMaintainedVersions[0].Version)
-		require.Equal(t, "1.0", titleB.SoftwarePackage.FleetMaintainedVersions[1].Version,
+		require.Equal(t, "2.0", titleB.Packages[0].Version, "Team B active version should remain v2.0")
+		require.Len(t, titleB.Packages[0].FleetMaintainedVersions, 2)
+		require.Equal(t, "2.0", titleB.Packages[0].FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", titleB.Packages[0].FleetMaintainedVersions[1].Version,
 			"Team B should still have v1.0 cached even though Team A evicted it")
 
 		// ---- Roll back Team A to v2.0 — Team B must not be affected ----
@@ -2013,13 +2023,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		})
 
 		titleA = getActiveTitleForTeam(teamA.ID)
-		require.Equal(t, "2.0", titleA.SoftwarePackage.Version, "Team A should be rolled back to v2.0")
+		require.Equal(t, "2.0", titleA.Packages[0].Version, "Team A should be rolled back to v2.0")
 
 		// Team B still unaffected.
 		titleB = getActiveTitleForTeam(teamB.ID)
-		require.Equal(t, "2.0", titleB.SoftwarePackage.Version,
+		require.Equal(t, "2.0", titleB.Packages[0].Version,
 			"Team B active version should remain v2.0 after Team A rollback")
-		require.Len(t, titleB.SoftwarePackage.FleetMaintainedVersions, 2,
+		require.Len(t, titleB.Packages[0].FleetMaintainedVersions, 2,
 			"Team B cached versions should be unchanged")
 
 		// Verify Team B can still roll back to v1.0 (its eviction pool is independent).
@@ -2028,7 +2038,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		})
 
 		titleB = getActiveTitleForTeam(teamB.ID)
-		require.Equal(t, "1.0", titleB.SoftwarePackage.Version,
+		require.Equal(t, "1.0", titleB.Packages[0].Version,
 			"Team B should successfully roll back to v1.0, which is still in its cache")
 	})
 
@@ -2064,13 +2074,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Retrieve the title ID so we can call the delete endpoint.
 		delTitle := getActiveTitleForTeam(delTeam.ID)
-		require.Equal(t, "2.0", delTitle.SoftwarePackage.Version)
+		require.Equal(t, "2.0", delTitle.Packages[0].Version)
 
 		// Delete via the API endpoint — this is the path exercised by the UI.
 		s.Do("DELETE",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", delTitle.ID),
 			nil, http.StatusNoContent,
-			"team_id", fmt.Sprint(delTeam.ID),
+			"fleet_id", fmt.Sprint(delTeam.ID),
 		)
 
 		// After deletion, zero software_installer rows should remain for this
@@ -2089,7 +2099,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			listSoftwareTitlesRequest{},
 			http.StatusOK, &titlesResp,
 			"available_for_install", "true",
-			"team_id", fmt.Sprintf("%d", delTeam.ID),
+			"fleet_id", fmt.Sprintf("%d", delTeam.ID),
 		)
 		require.Zero(t, titlesResp.Count,
 			"software title should no longer be available for install after deletion")
@@ -2124,7 +2134,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		batchSet(statusTeam, warpPayload)
 
 		statusTitle := getActiveTitleForTeam(statusTeam.ID)
-		require.Equal(t, "2.0", statusTitle.SoftwarePackage.Version)
+		require.Equal(t, "2.0", statusTitle.Packages[0].Version)
 		titleID := statusTitle.ID
 
 		// ---- Step 2: Install v2.0 on a host and record success ----
@@ -2148,9 +2158,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// Verify: v2.0 installer summary shows Installed: 1.
 		var titleRespV2 getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
-			http.StatusOK, &titleRespV2, "team_id", fmt.Sprint(statusTeam.ID))
-		require.NotNil(t, titleRespV2.SoftwareTitle.SoftwarePackage.Status)
-		require.Equal(t, uint(1), titleRespV2.SoftwareTitle.SoftwarePackage.Status.Installed,
+			http.StatusOK, &titleRespV2, "fleet_id", fmt.Sprint(statusTeam.ID))
+		require.NotNil(t, titleRespV2.SoftwareTitle.Packages[0].Status)
+		require.Equal(t, uint(1), titleRespV2.SoftwareTitle.Packages[0].Status.Installed,
 			"v2.0 installer should show Installed: 1 after a successful install")
 
 		// ---- Step 3: Roll back to v1.0 ----
@@ -2159,7 +2169,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		})
 
 		statusTitle = getActiveTitleForTeam(statusTeam.ID)
-		require.Equal(t, "1.0", statusTitle.SoftwarePackage.Version,
+		require.Equal(t, "1.0", statusTitle.Packages[0].Version,
 			"active version should be v1.0 after rollback")
 
 		// ---- Step 4: Assert the active (v1.0) installer summary is all zeros ----
@@ -2168,9 +2178,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// stable across version switches, so we can query it directly.
 		var titleRespV1 getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
-			http.StatusOK, &titleRespV1, "team_id", fmt.Sprint(statusTeam.ID))
-		require.NotNil(t, titleRespV1.SoftwareTitle.SoftwarePackage.Status)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{}, *titleRespV1.SoftwareTitle.SoftwarePackage.Status,
+			http.StatusOK, &titleRespV1, "fleet_id", fmt.Sprint(statusTeam.ID))
+		require.NotNil(t, titleRespV1.SoftwareTitle.Packages[0].Status)
+		require.Equal(t, fleet.SoftwareInstallerStatusSummary{}, *titleRespV1.SoftwareTitle.Packages[0].Status,
 			"v1.0 installer status summary must be all zeros after switching from v2.0 — "+
 				"install history from v2.0 must not carry over to the rolled-back version")
 	})
@@ -2207,13 +2217,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		batchSet(editTeam, warpPayload)
 
 		editTitle := getActiveTitleForTeam(editTeam.ID)
-		require.Equal(t, "2.0", editTitle.SoftwarePackage.Version)
+		require.Equal(t, "2.0", editTitle.Packages[0].Version)
 
 		// Confirm self_service starts as false before the edit.
 		var titleRespBefore getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
-			http.StatusOK, &titleRespBefore, "team_id", fmt.Sprint(editTeam.ID))
-		require.False(t, titleRespBefore.SoftwareTitle.SoftwarePackage.SelfService,
+			http.StatusOK, &titleRespBefore, "fleet_id", fmt.Sprint(editTeam.ID))
+		require.False(t, titleRespBefore.SoftwareTitle.Packages[0].SelfService,
 			"self_service should be false before the edit")
 
 		// Sanity-check: both cached versions are present in the DB.
@@ -2235,8 +2245,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// Confirm the edit actually took effect.
 		var titleResp getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
-			http.StatusOK, &titleResp, "team_id", fmt.Sprint(editTeam.ID))
-		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,
+			http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(editTeam.ID))
+		require.True(t, titleResp.SoftwareTitle.Packages[0].SelfService,
 			"self_service should be true after the edit")
 	})
 
@@ -2247,7 +2257,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// whether the withdrawn version is rebuilt with new bytes or comes back byte
 	// for byte, it becomes active and is listed first.
 	// =========================================================================
-	cachedVersions := func(pkg *fleet.SoftwarePackageOrApp) []string {
+	cachedVersions := func(pkg *fleet.SoftwarePackageListItem) []string {
 		got := make([]string, 0, len(pkg.FleetMaintainedVersions))
 		for _, v := range pkg.FleetMaintainedVersions {
 			got = append(got, v.Version)
@@ -2277,14 +2287,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		}
 		resetFMAState(warpState, "1.0", []byte("lower-1-0"))
 		require.Len(t, applyManifest(), 1)
-		pkg := getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		pkg := &getActiveTitleForTeam(lowerTeam.ID).Packages[0]
 		require.Equal(t, "1.0", pkg.Version)
 		require.Equal(t, []string{"1.0"}, cachedVersions(pkg))
 
 		// 1.1 is published and cached alongside 1.0.
 		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
 		require.Len(t, applyManifest(), 2)
-		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		pkg = &getActiveTitleForTeam(lowerTeam.ID).Packages[0]
 		require.Equal(t, "1.1", pkg.Version)
 		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
 		// Every apply below updates one of these two rows, so their ids must not change.
@@ -2295,7 +2305,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
 		require.Len(t, applyManifest(), 2)
 		title := getActiveTitleForTeam(lowerTeam.ID)
-		pkg = title.SoftwarePackage
+		pkg = &title.Packages[0]
 		require.Equal(t, "1.0", pkg.Version)
 		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
 		active := activeInstaller(lowerTeam.ID, title.ID)
@@ -2307,7 +2317,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
 		require.Len(t, applyManifest(), 2)
 		title = getActiveTitleForTeam(lowerTeam.ID)
-		pkg = title.SoftwarePackage
+		pkg = &title.Packages[0]
 		require.Equal(t, "1.1", pkg.Version)
 		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
 		active = activeInstaller(lowerTeam.ID, title.ID)
@@ -2318,7 +2328,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// downloaded, but the manifest points at 1.0, so it is active and newest.
 		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
 		require.Len(t, applyManifest(), 2)
-		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		pkg = &getActiveTitleForTeam(lowerTeam.ID).Packages[0]
 		require.Equal(t, "1.0", pkg.Version)
 		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
 
@@ -2327,7 +2337,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		resetFMAState(warpState, "1.1", []byte("lower-1-1-rebuilt"))
 		require.Len(t, applyManifest(), 2)
 		title = getActiveTitleForTeam(lowerTeam.ID)
-		pkg = title.SoftwarePackage
+		pkg = &title.Packages[0]
 		require.Equal(t, "1.1", pkg.Version)
 		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
 		active = activeInstaller(lowerTeam.ID, title.ID)
@@ -2336,7 +2346,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// A repeated apply with no manifest change must not disturb the order.
 		require.Len(t, applyManifest(), 2)
-		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		pkg = &getActiveTitleForTeam(lowerTeam.ID).Packages[0]
 		require.Equal(t, "1.1", pkg.Version)
 		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
 
@@ -2361,8 +2371,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		resetFMAState(warpState, "1.1", []byte("cron-1-1"))
 		require.Len(t, applyManifest(), 2)
 		title := getActiveTitleForTeam(cronTeam.ID)
-		require.Equal(t, "1.1", title.SoftwarePackage.Version)
-		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(title.SoftwarePackage))
+		require.Equal(t, "1.1", title.Packages[0].Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(&title.Packages[0]))
 
 		// 1.1 is withdrawn and the manifest serves 1.0 again, byte for byte. Nothing needs
 		// downloading, but 1.0 is what the manifest publishes now, so the cron marks it
@@ -2370,10 +2380,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		resetFMAState(warpState, "1.0", []byte("cron-1-0"))
 		runCron()
 		title = getActiveTitleForTeam(cronTeam.ID)
-		require.Equal(t, "1.0", title.SoftwarePackage.Version, "the cron follows the manifest back down")
-		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		require.Equal(t, "1.0", title.Packages[0].Version, "the cron follows the manifest back down")
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(&title.Packages[0]))
 		active := activeInstaller(cronTeam.ID, title.ID)
-		v10ID := title.SoftwarePackage.FleetMaintainedVersions[0].ID
+		v10ID := title.Packages[0].FleetMaintainedVersions[0].ID
 		require.Equal(t, v10ID, active.InstallerID,
 			"the row the cron promoted is the one the manifest publishes")
 		storageBeforeRebuild := active.StorageID
@@ -2383,16 +2393,16 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// reporting when Fleet actually downloaded each version.
 		runCron()
 		title = getActiveTitleForTeam(cronTeam.ID)
-		require.Equal(t, "1.0", title.SoftwarePackage.Version)
-		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		require.Equal(t, "1.0", title.Packages[0].Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(&title.Packages[0]))
 
 		// 1.0 is rebuilt with bytes Fleet has never seen, so the cron downloads it again and
 		// refreshes the cached row in place instead of leaving stale bytes behind.
 		resetFMAState(warpState, "1.0", []byte("cron-1-0-rebuilt"))
 		runCron()
 		title = getActiveTitleForTeam(cronTeam.ID)
-		require.Equal(t, "1.0", title.SoftwarePackage.Version)
-		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		require.Equal(t, "1.0", title.Packages[0].Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(&title.Packages[0]))
 		active = activeInstaller(cronTeam.ID, title.ID)
 		require.NotEqual(t, storageBeforeRebuild, active.StorageID, "the cron takes the rebuilt bytes")
 		require.Equal(t, warpState.sha256, active.StorageID)
@@ -2401,8 +2411,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// A GitOps apply of the same manifest is then a no-op, so the two agree.
 		require.Len(t, applyManifest(), 2)
 		title = getActiveTitleForTeam(cronTeam.ID)
-		require.Equal(t, "1.0", title.SoftwarePackage.Version)
-		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		require.Equal(t, "1.0", title.Packages[0].Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(&title.Packages[0]))
 		gitopsActive := activeInstaller(cronTeam.ID, title.ID)
 		require.Equal(t, active.InstallerID, gitopsActive.InstallerID)
 		require.Equal(t, active.StorageID, gitopsActive.StorageID)
@@ -2428,7 +2438,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Pin the major both cached versions share: the newest download of that major wins.
 		require.Len(t, applyManifest("^1"), 2)
-		pkg := getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		pkg := &getActiveTitleForTeam(pinTeam.ID).Packages[0]
 		require.Equal(t, "1.1", pkg.Version)
 		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
 
@@ -2436,13 +2446,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// caret pin is in force, so the pin allows it and 1.0 becomes newest and active.
 		resetFMAState(warpState, "1.0", []byte("pin-1-0"))
 		require.Len(t, applyManifest("^1"), 2)
-		pkg = getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		pkg = &getActiveTitleForTeam(pinTeam.ID).Packages[0]
 		require.Equal(t, "1.0", pkg.Version)
 		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
 
 		// A cron pass with the pin in place and the version already cached changes nothing.
 		runCron()
-		pkg = getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		pkg = &getActiveTitleForTeam(pinTeam.ID).Packages[0]
 		require.Equal(t, "1.0", pkg.Version)
 		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
 	})
@@ -2712,7 +2722,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}, http.StatusOK, &policyResp)
 
 		// attempt to delete installer
-		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
+		res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusConflict, "fleet_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn’t delete. This software has a patch policy. Please remove the patch policy and try again.`)
 		res.Body.Close()
@@ -2724,7 +2734,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 
 		// can delete installer successfully
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
 
 		// Test 2: Updating an FMA installer with a new file fails
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
@@ -2764,7 +2774,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 				"order_key", "name",
 				"order_direction", "desc",
 				"available_for_install", "true",
-				"team_id", fmt.Sprintf("%d", teamID),
+				"fleet_id", fmt.Sprintf("%d", teamID),
 				"query", titleName,
 			)
 			require.Equal(t, 1, resp.Count)
@@ -2775,7 +2785,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2861,7 +2871,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2888,7 +2898,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 				{Slug: new("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2919,7 +2929,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2958,7 +2968,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}, {Slug: new("1password/darwin")}}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+			"fleet_name", team2.Name, "fleet_id", fmt.Sprint(team2.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
 
@@ -3002,7 +3012,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}, {Slug: new("1password/darwin")}}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+			"fleet_name", team2.Name, "fleet_id", fmt.Sprint(team2.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
 
@@ -3023,7 +3033,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 				{Slug: new("1password/darwin"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+			"fleet_name", team2.Name, "fleet_id", fmt.Sprint(team2.ID),
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
 
@@ -3091,9 +3101,9 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		titleResp := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 			"fleet_id", fmt.Sprint(teamID))
-		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
-		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy)
-		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.NotifyBeforePatching)
+		require.NotEmpty(t, titleResp.SoftwareTitle.Packages)
+		require.NotNil(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy)
+		require.True(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy.NotifyBeforePatching)
 
 		// A modify payload carries only the delta, so the stored flag still conflicts.
 		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
@@ -3126,7 +3136,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		titleResp = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 			"fleet_id", fmt.Sprint(teamID))
-		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.PatchDeadline)
+		require.True(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy.PatchDeadline)
 
 		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
@@ -3183,31 +3193,31 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
 		var listTitlesResp listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listTitlesResp, "team_id", "0")
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listTitlesResp, "fleet_id", "0")
 		require.Len(t, listTitlesResp.SoftwareTitles, 1)
-		require.Equal(t, "zoom.msi", listTitlesResp.SoftwareTitles[0].SoftwarePackage.Name)
-		require.Equal(t, "1.0", listTitlesResp.SoftwareTitles[0].SoftwarePackage.Version)
+		require.Equal(t, "zoom.msi", listTitlesResp.SoftwareTitles[0].Packages[0].Name)
+		require.Equal(t, "1.0", listTitlesResp.SoftwareTitles[0].Packages[0].Version)
 		titleID := listTitlesResp.SoftwareTitles[0].ID
 
 		// pin version to ^1, call batch, should get 1.0
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
 		var titleResp getSoftwareTitleResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
-		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
-		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
-		installer10UploadedAt := titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.Packages[0].Version)
+		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		installer10UploadedAt := titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].UploadedAt
 
 		// update manifest to 1.1, FleetMaintainedVersions should have 1.0, 1.1
 		// installer version should be 1.1, while still pinned to ^1
@@ -3216,19 +3226,19 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
-		require.Len(t, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions, 2)
-		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
-		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
-		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
-		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
-		installer11UploadedAt := titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt
-		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
+		require.Len(t, titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions, 2)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[1].Version)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.Packages[0].Version)
+		require.WithinDuration(t, time.Now(), titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		installer11UploadedAt := titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].UploadedAt
+		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
 
 		// pin version to 1.0? then pin to ^1, installer should be 1.1. if fleet keeps enough versions we need to test this.
 		// maybe unnecessary test, can remove to speed it up
@@ -3236,24 +3246,24 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "1.0"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
-		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.Packages[0].Version)
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
-		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.Packages[0].Version)
 
 		// update manifesst to 2.0, installer should be 1.1
 		resetFMAState(states["/zoom/windows.json"], "2.0", []byte("abc"), "")
@@ -3261,18 +3271,18 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
 		require.NotNil(t, titleResp.SoftwareTitle)
-		require.Len(t, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions, 2)
-		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].Version)
-		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].Version)
-		require.Equal(t, "1.1", titleResp.SoftwareTitle.SoftwarePackage.Version)
-		require.WithinDuration(t, installer11UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
-		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.SoftwarePackage.FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
+		require.Len(t, titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions, 2)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].Version)
+		require.Equal(t, "1.0", titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[1].Version)
+		require.Equal(t, "1.1", titleResp.SoftwareTitle.Packages[0].Version)
+		require.WithinDuration(t, installer11UploadedAt, titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[0].UploadedAt, 5*time.Second)
+		require.WithinDuration(t, installer10UploadedAt, titleResp.SoftwareTitle.Packages[0].FleetMaintainedVersions[1].UploadedAt, 5*time.Second)
 	})
 
 	// Test pinning ^1 for the first time when only 2.0 is available from manifest
@@ -3291,7 +3301,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"fleet_name", teamName, "fleet_id", "0",
 		)
 		message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, teamName, resp.RequestUUID)
 		require.Contains(t, message, "specified major version is not available")
@@ -3442,7 +3452,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	})
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("fma_pin_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -3452,7 +3462,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
-			http.StatusAccepted, &resp, "team_name", team.Name)
+			http.StatusAccepted, &resp, "fleet_name", team.Name)
 		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 	}
 	bumpVersion := func(version string, bytes []byte) {
@@ -3482,10 +3492,10 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	getPkg := func() *fleet.SoftwareInstaller {
 		var resp getSoftwareTitleResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team.ID))
 		require.NotNil(t, resp.SoftwareTitle)
-		require.NotNil(t, resp.SoftwareTitle.SoftwarePackage)
-		return resp.SoftwareTitle.SoftwarePackage
+		require.NotEmpty(t, resp.SoftwareTitle.Packages)
+		return &resp.SoftwareTitle.Packages[0]
 	}
 	policyInstallerID := func(policyID uint) uint {
 		var id *uint
@@ -3518,9 +3528,9 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Nil(t, p.PinnedVersion)
 	// Chrome's ^149 caret resolved against its 4-component version on the applies above.
 	var chromeResp getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", chromeTitleID), nil, http.StatusOK, &chromeResp, "team_id", fmt.Sprint(team.ID))
-	require.Equal(t, "149.0.7827.156", chromeResp.SoftwareTitle.SoftwarePackage.Version)
-	require.Equal(t, new("^149"), chromeResp.SoftwareTitle.SoftwarePackage.PinnedVersion)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", chromeTitleID), nil, http.StatusOK, &chromeResp, "fleet_id", fmt.Sprint(team.ID))
+	require.Equal(t, "149.0.7827.156", chromeResp.SoftwareTitle.Packages[0].Version)
+	require.Equal(t, new("^149"), chromeResp.SoftwareTitle.Packages[0].PinnedVersion)
 
 	// Dependencies on the title: an install-automation policy (carries software_installer_id, re-pointed to the
 	// active installer on a flip) and a patch policy (title-scoped via patch_software_title_id, never re-pointed).
@@ -3556,10 +3566,10 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		pinnedVersion, err := json.Marshal(want)
 		require.NoError(t, err)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
-			`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "self_service": false, `+
+			`{"fleet_id": %d, "fleet_name": %q, "self_service": false, `+
 				`"software_title": "Zoom Workplace (X64)", "software_package": "zoom.msi", "software_icon_url": null, `+
 				`"software_title_id": %d, "software_display_name": "", "pinned_version": %s}`,
-			team.ID, team.ID, team.Name, team.Name, titleID, pinnedVersion), 0)
+			team.ID, team.Name, titleID, pinnedVersion), 0)
 	}
 
 	// --- UI (PATCH) pins, on the static 1.0/2.0 cache ---
@@ -3750,11 +3760,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, 1, pinRowCount())
 
 	// The policies attached above block a delete, so remove them first.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID),
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team.ID),
 		fleet.DeleteTeamPoliciesRequest{IDs: []uint{installPol.Policy.ID, patchPol.Policy.ID}},
 		http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 	require.Equal(t, 0, pinRowCount(), "deleting an FMA must delete its pin row")
 
 	// --- GitOps removal also clears the pin ---
@@ -3782,7 +3792,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	var emptyResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}, TeamName: team.Name},
-		http.StatusAccepted, &emptyResp, "team_name", team.Name)
+		http.StatusAccepted, &emptyResp, "fleet_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, emptyResp.RequestUUID)
 	require.Zero(t, teamPinCount(), "removing all software via GitOps must delete all team pins")
 }

@@ -1,1 +1,0 @@
-- Fixed Windows hosts not getting certificates from custom SCEP certificate authorities that select the CA by name, such as EJBCA.

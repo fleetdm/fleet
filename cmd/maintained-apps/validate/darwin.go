@@ -5,12 +5,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -83,36 +83,80 @@ func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentif
 		query = fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier)
 	}
 
+	// An app's own updater can replace the bundle right after install (OneDrive's
+	// StandaloneUpdater when the cask lags Microsoft's channel), so a bundle that
+	// vanished or is half-written is looked up and assessed again instead of
+	// failing the app. Until the new bundle is registered, the lookup can also
+	// come back empty.
+	var err error
+	vanished := false
+	for attempt := 1; ; attempt++ {
+		vanished, err = assessGatekeeperOnce(ctx, appLogger, query, vanished)
+		if !vanished || attempt == gatekeeperAttempts {
+			return err
+		}
+		appLogger.InfoContext(ctx, fmt.Sprintf("App bundle was replaced during the Gatekeeper assessment, retrying: %v", err))
+		time.Sleep(gatekeeperRetryDelay)
+	}
+}
+
+var (
+	gatekeeperAttempts   = 6
+	gatekeeperRetryDelay = 15 * time.Second
+	runSpctl             = func(ctx context.Context, path string) ([]byte, error) {
+		return exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", path).CombinedOutput()
+	}
+	// spctl's messages for a bundle that was removed, or whose executable isn't
+	// written yet.
+	bundleReplacedMessages = []string{"No such file or directory", "cannot find code object on disk"}
+)
+
+func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query string, replacing bool) (vanished bool, err error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
-		return fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
+		return false, fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
 	}
 	var bundles []struct {
 		Path string `json:"path"`
 	}
 	if err := json.Unmarshal(output, &bundles); err != nil {
-		return fmt.Errorf("parsing app bundles %q: %w", output, err)
+		return false, fmt.Errorf("parsing app bundles %q: %w", output, err)
 	}
 	if len(bundles) == 0 {
-		return fmt.Errorf("Gatekeeper assessment found no app: %s", query)
+		return replacing, fmt.Errorf("Gatekeeper assessment found no app: %s", query)
 	}
 
-	var rejected []string
+	paths := make([]string, 0, len(bundles))
 	for _, bundle := range bundles {
-		output, err := exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", bundle.Path).CombinedOutput()
+		paths = append(paths, bundle.Path)
+	}
+	var rejected []string
+	for _, path := range paths {
+		// A helper that shares the app's bundle identifier (Syncovery's
+		// Contents/MacOS/BackgroundScheduler.app) is covered by the app's own seal
+		// and never launched through Gatekeeper.
+		if slices.ContainsFunc(paths, func(outer string) bool {
+			return strings.HasPrefix(path, strings.TrimSuffix(outer, "/")+"/")
+		}) {
+			continue
+		}
+		output, err := runSpctl(ctx, path)
 		status := strings.ReplaceAll(strings.TrimSpace(string(output)), "\n", ", ")
 		if err != nil {
+			if slices.ContainsFunc(bundleReplacedMessages, func(msg string) bool { return strings.Contains(status, msg) }) {
+				vanished = true
+			}
 			rejected = append(rejected, fmt.Sprintf("%s (%v)", status, err))
 			continue
 		}
 		appLogger.InfoContext(ctx, fmt.Sprintf("Gatekeeper assessment: %s", status))
 	}
 	if len(rejected) > 0 {
-		return fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
+		return vanished, fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
 	}
-	return nil
+	return false, nil
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
@@ -190,8 +234,8 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	}
 
 	// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2". appExists
-	// only accepts this when the patched query passes, since version_compare sorts it lower.
+	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2". The
+	// validator's patched query check fails it unless the query compares another column.
 	if strings.HasPrefix(expectedVersion, foundVersion+".") {
 		return true
 	}
@@ -209,42 +253,13 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-// patchedQueryPasses runs the manifest's patched query, which Fleet runs on
-// hosts as the patch policy, and reports whether it returned rows.
-func patchedQueryPasses(ctx context.Context, patchedQuery string) (bool, error) {
-	if strings.TrimSpace(patchedQuery) == "" {
-		return false, errors.New("manifest has no patched query")
-	}
+const patchedQueryFixHint = "Compare the Found app lines above with the version. The patched query compares osquery's raw bundle_short_version, shown as \"osquery:\" when ingestion rewrites it. Another copy with the same bundle identifier at an older version (a nested helper, an updater's backup) needs its path excluded in a per-token query in ee/maintained-apps/ingesters/homebrew/ingester.go, as Syncovery and Docker Desktop do. A bundle_short_version that's a shorter form of the version, or in another format, needs a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or a per-token patched query that compares bundle_version if it carries the version."
 
-	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	output, err := runOsqueryi(execTimeout, patchedQuery)
-	if err != nil {
-		return false, fmt.Errorf("executing patched query: %w", err)
-	}
-	var rows []json.RawMessage
-	if err := json.Unmarshal(output, &rows); err != nil {
-		return false, fmt.Errorf("parsing patched query output %q: %w", output, err)
-	}
-	return len(rows) > 0, nil
-}
-
-// patchedQueryFailure explains a patched query that fails right after the
-// expected version was installed, and names the fix.
-func patchedQueryFailure(expectedVersion, foundVersion, foundBundledVersion string) string {
-	if foundVersion != "" && strings.HasPrefix(expectedVersion, foundVersion+".") {
-		return fmt.Sprintf("osquery reports bundle_short_version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or compare bundle_version in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go if it carries the full version.", foundVersion, expectedVersion)
-	}
-	return fmt.Sprintf("the patched query returns no rows with version '%s' installed (bundle_short_version '%s', bundle_version '%s'), so the patch policy would fail on hosts that have this version. Transform the version to match bundle_short_version in ee/maintained-apps/ingesters/homebrew/external_refs, or compare the column that carries it in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go.", expectedVersion, foundVersion, foundBundledVersion)
-}
-
-// appExists reports whether the app is installed at the expected version. When
-// only a looser match than bundle_short_version is found, the manifest's patched
-// query must also pass, or it returns an error that names the fix. The second
-// value is always empty because the app is always found in apps, the table the
-// exists query reads.
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, patchedQuery, appPath, _ string) (bool, string, error) {
+// appExists reports whether the app is installed at the expected version. It
+// logs every row it finds, so a failing patched query can be traced to the copy
+// that fails it. The second value is always empty because the app is always
+// found in apps, the table the exists query reads.
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, string, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -289,16 +304,10 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
-	type looseMatch struct {
-		shortVersion   string
-		bundledVersion string
-	}
-	var loose *looseMatch
+	found := false
 	if len(results) > 0 {
 		for _, result := range results {
-			// The patched query compares the column as osquery reports it, before
-			// MutateSoftwareOnIngestion rewrites the version (R, Raspberry Pi Imager).
-			shortVersion := result.Version
+			rawVersion := result.Version
 			software := &fleet.Software{
 				Name:             result.Name,
 				Version:          result.Version,
@@ -309,7 +318,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			result.Version = software.Version
 			result.Name = software.Name
 
-			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, foundVersion(result.Version, rawVersion), result.BundledVersion))
 
 			// OneDrive auto-updates immediately after installation, so the installed version
 			// might be newer than the installer version. For OneDrive, we only verify that
@@ -317,7 +326,8 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "OneDrive detected - version mismatch but app is installed, falling back to existence-only validation")
-					return true, "", nil
+					found = true
+					continue
 				}
 			}
 
@@ -326,14 +336,16 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			// rather than checking the version.
 			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
 				logger.InfoContext(ctx, "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
-				return true, "", nil
+				found = true
+				continue
 			}
 
 			// WezTerm's bundle reports a placeholder version ("0.1.0" / "1") in every
 			// release, which never matches the cask's date-based version.
 			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {
 				logger.InfoContext(ctx, "WezTerm detected - skipping version check because the app bundle carries a placeholder version")
-				return true, "", nil
+				found = true
+				continue
 			}
 
 			// The name "Dia" also matches Apple Diagnostics, whose bundle version "1"
@@ -348,7 +360,8 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.adobe.DNGConverter" {
 				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
 					logger.InfoContext(ctx, "Adobe DNG Converter detected - version matches with build number")
-					return true, "", nil
+					found = true
+					continue
 				}
 			}
 
@@ -359,7 +372,8 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.ableton.live" {
 				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
 					logger.InfoContext(ctx, "Ableton Live detected - version matches with build identifier")
-					return true, "", nil
+					found = true
+					continue
 				}
 			}
 
@@ -368,7 +382,8 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "net.whatsapp.WhatsApp" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "WhatsApp detected - version mismatch but app is installed, falling back to existence-only validation")
-					return true, "", nil
+					found = true
+					continue
 				}
 			}
 
@@ -380,7 +395,8 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "com.logitech.logitune" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "Logi Tune detected - version mismatch but app is installed, falling back to existence-only validation")
-					return true, "", nil
+					found = true
+					continue
 				}
 			}
 
@@ -389,37 +405,19 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			if uniqueAppIdentifier == "org.mozilla.firefoxdeveloperedition" {
 				if result.Version != "" && strings.HasPrefix(appVersion, result.Version+"b") {
 					logger.InfoContext(ctx, "Firefox Developer Edition detected - cask version matches bundle base version with beta suffix")
-					return true, "", nil
+					found = true
+					continue
 				}
 			}
 
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
-				if shortVersion == appVersion {
-					return true, "", nil
-				}
-				// A later row may still match exactly, so keep looking.
-				if loose == nil {
-					loose = &looseMatch{shortVersion: shortVersion, bundledVersion: result.BundledVersion}
-				}
+				found = true
 			}
 		}
 	}
 
-	if loose == nil {
-		return false, "", nil
-	}
-	// The default patched query compares bundle_short_version, so a match on
-	// anything else (bundle_version, a concatenation, a shorter version) can hide
-	// a patch policy that fails on hosts with this version installed.
-	passes, err := patchedQueryPasses(ctx, patchedQuery)
-	if err != nil {
-		return false, "", err
-	}
-	if !passes {
-		return false, "", errors.New(patchedQueryFailure(appVersion, loose.shortVersion, loose.bundledVersion))
-	}
-	return true, "", nil
+	return found, "", nil
 }
 
 func executeScript(cfg *Config, scriptContents string) (string, error) {

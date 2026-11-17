@@ -3,10 +3,10 @@ package mysql
 import (
 	"context"
 	"os/exec"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
@@ -25,22 +25,13 @@ func TestMigrationStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, fleet.NoMigrationsCompleted, status.StatusCode)
 	assert.Empty(t, status.MissingTable)
-	assert.Empty(t, status.MissingData)
 
 	require.Nil(t, ds.MigrateTables(context.Background()))
 
 	status, err = ds.MigrationStatus(context.Background())
 	require.NoError(t, err)
-	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status.StatusCode)
-	assert.NotEmpty(t, status.MissingData)
-
-	require.Nil(t, ds.MigrateData(context.Background()))
-
-	status, err = ds.MigrationStatus(context.Background())
-	require.NoError(t, err)
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
 	assert.Empty(t, status.MissingTable)
-	assert.Empty(t, status.MissingData)
 
 	// Insert unknown migration.
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO ` + tables.MigrationClient.TableName + ` (version_id, is_applied) VALUES (1638994765, 1)`)
@@ -55,96 +46,35 @@ func TestMigrationStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
 	assert.Empty(t, status.MissingTable)
-	assert.Empty(t, status.MissingData)
 }
 
-func TestV4732MigrationFix(t *testing.T) {
+func TestMigrationStatusFleet4Upgrade(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	t.Cleanup(func() {
 		ds.Close()
 	})
-	status, err := ds.MigrationStatus(context.Background())
+	ctx := t.Context()
+
+	// A Fleet 4.95 database: every Fleet 4 migration applied, no baseline yet.
+	_, err := tables.MigrationClient.GetDBVersion(ds.primary.DB)
 	require.NoError(t, err)
-	require.NotNil(t, status)
-	assert.EqualValues(t, fleet.NoMigrationsCompleted, status.StatusCode)
-
-	recreate4732BadState(t, ds)
-
-	status, err = ds.MigrationStatus(context.Background())
-	require.NoError(t, err)
-	require.NotNil(t, status)
-	assert.EqualValues(t, fleet.NeedsFleetv4732Fix, status.StatusCode)
-
-	err = ds.FixFleetv4732Migrations(context.Background())
-	require.NoError(t, err)
-
-	err = ds.MigrateTables(context.Background())
-	require.NoError(t, err)
-
-	status, err = ds.MigrationStatus(context.Background())
-	require.NoError(t, err)
-	require.NotNil(t, status)
-	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
-
-	// Insert a bad migration again which should trigger the unknown state
-	_, err = ds.writer(context.Background()).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, fleet4732BadMigrationID1)
-	require.NoError(t, err)
-	status, err = ds.MigrationStatus(context.Background())
-	require.NoError(t, err)
-	require.NotNil(t, status)
-	assert.EqualValues(t, fleet.UnknownFleetv4732State, status.StatusCode)
-}
-
-// Apply the proper 4.73.2 migrations
-func recreate4732GoodState(t *testing.T, ds *Datastore) {
-	var version int64
-	var err error
-
-	const maxDataMigration = 20230525175650
-
-	// Migrate up to 4.73.1
-	for version < fleet4731GoodMigrationID {
-		err = tables.MigrationClient.UpByOne(ds.writer(context.Background()).DB, "")
-		require.NoError(t, err)
-		version, err = tables.MigrationClient.GetDBVersion(ds.writer(context.Background()).DB)
+	for _, v := range slices.Concat(tables.Fleet4Migrations, tables.Fleet4OptionalMigrations) {
+		_, err := ds.writer(ctx).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, v)
 		require.NoError(t, err)
 	}
-	require.Equal(t, int64(fleet4731GoodMigrationID), version)
+	status, err := ds.MigrationStatus(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.SomeMigrationsCompleted, status.StatusCode)
+	fleet5Versions := getVersionsFromMigrations(tables.MigrationClient.Migrations)
+	assert.ElementsMatch(t, fleet5Versions, status.MissingTable)
 
-	// Apply data migrations which were deprecated before 4.73.2 and should never change so no need for
-	// upbyone, etc. but we'll verify below that we're at expected version
-	err = data.MigrationClient.Up(ds.writer(context.Background()).DB, "")
+	for _, v := range fleet5Versions {
+		_, err = ds.writer(ctx).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, v)
+		require.NoError(t, err)
+	}
+	status, err = ds.MigrationStatus(ctx)
 	require.NoError(t, err)
-	version, err = data.MigrationClient.GetDBVersion(ds.writer(context.Background()).DB)
-	require.NoError(t, err)
-	require.EqualValues(t, int64(maxDataMigration), version)
-
-	// Apply the migrations from fleet v4.73.2
-	err = tables.MigrationClient.UpByOne(ds.writer(context.Background()).DB, "")
-	require.NoError(t, err)
-	version, err = tables.MigrationClient.GetDBVersion(ds.writer(context.Background()).DB)
-	require.NoError(t, err)
-	require.EqualValues(t, fleet4732GoodMigrationID2, version)
-
-	err = tables.MigrationClient.UpByOne(ds.writer(context.Background()).DB, "")
-	require.NoError(t, err)
-	version, err = tables.MigrationClient.GetDBVersion(ds.writer(context.Background()).DB)
-	require.NoError(t, err)
-	require.EqualValues(t, fleet4732GoodMigrationID1, version)
-}
-
-// Recreate the bad state that some customers ended up with after running fleet v4.73.2 migrations
-func recreate4732BadState(t *testing.T, ds *Datastore) {
-	recreate4732GoodState(t, ds)
-
-	_, err := ds.writer(context.Background()).Exec(`UPDATE `+tables.MigrationClient.TableName+` SET version_id = ? WHERE version_id = ?`, fleet4732BadMigrationID1, fleet4732GoodMigrationID1)
-	require.NoError(t, err)
-	_, err = ds.writer(context.Background()).Exec(`UPDATE `+tables.MigrationClient.TableName+` SET version_id = ? WHERE version_id = ?`, fleet4732BadMigrationID2, fleet4732GoodMigrationID2)
-	require.NoError(t, err)
-
-	version, err := tables.MigrationClient.GetDBVersion(ds.writer(context.Background()).DB)
-	require.NoError(t, err)
-	require.EqualValues(t, fleet4732BadMigrationID1, version)
+	assert.Equal(t, fleet.AllMigrationsCompleted, status.StatusCode)
 }
 
 func TestMigrations(t *testing.T) {
@@ -154,9 +84,9 @@ func TestMigrations(t *testing.T) {
 
 	require.NoError(t, ds.MigrateTables(context.Background()))
 
-	// Make sure labels in _future_ migrations have "platform" unset.
-	// See comments in Up_20251015103800 for more information on why.
-	// If there's a reason for one of these to have a "platform" set,
+	// Built-in labels must have "platform" unset: label queries must run on every
+	// host so membership clears when a host's OS changes (e.g. Ubuntu reinstalled
+	// as Windows). If there's a reason for one of these to have a "platform" set,
 	// please add the exception here.
 	var count int
 	err := sqlx.Get(ds.primary, &count, `SELECT COUNT(*) FROM labels WHERE label_type = ? AND platform != ''`, fleet.LabelTypeBuiltIn)

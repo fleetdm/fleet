@@ -14,6 +14,8 @@ Before you switch to Fleet, let your team know that there will be a gap in condi
 
 To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
 
+> This group name must exactly match "Fleet conditional access". If the group name does not exactly match (including addition of a prefix or suffix), the connection will fail.
+
 ## Step 2: Configure Fleet in Intune
 
 > For Windows, you can skip this step.
@@ -34,6 +36,8 @@ After this is done, the "Fleet partner" will be shown with a "Pending activation
 
 Now we need to connect and provision Fleet to operate on your Entra ID tenant (activate partner).
 
+> This step must be completed by someone who is both an Entra admin who can grant admin consent (for example, a Global Administrator) and a Fleet admin. Have that person sign in to Fleet and finish the whole step in one browser session. Don't start the flow and then send Microsoft's consent link to someone else. Fleet creates a new consent link each time you select **Save** or open **Settings > Integrations > Conditional access** while setup is incomplete, and only the newest link works. A link you forwarded earlier may be out of date by the time it's used.
+
 To connect Fleet to your Entra account you need your "Microsoft Entra tenant ID", which can be found in https://entra.microsoft.com. You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get your tenant ID.
 
 Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Conditional access** and enter the tenant ID.
@@ -42,7 +46,7 @@ Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Cond
 
 After clicking **Save** you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application. 
 
-After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, please verify that you have a "Fleet conditional access" [group in Entra](#step-3-connect-fleet-to-entra). If you do and you still don't see a green checkmark, please [reach out to support](https://fleetdm.com/support).
+After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, verify that you have a "Fleet conditional access" [group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra). If you do and you still don't see a green checkmark, see [Troubleshooting](#troubleshooting).
 
 ## Step 4: Deploy Company Portal and the Platform SSO configuration profile
 
@@ -104,6 +108,11 @@ Upload the following configuration profile:
         <dict>
             <key>AuthenticationMethod</key>
             <string>UserSecureEnclaveKey</string>
+            <key>ExtensionData</key>
+            <dict>
+                <key>AppAllowList</key>
+                <string>com.fleetdm.orbit</string>
+            </dict>
             <key>ExtensionIdentifier</key>
             <string>com.microsoft.CompanyPortalMac.ssoextension</string>
             <key>PayloadDisplayName</key>
@@ -164,6 +173,8 @@ Upload the following configuration profile:
 
 If you're using another MDM solution, add the same configuration profile and target only macOS hosts with Company Portal installed.
 
+The `AppAllowList` entry lets fleetd ask Entra for a token that proves the host's Entra device ID. Without it, Fleet doesn't report the host's compliance to Intune. If your profile already has an `AppAllowList`, add `com.fleetdm.orbit` to it, separated by a comma.
+
 > `UserSecureEnclaveKey` will be mandatory starting in Q3 2025. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage)
 
 ## Step 5: Add Fleet policies
@@ -183,6 +194,15 @@ As an example, you can create a policy to "block access to Office 365 on macOS d
 
 Make sure to assign the "Fleet conditional access" group to the Entra policy.
 
+## Troubleshooting
+
+If Fleet can't connect to Entra:
+
+1. Confirm the "Fleet conditional access" group exists in Entra ([step 1](#step-1-create-a-fleet-conditional-access-group-in-entra)) and Fleet is added as a compliance partner in Intune ([step 2](#step-2-configure-fleet-in-intune)).
+2. Have an Entra admin who is also a Fleet admin sign in to Fleet, select **Connect**, and approve the permissions in the same session. Don't send Microsoft's consent link to someone else. Fleet creates a new link each time, and only the newest one works.
+
+To see the underlying error, check the Fleet server logs for `setup is not done`, or the `setup_error` field in the `POST /api/latest/fleet/conditional-access/microsoft/confirm` response. If it keeps failing, [reach out to support](https://fleetdm.com/support).
+
 ## Disable
 
 If you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
@@ -200,6 +220,8 @@ After following the authentication steps, the user might hit the following messa
 ![Entra ID Platform SSO refetch needed](../website/assets/images/articles/entra-platform-sso-refetch-needed-431x351@2x.png)
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
+
+Fleet also updates Intune on its own once it has verified the host's Entra device ID, which can take up to 10 minutes after the user registers with Platform SSO. If the user still can't log in after refetching, they should wait a few minutes and try again.
 
 ### Windows
 

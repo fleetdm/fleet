@@ -96,7 +96,7 @@ func setupRefetchTest(t *testing.T) *refetchTestEnv {
 	env.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
-	env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration) ([]fleet.AppleDevicesToRefetch, error) {
+	env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration, limit int) ([]fleet.AppleDevicesToRefetch, error) {
 		return []fleet.AppleDevicesToRefetch{
 			{HostID: 1, UUID: "device-1", InstalledFromDEP: true},
 		}, nil
@@ -139,7 +139,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 	t.Run("tracking rows are written before each enqueue", func(t *testing.T) {
 		env := setupRefetchTest(t)
 
-		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity)
+		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity, 1000)
 		require.NoError(t, err)
 		require.Equal(t, []string{
 			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
@@ -153,7 +153,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 
 	t.Run("mixed devices are grouped by command flag", func(t *testing.T) {
 		env := setupRefetchTest(t)
-		env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration) ([]fleet.AppleDevicesToRefetch, error) {
+		env.ds.ListIOSAndIPadOSToRefetchFunc = func(ctx context.Context, refetchInterval time.Duration, limit int) ([]fleet.AppleDevicesToRefetch, error) {
 			return []fleet.AppleDevicesToRefetch{
 				{HostID: 1, UUID: "device-1", InstalledFromDEP: true},
 				{HostID: 2, UUID: "device-2", InstalledFromDEP: false, IsPersonalEnrollment: true},
@@ -175,7 +175,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 			return nil, nil
 		}
 
-		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity)
+		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity, 1000)
 		require.NoError(t, err)
 		require.Len(t, batches, 5)
 
@@ -213,7 +213,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 			return nil, nil
 		}
 
-		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity)
+		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity, 1000)
 		require.Error(t, err)
 		require.Equal(t, []string{
 			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
@@ -229,7 +229,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 		// are durably enqueued, so no tracking row may be removed
 		env.pusher.resp = map[string]*push.Response{"device-1": {Err: errors.New("apns unavailable")}}
 
-		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity)
+		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity, 1000)
 		require.NoError(t, err)
 		require.False(t, env.ds.RemoveHostMDMCommandsFuncInvoked)
 		require.Equal(t, []string{

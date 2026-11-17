@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2",
+      "version": "2026.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'NVDA %' AND publisher = 'NV Access';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NVDA %' AND publisher = 'NV Access' AND version_compare(version, '2026.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NVDA %' AND publisher = 'NV Access' AND version_compare(version, '2026.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nvda.exe');"
       },
-      "installer_url": "https://download.nvaccess.org/releases/2026.2/nvda_2026.2.exe",
+      "installer_url": "https://github.com/nvaccess/nvda/releases/download/release-2026.3/nvda_2026.3.exe",
       "install_script_ref": "25f7bd4d",
       "uninstall_script_ref": "8d8741b9",
-      "sha256": "f3f8d29974a88d687b3c4809be192219ec579c5bdabcda5aaf53635288bca824",
+      "sha256": "a8a87cb823da0c62cfbae4a444ae5ae238d54dc82ad6d46d3fdb3fef082799b2",
       "default_categories": [
         "Productivity"
       ]

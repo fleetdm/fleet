@@ -136,6 +136,7 @@ The profiles names must be unique across all platforms and profile types for a g
   - `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`
   - `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`
   - `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`
+  - `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID`
   - `$FLEET_VAR_HOST_UUID`
   - `$FLEET_VAR_HOST_PLATFORM`
 * DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.

@@ -574,12 +574,11 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations up-to-date.")
 			case fleet.UnknownMigrations:
-				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
-					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+				fmt.Printf("Unknown migrations detected: tables=%v.\n", migrationStatus.UnknownTable)
 			case fleet.SomeMigrationsCompleted:
-				fmt.Printf("Missing migrations detected: tables=%v, data=%v.\n"+
+				fmt.Printf("Missing migrations detected: tables=%v.\n"+
 					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
-					migrationStatus.MissingTable, migrationStatus.MissingData)
+					migrationStatus.MissingTable)
 			}
 			return nil
 		},
