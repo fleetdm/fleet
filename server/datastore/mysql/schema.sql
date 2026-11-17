@@ -307,19 +307,6 @@ CREATE TABLE `batch_activity_host_results` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `ca_config_assets` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `type` enum('digicert','custom_scep_proxy') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` blob NOT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_ca_config_assets_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `calendar_events` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1968,42 +1955,12 @@ CREATE TABLE `labels` (
 INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2025-10-09 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','',1,0,NULL,NULL,NULL),(2,'2024-06-28 00:00:00','2025-10-09 00:00:00','iOS','All iOS hosts','','',1,1,NULL,NULL,NULL),(3,'2024-06-28 00:00:00','2025-10-09 00:00:00','iPadOS','All iPadOS hosts','','',1,1,NULL,NULL,NULL),(4,'2024-09-27 00:00:00','2026-08-14 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name like \'%fedora%\';','',1,0,NULL,NULL,NULL),(5,'2025-02-25 00:00:00','2025-10-09 00:00:00','Android','All Android hosts','','',1,1,NULL,NULL,NULL);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `legacy_host_filevault_profiles` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
-  `created_at` timestamp(6) NOT NULL,
-  `updated_at` timestamp(6) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_enroll_refs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `enroll_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_legacy_enroll_refs_host_uuid` (`host_uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `legacy_host_mdm_idp_accounts` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `account_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `host_id` int unsigned DEFAULT NULL,
-  `email_id` int unsigned DEFAULT NULL,
-  `email_created_at` datetime DEFAULT NULL,
-  `email_updated_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2846,36 +2803,6 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `network_interfaces` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_id` int unsigned NOT NULL,
-  `mac` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ip_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `broadcast` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ibytes` bigint NOT NULL DEFAULT '0',
-  `interface` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ipackets` bigint NOT NULL DEFAULT '0',
-  `last_change` bigint NOT NULL DEFAULT '0',
-  `mask` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `metric` int NOT NULL DEFAULT '0',
-  `mtu` int NOT NULL DEFAULT '0',
-  `obytes` bigint NOT NULL DEFAULT '0',
-  `ierrors` bigint NOT NULL DEFAULT '0',
-  `oerrors` bigint NOT NULL DEFAULT '0',
-  `opackets` bigint NOT NULL DEFAULT '0',
-  `point_to_point` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `type` int NOT NULL DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_network_interfaces_unique_ip_host_intf` (`ip_address`,`host_id`,`interface`),
-  KEY `idx_network_interfaces_hosts_fk` (`host_id`),
-  FULLTEXT KEY `ip_address_search` (`ip_address`),
-  CONSTRAINT `network_interfaces_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `notifications_end_user` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -2958,17 +2885,6 @@ CREATE TABLE `org_logo` (
   PRIMARY KEY (`mode`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `osquery_options` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `override_type` int NOT NULL,
-  `override_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `options` json NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `osquery_options` VALUES (1,0,'','{\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_requests` (
