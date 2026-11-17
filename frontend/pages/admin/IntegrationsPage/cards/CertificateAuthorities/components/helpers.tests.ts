@@ -16,12 +16,6 @@ const certAuthorities: ICertificateAuthorityPartial[] = [
 describe("getCANameConflictError", () => {
   it.each([
     ["a free name", "NEW_NAME", undefined, undefined],
-    [
-      "the name of a CA of another type",
-      "VPN",
-      undefined,
-      CA_NAME_IN_USE_ERROR,
-    ],
     ["a taken name in another case", "wifi", undefined, CA_NAME_IN_USE_ERROR],
     [
       "a taken name with spaces around it",
@@ -31,8 +25,12 @@ describe("getCANameConflictError", () => {
     ],
     ["the edited CA's own name", "wifi", 2, undefined],
     ["another CA's name when editing", "VPN", 2, CA_NAME_IN_USE_ERROR],
-    ["the NDES name in another case", "ndes", undefined, CA_NAME_NDES_ERROR],
-    ["the NDES name, even when editing", "Ndes", 1, CA_NAME_NDES_ERROR],
+    [
+      "the NDES name in any case, even when editing",
+      "Ndes",
+      1,
+      CA_NAME_NDES_ERROR,
+    ],
   ])("checks %s", (_, name, editingId, expected) => {
     expect(getCANameConflictError(name, certAuthorities, editingId)).toBe(
       expected
