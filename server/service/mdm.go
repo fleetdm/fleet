@@ -3518,7 +3518,7 @@ func getAppleProfiles(
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil, nil
@@ -3598,7 +3598,7 @@ func getWindowsProfiles(
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil
@@ -3671,7 +3671,7 @@ func getAndroidProfiles(ctx context.Context,
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil
@@ -3725,7 +3725,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		if platform != "darwin" && platform != "windows" && platform != "android" {
 			// We can only display a generic error message here because at this point
 			// we don't know the file extension or whether the profile is intended
-			// for macos_settings, windows_settings or android_settings. We should expect to never see this
+			// for apple_settings, windows_settings or android_settings. We should expect to never see this
 			// in practice because the client should be validating the profiles
 			// before sending them to the server so the client can surface  more helpful
 			// error messages to the user. However, we're validating again here just

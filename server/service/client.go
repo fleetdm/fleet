@@ -373,7 +373,11 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 			// their PayloadDisplayName when we parse the profile below)
 			name := strings.TrimSuffix(filepath.Base(filePath), ext)
 			// for validation errors, we want to include the platform and file name in the error message
-			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
+			settingsKey := platform + "_settings"
+			if platform == "macos" {
+				settingsKey = "apple_settings"
+			}
+			prefixErrMsg := fmt.Sprintf("Couldn't edit %s.configuration_profiles (%s%s)", settingsKey, name, ext)
 
 			if platform == "macos" && (ext == ".mobileconfig" || ext == ".xml") {
 				// Parse and check for signed mobile configs before expanding.
@@ -793,7 +797,7 @@ func (c *Client) ApplyGroup(
 		// same GitOps run can reference an asset uploaded alongside it. Assets
 		// require premium and turned-on MDM (the batch endpoint rejects the call
 		// otherwise), so skip it when either is missing. A non-nil spec means
-		// macos_settings is managed, so reconcile even when the asset set is empty
+		// apple_settings is managed, so reconcile even when the asset set is empty
 		// (that clears any existing assets).
 		if macosAssets := extractAppCfgMacOSAssets(specs.AppConfig); macosAssets != nil &&
 			appconfig != nil && appconfig.License.IsPremium() && appconfig.MDM.EnabledAndConfigured {
@@ -1706,7 +1710,7 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 	if !ok || mos == nil {
 		return nil
 	}
-	cs, ok := mos["custom_settings"]
+	cs, ok := mos["configuration_profiles"]
 	if !ok {
 		// custom settings is not present
 		return nil
@@ -1715,7 +1719,7 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 	csAny, ok := cs.([]interface{})
 	if !ok || csAny == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
-		// custom_settings key was actually provided.
+		// configuration_profiles key was actually provided.
 		return []fleet.MDMProfileSpec{}
 	}
 
@@ -1767,7 +1771,7 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 }
 
 func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
-	return extractAppCfgCustomSettings(appCfg, "macos_settings")
+	return extractAppCfgCustomSettings(appCfg, "apple_settings")
 }
 
 func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
@@ -1778,13 +1782,13 @@ func extractAppCfgAndroidCustomSettings(appCfg interface{}) []fleet.MDMProfileSp
 	return extractAppCfgCustomSettings(appCfg, "android_settings")
 }
 
-// extractMacOSAssetSpecs returns the Apple DDM asset specs from a macos_settings
+// extractMacOSAssetSpecs returns the Apple DDM asset specs from an apple_settings
 // value, which may be a fleet.MacOSSettings struct (GitOps) or a raw map
 // (fleetctl apply).
 func extractMacOSAssetSpecs(macOSSettings any) []fleet.MDMProfileSpec {
 	switch v := macOSSettings.(type) {
 	case fleet.MacOSSettings:
-		// macos_settings is present (GitOps decodes it into the struct), so assets
+		// apple_settings is present (GitOps decodes it into the struct), so assets
 		// are reconciled even when none are listed. Normalize nil to a non-nil
 		// empty slice so the caller treats it as "reconcile to empty".
 		if v.Assets == nil {
@@ -1826,16 +1830,16 @@ func extractAppCfgMacOSAssets(appCfg any) []fleet.MDMProfileSpec {
 	if !ok {
 		return nil
 	}
-	return extractMacOSAssetSpecs(mmdm["macos_settings"])
+	return extractMacOSAssetSpecs(mmdm["apple_settings"])
 }
 
 // extractTmSpecsMDMAssets returns the Apple DDM asset specs keyed by team name.
 //
-// Assets are reconciled whenever a team manages macos_settings (the key is
-// present), mirroring how custom_settings behaves: a present-but-empty asset
-// set is a request to clear all of the team's assets. macos_settings is decoded
+// Assets are reconciled whenever a team manages apple_settings (the key is
+// present), mirroring how configuration_profiles behaves: a present-but-empty asset
+// set is a request to clear all of the team's assets. apple_settings is decoded
 // through a pointer so its absence (leave assets untouched) is distinguishable
-// from an empty macos_settings (reconcile assets to the provided, possibly
+// from an empty apple_settings (reconcile assets to the provided, possibly
 // empty, set).
 func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMProfileSpec {
 	var m map[string][]fleet.MDMProfileSpec
@@ -1845,7 +1849,7 @@ func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMPr
 			MDM  struct {
 				MacOSSettings *struct {
 					Assets []fleet.MDMProfileSpec `json:"assets"`
-				} `json:"macos_settings"`
+				} `json:"apple_settings"`
 			} `json:"mdm"`
 		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
@@ -1854,7 +1858,7 @@ func extractTmSpecsMDMAssets(tmSpecs []json.RawMessage) map[string][]fleet.MDMPr
 		}
 		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name == "" || spec.MDM.MacOSSettings == nil {
-			// macos_settings not managed for this team; leave its assets untouched.
+			// apple_settings not managed for this team; leave its assets untouched.
 			continue
 		}
 		if m == nil {
@@ -1964,13 +1968,13 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 			Name string `json:"name"`
 			MDM  struct {
 				MacOSSettings struct {
-					CustomSettings json.RawMessage `json:"custom_settings"`
-				} `json:"macos_settings"`
+					CustomSettings json.RawMessage `json:"configuration_profiles"`
+				} `json:"apple_settings"`
 				WindowsSettings struct {
-					CustomSettings json.RawMessage `json:"custom_settings"`
+					CustomSettings json.RawMessage `json:"configuration_profiles"`
 				} `json:"windows_settings"`
 				AndroidSettings struct {
-					CustomSettings json.RawMessage `json:"custom_settings"`
+					CustomSettings json.RawMessage `json:"configuration_profiles"`
 				} `json:"android_settings"`
 			} `json:"mdm"`
 		}
@@ -2792,11 +2796,11 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["name_template"] = nameTemplate
 
 		// Common controls settings between org and team settings
-		// Put in default values for macos_settings
+		// Put in default values for apple_settings
 		if incoming.Controls.MacOSSettings != nil {
-			mdmAppConfig["macos_settings"] = incoming.Controls.MacOSSettings
+			mdmAppConfig["apple_settings"] = incoming.Controls.MacOSSettings
 		} else {
-			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{
+			mdmAppConfig["apple_settings"] = fleet.MacOSSettings{
 				CustomSettings: []fleet.MDMProfileSpec{},
 			}
 		}
@@ -2918,7 +2922,7 @@ func (c *Client) DoGitOps(
 			}
 		}
 
-		macOSSettings := mdmAppConfig["macos_settings"].(fleet.MacOSSettings)
+		macOSSettings := mdmAppConfig["apple_settings"].(fleet.MacOSSettings)
 		windowsSettings := mdmAppConfig["windows_settings"].(fleet.WindowsSettings)
 		linuxSettings := mdmAppConfig["linux_settings"].(fleet.LinuxSettings)
 
@@ -2985,7 +2989,7 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.RequireBitLockerPIN == nil {
 			defaultUnsetToFalse(&windowsSettings.RequireBitLockerPIN)
 		}
-		mdmAppConfig["macos_settings"] = macOSSettings
+		mdmAppConfig["apple_settings"] = macOSSettings
 		mdmAppConfig["windows_settings"] = windowsSettings
 		mdmAppConfig["linux_settings"] = linuxSettings
 

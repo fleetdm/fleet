@@ -275,7 +275,7 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings                  MacOSSettings            `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup                     MacOSSetup               `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
 	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
@@ -852,7 +852,7 @@ type MacOSSettings struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings []MDMProfileSpec `json:"configuration_profiles" removedkey:"custom_settings" renamescope:"apple_settings,windows_settings,android_settings"`
 
 	// EnableDiskEncryption enforces FileVault on macOS hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
@@ -877,7 +877,7 @@ func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings":                   s.CustomSettings,
+		"configuration_profiles":            s.CustomSettings,
 		"enable_disk_encryption":            s.EnableDiskEncryption,
 		"enable_escrow_disk_encryption_key": s.EnableEscrowDiskEncryptionKey,
 		"assets":                            s.Assets,
@@ -909,7 +909,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[[]string](),
-				Field: "macos_settings.custom_settings." + fieldName,
+				Field: "apple_settings.configuration_profiles." + fieldName,
 			}
 		}
 		var ret []string
@@ -919,7 +919,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 				return nil, &json.UnmarshalTypeError{
 					Value: fmt.Sprintf("%T", label),
 					Type:  reflect.TypeFor[string](),
-					Field: "macos_settings.custom_settings." + fieldName,
+					Field: "apple_settings.configuration_profiles." + fieldName,
 				}
 			}
 			ret = append(ret, strLabel)
@@ -937,14 +937,14 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return "", &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[string](),
-				Field: "macos_settings.custom_settings." + fieldName,
+				Field: "apple_settings.configuration_profiles." + fieldName,
 			}
 		}
 		return str, nil
 	}
 
-	if v, ok := m["custom_settings"]; ok {
-		set["custom_settings"] = true
+	if v, ok := m["configuration_profiles"]; ok {
+		set["configuration_profiles"] = true
 
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
@@ -983,7 +983,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					return nil, &json.UnmarshalTypeError{
 						Value: fmt.Sprintf("%T", v),
 						Type:  reflect.TypeOf(s.CustomSettings),
-						Field: "macos_settings.custom_settings",
+						Field: "apple_settings.configuration_profiles",
 					}
 				}
 			}
@@ -1001,7 +1001,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_disk_encryption",
+				Field: "apple_settings.enable_disk_encryption",
 			}
 		}
 		s.EnableDiskEncryption = optjson.SetBool(b)
@@ -1015,7 +1015,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_escrow_disk_encryption_key",
+				Field: "apple_settings.enable_escrow_disk_encryption_key",
 			}
 		}
 		s.EnableEscrowDiskEncryptionKey = optjson.SetBool(b)
@@ -2580,7 +2580,7 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"configuration_profiles" removedkey:"custom_settings" renamescope:"apple_settings,windows_settings,android_settings"`
 
 	// Fleet 5 moved the managed local account setting to setup_experience.
 	_ struct{} `json:"-" removedkey:"enable_managed_local_account" renamescope:"windows_settings"`
@@ -2620,7 +2620,7 @@ var _ WithMDMProfileSpecs = WindowsSettings{}
 type AndroidSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"configuration_profiles" removedkey:"custom_settings" renamescope:"apple_settings,windows_settings,android_settings"`
 	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
 

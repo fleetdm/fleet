@@ -175,11 +175,6 @@
         "enable_disk_encryption": false,
         "enable_escrow_disk_encryption_key": false
       },
-      "macos_settings": {
-        "custom_settings": null,
-        "enable_disk_encryption": false,
-        "enable_escrow_disk_encryption_key": false
-      },
       "setup_experience": {
         "apple_enable_release_device_manually": false,
         "apple_setup_assistant": null,
@@ -199,7 +194,6 @@
       },
       "windows_automatic_enrollment": null,
       "windows_settings": {
-        "custom_settings": null,
         "enable_disk_encryption": false,
         "configuration_profiles": null,
         "require_bitlocker_pin": false
@@ -209,7 +203,6 @@
       },
       "android_settings": {
         "certificates": null,
-        "custom_settings": null,
         "configuration_profiles": null
       },
       "end_user_authentication": {

@@ -465,7 +465,7 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 			Description:      "Office network",
 			LabelsIncludeAll: []string{"foo"},
 		}}
-		err := json.Unmarshal([]byte(`{"mdm": {"macos_settings": {"custom_settings": ["some-profile-2"]}}}`), &storedConfig)
+		err := json.Unmarshal([]byte(`{"mdm": {"apple_settings": {"configuration_profiles": ["some-profile-2"]}}}`), &storedConfig)
 		require.NoError(t, err)
 		require.Equal(t, []fleet.MDMProfileSpec{{Path: "some-profile-2"}}, storedConfig.MDM.MacOSSettings.CustomSettings)
 	})

@@ -779,7 +779,7 @@ type MDMHostData struct {
 	// complete the disk encryption process.
 	//
 	// It is not filled in by all host-returning datastore methods.
-	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" renameto:"apple_settings" db:"-" csv:"-"`
+	MacOSSettings *MDMHostMacOSSettings `json:"apple_settings,omitempty" db:"-" csv:"-"`
 
 	// MacOSSetup indicates macOS-specific MDM setup for the host, such
 	// as the status of the bootstrap package.
@@ -838,7 +838,7 @@ type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
-	// macos_settings carries the same value for backwards compatibility
+	// apple_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
 	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
 	// the PIN form rather than the Manage BitLocker instructions.

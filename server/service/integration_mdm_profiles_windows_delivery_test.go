@@ -1175,7 +1175,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{
 			"windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels": ["baz"]},
 					{"path": "bar", "labels_exclude_any": ["x", "y"]}
 				]
@@ -1210,7 +1210,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// them but this is a dry-run
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
-		{ "windows_settings": { "custom_settings": null } }
+		{ "windows_settings": { "configuration_profiles": null } }
   `), http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{team.Name: team.ID}, applyResp.TeamIDsByName)
 
@@ -1224,7 +1224,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
-		{ "windows_settings": { "custom_settings": null } }
+		{ "windows_settings": { "configuration_profiles": null } }
   `), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
@@ -1236,7 +1236,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	res := s.Do("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
 		{
 			"windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels": ["a"], "labels_include_all": ["b"]}
 				]
 			}

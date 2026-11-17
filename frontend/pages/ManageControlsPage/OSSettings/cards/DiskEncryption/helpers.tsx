@@ -42,15 +42,13 @@ interface IAppleDiskEncryptionSettings {
 }
 
 /** The disk encryption fields shared by the global config, single-fleet, and
- * fleet-list mdm responses. Fleet list responses (`teams`) still spell the
- * Apple settings `macos_settings`; the others use `apple_settings`. */
+ * fleet-list mdm responses. */
 export interface IMdmDiskEncryptionSource {
   /** @deprecated Virtual key: true only when all four settings are on. */
   enable_disk_encryption?: boolean;
   /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
   windows_require_bitlocker_pin?: boolean;
   apple_settings?: IAppleDiskEncryptionSettings;
-  macos_settings?: IAppleDiskEncryptionSettings;
   windows_settings?: {
     enable_disk_encryption?: boolean;
     require_bitlocker_pin?: boolean;
@@ -67,7 +65,7 @@ export const getDiskEncryptionSettings = (
   // don't return the per-platform fields yet still render their effective
   // state
   const legacyEnabled = mdm?.enable_disk_encryption ?? false;
-  const appleSettings = mdm?.apple_settings ?? mdm?.macos_settings;
+  const appleSettings = mdm?.apple_settings;
   const windowsEnabled =
     mdm?.windows_settings?.enable_disk_encryption ?? legacyEnabled;
   return {

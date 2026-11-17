@@ -128,7 +128,7 @@ func (e *ParseTypeError) Unwrap() error {
 // ParseUnknownKeyError represents an unknown/misspelled key found in a GitOps YAML file.
 type ParseUnknownKeyError struct {
 	Filename   string
-	Path       string // dot-separated path context, e.g. "controls.macos_settings"
+	Path       string // dot-separated path context, e.g. "controls.apple_settings"
 	Field      string // the unknown field name
 	Suggestion string // suggested correct key, if a close match exists
 }
@@ -203,7 +203,7 @@ type GitOpsControls struct {
 	MacOSUpdates   any               `json:"macos_updates"`
 	IOSUpdates     any               `json:"ios_updates"`
 	IPadOSUpdates  any               `json:"ipados_updates"`
-	MacOSSettings  any               `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings  any               `json:"apple_settings" removedkey:"macos_settings"`
 	MacOSSetup     *fleet.MacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
 	MacOSMigration any               `json:"macos_migration"`
 
@@ -874,7 +874,7 @@ func absPathFrom(baseDir, p string) string {
 // the no-team file (e.g. ../lib/...) keep working.
 //
 // Only fields resolved at apply time are touched. Deliberately excluded:
-//   - controls.scripts and macos_settings/windows_settings profiles are already
+//   - controls.scripts and apple_settings/windows_settings profiles are already
 //     resolved at parse time against the file's own dir (see parseControls), so
 //     re-resolving here would double-anchor them.
 func (c *GitOpsControls) ResolveFilePathsAbs(baseDir string) {
@@ -1498,7 +1498,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
+		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "apple_settings")
 		if err != nil {
 			return multierror.Append(multiError, err)
 		}
@@ -2169,7 +2169,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		for _, item := range macOSSettings.CustomSettings {
 			// each entry has already been expanded so we can expect a single path
 			if item.Path == "" {
-				multiError = multierror.Append(multiError, errors.New("controls.macos_settings.configuration_profiles[]: path is required for each profile"))
+				multiError = multierror.Append(multiError, errors.New("controls.apple_settings.configuration_profiles[]: path is required for each profile"))
 				continue
 			}
 

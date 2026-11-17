@@ -12,7 +12,6 @@ import (
 // DeprecatedKeyMapping defines a mapping from an old YAML key path to a new one.
 // Paths use dot notation for nested keys, with [] to indicate "all array elements".
 // Examples:
-//   - "controls.macos_settings" -> "controls.apple_settings"
 //   - "queries" -> "reports"
 //   - "org_settings.mdm.apple_business_manager" -> "org_settings.mdm.apple_business"
 type DeprecatedKeyMapping struct {
@@ -30,16 +29,6 @@ type DeprecatedKeyMapping struct {
 var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Top-level gitops keys
 	{"queries", "reports"},
-
-	// Controls: macos_settings -> apple_settings (parent first, then children)
-	{"controls.macos_settings", "controls.apple_settings"},
-	{"controls.apple_settings.custom_settings", "controls.apple_settings.configuration_profiles"},
-
-	// Controls: windows_settings children
-	{"controls.windows_settings.custom_settings", "controls.windows_settings.configuration_profiles"},
-
-	// Controls: android_settings children
-	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
 
 	// Org settings: server_settings
 	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},

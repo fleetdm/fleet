@@ -1,5 +1,5 @@
 controls:
-  macos_settings:
+  apple_settings:
   windows_settings:
   scripts:
   enable_disk_encryption: false

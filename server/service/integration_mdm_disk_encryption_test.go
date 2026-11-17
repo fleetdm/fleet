@@ -60,7 +60,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	// all platforms are on) and the FileVault profile exists
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
+	  "mdm": { "enable_disk_encryption": false, "apple_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
@@ -70,7 +70,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	// changing the flat toggle and a per-platform setting to disagreeing
 	// values in one request is a conflict
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": true, "macos_settings": {"enable_disk_encryption": false} }
+	  "mdm": { "enable_disk_encryption": true, "apple_settings": {"enable_disk_encryption": false} }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
@@ -99,7 +99,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	// unrelated change doesn't affect the disk encryption setting
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"custom_settings": ["test.mobileconfig"]} }
+	  "mdm": { "apple_settings": {"configuration_profiles": ["test.mobileconfig"]} }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
@@ -173,7 +173,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]any{"custom_settings": []any{"A", "B"}},
+			MacOSSettings:        map[string]any{"configuration_profiles": []any{"A", "B"}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -1241,18 +1241,14 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	// escrow is still on, so the FileVault profile stays in place
 	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// the deprecated macos_settings name works the same as apple_settings
-	mdm = patch(`{"mdm":{"macos_settings":{"enable_escrow_disk_encryption_key": false}}}`, http.StatusOK)
+	mdm = patch(`{"mdm":{"apple_settings":{"enable_escrow_disk_encryption_key": false}}}`, http.StatusOK)
 	require.False(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	// both halves of the macOS pair are now off, so the profile goes away
 	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
-	// both names in the same request is a conflict
-	res := s.Do("PATCH", path, json.RawMessage(`{"mdm":{
-		"macos_settings": {"enable_disk_encryption": true},
-		"apple_settings": {"enable_disk_encryption": true}
-	}}`), http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `Specify only one of "macos_settings" or "apple_settings"`)
+	res := s.Do("PATCH", path, json.RawMessage(`{"mdm":{"macos_settings": {"enable_disk_encryption": true}}}`),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `The "macos_settings" parameter is not available anymore.`)
 
 	// a per-platform key omitted from the body keeps its stored value, and an
 	// explicit null does too
@@ -1312,8 +1308,7 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true}}}`, http.StatusOK)
 	require.Equal(t, before, s.lastActivityMatches("", "", 0))
 
-	// the GET response carries every per-platform key. The macOS object comes back under both its new apple_settings name and
-	// its deprecated macos_settings name, and requests accept either name (but not both).
+	// the GET response carries every per-platform key, the macOS object only as apple_settings
 	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -1344,8 +1339,7 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	require.NotNil(t, gotMDM.AppleSettings)
 	require.NotNil(t, gotMDM.AppleSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.AppleSettings.EnableEscrowDiskEncryptionKey)
-	require.NotNil(t, gotMDM.MacOSSettings, "the response also carries the deprecated macos_settings name")
-	require.Equal(t, gotMDM.AppleSettings.EnableDiskEncryption, gotMDM.MacOSSettings.EnableDiskEncryption)
+	require.Nil(t, gotMDM.MacOSSettings)
 	require.NotNil(t, gotMDM.WindowsSettings)
 	require.NotNil(t, gotMDM.WindowsSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.WindowsSettings.RequireBitLockerPIN)
@@ -1393,7 +1387,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	// should not alter it
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-                     "mdm": { "macos_settings": {"custom_settings": [{"path": "a"}]} }
+                     "mdm": { "apple_settings": {"configuration_profiles": [{"path": "a"}]} }
 		}`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
@@ -1413,7 +1407,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	// patch with false, resets it
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	    "mdm": { "enable_disk_encryption": false, "macos_settings": { "custom_settings": [{"path":"b"}] } }
+	    "mdm": { "enable_disk_encryption": false, "apple_settings": { "configuration_profiles": [{"path":"b"}] } }
 		  }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
@@ -1697,20 +1691,20 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	}}}
 	res := s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+	assert.Contains(t, errMsg, `invalid value type at 'apple_settings.enable_disk_encryption': expected bool but got float64`)
 
 	// a non-string profile description is rejected rather than dropped
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]any{"custom_settings": []any{
+			MacOSSettings: map[string]any{"configuration_profiles": []any{
 				map[string]any{"path": "a.mobileconfig", "description": 123},
 			}},
 		},
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
+	assert.Contains(t, errMsg, `invalid value type at 'apple_settings.configuration_profiles.description': expected string but got float64`)
 
 	// apply an empty set of batch profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(nil),
@@ -1725,7 +1719,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSSettings: map[string]any{
-				"custom_settings": []map[string]any{
+				"configuration_profiles": []map[string]any{
 					{"path": "a"},
 				},
 			},
@@ -1912,7 +1906,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(false)
 
 	// configure disk encryption for the global team. NOTE: since the
-	// per-platform split, macos_settings.enable_disk_encryption is the macOS
+	// per-platform split, apple_settings.enable_disk_encryption is the macOS
 	// enforcement setting, no longer an alias of the flat toggle; the orbit
 	// notification gate reads the flat toggle (the AND of the per-platform
 	// settings) until the per-platform behavior split ships (#51259), so this
@@ -2610,11 +2604,11 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 
 	// Escrow is the only setting rotation needs.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
 	}`), http.StatusOK)
 	t.Cleanup(func() {
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+			"mdm": { "apple_settings": { "enable_escrow_disk_encryption_key": false } }
 		}`), http.StatusOK)
 	})
 
@@ -2934,13 +2928,13 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
 	}`), http.StatusOK, &acResp)
 	require.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	require.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	t.Cleanup(func() {
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+			"mdm": { "apple_settings": { "enable_escrow_disk_encryption_key": false } }
 		}`), http.StatusOK)
 	})
 
@@ -2994,13 +2988,13 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true, "enable_escrow_disk_encryption_key": false } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": true, "enable_escrow_disk_encryption_key": false } }
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	require.False(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	t.Cleanup(func() {
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": { "enable_disk_encryption": false } }
+			"mdm": { "apple_settings": { "enable_disk_encryption": false } }
 		}`), http.StatusOK)
 	})
 

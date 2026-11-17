@@ -334,11 +334,11 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 		{"both empty", json.RawMessage(`{}`), Features{}, false, false},
 		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false, false},
 		{
-			// macos_settings.enable_disk_encryption is no longer an alias of
+			// apple_settings.enable_disk_encryption is no longer an alias of
 			// the flat toggle: it enables macOS enforcement only, so the
 			// virtual flat toggle reads false.
 			"a feature and macOS disk encryption set",
-			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"macos_settings": {"enable_disk_encryption": true}}}`),
+			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"apple_settings": {"enable_disk_encryption": true}}}`),
 			Features{EnableHostUsers: true},
 			false,
 			true,
@@ -352,7 +352,7 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 		},
 		{
 			"flat disk encryption false and macOS setting true",
-			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true}}}`),
+			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "apple_settings": {"enable_disk_encryption": true}}}`),
 			Features{},
 			false,
 			true,
@@ -389,7 +389,7 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			// the per-platform settings are always explicit booleans
 			mdm, ok := resultMap["mdm"].(map[string]any)
 			require.True(t, ok)
-			macosSettings, ok := mdm["macos_settings"].(map[string]any)
+			macosSettings, ok := mdm["apple_settings"].(map[string]any)
 			require.True(t, ok)
 			require.EqualValues(t, c.wantMacOSDiskEncryption, macosSettings["enable_disk_encryption"])
 			require.EqualValues(t, c.wantDiskEncryption, macosSettings["enable_escrow_disk_encryption_key"])
@@ -1248,7 +1248,7 @@ func TestGetEffectiveQueryReportCap(t *testing.T) {
 func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
 	// fleet specs arrive as a map, so every spec field has to be copied here
 	var raw map[string]any
-	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+	require.NoError(t, json.Unmarshal([]byte(`{"configuration_profiles": [
 		{"path": "a", "name": "Wi-Fi", "description": "Office network", "labels_include_any": ["L1"]},
 		{"path": "b"},
 		"c"
@@ -1257,7 +1257,7 @@ func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
 	var s MacOSSettings
 	set, err := s.FromMap(raw)
 	require.NoError(t, err)
-	require.True(t, set["custom_settings"])
+	require.True(t, set["configuration_profiles"])
 	require.Equal(t, []MDMProfileSpec{
 		{Path: "a", Name: "Wi-Fi", Description: "Office network", LabelsIncludeAny: []string{"L1"}},
 		{Path: "b"},
@@ -1265,7 +1265,7 @@ func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
 	}, s.CustomSettings)
 
 	// null is the same as omitted, but any other non-string is rejected
-	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+	require.NoError(t, json.Unmarshal([]byte(`{"configuration_profiles": [
 		{"path": "a", "name": null, "description": null},
 		{"path": null},
 		{}
@@ -1283,10 +1283,10 @@ func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
 		{"path", `true`},
 		{"path", `["x"]`},
 	} {
-		require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+
+		require.NoError(t, json.Unmarshal([]byte(`{"configuration_profiles": [{"path": "a", "`+
 			tc.field+`": `+tc.value+`}]}`), &raw))
 		_, err = s.FromMap(raw)
-		require.ErrorContains(t, err, "macos_settings.custom_settings."+tc.field+" of type string", tc.value)
+		require.ErrorContains(t, err, "apple_settings.configuration_profiles."+tc.field+" of type string", tc.value)
 	}
 }
 
@@ -1296,18 +1296,18 @@ func TestMacOSSettingsFromMapCustomSettingsLabels(t *testing.T) {
 			for _, value := range []string{`"Engineering"`, `123`, `{}`, `[1, "Engineering"]`, `["Engineering", false]`, `[null]`} {
 				t.Run(value, func(t *testing.T) {
 					var raw map[string]any
-					require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+field+`": `+value+`}]}`), &raw))
+					require.NoError(t, json.Unmarshal([]byte(`{"configuration_profiles": [{"path": "a", "`+field+`": `+value+`}]}`), &raw))
 					s := MacOSSettings{CustomSettings: []MDMProfileSpec{{Path: "existing"}}}
 					_, err := s.FromMap(raw)
 					var typeErr *json.UnmarshalTypeError
 					require.ErrorAs(t, err, &typeErr)
-					require.Equal(t, "macos_settings.custom_settings."+field, typeErr.Field)
+					require.Equal(t, "apple_settings.configuration_profiles."+field, typeErr.Field)
 					require.Equal(t, []MDMProfileSpec{{Path: "existing"}}, s.CustomSettings)
 				})
 			}
 			for _, value := range []string{`null`, `[]`, `["Engineering", "Sales"]`} {
 				t.Run(value, func(t *testing.T) {
-					input := `{"custom_settings": [{"path": "a", "` + field + `": ` + value + `}]}`
+					input := `{"configuration_profiles": [{"path": "a", "` + field + `": ` + value + `}]}`
 					var raw map[string]any
 					require.NoError(t, json.Unmarshal([]byte(input), &raw))
 					var want, got MacOSSettings

@@ -64,10 +64,6 @@ spec:
       enable: false
       mode: ""
       webhook_url: ""
-    macos_settings:
-      custom_settings: null
-      enable_disk_encryption: false
-      enable_escrow_disk_encryption_key: false
     apple_settings:
       configuration_profiles: null
       enable_disk_encryption: false
@@ -75,13 +71,11 @@ spec:
     windows_automatic_enrollment: null
     windows_settings:
       require_bitlocker_pin: false
-      custom_settings: null
       enable_disk_encryption: false
       configuration_profiles: null
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:
-      custom_settings: null
       configuration_profiles: null
       certificates: null
     setup_experience:

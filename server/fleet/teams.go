@@ -113,7 +113,7 @@ type TeamPayloadMDM struct {
 
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
-	MacOSSettings *TeamPayloadMacOSSettings `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings *TeamPayloadMacOSSettings `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	// WindowsSettings exposes only the disk encryption surfaces
 	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
@@ -127,7 +127,7 @@ type TeamPayloadMacOSSetup struct {
 	EnableEndUserAuthentication optjson.Bool `json:"enable_end_user_authentication"`
 }
 
-// TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields
+// TeamPayloadMacOSSettings is the subset of apple_settings fields
 // settable via the team PATCH endpoint.
 type TeamPayloadMacOSSettings struct {
 	EnableDiskEncryption          optjson.Bool `json:"enable_disk_encryption"`
@@ -520,7 +520,7 @@ type TeamMDM struct {
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings              MacOSSettings         `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup                 MacOSSetup            `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
@@ -683,10 +683,10 @@ type TeamSpecMDM struct {
 
 	// A map is used for the macos settings so that we can easily detect if its
 	// sub-keys were provided or not in an "apply" call. E.g. if the
-	// custom_settings key is specified but empty, then we need to clear the
+	// configuration_profiles key is specified but empty, then we need to clear the
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
-	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings map[string]any `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup    MacOSSetup     `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`

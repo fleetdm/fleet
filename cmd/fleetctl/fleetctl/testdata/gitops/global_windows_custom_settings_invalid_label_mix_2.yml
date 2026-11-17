@@ -1,6 +1,6 @@
 controls:
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/windows-screenlock.xml
         labels_include_all:
           - B

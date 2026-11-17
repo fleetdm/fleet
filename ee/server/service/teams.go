@@ -2400,7 +2400,7 @@ func (svc *Service) editTeamFromSpec(
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
 
 	// Whether Windows/Android MDM is configured is gated at the global level
-	// in ModifyAppConfig; createTeamFromSpec doesn't gate custom_settings on
+	// in ModifyAppConfig; createTeamFromSpec doesn't gate configuration_profiles on
 	// the configured flag, and gating it here can spuriously reject team
 	// edits when the cached AppConfig lags behind a recent enable.
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
@@ -2748,7 +2748,7 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		return nil, ctxerr.Wrap(ctx, err, "apply team macos settings")
 	}
 
-	customSettingsChanged := setFields["custom_settings"] &&
+	customSettingsChanged := setFields["configuration_profiles"] &&
 		len(applyUpon.CustomSettings) > 0 &&
 		!fleet.MDMProfileSpecsMatch(applyUpon.CustomSettings, oldCustomSettings)
 
@@ -2757,7 +2757,7 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 	if customSettingsChanged && !appCfg.MDM.EnabledAndConfigured {
 		// TODO: Address potential edge cases when teams that previously utilized MDM features
 		// are edited later edited when MDM disabled
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.custom_settings",
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.configuration_profiles",
 			`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 

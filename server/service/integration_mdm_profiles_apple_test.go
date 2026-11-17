@@ -1062,8 +1062,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-		  "macos_settings": {
-				"custom_settings": [
+		  "apple_settings": {
+				"configuration_profiles": [
 					{"path": "foo", "labels": ["baz"]},
 					{"path": "bar"}
 				]
@@ -1082,7 +1082,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 			"windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels_exclude_any": ["x", "y"]},
 					{"path": "bar", "labels_include_all": ["a", "b"]},
 					{"path": "baz", "labels": ["c"]}
@@ -1113,8 +1113,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_settings": { "custom_settings": null },
-			"windows_settings": { "custom_settings": null }
+			"apple_settings": { "configuration_profiles": null },
+			"windows_settings": { "configuration_profiles": null }
 		}
   }`), http.StatusOK, &acResp, "dry_run", "true")
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
@@ -1124,8 +1124,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_settings": { "custom_settings": null },
-			"windows_settings": { "custom_settings": null }
+			"apple_settings": { "configuration_profiles": null },
+			"windows_settings": { "configuration_profiles": null }
 		}
   }`), http.StatusOK, &acResp)
 	assert.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
@@ -1134,8 +1134,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	// combining two include modes returns an error; combining include + exclude is valid
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-		  "macos_settings": {
-				"custom_settings": [
+		  "apple_settings": {
+				"configuration_profiles": [
 					{"path": "foo", "labels_include_all": ["a"], "labels_include_any": ["b"]}
 				]
 			}
@@ -1147,7 +1147,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels": ["a"], "labels_include_all": ["b"]}
 				]
 			}
@@ -1159,7 +1159,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels": ["a"], "labels_include_any": ["b"]}
 				]
 			}
@@ -1171,7 +1171,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels_include_all": ["a"], "labels_include_any": ["b"]}
 				]
 			}
@@ -1183,8 +1183,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	// same label in both include and exclude lists returns an error
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-		  "macos_settings": {
-				"custom_settings": [
+		  "apple_settings": {
+				"configuration_profiles": [
 					{"path": "foo", "labels_include_all": ["a"], "labels_exclude_any": ["a"]}
 				]
 			}
@@ -1196,7 +1196,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
-				"custom_settings": [
+				"configuration_profiles": [
 					{"path": "foo", "labels_include_any": ["b"], "labels_exclude_any": ["b"]}
 				]
 			}
@@ -1225,7 +1225,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSSettings: map[string]any{
-				"custom_settings": []map[string]any{
+				"configuration_profiles": []map[string]any{
 					{"path": "foo", "labels": []string{"a", "b"}},
 					{"path": "bar", "labels_exclude_any": []string{"c"}},
 				},
@@ -1257,12 +1257,12 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]any{"custom_settings": []any{"A", true}},
+			MacOSSettings: map[string]any{"configuration_profiles": []any{"A", true}},
 		},
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings': expected array of MDMProfileSpecs but got bool`)
+	assert.Contains(t, errMsg, `invalid value type at 'apple_settings.configuration_profiles': expected array of MDMProfileSpecs but got bool`)
 
 	// apply without custom macos settings specified and unrelated field, should
 	// not replace existing settings
@@ -1285,7 +1285,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
+			MacOSSettings: map[string]any{"configuration_profiles": []map[string]any{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
@@ -1300,7 +1300,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
+			MacOSSettings: map[string]any{"configuration_profiles": []map[string]any{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -1313,7 +1313,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSSettings: map[string]any{
-				"custom_settings": []map[string]any{
+				"configuration_profiles": []map[string]any{
 					{"path": "bar", "labels": []string{"x"}},
 					{"path": "foo", "labels": []string{"a", "b"}, "labels_include_all": []string{"c"}},
 				},

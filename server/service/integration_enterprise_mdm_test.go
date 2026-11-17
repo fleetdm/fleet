@@ -490,8 +490,8 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	// sending macos settings but no macos_updates does not change the macos updates
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_settings": map[string]any{
-				"custom_settings": nil,
+			"apple_settings": map[string]any{
+				"configuration_profiles": nil,
 			},
 		},
 	}, http.StatusOK, &tmResp)

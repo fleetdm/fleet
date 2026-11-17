@@ -1,0 +1,2 @@
+- **Breaking change:** Removed the deprecated MDM setting names `macos_settings` (use `apple_settings`) and `custom_settings` (use `configuration_profiles`) from the API, GitOps YAML, and `fleetctl`. The old names are rejected, and a database migration moves the saved values.
+- **Breaking change:** Host details return `mdm.apple_settings` only, not also `mdm.macos_settings`.

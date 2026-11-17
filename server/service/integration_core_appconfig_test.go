@@ -1840,7 +1840,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// legacy config
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": true } }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
@@ -1888,7 +1888,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// set the macos custom settings fields, fails due to MDM not configured
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
+			"mdm": { "apple_settings": { "configuration_profiles": ["foo", "bar"] } }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
