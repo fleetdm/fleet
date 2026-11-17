@@ -63,11 +63,12 @@
     - Macs with Slack installed
 - name: Zoom up to date (macOS)
   description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality."
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   install_software: true
   patch_when_closed: true
+  calendar_events_enabled: true
   labels_include_any:
     - Macs with Zoom installed
 - name: Okta Verify up to date (macOS)
