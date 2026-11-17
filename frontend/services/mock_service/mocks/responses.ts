@@ -600,7 +600,7 @@ const teamQueries = {
 };
 
 const queryReport = {
-  query_id: 31,
+  report_id: 31,
   results: [
     {
       host_id: 1,

@@ -160,7 +160,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "No hosts or labels targeted")
 
-	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
+	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname"}]}
 `
 	// Note: runAppForTest never closes the WebSocket connection and does not exit,
 	// so we are unable to see the activity data that is written after WebSocket disconnects.
@@ -307,7 +307,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		"select 42, * from time"})
 	assert.ErrorContains(t, err, "Invalid label name(s): mac, windows.")
 
-	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
+	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"report", "--hosts", "1234", "--query", "select 42, * from time"}))
 }
@@ -397,7 +397,7 @@ func TestLiveQueryLabelsWithoutHosts(t *testing.T) {
 		assert.Eventually(t, func() bool { return rs.WriteResult(result) == nil }, 10*time.Second, 50*time.Millisecond)
 	}()
 
-	expected := `{"host":"labeled-host","rows":[{"1":"1","host_display_name":"labeled-host","host_hostname":"labeled-host"}]}
+	expected := `{"host":"labeled-host","rows":[{"1":"1","host_display_name":"labeled-host"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"report", "--labels", "label1, ", "--query", queryString}))
 

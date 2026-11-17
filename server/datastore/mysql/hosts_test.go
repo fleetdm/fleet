@@ -2846,7 +2846,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(0), summary.OfflineCount)
-	assert.Equal(t, uint(0), summary.MIACount)
+	assert.Equal(t, uint(0), summary.Missing30DaysCount)
 	assert.Equal(t, uint(0), summary.NewCount)
 	assert.Nil(t, summary.LowDiskSpaceCount)
 
@@ -2948,7 +2948,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(5), summary.TotalsHostsCount)
 	assert.Equal(t, uint(2), summary.OnlineCount)
 	assert.Equal(t, uint(3), summary.OfflineCount)
-	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(5), summary.NewCount)
 	assert.Nil(t, summary.LowDiskSpaceCount)
@@ -2959,7 +2959,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(5), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(5), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
-	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(5), summary.NewCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
@@ -2968,7 +2968,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(11*24*time.Hour), nil, nil)
 	require.NoError(t, err)
-	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
@@ -2988,7 +2988,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
-	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, mockClock.Now(), ptr.String("linux"), nil)
 	require.NoError(t, err)
@@ -3645,7 +3645,7 @@ func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Data
 	// - abmPendingHost (ABM Pending status, > 30 days) - EXCLUDED by fix
 	// - abmPendingRecentHost (ABM Pending status, < 30 days) - not MIA anyway
 	// - onlineHost (recent, < 30 days) - not MIA
-	assert.Equal(t, uint(3), summary.MIACount, "MIA count should be 3 (excluding ABM Pending devices)")
+	assert.Equal(t, uint(3), summary.Missing30DaysCount, "MIA count should be 3 (excluding ABM Pending devices)")
 	assert.Equal(t, uint(3), summary.Missing30DaysCount, "Missing 30 days count should be 3 (excluding ABM Pending devices)")
 
 	// Test edge case: exactly 30 days
@@ -3673,7 +3673,7 @@ func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Data
 	assert.Equal(t, uint(7), summary.TotalsHostsCount, "Total hosts count should include all 7 hosts")
 
 	// MIA count should still be 3 (boundary host excluded because it's ABM Pending)
-	assert.Equal(t, uint(3), summary.MIACount, "MIA count should still be 3 (boundary ABM Pending host excluded)")
+	assert.Equal(t, uint(3), summary.Missing30DaysCount, "MIA count should still be 3 (boundary ABM Pending host excluded)")
 	assert.Equal(t, uint(3), summary.Missing30DaysCount, "Missing 30 days count should still be 3")
 
 	// Test with different enrollment statuses using direct database manipulation
@@ -3746,25 +3746,25 @@ func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Data
 
 		if i == 0 {
 			// First test case - establish baseline
-			previousMIACount = summary.MIACount
+			previousMIACount = summary.Missing30DaysCount
 		} else {
 			// Compare with previous case
 			switch {
 			case tc.shouldBeMIA && !testCases[i-1].shouldBeMIA:
 				// Changing from non-MIA to MIA - count should increase by 1
-				assert.Equal(t, previousMIACount+1, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
+				assert.Equal(t, previousMIACount+1, summary.Missing30DaysCount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
 			case !tc.shouldBeMIA && testCases[i-1].shouldBeMIA:
 				// Changing from MIA to non-MIA - count should decrease by 1
-				assert.Equal(t, previousMIACount-1, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
+				assert.Equal(t, previousMIACount-1, summary.Missing30DaysCount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
 			default:
 				// No change expected
-				assert.Equal(t, previousMIACount, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
+				assert.Equal(t, previousMIACount, summary.Missing30DaysCount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
 			}
-			previousMIACount = summary.MIACount
+			previousMIACount = summary.Missing30DaysCount
 		}
 
 		t.Logf("Test case %d (%s): MIA count = %d, Expected MIA = %t, %s",
-			i+1, tc.name, summary.MIACount, tc.shouldBeMIA, tc.description)
+			i+1, tc.name, summary.Missing30DaysCount, tc.shouldBeMIA, tc.description)
 	}
 
 	// Final verification: Test that new hosts (< 1 day old) are counted properly regardless of enrollment status
@@ -7850,7 +7850,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
 	assert.Equal(t, uint(1), summary.OnlineCount)
 	assert.Equal(t, uint(0), summary.OfflineCount)
-	assert.Equal(t, uint(0), summary.MIACount)
+	assert.Equal(t, uint(0), summary.Missing30DaysCount)
 	assert.Equal(t, uint(1), summary.NewCount)
 
 	var count []int

@@ -138,7 +138,7 @@ const EditQueryPage = ({
   >(["query", queryId], () => queryAPI.load(queryId as number), {
     enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
-    select: (data) => data.query,
+    select: (data) => data.report,
     onSuccess: (returnedQuery) => {
       setLastEditedQueryId(returnedQuery.id);
       setLastEditedQueryName(returnedQuery.name);
@@ -257,7 +257,7 @@ const EditQueryPage = ({
   const onSubmitNewQuery = debounce(async (formData: ICreateQueryFormData) => {
     setIsQuerySaving(true);
     try {
-      const { query } = await queryAPI.create(formData);
+      const { report: query } = await queryAPI.create(formData);
       queryClient.invalidateQueries({ queryKey: [{ scope: "queries" }] });
       notify.success("Report created.");
       router.push(

@@ -98,7 +98,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	var created fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(t.Name()), Query: new("SELECT 1 AS team_id")}, http.StatusOK,
 		&created)
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d/report", created.Query.ID), nil, http.StatusOK, "order_key", "team_id")
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d/report", created.Report.ID), nil, http.StatusOK, "order_key", "team_id")
 }
 
 func (s *integrationEnterpriseTestSuite) listReports() []fleet.Query {
