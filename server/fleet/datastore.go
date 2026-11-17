@@ -2952,8 +2952,8 @@ type Datastore interface {
 	// profiles for the host's team (team_id=0 is its own "no team" scope).
 	ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*WindowsProfileForReconcile, error)
 
-	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
-	// host UUID.
+	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, keyed by
+	// each UUID as given, whatever letter case the rows were stored with.
 	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
 
 	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.

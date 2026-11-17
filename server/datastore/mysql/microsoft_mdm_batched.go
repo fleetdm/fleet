@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -85,8 +86,8 @@ func (ds *Datastore) ListWindowsProfilesForReconcileByTeam(ctx context.Context, 
 	return ds.listWindowsProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID)
 }
 
-// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
-// host UUID.
+// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, keyed by each
+// UUID as given, whatever letter case the rows were stored with.
 func (ds *Datastore) BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
 	return ds.bulkGetHostMDMWindowsProfilesByUUIDsTransaction(ctx, ds.reader(ctx), hostUUIDs)
 }
@@ -269,7 +270,7 @@ func (ds *Datastore) listWindowsProfilesForReconcileTransaction(
 }
 
 // bulkGetHostMDMWindowsProfilesByUUIDsTransaction returns the current host_mdm_windows_profiles rows for the given host UUIDs,
-// grouped by host UUID.
+// keyed by each UUID as given.
 //
 // The caller (GetWindowsProfileReconcileSnapshot) always passes the reconcile host window, bounded by
 // reconcileWindowsProfilesBatchSize (a per-tick read budget in the low thousands), which stays far under MySQL's ~65k
@@ -310,8 +311,18 @@ func (ds *Datastore) bulkGetHostMDMWindowsProfilesByUUIDsTransaction(
 		return nil, ctxerr.Wrap(ctx, err, "select host mdm windows profiles")
 	}
 
+	// host_uuid compares case-insensitively, so a row can be stored under another spelling of a requested UUID (written for an
+	// older hosts row that shares it). Key rows by the requested spelling, which is the one callers look up.
+	requested := make(map[string]string, len(hostUUIDs))
+	for _, u := range hostUUIDs {
+		requested[strings.ToUpper(u)] = u
+	}
 	for _, r := range rows {
-		out[r.HostUUID] = append(out[r.HostUUID], r)
+		key := r.HostUUID
+		if u, ok := requested[strings.ToUpper(r.HostUUID)]; ok {
+			key = u
+		}
+		out[key] = append(out[key], r)
 	}
 
 	return out, nil

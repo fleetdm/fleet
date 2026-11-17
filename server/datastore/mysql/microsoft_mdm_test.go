@@ -9515,6 +9515,24 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 		requireOneDelivery(t, sharedUUID, []string{"Install"})
 	})
 
+	t.Run("rows whose UUIDs differ only in letter case", func(t *testing.T) {
+		for _, olderLower := range []bool{true, false} {
+			hostUUID := strings.ToUpper(uuid.NewString())
+			olderUUID, newerUUID := strings.ToLower(hostUUID), hostUUID
+			if !olderLower {
+				olderUUID, newerUUID = newerUUID, olderUUID
+			}
+			hOld := newHost(fmt.Sprintf("dup-e-old-%t", olderLower), olderUUID, &team.ID)
+			windowsEnroll(t, ds, hOld)
+			installWindowsProfilesAsVerified(t, ds, []string{olderUUID}, []string{profUUID})
+			hNew := newHost(fmt.Sprintf("dup-e-new-%t", olderLower), newerUUID, &team.ID)
+			setMDMEnrolled(hNew, true)
+
+			requireReconcilesRow(t, newerUUID, hNew)
+			requireOneDelivery(t, newerUUID, []string{"Install"})
+		}
+	})
+
 	t.Run("newest row on another platform", func(t *testing.T) {
 		sharedUUID := strings.ToUpper(uuid.NewString())
 		hTeam := newHost("dup-d-fleet-a", sharedUUID, &team.ID)
