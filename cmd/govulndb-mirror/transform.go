@@ -17,10 +17,6 @@ const (
 	// document this publisher was not written for.
 	goEcosystem = "Go"
 
-	// toolchainModule holds advisories against the `go` command. They affect the build machine,
-	// not the binary it produced, so they are not mirrored.
-	toolchainModule = "toolchain"
-
 	// semverRangeType is the only range type the Go database uses. Any other type orders
 	// versions by rules this publisher does not implement.
 	semverRangeType = "SEMVER"
@@ -32,11 +28,10 @@ const (
 
 // transform turns the collected reports into the artifact Fleet reads.
 //
-// Reports are dropped when they are withdrawn or carry no CVE alias, and the `toolchain` module
-// is dropped wherever it appears. Everything else is a straight re-shape: a report affecting
-// several modules lands under each of their keys with only that entry's ranges. Module paths are
-// kept exactly as upstream reports them, because Fleet matches them by exact string against the
-// path fleetd read out of the binary's build info.
+// Reports are dropped when they are withdrawn or carry no CVE alias. Everything else is a
+// straight re-shape: a report affecting several modules lands under each of their keys with only
+// that entry's ranges. Module paths are kept exactly as upstream reports them, because Fleet
+// matches them by exact string against the path fleetd read out of the binary's build info.
 func transform(reports []osvReport, generated time.Time) (*govulndb.Artifact, error) {
 	modules := make(map[string][]govulndb.Advisory)
 
@@ -63,9 +58,6 @@ func transform(reports []osvReport, generated time.Time) (*govulndb.Artifact, er
 			if affected.Package.Ecosystem != goEcosystem {
 				return nil, suspectf("report %s, module %s: ecosystem %q, want %q",
 					report.ID, module, affected.Package.Ecosystem, goEcosystem)
-			}
-			if module == toolchainModule {
-				continue
 			}
 
 			ranges, err := affectedRanges(report.ID, module, affected.Ranges)

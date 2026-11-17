@@ -849,7 +849,7 @@ func checkGoVulnDBVulnerabilities(
 
 	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, collectVulns, startTime, logger)
 	if err != nil {
-		errHandler(analyzeCtx, logger, "analyzing go binaries for vulnerabilities", err)
+		errHandler(analyzeCtx, logger, "analyzing Go binaries and toolchains for vulnerabilities", err)
 	}
 
 	return r

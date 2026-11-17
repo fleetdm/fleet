@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
@@ -635,6 +636,12 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 	// OSV artifacts by security patch level; with target_sw=android it would match every unversioned
 	// Android OS CVE in NVD.
 	if software.Source == "android_apps" && software.ApplicationID != nil && *software.ApplicationID == "android" {
+		return "", nil
+	}
+
+	// Go toolchain installs are matched against the Go vulnerability database. By name, the
+	// Homebrew and Arch packages match ecies:go, an unrelated library.
+	if govulndb.IsToolchainInstall(software) {
 		return "", nil
 	}
 

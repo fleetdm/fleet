@@ -88,29 +88,30 @@ func TestTransformKeepsUnfixedRangeOpen(t *testing.T) {
 	require.Equal(t, want, advisories[0].Ranges)
 }
 
-// Toolchain advisories affect the `go` command on the build machine, not the binary it produced.
-func TestTransformDropsToolchain(t *testing.T) {
+// Toolchain advisories are matched against Go toolchain installs, so they are mirrored like any
+// other module.
+func TestTransformKeepsToolchain(t *testing.T) {
 	artifact := mustTransform(t,
 		osvReport{
 			ID:      "GO-2024-3000",
 			Aliases: []string{"CVE-2024-3000"},
 			Affected: []osvAffected{
-				affects(toolchainModule, semverRange(introduced("0"), fixed("1.23.0"))),
+				affects(govulndb.ToolchainModule, semverRange(introduced("0"), fixed("1.23.0"))),
 				affects(govulndb.StdlibModule, semverRange(introduced("0"), fixed("1.23.0"))),
 			},
 		},
 		osvReport{
 			ID:       "GO-2024-3001",
 			Aliases:  []string{"CVE-2024-3001"},
-			Affected: []osvAffected{affects(toolchainModule, semverRange(introduced("0"), fixed("1.23.1")))},
+			Affected: []osvAffected{affects(govulndb.ToolchainModule, semverRange(introduced("0"), fixed("1.23.1")))},
 		},
 	)
 
-	require.NotContains(t, artifact.Modules, toolchainModule)
-	require.Len(t, artifact.Modules, 1, "want stdlib only")
-	stdlib := artifact.Modules[govulndb.StdlibModule]
-	require.Len(t, stdlib, 1)
-	require.Equal(t, "GO-2024-3000", stdlib[0].ID)
+	require.Len(t, artifact.Modules, 2)
+	require.Len(t, artifact.Modules[govulndb.StdlibModule], 1)
+	toolchain := artifact.Modules[govulndb.ToolchainModule]
+	require.Len(t, toolchain, 2)
+	require.Equal(t, "GO-2024-3000", toolchain[0].ID)
 }
 
 // software_cve and every CVE metadata join are keyed on a CVE ID, so a report that carries no

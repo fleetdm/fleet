@@ -5,6 +5,9 @@
 // so the CPE path gave every binary named "air" Adobe AIR's CVEs. The Go database is keyed on
 // module path (software.extension_id) and toolchain version (software.release) instead.
 //
+// Go toolchain installs (see IsToolchainInstall) are matched here too rather than through NVD,
+// which matched the Homebrew "go" formula to ecies:go and lags the Go database on new CVEs.
+//
 // Fleet does not reach vuln.go.dev directly. cmd/govulndb-mirror, run by a job in
 // fleetdm/vulnerabilities, publishes the database as a release asset there, keeping a single
 // egress point for restricted deployments. See README.md for the artifact contract.
@@ -16,8 +19,8 @@ package govulndb
 import "time"
 
 const (
-	// softwareSource is the software source this package scans.
-	softwareSource = "go_binaries"
+	// goBinariesSource is the software source of Go binaries.
+	goBinariesSource = "go_binaries"
 
 	// SchemaVersion is the artifact schema this package reads. See README.md for the contract.
 	SchemaVersion = "1"
@@ -32,6 +35,11 @@ const (
 	// reports, matched against a binary's toolchain version rather than its own.
 	StdlibModule = "stdlib"
 
+	// ToolchainModule is the Go vulnerability database's module path for reports against the
+	// `go` command. They affect the machine the toolchain is installed on, so they are matched
+	// against toolchain installs only, never against the binaries it built.
+	ToolchainModule = "toolchain"
+
 	// develVersion is what the Go toolchain records for a working-tree build; there is no
 	// release to compare against.
 	develVersion = "(devel)"
@@ -42,8 +50,7 @@ type Artifact struct {
 	SchemaVersion string    `json:"schema_version"`
 	Generated     time.Time `json:"generated"`
 	// Modules maps a module path to its advisories, with the standard library under
-	// StdlibModule. Toolchain advisories are not mirrored: they affect the build machine, not
-	// the binary.
+	// StdlibModule and the `go` command under ToolchainModule.
 	Modules map[string][]Advisory `json:"modules"`
 }
 

@@ -21,14 +21,9 @@ import (
 // vulnBatchSize is how many matched vulnerabilities are written per INSERT.
 const vulnBatchSize = 500
 
-// toolchainModule is the Go vulnerability database's module path for advisories against the
-// `go` command. Those affect the build machine, not the binary, so they are never matched even
-// if a mirrored artifact kept them.
-const toolchainModule = "toolchain"
-
-// Analyze matches Go binaries against the most recent mirrored Go vulnerability database
-// artifact in vulnPath. startTime is when the vulnerability run began: matched rows have their
-// updated_at refreshed, and anything older is treated as remediated.
+// Analyze matches Go binaries and Go toolchain installs against the most recent mirrored Go
+// vulnerability database artifact in vulnPath. startTime is when the vulnerability run began:
+// matched rows have their updated_at refreshed, and anything older is treated as remediated.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -57,14 +52,6 @@ func Analyze(
 		return nil, errors.New("Go vulnerability database artifact contains no modules (possible corrupted feed)")
 	}
 
-	iter, err := ds.AllSoftwareIterator(ctx, fleet.SoftwareIterQueryOptions{
-		IncludedSources: []string{softwareSource},
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "go binaries software iterator")
-	}
-	defer iter.Close()
-
 	var (
 		found     []fleet.SoftwareVulnerability
 		newVulns  []fleet.SoftwareVulnerability
@@ -74,7 +61,7 @@ func Analyze(
 	insertBatch := func(batch []fleet.SoftwareVulnerability) error {
 		inserted, err := ds.InsertSoftwareVulnerabilities(ctx, batch, fleet.GoVulnDBSource)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting Go binary vulnerabilities")
+			return ctxerr.Wrap(ctx, err, "inserting Go vulnerabilities")
 		}
 		if collectVulns {
 			newVulns = append(newVulns, inserted...)
@@ -82,36 +69,63 @@ func Analyze(
 		return nil
 	}
 
-	for iter.Next() {
-		software, err := iter.Value()
+	scan := func(
+		what string,
+		opts fleet.SoftwareIterQueryOptions,
+		match func(*fleet.Software, *Artifact) []fleet.SoftwareVulnerability,
+	) error {
+		iter, err := ds.AllSoftwareIterator(ctx, opts)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting software from iterator")
+			return ctxerr.Wrapf(ctx, err, "%s software iterator", what)
 		}
-		softwareN++
+		defer iter.Close()
 
-		found = append(found, matchSoftware(software, artifact)...)
-		if len(found) >= vulnBatchSize {
-			if err := insertBatch(found); err != nil {
-				return nil, err
+		for iter.Next() {
+			software, err := iter.Value()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting software from iterator")
 			}
-			// A fresh slice rather than found[:0]: the datastore may hand the
-			// batch's backing array back as its result.
-			found = nil
+			softwareN++
+
+			found = append(found, match(software, artifact)...)
+			if len(found) >= vulnBatchSize {
+				if err := insertBatch(found); err != nil {
+					return err
+				}
+				// A fresh slice rather than found[:0]: the datastore may hand the
+				// batch's backing array back as its result.
+				found = nil
+			}
 		}
+		if err := iter.Err(); err != nil {
+			return ctxerr.Wrapf(ctx, err, "iterating %s software", what)
+		}
+		return nil
 	}
-	if err := iter.Err(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "iterating go binaries software")
+
+	// From here on, errors still return newVulns: those rows are inserted, so the next run sees
+	// them as known and dropping them would suppress their automations forever.
+	if err := scan("go binaries", fleet.SoftwareIterQueryOptions{
+		IncludedSources: []string{goBinariesSource},
+	}, matchSoftware); err != nil {
+		return newVulns, err
+	}
+	if err := scan("go toolchain", fleet.SoftwareIterQueryOptions{
+		IncludedSources: toolchainSources,
+		NameMatch:       toolchainNameMatch,
+	}, matchToolchainInstall); err != nil {
+		return newVulns, err
 	}
 
 	if len(found) > 0 {
 		if err := insertBatch(found); err != nil {
-			return nil, err
+			return newVulns, err
 		}
 	}
 
 	// Only delete once every insert has refreshed updated_at on the rows that still match.
 	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.GoVulnDBSource, startTime); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "deleting out of date Go binary vulnerabilities")
+		return newVulns, ctxerr.Wrap(ctx, err, "deleting out of date Go vulnerabilities")
 	}
 
 	logger.DebugContext(ctx, "go-vulndb-analysis-done",
@@ -128,54 +142,65 @@ func Analyze(
 // advisories by module path (extension_id) against the binary's own version, and stdlib
 // advisories by the toolchain it was built with (release), since that code is compiled in.
 func matchSoftware(software *fleet.Software, artifact *Artifact) []fleet.SoftwareVulnerability {
-	var vulns []fleet.SoftwareVulnerability
-	seen := make(map[string]struct{})
+	vulns := newVulnSet(software.ID)
 
-	add := func(cve string, resolvedIn *string) {
-		if _, ok := seen[cve]; ok {
-			return
-		}
-		seen[cve] = struct{}{}
-		vulns = append(vulns, fleet.SoftwareVulnerability{
-			SoftwareID:        software.ID,
-			CVE:               cve,
-			ResolvedInVersion: resolvedIn,
-		})
-	}
-
-	if modulePath := software.ExtensionID; modulePath != "" && modulePath != toolchainModule {
+	if modulePath := software.ExtensionID; modulePath != "" && modulePath != ToolchainModule {
 		if version, ok := moduleVersion(software.Version); ok {
-			for _, advisory := range artifact.Modules[modulePath] {
-				fixed, affected := advisory.affects(version)
-				if !affected {
-					continue
-				}
-				// The fix is a newer release of the same module, so it is the upgrade target.
-				var resolvedIn *string
-				if fixed != "" {
-					resolvedIn = new("v" + fixed)
-				}
-				for _, cve := range advisory.CVEs {
-					add(cve, resolvedIn)
-				}
-			}
+			// The fix is a newer release of the same module, so it is the upgrade target.
+			vulns.addAffected(artifact.Modules[modulePath], version, upgradeTo("v"))
 		}
 	}
 
 	if goVersion, ok := toolchainVersion(software.Release); ok {
-		for _, advisory := range artifact.Modules[StdlibModule] {
-			if _, affected := advisory.affects(goVersion); !affected {
-				continue
-			}
-			// Left unset: the fix is a rebuild with a newer toolchain, not a newer release of
-			// this software, which is how the UI renders the field.
-			for _, cve := range advisory.CVEs {
-				add(cve, nil)
-			}
-		}
+		// Left unset: the fix is a rebuild with a newer toolchain, not a newer release of this
+		// software, which is how the UI renders the field.
+		vulns.addAffected(artifact.Modules[StdlibModule], goVersion, func(string) *string { return nil })
 	}
 
-	return vulns
+	return vulns.vulns
+}
+
+// vulnSet collects one software row's matches. A CVE matched twice keeps its first fix.
+type vulnSet struct {
+	softwareID uint
+	seen       map[string]struct{}
+	vulns      []fleet.SoftwareVulnerability
+}
+
+func newVulnSet(softwareID uint) *vulnSet {
+	return &vulnSet{softwareID: softwareID, seen: make(map[string]struct{})}
+}
+
+// addAffected adds the CVEs of every advisory affecting version. resolvedIn turns the matching
+// range's fix, empty when the range has none, into the row's resolved_in_version.
+func (v *vulnSet) addAffected(advisories []Advisory, version string, resolvedIn func(fixed string) *string) {
+	for _, advisory := range advisories {
+		fixed, affected := advisory.affects(version)
+		if !affected {
+			continue
+		}
+		for _, cve := range advisory.CVEs {
+			if _, ok := v.seen[cve]; ok {
+				continue
+			}
+			v.seen[cve] = struct{}{}
+			v.vulns = append(v.vulns, fleet.SoftwareVulnerability{
+				SoftwareID:        v.softwareID,
+				CVE:               cve,
+				ResolvedInVersion: resolvedIn(fixed),
+			})
+		}
+	}
+}
+
+// upgradeTo reports a range's fix, with prefix prepended, as the version to upgrade to.
+func upgradeTo(prefix string) func(fixed string) *string {
+	return func(fixed string) *string {
+		if fixed == "" {
+			return nil
+		}
+		return new(prefix + fixed)
+	}
 }
 
 // affects reports whether version is inside any of the advisory's ranges, and the matching

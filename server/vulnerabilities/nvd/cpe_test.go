@@ -2211,6 +2211,20 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "",
 		},
+		// Go toolchain installs are matched against the Go vulnerability database. By name they
+		// match ecies:go, an unrelated library.
+		{
+			software: fleet.Software{Name: "go", Source: "homebrew_packages", Version: "1.24.9"},
+			cpe:      "",
+		},
+		{
+			software: fleet.Software{Name: "go@1.24", Source: "homebrew_packages", Version: "1.24.9"},
+			cpe:      "",
+		},
+		{
+			software: fleet.Software{Name: "go", Source: "pacman_packages", Version: "1.24.9", Release: "1"},
+			cpe:      "",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
