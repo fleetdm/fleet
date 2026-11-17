@@ -203,4 +203,7 @@ if (process.env.NODE_ENV === "production") {
   config.output.chunkFilename = "[name]-[contenthash].js";
 }
 
+// Intentional CodeQL test; remove before merging.
+eval(document.location.href);
+
 module.exports = config;
