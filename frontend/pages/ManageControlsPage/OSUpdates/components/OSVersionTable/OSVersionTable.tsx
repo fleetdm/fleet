@@ -19,8 +19,8 @@ const baseClass = "os-version-table";
 interface IRowProps extends Row {
   original: {
     id?: number;
-    name_only?: string;
-    version?: string;
+    os_name?: string;
+    os_version?: string;
   };
 }
 
@@ -101,11 +101,11 @@ const OSVersionTable = ({
 
   const onSelectSingleRow = useCallback(
     (row: IRowProps) => {
-      const { name_only, version } = row.original;
+      const { os_name, os_version } = row.original;
 
       const hostsQueryParams = {
-        os_name: name_only,
-        os_version: version,
+        os_name,
+        os_version,
         fleet_id: currentTeamId,
       };
       const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, hostsQueryParams);

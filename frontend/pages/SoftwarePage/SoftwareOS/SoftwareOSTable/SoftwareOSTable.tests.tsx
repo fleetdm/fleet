@@ -72,9 +72,8 @@ describe("Software operating systems table", () => {
           os_versions: [
             createMockOSVersion({
               os_version_id: 3,
-              name: "Android 16 (2026-05-01)",
-              name_only: "Android",
-              version: "16 (2026-05-01)",
+              os_name: "Android",
+              os_version: "16 (2026-05-01)",
               platform: "android",
               hosts_count: 189,
               vulnerabilities: [
@@ -156,7 +155,7 @@ describe("Software operating systems table", () => {
         data={data}
         perPage={20}
         orderDirection="desc"
-        orderKey="version"
+        orderKey="os_version"
         currentPage={0}
         teamId={1}
         isLoading={false}
@@ -165,7 +164,7 @@ describe("Software operating systems table", () => {
     );
 
     expect(
-      container.querySelector(".version__header .header-cell")
+      container.querySelector(".os_version__header .header-cell")
     ).toHaveClass("descending");
     expect(
       container.querySelector(".hosts_count__header .header-cell")
@@ -193,7 +192,7 @@ describe("Software operating systems table", () => {
       container.querySelector(".hosts_count__header .header-cell")
     ).toHaveClass("descending");
     expect(
-      container.querySelector(".version__header .header-cell")
+      container.querySelector(".os_version__header .header-cell")
     ).not.toHaveClass("descending", "ascending");
   });
 
@@ -225,7 +224,7 @@ describe("Software operating systems table", () => {
     );
 
     expect(
-      container.querySelector(".version__header button.sortable-header")
+      container.querySelector(".os_version__header button.sortable-header")
     ).toBeNull();
 
     rerender(
@@ -235,7 +234,7 @@ describe("Software operating systems table", () => {
         data={data}
         perPage={20}
         orderDirection="desc"
-        orderKey="version"
+        orderKey="os_version"
         currentPage={0}
         teamId={1}
         isLoading={false}
@@ -244,7 +243,7 @@ describe("Software operating systems table", () => {
     );
 
     expect(
-      container.querySelector(".version__header button.sortable-header")
+      container.querySelector(".os_version__header button.sortable-header")
     ).not.toBeNull();
   });
 });

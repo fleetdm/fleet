@@ -1659,7 +1659,7 @@ func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}
 		if fleet.IsArchGroupedOSName(*opt.OSNameFilter) {
 			// The OS inventory records these hosts as "Arch Linux"; only their display string has their own name and version.
 			// Requiring the inventory row matches what fleet.HostAPIOS returns and keeps list and count in step.
-			inventoryName, _ := fleet.InventoryOSName(*opt.OSNameFilter)
+			inventoryName := fleet.InventoryOSName(*opt.OSNameFilter)
 			sql += ` AND h.os_version = ? AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ?)`
 			params = append(params, *opt.OSNameFilter+" "+*opt.OSVersionFilter, inventoryName)
 		} else {
@@ -6901,12 +6901,43 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *flee
 	return row.JSONValue, row.UpdatedAt, nil
 }
 
+// storedOSVersion is an OS version entry as aggregated_stats stores it. Its keys are not the API's, so rows written
+// before the API renamed them still read correctly after an upgrade, until the next aggregation rewrites them.
+type storedOSVersion struct {
+	ID          uint   `json:"id,omitempty"`
+	OSVersionID uint   `json:"os_version_id"`
+	HostsCount  int    `json:"hosts_count"`
+	Name        string `json:"name"`
+	NameOnly    string `json:"name_only"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+}
+
 func (ds *Datastore) unmarshalOSVersions(jsonValue *json.RawMessage) ([]fleet.OSVersion, error) {
-	var versions []fleet.OSVersion
+	var stored []storedOSVersion
 	if jsonValue != nil {
-		if err := json.Unmarshal(*jsonValue, &versions); err != nil {
+		if err := json.Unmarshal(*jsonValue, &stored); err != nil {
 			return nil, err
 		}
+	}
+	versions := make([]fleet.OSVersion, 0, len(stored))
+	for _, s := range stored {
+		platform := s.Platform
+		// Arch Linux's rows include Arch Linux ARM's (archarm) and, until those hosts report again, the CachyOS
+		// and Omarchy hosts an earlier Fleet recorded as Arch Linux, so the merged entry would otherwise take
+		// whichever platform came first.
+		if s.NameOnly == fleet.ArchLinuxOSName {
+			platform = fleet.ArchLinuxPlatform
+		}
+		versions = append(versions, fleet.OSVersion{
+			ID:          s.ID,
+			OSVersionID: s.OSVersionID,
+			HostsCount:  s.HostsCount,
+			Name:        s.Name,
+			NameOnly:    s.NameOnly,
+			Version:     s.Version,
+			Platform:    platform,
+		})
 	}
 	return versions, nil
 }
@@ -6945,12 +6976,12 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 
 	// each team has a slice of stats with team host counts per os version, no
 	// team are grouped under team id 0
-	statsByTeamID := make(map[uint][]fleet.OSVersion)
+	statsByTeamID := make(map[uint][]storedOSVersion)
 	// stats are also aggregated globally per os version
-	globalStats := make(map[uint]fleet.OSVersion)
+	globalStats := make(map[uint]storedOSVersion)
 
 	for _, r := range rows {
-		os := fleet.OSVersion{
+		os := storedOSVersion{
 			HostsCount:  r.HostsCount,
 			Name:        fmt.Sprintf("%s %s", r.Name, r.Version),
 			NameOnly:    r.Name,
@@ -6982,12 +7013,12 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	}
 	for _, id := range teamIDs {
 		if _, ok := statsByTeamID[id]; !ok {
-			statsByTeamID[id] = []fleet.OSVersion{}
+			statsByTeamID[id] = []storedOSVersion{}
 		}
 	}
 	// same for "no team"
 	if _, ok := statsByTeamID[0]; !ok {
-		statsByTeamID[0] = []fleet.OSVersion{}
+		statsByTeamID[0] = []storedOSVersion{}
 	}
 
 	// assemble values as arguments for insert statement
@@ -7001,7 +7032,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	}
 
 	// add the global stats
-	globalArray := make([]fleet.OSVersion, 0, len(globalStats))
+	globalArray := make([]storedOSVersion, 0, len(globalStats))
 	for _, os := range globalStats {
 		globalArray = append(globalArray, os)
 	}

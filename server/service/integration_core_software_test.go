@@ -918,12 +918,23 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Empty(t, gResp.Vulnerability.EPSSProbability)
 	require.Empty(t, gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
 	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
 	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
 	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
 	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+
+	// The operating systems carry os_name and os_version, and none of the keys they replaced.
+	var rawResp struct {
+		OSVersions []map[string]any `json:"os_versions"`
+	}
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &rawResp)
+	require.Len(t, rawResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2", rawResp.OSVersions[0]["os_name"])
+	require.Equal(t, "10.0.19042.1234", rawResp.OSVersions[0]["os_version"])
+	for _, removed := range []string{"name", "name_only", "version"} {
+		require.NotContains(t, rawResp.OSVersions[0], removed)
+	}
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
 	require.NoError(t, gResp.Err)

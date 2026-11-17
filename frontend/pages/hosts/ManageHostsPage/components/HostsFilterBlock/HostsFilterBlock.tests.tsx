@@ -85,9 +85,8 @@ describe("HostsFilterBlock", () => {
   describe("operating system pill", () => {
     const osVersions = [
       createMockOSVersion({
-        name: "Windows 11 Pro 24H2 10.0.26100.1742",
-        name_only: "Windows 11 Pro 24H2",
-        version: "10.0.26100.1742",
+        os_name: "Windows 11 Pro 24H2",
+        os_version: "10.0.26100.1742",
         platform: "windows",
       }),
     ];
@@ -99,9 +98,9 @@ describe("HostsFilterBlock", () => {
         "10.0.26100.1742",
         "Windows 11 Pro 24H2 10.0.26100.1742",
       ],
-      // No entry: a distro the OS inventory groups under "Arch Linux", and a
-      // saved link with the older Windows name.
-      ["Omarchy", "4.0.0", "Omarchy 4.0.0"],
+      // No entry: Arch Linux ARM, which the OS inventory groups under "Arch
+      // Linux", and a saved link with the older Windows name.
+      ["Arch Linux ARM", "rolling", "Arch Linux ARM rolling"],
       [
         "Microsoft Windows 11 Pro 24H2",
         "10.0.26100.1742",
