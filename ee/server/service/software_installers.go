@@ -1369,15 +1369,10 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 
-	var softwareDisplayName *string
-	if meta.DisplayName != "" {
-		softwareDisplayName = new(meta.DisplayName)
-	}
-
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
 		AppStoreID:          meta.AdamID,
 		SoftwareTitle:       meta.Name,
-		SoftwareDisplayName: softwareDisplayName,
+		SoftwareDisplayName: meta.DisplayName,
 		TeamName:            teamName,
 		TeamID:              teamID,
 		Platform:            meta.Platform,
