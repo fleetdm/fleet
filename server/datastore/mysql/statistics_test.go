@@ -629,6 +629,26 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Google conditional access is configured only with a connected row on Premium.
+	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.False(t, stats.GoogleConditionalAccessConfigured)
+	markStatisticsStale(t, ctx, ds)
+
+	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
+		ProxyServerSecret: "secret", State: fleet.ConditionalAccessGoogleStateConnected,
+	}))
+	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, stats.GoogleConditionalAccessConfigured)
+	markStatisticsStale(t, ctx, ds)
+
+	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, freeLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.False(t, stats.GoogleConditionalAccessConfigured)
 }
 
 func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {

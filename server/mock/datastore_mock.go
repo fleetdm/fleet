@@ -2466,6 +2466,16 @@ type ConditionalAccessMicrosoftMarkSetupDoneFunc func(ctx context.Context) error
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
+type GetGoogleConditionalAccessIntegrationFunc func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error)
+
+type SaveGoogleConditionalAccessIntegrationFunc func(ctx context.Context, integration *fleet.ConditionalAccessGoogleIntegration) error
+
+type ListGoogleConditionalAccessDeviceUserNamesFunc func(ctx context.Context, customerID string) ([]string, error)
+
+type DeleteGoogleConditionalAccessDevicesExceptFunc func(ctx context.Context, customerID string, limit int) (int, error)
+
+type DeleteGoogleConditionalAccessIntegrationFunc func(ctx context.Context) error
+
 type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error)
 
 type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
@@ -6335,6 +6345,21 @@ type DataStore struct {
 
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	GetGoogleConditionalAccessIntegrationFunc        GetGoogleConditionalAccessIntegrationFunc
+	GetGoogleConditionalAccessIntegrationFuncInvoked bool
+
+	SaveGoogleConditionalAccessIntegrationFunc        SaveGoogleConditionalAccessIntegrationFunc
+	SaveGoogleConditionalAccessIntegrationFuncInvoked bool
+
+	ListGoogleConditionalAccessDeviceUserNamesFunc        ListGoogleConditionalAccessDeviceUserNamesFunc
+	ListGoogleConditionalAccessDeviceUserNamesFuncInvoked bool
+
+	DeleteGoogleConditionalAccessDevicesExceptFunc        DeleteGoogleConditionalAccessDevicesExceptFunc
+	DeleteGoogleConditionalAccessDevicesExceptFuncInvoked bool
+
+	DeleteGoogleConditionalAccessIntegrationFunc        DeleteGoogleConditionalAccessIntegrationFunc
+	DeleteGoogleConditionalAccessIntegrationFuncInvoked bool
 
 	LoadHostConditionalAccessStatusFunc        LoadHostConditionalAccessStatusFunc
 	LoadHostConditionalAccessStatusFuncInvoked bool
@@ -15193,6 +15218,41 @@ func (s *DataStore) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *DataStore) GetGoogleConditionalAccessIntegration(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessIntegrationFunc(ctx)
+}
+
+func (s *DataStore) SaveGoogleConditionalAccessIntegration(ctx context.Context, integration *fleet.ConditionalAccessGoogleIntegration) error {
+	s.mu.Lock()
+	s.SaveGoogleConditionalAccessIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveGoogleConditionalAccessIntegrationFunc(ctx, integration)
+}
+
+func (s *DataStore) ListGoogleConditionalAccessDeviceUserNames(ctx context.Context, customerID string) ([]string, error) {
+	s.mu.Lock()
+	s.ListGoogleConditionalAccessDeviceUserNamesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListGoogleConditionalAccessDeviceUserNamesFunc(ctx, customerID)
+}
+
+func (s *DataStore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error) {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessDevicesExceptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessDevicesExceptFunc(ctx, customerID, limit)
+}
+
+func (s *DataStore) DeleteGoogleConditionalAccessIntegration(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessIntegrationFunc(ctx)
 }
 
 func (s *DataStore) LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error) {

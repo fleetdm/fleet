@@ -77,6 +77,8 @@ type StatisticsPayload struct {
 	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
 	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
 	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
+	// GoogleConditionalAccessConfigured indicates if the Google conditional access integration is configured.
+	GoogleConditionalAccessConfigured bool `json:"googleConditionalAccessConfigured"`
 
 	// GitOpsModeEnabled indicates whether GitOps mode is enabled in the app config.
 	GitOpsModeEnabled bool `json:"gitOpsModeEnabled"`
