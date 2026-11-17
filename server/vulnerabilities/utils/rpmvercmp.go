@@ -46,7 +46,7 @@ type segment struct {
 
 func (s segment) isEmpty() bool {
 	//  We need to ignore tildes because they are meant to be 'modifiers'.
-	return s.exhausted || (s.offset == 0 && s.number == nil && s.letters == "") || s.letters == "~"
+	return s.exhausted || s.letters == "~"
 }
 
 func (s segment) compare(b segment) int {
@@ -104,7 +104,7 @@ func nextSeg(ver string) segment {
 	}
 
 	if start == len(ver) {
-		return segment{offset: start, exhausted: start > 0}
+		return segment{offset: start, exhausted: true}
 	}
 
 	if ver[start] == '~' {
@@ -180,13 +180,7 @@ func rpmCmp(a, b string) int {
 		segB := nextSeg(b[offsetB:])
 
 		offsetA += segA.offset
-		if offsetA > len(a) {
-			break
-		}
 		offsetB += segB.offset
-		if offsetB > len(b) {
-			break
-		}
 
 		// Check whether 'a' or 'b' ran out of segments.
 		if segA.isEmpty() && !segB.isEmpty() {
@@ -202,8 +196,6 @@ func rpmCmp(a, b string) int {
 		}
 		return r
 	}
-
-	return -1
 }
 
 func Release(v string) string {
