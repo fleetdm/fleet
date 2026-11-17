@@ -2078,20 +2078,21 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
+	origAppCfg := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Foo Inc.",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://foo.example.com",
+		},
+		MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			WindowsEnabledAndConfigured: true,
+			AndroidEnabledAndConfigured: true,
+		},
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			OrgInfo: fleet.OrgInfo{
-				OrgName: "Foo Inc.",
-			},
-			ServerSettings: fleet.ServerSettings{
-				ServerURL: "https://foo.example.com",
-			},
-			MDM: fleet.MDM{
-				EnabledAndConfigured:        true,
-				WindowsEnabledAndConfigured: true,
-				AndroidEnabledAndConfigured: true,
-			},
-		}, nil
+		return origAppCfg, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -2127,14 +2128,15 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name     string
-		user     *fleet.User
-		premium  bool
-		teamID   *uint
-		teamName *string
-		profiles []fleet.MDMProfileBatchPayload
-		wantErr  string
-		dryRun   bool
+		name           string
+		user           *fleet.User
+		premium        bool
+		teamID         *uint
+		teamName       *string
+		profiles       []fleet.MDMProfileBatchPayload
+		wantErr        string
+		dryRun         bool
+		appCfgOverride *(func(*fleet.AppConfig))
 	}{
 		{
 			"global admin",
@@ -2145,6 +2147,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global admin, team",
@@ -2155,6 +2158,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global maintainer",
@@ -2165,6 +2169,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global maintainer, team",
@@ -2175,6 +2180,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global observer",
@@ -2185,6 +2191,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES belong to team",
@@ -2195,6 +2202,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES belong to team by name",
@@ -2205,6 +2213,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES NOT belong to team",
@@ -2215,6 +2224,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES NOT belong to team by name",
@@ -2225,6 +2235,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team maintainer, DOES belong to team",
@@ -2235,6 +2246,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -2245,6 +2257,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team observer, DOES belong to team",
@@ -2255,6 +2268,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team observer, DOES NOT belong to team",
@@ -2265,6 +2279,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"user no roles",
@@ -2275,6 +2290,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team id with free license",
@@ -2285,6 +2301,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			ErrMissingLicense.Error(),
 			false,
+			nil,
 		},
 		{
 			"team name with free license",
@@ -2295,6 +2312,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			ErrMissingLicense.Error(),
 			false,
+			nil,
 		},
 		{
 			"self_service with free license",
@@ -2305,6 +2323,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			[]fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), SelfService: true}},
 			ErrMissingLicense.Error(),
 			false,
+			nil,
 		},
 		{
 			"hidden with free license",
@@ -2315,6 +2334,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			[]fleet.MDMProfileBatchPayload{{Name: "N1", Contents: syncMLForTest("./Foo/Bar"), Hidden: true}},
 			ErrMissingLicense.Error(),
 			false,
+			nil,
 		},
 		{
 			"team id and name specified",
@@ -2325,6 +2345,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"cannot specify both fleet_id and fleet_name",
 			false,
+			nil,
 		},
 		{
 			"duplicate macOS profile name",
@@ -2338,6 +2359,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
 			false,
+			nil,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -2352,6 +2374,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
 			false,
+			nil,
 		},
 		{
 			"only macOS",
@@ -2367,6 +2390,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			``,
 			false,
+			nil,
 		},
 		{
 			"macOS profile with a removed Fleet variable",
@@ -2380,6 +2404,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
 			false,
+			nil,
 		},
 		{
 			"dry run of profiles with a removed Fleet variable and a secret",
@@ -2394,6 +2419,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
 			true,
+			nil,
 		},
 		{
 			"Android profile with a removed Fleet variable",
@@ -2407,6 +2433,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
 			false,
+			nil,
 		},
 		{
 			"mixed profiles",
@@ -2426,6 +2453,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			``,
 			false,
+			nil,
 		},
 		{
 			"only windows",
@@ -2440,6 +2468,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			``,
 			false,
+			nil,
 		},
 		{
 			"unsupported payload type",
@@ -2486,6 +2515,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 			false,
+			nil,
 		},
 		{
 			"unsupported Apple config profile Fleet variable",
@@ -2498,6 +2528,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"unsupported Apple declaration Fleet variable",
@@ -2510,6 +2541,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"unsupported Windows Fleet variable",
@@ -2522,6 +2554,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"unsupported fleet variable in android config is rejected",
@@ -2534,6 +2567,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"supported fleet variable in android config is accepted",
@@ -2546,6 +2580,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"",
 			false,
+			nil,
 		},
 		{
 			"duplicate android config profile names",
@@ -2559,6 +2594,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"duplicate json by name",
 			false,
+			nil,
 		},
 		{
 			"premium-only android profile without premium license",
@@ -2571,6 +2607,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
 			false,
+			nil,
 		},
 		{
 			"premium-only android profile with premium license",
@@ -2583,6 +2620,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"",
 			false,
+			nil,
 		},
 		{
 			"profiles have variable validation on dry-run",
@@ -2595,6 +2633,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			true,
+			nil,
 		},
 		{
 			"profiles with include all labels fails on free license",
@@ -2607,6 +2646,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
+			nil,
 		},
 		{
 			"profiles with include any labels fails on free license",
@@ -2619,6 +2659,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
+			nil,
 		},
 		{
 			"profiles with exclude labels fails on free license",
@@ -2631,12 +2672,82 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
+			nil,
+		},
+		{
+			"apple mdm off fails with profiles",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+			},
+			fleet.AppleMDMNotConfiguredMessage,
+			true,
+			new(func(appCfg *fleet.AppConfig) {
+				appCfg.MDM.EnabledAndConfigured = false
+			}),
+		},
+		{
+			"apple mdm off fails with declarations",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: declBytesForTest("N1", "I1")},
+			},
+			fleet.AppleMDMNotConfiguredMessage,
+			true,
+			new(func(appCfg *fleet.AppConfig) {
+				appCfg.MDM.EnabledAndConfigured = false
+			}),
+		},
+		{
+			"apple mdm off fails with both profiles and declarations",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: declBytesForTest("N2", "I2")},
+			},
+			fleet.AppleMDMNotConfiguredMessage,
+			true,
+			new(func(appCfg *fleet.AppConfig) {
+				appCfg.MDM.EnabledAndConfigured = false
+			}),
+		},
+		{
+			"declaration with empty name fails",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "", Contents: declBytesForTest("N1", "I1")},
+			},
+			"Couldn't edit configuration_profiles. Profile name can't be empty.",
+			false,
+			nil,
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() { ds.BatchSetMDMProfilesFuncInvoked = false }()
+			defer func() {
+				ds.BatchSetMDMProfilesFuncInvoked = false
+			}()
+
+			appCfg := *origAppCfg
+			if tt.appCfgOverride != nil {
+				(*tt.appCfgOverride)(&appCfg)
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &appCfg, nil
+			}
 
 			// prepare the context with the user and license
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})

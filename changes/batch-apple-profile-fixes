@@ -1,0 +1,2 @@
+- Fixed an issue where an Apple declaration could be uploaded with an empty name.
+- Fixed an issue where Fleet would not error with Apple MDM is off, if only sending declarations through the batch profile API.
