@@ -1293,13 +1293,23 @@ func testBatchSetInHouseInstallersRenamedRelease(t *testing.T, ds *Datastore) {
 		SELECT title_id, team_id, global_or_team_id, 'duplicate.ipa', version, storage_id, platform, bundle_identifier
 		FROM in_house_apps WHERE global_or_team_id = ? AND platform = 'ios'`, team.ID)
 	require.NoError(t, err)
-	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, payloads("example-3.ipa", "third-hash", "3.0.0"))
+	next := payloads("example-3.ipa", "third-hash", "3.0.0")
+	next[0], next[1] = next[1], next[0] // update iPadOS before the iOS duplicate fails
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, next)
 	require.ErrorContains(t, err, "multiple in-house installers")
 	remaining, err := ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Len(t, remaining, 3)
 	for _, installer := range remaining {
 		require.Equal(t, "new-hash", installer.HashSHA256)
+	}
+	for _, previous := range before {
+		got, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, *previous.TitleID)
+		require.NoError(t, err)
+		if got.Platform == "ipados" {
+			require.Equal(t, "example-2.ipa", got.Name)
+			require.Equal(t, originalIDs[*previous.TitleID], got.InstallerID)
+		}
 	}
 }
 
