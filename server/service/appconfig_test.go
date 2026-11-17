@@ -4573,3 +4573,51 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		require.True(t, invalid.HasErrors())
 	})
 }
+
+func TestValidateSMTPPasswordForNewDestination(t *testing.T) {
+	t.Parallel()
+
+	stored := fleet.SMTPSettings{
+		SMTPServer: "smtp.example.com", SMTPPort: 587, SMTPUserName: "user", SMTPPassword: "stored",
+		SMTPAuthenticationType: fleet.AuthTypeNameUserNamePassword,
+	}
+	for _, c := range []struct {
+		name    string
+		payload string
+		invalid bool
+	}{
+		{"unrelated field", `{"sender_address": "a@example.com"}`, false},
+		{"server", `{"server": "smtp.attacker.example"}`, true},
+		{"port", `{"port": 2525}`, true},
+		{"user name", `{"user_name": "other"}`, true},
+		{"server with the password", `{"server": "smtp2.example.com", "password": "stored"}`, false},
+		{"server with a new password", `{"server": "smtp2.example.com", "password": "new"}`, false},
+		{"server with the password cleared", `{"server": "smtp2.example.com", "password": ""}`, false},
+		{"server without password auth", `{"server": "smtp2.example.com", "authentication_type": "authtype_none"}`, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var incoming fleet.SMTPSettings
+			require.NoError(t, json.Unmarshal([]byte(c.payload), &incoming))
+			merged := stored
+			require.NoError(t, json.Unmarshal([]byte(c.payload), &merged))
+
+			invalid := &fleet.InvalidArgumentError{}
+			validateSMTPPasswordForNewDestination(&incoming, stored, &merged, invalid)
+			require.Equal(t, c.invalid, invalid.HasErrors())
+		})
+	}
+
+	t.Run("password auth turned on", func(t *testing.T) {
+		old := stored
+		old.SMTPAuthenticationType = fleet.AuthTypeNameNone
+		invalid := &fleet.InvalidArgumentError{}
+		validateSMTPPasswordForNewDestination(&fleet.SMTPSettings{}, old, &stored, invalid)
+		require.True(t, invalid.HasErrors())
+	})
+
+	t.Run("smtp_settings not in the request", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSMTPPasswordForNewDestination(nil, stored, &stored, invalid)
+		require.False(t, invalid.HasErrors())
+	})
+}

@@ -7421,8 +7421,13 @@ settings:
 
 	t.Run("blank smtp password keeps the stored one", func(t *testing.T) {
 		setNonDefaults()
-		for _, password := range []string{"", "\n    password:", "\n    password: \"\""} {
-			run("-f", s.writeConfigFile(t, `
+		ac, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.SMTPSettings.SMTPAuthenticationType = fleet.AuthTypeNameUserNamePassword
+		require.NoError(t, s.DS.SaveAppConfig(ctx, ac))
+
+		smtpFile := func(smtpSettings string) string {
+			return s.writeConfigFile(t, `
 agent_options:
 controls:
 org_settings:
@@ -7432,15 +7437,40 @@ org_settings:
     org_name: Fleet
   secrets:
   smtp_settings:
-    server: smtp2.example.com`+password+`
+    port: 2525
+    user_name: u
+    authentication_type: authtype_username_password
+`+smtpSettings+`
 policies:
 reports:
-`), "-f", teamFile)
+`)
+		}
+
+		for i, password := range []string{"", "\n    password:", "\n    password: \"\""} {
+			sender := fmt.Sprintf("sender%d@example.com", i)
+			run("-f", smtpFile("    server: smtp.example.com\n    sender_address: "+sender+password), "-f", teamFile)
 			ac, err := s.DS.AppConfig(ctx)
 			require.NoError(t, err)
-			assert.Equal(t, "smtp2.example.com", ac.SMTPSettings.SMTPServer)
+			assert.Equal(t, sender, ac.SMTPSettings.SMTPSenderAddress)
 			assert.Equal(t, "p", ac.SMTPSettings.SMTPPassword)
-			assert.Empty(t, ac.SMTPSettings.SMTPUserName)
+			assert.Empty(t, ac.SMTPSettings.SMTPDomain)
 		}
+
+		// The stored password must not follow the settings to another server.
+		const passwordRequired = "must be provided when changing server, port, user_name, or authentication_type"
+		for _, extraArgs := range [][]string{{"--dry-run"}, nil} {
+			args := append([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", smtpFile("    server: smtp2.example.com"), "-f", teamFile}, extraArgs...)
+			_, err := fleetctltest.RunAppNoChecks(args)
+			require.ErrorContains(t, err, passwordRequired)
+		}
+		ac, err = s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "smtp.example.com", ac.SMTPSettings.SMTPServer)
+
+		run("-f", smtpFile("    server: smtp2.example.com\n    password: p2"), "-f", teamFile)
+		ac, err = s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "smtp2.example.com", ac.SMTPSettings.SMTPServer)
+		assert.Equal(t, "p2", ac.SMTPSettings.SMTPPassword)
 	})
 }
