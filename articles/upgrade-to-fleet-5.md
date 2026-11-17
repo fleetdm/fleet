@@ -916,6 +916,8 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 
 ### Omitted settings reset to defaults
 
+> **Important:** If you self-host Fleet and your YAML doesn't include `smtp_settings`, your first GitOps run with Fleet 5 deletes the SMTP settings and password stored in Fleet. Fleet stops sending email, and users who log in with multi-factor authentication (MFA) can't log in. Add `smtp_settings` to your YAML before you upgrade.
+
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | If `org_settings` in `default.yml` leaves out [`gitops`](https://fleetdm.com/docs/configuration/yaml-files#gitops), [`smtp_settings`](https://fleetdm.com/docs/configuration/yaml-files#smtp-settings), [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings), [`activity_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#activity-expiry-settings), or [`fleet_desktop`](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop), they keep their current values | They reset to their defaults |
@@ -924,12 +926,13 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 | If [`webhook_settings`](https://fleetdm.com/docs/configuration/yaml-files#webhook-settings) leaves out a webhook, the webhook turns off but keeps its `destination_url` and other values | The webhook turns off and its values reset to their defaults |
 | If a fleet's YAML leaves out `settings.host_expiry_settings`, the fleet keeps its current value | It resets to its default |
 | `password: ""` under `smtp_settings` deletes the SMTP password | A blank `password` keeps the current SMTP password. To delete it, leave out `smtp_settings`. |
+| You can change the SMTP `server`, `port`, `user_name`, or `authentication_type` without setting `password`, in YAML or with [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Changing any of them requires `password` in the same change. Otherwise, the GitOps run or API request fails. |
 
 A setting that's left blank (for example, `smtp_settings:` with nothing after it) resets the same way as one that's left out.
 
 These resets have the biggest impact:
 
-- `smtp_settings`: Fleet stops sending user invite and password reset emails, and deletes the SMTP password. This doesn't apply if you use Fleet's managed-cloud offering.
+- `smtp_settings`: Fleet stops sending user invite, password reset, and multi-factor authentication (MFA) emails, and deletes the SMTP password. Users who log in with MFA can't log in until SMTP is set up again. This doesn't apply if you use Fleet's managed-cloud offering.
 - `gitops`: GitOps mode turns off, so settings can be edited in the Fleet UI again.
 - `server_settings`: `report_cap` resets to `1000`, and Fleet deletes stored report results above the cap. `ai_features_disabled`, `mcp_disabled`, `live_reporting_disabled`, and `discard_reports_data` reset to `false`, which turns those features back on. `enable_analytics` resets to `true`.
 - `fleet_desktop`: `alternative_browser_host` is removed.
@@ -942,6 +945,7 @@ Fleet 4 already supports these settings in YAML, so change this before you upgra
    - If the output doesn't include `gitops` or `smtp_settings`, get them from `fleetctl get config`.
 2. Add any settings your YAML leaves out, with the values you use today.
    - Fleet never returns the SMTP password. Leave `password` out of `smtp_settings` to keep the current one, or set it from a secret in your CI/CD.
+   - In Fleet 5, set `password` whenever you change the SMTP `server`, `port`, `user_name`, or `authentication_type`.
 3. After you upgrade, run `fleetctl gitops --dry-run`.
    - If the run would reset `smtp_settings`, `gitops`, or `server_settings` values, the output lists them in a line like: `[!] would've set org_settings.smtp_settings to defaults because not defined in YAML: enable_smtp, password, server`
    - Other settings reset without a warning.
