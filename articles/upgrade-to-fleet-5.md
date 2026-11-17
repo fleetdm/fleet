@@ -1283,13 +1283,15 @@ GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481]
 |:--|:--|
 | Windows Task Manager shows "Orbit osquery runtime and autoupdater" | `Fleet`. This changes when fleetd updates, whatever the Fleet server version. |
 | Windows **Settings > Apps > Installed apps** shows "Fleet osquery" | `Fleet`. This changes when fleetd connects to a Fleet 5 server. |
-| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `Fleet`. This changes when fleetd talks to a Fleet 5 server. |
+| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `fleet`. This changes when fleetd talks to a Fleet 5 server. |
 
 #### What to do
 
 1. Add the new names to EDR, monitoring, and firewall rules.
    - Keep the old names until every host runs the new fleetd.
+   - On Linux, update checks that match the process name `orbit`, like `pgrep -x orbit` or `processes.name = 'orbit'`. The Fleet server's process is also named `fleet`, so on a host that runs both, match the path `/opt/orbit/bin/orbit/orbit` instead.
 2. Update policies and scripts that match "Fleet osquery" in the `programs` table so they match "Fleet" too, including copies of Fleet's Windows uninstall script.
+   - Match "Fleet" only with the publisher "Fleet Device Management (fleetdm.com)". Other apps, like JetBrains Fleet, are also named "Fleet".
    - Repairing fleetd from the installer brings "Fleet osquery" back until fleetd renames it again.
    - On upgraded Fleet servers, the Software page keeps listing it as "Fleet osquery". New Fleet 5 servers list "Fleet".
 
