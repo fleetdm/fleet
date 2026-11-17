@@ -53,7 +53,7 @@ fleetctl gitops -f default.yml $(for f in fleets/*.yml; do echo -f "$f"; done) -
 
 ## Terminology
 
-- A "fleet" (this repo's `fleets/*.yml`) was formerly called a "team." The product and this repo use "fleet" now, but Fleet's REST API and some `fleetctl` flags still use `team` / `team_id`; expect that name when working with the API directly.
+- A "fleet" (this repo's `fleets/*.yml`) was formerly called a "team." Fleet 5 uses "fleet" everywhere, including the REST API (`fleet_id`), `fleetctl` flags, and GitOps keys, and rejects the old `team` names.
 - A "report" is what was formerly called a "query" in Fleet's product. "Query" now refers only to the SQL itself, one part of a report or policy, not a top-level concept with its own folder.
 
 ## Apple profile authoring (optional)
