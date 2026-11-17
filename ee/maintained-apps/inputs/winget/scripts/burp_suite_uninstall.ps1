@@ -1,5 +1,7 @@
-$softwareNameLike = "Burp Suite Community*"
-$publisherLike    = "*PortSwigger*"
+# Burp Suite Professional and Community Edition are now one app, "Burp Suite".
+# Remove it and any copies of the old editions.
+$softwareNameRegex = '^Burp Suite (\d|Professional |Community Edition )'
+$publisherLike     = "*PortSwigger*"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -18,19 +20,17 @@ try {
     -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
 
-# Earlier install scripts could leave a second copy of Burp in C:\Program, so
-# remove every one.
 [array]$selected = $uninstallKeys | Where-Object {
-    $_.DisplayName -and $_.DisplayName -like $softwareNameLike -and $_.Publisher -like $publisherLike -and $_.UninstallString
+    $_.DisplayName -and $_.DisplayName -match $softwareNameRegex -and $_.Publisher -like $publisherLike -and $_.UninstallString
 }
 
 if (-not $selected) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
+    Write-Host "Uninstall entry not found for Burp Suite"
     Exit 0
 }
 
 # Stop running Burp processes so the uninstaller doesn't fail on locked files.
-foreach ($proc in @("BurpSuiteCommunity", "BurpSuiteCommunityEdition", "Burp")) {
+foreach ($proc in @("BurpSuite", "BurpSuitePro", "BurpSuiteCommunity")) {
     Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
 }
 

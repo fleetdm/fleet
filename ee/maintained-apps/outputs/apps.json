@@ -1363,14 +1363,14 @@
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite-community/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
       "name": "Burp Suite Professional",
       "slug": "burp-suite-professional/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Professional",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite Professional is a toolkit for web application security testing."
     },
     {
