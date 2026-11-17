@@ -138,18 +138,6 @@ export interface INewTeamUsersFormData {
 export interface IRemoveTeamUserFormData {
   users: { id?: number }[];
 }
-interface INewTeamSecret {
-  fleet_id: number;
-  secret: string;
-  created_at?: string;
-}
-export interface INewTeamSecretFormData {
-  secrets: INewTeamSecret[];
-}
-export interface IRemoveTeamSecretFormData {
-  secrets: { secret: string }[];
-}
-
 export const API_ALL_TEAMS_ID = undefined;
 export const APP_CONTEXT_ALL_TEAMS_ID = -1;
 export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {

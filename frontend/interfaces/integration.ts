@@ -51,16 +51,6 @@ export interface IIntegrationTableData extends IIntegrationFormData {
   name: string;
 }
 
-export interface IIntegrationFormErrors {
-  url?: string | null;
-  email?: string | null;
-  username?: string | null;
-  apiToken?: string | null;
-  groupId?: number | null;
-  projectKey?: string | null;
-  enableSoftwareVulnerabilities?: boolean;
-}
-
 export interface IGlobalCalendarIntegration {
   domain: string;
   api_key_json: Record<string, string>;

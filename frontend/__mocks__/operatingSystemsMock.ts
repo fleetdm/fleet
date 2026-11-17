@@ -114,18 +114,3 @@ export const createMockLinuxOSVersion = (
   return { ...DEFAULT_LINUX_OS_VERSION, ...overrides };
 };
 
-const DEFAULT_LINUX_OS_VERSIONS_RESPONSE: IOSVersionsResponse = {
-  count: 1,
-  counts_updated_at: "2021-01-01T00:00:00Z",
-  os_versions: [createMockLinuxOSVersion()],
-  meta: {
-    has_next_results: false,
-    has_previous_results: false,
-  },
-};
-
-export const createMockLinuxOSVersionsResponse = (
-  overrides?: Partial<IOSVersionsResponse>
-): IOSVersionsResponse => {
-  return { ...DEFAULT_LINUX_OS_VERSIONS_RESPONSE, ...overrides };
-};

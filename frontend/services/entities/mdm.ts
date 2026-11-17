@@ -165,11 +165,6 @@ const mdmService = {
       timeout
     );
   },
-  requestCSR: () => {
-    const { MDM_REQUEST_CSR } = endpoints;
-
-    return sendRequest("GET", MDM_REQUEST_CSR);
-  },
 
   getProfiles: (
     params: IGetProfilesApiParams
@@ -416,11 +411,6 @@ const mdmService = {
     return sendRequest("DELETE", MDM_EULA(token));
   },
 
-  downloadEULA: (token: string) => {
-    const { MDM_EULA } = endpoints;
-    return sendRequest("GET", MDM_EULA(token));
-  },
-
   getWindowsEULAMetadata: () => {
     const { MDM_EULA_METADATA } = endpoints;
     const query = buildQueryStringFromParams({ platform: "windows" });
@@ -537,16 +527,6 @@ const mdmService = {
       { fleet_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
-  },
-
-  downloadManualEnrollmentProfile: (token: string) => {
-    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest(
-      "GET",
-      DEVICE_USER_MDM_ENROLLMENT_PROFILE(token),
-      undefined,
-      "blob"
-    );
   },
 
   getSetupExperienceSoftware: (

@@ -140,7 +140,7 @@ Arrowless `TooltipWrapper` is `bottom-start` with left-aligned bubble text. Only
 - API interface naming: use `*FormData` for form-driven request bodies, `*ApiParams`/`*QueryParams` for request params, `*Response` for API responses, `*QueryKey` when typing a React Query key. Avoid `*Body`, `*PostBody`, `*Payload`, `*Request` for API request bodies. `*PreviewPayload` is fine for outgoing webhook shapes (matches the "Preview payload" UI terminology).
 
 ## Hooks & Context
-- Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
+- Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useGitOpsMode`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
 
 ## Tier modes (Fleet Free + Primo mode)

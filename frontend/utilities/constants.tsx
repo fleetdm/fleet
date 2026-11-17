@@ -87,8 +87,6 @@ export const LOGGING_TYPE_OPTIONS = [
   },
 ];
 
-export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
-
 // Max character length for most user-supplied free-text fields (name, title,
 // description) — matches the varchar(255) column shared across policies,
 // reports, teams (fleets), labels, software categories, custom variables,
@@ -159,12 +157,6 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.2 +", value: "1.8.2" },
   { label: "1.8.1 +", value: "1.8.1" },
 ];
-
-export const LIVE_POLICY_STEPS = {
-  1: "EDITOR",
-  2: "TARGETS",
-  3: "RUN",
-};
 
 export const LIVE_QUERY_STEPS = {
   1: "TARGETS",
@@ -335,17 +327,7 @@ export const hasPlatformTypeIcon = (
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
-export type PlatformLabelOptions = DisplayPlatform | "All";
-
 export type PlatformValueOptions = Platform | "all";
-
-/** Scheduled queries do not support ChromeOS, iOS, iPadOS, or Android */
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
-  { label: "All", value: "" }, // API empty string runs on all platforms
-  { label: "macOS", value: "darwin" },
-  { label: "Windows", value: "windows" },
-  { label: "Linux", value: "linux" },
-] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, user email, hostname, UUID, serial number, or IP address";

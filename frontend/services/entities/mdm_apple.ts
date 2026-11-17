@@ -58,11 +58,6 @@ export default {
     return sendRequest("GET", MDM_REQUEST_CSR);
   },
 
-  disableVpp: () => {
-    const { MDM_APPLE_VPP_TOKEN } = endpoints;
-    return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
-  },
-
   getVppApps: (
     teamId: number,
     vppTokenId?: number

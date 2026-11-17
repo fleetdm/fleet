@@ -153,16 +153,3 @@ export interface ILabel extends ILabelSummary {
   host_ids: number[] | null;
 }
 
-// corresponding to fleet>server>fleet>labels.go>LabelSpec
-export interface ILabelSpecResponse {
-  specs: {
-    id: number;
-    name: string;
-    description: string;
-    query: string;
-    platform?: LabelPlatform;
-    label_type?: LabelType;
-    label_membership_type: LabelMembershipType;
-    hosts?: string[];
-  };
-}

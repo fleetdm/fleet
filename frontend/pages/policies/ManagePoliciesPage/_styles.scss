@@ -42,19 +42,6 @@
 
   &__title {
     font-size: $large;
-
-    .fleeticon {
-      color: $core-fleet-blue;
-      margin-right: 15px;
-    }
-
-    .fleeticon-success-check {
-      color: $ui-success;
-    }
-
-    .fleeticon-offline {
-      color: $ui-error;
-    }
   }
 
   &__action-button-container {

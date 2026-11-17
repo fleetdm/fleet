@@ -124,13 +124,6 @@
     gap: $pad-small;
     flex-shrink: 0;
   }
-
-  &__action-button {
-    .fleeticon {
-      width: 16px;
-      height: 16px;
-    }
-  }
 }
 
 // Removes arrows on Firefox number fields

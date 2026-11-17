@@ -26,20 +26,10 @@ export const isWindowsPackageType = (s: unknown): s is WindowsPackageType => {
   return windowsPackageTypes.includes(s as WindowsPackageType);
 };
 
-export const isUnixPackageType = (s: unknown): s is UnixPackageType => {
-  return unixPackageTypes.includes(s as UnixPackageType);
-};
-
 export const isFleetMaintainedPackageType = (
   s: unknown
 ): s is FleetMaintainedPackageType => {
   return fleetMaintainedPackageTypes.includes(s as FleetMaintainedPackageType);
-};
-
-export const isIosIpadosPackageType = (
-  s: unknown
-): s is IosIpadosPackageType => {
-  return iosIpadosPackageTypes.includes(s as IosIpadosPackageType);
 };
 
 export const isScriptOnlyPackageType = (

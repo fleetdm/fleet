@@ -1,5 +1,4 @@
 import { ILabel } from "interfaces/label";
-import { IGetLabelResponse } from "services/entities/labels";
 
 const DEFAULT_LABEL_MOCK: ILabel = {
   created_at: "2024-04-12T13:32:00Z",
@@ -21,16 +20,8 @@ const DEFAULT_LABEL_MOCK: ILabel = {
   },
 };
 
+// eslint-disable-next-line import/prefer-default-export
 export const createMockLabel = (overrides?: Partial<ILabel>): ILabel => {
   return { ...DEFAULT_LABEL_MOCK, ...overrides };
 };
 
-const DEFAULT_GET_LABEL_RESPONSE_MOCK: IGetLabelResponse = {
-  label: createMockLabel(),
-};
-
-export const createMockGetLabelResponse = (
-  overrides?: Partial<IGetLabelResponse>
-): IGetLabelResponse => {
-  return { ...DEFAULT_GET_LABEL_RESPONSE_MOCK, ...overrides };
-};

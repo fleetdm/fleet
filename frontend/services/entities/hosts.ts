@@ -666,11 +666,6 @@ export default {
     });
   },
 
-  getMdm: (id: number) => {
-    const { HOST_MDM } = endpoints;
-    return sendRequest("GET", HOST_MDM(id));
-  },
-
   getMdmSummary: (platform?: PlatformValueOptions, teamId?: number) => {
     const { MDM_SUMMARY } = endpoints;
 

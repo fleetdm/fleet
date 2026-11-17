@@ -208,12 +208,6 @@ export default {
 
     return sendRequest("DELETE", path, removeUsers);
   },
-  transferHosts: (teamId: number, hostIds: number[]) => {
-    const { TEAMS_TRANSFER_HOSTS } = endpoints;
-    const path = TEAMS_TRANSFER_HOSTS(teamId);
-
-    return sendRequest("POST", path, { id: hostIds });
-  },
   getEnrollSecrets: (teamId: number) => {
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);

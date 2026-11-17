@@ -17,21 +17,6 @@
     }
   }
 
-  &__title {
-    .fleeticon {
-      color: $core-fleet-blue;
-      margin-right: 15px;
-    }
-
-    .fleeticon-success-check {
-      color: $ui-success;
-    }
-
-    .fleeticon-offline {
-      color: $ui-error;
-    }
-  }
-
   .card {
     box-sizing: border-box;
     overflow-x: hidden;

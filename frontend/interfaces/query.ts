@@ -1,9 +1,5 @@
 import { IFormField } from "./form_field";
-import { ISchedulableQuery, ISchedulableQueryStats } from "./schedulable_query";
-
-export interface IStoredQueryResponse {
-  query: ISchedulableQuery;
-}
+import { ISchedulableQueryStats } from "./schedulable_query";
 
 export interface IQuery {
   created_at: string;

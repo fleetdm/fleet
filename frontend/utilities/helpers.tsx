@@ -199,13 +199,6 @@ export const formatSelectedTargetsForApi = (
   };
 };
 
-export const formatTeamForClient = (team: ITeam): ITeam => {
-  if (team.display_text === undefined) {
-    team.display_text = team.name;
-  }
-  return team;
-};
-
 export const formatSeverity = (float?: number | null): string => {
   if (float === null || float === undefined) {
     return DEFAULT_EMPTY_CELL_VALUE;
@@ -728,14 +721,6 @@ export const getNextLocationPath = ({
 
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
-
-export const getSoftwareBundleTooltipJSX = (bundle: string) => (
-  <span>
-    <b>Bundle identifier: </b>
-    <br />
-    {bundle}
-  </span>
-);
 
 export const internallyTruncateText = (
   original: string,

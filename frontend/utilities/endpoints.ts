@@ -27,10 +27,6 @@ export default {
     return `/${API_VERSION}/fleet/email/change/${token}`;
   },
 
-  DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
-  ENABLE_USER: (id: number): string => {
-    return `/${API_VERSION}/fleet/users/${id}/enable`;
-  },
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
@@ -49,9 +45,6 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
   DEVICE_SOFTWARE_INSTALL_ALL: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install_all`,
-  DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
-    return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
-  },
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
   DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
@@ -159,9 +152,6 @@ export default {
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
-  LABEL_SPEC_BY_NAME: (labelName: string) => {
-    return `/${API_VERSION}/fleet/spec/labels/${labelName}`;
-  },
 
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
@@ -197,7 +187,6 @@ export default {
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
-  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`, // TODO: Deprecated?
   MDM_VPP_TOKENS: `/${API_VERSION}/fleet/vpp_tokens`,
   MDM_VPP_TOKEN: (id: number) => `/${API_VERSION}/fleet/vpp_tokens/${id}`,
   MDM_VPP_TOKENS_RENEW: (id: number) =>
@@ -264,7 +253,6 @@ export default {
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
 
-  OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
@@ -292,8 +280,6 @@ export default {
     `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
     `/${API_VERSION}/fleet/software/install/${uuid}/results`,
-  SOFTWARE_PACKAGE_INSTALL: (id: number) =>
-    `/${API_VERSION}/fleet/software/packages/${id}`,
   SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
   SOFTWARE_FLEET_MAINTAINED_APPS: `/${API_VERSION}/fleet/software/fleet_maintained_apps`,
@@ -306,9 +292,7 @@ export default {
   AUTOFILL_CONFIG_PROFILE_CONTENT: `/${API_VERSION}/fleet/autofill/configuration_profile/content`,
 
   SSO: `/v1/fleet/sso`,
-  STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
-  STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,
   TARGETS: `/${API_VERSION}/fleet/targets`,
   TEAM_POLICIES: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
@@ -322,12 +306,6 @@ export default {
   },
   TEAM_USERS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/users`;
-  },
-  TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/hosts`;
-  },
-  UPDATE_USER_ADMIN: (id: number): string => {
-    return `/${API_VERSION}/fleet/users/${id}/admin`;
   },
   USER_SESSIONS: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/sessions`;
@@ -377,9 +355,6 @@ export default {
   CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,
   CERTIFICATE_AUTHORITY: (id: number) =>
     `/${API_VERSION}/fleet/certificate_authorities/${id}`,
-  CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
-    return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
-  },
   // global variables endpoints
   GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
   // custom host vitals endpoints
