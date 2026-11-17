@@ -4916,6 +4916,64 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 			},
 		},
 		{
+			name: "exe matched by folder name when the program has no install_location",
+			mainResults: []map[string]string{
+				{"name": "7-Zip 26.06 (x64 edition)", "source": "programs", "installed_path": ""},
+				{"name": "Node.js", "source": "programs", "installed_path": ""},
+				{"name": "Git", "source": "programs", "installed_path": ""},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\7-Zip\7z.exe`, "filename": "7z.exe", "product_version": "26.06", "file_version": "26.6.0.0"},
+				{"path": `C:\Program Files\7-Zip\7zFM.exe`, "filename": "7zFM.exe", "product_version": "26.06", "file_version": "26.6.0.0"},
+				{"path": `C:\Program Files\nodejs\node.exe`, "filename": "node.exe", "product_version": "26.13.0", "file_version": "26.13.0.0"},
+				{"path": `C:\Program Files\Git\cmd\git.exe`, "filename": "git.exe", "product_version": "2.43.0", "file_version": "2.43.0"},
+			},
+			expected: []map[string]string{
+				{"name": "7-Zip 26.06 (x64 edition)", "source": "programs", "installed_path": ""},
+				{"name": "Node.js", "source": "programs", "installed_path": ""},
+				{"name": "Git", "source": "programs", "installed_path": ""},
+			},
+		},
+		{
+			name: "folder name must match the whole program name",
+			mainResults: []map[string]string{
+				{"name": "Adobe Acrobat (64-bit)", "source": "programs", "installed_path": ""},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Adobe\DNG Converter\DNGConverter.exe`, "filename": "DNGConverter.exe", "product_version": "16.1", "file_version": "16.1.0.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat (64-bit)", "source": "programs", "installed_path": ""},
+				{
+					"name": "DNGConverter.exe", "version": "16.1", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Adobe\DNG Converter`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name:        "Windows component folders and uninstallers are skipped, MsMpEng.exe is kept",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.25030.2", "file_version": "4.18.25030.2"},
+				{"path": `C:\Program Files\Windows Defender\MpCmdRun.exe`, "filename": "MpCmdRun.exe", "product_version": "4.18.25030.2", "file_version": "4.18.25030.2"},
+				{"path": `C:\Program Files\Internet Explorer\iexplore.exe`, "filename": "iexplore.exe", "product_version": "11.0.26100.1", "file_version": "11.0.26100.1"},
+				{"path": `C:\Program Files\Windows Media Player\wmplayer.exe`, "filename": "wmplayer.exe", "product_version": "12.0.26100.1", "file_version": "12.0.26100.1"},
+				{"path": `C:\Program Files\Common Files\microsoft shared\helper.exe`, "filename": "helper.exe", "product_version": "1.0", "file_version": "1.0"},
+				{"path": `C:\Program Files\SomeApp\unins000.exe`, "filename": "unins000.exe", "product_version": "1.0", "file_version": "1.0"},
+				{"path": `C:\Program Files\SomeApp\Uninstall.exe`, "filename": "Uninstall.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "MsMpEng.exe", "version": "4.18.25030.2", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Windows Defender`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
 			name: "non-programs entries in main do not affect dedup",
 			mainResults: []map[string]string{
 				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
