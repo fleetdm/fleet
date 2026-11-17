@@ -1487,6 +1487,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	if oldCA.Type != caToUpdate.Type {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe certificate authority types must be the same.", errPrefix)}
 	}
+	// A CA may have a name from before NDES was reserved in every case, and the validators above only check a name that is sent.
+	if oldCA.Type != string(fleet.CATypeNDESSCEPProxy) && caToUpdate.Name == nil && strings.EqualFold(ptr.ValOrZero(oldCA.Name), "NDES") {
+		return fleet.NewInvalidArgumentError("name", errPrefix+"CA name cannot be NDES")
+	}
 
 	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
 		if _, ok := errors.AsType[fleet.CANameInUseError](err); ok {

@@ -3143,6 +3143,20 @@ func (s *integrationMDMTestSuite) TestCertificateAuthorityNamesAreUnique() {
 		patch(scep.ID, map[string]any{"custom_scep_proxy": map[string]any{"name": "RENAMED_WIFI"}}, http.StatusOK)
 		patch(legacy.ID, map[string]any{"hydrant": map[string]any{"client_id": "other"}}, http.StatusOK)
 	})
+
+	t.Run("legacy NDES name", func(t *testing.T) {
+		// NDES wasn't reserved in every case before, so a CA of another type can still be named ndes.
+		legacy, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeHydrant), Name: new("ndes"), URL: new("https://hydrant.example.com"), ClientID: new("id"),
+			ClientSecret: new("secret"),
+		})
+		require.NoError(t, err)
+		t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(context.Background(), legacy.ID) })
+
+		require.Contains(t, patch(legacy.ID, map[string]any{"hydrant": map[string]any{"client_id": "other"}}, http.StatusUnprocessableEntity),
+			"Couldn't edit certificate authority. CA name cannot be NDES")
+		patch(legacy.ID, map[string]any{"hydrant": map[string]any{"name": "RENAMED_NDES", "client_id": "other"}}, http.StatusOK)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
