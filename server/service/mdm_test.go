@@ -2739,6 +2739,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			defer func() {
 				ds.BatchSetMDMProfilesFuncInvoked = false
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return origAppCfg, nil
+				}
 			}()
 
 			appCfg := *origAppCfg
