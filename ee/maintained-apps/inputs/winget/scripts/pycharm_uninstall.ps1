@@ -1,6 +1,6 @@
-# Locates PyCharm Professional's NSIS uninstaller from the registry and runs it silently.
+# Locates PyCharm's NSIS uninstaller from the registry and runs it silently.
 # JetBrains NSIS installers embed the version in DisplayName (e.g.
-# "PyCharm 2024.3.5"). PyCharm Community Edition shares the "PyCharm " prefix
+# "PyCharm 2026.3"). PyCharm Community Edition shares the "PyCharm " prefix
 # (e.g. "PyCharm Community Edition 2025.2.6.1"), so we exclude it explicitly to
 # avoid uninstalling the wrong edition.
 
@@ -56,7 +56,7 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
 } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
     # Unquoted path that may contain spaces: capture through the .exe.
     # JetBrains stores e.g.
-    # C:\Program Files\JetBrains\PyCharm 2024.3.5\bin\Uninstall.exe
+    # C:\Program Files\JetBrains\PyCharm 2026.3\bin\Uninstall.exe
     $exePath = $matches[1]
     $existingArgs = $matches[2].Trim()
 } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {

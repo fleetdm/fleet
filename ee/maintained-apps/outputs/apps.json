@@ -7261,18 +7261,18 @@
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/windows",
       "platform": "windows",
       "unique_identifier": "PyCharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
       "name": "Python 3.13 (ARM64)",
