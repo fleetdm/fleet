@@ -104,13 +104,17 @@ export const StatusMessage = ({
       {activityCreatedAt ? (
         `(${timeAgoText})`
       ) : (
-        <TooltipWrapper
-          tipContent="Time when Fleet sent command to run script. If the host was offline, the run finished after it came online."
-          position="top"
-          showArrow
-        >
-          {`(${timeAgoText})`}
-        </TooltipWrapper>
+        <span style={{ whiteSpace: "nowrap" }}>
+          {"("}
+          <TooltipWrapper
+            tipContent="Time when Fleet sent command to run script. If the host was offline, the run finished after it came online."
+            position="top"
+            showArrow
+          >
+            {timeAgoText}
+          </TooltipWrapper>
+          {")"}
+        </span>
       )}
     </>
   ) : (
