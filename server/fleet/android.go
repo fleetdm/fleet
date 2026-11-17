@@ -174,7 +174,8 @@ func IsAndroidPasscodeProfile(rawJSON []byte) bool {
 func ValidateAndroidPasscodeProfileVariables(rawJSON []byte) error {
 	prefixes := []string{ServerVarPrefix, ServerSecretPrefix, CustomHostVitalPrefix}
 	// An unquoted variable (e.g. a number from a secret) makes the raw JSON invalid, so the passcode keys are
-	// looked for with every variable replaced by a value.
+	// also looked for with every variable replaced by a value. os.Expand can swallow JSON (an unclosed "${"
+	// consumes the rest), so the raw JSON is checked too.
 	withValues := os.Expand(string(rawJSON), func(name string) string {
 		for _, prefix := range prefixes {
 			if strings.HasPrefix(name, prefix) {
@@ -183,7 +184,7 @@ func ValidateAndroidPasscodeProfileVariables(rawJSON []byte) error {
 		}
 		return "$" + name
 	})
-	if !IsAndroidPasscodeProfile([]byte(withValues)) {
+	if !IsAndroidPasscodeProfile(rawJSON) && !IsAndroidPasscodeProfile([]byte(withValues)) {
 		return nil
 	}
 

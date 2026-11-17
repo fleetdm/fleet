@@ -406,13 +406,16 @@ func TestPrepareHostPolicy(t *testing.T) {
 	client := android_mock.Client{}
 	client.InitCommonMocks()
 	var patched []*androidmanagement.Policy
-	var patchErr error
+	var patchErr, basePatchErr error
 	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		require.Equal(t, hostPolicyName, policyName)
 		require.True(t, opts.ExcludeApps, "the worker sends the app list itself")
 		patched = append(patched, policy)
 		if len(policy.PasswordPolicies) > 0 && patchErr != nil {
 			return nil, patchErr
+		}
+		if len(policy.PasswordPolicies) == 0 && basePatchErr != nil {
+			return nil, basePatchErr
 		}
 		return &androidmanagement.Policy{Version: int64(len(patched))}, nil
 	}
@@ -430,10 +433,13 @@ func TestPrepareHostPolicy(t *testing.T) {
 	svc, err := NewServiceWithClient(slog.New(slog.NewTextHandler(&logs, nil)), fleetDS, &client, "test-private-key",
 		&fleetDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
-	prepare := func(t *testing.T, teamID uint) {
+	prepareErr := func(t *testing.T, teamID uint) error {
 		patched, requests = nil, nil
 		logs.Reset()
-		require.NoError(t, svc.PrepareHostPolicy(t.Context(), enterpriseName, hostUUID, teamID))
+		return svc.PrepareHostPolicy(t.Context(), enterpriseName, hostUUID, teamID)
+	}
+	prepare := func(t *testing.T, teamID uint) {
+		require.NoError(t, prepareErr(t, teamID))
 	}
 
 	for _, c := range []struct {
@@ -466,7 +472,7 @@ func TestPrepareHostPolicy(t *testing.T) {
 	})
 
 	t.Run("rejected passcode settings are replaced by the base settings", func(t *testing.T) {
-		patchErr = &googleapi.Error{Code: http.StatusBadRequest}
+		patchErr, basePatchErr = &googleapi.Error{Code: http.StatusBadRequest}, nil
 		prepare(t, 3)
 		require.Len(t, patched, 2)
 		assert.Empty(t, patched[1].PasswordPolicies)
@@ -477,11 +483,38 @@ func TestPrepareHostPolicy(t *testing.T) {
 		assert.Contains(t, logs.String(), "rejected the passcode settings of the host's policy")
 	})
 
-	t.Run("other AMAPI errors are only recorded, as before", func(t *testing.T) {
-		patchErr = &googleapi.Error{Code: http.StatusInternalServerError}
-		prepare(t, 3)
-		require.Len(t, patched, 1)
-		require.Len(t, requests, 1)
-		assert.Equal(t, http.StatusInternalServerError, requests[0].StatusCode)
-	})
+	// The worker retries on an error instead of moving the device to a policy that may lack the passcode.
+	for _, c := range []struct {
+		name         string
+		patchErr     error
+		basePatchErr error
+		wantPatches  int
+		wantStatuses []int
+	}{
+		{
+			name:         "other AMAPI errors are returned",
+			patchErr:     &googleapi.Error{Code: http.StatusServiceUnavailable},
+			wantPatches:  1,
+			wantStatuses: []int{http.StatusServiceUnavailable},
+		},
+		{
+			name:         "a failed fallback to the base settings is returned",
+			patchErr:     &googleapi.Error{Code: http.StatusBadRequest},
+			basePatchErr: &googleapi.Error{Code: http.StatusInternalServerError},
+			wantPatches:  2,
+			wantStatuses: []int{http.StatusBadRequest, http.StatusInternalServerError},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			patchErr, basePatchErr = c.patchErr, c.basePatchErr
+			err := prepareErr(t, 3)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), hostPolicyName)
+			require.Len(t, patched, c.wantPatches)
+			require.Len(t, requests, len(c.wantStatuses))
+			for i, status := range c.wantStatuses {
+				assert.Equal(t, status, requests[i].StatusCode)
+			}
+		})
+	}
 }

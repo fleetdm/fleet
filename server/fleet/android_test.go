@@ -826,6 +826,11 @@ func TestValidateAndroidPasscodeProfileVariables(t *testing.T) {
 			errSubstr: "$FLEET_VAR_HOST_UUID",
 		},
 		{
+			name:      "unclosed brace after a variable breaks the JSON with values replaced",
+			rawJSON:   `{"passwordRequirements": {}, "name": "$FLEET_VAR_HOST_UUID ${"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
 			name:    "unquoted secret in a non-passcode profile",
 			rawJSON: `{"maximumTimeToLock": $FLEET_SECRET_LOCK}`,
 		},

@@ -219,7 +219,9 @@ func (r *profileReconciler) syncFleetDefaultPolicy(ctx context.Context, teamID u
 // PrepareHostPolicy replaces every setting of a host's own policy with its fleet's default policy, before
 // the device is moved to it. The reconciler may already have moved a device that is still in setup, and the
 // base settings alone would drop the passcode it enrolled with, so the setup wizard would skip the passcode.
-// If AMAPI rejects the passcode settings, the base settings are sent instead, as for the fleet's policy.
+// If AMAPI rejects the passcode settings, the base settings are sent instead, as for the fleet's policy. Any
+// other AMAPI error is returned, so the worker retries instead of moving the device to a policy that may lack
+// the passcode.
 func (svc *Service) PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error {
 	profiles, err := svc.fleetDS.ListAndroidFleetDefaultPolicyProfiles(ctx, &teamID)
 	if err != nil {
@@ -231,15 +233,26 @@ func (svc *Service) PrepareHostPolicy(ctx context.Context, enterpriseName, hostU
 	}
 	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
 	_, apiErr, err := svc.patchPolicy(ctx, hostUUID, policyName, policy, nil)
-	if err != nil || !androidmgmt.IsBadRequestError(apiErr) {
+	switch {
+	case err != nil:
 		return err
+	case apiErr == nil:
+		return nil
+	case !androidmgmt.IsBadRequestError(apiErr):
+		return ctxerr.Wrapf(ctx, apiErr, "patch android host policy %s", policyName)
 	}
 	svc.logger.ErrorContext(ctx, "android rejected the passcode settings of the host's policy, sending it without them",
 		"host_uuid", hostUUID, "fleet_id", teamID, "err", apiErr)
 	var base androidmanagement.Policy
 	applyFleetEnforcedSettings(&base)
-	_, err = svc.PatchPolicy(ctx, hostUUID, policyName, &base, nil)
-	return err
+	_, apiErr, err = svc.patchPolicy(ctx, hostUUID, policyName, &base, nil)
+	if err != nil {
+		return err
+	}
+	if apiErr != nil {
+		return ctxerr.Wrapf(ctx, apiErr, "patch android host policy %s with the base settings", policyName)
+	}
+	return nil
 }
 
 // EnsureFleetDefaultPolicy makes sure the default policy of a fleet (0 is Unassigned) was sent to AMAPI
