@@ -26,12 +26,11 @@ interface ILoadTeamsParams {
  * See https://fleetdm.com/docs/using-fleet/rest-api#get-team
  */
 export interface ILoadTeamResponse {
-  team: ITeamConfig;
   fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {
-  teams: ITeamConfig[];
+  fleets: ITeamConfig[];
 }
 
 export interface ITeamFormData {

@@ -97,25 +97,6 @@ func SubstituteFleetVarsInAppConfig(
 				platform = "macos"
 			}
 			contents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, contents, platform)
-		case fleet.FleetVarHostEndUserEmailIDP:
-			emails, err := ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get host idp email for app config")
-			}
-			if len(emails) == 0 {
-				// The shared HostEndUserEmailIDPVariableReplacementFailedError
-				// embeds a "[Learn more](…)" markdown link for the
-				// configuration-profile surface, which has a frontend formatter
-				// for it. The install-details modal renders failure_reason
-				// inside a plain monospace block with no markdown processing,
-				// so we surface a plain-text reason mirroring the other IdP
-				// variables here.
-				return nil, &UnresolvableAppConfigVarError{
-					FleetVar: name,
-					Detail:   fmt.Sprintf("There is no IdP email for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
-				}
-			}
-			contents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, contents, emails[0])
 		case fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
@@ -139,10 +120,15 @@ func SubstituteFleetVarsInAppConfig(
 			contents = replaced
 		default:
 			// The validator restricts to FleetVarsSupportedInAppleAppConfig at
-			// write time, so an unknown variable here means the validator and
-			// this switch have drifted. Treat it as unresolvable rather than
+			// write time, so an unknown variable here is either one Fleet 5
+			// removed, saved before the upgrade, or a drift between the
+			// validator and this switch. Treat it as unresolvable rather than
 			// silently leaving the literal token in the device-bound XML.
-			return nil, &UnresolvableAppConfigVarError{FleetVar: name}
+			var detail string
+			if err := fleet.FindRemovedFleetVariable(name); err != nil {
+				detail = err.Error()
+			}
+			return nil, &UnresolvableAppConfigVarError{FleetVar: name, Detail: detail}
 		}
 	}
 

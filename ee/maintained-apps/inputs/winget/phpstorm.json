@@ -3,6 +3,7 @@
   "slug": "phpstorm/windows",
   "package_identifier": "JetBrains.PhpStorm",
   "unique_identifier": "PhpStorm",
+  "open_process_names": ["phpstorm.exe", "phpstorm64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/phpstorm_install.ps1",

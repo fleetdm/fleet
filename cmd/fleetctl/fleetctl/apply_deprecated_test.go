@@ -202,7 +202,7 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
@@ -308,9 +308,9 @@ spec:
     macos_settings:
       custom_settings:
       - %s
-    macos_setup:
-      macos_setup_assistant: %s
-    windows_enabled_and_configured: true
+    setup_experience:
+      apple_setup_assistant: %s
+    windows_mdm_enabled: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
@@ -355,8 +355,8 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
+    setup_experience:
+      macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
@@ -397,7 +397,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -453,11 +453,11 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, emptySetupAsst))
 
 	// first apply with dry-run
@@ -496,11 +496,11 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
+      setup_experience:
+        macos_bootstrap_package: %s
 `, bootstrapURL))
 
 	// first apply with dry-run
@@ -573,22 +573,6 @@ spec:
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
-
-	// Apply packs.
-	var appliedPacks []*fleet.PackSpec
-	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
-		appliedPacks = specs
-		return nil
-	}
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
-	name = writeTmpYml(t, packsSpec)
-	assert.Equal(t, "[+] applied 1 pack\n", runAppForTestDeprecated(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
-	require.Len(t, appliedPacks, 1)
-	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
-	require.Len(t, appliedPacks[0].Queries, 2)
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
@@ -825,81 +809,81 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
-      macos_setup_assistant: %s
+    setup_experience:
+      macos_bootstrap_package: %s
+      apple_setup_assistant: %s
 `
 		appConfigEnableReleaseSpec = appConfigSpec + `
-      enable_release_device_manually: %s
+      apple_enable_release_device_manually: %s
 `
 		appConfigNoKeySpec = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
 `
 		appConfigSpecEnableEndUserAuth = `
 apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
+    setup_experience:
       enable_end_user_authentication: %s
 `
 		team1Spec = `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 `
 		team1EnableReleaseSpec = team1Spec + `
-        enable_release_device_manually: %s
-        require_all_software_macos: %s
+        apple_enable_release_device_manually: %s
+        macos_require_all_software: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
 `
 		team1And2Spec = `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 ---
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm2
     mdm:
-      macos_setup:
-        bootstrap_package: %s
-        macos_setup_assistant: %s
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
 `
 		team1SpecEnableEndUserAuth = `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
-      macos_setup:
+      setup_experience:
         enable_end_user_authentication: %s
 `
 	)
@@ -1022,8 +1006,8 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
-		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
-		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 		require.NoError(t, err)
@@ -1031,9 +1015,9 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1Set := fmt.Sprintf(string(b), "", "", "", "")
-		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
-		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
+		expectedTm1Set := fmt.Sprintf(string(b), "", "")
+		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
+		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -1041,11 +1025,11 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup)
+		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
@@ -1061,7 +1045,7 @@ spec:
 
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -1078,7 +1062,7 @@ spec:
 
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -1114,7 +1098,7 @@ spec:
 
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -1134,7 +1118,7 @@ spec:
 
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply team 1 without the setup assistant key but enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
@@ -1146,7 +1130,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
@@ -1249,9 +1233,9 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      bootstrap_package: %s
-      manual_agent_install: true
+    setup_experience:
+      macos_bootstrap_package: %s
+      macos_manual_agent_install: true
 `
 
 		// create the app config yaml with server url for bootstrap package
@@ -1407,7 +1391,7 @@ spec:
 	// 	b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 	// 	require.NoError(t, err)
 	// 	expectedNotSetTeam1 := string(b)
-	// 	assert.YAMLEq(t, expectedNotSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedNotSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 	// 	// enable end user auth in team config
 	// 	name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
@@ -1422,7 +1406,7 @@ spec:
 	// 	expectedSetTeam1 := strings.ReplaceAll(expectedNotSetTeam1, "enable_end_user_authentication: false", "enable_end_user_authentication: true")
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_host_users: false", "enable_host_users: true")
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_software_inventory: false", "enable_software_inventory: true")
-	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	// 	ds.SaveTeamFuncInvoked = false
 
 	// 	// disable end user auth in team config
@@ -1436,7 +1420,7 @@ spec:
 	// 	assert.False(t, ds.SaveAppConfigFuncInvoked)
 	// 	assert.True(t, ds.SaveTeamFuncInvoked)
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_end_user_authentication: true", "enable_end_user_authentication: false")
-	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	// 	ds.SaveTeamFuncInvoked = false
 	// })
 }
@@ -1563,7 +1547,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: ""
 `,
 			wantErr: `422 Validation Failed: name may not be empty`,
@@ -1574,7 +1558,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     agent_options:
       config:
@@ -1588,7 +1572,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     blah: nope
 `,
@@ -1600,7 +1584,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: 123
 `,
 			flags:   []string{"--force"},
@@ -1612,7 +1596,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     blah: true
 `,
@@ -1625,7 +1609,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -1639,7 +1623,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -1654,7 +1638,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -1669,7 +1653,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -1685,7 +1669,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       command_line_flags:
@@ -1699,7 +1683,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       command_line_flags:
@@ -1713,7 +1697,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -1875,7 +1859,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
 ---
 apiVersion: v1
@@ -1900,7 +1884,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
 ---
 apiVersion: v1
@@ -1926,7 +1910,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -1940,7 +1924,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -1954,7 +1938,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -1969,7 +1953,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -1984,7 +1968,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -1999,7 +1983,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -2014,7 +1998,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2028,7 +2012,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2042,7 +2026,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2057,7 +2041,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2072,7 +2056,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2087,7 +2071,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2102,7 +2086,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2117,7 +2101,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -2489,7 +2473,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -2503,7 +2487,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -2518,7 +2502,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -2532,7 +2516,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -2546,11 +2530,11 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
@@ -2561,8 +2545,8 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    macos_setup:
-      macos_setup_assistant: %s
+    setup_experience:
+      apple_setup_assistant: %s
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
@@ -2573,7 +2557,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},

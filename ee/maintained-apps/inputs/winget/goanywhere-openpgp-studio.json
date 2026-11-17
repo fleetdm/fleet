@@ -3,6 +3,7 @@
   "slug": "goanywhere-openpgp-studio/windows",
   "package_identifier": "Fortra.GoAnywhereOpenPGPStudio",
   "unique_identifier": "GoAnywhere OpenPGP Studio",
+  "open_process_names": ["openpgpstudio.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

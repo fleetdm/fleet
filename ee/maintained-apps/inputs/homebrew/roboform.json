@@ -1,10 +1,15 @@
 {
   "name": "RoboForm",
-  "unique_identifier": "com.SiberSystems.RoboForm",
+  "unique_identifier": "com.sibersystems.RoboFormMac",
   "token": "roboform",
   "installer_format": "dmg",
   "slug": "roboform/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/roboform-install.sh",
+  "pre_uninstall_scripts": [
+    "quit_application 'com.SiberSystems.RoboForm' || exit 1"
+  ],
   "default_categories": [
     "Security"
-  ]
+  ],
+  "frozen": true
 }

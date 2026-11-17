@@ -4,8 +4,6 @@
   "spec": {
     "org_info": {
       "org_name": "",
-      "org_logo_url": "",
-      "org_logo_url_light_background": "",
       "org_logo_url_dark_mode": "",
       "org_logo_url_light_mode": "",
       "contact_url": "https://fleetdm.com/company/contact"
@@ -20,7 +18,6 @@
       "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
-      "scripts_disabled": false,
       "ai_features_disabled": false,
       "mcp_disabled": false
     },
@@ -133,10 +130,10 @@
         "oauth_idp_client_secret": null
       },
       "volume_purchasing_program": null,
-      "windows_enabled_and_configured": false,
+      "windows_mdm_enabled": false,
       "enable_disk_encryption": false,
       "name_template": null,
-      "enable_recovery_lock_password": false,
+      "macos_recovery_lock_password_enabled": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -159,7 +156,7 @@
         "deadline_days": 7,
         "grace_period_days": 3
       },
-      "windows_migration_enabled": false,
+      "windows_mdm_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "windows_entra_tenant_ids": null,
       "windows_entra_client_ids": null,
@@ -183,22 +180,6 @@
         "enable_disk_encryption": false,
         "enable_escrow_disk_encryption_key": false
       },
-      "macos_setup": {
-        "bootstrap_package": null,
-        "enable_end_user_authentication": false,
-        "enable_managed_local_account": false,
-        "enable_release_device_manually": false,
-        "end_user_local_account_type": "admin",
-        "lock_end_user_info": false,
-        "macos_enable_bootstrap_package_during_manual_enrollment": false,
-        "macos_enable_bootstrap_package_during_migration": false,
-        "macos_setup_assistant": null,
-        "manual_agent_install": null,
-        "require_all_software_macos": false,
-        "require_all_software_windows": false,
-        "script": null,
-        "software": null
-      },
       "setup_experience": {
         "apple_enable_release_device_manually": false,
         "apple_setup_assistant": null,
@@ -211,9 +192,10 @@
         "macos_enable_bootstrap_package_during_migration": false,
         "macos_manual_agent_install": null,
         "macos_script": null,
-        "require_all_software_macos": false,
-        "require_all_software_windows": false,
-        "software": null
+        "macos_require_all_software": false,
+        "windows_require_all_software": false,
+        "software": null,
+        "enable_managed_local_account": false
       },
       "windows_automatic_enrollment": null,
       "windows_settings": {

@@ -415,7 +415,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "admin" })],
+              fleets: [createMockTeam({ id: 1, role: "admin" })],
             }),
           },
         },
@@ -445,7 +445,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+              fleets: [createMockTeam({ id: 1, role: "maintainer" })],
             }),
           },
         },
@@ -616,7 +616,7 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "admin" })],
+              fleets: [createMockTeam({ id: 1, role: "admin" })],
             }),
           },
         },
@@ -643,7 +643,7 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+              fleets: [createMockTeam({ id: 1, role: "maintainer" })],
             }),
           },
         },
@@ -698,7 +698,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "technician" })],
+              fleets: [createMockTeam({ id: 1, role: "technician" })],
             }),
           },
         },
@@ -726,7 +726,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "technician" })],
+              fleets: [createMockTeam({ id: 1, role: "technician" })],
             }),
           },
         },
@@ -781,7 +781,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: false,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "technician" })],
+              fleets: [createMockTeam({ id: 1, role: "technician" })],
             }),
           },
         },
@@ -1302,11 +1302,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false, // scriptsGloballyDisabled = false
-              },
-            },
           },
         },
       });
@@ -1334,11 +1329,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1366,11 +1356,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1398,11 +1383,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1449,11 +1429,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1482,49 +1457,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.getByText(/fleetd agent with --enable-scripts/i)
       ).toBeInTheDocument();
-    });
-
-    it("renders the Run script action as disabled when scripts are disabled globally", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: true, // scriptsGloballyDisabled = true
-              },
-            },
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          isConnectedToFleetMdm
-          hostPlatform="darwin"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      await waitFor(() => {
-        waitFor(() => {
-          user.hover(screen.getByText("Run script"));
-        });
-
-        expect(
-          screen.getByText(
-            /Running scripts is disabled in organization settings./i
-          )
-        ).toBeInTheDocument();
-      });
     });
 
     it("does not render the Run script action for ChromeOS", async () => {
@@ -2832,7 +2764,7 @@ describe("Host Actions Dropdown", () => {
         case: "renders for a team technician on an iOS host of their fleet",
         currentUser: createMockUser({
           global_role: null,
-          teams: [createMockTeam({ id: 1, role: "technician" })],
+          fleets: [createMockTeam({ id: 1, role: "technician" })],
         }),
         isGlobalTechnician: false,
         hostTeamId: 1,
@@ -3171,7 +3103,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: teamID, role: "admin" })],
+              fleets: [createMockTeam({ id: teamID, role: "admin" })],
             }),
             config: { mdm: { apple_bm_enabled_and_configured: true } },
           },
@@ -3208,7 +3140,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 2, role: "admin" })],
+              fleets: [createMockTeam({ id: 2, role: "admin" })],
             }),
             config: { mdm: { apple_bm_enabled_and_configured: true } },
           },

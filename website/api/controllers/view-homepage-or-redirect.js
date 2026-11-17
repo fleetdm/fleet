@@ -32,49 +32,58 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials)) {
       throw {badConfig: 'builtStaticContent.testimonials'};
     }
-    // Get testimonials for the <scrolalble-tweets> component.
-    let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
+    let testimonials = _.clone(sails.config.builtStaticContent.testimonials);
 
     // Only filter and sort testimonials when static content has been built.
     // If the build-static-content script was not run, we'll show a placeholder testimonial that is added by the custom hook.
     if (sails.config.builtStaticContent.compiledPagePartialsAppPath) {
-      // Specify an order for the testimonials on this page using the last names of quote authors
-      let testimonialOrderForThisPage = [
-        'Bart Reardon',
-        'Scott MacVicar',
-        'Mike Meyer',
-        'Luis Madrigal',
-        'Tom Larkin',
+      // Same sort order and exclusions as the /customers page (see view-customers.js).
+      let sortOrderOfTestimonialAuthorsShownOnThisPage = [
         'Kenny Botelho',
+        'Scott MacVicar',
+        'Adam Anklewicz',
+        'Nick Fohs',
+        'Wes Whetstone',
         'Erik Gomez',
-        'Chandra Majumdar',
-        'Eric Tan',
         'Matt Carr',
-        'Nico Waisman',
-        'Adam Pippert',
-        'Philip Chotipradit',
-        'Roger Cantrell',
-        'Chayce O\'Neal',
-        'David Bodmer'
+        'nico waisman',
+        'Dan Grzelak',
+        'Eric Tan',
       ];
 
-      // Filter the testimonials by product category
-      testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-        return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
+      let testimonialAuthorsToExcludeOnThisPage = [
+        'Alvaro Gutierrez',
+        'Joe Pistone',
+        'Brendan Shaklovitz',
+        'Abubakar Yousafzai',
+        'Dhruv Majumdar',
+        'matt carr',
+        'Charles Zaffery',
+        'Tom Larkin',// Note: excluded becasue we already show a quote from this person
+        'Nico Waisman',// Note: excluded becasue we already show a quote from this person
+      ];
+
+      testimonials = _.filter(testimonials, (testimonial)=>{
+        return !testimonialAuthorsToExcludeOnThisPage.includes(testimonial.quoteAuthorName);
       });
 
-      testimonialsForScrollableTweets.sort((a, b)=>{
-        if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
+      testimonials.sort((a, b)=>{
+        if(sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(a.quoteAuthorName) === -1){
           return 1;
-        } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName) === -1) {
+        } else if(sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(b.quoteAuthorName) === -1) {
           return -1;
         }
-        return testimonialOrderForThisPage.indexOf(a.quoteAuthorName) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName);
+        return sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(a.quoteAuthorName) - sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(b.quoteAuthorName);
       });
     }//ﬁ
 
+    let testimonialsWithVideoLinks = _.filter(testimonials, (testimonial)=>{
+      return testimonial.youtubeVideoUrl;
+    });
+
     return {
-      testimonialsForScrollableTweets,
+      testimonials,
+      testimonialsWithVideoLinks,
     };
 
   }

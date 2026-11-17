@@ -194,6 +194,20 @@ func TestTruncateBytes(t *testing.T) {
 	t.Run("empty marker truncates cleanly", func(t *testing.T) {
 		require.Equal(t, "xxxxx", TruncateBytes(strings.Repeat("x", 100), 5, ""))
 	})
+
+	t.Run("empty marker never splits a character", func(t *testing.T) {
+		for _, tc := range []struct {
+			in    string
+			limit int
+			want  string
+		}{
+			{"abé", 3, "ab"},
+			{"aé", 3, "aé"},
+			{"ab\U0001F642", 4, "ab"},
+		} {
+			require.Equal(t, tc.want, TruncateBytes(tc.in, tc.limit, ""), "%q/%d", tc.in, tc.limit)
+		}
+	})
 }
 
 func TestTruncateErrorResponse(t *testing.T) {

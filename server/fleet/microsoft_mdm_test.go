@@ -1376,3 +1376,29 @@ func TestEnrollmentVersionAtLeast(t *testing.T) {
 		})
 	}
 }
+
+func TestWindowsMDMAccessTokenPayloadIsValidToken(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		typ     WindowsMDMEnrollmentType
+		nodeKey string
+		wantErr string
+	}{
+		{"programmatic", WindowsMDMProgrammaticEnrollmentType, "node-key", ""},
+		{"programmatic without node key", WindowsMDMProgrammaticEnrollmentType, "", "payload content"},
+		{"missing type", 0, "node-key", "payload type"},
+		{"unsupported type", 2, "node-key", "payload type"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var pld WindowsMDMAccessTokenPayload
+			pld.Type = tc.typ
+			pld.Payload.OrbitNodeKey = tc.nodeKey
+			err := pld.IsValidToken()
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

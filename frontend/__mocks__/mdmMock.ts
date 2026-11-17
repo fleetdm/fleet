@@ -58,7 +58,7 @@ const DEFAULT_VPP_TOKEN_MOCK: IMdmVppToken = {
   renew_date: "2030-01-01T00:00:00Z",
   country_code: "us",
   created_at: null,
-  teams: [],
+  fleets: [],
 };
 
 export const createMockVppToken = (

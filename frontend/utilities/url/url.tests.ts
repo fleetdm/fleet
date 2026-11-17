@@ -54,19 +54,19 @@ describe("url utilities > getPathWithQueryParams", () => {
   it("appends query string when query params are provided", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: 25,
+      software_version_id: 25,
       team_id: 10,
       order_key: "issues",
     };
     expect(getPathWithQueryParams(endpoint, queryParams)).toBe(
-      "/hosts/manage?software_id=25&team_id=10&order_key=issues"
+      "/hosts/manage?software_version_id=25&team_id=10&order_key=issues"
     );
   });
 
   it("filters out undefined, null, and empty string values from query params", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: undefined,
+      software_version_id: undefined,
       team_id: null,
       policy_response: "",
       policy_id: 4,
@@ -79,7 +79,7 @@ describe("url utilities > getPathWithQueryParams", () => {
   it("returns only the endpoint when all query params are filtered out", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: undefined,
+      software_version_id: undefined,
       team_id: null,
       policy_response: "",
     };

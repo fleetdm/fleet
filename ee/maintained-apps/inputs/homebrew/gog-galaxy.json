@@ -1,6 +1,6 @@
 {
   "name": "GOG Galaxy",
-  "unique_identifier": "com.gog.galaxy.cef.renderer",
+  "unique_identifier": "com.gog.galaxy",
   "token": "gog-galaxy",
   "installer_format": "pkg",
   "slug": "gog-galaxy/darwin",

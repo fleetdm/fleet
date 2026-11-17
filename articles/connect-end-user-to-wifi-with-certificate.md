@@ -7,6 +7,7 @@ Fleet can help your end users connect to third-party tools like Wi-Fi or VPN by 
 - [DigiCert](#digicert): macOS, iOS, and iPadOS
 - [Microsoft NDES](#microsoft-ndes): macOS, iOS, iPadOS and Windows
 - [Smallstep](#smallstep): macOS, iOS, and iPadOS
+- [SecureW2](#securew-2): macOS, iOS, and iPadOS
 - [Hydrant](#hydrant): Linux
 - [Any SCEP (Simple Certificate Enrollment Protocol) CA](#any-scep-simple-certificate-enrollment-protocol-ca): macOS, Windows, iOS, iPadOS, and Android
 - [Any EST (Enrollment over Secure Transport) CA](#any-est-enrollment-over-secure-transport-ca): Linux
@@ -304,7 +305,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
 
 3. For Windows profiles, you also need to set `CAThumbprint` to the SHA1 fingerprint of your **root CA certificate** (not the RA signing certificate). See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
@@ -540,7 +541,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
@@ -609,6 +610,15 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </dict>
 </plist>
 ```
+
+## SecureW2
+
+[SecureW2](https://www.securew2.com/) JoinNow PKI can issue certificates to Fleet-managed Apple hosts in two ways:
+
+- **ACME**: SecureW2 generates a configuration profile with an ACME payload and a Wi-Fi payload. Add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the ACME payload's `OU`, set your SSID, and upload the profile to Fleet. By default, the private key is hardware-bound, so only Apple's built-in clients (like Wi-Fi and the built-in VPN client) can use the certificate.
+- **SCEP**: Create a **SCEP (Multi-Vendor) Enrollment Token** in SecureW2 and add its SCEP URL and secret to Fleet as a [custom SCEP CA](#any-scep-simple-certificate-enrollment-protocol-ca). SecureW2's dynamic SCEP challenge doesn't work with Fleet's NDES integration.
+
+For the full SecureW2 and Fleet setup, including example profiles, follow the [SecureW2 guide](https://fleetdm.com/guides/deploy-securew2-certificates-with-fleet).
 
 ## Hydrant
 
@@ -702,7 +712,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
 
 2. Replace the `{CA_NAME}` with the name you created in step 1. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
@@ -897,7 +907,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 
 2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
@@ -1020,12 +1030,14 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
+>
+> `$FLEET_VAR_SCEP_RENEWAL_ID` is deprecated as of Fleet 4.86.0. It's maintained for backwards compatibility. Please use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` instead.
 
 ## Advanced
 
 ### Managing CA configurations with GitOps
 
-NOTE: the following instructions are based on the example of configuring the [Okta CA for deploying SCEP certificates](#Okta). All CA integration options can be managed with GitOps. Below are the top-level keys for each integration type. (The attributes / values for each integration type will vary):
+NOTE: the following instructions are based on the example of configuring the [Okta CA for deploying SCEP certificates](#okta). All CA integration options can be managed with GitOps. Below are the top-level keys for each integration type. (The attributes / values for each integration type will vary):
 
 ```
   certificate_authorities:
@@ -1152,13 +1164,13 @@ When Fleet proxies SCEP certificate issuance for a Windows host (Custom SCEP pro
 
 - **Pending**: the profile is queued for delivery to the host. A profile that is being retried also shows **Pending**, with no error in **Details**.
 - **Verifying**: the host acknowledged the profile and the SCEP exchange is in progress. Fleet has not yet observed the issued certificate on the host.
-- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_SCEP_RENEWAL_ID` value in the certificate's OU.
+- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` value in the certificate's OU.
 - **Failed**: the profile ran out of retries. **Details** shows the last error Fleet saw, either an error the SCEP proxy observed from the upstream CA (for example, `SCEP PKIOperation failed: HTTP 500`) or a certificate that never arrived (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
 
 To verify Windows SCEP certificates, Fleet requires:
 
 - Fleet's agent (fleetd) with **osquery 5.23.1 or later** on the host, so Fleet can read the host's installed certificates.
-- The `$FLEET_VAR_SCEP_RENEWAL_ID` variable in the profile's `SubjectName` OU (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
+- The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the profile's `SubjectName` OU (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
 
 For [user-scoped certificates](#user-scoped-certificates), Fleet can only observe the certificate while the target user is signed in, so the profile stays **Verifying** until the user logs in. Fleet assumes a single primary user per Windows host.
 

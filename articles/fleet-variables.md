@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or managed app configurations ([iOS/iPadOS](https://fleetdm.com/guides/install-app-store-apps#ios-and-ipados-managed-configuration), [Android](https://fleetdm.com/guides/install-app-store-apps#android-managed-configuration)). 
+Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or [managed app configurations](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) (iOS, iPadOS, and Android). 
 
 You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
 
@@ -40,6 +40,8 @@ Built-in variables:
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
 
 > Profiles that use IdP variables will trigger a resend when the IdP user is removed from the host, but will fail sending a new profile due to missing variables, leaving the old one on the device. Once the host has a new IdP user it will be resent again with fresh values.
+
+> If Fleet can't fill in a variable in an app's managed configuration, Fleet doesn't send the app or its configuration to that host. Learn more in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#variables).
 
 
 <meta name="category" value="guides">

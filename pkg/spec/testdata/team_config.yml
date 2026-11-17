@@ -1,5 +1,5 @@
 name: Team1
-team_settings:
+settings:
   path: ./team-settings.yml
 agent_options:
   path: ./agent-options.yml

@@ -43,19 +43,14 @@ func applyCommand() *cli.Command {
 				Usage:       "Do not apply the file, just validate it (only supported for 'config' and 'fleet' specs)",
 			},
 			&cli.StringFlag{
-				Name:    "policies-fleet",
-				Aliases: []string{"policies-team"},
-				Usage:   "A fleet's name, this flag is only used on policies specs (overrides 'fleet' key in the policies file). This allows to easily import a group of policies to a fleet.",
+				Name:  "policies-fleet",
+				Usage: "A fleet's name, this flag is only used on policies specs (overrides 'fleet' key in the policies file). This allows to easily import a group of policies to a fleet.",
 			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
 			enableLogTopicsFlag(),
 			disableLogTopicsFlag(),
-		},
-		Before: func(c *cli.Context) error {
-			logDeprecatedFlagName(c, "policies-team", "policies-fleet")
-			return nil
 		},
 		Action: func(c *cli.Context) error {
 			// Apply log topic overrides from flags/env vars.

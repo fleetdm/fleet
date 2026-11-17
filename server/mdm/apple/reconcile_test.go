@@ -1524,7 +1524,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
-	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
+	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostHardwareSerial), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -1532,17 +1532,18 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			require.Len(t, payload, 8)
 		}
 		enqueueFailForOp = ""
-		newContents := "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP
+		newContents := "$FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
 		originalContents1 := contents1
 		contents1 = []byte(newContents)
 		t.Cleanup(func() {
 			contents1 = originalContents1
+			ds.ListHostsLiteByUUIDsFunc = nil
 		})
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return nil, errors.New("GetHostEmailsFuncError")
+		ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			return nil, errors.New("ListHostsLiteByUUIDsFuncError")
 		}
 		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, nil)
-		require.ErrorContains(t, err, "GetHostEmailsFuncError")
+		require.ErrorContains(t, err, "ListHostsLiteByUUIDsFuncError")
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)

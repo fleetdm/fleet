@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	jose "github.com/go-jose/go-jose/v3"
+	jose "github.com/go-jose/go-jose/v4"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,7 +65,7 @@ func TestLoginResponseJWERoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, jweCompact)
 
-	parsed, err := jose.ParseEncrypted(string(jweCompact))
+	parsed, err := jose.ParseEncryptedCompact(string(jweCompact), []jose.KeyAlgorithm{jose.ECDH_ES}, []jose.ContentEncryption{jose.A256GCM})
 	require.NoError(t, err)
 	got, err := parsed.Decrypt(deviceKey)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestLoginResponseJWEWrongKeyFails(t *testing.T) {
 	jweCompact, err := BuildPartyInfoJWE([]byte("secret"), &deviceKey.PublicKey, apv, TypLoginResponse)
 	require.NoError(t, err)
 
-	parsed, err := jose.ParseEncrypted(string(jweCompact))
+	parsed, err := jose.ParseEncryptedCompact(string(jweCompact), []jose.KeyAlgorithm{jose.ECDH_ES}, []jose.ContentEncryption{jose.A256GCM})
 	require.NoError(t, err)
 	_, err = parsed.Decrypt(otherKey)
 	require.Error(t, err)

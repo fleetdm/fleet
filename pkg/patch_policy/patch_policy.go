@@ -177,12 +177,8 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 }
 
 func defaultWindowsOpenQuery(softwareTitle string) string {
-	if query, ok := windowsOpenQueryOverrides[softwareTitle]; ok {
-		windowsOpenQueryPrefix := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) %s);"
-		return fmt.Sprintf(windowsOpenQueryPrefix, query)
-	}
-
-	// Match a process named "<title>.exe"
+	// Match a process named "<title>.exe". Apps whose process is named differently set
+	// open_process_names or open_process_name_prefix in their winget input manifest.
 	// alternatives considered:
 	// - join programs.install_location with processes.path - install_location is unreliable (especially for MSI installers)
 	executable := strings.ToLower(softwareTitle) + ".exe"
@@ -209,96 +205,4 @@ func ScopeToWindowsARM(query string) string {
 
 func escapeSQLLiteral(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
-}
-
-// overrides based on uninstall scripts
-var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false positive: values are app process names, not credentials
-	"1Password":                         "LIKE '1password%'",
-	"7-zip":                             "IN ('7zfm.exe','7zg.exe')",
-	"ActivityWatch":                     "= 'aw-qt.exe'",
-	"Adobe Acrobat Pro":                 "= 'acrobat.exe'",
-	"Adobe Acrobat Reader":              "= 'acrobat.exe'",
-	"Amazon Chime":                      "IN ('amazon chime.exe','chime.exe')",
-	"Android Studio":                    "= 'studio64.exe'",
-	"Audacity":                          "IN ('audacity.exe','audacity4.exe')",
-	"AVS Image Converter":               "= 'avsimageconverter.exe'",
-	"AVS Media Player":                  "= 'avsmediaplayer.exe'",
-	"Beyond Compare":                    "= 'bcompare.exe'",
-	"Bulk Crap Uninstaller":             "= 'bcuninstaller.exe'",
-	"Certify The Web":                   "= 'certify.ui.desktop.exe'",
-	"CLion":                             "IN ('clion.exe','clion64.exe')",
-	"Clockify Desktop":                  "= 'clockifywindows.exe'",
-	"Connect Fonts":                     "= 'monotype connect.exe'",
-	"CPU-Z":                             "= 'cpuz.exe'",
-	"Crestron AirMedia":                 "= 'airmedia.exe'",
-	"DataGrip":                          "IN ('datagrip.exe','datagrip64.exe')",
-	"DataSpell":                         "IN ('dataspell.exe','dataspell64.exe')",
-	"DAX Studio":                        "= 'daxstudio.exe'",
-	"DBeaverEE":                         "= 'dbeaver.exe'",
-	"DBeaverLite":                       "= 'dbeaver.exe'",
-	"DBeaverUltimate":                   "= 'dbeaver.exe'",
-	"Dell Command Update":               "IN ('dellcommandupdate.exe','dcu-cli.exe')",
-	"Directory Opus":                    "= 'dopus.exe'",
-	"dotPeek":                           "IN ('dotpeek32.exe','dotpeek64.exe','dotpeek64a.exe')",
-	"dotTrace":                          "IN ('dottrace32.exe','dottrace64.exe','dottrace64a.exe','dottraceviewer32.exe','dottraceviewer64.exe','dottraceviewer64a.exe','jetbrains.dottrace.home.shell.exe')",
-	"eM Client":                         "= 'mailclient.exe'",
-	"Gephi":                             "= 'gephi64.exe'",
-	"GIMP":                              "LIKE 'gimp-3%'",
-	"GitHub Desktop":                    "= 'githubdesktop.exe'",
-	"GoLand":                            "IN ('goland.exe','goland64.exe')",
-	"Google Antigravity IDE":            "= 'antigravity.exe'",
-	"Google Chrome":                     "= 'chrome.exe'",
-	"Infix PDF Editor":                  "= 'infix.exe'",
-	"IntelliJ IDEA":                     "IN ('idea.exe','idea64.exe')",
-	"JetBrains Toolbox":                 "IN ('toolbox.exe','jetbrains-toolbox.exe')",
-	"KNIME Analytics Platform":          "= 'knime.exe'",
-	"KeyStore Explorer":                 "= 'kse.exe'",
-	"Lenovo Dock Manager":               "= 'dockmgr.exe'",
-	"LocalSend":                         "= 'localsend_app.exe'",
-	"Microsoft Edge":                    "= 'msedge.exe'",
-	"Microsoft Remote Help":             "= 'remotehelp.exe'",
-	"Microsoft Teams":                   "IN ('teams.exe','ms-teams.exe')",
-	"Microsoft Visual Studio Code":      "= 'code.exe'",
-	"Mozilla Firefox":                   "= 'firefox.exe'",
-	"Mozilla Firefox ESR":               "= 'firefox.exe'",
-	"Mozilla Firefox Developer Edition": "= 'firefox.exe'",
-	"Mozilla Firefox Developer Edition (ARM64)": "= 'firefox.exe'",
-	"Mozilla Firefox Nightly":                   "= 'firefox.exe'",
-	"Mozilla Firefox Nightly (ARM64)":           "= 'firefox.exe'",
-	"Node.js":                                   "= 'node.exe'",
-	"Notion Calendar":                           "IN ('cron.exe','notion calendar.exe')",
-	"OBS":                                       "IN ('obs32.exe','obs64.exe')",
-	"Okta Verify":                               "= 'oktaverify.exe'",
-	"Ollama":                                    "IN ('ollama.exe','ollama app.exe')",
-	"OneDrive":                                  "LIKE 'onedrive%'",
-	"Pale Moon":                                 "= 'palemoon.exe'",
-	"pgAdmin 4":                                 "= 'pgadmin4.exe'",
-	"PhpStorm":                                  "IN ('phpstorm.exe','phpstorm64.exe')",
-	"Plantronics Hub":                           "= 'plthub.exe'",
-	"Portfolio Performance":                     "= 'portfolioperformance.exe'",
-	"Power Automate":                            "= 'pad.console.host.exe'",
-	"PowerShell":                                "= 'pwsh.exe'",
-	"ProtonVPN":                                 "IN ('proton vpn.exe','protonvpn.exe')",
-	"PyCharm Community Edition":                 "IN ('pycharm.exe','pycharm64.exe')",
-	"PyCharm Professional":                      "IN ('pycharm.exe','pycharm64.exe')",
-	"QGIS":                                      "= 'qgis-bin.exe'",
-	"QGIS LTR":                                  "= 'qgis-ltr-bin.exe'",
-	"R for Windows":                             "IN ('rgui.exe','rterm.exe')",
-	"Raspberry Pi Imager":                       "= 'rpi-imager.exe'",
-	"RealVNC Connect Viewer":                    "IN ('rvncconnect.exe','vncviewer.exe')",
-	"Rider":                                     "IN ('rider.exe','rider64.exe')",
-	"RStudio":                                   "IN ('rgui.exe','rsession.exe','rstudio.exe')",
-	"RubyMine":                                  "IN ('rubymine.exe','rubymine64.exe')",
-	"RustRover":                                 "IN ('rustrover.exe','rustrover64.exe')",
-	"Spotify":                                   "IN ('spotify.exe','spotifywebhelper.exe')",
-	"Sublime Text":                              "= 'sublime_text.exe'",
-	"Tableau Desktop":                           "= 'tableau.exe'",
-	"Tableau Prep":                              "= 'tableau prep builder.exe'",
-	"Vim":                                       "IN ('gvim.exe','vim.exe','evim.exe','gview.exe','gvimdiff.exe','view.exe','vimdiff.exe')",
-	"VirtualBox":                                "LIKE 'virtualbox%'",
-	"Wacom Tablet":                              "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
-	"WebStorm":                                  "IN ('webstorm.exe','webstorm64.exe')",
-	"Windows App":                               "= 'windowsapp.exe'",
-	"XnSoft XnConvert":                          "= 'xnconvert.exe'",
-	"YACReader":                                 "IN ('yacreader.exe','yacreaderlibrary.exe')",
 }

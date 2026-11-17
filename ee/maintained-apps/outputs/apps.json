@@ -1111,7 +1111,7 @@
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.eatbiscuit.biscuit",
+      "unique_identifier": "com.eatbiscult.biscult",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -1169,6 +1169,13 @@
       "platform": "windows",
       "unique_identifier": "BleachBit",
       "description": "BleachBit is a free utility for cleaning disk space and protecting privacy."
+    },
+    {
+      "name": "Blender (ARM64)",
+      "slug": "blender-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Blender",
+      "description": "Blender (ARM64) is the native ARM64 build of Blender, a 3D creation suite."
     },
     {
       "name": "Blender",
@@ -1370,7 +1377,7 @@
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.install4j.9806-1938-4586-6531.70",
+      "unique_identifier": "com.install4j.6592-1155-2163-3973.70",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
@@ -1563,6 +1570,13 @@
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "ChatGPT Desktop",
+      "slug": "chatgpt/windows",
+      "platform": "windows",
+      "unique_identifier": "ChatGPT",
+      "description": "ChatGPT Desktop is OpenAI's official desktop app for ChatGPT and Codex on Windows, providing AI-powered conversations, coding help, and assistance."
+    },
+    {
       "name": "ChatWise",
       "slug": "chatwise/darwin",
       "platform": "darwin",
@@ -1661,6 +1675,13 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
+      "name": "Claude (ARM64)",
+      "slug": "claude-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Claude",
+      "description": "Claude (ARM64) is the native ARM64 build of Anthropic's official Claude AI desktop app."
+    },
+    {
       "name": "Claude DevTools",
       "slug": "claude-devtools/darwin",
       "platform": "darwin",
@@ -1699,7 +1720,7 @@
       "name": "CleanShot X",
       "slug": "cleanshot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.getcleanshot.app",
+      "unique_identifier": "pl.maketheweb.cleanshotx",
       "description": "CleanShot X is a screen capturing tool."
     },
     {
@@ -1846,7 +1867,7 @@
       "name": "coconutBattery",
       "slug": "coconutbattery/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.coconut-flavour.coconutBattery-Menu",
+      "unique_identifier": "com.coconut-flavour.coconutBattery",
       "description": "coconutBattery is a tool to show live information about the batteries in various devices."
     },
     {
@@ -1951,7 +1972,7 @@
       "name": "Bitfocus Companion",
       "slug": "companion/darwin",
       "platform": "darwin",
-      "unique_identifier": "companion.bitfocus.no",
+      "unique_identifier": "test-companion.bitfocus.no",
       "description": "Bitfocus Companion is a streamdeck extension and emulation software."
     },
     {
@@ -2095,6 +2116,13 @@
       "description": "Cube Browser is Rystad Energy’s client for querying and analyzing its energy data cubes."
     },
     {
+      "name": "Cursor (ARM64)",
+      "slug": "cursor-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Cursor",
+      "description": "Cursor (ARM64) is the native ARM64 build of Cursor, an AI code editor with context-aware code suggestions, explanations, and refactors."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
@@ -2207,6 +2235,13 @@
       "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent collects metrics, logs, and traces from hosts and sends them to Datadog for monitoring."
+    },
+    {
       "name": "Dataflare",
       "slug": "dataflare/darwin",
       "platform": "darwin",
@@ -2266,7 +2301,7 @@
       "name": "DB Browser for SQLite",
       "slug": "db-browser-for-sqlite/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sqlitebrowser.sqlitebrowser",
+      "unique_identifier": "net.sourceforge.sqlitebrowser",
       "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
     },
     {
@@ -2550,13 +2585,6 @@
       "description": "Diffusion Bee is a tool to run Stable Diffusion locally."
     },
     {
-      "name": "digiKam",
-      "slug": "digikam/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.digiKam",
-      "description": "digiKam is a digital photo manager."
-    },
-    {
       "name": "digiSeal Reader",
       "slug": "digiseal-reader/windows",
       "platform": "windows",
@@ -2588,7 +2616,7 @@
       "name": "Disk Drill",
       "slug": "disk-drill/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.cleverfiles.DiskDrill-setapp",
+      "unique_identifier": "com.cleverfiles.DiskDrill",
       "description": "Disk Drill is a data recovery software."
     },
     {
@@ -2618,6 +2646,13 @@
       "platform": "darwin",
       "unique_identifier": "com.ethanbills.DockDoor",
       "description": "DockDoor is a window peeking utility app."
+    },
+    {
+      "name": "Docker Desktop (ARM64)",
+      "slug": "docker-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Docker Desktop",
+      "description": "Docker Desktop (ARM64) is the native ARM64 build of Docker Desktop, an environment for building, sharing, and running containerized applications and microservices."
     },
     {
       "name": "Docker Desktop",
@@ -2651,7 +2686,7 @@
       "name": "DockView",
       "slug": "dockview/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sergey-gerasimenko.DockView",
+      "unique_identifier": "com.macplus-software.com.DockView-2",
       "description": "DockView is a utility to preview application windows in the dock."
     },
     {
@@ -2966,7 +3001,7 @@
       "name": "Electrum",
       "slug": "electrum/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.org.pythonmac.unspecified.Electrum",
+      "unique_identifier": "Electrum",
       "description": "Electrum is a bitcoin thin client."
     },
     {
@@ -3050,7 +3085,7 @@
       "name": "Elgato Wave Link",
       "slug": "elgato-wave-link/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.elgato.WaveLink",
+      "unique_identifier": "com.elgato.WaveLink3",
       "description": "Elgato Wave Link is a software custom-built for content creation."
     },
     {
@@ -3145,13 +3180,6 @@
       "description": "Evernote is a note-taking app for capturing notes, tasks, and schedules in one place."
     },
     {
-      "name": "ExifCleaner",
-      "slug": "exifcleaner/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.exifcleaner",
-      "description": "ExifCleaner is a metadata cleaner."
-    },
-    {
       "name": "ExifRenamer",
       "slug": "exifrenamer/darwin",
       "platform": "darwin",
@@ -3178,13 +3206,6 @@
       "platform": "darwin",
       "unique_identifier": "com.flexibits.fantastical2.mac",
       "description": "Fantastical is a calendar software."
-    },
-    {
-      "name": "far2l",
-      "slug": "far2l/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.far2l",
-      "description": "far2l is a unix fork of FAR Manager v2."
     },
     {
       "name": "Farrago",
@@ -3232,7 +3253,7 @@
       "name": "Ferdium",
       "slug": "ferdium/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.ferdium.ferdium-app",
+      "unique_identifier": "org.ferdium.ferdium-app",
       "description": "Ferdium is a multi-platform multi-messaging app."
     },
     {
@@ -3313,6 +3334,13 @@
       "description": "Firefly Shimmer is an official wallet for IOTA."
     },
     {
+      "name": "Mozilla Firefox (ARM64)",
+      "slug": "firefox-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox (AArch64 en-US)",
+      "description": "Mozilla Firefox (ARM64) is the native ARM64 build of Firefox, a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
@@ -3346,6 +3374,13 @@
       "platform": "windows",
       "unique_identifier": "Firefox Developer Edition (x64 en-US)",
       "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
+      "name": "Mozilla Firefox ESR (ARM64)",
+      "slug": "firefox@esr-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox ESR (AArch64 en-US)",
+      "description": "Mozilla Firefox ESR (ARM64) is the native ARM64 build of Firefox ESR, the Extended Support Release of the Firefox web browser."
     },
     {
       "name": "Mozilla Firefox ESR",
@@ -3416,6 +3451,13 @@
       "platform": "darwin",
       "unique_identifier": "com.fluidapp.Fluid2",
       "description": "Fluid is a tool to turn a website into a desktop app."
+    },
+    {
+      "name": "FluidVoice",
+      "slug": "fluidvoice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.FluidApp.app",
+      "description": "FluidVoice is an offline voice-to-text dictation app with AI enhancement."
     },
     {
       "name": "f.lux",
@@ -3698,6 +3740,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git (ARM64)",
+      "slug": "git-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Git",
+      "description": "Git (ARM64) is the native ARM64 build of Git, a free and open source distributed version control system."
+    },
+    {
       "name": "Git Extensions",
       "slug": "git-extensions/windows",
       "platform": "windows",
@@ -3731,6 +3780,13 @@
       "platform": "darwin",
       "unique_identifier": "com.github.CopilotForXcode",
       "description": "GitHub Copilot for Xcode is a xcode extension for GitHub Copilot."
+    },
+    {
+      "name": "GitHub Desktop (ARM64)",
+      "slug": "github-desktop-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Desktop",
+      "description": "GitHub Desktop (ARM64) is the native ARM64 build of GitHub Desktop, a desktop client for GitHub repositories."
     },
     {
       "name": "GitHub Desktop",
@@ -3827,7 +3883,7 @@
       "name": "GOG Galaxy",
       "slug": "gog-galaxy/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.gog.galaxy.cef.renderer",
+      "unique_identifier": "com.gog.galaxy",
       "description": "GOG Galaxy is a game client."
     },
     {
@@ -3873,6 +3929,13 @@
       "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
     },
     {
+      "name": "Google Chrome (ARM64)",
+      "slug": "google-chrome-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
+      "description": "Google Chrome (ARM64) is the native ARM64 build of Google Chrome, a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
@@ -3911,7 +3974,7 @@
       "name": "Google Earth Pro",
       "slug": "google-earth-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.google.GoogleEarthUpdateHelper",
+      "unique_identifier": "com.Google.GoogleEarthPro",
       "description": "Google Earth Pro is a virtual globe."
     },
     {
@@ -4461,6 +4524,13 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
+      "name": "IntelliJ IDEA (ARM64)",
+      "slug": "intellij-idea-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA",
+      "description": "IntelliJ IDEA (ARM64) is the native ARM64 build of IntelliJ IDEA, a Java IDE by JetBrains."
+    },
+    {
       "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
@@ -4480,13 +4550,6 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.CompanyPortalMac",
       "description": "Microsoft Intune Company Portal is the app for accessing company resources and managing devices in a secure environment."
-    },
-    {
-      "name": "InVesalius",
-      "slug": "invesalius/darwin",
-      "platform": "darwin",
-      "unique_identifier": "br.gov.cti.invesalius",
-      "description": "InVesalius is a 3D medical imaging reconstruction software."
     },
     {
       "name": "IrfanView",
@@ -4639,7 +4702,7 @@
       "name": "Julia",
       "slug": "julia-app/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.github.Julia",
+      "unique_identifier": "org.julialang.launcherapp",
       "description": "Julia is an app for programming language for technical computing."
     },
     {
@@ -4688,7 +4751,7 @@
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.keepassx.keepassxc",
+      "unique_identifier": "org.keepassxc.keepassxc",
       "description": "KeePassXC is a password manager app."
     },
     {
@@ -4814,7 +4877,7 @@
       "name": "Klokki",
       "slug": "klokki/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.klokki-launcher",
+      "unique_identifier": "com.klokki.macos",
       "description": "Klokki is an automatic time-tracking solution."
     },
     {
@@ -4849,7 +4912,7 @@
       "name": "Krita",
       "slug": "krita/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.kde.krita",
+      "unique_identifier": "org.krita",
       "description": "Krita is a free and open-source digital painting application."
     },
     {
@@ -5073,7 +5136,7 @@
       "name": "Logseq",
       "slug": "logseq/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.electron.logseq",
+      "unique_identifier": "com.logseq.logseq",
       "description": "Logseq is a privacy-first, open-source platform for knowledge sharing and management."
     },
     {
@@ -5271,13 +5334,6 @@
       "platform": "darwin",
       "unique_identifier": "com.malwarebytes.mbam.frontend.application",
       "description": "Malwarebytes for Mac is a tool to scan and remove malware, spyware, and viruses."
-    },
-    {
-      "name": "MarkText",
-      "slug": "mark-text/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.github.marktext.marktext",
-      "description": "MarkText is a markdown editor."
     },
     {
       "name": "Marked",
@@ -5588,6 +5644,13 @@
       "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
     },
     {
+      "name": "Microsoft Teams (ARM64)",
+      "slug": "microsoft-teams-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Teams",
+      "description": "Microsoft Teams (ARM64) is the native ARM64 build of Microsoft Teams, an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -5878,7 +5941,7 @@
       "name": "Museeks",
       "slug": "museeks/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.electron.museeks",
+      "unique_identifier": "io.museeks.app",
       "description": "Museeks is a music player."
     },
     {
@@ -5908,13 +5971,6 @@
       "platform": "windows",
       "unique_identifier": "MySQL Workbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
-    },
-    {
-      "name": "Nagstamon",
-      "slug": "nagstamon/darwin",
-      "platform": "darwin",
-      "unique_identifier": "de.nagstamon",
-      "description": "Nagstamon is a nagios status monitor."
     },
     {
       "name": "Nagstamon",
@@ -6083,6 +6139,13 @@
       "platform": "windows",
       "unique_identifier": "NoSQL Workbench",
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
+    },
+    {
+      "name": "Notepad++ (ARM64)",
+      "slug": "notepad++-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++ (ARM 64-bit)",
+      "description": "Notepad++ (ARM64) is the native ARM64 build of Notepad++, a text editor for Windows."
     },
     {
       "name": "Notepad++",
@@ -6375,8 +6438,8 @@
       "name": "OnionShare",
       "slug": "onionshare/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.onionshare.onionshare",
-      "description": "OnionShare is a securely and anonymously share files, host websites, and chat with friends."
+      "unique_identifier": "OnionShare",
+      "description": "OnionShare is a tool for securely and anonymously sharing files, hosting websites, and chatting with friends over the Tor network."
     },
     {
       "name": "OnlySwitch",
@@ -6389,7 +6452,7 @@
       "name": "ONLYOFFICE",
       "slug": "onlyoffice/darwin",
       "platform": "darwin",
-      "unique_identifier": "asc.onlyoffice.editors-helper-renderer",
+      "unique_identifier": "asc.onlyoffice.ONLYOFFICE",
       "description": "ONLYOFFICE is a document editor."
     },
     {
@@ -6449,13 +6512,6 @@
       "description": "OpenMTP is an android file transfer."
     },
     {
-      "name": "OpenRCT2",
-      "slug": "openrct2/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.openrct2.OpenRCT2",
-      "description": "OpenRCT2 is an open-source re-implementation of RollerCoaster Tycoon 2."
-    },
-    {
       "name": "OpenRefine",
       "slug": "openrefine/darwin",
       "platform": "darwin",
@@ -6468,13 +6524,6 @@
       "platform": "windows",
       "unique_identifier": "OpenRefine",
       "description": "OpenRefine is a tool for working with messy data (previously Google Refine)."
-    },
-    {
-      "name": "OpenToonz",
-      "slug": "opentoonz/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.github.opentoonz.OpenToonz",
-      "description": "OpenToonz is an open-source full-featured 2D animation creation software."
     },
     {
       "name": "OpenVPN Connect",
@@ -6599,14 +6648,14 @@
       "name": "Teradici PCoIP Software Client for macOS",
       "slug": "pcoipclient/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.teradici.swiftclient",
+      "unique_identifier": "com.teradici.pcoipclient",
       "description": "Teradici PCoIP Software Client for macOS is a client for VM agents and remote workstation cards."
     },
     {
       "name": "Pd",
       "slug": "pd/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.puredata.pd.pd-gui",
+      "unique_identifier": "info.puredata.pd.pd-gui",
       "description": "Pd (Pure Data) is a visual programming language for creating interactive computer music and multimedia works."
     },
     {
@@ -6627,7 +6676,7 @@
       "name": "PDFsam Basic",
       "slug": "pdfsam-basic/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.pdfsam.modules",
+      "unique_identifier": "org.pdfsam.basic",
       "description": "PDFsam Basic is an extracts pages, splits, merges, mixes and rotates PDF files."
     },
     {
@@ -6678,6 +6727,13 @@
       "platform": "darwin",
       "unique_identifier": "org.grunenberg.PhotoStickies",
       "description": "PhotoStickies is a tool to show photos or camera feeds on the desktop."
+    },
+    {
+      "name": "PhpStorm (ARM64)",
+      "slug": "phpstorm-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PhpStorm",
+      "description": "PhpStorm (ARM64) is the native ARM64 build of PhpStorm, a PHP IDE by JetBrains."
     },
     {
       "name": "PhpStorm",
@@ -6918,11 +6974,25 @@
       "description": "PowerPhotos is a tool to organise photo libraries."
     },
     {
+      "name": "PowerShell (ARM64)",
+      "slug": "powershell-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerShell 7-arm64",
+      "description": "PowerShell (ARM64) is the native ARM64 build of PowerShell, a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
       "name": "PowerShell",
       "slug": "powershell/windows",
       "platform": "windows",
       "unique_identifier": "PowerShell 7-x64",
       "description": "PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
+      "name": "PowerToys (ARM64)",
+      "slug": "powertoys-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerToys (Preview) ARM64",
+      "description": "PowerToys (ARM64) is the native ARM64 build of PowerToys, a set of utilities from Microsoft for power users to tune and streamline their Windows experience."
     },
     {
       "name": "PowerToys",
@@ -6963,7 +7033,7 @@
       "name": "GraphPad Prism",
       "slug": "prism/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.GraphPad.Prism.autocomplete",
+      "unique_identifier": "com.GraphPad.Prism",
       "description": "GraphPad Prism is a statistical analysis and graphing software."
     },
     {
@@ -7012,7 +7082,7 @@
       "name": "Processing",
       "slug": "processing/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.processing.four",
+      "unique_identifier": "org.processing.app",
       "description": "Processing is a flexible software sketchbook and a language for learning how to code."
     },
     {
@@ -7142,6 +7212,13 @@
       "description": "PureVPN is a VPN client."
     },
     {
+      "name": "PuTTY (ARM64)",
+      "slug": "putty-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release",
+      "description": "PuTTY (ARM64) is the native ARM64 build of PuTTY, a free, open-source SSH and Telnet client for Windows."
+    },
+    {
       "name": "PuTTY",
       "slug": "putty/windows",
       "platform": "windows",
@@ -7175,6 +7252,13 @@
       "platform": "windows",
       "unique_identifier": "PyCharm",
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "Python 3.13 (ARM64)",
+      "slug": "python-3.13-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Python 3.13.15 (ARM64)",
+      "description": "Python 3.13 (ARM64) is the native ARM64 build of Python 3.13, a high-level, general-purpose programming language."
     },
     {
       "name": "Python 3.13",
@@ -7254,13 +7338,6 @@
       "description": "Quip is a tool for teams to create living documents."
     },
     {
-      "name": "qView",
-      "slug": "qview/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.interversehq.qView",
-      "description": "qView is an image viewer."
-    },
-    {
       "name": "R for macOS",
       "slug": "r/darwin",
       "platform": "darwin",
@@ -7338,6 +7415,20 @@
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
     },
     {
+      "name": "Read AI",
+      "slug": "read-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.readai.desktop",
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
+    },
+    {
+      "name": "Read AI",
+      "slug": "read-ai/windows",
+      "platform": "windows",
+      "unique_identifier": "Read AI",
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
+    },
+    {
       "name": "Readest",
       "slug": "readest/darwin",
       "platform": "darwin",
@@ -7397,7 +7488,7 @@
       "name": "REDCINE-X PRO",
       "slug": "redcine-x-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.red.RED-Tether",
+      "unique_identifier": "com.red.RedCineX",
       "description": "REDCINE-X PRO is an app to transcode and manipulate REDCODE RAW footage."
     },
     {
@@ -7565,7 +7656,7 @@
       "name": "RoboForm",
       "slug": "roboform/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SiberSystems.RoboForm",
+      "unique_identifier": "com.sibersystems.RoboFormMac",
       "description": "RoboForm is a password manager and form filler application."
     },
     {
@@ -7747,7 +7838,7 @@
       "name": "ScreenFlow",
       "slug": "screenflow/darwin",
       "platform": "darwin",
-      "unique_identifier": "net.telestream.screenflow.globallibrary",
+      "unique_identifier": "net.telestream.screenflow10",
       "description": "ScreenFlow is a screen recording and video editing software."
     },
     {
@@ -7852,14 +7943,14 @@
       "name": "ShareFile",
       "slug": "sharefile/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.citrixfiles.ens.service",
+      "unique_identifier": "com.sharefile.desktop.widget",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
       "name": "ShareFile",
       "slug": "sharefile/windows",
       "platform": "windows",
-      "unique_identifier": "ShareFile For Windows",
+      "unique_identifier": "ShareFile",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
@@ -7947,13 +8038,6 @@
       "description": "Simple Comic is a comic viewer/reader."
     },
     {
-      "name": "SiriMote",
-      "slug": "sirimote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
-      "description": "SiriMote is a tool to control your computer with your Apple TV Siri Remote."
-    },
-    {
       "name": "Sketch",
       "slug": "sketch/darwin",
       "platform": "darwin",
@@ -7966,6 +8050,13 @@
       "platform": "darwin",
       "unique_identifier": "com.slab.slab",
       "description": "Slab is a knowledge management for organisations."
+    },
+    {
+      "name": "Slack (ARM64)",
+      "slug": "slack-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
+      "description": "Slack (ARM64) is the native ARM64 build of Slack, team communication and collaboration software for modern workplaces."
     },
     {
       "name": "Slack",
@@ -8055,7 +8146,7 @@
       "name": "Snagit",
       "slug": "snagit/windows",
       "platform": "windows",
-      "unique_identifier": "Snagit 2026",
+      "unique_identifier": "Snagit",
       "description": "Snagit is screen capture software."
     },
     {
@@ -8085,6 +8176,13 @@
       "platform": "darwin",
       "unique_identifier": "org.sonicvisualiser.SonicVisualiser",
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
+    },
+    {
+      "name": "SonicWall Global VPN Client",
+      "slug": "sonicwall-global-vpn-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Global VPN Client",
+      "description": "SonicWall Global VPN Client is an IPsec VPN client for secure remote access to SonicWall-protected networks."
     },
     {
       "name": "SonicWall NetExtender",
@@ -8242,13 +8340,6 @@
     },
     {
       "name": "Spyder",
-      "slug": "spyder/darwin",
-      "platform": "darwin",
-      "unique_identifier": "org.spyder-ide.Spyder-6",
-      "description": "Spyder is a scientific Python IDE."
-    },
-    {
-      "name": "Spyder",
       "slug": "spyder/windows",
       "platform": "windows",
       "unique_identifier": "Spyder",
@@ -8386,13 +8477,6 @@
       "platform": "darwin",
       "unique_identifier": "com.makkuk.Stillcolor",
       "description": "Stillcolor is a tool to disable temporal dithering on Apple Silicon Macs."
-    },
-    {
-      "name": "Stretchly",
-      "slug": "stretchly/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.hovancik.stretchly",
-      "description": "Stretchly is a break time reminder app."
     },
     {
       "name": "Stretchly",
@@ -8538,7 +8622,7 @@
       "name": "SyncMate",
       "slug": "syncmate/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.eltima.SyncMate.com.eltima.SyncMateService",
+      "unique_identifier": "com.eltima.SyncMate",
       "description": "SyncMate is an all-in-one sync tool."
     },
     {
@@ -8920,6 +9004,13 @@
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
+      "name": "TortoiseGit (ARM64)",
+      "slug": "tortoisegit-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseGit",
+      "description": "TortoiseGit (ARM64) is the native ARM64 build of TortoiseGit, a Windows shell interface to Git. Requires Git for Windows to be installed."
+    },
+    {
       "name": "TortoiseGit",
       "slug": "tortoisegit/windows",
       "platform": "windows",
@@ -9014,7 +9105,7 @@
       "name": "Twine",
       "slug": "twine-app/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.electron.twine",
+      "unique_identifier": "org.twinery.twine",
       "description": "Twine is a tool for telling interactive, nonlinear stories."
     },
     {
@@ -9091,7 +9182,7 @@
       "name": "UltiMaker Cura",
       "slug": "ultimaker-cura/darwin",
       "platform": "darwin",
-      "unique_identifier": "nl.ultimaker.cura.dmg",
+      "unique_identifier": "nl.ultimaker.cura_UltiMaker_Cura",
       "description": "UltiMaker Cura is a 3D printer and slicing GUI."
     },
     {
@@ -9298,6 +9389,13 @@
       "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
+      "name": "Microsoft Visual Studio Code (ARM64)",
+      "slug": "visual-studio-code-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
+      "description": "Microsoft Visual Studio Code (ARM64) is the native ARM64 build of Visual Studio Code, an open-source, lightweight, and powerful code editor."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -9338,6 +9436,13 @@
       "platform": "darwin",
       "unique_identifier": "com.alienator88.Viz",
       "description": "Viz is a utility for extracting text from images, videos, QR codes and barcodes."
+    },
+    {
+      "name": "VLC media player (ARM64)",
+      "slug": "vlc-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "VLC media player",
+      "description": "VLC media player (ARM64) is the native ARM64 build of VLC media player, a free and open-source media player."
     },
     {
       "name": "VLC media player",
@@ -9427,7 +9532,7 @@
       "name": "VyprVPN",
       "slug": "vyprvpn/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.goldenfrog.VyprVPN",
+      "unique_identifier": "com.goldenfrog.vyprvpn.mac",
       "description": "VyprVPN is a VPN client."
     },
     {
@@ -9595,7 +9700,7 @@
       "name": "WiFiman Desktop",
       "slug": "wifiman/darwin",
       "platform": "darwin",
-      "unique_identifier": "ui.wifiman-desktop",
+      "unique_identifier": "ui.wifiman.desktop",
       "description": "WiFiman Desktop is a network monitoring and troubleshooting tool."
     },
     {
@@ -9695,6 +9800,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/windows",
+      "platform": "windows",
+      "unique_identifier": "Wispr Flow",
+      "description": "Wispr Flow is a voice-to-text dictation app with AI-powered auto-editing."
     },
     {
       "name": "EdrawMax",
@@ -9819,14 +9931,14 @@
       "name": "XnViewMP",
       "slug": "xnviewmp/windows",
       "platform": "windows",
-      "unique_identifier": "XnView MP",
+      "unique_identifier": "XnView MP (x64)",
       "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
     },
     {
       "name": "XQuartz",
       "slug": "xquartz/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.macosforge.xquartz.X11",
+      "unique_identifier": "org.xquartz.X11",
       "description": "XQuartz is an open-source version of the X.Org X Window System."
     },
     {
@@ -9961,6 +10073,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linebreak.CloudAppMacOSX",
       "description": "Zight is a visual communication platform."
+    },
+    {
+      "name": "Zoom (ARM64)",
+      "slug": "zoom-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Workplace (ARM64)",
+      "description": "Zoom (ARM64) is the native ARM64 build of Zoom, a video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zoom Outlook Plugin",

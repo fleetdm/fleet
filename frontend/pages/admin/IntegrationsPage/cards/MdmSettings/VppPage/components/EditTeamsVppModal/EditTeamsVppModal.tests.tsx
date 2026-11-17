@@ -10,8 +10,8 @@ import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import EditTeamsVppModal from "./EditTeamsVppModal";
 
-const makeToken = (teams: IMdmVppToken["teams"]): IMdmVppToken =>
-  createMockVppToken({ id: 7, teams });
+const makeToken = (fleets: IMdmVppToken["fleets"]): IMdmVppToken =>
+  createMockVppToken({ id: 7, fleets });
 
 const availableTeams = [
   createMockTeamSummary({ id: -1, name: "All fleets" }),
@@ -68,8 +68,8 @@ describe("EditTeamsVppModal", () => {
     it("selects Custom with the token's fleets checked", () => {
       renderModal(
         makeToken([
-          { team_id: 2, name: "Personal mobile devices" },
-          { team_id: 0, name: "No team" },
+          { fleet_id: 2, name: "Personal mobile devices" },
+          { fleet_id: 0, name: "No team" },
         ])
       );
 
@@ -136,7 +136,7 @@ describe("EditTeamsVppModal", () => {
       const bodies = mockPatch();
       const onSuccess = jest.fn();
       const { user } = renderModal(
-        makeToken([{ team_id: 1, name: "W" }]),
+        makeToken([{ fleet_id: 1, name: "W" }]),
         onSuccess
       );
 

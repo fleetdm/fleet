@@ -47,6 +47,7 @@ function Get-AppEntries {
                 KeyPath     = $sub.PSPath
                 Sid         = $sid
                 Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+                Location    = "$($key.InstallLocation)".Trim().TrimEnd('\')
             }
         }
     }
@@ -97,6 +98,11 @@ function Resolve-Uninstaller {
         $arguments = $matches[2].Trim()
     }
 
+    # A user's entry could point at a share that collects the computer account's
+    # credentials, so only a drive-letter path is touched as SYSTEM. PowerShell
+    # also reaches a share without a leading \\, as FileSystem::\\host\share.
+    if ($exePath -and $exePath -notmatch '^[A-Za-z]:[\\/]') { return $null }
+
     # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
     # unredirected system32 path that 64-bit PowerShell cannot resolve.
     if ($exePath -and -not (Test-Path -LiteralPath $exePath)) {
@@ -107,8 +113,8 @@ function Resolve-Uninstaller {
         }
     }
 
-    if ($arguments -notmatch '(?i)/VERYSILENT') {
-        $arguments = "$arguments /VERYSILENT /SUPPRESSMSGBOXES /NORESTART".Trim()
+    foreach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')) {
+        if ($arguments -notmatch "(?i)(^|\s)$flag(\s|$)") { $arguments = "$arguments $flag".Trim() }
     }
 
     return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
@@ -157,10 +163,15 @@ function Invoke-AsUser {
 }
 
 # A user can write to their own profile, including swapping a folder for a link
-# elsewhere, so their folder is removed as them rather than as SYSTEM.
+# elsewhere, so their folder is removed as them rather than as SYSTEM. cmd
+# expands %VAR% even inside quotes, so a path containing % is never passed to it.
 function Remove-AppDir {
     param([string]$Path, [string]$Sid)
 
+    if ($Sid -and $Path.Contains('%')) {
+        Write-Host "  Could not remove $Path."
+        return $false
+    }
     if ($Sid) {
         try {
             $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c rd /s /q `"$Path`""
@@ -180,15 +191,17 @@ function Remove-AppDir {
 # Shortcuts the uninstaller didn't get to. Match on where they point rather than on
 # a filename, which also catches the vendor subfolders some installers create. Read
 # as SYSTEM, a user's shortcut resolves its target through SYSTEM's profile, so the
-# working directory is checked too, and only the owning profile is searched.
+# working directory is checked too, and only the owning profile is searched. A
+# user's shortcuts are deleted as that user, like their folder.
 function Remove-Shortcuts {
-    param([string]$Dir, [string]$ProfilePath)
+    param([string]$Dir, [string]$ProfilePath, [string]$Sid)
 
     if ($ProfilePath) {
         $roots = @((Join-Path $ProfilePath 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'), (Join-Path $ProfilePath 'Desktop'))
     } else {
         $roots = @('Programs', 'Desktop', 'CommonPrograms', 'CommonDesktopDirectory') | ForEach-Object { [Environment]::GetFolderPath($_) }
     }
+    $found = @()
     $shell = New-Object -ComObject WScript.Shell
     foreach ($root in $roots) {
         if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
@@ -196,13 +209,26 @@ function Remove-Shortcuts {
             try { $link = $shell.CreateShortcut($lnk.FullName) } catch { continue }
             foreach ($path in @($link.TargetPath, $link.WorkingDirectory)) {
                 if ($path -and ($path -eq $Dir -or $path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase))) {
-                    Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
-                    if (Test-Path -LiteralPath $lnk.FullName) { Write-Host "  Could not remove shortcut $($lnk.FullName)." }
+                    $found += $lnk.FullName
                     break
                 }
             }
         }
     }
+    if (-not $found) { return }
+    if ($Sid) {
+        $quoted = ($found | Where-Object { -not $_.Contains('%') } | ForEach-Object { "`"$_`"" }) -join ' '
+        if ($quoted) {
+            try {
+                $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c del /f /q $quoted"
+            } catch {
+                Write-Host "  $_"
+            }
+        }
+    } else {
+        $found | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
+    }
+    $found | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Write-Host "  Could not remove shortcut $_." }
 }
 
 try {
@@ -211,6 +237,11 @@ try {
     foreach ($entry in $entries) {
         Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
         $uninstaller = Resolve-Uninstaller $entry.Command
+        if (-not $uninstaller) {
+            Write-Host "  Skipping this copy: its uninstaller isn't on a local drive."
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
         # Only a user's entry has a default folder to fall back on below.
         if (-not $uninstaller.ExePath -and ($entry.Command -or -not $entry.Sid)) {
             Write-Host "  Could not find an uninstaller in uninstall string '$($entry.Command)'."
@@ -223,6 +254,12 @@ try {
         # touch the Ollama folder in that user's own profile.
         $installDir = ""
         if ($uninstaller.ExePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $uninstaller.ExePath -Parent)) } catch {} }
+        # Resolve-Uninstaller redirects only an uninstaller it can find, so without one
+        # a 32-bit installer's SYSTEM-profile copy still points into system32.
+        if (-not $entry.Sid -and $installDir -and -not (Test-Path -LiteralPath $installDir)) {
+            $redirected = $installDir -replace '(?i)\\system32\\', '\SysWOW64\'
+            if (Test-Path -LiteralPath $redirected) { $installDir = $redirected }
+        }
         $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq "Ollama"
         $profilePath = $null
         if ($entry.Sid) {
@@ -242,7 +279,24 @@ try {
                 if ($exitCode -eq 0) { $exitCode = 1 }
                 continue
             }
-            if ($isAppDir) { Remove-Shortcuts $installDir $profilePath }
+            # ollama.exe can be in another folder: the SYSTEM-profile copy keeps its
+            # uninstaller elsewhere, and users can choose where to install.
+            $payloadDir = ""
+            if ($entry.Location -match '^[A-Za-z]:[\\/]') {
+                try { $payloadDir = [System.IO.Path]::GetFullPath($entry.Location) } catch {}
+            }
+            if ($payloadDir -and $payloadDir -ne $installDir -and (Test-Path -LiteralPath (Join-Path $payloadDir "ollama.exe"))) {
+                if (-not $entry.Sid -and (Split-Path $payloadDir -Leaf) -eq "Ollama") {
+                    Stop-AppProcesses $payloadDir
+                    $null = Remove-AppDir $payloadDir $null
+                }
+                if (Test-Path -LiteralPath (Join-Path $payloadDir "ollama.exe")) {
+                    Write-Host "  Leaving this copy registered because ollama.exe is still in $payloadDir."
+                    if ($exitCode -eq 0) { $exitCode = 1 }
+                    continue
+                }
+            }
+            if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
             continue
         }
@@ -254,8 +308,15 @@ try {
             } else {
                 Write-Host "  Uninstall command: $($uninstaller.ExePath) $($uninstaller.Arguments)"
                 $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
-                    -NoNewWindow -PassThru -Wait -ErrorAction Stop
-                $result = $process.ExitCode
+                    -NoNewWindow -PassThru -ErrorAction Stop
+                $null = $process.Handle  # keeps ExitCode readable after the process exits
+                if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                    $result = $process.ExitCode
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Timed out waiting for the uninstaller to finish."
+                    $result = 1460  # ERROR_TIMEOUT
+                }
             }
         } catch {
             Write-Host "  Could not run the uninstaller: $_"
@@ -287,7 +348,7 @@ try {
                 continue
             }
         }
-        if ($isAppDir) { Remove-Shortcuts $installDir $profilePath }
+        if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
 
         if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -322,7 +383,7 @@ try {
         Write-Host "Removing unregistered Ollama files at $($copy.Dir)"
         Stop-AppProcesses $copy.Dir
         if (Remove-AppDir $copy.Dir $copy.Sid) {
-            Remove-Shortcuts $copy.Dir $copy.ProfilePath
+            Remove-Shortcuts $copy.Dir $copy.ProfilePath $copy.Sid
         } elseif ($exitCode -eq 0) {
             $exitCode = 1
         }

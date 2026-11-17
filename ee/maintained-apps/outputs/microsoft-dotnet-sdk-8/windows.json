@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.0.427",
+      "version": "8.0.428",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 8.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 8.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '8.4.2726.52306') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 8.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '8.4.2826.52802') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft .net sdk 8.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/1c8c36ae-1e08-4005-b94c-ee0e9da9ba08/8d751af1-8c2a-4c90-b2b8-989b212d267b/dotnet-sdk-8.0.427-win-x64.exe",
+      "installer_url": "https://download.microsoft.com/download/8bdd4263-20c6-4e8b-93df-c599d1ee6900/8abaf360-f0ca-4fe5-b493-222f81155008/dotnet-sdk-8.0.428-win-x64.exe",
       "install_script_ref": "e7be17e2",
       "uninstall_script_ref": "c0221365",
-      "sha256": "e6b52377eed55ff967bde16fc02587c054c11f9270d6e29ec18e87a825eb9705",
+      "sha256": "31682051a59090435a141c204a70030f7c2c6d05a8b0556a742a343b4fa0faab",
       "default_categories": [
         "Developer tools"
       ]

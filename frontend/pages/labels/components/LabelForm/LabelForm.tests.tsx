@@ -34,12 +34,10 @@ describe("LabelForm", () => {
     const nameInput = screen.getByLabelText("Name");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByText("Label name must be present")).toBeInTheDocument();
+    expect(screen.getByText("Enter a label name")).toBeInTheDocument();
 
     await user.type(nameInput, "Label name");
-    expect(
-      screen.queryByText("Label name must be present")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter a label name")).not.toBeInTheDocument();
   });
 
   it("should render any additional field the user provides", () => {

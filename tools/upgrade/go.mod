@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/upgrade
 
-go 1.27.3
+go 1.27.4
 
 // The parent fleet module is pinned to the local checkout so this
 // standalone upgrade test can import fleethttp and the service client.
@@ -38,7 +38,6 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/andygrunwald/go-jira v1.16.0 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
-	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.12 // indirect
@@ -80,8 +79,6 @@ require (
 	github.com/dunglas/httpsfv v1.0.2 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
-	github.com/elastic/go-sysinfo v1.11.2 // indirect
-	github.com/elastic/go-windows v1.0.1 // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.1 // indirect
 	github.com/expr-lang/expr v1.17.7 // indirect
 	github.com/fatih/color v1.16.0 // indirect
@@ -119,7 +116,6 @@ require (
 	github.com/igm/sockjs-go/v3 v3.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
-	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
@@ -130,7 +126,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/micromdm/micromdm v1.9.0 // indirect
 	github.com/micromdm/nanolib v0.2.0 // indirect
-	github.com/micromdm/plist v0.3.0 // indirect
+	github.com/micromdm/plist v0.4.0 // indirect
 	github.com/mna/redisc v1.3.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/moby/api v1.55.0 // indirect
@@ -168,7 +164,7 @@ require (
 	github.com/siderolabs/go-blockdevice/v2 v2.0.3 // indirect
 	github.com/siderolabs/go-cmd v0.1.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa // indirect
+	github.com/smallstep/pkcs7 v0.2.3 // indirect
 	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
@@ -189,10 +185,6 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/goldmark v1.8.6 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.elastic.co/apm/module/apmgorilla/v2 v2.6.2 // indirect
-	go.elastic.co/apm/module/apmhttp/v2 v2.7.1-0.20250407084155-22ab1be21948 // indirect
-	go.elastic.co/apm/v2 v2.7.0 // indirect
-	go.elastic.co/fastjson v1.1.0 // indirect
 	go.mozilla.org/pkcs7 v0.9.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -207,14 +199,14 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20260813180055-c1d0aacb2297 // indirect
 	golang.org/x/image v0.45.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/api v0.269.0 // indirect
 	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect

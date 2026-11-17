@@ -277,22 +277,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	// Mirror deprecated logo URL fields to the new mode-aware fields (and
-	// vice versa) so every read returns a consistent view to clients.
-	// NormalizeLogoFields only errors when both forms are set with
-	// conflicting values — that shouldn't happen via the normal write path
-	// (which 422s on conflict), so reaching this branch implies the row
-	// was edited out-of-band. Log it so the inconsistency is visible, then
-	// canonicalize by preferring the mode-aware fields.
-	if invalid := ac.OrgInfo.NormalizeLogoFields(); invalid != nil {
-		svc.logger.WarnContext(ctx, "persisted org logo URL fields are inconsistent; canonicalizing to mode-aware values for response", "err", invalid.Error())
-		if ac.OrgInfo.OrgLogoURLDarkMode != "" {
-			ac.OrgInfo.OrgLogoURL = ac.OrgInfo.OrgLogoURLDarkMode
-		}
-		if ac.OrgInfo.OrgLogoURLLightMode != "" {
-			ac.OrgInfo.OrgLogoURLLightBackground = ac.OrgInfo.OrgLogoURLLightMode
-		}
-	}
 	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
 	// current ServerURL. Persisted form stays relative; this is purely a
 	// read-time view. Safe to do here because no SaveAppConfig caller
@@ -651,6 +635,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
+	// The request decoder's rewriter didn't see the raw body, so removed keys are rejected here, before strict decoding
+	// would report them as unknown fields.
+	if err := endpointer.CheckRemovedKeys(p, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})); err != nil {
+		if _, ok := errors.AsType[*endpointer.RemovedKeyError](err); !ok {
+			err = &fleet.BadRequestError{Message: "failed to decode app config", InternalErr: err}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
 	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
 	// unmarshaling into AppConfig, since the request body was captured as
 	// json.RawMessage and wasn't processed by the request decoder's rewriter.
@@ -713,13 +706,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
-	}
-
-	// Reject conflicting deprecated/new logo URL pairs and mirror them so
-	// both forms are persisted with identical values. Done on the incoming
-	// payload before merge so we surface the conflict at the source field.
-	if normErr := newAppConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.SSOSettings != nil {
@@ -1099,13 +1085,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
-	}
-
-	// Validate logo fields immediately after the merge
-	// A persisted-row conflict the patch didn't touch surfaces here as a 422,
-	// instead of letting the request silently complete its side effects.
-	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.AgentOptions != nil {
@@ -2352,7 +2331,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
-		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_mdm_migration_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
@@ -2549,7 +2528,7 @@ func (svc *Service) validateMDM(
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
 			invalid.AppendInvalidArgument(firstInvalidErr)
 		} else {
-			invalid.Append("macos_setup", err.Error())
+			invalid.Append("setup_experience", err.Error())
 		}
 	}
 
@@ -2657,12 +2636,12 @@ func (svc *Service) validateMDM(
 	// Windows validation
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
+			invalid.Append("mdm.windows_mdm_enabled", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
 			return nil
 		}
 	}
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
-		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+		invalid.Append("mdm.windows_mdm_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {

@@ -3,6 +3,7 @@
   "slug": "github-desktop/windows",
   "package_identifier": "GitHub.GitHubDesktop",
   "unique_identifier": "GitHub Desktop",
+  "open_process_names": ["githubdesktop.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",
