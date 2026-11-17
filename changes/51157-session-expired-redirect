@@ -1,1 +1,0 @@
-- Fixed the UI showing error states instead of redirecting to the login page when a user's session expired.

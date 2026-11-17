@@ -52,7 +52,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.94.1"
+  default     = "fleetdm/fleet:v4.95.0"
 }
 
 variable "software_inventory" {
