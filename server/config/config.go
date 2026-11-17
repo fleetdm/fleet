@@ -1014,6 +1014,7 @@ type FleetConfig struct {
 	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	GoogleConditionalAccess    GoogleConditionalAccessConfig    `yaml:"google_conditional_access"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
 	WebSocket                  WebSocketConfig                  `yaml:"websocket"`
 
@@ -1142,6 +1143,12 @@ type MicrosoftCompliancePartnerConfig struct {
 	// ClientID is the client ID of Fleet's multi-tenant Entra app, the audience of the
 	// device ID tokens reported by macOS hosts.
 	ClientID string `yaml:"client_id"`
+}
+
+// GoogleConditionalAccessConfig holds the server configuration for Google conditional access.
+type GoogleConditionalAccessConfig struct {
+	// ProxyURI is the URI of the fleetdm.com relay (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
 }
 
 type MDMConfig struct {
@@ -2332,6 +2339,7 @@ func (man Manager) addConfigs() {
 	// Microsoft Compliance Partner
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 	man.addConfigString("microsoft_compliance_partner.client_id", DefaultMicrosoftCompliancePartnerClientID, "Client ID of Fleet's Microsoft Compliance Partner Entra app (for development/testing)")
+	man.addConfigString("google_conditional_access.proxy_uri", "https://fleetdm.com", "URI of the Google conditional access relay (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
@@ -2757,6 +2765,9 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 			ClientID: man.getConfigString("microsoft_compliance_partner.client_id"),
+		},
+		GoogleConditionalAccess: GoogleConditionalAccessConfig{
+			ProxyURI: man.getConfigString("google_conditional_access.proxy_uri"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),

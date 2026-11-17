@@ -104,6 +104,21 @@ func TestAuthorizeAppConfig(t *testing.T) {
 	})
 }
 
+func TestAuthorizeConditionalAccessGoogle(t *testing.T) {
+	t.Parallel()
+
+	integration := &fleet.ConditionalAccessGoogleIntegration{}
+	var cases []authTestCase
+	for _, user := range []*fleet.User{
+		nil, test.UserNoRoles, test.UserAdmin, test.UserMaintainer, test.UserObserver, test.UserObserverPlus,
+		test.UserTechnician, test.UserGitOps, test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1,
+		test.UserTeamObserverTeam1, test.UserTeamObserverPlusTeam1, test.UserTeamGitOpsTeam1, test.UserTeamTechnicianTeam1,
+	} {
+		cases = append(cases, authTestCase{user: user, object: integration, action: write, allow: user == test.UserAdmin})
+	}
+	runTestCases(t, cases)
+}
+
 func TestAuthorizeSession(t *testing.T) {
 	t.Parallel()
 

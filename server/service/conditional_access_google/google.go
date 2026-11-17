@@ -2,6 +2,7 @@ package conditional_access_google
 
 import (
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -106,11 +108,19 @@ type serviceAccountKey struct {
 	PrivateKey   string `json:"private_key"`
 }
 
-// parseServiceAccountKey doesn't validate: the service does when the key is uploaded.
 func parseServiceAccountKey(b []byte) (*serviceAccountKey, error) {
 	var key serviceAccountKey
 	if err := json.Unmarshal(b, &key); err != nil {
 		return nil, errors.New("read the service account key: not a JSON object")
+	}
+	// The token source reports a key it can't use the way it reports a failed token
+	// request, which IsUnavailable takes for an outage, so the key is checked here.
+	privateKey, err := cryptoutil.ParsePrivateKey([]byte(key.PrivateKey), "private_key")
+	if err != nil {
+		return nil, fmt.Errorf("read the service account key: %w", err)
+	}
+	if _, ok := privateKey.(*rsa.PrivateKey); !ok {
+		return nil, errors.New("read the service account key: private_key is not an RSA key")
 	}
 	return &key, nil
 }
@@ -189,3 +199,34 @@ func (e *Error) IsNotFound() bool {
 }
 
 var _ fleet.NotFoundError = (*Error)(nil)
+
+// IsUnavailable reports a failure on Google's side or on the way to Google, as opposed to
+// settings or credentials Google rejects. Only a 4xx answer other than a 429 is a
+// rejection: the token source flattens a failed token request into a string, so a
+// failure without an answer can't be told apart by its cause.
+func (e *Error) IsUnavailable() bool {
+	status, answered := e.httpStatus()
+	return !answered || status >= http.StatusInternalServerError || status == http.StatusTooManyRequests
+}
+
+// httpStatus is the status of Google's answer, when it answered with an error.
+func (e *Error) httpStatus() (int, bool) {
+	if apiErr, ok := errors.AsType[*googleapi.Error](e.err); ok {
+		return apiErr.Code, true
+	}
+	if tokenErr, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok && tokenErr.Response != nil {
+		return tokenErr.Response.StatusCode, true
+	}
+	return 0, false
+}
+
+// IsUnavailable reports whether err is a Google call that failed on Google's side or on
+// the way there (a 5xx, a 429, a timeout or a dropped connection), so retrying later can
+// succeed with the same settings.
+func IsUnavailable(err error) bool {
+	u, ok := errors.AsType[interface {
+		error
+		IsUnavailable() bool
+	}](err)
+	return ok && u.IsUnavailable()
+}
