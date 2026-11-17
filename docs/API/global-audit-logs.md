@@ -140,6 +140,12 @@ This activity does not contain any detail fields.
 - [added_smallstep](#added-smallstep)
 - [deleted_smallstep](#deleted-smallstep)
 - [edited_smallstep](#edited-smallstep)
+- [added_google_cas](#added-google-cas)
+- [edited_google_cas](#edited-google-cas)
+- [deleted_google_cas](#deleted-google-cas)
+- [added_ejbca](#added-ejbca)
+- [edited_ejbca](#edited-ejbca)
+- [deleted_ejbca](#deleted-ejbca)
 - [resent_certificate](#resent-certificate)
 
 ### edited_android_certificate
@@ -438,6 +444,96 @@ This activity contains the following fields:
 ```json
 {
   "name": "SMALLSTEP_WIFI"
+}
+```
+
+## added_google_cas
+
+Generated when Google CAS certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## edited_google_cas
+
+Generated when Google CAS certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## deleted_google_cas
+
+Generated when Google CAS certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## added_ejbca
+
+Generated when EJBCA certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## edited_ejbca
+
+Generated when EJBCA certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## deleted_ejbca
+
+Generated when EJBCA certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
 }
 ```
 
@@ -844,8 +940,9 @@ This activity contains the following fields:
 
 ### host_enrollment_rejected
 
-Generated when Fleet refuses an enrollment in either of these cases:
+Generated when Fleet refuses an enrollment in any of these cases:
 - An Orbit or osquery enrollment is refused under the one-time enroll secret rules. See the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) for Windows.
+- An Orbit or osquery enrollment is refused because it presented the hardware UUID of another host that has MDM turned on.
 - An automatic enrollment (ADE) is refused because the host is in a fleet that requires end user authentication and the device didn't complete it.
 
 Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
@@ -863,6 +960,7 @@ This activity contains the following fields:
   - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
   - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+  - "uuid_of_another_mdm_host": an enrollment tried to add a host with the hardware UUID of another host that is enrolled in Fleet MDM. "host_id" is that other host.
   - "end_user_authentication_required": the host is in a fleet that requires end user authentication, but the device tried to enroll without completing it. This happens when the device got its automatic enrollment configuration before its fleet required end user authentication, or before it moved to that fleet. Erase and reactivate the device so it goes through end user authentication. Fleet only records this reason when every other enrollment check passed.
 
 #### Example
@@ -3407,6 +3505,7 @@ This activity contains the following fields:
 - [installed_software](#installed-software)
 - [installed_all_self_service_software](#installed-all-self-service-software)
 - [notified_end_user_before_patching](#notified-end-user-before-patching)
+- [edited_patch_deadline_settings](#edited-patch-deadline-settings)
 - [uninstalled_software](#uninstalled-software)
 - [added_software](#added-software)
 - [edited_software](#edited-software)
@@ -3438,8 +3537,10 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
-- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when the policy had `patch_when_closed` or `notify_before_patching` enabled at the time of the install. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
+- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when the policy had `patch_when_closed`, `notify_before_patching`, or `patch_deadline` enabled at the time of the install. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
 - "patch_when_closed": Whether the policy that triggered this install had `patch_when_closed` enabled at the time of the install.
+- "notify_before_patching": Whether the policy that triggered this install had `notify_before_patching` enabled at the time of the install. Only present when `true`.
+- "patch_deadline": Whether the policy that triggered this install had `patch_deadline` enabled at the time of the install. Only present when `true`.
 
 #### Example
 
@@ -3486,14 +3587,14 @@ This activity contains the following fields:
 
 ### notified_end_user_before_patching
 
-Generated when Fleet shows an end user a notification before patching.
+Generated when Fleet shows an end user a notification before patching, for patch policies with `notify_before_patching` or `patch_deadline` set to `true`.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
 - "status": Whether notification is displayed or failed.
-- "software_titles": Names of the software titles included in the notification.
+- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-team override).
 - "policy_ids": IDs of the patch policies included in the notification.
 - "time_before": Either 1 hour or 5 minutes before patch is forced.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
@@ -3507,13 +3608,39 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
-  "software_titles": ["1Password", "Slack"],
+  "software": [
+    { "title": "1Password", "title_id": 42, "display_name": "1Password 8" },
+    { "title": "Slack", "title_id": 57 }
+  ],
   "status": "success",
   "policy_ids": [1337, 1338],
   "time_before": 3600,
   "install_at": "2026-08-06T14:00:00Z",
   "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be",
   "exit_code": 0
+}
+```
+
+### edited_patch_deadline_settings
+
+Generated when the patch deadline days or time are modified for a fleet.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "days": Days of the week when the deadline applies.
+- "time": The deadline, formatted as `HH:MM` in the host's local time.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
 }
 ```
 
@@ -3676,6 +3803,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -3695,6 +3826,11 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "618783545",
   "platform": "ios",
+   "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
@@ -3768,14 +3904,21 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps, or if the VPP token was deleted before the install finished.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
+- "from_configuration_resend": Whether Fleet re-installed the app to deliver an updated managed app configuration or a label change.
 - "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
+- "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
 
 #### Example
 
@@ -3787,13 +3930,40 @@ This activity contains the following fields:
   "software_title": "Logic Pro",
   "software_display_name": "Logic Pro",
   "app_store_id": "1234567",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "status": "installed",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
   "host_platform": "darwin",
+  "from_auto_update": false,
   "from_setup_experience": false,
-  "from_auto_update": false
+  "from_configuration_resend": false,
+  "version_name": "Logic Pro",
+  "configuration": null
+}
+```
+
+#### Example (iOS app with a managed app configuration)
+
+```json
+{
+  "host_id": 57,
+  "self_service": false,
+  "host_display_name": "Anna's iPhone",
+  "software_title": "Zoom Workplace",
+  "app_store_id": "546505307",
+  "command_uuid": "12345678-90ab-cdef-1234-567890abcdef",
+  "policy_id": null,
+  "policy_name": null,
+  "from_setup_experience": false,
+  "from_configuration_resend": true,
+  "version_name": "Production",
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
 ```
 
@@ -3806,6 +3976,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
@@ -3827,6 +4001,11 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "618783545",
   "platform": "ios",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,

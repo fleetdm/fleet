@@ -14,12 +14,19 @@ This guide provides instructions for migrating devices from your current MDM sol
 
 ## Migrate hosts
 
-> During MDM migration, Fleet doesn't run the full setup experience. The [managed local account](https://fleetdm.com/guides/setup-experience#managed-local-account) is not created, and the [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) is not installed by default. Only Fleet's agent is installed.
+> During MDM migration, Fleet doesn't run the full setup experience. The [managed local account](https://fleetdm.com/guides/setup-experience#managed-local-account) is not created. Only Fleet's agent is installed.
+>
+> Whether the [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) installs depends on how the host enrolls:
+>
+> - **Hosts assigned to Fleet in Apple Business** re-enroll via `sudo profiles renew`. The bootstrap package installs only if **Install during migration** is checked in **Controls > Setup experience > Bootstrap package**.
+> - **Hosts not assigned in Apple Business** turn on MDM manually by downloading the enrollment profile from their **My device** page. This is a manual enrollment, so the bootstrap package installs only if **Install during manual enrollment** is checked.
 
 To migrate hosts, we will do the following steps:
 
 1. Enroll hosts to Fleet
+
 2. Assign hosts in Apple Business (AB) to Fleet
+
 3. Choose migration workflow and migrate hosts
 
 ### Step 1: Enroll hosts to Fleet
@@ -84,10 +91,13 @@ Configuration:
 
 Fleet UI:
 1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > MDM**.
+
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
+
 3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
-4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
-Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See [configuration docs](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended sizes for logos.
+
+4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme: Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See [configuration docs](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended sizes for logos.
+
 5. During migration, end users will see a button that says "Unsure? Contact IT". Head to **Settings** > **Organization settings** > **Organization info** > **Organization support URL** to direct users to your help desk if they have any questions. 
 
 Fleet API: MDM migration settings are configured via the [`mdm.macos_migration`](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration) field on the [Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
