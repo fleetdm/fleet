@@ -1,0 +1,1 @@
+- fleetd now registers its osquery extension again when osquery drops it or the connection to osquery breaks. Before, fleetd-provided tables (e.g. `go_binaries`, `file_lines`, `ai_tools`) could stay unavailable for hours until fleetd restarted, and a broken connection restarted all of fleetd.
