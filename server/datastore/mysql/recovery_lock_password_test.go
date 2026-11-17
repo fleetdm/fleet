@@ -2090,7 +2090,9 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 		// it through a rotation or clear: that is the password the device holds until the
 		// new state is confirmed.
 		expectPasswordAvailable bool
-		expectDetail            string
+		// expectPendingPassword: the read API returns the pending password rather than the active one.
+		expectPendingPassword bool
+		expectDetail          string
 	}
 
 	cases := []matrixCase{
@@ -2167,7 +2169,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			expectPasswordAvailable: true,
 		},
 		{
-			name:                    "verified password, rotation verifying -> pending, prior password available",
+			name:                    "verified password, rotation acknowledged and verifying -> pending, new password available",
 			status:                  &fleet.MDMDeliveryVerifying,
 			operationType:           fleet.MDMOperationTypeInstall,
 			hasPassword:             true,
@@ -2175,6 +2177,25 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			verified:                true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
 			expectPasswordAvailable: true,
+			expectPendingPassword:   true,
+		},
+		{
+			name:                    "first set verifying after re-enrollment -> pending, stale password not available",
+			status:                  &fleet.MDMDeliveryVerifying,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: false,
+		},
+		{
+			name:                    "verifying last known password after device rejected it -> pending, not available",
+			status:                  &fleet.MDMDeliveryVerifying,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			verified:                true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: false,
 		},
 		{
 			name:                    "verified password, rotation retry queued -> pending, prior password available",
@@ -2290,7 +2311,11 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			if tc.expectPasswordAvailable {
 				require.NotNil(t, pw.Password)
-				assert.Equal(t, "password-bytes", *pw.Password)
+				want := "password-bytes"
+				if tc.expectPendingPassword {
+					want = "pending-bytes"
+				}
+				assert.Equal(t, want, *pw.Password)
 			} else {
 				assert.Nil(t, pw.Password)
 			}
@@ -2754,9 +2779,11 @@ func testRecoveryLockCurrentPasswordDuringRotation(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		assert.True(t, rotateAt.IsZero())
 
+		// Once the device acknowledges the rotation it holds the new password, even before the
+		// verify confirms it.
 		verifyCmd := uuid.NewString()
 		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, setCmd, verifyCmd))
-		requireCurrent(t, host.UUID, oldPw)
+		requireCurrent(t, host.UUID, newPw)
 
 		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, verifyCmd))
 		requireCurrent(t, host.UUID, newPw)
@@ -2776,6 +2803,45 @@ func testRecoveryLockCurrentPasswordDuringRotation(t *testing.T, ds *Datastore) 
 		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
 		require.NoError(t, err)
 		assert.True(t, rotateAt.IsZero(), "the auto-rotation cron skips failed rows")
+	})
+
+	requireNone := func(t *testing.T, hostUUID string) {
+		t.Helper()
+		got, err := ds.GetHostRecoveryLockPassword(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.Nil(t, got.Password)
+
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		assert.False(t, status.PasswordAvailable)
+	}
+
+	t.Run("no password once the rotated password fails verification", func(t *testing.T) {
+		host, _ := setupVerified(t, "rot-current-vfail", "rotcurrentvfail")
+
+		setCmd := uuid.NewString()
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, setCmd, apple_mdm.GenerateRecoveryLockPassword()))
+		verifyCmd := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, setCmd, verifyCmd))
+		require.NoError(t, ds.SetRecoveryLockFailed(ctx, host.UUID, verifyCmd, "password does not match"))
+
+		// The device took the rotation but didn't confirm it: neither password is known to work.
+		requireNone(t, host.UUID)
+	})
+
+	t.Run("last known password is withheld until the device confirms it", func(t *testing.T) {
+		host, oldPw := setupVerified(t, "rot-current-lastknown", "rotcurrentlastknown")
+
+		setCmd := uuid.NewString()
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, setCmd, apple_mdm.GenerateRecoveryLockPassword()))
+		// The device rejected the rotation's current password, so Fleet re-checks it.
+		verifyCmd := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifyingLastKnownPassword(ctx, host.UUID, setCmd, verifyCmd))
+		requireNone(t, host.UUID)
+
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, verifyCmd))
+		requireCurrent(t, host.UUID, oldPw)
 	})
 
 	t.Run("prior password while a rotation is retried", func(t *testing.T) {

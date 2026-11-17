@@ -161,21 +161,29 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	})
 }
 
-// recoveryLockCurrentPasswordCond is true when encrypted_password is the password the device
-// holds, including while a rotation or clear is in flight. A verify, or the verified install a
-// clear starts from, is the proof; a row re-animated by re-enrollment has a stale
-// encrypted_password and no verify_command_uuid until its new password is verified.
-var recoveryLockCurrentPasswordCond = fmt.Sprintf(`(
-	encrypted_password IS NOT NULL
-	AND (status <=> '%s' OR operation_type = '%s' OR verify_command_uuid IS NOT NULL)
-)`, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
+// recoveryLockCurrentPasswordExpr is the encrypted password the device holds, or NULL when Fleet
+// can't vouch for one. verify_command_uuid is the proof that encrypted_password reached the
+// device; a row re-animated by re-enrollment has a stale encrypted_password and no proof.
+//   - Rotation acknowledged, verify in flight: the device applied the pending password.
+//   - Any other verifying install (first set, or re-checking the last known password after the
+//     device rejected it): unknown until the verify answers.
+//   - Otherwise (rotation not yet applied or failed to apply, removal in flight): the active one.
+var recoveryLockCurrentPasswordExpr = fmt.Sprintf(`(
+	CASE
+		WHEN operation_type = '%[1]s' AND status = '%[2]s' THEN
+			IF(encrypted_password IS NOT NULL AND verify_command_uuid IS NOT NULL, pending_encrypted_password, NULL)
+		WHEN encrypted_password IS NOT NULL
+			AND (status <=> '%[3]s' OR operation_type = '%[4]s' OR verify_command_uuid IS NOT NULL)
+			THEN encrypted_password
+	END
+)`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
 
 // GetHostRecoveryLockPassword returns the password the host currently holds, or a nil
 // Password when Fleet can't vouch for one yet.
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 	stmt := `
 		SELECT
-			IF(` + recoveryLockCurrentPasswordCond + `, encrypted_password, NULL) AS encrypted_password,
+			` + recoveryLockCurrentPasswordExpr + ` AS encrypted_password,
 			status, updated_at, auto_rotate_at
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
@@ -218,7 +226,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 			status,
 			operation_type,
 			COALESCE(error_message, '') AS detail,
-			` + recoveryLockCurrentPasswordCond + ` AS password_available
+			` + recoveryLockCurrentPasswordExpr + ` IS NOT NULL AS password_available
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 
@@ -398,6 +406,10 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID, comman
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
 		    error_message = ?,
+			-- A failed verify leaves Fleet not knowing which password the device holds, so it
+			-- drops the proof for encrypted_password. A failed set keeps it: nothing was applied.
+			-- Assigned before pending_verify_command_uuid is cleared.
+			verify_command_uuid = IF(pending_verify_command_uuid <=> ?, NULL, verify_command_uuid),
 			pending_encrypted_password = NULL,
 			pending_set_command_uuid = NULL,
 			pending_verify_command_uuid = NULL
@@ -406,7 +418,7 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID, comman
 		  AND deleted = 0
 	`, fleet.MDMDeliveryFailed)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, hostUUID, commandUUID, commandUUID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, errorMsg, commandUUID, hostUUID, commandUUID, commandUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set recovery lock failed")
 	}
 
