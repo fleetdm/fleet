@@ -171,7 +171,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 	t.Run("api-only user with restrictions, missing route template in context is rejected", func(t *testing.T) {
 		next, called := newNext()
-		// routeTemplateKey deliberately not set (simulates RouteTemplateRequestFunc failure).
+		// routeTemplateKey deliberately not set, as when a request reaches the endpoint without going through the router.
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "GET")
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
@@ -364,7 +364,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 			{
 				name:       "route template missing from context",
 				method:     "POST",
-				routeTpl:   "", // RouteTemplateRequestFunc not wired
+				routeTpl:   "", // not served through the router
 				wantReason: "route template missing from request context",
 			},
 		}
