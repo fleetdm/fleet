@@ -10583,14 +10583,14 @@ const queryReport = {
   ],
 };
 
-const globalQuery1 = { query: globalQueries.queries[0] };
-const globalQuery2 = { query: globalQueries.queries[1] };
-const globalQuery3 = { query: globalQueries.queries[2] };
-const globalQuery4 = { query: globalQueries.queries[4] };
-const globalQuery5 = { query: globalQueries.queries[5] };
-const globalQuery6 = { query: globalQueries.queries[6] };
-const teamQuery1 = { query: teamQueries.queries[0] };
-const teamQuery2 = { query: teamQueries.queries[1] };
+const globalQuery1 = { report: globalQueries.queries[0] };
+const globalQuery2 = { report: globalQueries.queries[1] };
+const globalQuery3 = { report: globalQueries.queries[2] };
+const globalQuery4 = { report: globalQueries.queries[4] };
+const globalQuery5 = { report: globalQueries.queries[5] };
+const globalQuery6 = { report: globalQueries.queries[6] };
+const teamQuery1 = { report: teamQueries.queries[0] };
+const teamQuery2 = { report: teamQueries.queries[1] };
 const teamPolicy1 = createMockPoliciesResponse();
 const hostDetailsiOS = createMockIosHostResponse;
 const aiAutofillPolicy = {

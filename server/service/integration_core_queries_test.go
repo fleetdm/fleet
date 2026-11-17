@@ -224,15 +224,12 @@ func (s *integrationTestSuite) TestQueriesCRUD() {
 	var getQryResp fleet.GetQueryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), nil, http.StatusOK, &getQryResp)
 	assert.Equal(t, query.ID, getQryResp.Report.ID)
-	assert.Equal(t, query.ID, getQryResp.Report.ID)
-	assert.Equal(t, sql, getQryResp.Report.Query)
 	assert.Equal(t, sql, getQryResp.Report.Query)
 
 	// modify the query
 	var modQryResp fleet.ModifyQueryResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Report.Description)
-	assert.Equal(t, sql, modQryResp.Report.Query)
 	assert.Equal(t, sql, modQryResp.Report.Query)
 
 	// TODO(jahziel): check that the query results were deleted
@@ -1802,6 +1799,30 @@ func (s *integrationTestSuite) TestRemovedQueryKeys() {
 	assert.NotContains(t, raw, "queries")
 	assert.NotContains(t, raw, "inherited_query_count")
 
+	reportOnly := func(method, path string, body any) uint {
+		res := s.Do(method, path, body, http.StatusOK)
+		defer res.Body.Close()
+		var raw map[string]json.RawMessage
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&raw))
+		require.Contains(t, raw, "report")
+		assert.NotContains(t, raw, "query")
+		var report fleet.Query
+		require.NoError(t, json.Unmarshal(raw["report"], &report))
+		return report.ID
+	}
+	reportID := reportOnly("POST", "/api/latest/fleet/reports", fleet.QueryPayload{Name: new(t.Name()), Query: new("SELECT 1")})
+	reportOnly("GET", fmt.Sprintf("/api/latest/fleet/reports/%d", reportID), nil)
+	reportOnly("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", reportID), fleet.QueryPayload{Description: new("updated")})
+
+	res = s.Do("POST", "/api/latest/fleet/schedule", map[string]any{"report_id": reportID, "interval": 60}, http.StatusOK)
+	var scheduled struct {
+		Scheduled map[string]json.RawMessage `json:"scheduled"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&scheduled))
+	res.Body.Close()
+	assert.Contains(t, scheduled.Scheduled, "report_id")
+	assert.NotContains(t, scheduled.Scheduled, "query_id")
+
 	for _, c := range []struct {
 		method, path, key string
 		body              map[string]any
@@ -1811,6 +1832,8 @@ func (s *integrationTestSuite) TestRemovedQueryKeys() {
 		{"POST", "/api/latest/fleet/targets", "query_id", map[string]any{"query_id": 1, "selected": map[string]any{}}},
 		{"POST", "/api/latest/fleet/reports/run", "query_id", map[string]any{"query_id": 1, "selected": map[string]any{}}},
 		{"GET", "/api/latest/fleet/reports/run", "query_ids", map[string]any{"query_ids": []uint{1}, "host_ids": []uint{1}}},
+		{"POST", "/api/latest/fleet/schedule", "query_id", map[string]any{"query_id": reportID, "interval": 60}},
+		{"PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", reportID), "query_id", map[string]any{"query_id": reportID}},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			res := s.Do(c.method, c.path, c.body, http.StatusUnprocessableEntity)

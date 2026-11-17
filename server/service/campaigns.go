@@ -50,7 +50,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 	}
 
 	if queryID == nil && strings.TrimSpace(queryString) == "" {
-		return nil, fleet.NewInvalidArgumentError("query", "one of query or query_id must be specified")
+		return nil, fleet.NewInvalidArgumentError("query", "one of query or report_id must be specified")
 	}
 
 	var query *fleet.Query
