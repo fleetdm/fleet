@@ -564,23 +564,26 @@ const PackageForm = ({
 
   const renderTargetLabelSelector = () => (
     <>
-      {(isEditingSoftware || multiPackageContext) && !isIpaPackage && (
-        <InfoBanner
-          icon="info"
-          iconColor="ui-fleet-black-50"
-          className={`${baseClass}__multi-package-banner`}
-        >
-          If multiple versions target the same host, Fleet will deploy the one
-          that was added first.
-          <br />
-          Want to roll out a new version to multiple hosts?{" "}
-          <CustomLink
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
-            text="Learn how"
-            newTab
-          />
-        </InfoBanner>
-      )}
+      {/* Fleet-maintained apps and .ipa titles can't have multiple versions. */}
+      {(isEditingSoftware || multiPackageContext) &&
+        !isIpaPackage &&
+        !isFleetMaintainedApp && (
+          <InfoBanner
+            icon="info"
+            iconColor="ui-fleet-black-50"
+            className={`${baseClass}__multi-package-banner`}
+          >
+            If multiple versions target the same host, Fleet will deploy the one
+            that was added first.
+            <br />
+            Want to roll out a new version to multiple hosts?{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
+              text="Learn how"
+              newTab
+            />
+          </InfoBanner>
+        )}
       <DropdownTargetLabelSelector
         selectedTargetType={formData.targetType}
         selectedCustomTarget={formData.customTarget}
