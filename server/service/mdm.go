@@ -1799,7 +1799,7 @@ func resolveProfileDeployFlags(ctx context.Context, curSelfService, curHidden bo
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMConfigProfileRequest{}
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -1808,7 +1808,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add fleet_id
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
@@ -2050,7 +2050,7 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 	}
 	decoded.ProfileUUID = profileUUID
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",

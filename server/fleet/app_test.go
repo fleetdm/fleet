@@ -3,7 +3,6 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -886,23 +885,23 @@ func TestMacOSSetupValidate(t *testing.T) {
 	t.Run("validate", func(t *testing.T) {
 		cases := []struct {
 			name    string
-			m       MacOSSetup
+			m       MacOSSetupSpec
 			wantErr *string
 		}{
-			{"empty", MacOSSetup{}, nil},
-			{"macos_manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
-			{"macos_manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
-			{"bootstrap package during manual enrollment without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true}, new("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.")},
-			{"bootstrap package during migration without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true}, new("setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.")},
-			{"bootstrap package settings with bootstrap package succeed", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true, MacOSEnableBootstrapPackageDuringMigration: true, BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
-			{"end_user_local_account_type fails with non accepted value", MacOSSetup{EndUserLocalAccountType: optjson.SetString("invalid")}, new(`macos_end_user_local_account_type only "admin", "standard", and "none" are supported`)},
-			{"end_user_local_account_type with accepted value succeeds", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
-			{"end_user_local_account_type none fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "none" for the macos_end_user_local_account_type`)},
-			{"end_user_local_account_type standard fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "standard" for the macos_end_user_local_account_type`)},
-			{"end_user_local_account_type none succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
-			{"end_user_local_account_type standard succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
-			{"end_user_local_account_type admin succeeds with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(false)}, nil},
-			{"end_user_local_account_type admin succeeds with enable_end_user_local_account true", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"empty", MacOSSetupSpec{}, nil},
+			{"macos_manual_agent_install without bootstrap package fails", MacOSSetupSpec{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"macos_manual_agent_install with bootstrap package succeeds", MacOSSetupSpec{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"bootstrap package during manual enrollment without bootstrap package fails", MacOSSetupSpec{MacOSEnableBootstrapPackageDuringManualEnrollment: true}, new("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.")},
+			{"bootstrap package during migration without bootstrap package fails", MacOSSetupSpec{MacOSEnableBootstrapPackageDuringMigration: true}, new("setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.")},
+			{"bootstrap package settings with bootstrap package succeed", MacOSSetupSpec{MacOSEnableBootstrapPackageDuringManualEnrollment: true, MacOSEnableBootstrapPackageDuringMigration: true, BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"end_user_local_account_type fails with non accepted value", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("invalid")}, new(`macos_end_user_local_account_type only "admin", "standard", and "none" are supported`)},
+			{"end_user_local_account_type with accepted value succeeds", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
+			{"end_user_local_account_type none fails with enable_end_user_local_account false", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "none" for the macos_end_user_local_account_type`)},
+			{"end_user_local_account_type standard fails with enable_end_user_local_account false", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "standard" for the macos_end_user_local_account_type`)},
+			{"end_user_local_account_type none succeeds with enable_end_user_local_account true", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"end_user_local_account_type standard succeeds with enable_end_user_local_account true", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("standard"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
+			{"end_user_local_account_type admin succeeds with enable_end_user_local_account false", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(false)}, nil},
+			{"end_user_local_account_type admin succeeds with enable_end_user_local_account true", MacOSSetupSpec{EndUserLocalAccountType: optjson.SetString("admin"), EnableManagedLocalAccount: optjson.SetBool(true)}, nil},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -918,30 +917,31 @@ func TestMacOSSetupValidate(t *testing.T) {
 
 	t.Run("validate against", func(t *testing.T) {
 		cases := []struct {
-			name    string
-			m       MacOSSetup
-			against MacOSSetup
-			wantErr *string
+			name                string
+			m                   MacOSSetup
+			against             MacOSSetup
+			hasBootstrapPackage bool
+			wantErr             *string
 		}{
-			{"empty against empty", MacOSSetup{}, MacOSSetup{}, nil},
-			{"macos_manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
-			{"macos_manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
-			{"end_user_local_account_type none against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, MacOSSetup{}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "none" for the macos_end_user_local_account_type`)},
-			{"end_user_local_account_type standard against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, MacOSSetup{}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "standard" for the macos_end_user_local_account_type`)},
-			{"enable_end_user_local_account false against none user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "none" for the macos_end_user_local_account_type`)},
-			{"enable_end_user_local_account false against standard user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "standard" for the macos_end_user_local_account_type`)},
-			{"enable_end_user_local_account false against admin user type succeeds", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
-			{"enable_end_user_local_account false against none user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("none")}, nil},
-			{"enable_end_user_local_account false against standard user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("standard")}, nil},
+			{"empty against empty", MacOSSetup{}, MacOSSetup{}, false, nil},
+			{"macos_manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, false, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"macos_manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, true, nil},
+			{"end_user_local_account_type none against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, MacOSSetup{}, false, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "none" for the macos_end_user_local_account_type`)},
+			{"end_user_local_account_type standard against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, MacOSSetup{}, false, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "standard" for the macos_end_user_local_account_type`)},
+			{"enable_end_user_local_account false against none user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, false, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "none" for the macos_end_user_local_account_type`)},
+			{"enable_end_user_local_account false against standard user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, false, new(`macos_managed_local_account_enabled macos_managed_local_account_enabled is required to be enabled when using "standard" for the macos_end_user_local_account_type`)},
+			{"enable_end_user_local_account false against admin user type succeeds", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, false, nil},
+			{"enable_end_user_local_account false against none user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("none")}, false, nil},
+			{"enable_end_user_local_account false against standard user type succeeds when both are set", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false), EndUserLocalAccountType: optjson.SetString("admin")}, MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true), EndUserLocalAccountType: optjson.SetString("standard")}, false, nil},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				if tc.wantErr != nil {
-					require.ErrorContains(t, tc.m.ValidateAgainst(tc.against), *tc.wantErr)
+					require.ErrorContains(t, tc.m.ValidateAgainst(tc.against, tc.hasBootstrapPackage), *tc.wantErr)
 					return
 				}
 
-				require.NoError(t, tc.m.ValidateAgainst(tc.against))
+				require.NoError(t, tc.m.ValidateAgainst(tc.against, tc.hasBootstrapPackage))
 			})
 		}
 	})
@@ -1003,41 +1003,6 @@ func TestMDMAppleABMAssignmentInfoRenameTeam(t *testing.T) {
 		info := base
 		require.False(t, info.RenameTeam("", "Laptops"))
 		require.Equal(t, base, info)
-	})
-}
-
-func TestMDMAppleVolumePurchasingProgramInfoRenameTeam(t *testing.T) {
-	base := MDMAppleVolumePurchasingProgramInfo{
-		Location: "Acme HQ",
-		Teams:    []string{"Workstations", "Servers", "Workstations"},
-	}
-	clone := func() MDMAppleVolumePurchasingProgramInfo {
-		return MDMAppleVolumePurchasingProgramInfo{Location: base.Location, Teams: slices.Clone(base.Teams)}
-	}
-
-	t.Run("renames every occurrence and leaves the rest", func(t *testing.T) {
-		info := clone()
-		require.True(t, info.RenameTeam("Workstations", "Laptops"))
-		require.Equal(t, []string{"Laptops", "Servers", "Laptops"}, info.Teams)
-	})
-
-	t.Run("no match reports false and changes nothing", func(t *testing.T) {
-		info := clone()
-		require.False(t, info.RenameTeam("Tablets", "Laptops"))
-		require.Equal(t, base.Teams, info.Teams)
-	})
-
-	t.Run("empty old name must not claim entries", func(t *testing.T) {
-		info := clone()
-		info.Teams = append(info.Teams, "")
-		require.False(t, info.RenameTeam("", "Laptops"))
-		require.Equal(t, append(slices.Clone(base.Teams), ""), info.Teams)
-	})
-
-	t.Run("all-teams is a display name, not a fleet", func(t *testing.T) {
-		info := MDMAppleVolumePurchasingProgramInfo{Location: "Acme HQ", Teams: []string{DisplayNameAllTeams}}
-		require.False(t, info.RenameTeam("Workstations", "Laptops"))
-		require.Equal(t, []string{DisplayNameAllTeams}, info.Teams)
 	})
 }
 
@@ -1242,85 +1207,5 @@ func TestGetEffectiveQueryReportCap(t *testing.T) {
 	for _, c := range cases {
 		s := ServerSettings{QueryReportCap: c.configCap}
 		require.Equal(t, c.want, s.GetEffectiveQueryReportCap(c.hostCount), "cap=%d hosts=%d", c.configCap, c.hostCount)
-	}
-}
-
-func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
-	// fleet specs arrive as a map, so every spec field has to be copied here
-	var raw map[string]any
-	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
-		{"path": "a", "name": "Wi-Fi", "description": "Office network", "labels_include_any": ["L1"]},
-		{"path": "b"},
-		"c"
-	]}`), &raw))
-
-	var s MacOSSettings
-	set, err := s.FromMap(raw)
-	require.NoError(t, err)
-	require.True(t, set["custom_settings"])
-	require.Equal(t, []MDMProfileSpec{
-		{Path: "a", Name: "Wi-Fi", Description: "Office network", LabelsIncludeAny: []string{"L1"}},
-		{Path: "b"},
-		{Path: "c"},
-	}, s.CustomSettings)
-
-	// null is the same as omitted, but any other non-string is rejected
-	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
-		{"path": "a", "name": null, "description": null},
-		{"path": null},
-		{}
-	]}`), &raw))
-	_, err = s.FromMap(raw)
-	require.NoError(t, err)
-	require.Equal(t, []MDMProfileSpec{{Path: "a"}, {}, {}}, s.CustomSettings)
-
-	for _, tc := range []struct{ field, value string }{
-		{"description", `123`},
-		{"description", `{"a": "b"}`},
-		{"name", `true`},
-		{"name", `["x"]`},
-		{"path", `123`},
-		{"path", `true`},
-		{"path", `["x"]`},
-	} {
-		require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+
-			tc.field+`": `+tc.value+`}]}`), &raw))
-		_, err = s.FromMap(raw)
-		require.ErrorContains(t, err, "macos_settings.custom_settings."+tc.field+" of type string", tc.value)
-	}
-}
-
-func TestMacOSSettingsFromMapCustomSettingsLabels(t *testing.T) {
-	for _, field := range []string{"labels", "labels_include_all", "labels_include_any", "labels_exclude_any"} {
-		t.Run(field, func(t *testing.T) {
-			for _, value := range []string{`"Engineering"`, `123`, `{}`, `[1, "Engineering"]`, `["Engineering", false]`, `[null]`} {
-				t.Run(value, func(t *testing.T) {
-					var raw map[string]any
-					require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+field+`": `+value+`}]}`), &raw))
-					s := MacOSSettings{CustomSettings: []MDMProfileSpec{{Path: "existing"}}}
-					_, err := s.FromMap(raw)
-					var typeErr *json.UnmarshalTypeError
-					require.ErrorAs(t, err, &typeErr)
-					require.Equal(t, "macos_settings.custom_settings."+field, typeErr.Field)
-					require.Equal(t, []MDMProfileSpec{{Path: "existing"}}, s.CustomSettings)
-				})
-			}
-			for _, value := range []string{`null`, `[]`, `["Engineering", "Sales"]`} {
-				t.Run(value, func(t *testing.T) {
-					input := `{"custom_settings": [{"path": "a", "` + field + `": ` + value + `}]}`
-					var raw map[string]any
-					require.NoError(t, json.Unmarshal([]byte(input), &raw))
-					var want, got MacOSSettings
-					require.NoError(t, json.Unmarshal([]byte(input), &want))
-					if value == `[]` {
-						want.CustomSettings = []MDMProfileSpec{{Path: "a"}}
-					}
-					_, err := got.FromMap(raw)
-					require.NoError(t, err)
-					require.Len(t, got.CustomSettings, 1)
-					require.Equal(t, want.CustomSettings, got.CustomSettings)
-				})
-			}
-		})
 	}
 }

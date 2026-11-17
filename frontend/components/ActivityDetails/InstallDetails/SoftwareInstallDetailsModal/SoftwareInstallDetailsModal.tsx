@@ -357,7 +357,7 @@ export const SoftwareInstallDetailsModal = ({
   };
 
   const isInstalledByFleet = hostSoftware
-    ? !!hostSoftware.software_package?.last_install
+    ? !!hostSoftware.package?.last_install
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<

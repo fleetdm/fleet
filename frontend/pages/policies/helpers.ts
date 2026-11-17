@@ -78,9 +78,7 @@ export const generateSoftwareOptionHelpText = (
 
   const platform: Platform | null =
     INSTALLABLE_SOURCE_PLATFORM_CONVERSION[title.source] || null;
-  const extension = getExtensionFromFileName(
-    title.software_package?.name ?? ""
-  );
+  const extension = getExtensionFromFileName(title.packages?.[0]?.name ?? "");
   const platformString =
     platform && extension
       ? `${PLATFORM_DISPLAY_NAMES[platform]} (.${extension})`
@@ -94,7 +92,7 @@ export const generateSoftwareOptionHelpText = (
   const versionOrCount =
     packageCount > 1
       ? `${packageCount} ${pluralize(packageCount, "version")}`
-      : title.software_package?.version ?? "";
+      : title.packages?.[0]?.version ?? "";
   const separator = platformString && versionOrCount ? " • " : "";
 
   return `${platformString}${separator}${versionOrCount}`;

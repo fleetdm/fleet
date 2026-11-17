@@ -1363,14 +1363,14 @@
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite-community/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
       "name": "Burp Suite Professional",
       "slug": "burp-suite-professional/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Professional",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite Professional is a toolkit for web application security testing."
     },
     {
@@ -6092,6 +6092,13 @@
       "description": "Nitro PDF Pro is a PDF editor for creating, converting, editing, signing, and securing PDF documents."
     },
     {
+      "name": "Node.js 22",
+      "slug": "nodejs-22/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 22 is the 22.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
@@ -7254,18 +7261,18 @@
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/windows",
       "platform": "windows",
       "unique_identifier": "PyCharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
       "name": "Python 3.13 (ARM64)",

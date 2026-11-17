@@ -312,9 +312,8 @@ func TestTeamMDMCopy(t *testing.T) {
 				Deadline:       optjson.SetString("2020-01-01"),
 			},
 			MacOSSetup: MacOSSetup{
-				BootstrapPackage:            optjson.SetString("bootstrap"),
 				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("assistant"),
+				ManualAgentInstall:          optjson.SetBool(true),
 			},
 		}
 		clone := tm.Copy()
@@ -326,7 +325,6 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 				EnableDiskEncryption:          optjson.SetBool(false),
 				EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
 			},
@@ -334,10 +332,6 @@ func TestTeamMDMCopy(t *testing.T) {
 		clone := tm.Copy()
 		require.NotSame(t, tm, clone)
 		require.Equal(t, tm, clone)
-		require.NotEqual(t,
-			reflect.ValueOf(tm.MacOSSettings.CustomSettings).Pointer(),
-			reflect.ValueOf(clone.MacOSSettings.CustomSettings).Pointer(),
-		)
 	})
 
 	t.Run("copy HostNameTemplate", func(t *testing.T) {

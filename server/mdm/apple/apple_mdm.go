@@ -57,8 +57,6 @@ const (
 	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
 	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
 	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
-	// InstallerPath is the HTTP path that serves installers to Apple devices.
-	InstallerPath = "/api/mdm/apple/installer"
 
 	// FleetUISSOCallbackPath is the front-end route used to
 	// redirect after the SSO flow is completed.

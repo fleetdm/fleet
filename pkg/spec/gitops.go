@@ -200,12 +200,12 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 // If you add a new key to this struct, ensure the Set() method below also checks for it
 type GitOpsControls struct {
 	fleet.BaseItem
-	MacOSUpdates   any               `json:"macos_updates"`
-	IOSUpdates     any               `json:"ios_updates"`
-	IPadOSUpdates  any               `json:"ipados_updates"`
-	MacOSSettings  any               `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup     *fleet.MacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
-	MacOSMigration any               `json:"macos_migration"`
+	MacOSUpdates   any                     `json:"macos_updates"`
+	IOSUpdates     any                     `json:"ios_updates"`
+	IPadOSUpdates  any                     `json:"ipados_updates"`
+	MacOSSettings  any                     `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup     *fleet.GitOpsMacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
+	MacOSMigration any                     `json:"macos_migration"`
 
 	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
 
@@ -430,8 +430,9 @@ type FleetMaintainedApp struct {
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
 type GitOpsMDM struct {
 	fleet.MDM
-	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
-	WindowsEULA             any `json:"windows_eula,omitempty"`
+	EndUserLicenseAgreement any                                                      `json:"end_user_license_agreement,omitempty"`
+	WindowsEULA             any                                                      `json:"windows_eula,omitempty"`
+	VolumePurchasingProgram optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 }
 
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
@@ -1498,7 +1499,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
+		macOSSettings, err := reparseSettings[fleet.GitOpsMacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
 		if err != nil {
 			return multierror.Append(multiError, err)
 		}
@@ -1553,7 +1554,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		result.Controls.MacOSSettings = macOSSettings
 	}
 	if result.Controls.WindowsSettings != nil {
-		windowsSettings, err := reparseSettings[fleet.WindowsSettings](result.Controls.WindowsSettings, controlsFilePath, "windows_settings")
+		windowsSettings, err := reparseSettings[fleet.GitOpsWindowsSettings](result.Controls.WindowsSettings, controlsFilePath, "windows_settings")
 		if err != nil {
 			return multierror.Append(multiError, err)
 		}
@@ -1588,7 +1589,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	}
 
 	if result.Controls.AndroidSettings != nil {
-		androidSettings, err := reparseSettings[fleet.AndroidSettings](result.Controls.AndroidSettings, controlsFilePath, "android_settings")
+		androidSettings, err := reparseSettings[fleet.GitOpsAndroidSettings](result.Controls.AndroidSettings, controlsFilePath, "android_settings")
 		if err != nil {
 			return multierror.Append(multiError, err)
 		}
@@ -1659,7 +1660,7 @@ func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
 	iOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IOSUpdates)
 	iPadOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IPadOSUpdates)
 	if macOSConfigured || iOSConfigured || iPadOSConfigured {
-		macOSSettings, _ := controls.MacOSSettings.(fleet.MacOSSettings)
+		macOSSettings, _ := controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 		for _, profile := range macOSSettings.CustomSettings {
 			contains, err := profileFileContains(profile.Path, apple_mdm.DeclarationTypeSoftwareUpdate)
 			if err != nil {
@@ -1673,7 +1674,7 @@ func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
 
 	windowsConfigured := osUpdatesConfigured[fleet.WindowsUpdates](controls.WindowsUpdates)
 	if windowsConfigured {
-		windowsSettings, _ := controls.WindowsSettings.(fleet.WindowsSettings)
+		windowsSettings, _ := controls.WindowsSettings.(fleet.GitOpsWindowsSettings)
 		for _, profile := range windowsSettings.CustomSettings.Value {
 			contains, err := windowsProfileFileTargetsReservedLocURI(profile.Path, syncml.FleetOSUpdateTargetLocURI)
 			if err != nil {
@@ -2164,7 +2165,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	definedProfileNames := make(map[string]struct{})
 
 	// cast already parsed controls to it's type
-	macOSSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+	macOSSettings, ok := result.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 	if ok {
 		for _, item := range macOSSettings.CustomSettings {
 			// each entry has already been expanded so we can expect a single path
@@ -2221,7 +2222,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 
-	windowsSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+	windowsSettings, ok := result.Controls.WindowsSettings.(fleet.GitOpsWindowsSettings)
 	if ok {
 		for _, item := range windowsSettings.CustomSettings.Value {
 			// each entry has already been expanded so we can expect a single path

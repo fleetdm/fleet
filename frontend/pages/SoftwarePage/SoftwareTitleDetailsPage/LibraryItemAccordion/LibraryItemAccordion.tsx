@@ -125,7 +125,7 @@ export interface ILibraryItemAccordionProps {
    * (and the absence of the Latest badge, which is FMA-only by gate). */
   canActivateMultiplePackages?: boolean;
   /** Drives the self-service icon's tooltip variant and visibility on the
-   * custom-package row. Mirrors `software_package.self_service`. */
+   * custom-package row. Mirrors `packages[].self_service`. */
   isSelfService?: boolean;
   /** Drives the auto-install icon's visibility on the custom-package row.
    * Truthy when the package has ≥1 linked auto-install policy. Custom

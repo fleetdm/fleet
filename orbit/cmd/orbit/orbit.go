@@ -978,6 +978,12 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
+	// After the early update check, so an update can fix a problem here, and before orbit waits for the Fleet server, so
+	// the Linux process shows its name while the server is unreachable.
+	if runtime.GOOS == "linux" {
+		update.ApplyRememberedAgentNames(c.String("root-dir"))
+	}
+
 	// Clear leftover files from updates
 	if err := filepath.Walk(c.String("root-dir"), func(path string, info fs.FileInfo, err error) error {
 		// Ignore anything not containing .old extension
@@ -1551,6 +1557,10 @@ func orbitAction(c *cli.Context) error {
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+		orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
+	}
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
