@@ -6089,7 +6089,7 @@ On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_
 
 ```json
 {
-  "count": 2,
+  "count": 4,
   "software": [
     {
       "id": 1042,
@@ -6158,7 +6158,7 @@ On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_
       "app_store_app": null
     },
     {
-      "id": 1042,
+      "id": 1043,
       "name": "git",
       "icon_url": null,
       "source": "homebrew_packages",
@@ -6194,6 +6194,52 @@ On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_
       "display_name": "",
       "package": null,
       "app_store_app": null
+    },
+    {
+      "id": 2329,
+      "name": "Slack",
+      "bundle_identifier": "com.tinyspeck.slackmacgap",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7f/67/17/7f671789-d087-288e-bac2-4e74f3a40ae4/electron.png/512x512bb.png",
+      "source": "apps",
+      "extension_for": "",
+      "status": "installed",
+      "installed_versions": [
+        {
+          "version": "4.53.287",
+          "bundle_identifier": "com.tinyspeck.slackmacgap",
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/Applications/Slack.app"
+          ],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Slack.app",
+              "team_identifier": "BQR82RBBHL",
+              "hash_sha256": "7f009b1db79da8069bbd41d82ea88b8f75272c16",
+              "executable_sha256": "30322606021cbde2c7bf37ad0585c63886a1df7ab0999980fa1f3a37067f3b8c",
+              "executable_path": "/Applications/Slack.app/Contents/MacOS/Slack"
+            }
+          ],
+          "last_opened_at": ""
+        }
+      ],
+      "display_name": "",
+      "ai_tool": false,
+      "package": null,
+      "app_store_app": {
+        "app_store_id": "803453959",
+        "version_id": 589,
+        "automatic_install_policies": null,
+        "version": "4.53.287",
+        "platform": "darwin",
+        "self_service": false,
+        "last_install": {
+          "command_uuid": "879b6811-2e42-4b68-9a5f-30b1b3989db2",
+          "installed_at": "2026-11-17T14:19:01Z"
+        },
+        "last_uninstall": null,
+        "package_url": null
+      }
     }
   ],
   "meta": {
@@ -6258,7 +6304,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "software": [
     {
       "id": 1042,
@@ -6327,7 +6373,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
       "app_store_app": null
     },
     {
-      "id": 1042,
+      "id": 1043,
       "name": "git",
       "icon_url": null,
       "source": "homebrew_packages",
@@ -15579,7 +15625,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
     "name": "Test",
     "display_name": "",
     "icon_url": null,
-    "app_store_id": 1091189122,
+    "app_store_id": "1091189122",
     "categories": ["Browser"],
     "version": "2.04",
     "self_service": true,
