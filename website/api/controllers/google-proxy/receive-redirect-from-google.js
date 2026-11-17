@@ -44,6 +44,9 @@ module.exports = {
     } catch(unusedErr) {
       return errorPageUrl;
     }
+    if(!_.isObject(valuesFromSignIn) || !_.isString(valuesFromSignIn.googleCustomerId) || !_.isString(valuesFromSignIn.token) || !_.isString(valuesFromSignIn.hostUuid)) {
+      return errorPageUrl;
+    }
 
     let informationAboutThisCustomer = await GoogleConditionalAccessServer.findOne({googleCustomerId: valuesFromSignIn.googleCustomerId});
     if(!informationAboutThisCustomer) {
