@@ -176,7 +176,7 @@ To require an end user agreement, in Fleet, head to **Settings > Integrations > 
 
 ## Require a passcode on Android
 
-To require Android end users to set a passcode during setup, before they reach the home screen, add a passcode profile to the fleet. Use the [example passcode profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/android/configuration-profiles/password-policy.json) as a starting point.
+To require Android end users to set a passcode during setup, add a passcode profile to the fleet. Use the [example passcode profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/android/configuration-profiles/password-policy.json) as a starting point.
 
 Passcode profiles scoped with labels are applied after setup, not during it, because a host doesn't have labels until it enrolls.
 
