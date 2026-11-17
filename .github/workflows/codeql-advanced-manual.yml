@@ -27,6 +27,7 @@ jobs:
         fetch-depth: 1
 
     # Determine which languages were actually changed so we can run only the relevant CodeQL analysis.
+    # Even if there were no languages changed, still run a quick check on `actions` to satisfy OpenSSF Scorecard that CodeQL analaysis is performed on every PR.
     - name: Check changed files
       id: changes
       shell: bash
@@ -101,6 +102,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

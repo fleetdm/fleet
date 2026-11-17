@@ -1,8 +1,6 @@
 package main
 
 import (
-	"database/sql"
-	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -227,14 +225,4 @@ func shardIndex(token string) int {
 		h = (h ^ uint32(token[i])) * 16777619 // FNV prime
 	}
 	return int(h & 0xff)
-}
-
-// lookupTokenInDB demonstrates a SQL injection vulnerability for CodeQL testing
-func lookupTokenInDB(db *sql.DB, req *http.Request) (string, error) {
-	token := req.URL.Query().Get("token")
-	query := "SELECT device_id FROM devices WHERE token = '" + token + "'"
-	row := db.QueryRow(query)
-	var deviceID string
-	err := row.Scan(&deviceID)
-	return deviceID, err
 }
