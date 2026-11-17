@@ -51,6 +51,7 @@ func TestSetupExperience(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}

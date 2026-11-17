@@ -91,6 +91,7 @@ func TestVPP(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Helper()
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -2496,6 +2497,7 @@ func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
 		_, err := tx.ExecContext(ctx, `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`, cmdUUID4)
 		return err
 	})
+	refreshVPPAppInstallStateForTest(t, ds)
 	unverified, err = ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
 	require.NoError(t, err)
 	require.Empty(t, unverified)
@@ -2929,6 +2931,7 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 			previousEnrollmentFailedCmd)
 		return err
 	})
+	refreshVPPAppInstallStateForTest(t, ds)
 
 	require.ElementsMatch(t, []string{failedCmd, canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.ID))
 	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.ID))
@@ -3548,6 +3551,7 @@ func testMapAdamIDsRecentlyVerifiedInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`UPDATE host_vpp_software_installs SET verification_at = NOW() - INTERVAL 2 HOUR WHERE command_uuid = ?`, cmdUUID)
 	require.NoError(t, err)
+	refreshVPPAppInstallStateForTest(t, ds)
 	adamIDs, err = ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, iOSHost.ID, 3600)
 	require.NoError(t, err)
 	require.Empty(t, adamIDs, "an install verified before the lookback window must not count")
@@ -3557,6 +3561,7 @@ func testMapAdamIDsRecentlyVerifiedInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`UPDATE host_vpp_software_installs SET verification_at = NOW(), removed = 1 WHERE command_uuid = ?`, cmdUUID)
 	require.NoError(t, err)
+	refreshVPPAppInstallStateForTest(t, ds)
 	adamIDs, err = ds.MapAdamIDsRecentlyVerifiedInstalls(ctx, iOSHost.ID, 3600)
 	require.NoError(t, err)
 	require.Empty(t, adamIDs, "a removed install must not count")
@@ -3902,9 +3907,29 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	require.NoError(t, nanoDB.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx,
+	}, &mdm.CommandResults{CommandUUID: cmdUUID, Status: fleet.MDMAppleStatusError,
+		Raw: []byte(`<?xml version="1.0" encoding="UTF-8"?>`)}))
+
 	// Call the retry method
 	err = ds.RetryVPPInstall(ctx, install)
 	require.NoError(t, err)
+
+	var outgoing struct {
+		CommandUUID string `db:"command_uuid"`
+		Outcome     string `db:"outcome"`
+		Attempt     uint   `db:"attempt"`
+		MDMStatus   string `db:"mdm_status"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &outgoing,
+		`SELECT command_uuid, outcome, attempt, mdm_status FROM log_vpp_app_install_attempts WHERE command_uuid = ?`, cmdUUID))
+	require.Equal(t, cmdUUID, outgoing.CommandUUID)
+	require.Equal(t, "retried", outgoing.Outcome)
+	require.Zero(t, outgoing.Attempt)
+	require.Equal(t, fleet.MDMAppleStatusError, outgoing.MDMStatus)
 
 	// Manually grab the new command UUID
 	var newCmdUUID string
@@ -5364,6 +5389,7 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = DATE_SUB(created_at, INTERVAL 1 HOUR) WHERE vpp_app_team_id = ?`, versionA.AppTeamID)
 			return err
 		})
+		refreshVPPAppInstallStateForTest(t, ds)
 
 		// install A and B in the same second on another host
 		hostInstalledAAndBSameSecond := newHost("installed-a-and-b-same-second")
@@ -5373,6 +5399,7 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = '2026-01-01 00:00:00' WHERE host_id = ?`, hostInstalledAAndBSameSecond.ID)
 			return err
 		})
+		refreshVPPAppInstallStateForTest(t, ds)
 
 		// install B successfully on one host, failing on another, and queue it without a result on a third
 		insertVPPAppInstallWithResult(t, ds, hostInstalledAThenB, versionB, "verified")
@@ -6114,6 +6141,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_app_team_id = NULL WHERE host_id = ?`, hostWithActivatedInstall.ID)
 			return err
 		})
+		refreshVPPAppInstallStateForTest(t, ds)
 		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
@@ -6160,6 +6188,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET removed = 1, needs_resend = 1 WHERE host_id = ?`, hostWithPendingInstall.ID)
 			return err
 		})
+		refreshVPPAppInstallStateForTest(t, ds)
 		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithPendingInstall.ID}, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]

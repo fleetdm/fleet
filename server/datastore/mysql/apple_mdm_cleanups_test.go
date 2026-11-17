@@ -37,6 +37,7 @@ func TestAppleMDMCleanups(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -391,6 +392,7 @@ func testNanoCleanupShortRetentionTier(t *testing.T, ds *Datastore) {
 	f.exec(`INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('adam-1', 'darwin', 'App', '1.0')`)
 	f.exec(`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, verification_command_uuid) VALUES (?, 'adam-1', 'darwin', ?, ?)`,
 		f.hostID, uuid.NewString(), verify)
+	refreshVPPAppInstallStateForTest(t, ds)
 
 	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
@@ -408,6 +410,7 @@ func testNanoCleanupShortRetentionTier(t *testing.T, ds *Datastore) {
 
 	// once verified, the same pair goes
 	f.exec(`UPDATE host_vpp_software_installs SET verification_at = NOW() WHERE verification_command_uuid = ?`, verify)
+	refreshVPPAppInstallStateForTest(t, ds)
 	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1}, stats)
@@ -653,6 +656,7 @@ func testNanoCleanupOrphanMop(t *testing.T, ds *Datastore) {
 	install := f.orphan("InstallApplication", 2*day)
 	f.exec(`INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('adam-1', 'darwin', 'App', '1.0')`)
 	f.exec(`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid) VALUES (?, 'adam-1', 'darwin', ?)`, f.hostID, install)
+	refreshVPPAppInstallStateForTest(t, ds)
 	// real FKs: pinned, and no FK error either
 	renew := f.orphan("InstallProfile", 2*day)
 	f.exec(`INSERT INTO nano_cert_auth_associations (id, sha256, renew_command_uuid) VALUES (?, 'abc123', ?)`, f.deviceID, renew)

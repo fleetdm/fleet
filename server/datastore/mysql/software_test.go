@@ -169,6 +169,7 @@ func TestSoftware(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Helper()
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -14889,6 +14890,7 @@ INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid
 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			hostID, appID.AdamID, appID.Platform, cmdUUID, removed, canceled, createdAt)
 		require.NoError(t, err)
+		refreshVPPAppInstallStateForTest(t, ds)
 	}
 
 	// app1: newer canceled/removed rows don't shadow the latest eligible attempt, and
