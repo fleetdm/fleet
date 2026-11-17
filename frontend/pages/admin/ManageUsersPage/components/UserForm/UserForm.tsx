@@ -16,7 +16,7 @@ import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 import PATHS from "router/paths";
-import { PRIMO_TOOLTIP } from "utilities/constants";
+import { FLEET_GUIDES_BASE_LINK, PRIMO_TOOLTIP } from "utilities/constants";
 
 import { roleOptions } from "../../helpers/userManagementHelpers";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
@@ -296,7 +296,7 @@ const UserForm = ({
                   and settings in Fleet.
                 </p>
                 <CustomLink
-                  url="https://fleetdm.com/guides/role-based-access#fleet-level-user-permissions"
+                  url={`${FLEET_GUIDES_BASE_LINK}/role-based-access#fleet-level-user-permissions`}
                   text="Learn more about user permissions"
                   newTab
                   variant="banner-link"

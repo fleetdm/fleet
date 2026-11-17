@@ -12,7 +12,10 @@ import PageDescription from "components/PageDescription";
 import YamlAce from "components/YamlAce";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
-import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import {
+  EMPTY_AGENT_OPTIONS,
+  FLEET_GUIDES_BASE_LINK,
+} from "utilities/constants";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 import { IAppConfigFormProps } from "../constants";
@@ -119,7 +122,7 @@ const Agents = ({
           <InfoBanner>
             Want some hosts to have different options?&nbsp;
             <CustomLink
-              url="https://fleetdm.com/guides/fleets"
+              url={`${FLEET_GUIDES_BASE_LINK}/fleets`}
               text="Learn more about fleets"
               newTab
               variant="banner-link"

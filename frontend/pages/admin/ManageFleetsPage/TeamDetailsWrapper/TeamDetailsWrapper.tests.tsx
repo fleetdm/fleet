@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -154,6 +154,37 @@ describe("TeamDetailsWrapper", () => {
         `"All fleets" is a reserved fleet name. Please try another name.`
       )
     ).toBeInTheDocument();
+  });
+
+  it("does not call a name conflict that contains a reserved word a reserved name", async () => {
+    const { user } = renderPage(false);
+    let renamed = false;
+    mockServer.use(
+      http.patch(baseUrl("/fleets/1"), () => {
+        renamed = true;
+        return HttpResponse.json(
+          {
+            message: "Resource Already Exists",
+            errors: [
+              {
+                name: "base",
+                reason: `A fleet named "Unassigned devices" already exists. Fleet names must differ by more than letter case.`,
+              },
+            ],
+          },
+          { status: 409 }
+        );
+      })
+    );
+
+    await user.click(await button("Rename fleet"));
+    const nameInput = screen.getByLabelText("Fleet name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Unassigned devices");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(renamed).toBe(true));
+    expect(screen.queryByText(/is a reserved fleet name/)).toBeNull();
   });
 
   it("hides the enroll secrets list while the add secret modal is open", async () => {
