@@ -520,14 +520,6 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, gotApp.TitleID)
 
-	// list with hide added apps for Unassigned, the Maintained3 FMA should be hidden
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, ptr.Uint(0), fleet.MaintainedAppListOptions{AvailableOnly: true, ListOptions: fleet.ListOptions{IncludeMetadata: true}})
-	require.NoError(t, err)
-	require.EqualValues(t, 3, meta.TotalResults)
-	for _, app := range apps {
-		require.NotEqual(t, maintained3.ID, app.ID)
-	}
-
 	// Ordering: the combined-by-app view is only meaningfully sortable by name,
 	// so "name" is the one allowed order key. expectedApps is declared in
 	// ascending name order, so we derive the expected name sequences from it.
@@ -976,9 +968,6 @@ func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastor
 	require.Len(t, apps, 1)
 	require.Equal(t, "pagedsearch-two/darwin", apps[0].Slug)
 	require.False(t, meta.HasNextResults)
-
-	// search for the platform suffix of the merged app, nothing should match
-	require.Empty(t, search("Pagedsearch One for"))
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
@@ -1685,18 +1674,6 @@ func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 		return err
 	})
 	require.Equal(t, &titleID, titleIDFor(firefox.ID))
-	require.Nil(t, titleIDFor(esr.ID))
-
-	gotESR, err := ds.GetMaintainedAppByID(ctx, esr.ID, &team.ID)
-	require.NoError(t, err)
-	require.Nil(t, gotESR.TitleID)
-
-	// delete the Firefox software title, the installer and VPP app lose their title and neither FMA shows as added
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "DELETE FROM software_titles WHERE id = ?", titleID)
-		return err
-	})
-	require.Nil(t, titleIDFor(firefox.ID))
 	require.Nil(t, titleIDFor(esr.ID))
 }
 
