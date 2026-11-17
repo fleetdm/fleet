@@ -1066,6 +1066,7 @@ WHERE
 
 	const insertNewOrEditedInstaller = `
 INSERT INTO in_house_apps (
+	id,
 	title_id,
 	team_id,
 	global_or_team_id,
@@ -1078,7 +1079,7 @@ INSERT INTO in_house_apps (
 	url,
 	install_during_setup
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, false)
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, false)
 )
 ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
@@ -1423,7 +1424,17 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
 			}
 
+			if len(existing) > 1 {
+				return ctxerr.Errorf(ctx, "multiple in-house installers for title %d in fleet %d; reconcile duplicates before applying", titleID, globalOrTeamID)
+			}
+			// Keep the app's installer identity when a release changes its filename.
+			// The filename-based unique key alone would insert a second row.
+			var installerIDToUpdate *uint
+			if len(existing) == 1 {
+				installerIDToUpdate = &existing[0].InstallerID
+			}
 			args := []any{
+				installerIDToUpdate,
 				titleID,
 				tmID,
 				globalOrTeamID,

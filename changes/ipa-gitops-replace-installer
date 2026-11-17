@@ -1,0 +1,1 @@
+* Fixed GitOps creating duplicate in-house app installers when an updated IPA has a different filename. Existing installer IDs are preserved; ambiguous pre-existing duplicate titles are rejected instead of silently selecting an installer.

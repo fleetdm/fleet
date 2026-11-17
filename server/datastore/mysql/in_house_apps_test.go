@@ -32,6 +32,7 @@ func TestInHouseApps(t *testing.T) {
 		{"TestInHouseAppsCrud", testInHouseAppsCrud},
 		{"MultipleTeams", testInHouseAppsMultipleTeams},
 		{"BatchSetInHouseInstallers", testBatchSetInHouseInstallers},
+		{"BatchSetInHouseInstallersRenamedRelease", testBatchSetInHouseInstallersRenamedRelease},
 		{"BatchSetInHouseInstallersScopedViaLabels", testBatchSetInHouseInstallersScopedViaLabels},
 		{"EditDeleteInHouseInstallersActivateNextActivity", testEditDeleteInHouseInstallersActivateNextActivity},
 		{"Categories", testInHouseAppsCategories},
@@ -1209,6 +1210,74 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, apps)
 	assertTitlesAndApps(nil, nil)
+}
+
+func testBatchSetInHouseInstallersRenamedRelease(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	other, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
+	require.NoError(t, err)
+	payloads := func(filename, hash, version string) []*fleet.UploadSoftwareInstallerPayload {
+		var result []*fleet.UploadSoftwareInstallerPayload
+		for _, platform := range []string{"ios", "ipados"} {
+			result = append(result, &fleet.UploadSoftwareInstallerPayload{
+				Title: "Example", BundleIdentifier: "com.example.app", Filename: filename,
+				StorageID: hash, Version: version, Extension: "ipa", Platform: platform,
+				Source: platform + "_apps", SelfService: true,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+		}
+		return result
+	}
+	old := payloads("example-1.ipa", "old-hash", "1.0.0")
+	require.NoError(t, ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, old))
+	require.NoError(t, ds.BatchSetInHouseAppsInstallers(ctx, &other.ID, old))
+	before, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, before, 2)
+	originalIDs := make(map[uint]uint)
+	for _, installer := range before {
+		meta, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, *installer.TitleID)
+		require.NoError(t, err)
+		originalIDs[*installer.TitleID] = meta.InstallerID
+	}
+
+	// A rebuild can change bytes without changing the display version.
+	for _, version := range []string{"1.0.0", "2.0.0", "2.0.0"} {
+		require.NoError(t, ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, payloads("example-2.ipa", "new-hash", version)))
+		after, err := ds.GetSoftwareInstallers(ctx, team.ID)
+		require.NoError(t, err)
+		require.Len(t, after, 2)
+		for _, previous := range before {
+			got, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, *previous.TitleID)
+			require.NoError(t, err)
+			require.Equal(t, "example-2.ipa", got.Name)
+			require.Equal(t, "new-hash", got.StorageID)
+			require.Equal(t, version, got.Version)
+			require.True(t, got.SelfService)
+			require.Equal(t, originalIDs[*previous.TitleID], got.InstallerID)
+			untouched, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &other.ID, *previous.TitleID)
+			require.NoError(t, err)
+			require.Equal(t, "old-hash", untouched.StorageID)
+		}
+	}
+
+	// Older servers may already have duplicated the same title. Don't pick
+	// one arbitrarily or delete installer history as part of a normal apply.
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO in_house_apps
+		(title_id, team_id, global_or_team_id, filename, version, storage_id, platform, bundle_identifier)
+		SELECT title_id, team_id, global_or_team_id, 'duplicate.ipa', version, storage_id, platform, bundle_identifier
+		FROM in_house_apps WHERE global_or_team_id = ? AND platform = 'ios'`, team.ID)
+	require.NoError(t, err)
+	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, payloads("example-3.ipa", "third-hash", "3.0.0"))
+	require.ErrorContains(t, err, "multiple in-house installers")
+	remaining, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, remaining, 3)
+	for _, installer := range remaining {
+		require.Equal(t, "new-hash", installer.HashSHA256)
+	}
 }
 
 func testBatchSetInHouseInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
