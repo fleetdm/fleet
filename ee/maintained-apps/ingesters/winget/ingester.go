@@ -736,8 +736,9 @@ type inputApp struct {
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
 	// LatestInstallerURL replaces winget as the source for apps whose winget package
-	// stopped updating: a vendor link that redirects to the current versioned installer.
-	// The version is the installer's ProductVersion. Set it instead of PackageIdentifier.
+	// stopped updating: a vendor link that redirects to the current versioned msi or exe.
+	// The version is the installer's ProductVersion, and a new release is picked up when
+	// the redirect target changes. Set it instead of PackageIdentifier.
 	LatestInstallerURL string `json:"latest_installer_url"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`

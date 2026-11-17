@@ -39,8 +39,8 @@ func validateSource(input inputApp) error {
 	case input.LatestInstallerURL != "" && input.ProgramPublisher == "":
 		// There's no winget locale manifest to take the publisher from.
 		return errors.New("latest_installer_url requires program_publisher")
-	case input.LatestInstallerURL != "" && input.InstallerType != installerTypeExe:
-		return errors.New("latest_installer_url only supports installer_type exe")
+	case input.LatestInstallerURL != "" && input.InstallerType != installerTypeMSI && input.InstallerType != installerTypeExe:
+		return errors.New("latest_installer_url supports installer_type msi or exe")
 	}
 	return nil
 }
@@ -86,6 +86,14 @@ func checkVendorStatus(rawURL string, resp *http.Response) error {
 	return nil
 }
 
+// vendorInstaller is what the ingester needs from a vendor installer file.
+type vendorInstaller struct {
+	version     string
+	sha256      string
+	productCode string
+	upgradeCode string
+}
+
 // vendorManifests builds the manifests ingestOne needs from the installer that
 // input.LatestInstallerURL currently redirects to.
 func (i *wingetIngester) vendorManifests(ctx context.Context, input inputApp) (installerManifest, localeManifest, error) {
@@ -94,28 +102,32 @@ func (i *wingetIngester) vendorManifests(ctx context.Context, input inputApp) (i
 		return installerManifest{}, localeManifest{}, err
 	}
 
-	version, sha256, err := i.cachedVendorInstaller(input.Slug, installerURL)
+	inst, err := i.cachedVendorInstaller(input, installerURL)
 	if err != nil {
 		return installerManifest{}, localeManifest{}, ctxerr.Wrap(ctx, err, "reading current output")
 	}
-	if version == "" {
+	if inst == nil {
 		i.logger.InfoContext(ctx, "downloading vendor installer", "url", installerURL)
-		version, sha256, err = i.downloadVendorInstaller(ctx, installerURL)
+		inst, err = i.downloadVendorInstaller(ctx, installerURL, input.InstallerType)
 		if err != nil {
 			return installerManifest{}, localeManifest{}, err
 		}
 	}
 
 	m := installerManifest{
-		PackageVersion: version,
+		PackageVersion: inst.version,
+		ProductCode:    inst.productCode,
 		Installers: []installer{{
 			Architecture:    input.InstallerArch,
 			InstallerType:   input.InstallerType,
 			Scope:           input.InstallerScope,
 			InstallerLocale: input.InstallerLocale,
 			InstallerURL:    installerURL,
-			InstallerSha256: sha256,
+			InstallerSha256: inst.sha256,
 		}},
+	}
+	if inst.upgradeCode != "" {
+		m.AppsAndFeaturesEntries = []appsAndFeaturesEntries{{UpgradeCode: inst.upgradeCode}}
 	}
 	l := localeManifest{PackageName: input.Name, Publisher: input.ProgramPublisher}
 	return m, l, nil
@@ -164,62 +176,77 @@ func (i *wingetIngester) resolveLatestInstallerURL(ctx context.Context, latestUR
 	}
 }
 
-// cachedVendorInstaller returns the version and SHA-256 recorded in the app's current
-// output when it already points at installerURL, or empty strings when it doesn't.
-func (i *wingetIngester) cachedVendorInstaller(slug, installerURL string) (version, sha256 string, err error) {
-	b, err := os.ReadFile(path.Join(i.outputPath, slug+".json"))
+// cachedVendorInstaller returns the installer recorded in the app's current output when
+// it already points at installerURL, or nil when the installer has to be downloaded.
+func (i *wingetIngester) cachedVendorInstaller(input inputApp, installerURL string) (*vendorInstaller, error) {
+	b, err := os.ReadFile(path.Join(i.outputPath, input.Slug+".json"))
 	if errors.Is(err, fs.ErrNotExist) {
-		return "", "", nil
+		return nil, nil
 	}
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	var out maintained_apps.FMAManifestFile
 	if err := json.Unmarshal(b, &out); err != nil {
-		return "", "", fmt.Errorf("unmarshal %s output: %w", slug, err)
+		return nil, fmt.Errorf("unmarshal %s output: %w", input.Slug, err)
 	}
 	if len(out.Versions) == 0 {
-		return "", "", nil
+		return nil, nil
 	}
 	v := out.Versions[0]
 	if v.InstallerURL != installerURL || v.Version == "" || v.SHA256 == "" || v.SHA256 == "no_check" {
-		return "", "", nil
+		return nil, nil
 	}
-	return v.Version, v.SHA256, nil
+	// The output doesn't record an MSI's product code, so reuse it only when the generated
+	// uninstall script goes by upgrade code instead.
+	if input.InstallerType == installerTypeMSI && (v.UpgradeCode == "" || input.UninstallScriptPath != "") {
+		return nil, nil
+	}
+	return &vendorInstaller{version: v.Version, sha256: v.SHA256, upgradeCode: v.UpgradeCode}, nil
 }
 
-// downloadVendorInstaller downloads the installer to a temporary file and returns its
-// ProductVersion and SHA-256.
-func (i *wingetIngester) downloadVendorInstaller(ctx context.Context, installerURL string) (version, sha256 string, err error) {
+// downloadVendorInstaller downloads the installer to a temporary file and reads its
+// version (ProductVersion), SHA-256, and for an MSI its product and upgrade codes.
+func (i *wingetIngester) downloadVendorInstaller(ctx context.Context, installerURL, installerType string) (*vendorInstaller, error) {
 	ctx, cancel := context.WithTimeout(ctx, vendorDownloadTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "creating vendor installer request")
+		return nil, ctxerr.Wrap(ctx, err, "creating vendor installer request")
 	}
 	resp, err := i.vendorClient.Do(req)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, asTransientNetworkError(installerURL, err), "downloading vendor installer")
+		return nil, ctxerr.Wrap(ctx, asTransientNetworkError(installerURL, err), "downloading vendor installer")
 	}
 	defer resp.Body.Close()
 	if err := checkVendorStatus(installerURL, resp); err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "downloading vendor installer")
+		return nil, ctxerr.Wrap(ctx, err, "downloading vendor installer")
 	}
 
 	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, asTransientNetworkError(installerURL, err), "saving vendor installer")
+		return nil, ctxerr.Wrap(ctx, asTransientNetworkError(installerURL, err), "saving vendor installer")
 	}
 	defer tfr.Close()
 
-	meta, err := file.ExtractPEMetadata(tfr)
+	meta, err := file.ExtractInstallerMetadata(tfr)
 	if err != nil {
-		return "", "", ctxerr.Wrap(ctx, err, "reading vendor installer metadata")
+		return nil, ctxerr.Wrapf(ctx, err, "reading vendor installer metadata from %s", installerURL)
 	}
-	version = strings.TrimSpace(meta.Version)
-	if version == "" {
-		return "", "", ctxerr.Errorf(ctx, "vendor installer %s has no ProductVersion", installerURL)
+	if meta.Extension != installerType {
+		return nil, ctxerr.Errorf(ctx, "vendor installer %s is an %s file, not %s", installerURL, meta.Extension, installerType)
 	}
-	return version, hex.EncodeToString(meta.SHASum), nil
+	inst := &vendorInstaller{
+		version:     strings.TrimSpace(meta.Version),
+		sha256:      hex.EncodeToString(meta.SHASum),
+		upgradeCode: meta.UpgradeCode,
+	}
+	if inst.version == "" {
+		return nil, ctxerr.Errorf(ctx, "vendor installer %s has no ProductVersion", installerURL)
+	}
+	if installerType == installerTypeMSI && len(meta.PackageIDs) > 0 {
+		inst.productCode = meta.PackageIDs[0]
+	}
+	return inst, nil
 }

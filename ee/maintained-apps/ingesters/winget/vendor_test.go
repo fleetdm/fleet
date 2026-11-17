@@ -29,7 +29,8 @@ func TestValidateSource(t *testing.T) {
 		{name: "both", input: inputApp{PackageIdentifier: "Foo.Bar", LatestInstallerURL: "https://example.com/latest"}, wantErr: "can't both be set"},
 		{name: "vendor over http", input: inputApp{LatestInstallerURL: "http://example.com/latest", ProgramPublisher: "Foo", InstallerType: "exe"}, wantErr: "must be an https URL"},
 		{name: "vendor without publisher", input: inputApp{LatestInstallerURL: "https://example.com/latest", InstallerType: "exe"}, wantErr: "requires program_publisher"},
-		{name: "vendor msi", input: inputApp{LatestInstallerURL: "https://example.com/latest", ProgramPublisher: "Foo", InstallerType: "msi"}, wantErr: "only supports installer_type exe"},
+		{name: "vendor msi", input: inputApp{LatestInstallerURL: "https://example.com/latest", ProgramPublisher: "Foo", InstallerType: "msi"}},
+		{name: "vendor msix", input: inputApp{LatestInstallerURL: "https://example.com/latest", ProgramPublisher: "Foo", InstallerType: "msix"}, wantErr: "supports installer_type msi or exe"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -198,5 +199,76 @@ func TestIngestOneVendor(t *testing.T) {
 		_, err := i.ingestOne(ctx, input)
 		require.ErrorContains(t, err, "returned 403")
 		require.False(t, isTransientVendorError(err))
+	})
+}
+
+func TestIngestOneVendorMSI(t *testing.T) {
+	ctx := t.Context()
+	msi, err := os.ReadFile("../../../../server/service/testdata/software-installers/fleet-osquery.msi")
+	require.NoError(t, err)
+	exe, err := os.ReadFile("../../../../pkg/file/testdata/software-installers/hello-world-installer.exe")
+	require.NoError(t, err)
+
+	var downloads atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/latest":
+			http.Redirect(w, r, "/files/foo-1.msi", http.StatusFound)
+		case "/latest-exe":
+			http.Redirect(w, r, "/files/foo-1.exe", http.StatusFound)
+		case "/files/foo-1.msi":
+			if r.Method == http.MethodGet {
+				downloads.Add(1)
+			}
+			_, _ = w.Write(msi)
+		case "/files/foo-1.exe":
+			_, _ = w.Write(exe)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	outputDir := t.TempDir()
+	i := &wingetIngester{logger: slog.New(slog.DiscardHandler), vendorClient: srv.Client(), outputPath: outputDir}
+	input := inputApp{
+		Name:               "Foo",
+		Slug:               "foo/windows",
+		LatestInstallerURL: srv.URL + "/latest",
+		UniqueIdentifier:   "Foo",
+		ProgramPublisher:   "Foo, Inc",
+		InstallerArch:      "x64",
+		InstallerType:      "msi",
+		InstallerScope:     "machine",
+	}
+
+	out, err := i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.NotEmpty(t, out.Version)
+	require.NotEmpty(t, out.UpgradeCode)
+	require.Contains(t, out.UninstallScript, out.UpgradeCode, "the generated uninstall script goes by upgrade code")
+	require.Contains(t, out.Queries.Patched, "version_compare(version, '"+out.Version+"') < 0")
+	require.EqualValues(t, 1, downloads.Load())
+
+	t.Run("reuses the current output, upgrade code included", func(t *testing.T) {
+		b, err := json.Marshal(maintained_apps.FMAManifestFile{Versions: []*maintained_apps.FMAManifestApp{out}})
+		require.NoError(t, err)
+		require.NoError(t, os.MkdirAll(filepath.Join(outputDir, "foo"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(outputDir, "foo", "windows.json"), b, 0o644))
+
+		cached, err := i.ingestOne(ctx, input)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, downloads.Load())
+		require.Equal(t, out.Version, cached.Version)
+		require.Equal(t, out.SHA256, cached.SHA256)
+		require.Equal(t, out.UpgradeCode, cached.UpgradeCode)
+		require.Equal(t, out.UninstallScript, cached.UninstallScript)
+	})
+
+	t.Run("a file of the wrong type is rejected", func(t *testing.T) {
+		in := input
+		in.LatestInstallerURL = srv.URL + "/latest-exe"
+		_, err := i.ingestOne(ctx, in)
+		require.ErrorContains(t, err, "is an exe file, not msi")
 	})
 }
