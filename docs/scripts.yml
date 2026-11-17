@@ -768,8 +768,9 @@
 
         #Remove HKLM registry entries
         Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
-          # Filter for osquery entries
-          $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -in @("Fleet osquery", "Fleet"))}
+          # Filter for fleetd entries. Fleet 5 renames fleetd's entry to "Fleet", so match that name only with Fleet's publisher:
+          # other apps are also called "Fleet".
+          $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery") -or ($_.DisplayName -eq "Fleet" -and $_.Publisher -eq "Fleet Device Management (fleetdm.com)")}
           if ($properties) {
             #Remove Registry Entries
             $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
