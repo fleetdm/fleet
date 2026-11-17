@@ -326,10 +326,10 @@ func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
 			decryptable, chunk, threshold,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("building query for SetHostsDiskEncryptionKeyStatus, at chunk %d (total=%d)", chunk[len(chunk)-1], len(hostIDs)))
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("executing query for SetHostsDiskEncryptionKeyStatus, at chunk %d (total=%d)", chunk[len(chunk)-1], len(hostIDs)))
 		}
 	}
 
