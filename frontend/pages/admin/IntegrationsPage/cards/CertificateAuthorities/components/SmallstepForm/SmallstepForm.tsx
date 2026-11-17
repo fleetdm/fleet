@@ -21,7 +21,6 @@ interface ISmallstepFormProps {
   formData: ISmallstepFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  /** The CA being edited, which may keep its own name */
   editingCertAuthorityId?: number;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;

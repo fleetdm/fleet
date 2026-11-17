@@ -31,7 +31,6 @@ interface IGoogleCASFormProps {
   certAuthorities?: ICertificateAuthorityPartial[];
   /** The saved CA's values, when editing */
   defaultData?: IGoogleCASFormData;
-  /** The CA being edited, which may keep its own name and saved key */
   editingCertAuthorityId?: number;
   submitBtnText: string;
   isSubmitting: boolean;

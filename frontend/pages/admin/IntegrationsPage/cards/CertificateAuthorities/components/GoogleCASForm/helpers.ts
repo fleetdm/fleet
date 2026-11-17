@@ -26,7 +26,6 @@ const isJSONObject = (value: string) => {
 
 interface IValidateOptions {
   certAuthorities: ICertificateAuthorityPartial[];
-  /** The CA being edited, which may keep its own name. Unset when adding a CA. */
   editingId?: number;
 }
 
