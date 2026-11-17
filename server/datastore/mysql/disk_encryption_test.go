@@ -38,6 +38,7 @@ func TestDiskEncryption(t *testing.T) {
 		{"TestIsAppleMDMCommandPending", testIsAppleMDMCommandPending},
 		{"TestDiskEncryptionKeyRotationInProgress", testDiskEncryptionKeyRotationInProgress},
 		{"TestWSTEPEncryptedDiskEncryptionKeys", testWSTEPEncryptedDiskEncryptionKeys},
+		{"TestSetHostsDiskEncryptionKeyStatus", testSetHostsDiskEncryptionKeyStatus},
 	}
 
 	for _, c := range cases {
@@ -477,7 +478,8 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	ageBitLockerPINRequest(t, ds, unreported.ID, "updated_at", fleet.BitLockerPINResultTimeout+time.Minute)
 	// Refused as soon as it times out.
 	require.True(t, fleet.IsNotFound(
-		ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")))
+		ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, ""),
+	))
 
 	// Collected recently, so the agent may still report.
 	recentlyCollected := newBitLockerPINHost(t, ds)
@@ -859,4 +861,21 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
 	require.NoError(t, err)
 	require.Empty(t, archivedKeys)
+}
+
+func testSetHostsDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
+	t.Run("empty host id exits gracefully", func(t *testing.T) {
+		err := ds.SetHostsDiskEncryptionKeyStatus(t.Context(), []uint{}, true, time.Now())
+		require.NoError(t, err)
+	})
+
+	t.Run("more than 70k host ids are handled in chunks", func(t *testing.T) {
+		// technically chunked by 10k, but ~64k is the prepared statement limit, so 70k would fail if not chunked less than that at least.
+		hostIDs := make([]uint, 70_001)
+		for i := range hostIDs {
+			hostIDs[i] = uint(i + 1)
+		}
+		err := ds.SetHostsDiskEncryptionKeyStatus(t.Context(), hostIDs, true, time.Now())
+		require.NoError(t, err)
+	})
 }
