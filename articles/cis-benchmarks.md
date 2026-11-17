@@ -62,7 +62,7 @@ All CIS policies are stored under our restricted licensed folder `ee/cis/`. To e
 
 # convert.cis.policy.queries.yml @2025 Fleet Device Management
 
-# if using fleetctl - fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
+# if using fleetctl - fleetctl apply --policies-fleet "Workstations" -f cis-policy-queries.yml
 
 # This script takes as input the YAML from the file linked above & creates a new YAML array compatible with the "Separate file" format documented here:
 #    https://fleetdm.com/docs/configuration/yaml-files#separate-file
@@ -138,9 +138,9 @@ echo "Done. Output written to: $outputfile"
 
 3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
 
-If you're using `fleetctl apply`, you can apply the policies to a specific fleet use the `--policies-team` flag:
+If you're using `fleetctl apply`, you can apply the policies to a specific fleet use the `--policies-fleet` flag:
 ```sh
-fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
+fleetctl apply --policies-fleet "Workstations" -f cis-policy-queries.yml
 ```
 
 ## Levels 1 and 2

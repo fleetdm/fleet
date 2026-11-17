@@ -189,7 +189,7 @@ controls:
   scripts:
     - path: ../platforms/linux/scripts/install-internal-ca.sh
 software:
-team_settings:
+settings:
 ```
 
 **platforms/linux/policies/internal-certificate.yml**
