@@ -13,7 +13,7 @@ export type TracerStep = {
   title: string;
   narrative: string;
   snippet?: { path: string; start: number; end: number; caption?: string };
-  analogue?: { go: string; fe: string };
+  technicalHelp?: { technical: string; analogies: string[] };
 };
 
 export type TracedEndpoint = {
@@ -63,9 +63,9 @@ The three arguments are the URL path, the endpoint function (the business adapte
           end: 515,
           caption: "ue.GET registers the route with user-auth middleware applied",
         },
-        analogue: {
-          go: "ue.GET(path, endpointFunc, requestZeroValue) tells the framework: for this URL, decode into this struct, then call this function.",
-          fe: "Like app.get(path, authMiddleware, handler) in Express, except the request-shape is declared up-front so decoding is automatic.",
+        technicalHelp: {
+          technical: "ue.GET(path, endpointFunc, requestZeroValue) tells the framework: for this URL, decode into this struct, then call this function.",
+          analogies: ["Like app.get(path, authMiddleware, handler) in Express, except the request-shape is declared up-front so decoding is automatic."],
         },
       },
       {
@@ -83,9 +83,9 @@ The service never sees an \`*http.Request\`. By the time your business code runs
           caption:
             "listHostsRequest struct: query params → typed fields via struct tags",
         },
-        analogue: {
-          go: "Struct tags like `url:\"page\"` tell the decoder which query-string key fills which field.",
-          fe: "Like Zod schemas you parse `req.query` into, except Go does it at the framework layer, not inside your handler.",
+        technicalHelp: {
+          technical: "Struct tags like `url:\"page\"` tell the decoder which query-string key fills which field.",
+          analogies: ["Like Zod schemas you parse `req.query` into, except Go does it at the framework layer, not inside your handler."],
         },
       },
       {
@@ -105,9 +105,9 @@ Notice this function has no SQL and no auth checks. Both are elsewhere.
           caption:
             "The endpoint resolves a few request-shape conveniences then delegates to svc",
         },
-        analogue: {
-          go: "The endpoint function is the Go-kit layer between transport (HTTP) and business logic (Service).",
-          fe: "Picture a thin controller: no DB calls, no business rules, just marshal request → service → response.",
+        technicalHelp: {
+          technical: "The endpoint function is the Go-kit layer between transport (HTTP) and business logic (Service).",
+          analogies: ["Picture a thin controller: no DB calls, no business rules, just marshal request → service → response."],
         },
       },
       {
@@ -124,9 +124,9 @@ Why the iterator? Fleet can be asked to return a lot of hosts. The iterator patt
           end: 432,
           caption: "ListHosts → StreamHosts; just collects the iterator",
         },
-        analogue: {
-          go: "iter.Seq2[T, error] = a sequence of (value, error) pairs you range over.",
-          fe: "Async iterators / for-await loops. for host, err := range iter == for await (const [host, err] of iter).",
+        technicalHelp: {
+          technical: "iter.Seq2[T, error] = a sequence of (value, error) pairs you range over.",
+          analogies: ["Async iterators / for-await loops. for host, err := range iter == for await (const [host, err] of iter)."],
         },
       },
       {
@@ -146,9 +146,9 @@ Miss this call and you have a security bug. Fleet has architecture tests that li
           caption:
             "Authz at the top; team filter built from the viewer; premium filter sanitization",
         },
-        analogue: {
-          go: "svc.authz.Authorize(ctx, target, action) hands off to OPA; policy files decide allow/deny.",
-          fe: "Instead of if (user.role !== 'admin') return 403 scattered through handlers, Fleet declares access rules in Rego and consults them uniformly.",
+        technicalHelp: {
+          technical: "svc.authz.Authorize(ctx, target, action) hands off to OPA; policy files decide allow/deny.",
+          analogies: ["Instead of if (user.role !== 'admin') return 403 scattered through handlers, Fleet declares access rules in Rego and consults them uniformly."],
         },
       },
       {
@@ -165,9 +165,9 @@ The service doesn't know whether the datastore is MySQL, a mock, or anything els
           end: 473,
           caption: "The datastore call: no SQL in sight",
         },
-        analogue: {
-          go: "ds fleet.Datastore is injected; service depends on the interface, not the concrete MySQL type.",
-          fe: "Dependency injection via constructor. In tests, pass a stub; in prod, pass the real one.",
+        technicalHelp: {
+          technical: "ds fleet.Datastore is injected; service depends on the interface, not the concrete MySQL type.",
+          analogies: ["Dependency injection via constructor. In tests, pass a stub; in prod, pass the real one."],
         },
       },
       {
@@ -188,9 +188,9 @@ Two backend conventions to notice:
           caption:
             "ds.ListHosts: hand-written SQL assembled from the options struct",
         },
-        analogue: {
-          go: "Fleet uses sqlx with named/positional params; no ORM. SELECTs read replicas, INSERT/UPDATE/DELETE hit primary.",
-          fe: "Like writing raw SQL with Knex or the pg driver, but with Go's typed struct scanning via sqlx tags.",
+        technicalHelp: {
+          technical: "Fleet uses sqlx with named/positional params; no ORM. SELECTs read replicas, INSERT/UPDATE/DELETE hit primary.",
+          analogies: ["Like writing raw SQL with Knex or the pg driver, but with Go's typed struct scanning via sqlx tags."],
         },
       },
       {
@@ -201,9 +201,9 @@ The service returns \`[]*fleet.Host, error\`. The endpoint wraps it as \`listHos
 
 If error was non-nil, the response's \`Err\` field is populated and the encoder translates it to an HTTP status code (often 500, 400, or 403 depending on error type).
 `,
-        analogue: {
-          go: "Response struct's JSON tags define the wire format. Err field is special-cased by the encoder.",
-          fe: "res.json(result) with uniform error handling. The response type is the API contract.",
+        technicalHelp: {
+          technical: "Response struct's JSON tags define the wire format. Err field is special-cased by the encoder.",
+          analogies: ["res.json(result) with uniform error handling. The response type is the API contract."],
         },
       },
     ],
@@ -288,9 +288,9 @@ Device-token and device-URL authentications skip this because they already prove
           end: 949,
           caption: "The 'can you see any hosts?' gate",
         },
-        analogue: {
-          go: "svc.authz.Authorize checks a generic action on a zero-value Host. It's a coarse pre-check.",
-          fe: "Like checking isAuthenticated before loading the record and *then* checking record-level permissions.",
+        technicalHelp: {
+          technical: "svc.authz.Authorize checks a generic action on a zero-value Host. It's a coarse pre-check.",
+          analogies: ["Like checking isAuthenticated before loading the record and *then* checking record-level permissions."],
         },
       },
       {
@@ -305,9 +305,9 @@ Fleet keeps per-host rollups in \`host_issues\` (failing policy count + critical
           end: 956,
           caption: "Inline rollup freshness check",
         },
-        analogue: {
-          go: "Lazy cache invalidation: read, check age, recompute if stale.",
-          fe: "Like TanStack Query's staleTime: 60_000. Serve cached, revalidate in the background.",
+        technicalHelp: {
+          technical: "Lazy cache invalidation: read, check age, recompute if stale.",
+          analogies: ["Like TanStack Query's staleTime: 60_000. Serve cached, revalidate in the background."],
         },
       },
       {
@@ -318,9 +318,9 @@ The datastore method joins host_disks, host_operating_system, host_additional, a
 
 Separate from this, the service makes several more datastore calls to load MDM state, policies, software, labels. Each with its own authz consideration.
 `,
-        analogue: {
-          go: "Multiple datastore calls per endpoint are normal. Fleet does not try to one-shot every endpoint as a monster JOIN.",
-          fe: "Think of it as a service orchestrating multiple API calls, not one GraphQL query.",
+        technicalHelp: {
+          technical: "Multiple datastore calls per endpoint are normal. Fleet does not try to one-shot every endpoint as a monster JOIN.",
+          analogies: ["Think of it as a service orchestrating multiple API calls, not one GraphQL query."],
         },
       },
       {
@@ -331,9 +331,9 @@ Now that \`team_id\` is loaded, Fleet re-runs authz against the loaded host. A t
 
 Two-stage authz prevents leaking existence of hosts.
 `,
-        analogue: {
-          go: "Pre-authz on the class (Host), then post-authz on the instance with team_id attached.",
-          fe: "Load-then-check vs check-then-load. Fleet does both, in that order, to avoid existence leaks.",
+        technicalHelp: {
+          technical: "Pre-authz on the class (Host), then post-authz on the instance with team_id attached.",
+          analogies: ["Load-then-check vs check-then-load. Fleet does both, in that order, to avoid existence leaks."],
         },
       },
       {
@@ -342,9 +342,9 @@ Two-stage authz prevents leaking existence of hosts.
         narrative: `
 A helper walks the \`*fleet.HostDetail\` and hoists device-mapping, labels, software, policies, and MDM state into the response shape the UI expects. Query flags like \`exclude_software\` toggle which blocks are populated.
 `,
-        analogue: {
-          go: "Composition in the response layer, not the service. Keeps the service surface stable while the API shape evolves.",
-          fe: "Like React Query's select: whittle the server shape to what the UI wants.",
+        technicalHelp: {
+          technical: "Composition in the response layer, not the service. Keeps the service surface stable while the API shape evolves.",
+          analogies: ["Like React Query's select: whittle the server shape to what the UI wants."],
         },
       },
     ],
@@ -402,9 +402,9 @@ Before calling the service, the endpoint checks that \`req.APIEndpoints\` is nil
           end: 65,
           caption: "Pre-authz guardrail for a managed field",
         },
-        analogue: {
-          go: "setAuthCheckedOnPreAuthErr tells middleware 'yes, I know what I'm doing. Ship this error even though authz didn't run.'",
-          fe: "Like short-circuiting form validation before touching any backend state.",
+        technicalHelp: {
+          technical: "setAuthCheckedOnPreAuthErr tells middleware 'yes, I know what I'm doing. Ship this error even though authz didn't run.'",
+          analogies: ["Like short-circuiting form validation before touching any backend state."],
         },
       },
       {
@@ -422,9 +422,9 @@ All of this happens before any INSERT touches MySQL.
           caption:
             "Authz → payload validation → license gating → team existence check",
         },
-        analogue: {
-          go: "Fleet puts premium gating in the service layer so both main and ee binaries share the same restriction code paths.",
-          fe: "Equivalent of 'validate on both server and client'. but here the layering means premium checks aren't duplicated between core and ee.",
+        technicalHelp: {
+          technical: "Fleet puts premium gating in the service layer so both main and ee binaries share the same restriction code paths.",
+          analogies: ["Equivalent of 'validate on both server and client'. but here the layering means premium checks aren't duplicated between core and ee."],
         },
       },
       {
@@ -436,9 +436,9 @@ Below the snippet range, the service does the write-path work:
 - Generate a secure random \`sessionKey\` so the created user can log in immediately.
 - Compose a \`*fleet.User\` with the hashed password + team memberships.
 `,
-        analogue: {
-          go: "Password hashing is service-layer, not handler-layer. The datastore stores the hash.",
-          fe: "You'd never hash on the client; same idea here. Hashing is business logic, not transport.",
+        technicalHelp: {
+          technical: "Password hashing is service-layer, not handler-layer. The datastore stores the hash.",
+          analogies: ["You'd never hash on the client; same idea here. Hashing is business logic, not transport."],
         },
       },
       {
@@ -449,9 +449,9 @@ The datastore method INSERTs into \`users\` and (if teams were assigned) into \`
 
 Fleet is strict about using \`DBWriter\` for writes and following them with any read-your-writes on the writer connection as well.
 `,
-        analogue: {
-          go: "DBWriter for the INSERT; subsequent reads in the same request also go to DBWriter if you need to read-back-your-write.",
-          fe: "Like optimistic-UI with a cache update: you write and immediately read the same key. But on the writer side.",
+        technicalHelp: {
+          technical: "DBWriter for the INSERT; subsequent reads in the same request also go to DBWriter if you need to read-back-your-write.",
+          analogies: ["Like optimistic-UI with a cache update: you write and immediately read the same key. But on the writer side."],
         },
       },
       {
@@ -460,9 +460,9 @@ Fleet is strict about using \`DBWriter\` for writes and following them with any 
         narrative: `
 After the INSERT succeeds, the service calls \`svc.NewActivity(ctx, actor, activity_api.ActivityTypeCreatedUser)\` to record who created whom. This is the audit log; missing calls here are the #1 "where's the audit trail?" bug class.
 `,
-        analogue: {
-          go: "Side-effect after primary action, deliberately NOT in a transaction with it. A failed activity write doesn't fail the user create.",
-          fe: "Like firing analytics after a successful mutation, not before.",
+        technicalHelp: {
+          technical: "Side-effect after primary action, deliberately NOT in a transaction with it. A failed activity write doesn't fail the user create.",
+          analogies: ["Like firing analytics after a successful mutation, not before."],
         },
       },
       {
@@ -473,9 +473,9 @@ The response includes the created \`*fleet.User\` and the generated \`sessionKey
 
 Response-layer encoding translates any error into an HTTP status code via the standard \`Err\` field.
 `,
-        analogue: {
-          go: "A single response struct carries both the entity and the auth token; typical of 'just-created-this' POSTs.",
-          fe: "Like a signup endpoint that returns the new user AND their session token in one shot.",
+        technicalHelp: {
+          technical: "A single response struct carries both the entity and the auth token; typical of 'just-created-this' POSTs.",
+          analogies: ["Like a signup endpoint that returns the new user AND their session token in one shot."],
         },
       },
     ],
@@ -526,9 +526,9 @@ Request body includes:
 - \`host_identifier\`: how the host identifies itself (uuid, hostname, instance id, …)
 - \`host_details\`: a map keyed by osquery table name (\`system_info\`, \`os_version\`) carrying the one-shot inventory the agent ships with its first-ever request
 `,
-        analogue: {
-          go: "The decoded struct is defined in Fleet's contract package so the osquery agent and server share the shape.",
-          fe: "Treat 'contract' packages like shared TypeScript types published to both ends of a boundary.",
+        technicalHelp: {
+          technical: "The decoded struct is defined in Fleet's contract package so the osquery agent and server share the shape.",
+          analogies: ["Treat 'contract' packages like shared TypeScript types published to both ends of a boundary."],
         },
       },
       {
@@ -558,9 +558,9 @@ The comment calls out that authz is "currently for user endpoints only". Osquery
           end: 160,
           caption: "An explicit skip beats a forgotten check",
         },
-        analogue: {
-          go: "SkipAuthorization is the escape hatch for request paths without a user. Architecture tests enforce one of {Authorize, SkipAuthorization} per method.",
-          fe: "Like having a lint rule that requires either an auth check or an explicit \"// unauthenticated\" marker.",
+        technicalHelp: {
+          technical: "SkipAuthorization is the escape hatch for request paths without a user. Architecture tests enforce one of {Authorize, SkipAuthorization} per method.",
+          analogies: ["Like having a lint rule that requires either an auth check or an explicit \"// unauthenticated\" marker."],
         },
       },
       {
@@ -575,9 +575,9 @@ The agent's first \`enroll\` request includes a snapshot of some osquery tables.
           end: 180,
           caption: "The enroll payload includes a one-shot inventory",
         },
-        analogue: {
-          go: "osquery tables arrive as nested string maps. Fleet pulls out exactly the fields it needs for identity.",
-          fe: "Like a signup request body carrying device fingerprint fields; Fleet uses them to deduplicate re-registrations.",
+        technicalHelp: {
+          technical: "osquery tables arrive as nested string maps. Fleet pulls out exactly the fields it needs for identity.",
+          analogies: ["Like a signup request body carrying device fingerprint fields; Fleet uses them to deduplicate re-registrations."],
         },
       },
       {
@@ -603,9 +603,9 @@ Either path produces a team_id (which fleet the enrolling host joins) and emits 
         narrative: `
 Below the snippet range, the service hands off to a datastore method that either inserts a new row into \`hosts\` or re-adopts an existing row (same UUID + serial from a previous enroll). It mints a fresh node_key for both paths. For one-time secrets, it also writes to \`host_one_time_enroll_secrets\` to burn the token.
 `,
-        analogue: {
-          go: "Create-or-adopt is one of Fleet's most repeated patterns: dedupe on hardware identity so re-enrollments stay 'the same host'.",
-          fe: "Like upsert semantics on a user record keyed by email: new email = new row, existing email = adopt.",
+        technicalHelp: {
+          technical: "Create-or-adopt is one of Fleet's most repeated patterns: dedupe on hardware identity so re-enrollments stay 'the same host'.",
+          analogies: ["Like upsert semantics on a user record keyed by email: new email = new row, existing email = adopt."],
         },
       },
       {
@@ -614,9 +614,9 @@ Below the snippet range, the service hands off to a datastore method that either
         narrative: `
 The service returns the newly-minted node_key. The endpoint wraps it in \`EnrollOsqueryAgentResponse\`. The agent stores it; every subsequent \`/api/osquery/*\` request includes the node_key as its auth proof.
 `,
-        analogue: {
-          go: "Enroll secret → node key: it's an exchange of a shared secret for a per-host bearer token, like OAuth2's authorization code → access token.",
-          fe: "A session token issued at signup. The host 'logs in' once and reuses the token forever (until re-enroll).",
+        technicalHelp: {
+          technical: "Enroll secret → node key: it's an exchange of a shared secret for a per-host bearer token, like OAuth2's authorization code → access token.",
+          analogies: ["A session token issued at signup. The host 'logs in' once and reuses the token forever (until re-enroll)."],
         },
       },
     ],
@@ -698,9 +698,9 @@ This is the Enterprise-wrapper pattern laid bare. The core service's method is t
           end: 814,
           caption: "Fleet Free: the method is a stub",
         },
-        analogue: {
-          go: "Core stubs with ErrMissingLicense; ee struct embeds core and overrides the method. Dispatch picks the ee version via Go's method set resolution.",
-          fe: "Like a plan-gated feature flag, except enforced by code structure instead of a boolean check scattered through the codebase.",
+        technicalHelp: {
+          technical: "Core stubs with ErrMissingLicense; ee struct embeds core and overrides the method. Dispatch picks the ee version via Go's method set resolution.",
+          analogies: ["Like a plan-gated feature flag, except enforced by code structure instead of a boolean check scattered through the codebase."],
         },
       },
       {
@@ -718,9 +718,9 @@ When Fleet is built with the Enterprise wrapper (every production binary), \`ee/
 
 Each branch writes to \`upcoming_activities\` and a per-type companion row (\`software_install_upcoming_activities\`, \`vpp_app_upcoming_activities\`, …) with status=pending.
 `,
-        analogue: {
-          go: "Branching happens inside the ee service, not the endpoint. The admin button doesn't know the title's type; the service figures it out.",
-          fe: "Like a 'install' button whose click handler dispatches to one of several side-effects based on resource type. But the dispatch is server-side.",
+        technicalHelp: {
+          technical: "Branching happens inside the ee service, not the endpoint. The admin button doesn't know the title's type; the service figures it out.",
+          analogies: ["Like a 'install' button whose click handler dispatches to one of several side-effects based on resource type. But the dispatch is server-side."],
         },
       },
       {
@@ -729,9 +729,9 @@ Each branch writes to \`upcoming_activities\` and a per-type companion row (\`so
         narrative: `
 The install intent is persisted across multiple tables in one transaction. On success the admin sees a pending row immediately. The device-side delivery is driven separately by osquery polling (for custom + FMA + in-house) or by the apple_software worker (for VPP).
 `,
-        analogue: {
-          go: "A single mutation touches multiple tables inside one DB transaction. If the transaction fails, nothing is partially-visible.",
-          fe: "Like an atomic optimistic UI update across multiple cache entries. All or nothing.",
+        technicalHelp: {
+          technical: "A single mutation touches multiple tables inside one DB transaction. If the transaction fails, nothing is partially-visible.",
+          analogies: ["Like an atomic optimistic UI update across multiple cache entries. All or nothing."],
         },
       },
       {
@@ -742,9 +742,9 @@ After the writes land, the service logs an activity ('user U queued install of X
 
 Why? Because Fleet never pushes to hosts. The device will see the pending install on its next osquery config poll (~10 s), download the bytes itself, run the install scripts, and post the result back. This decoupling is the whole reason upcoming_activities exists.
 `,
-        analogue: {
-          go: "Write intent, let the client pull. The service is a scheduler, not an executor.",
-          fe: "Like a React Query mutation that updates server state and relies on polling to pick up the completion.",
+        technicalHelp: {
+          technical: "Write intent, let the client pull. The service is a scheduler, not an executor.",
+          analogies: ["Like a React Query mutation that updates server state and relies on polling to pick up the completion."],
         },
       },
       {

@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { useIsHydrated } from "@/lib/use-is-hydrated";
 import { REVIEW_AI_QUESTIONS, type ReviewAIQuestion } from "./questions";
 
-const STORAGE_KEY_IN_PROGRESS = "fleet-atlas:review-ai:in-progress";
-const STORAGE_KEY_BEST = "fleet-atlas:review-ai:best";
+const IN_PROGRESS_KEY = "fleet-atlas:review-ai:in-progress";
+const STORAGE_KEY = "fleet-atlas:review-ai:best";
 
 type Attempt = {
   questionId: string;
@@ -38,7 +38,7 @@ function shuffle<T>(arr: T[]): T[] {
 function readProgress(): Progress | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_IN_PROGRESS);
+    const raw = localStorage.getItem(IN_PROGRESS_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as Progress;
   } catch {
@@ -49,16 +49,16 @@ function readProgress(): Progress | null {
 function writeProgress(p: Progress | null) {
   if (typeof window === "undefined") return;
   if (p === null) {
-    localStorage.removeItem(STORAGE_KEY_IN_PROGRESS);
+    localStorage.removeItem(IN_PROGRESS_KEY);
     return;
   }
-  localStorage.setItem(STORAGE_KEY_IN_PROGRESS, JSON.stringify(p));
+  localStorage.setItem(IN_PROGRESS_KEY, JSON.stringify(p));
 }
 
 function readBest(): Best | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_BEST);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as Best;
   } catch {
@@ -80,7 +80,7 @@ function writeBestIfBetter(attempts: Attempt[]) {
       bestAttempts: total,
       takenAt: Date.now(),
     };
-    localStorage.setItem(STORAGE_KEY_BEST, JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 }
 

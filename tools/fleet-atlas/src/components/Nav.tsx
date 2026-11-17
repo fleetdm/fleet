@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FEAnalogueToggle } from "./FEAnalogue";
+import { TechnicalHelpToggle } from "./TechnicalHelp";
 import { ThemeToggle } from "./Theme";
 import SearchButton from "./palette/SearchButton";
 
@@ -113,7 +113,7 @@ export default function Nav() {
       </div>
       <div className="flex-1" />
       <div className="flex items-center gap-2 pt-4">
-        <FEAnalogueToggle />
+        <TechnicalHelpToggle />
         <ThemeToggle />
       </div>
     </nav>

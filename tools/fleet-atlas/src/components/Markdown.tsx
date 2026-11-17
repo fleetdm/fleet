@@ -2,7 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useFEAnalogue } from "./FEAnalogue";
+import { useTechnicalHelp } from "./TechnicalHelp";
 import GlossaryTermChip from "./GlossaryTermChip";
 
 // Section headings that are hidden when Technical help mode is off.
@@ -190,7 +190,7 @@ function renderMarkdown(md: string, techHelpHeadingVariant: "chip" | "plain") {
 }
 
 export default function Markdown({ children }: { children: string }) {
-  const { on } = useFEAnalogue();
+  const { on } = useTechnicalHelp();
   const content = filterTechnicalHelp(children, on);
   const chunks = splitIntoChunks(content);
   return (

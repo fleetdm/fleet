@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Analogue } from "@/components/FEAnalogue";
+import { TechnicalHelp } from "@/components/TechnicalHelp";
 import Markdown from "@/components/Markdown";
 import { GROUP_META, getNode } from "@/components/arch/graph-data";
 import { NODE_DETAILS } from "@/components/arch/node-details";
@@ -123,9 +123,12 @@ export default async function ArchNodePage({
         </ul>
       </section>
 
-      {node.analogue ? (
+      {node.technicalHelp ? (
         <section className="mb-8">
-          <Analogue go={node.analogue.go} fe={node.analogue.fe} />
+          <TechnicalHelp
+            technical={node.technicalHelp.technical}
+            analogies={node.technicalHelp.analogies}
+          />
         </section>
       ) : null}
 

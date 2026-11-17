@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CodeSnippet from "@/components/CodeSnippet";
-import { Analogue } from "@/components/FEAnalogue";
+import { TechnicalHelp } from "@/components/TechnicalHelp";
 import Markdown from "@/components/Markdown";
 import { getTracer } from "@/components/tracer/tracers";
 import TracerStepQuiz from "@/components/tracer/TracerStepQuiz";
@@ -102,8 +102,11 @@ export default async function TracerDetail({
                   />
                 ) : null}
 
-                {step.analogue ? (
-                  <Analogue go={step.analogue.go} fe={step.analogue.fe} />
+                {step.technicalHelp ? (
+                  <TechnicalHelp
+                    technical={step.technicalHelp.technical}
+                    analogies={step.technicalHelp.analogies}
+                  />
                 ) : null}
               </li>
             ))}

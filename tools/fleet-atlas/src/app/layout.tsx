@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
-import { FEAnalogueProvider } from "@/components/FEAnalogue";
+import { TechnicalHelpProvider } from "@/components/TechnicalHelp";
 import { ThemeProvider } from "@/components/Theme";
 import CommandPalette from "@/components/palette/CommandPalette";
 import { PaletteProvider } from "@/components/palette/PaletteContext";
@@ -33,13 +33,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
         <ThemeProvider>
           <PaletteProvider>
-            <FEAnalogueProvider>
+            <TechnicalHelpProvider>
               <CommandPalette />
               <div className="flex min-h-screen">
                 <Nav />
                 <main className="flex-1 overflow-x-hidden">{children}</main>
               </div>
-            </FEAnalogueProvider>
+            </TechnicalHelpProvider>
           </PaletteProvider>
         </ThemeProvider>
       </body>

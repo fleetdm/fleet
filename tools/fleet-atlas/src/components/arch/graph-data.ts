@@ -14,7 +14,7 @@ export type ArchNode = {
   group: NodeGroup;
   blurb: string;
   repoPaths: { path: string; note?: string }[];
-  analogue?: { go: string; fe: string };
+  technicalHelp?: { technical: string; analogies: string[] };
   relatedModes?: { href: string; label: string }[];
   // Marks nodes whose underlying feature is premium-only.
   // The node often exists in Free codepaths too, but the capability it
@@ -98,9 +98,9 @@ export const NODES: ArchNode[] = [
       { path: "orbit/", note: "Fleet's osquery runtime" },
       { path: "server/service/osquery.go", note: "server-side TLS endpoints" },
     ],
-    analogue: {
-      go: "Agents send HTTP(S) requests to Fleet TLS endpoints.",
-      fe: "Think of this like a mobile app polling your API, except the API is also sending it work to do.",
+    technicalHelp: {
+      technical: "Agents send HTTP(S) requests to Fleet TLS endpoints.",
+      analogies: ["Think of this like a mobile app polling your API, except the API is also sending it work to do."],
     },
     relatedModes: [{ href: "/subsystems/osquery-tls", label: "Mode 5: osquery TLS" }],
     x: 0,
@@ -130,9 +130,9 @@ export const NODES: ArchNode[] = [
       { path: "frontend/" },
       { path: "frontend/services/", note: "API client" },
     ],
-    analogue: {
-      go: "The UI is just a client. Nothing you learn in Atlas is about the UI.",
-      fe: "You already know this layer: it's TanStack Query against a REST API.",
+    technicalHelp: {
+      technical: "The UI is just a client. Nothing you learn in Atlas is about the UI.",
+      analogies: ["You already know this layer: it's TanStack Query against a REST API."],
     },
     x: COL * 2,
     y: 0,
@@ -171,9 +171,9 @@ export const NODES: ArchNode[] = [
       { path: "server/service/handler.go", note: "MakeHandler" },
       { path: "server/service/endpoint_utils.go" },
     ],
-    analogue: {
-      go: "Each endpoint is a (request → service call → response) triple registered on a mux.",
-      fe: "Like an Express router but each route explicitly declares its request/response types.",
+    technicalHelp: {
+      technical: "Each endpoint is a (request → service call → response) triple registered on a mux.",
+      analogies: ["Like an Express router but each route explicitly declares its request/response types."],
     },
     relatedModes: [{ href: "/tracer", label: "Mode 2: trace a request" }],
     x: COL * 0.5,
@@ -221,9 +221,9 @@ export const NODES: ArchNode[] = [
       { path: "server/fleet/service.go", note: "interface" },
       { path: "server/service/", note: "impl" },
     ],
-    analogue: {
-      go: "The service type satisfies the fleet.Service interface. Endpoints call it, it calls the datastore.",
-      fe: "Like your service/ folder on the FE: pure business logic between API client and UI.",
+    technicalHelp: {
+      technical: "The service type satisfies the fleet.Service interface. Endpoints call it, it calls the datastore.",
+      analogies: ["Like your service/ folder on the FE: pure business logic between API client and UI."],
     },
     relatedModes: [{ href: "/tracer", label: "Mode 2: trace a request" }],
     x: COL * 1,
@@ -236,9 +236,9 @@ export const NODES: ArchNode[] = [
     blurb:
       "`ee/server/service` embeds the core service and intercepts methods with license-tier checks before delegating.",
     repoPaths: [{ path: "ee/server/service/" }],
-    analogue: {
-      go: "Embedded struct = inheritance by composition. The ee type overrides specific methods and calls super.",
-      fe: "Like a higher-order component that wraps and conditionally gates its child.",
+    technicalHelp: {
+      technical: "Embedded struct = inheritance by composition. The ee type overrides specific methods and calls super.",
+      analogies: ["Like a higher-order component that wraps and conditionally gates its child."],
     },
     x: COL * 2.3,
     y: ROW * 3.2,
@@ -261,9 +261,9 @@ export const NODES: ArchNode[] = [
     blurb:
       "The giant interface the service layer talks to. Keeps business logic unaware of SQL.",
     repoPaths: [{ path: "server/fleet/datastore.go" }],
-    analogue: {
-      go: "An interface so services are decoupled from storage. Mocked in tests, implemented by MySQL in prod.",
-      fe: "Like injecting a repository as a prop or React context so you can swap it in tests.",
+    technicalHelp: {
+      technical: "An interface so services are decoupled from storage. Mocked in tests, implemented by MySQL in prod.",
+      analogies: ["Like injecting a repository as a prop or React context so you can swap it in tests."],
     },
     x: COL * 1.5,
     y: ROW * 4.8,
@@ -333,9 +333,9 @@ export const NODES: ArchNode[] = [
       { path: "server/service/schedule/schedule.go" },
       { path: "server/cron/" },
     ],
-    analogue: {
-      go: "Goroutine ticker + distributed lock in Redis. On start, every instance tries to grab the lock; one wins.",
-      fe: "Imagine every browser tab setInterval'ing the same job and racing for a shared lock.",
+    technicalHelp: {
+      technical: "Goroutine ticker + distributed lock in Redis. On start, every instance tries to grab the lock; one wins.",
+      analogies: ["Imagine every browser tab setInterval'ing the same job and racing for a shared lock."],
     },
     relatedModes: [{ href: "/background", label: "Mode 4: Cron" }],
     x: COL * 5,

@@ -10,7 +10,7 @@ import {
   type QuizBucket,
   type QuizQuestion,
 } from "./questions";
-import { Analogue } from "@/components/FEAnalogue";
+import { TechnicalHelp } from "@/components/TechnicalHelp";
 import { CATEGORY_COLORS, TERMS } from "./terms";
 import QuizFormatChip from "@/components/QuizFormatChip";
 
@@ -721,8 +721,8 @@ export default function Quiz() {
             ) : null}
             {termForLatest.technicalHelp ? (
               <div className="mt-2">
-                <Analogue
-                  go={termForLatest.technicalHelp.technical}
+                <TechnicalHelp
+                  technical={termForLatest.technicalHelp.technical}
                   analogies={termForLatest.technicalHelp.analogies}
                 />
               </div>

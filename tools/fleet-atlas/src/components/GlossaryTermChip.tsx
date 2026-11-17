@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { TERMS, CATEGORY_COLORS } from "@/components/glossary/terms";
-import { Analogue } from "@/components/FEAnalogue";
+import { TechnicalHelp } from "@/components/TechnicalHelp";
 
 export default function GlossaryTermChip({
   slug,
@@ -76,8 +76,8 @@ export default function GlossaryTermChip({
           ) : null}
           {term.technicalHelp ? (
             <span className="mt-2 block">
-              <Analogue
-                go={term.technicalHelp.technical}
+              <TechnicalHelp
+                technical={term.technicalHelp.technical}
                 analogies={term.technicalHelp.analogies}
               />
             </span>

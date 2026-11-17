@@ -2,18 +2,20 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-type AnalogueCtx = {
+type TechnicalHelpCtx = {
   on: boolean;
   toggle: () => void;
 };
 
-const Ctx = createContext<AnalogueCtx | null>(null);
+const Ctx = createContext<TechnicalHelpCtx | null>(null);
 
-const KEY = "fleet-atlas:analogue-on";
+const KEY = "fleet-atlas:technical-help-on";
 
-// Export name kept as FEAnalogueProvider for backward compat; conceptually this
-// is now the Technical help mode provider.
-export function FEAnalogueProvider({ children }: { children: React.ReactNode }) {
+export function TechnicalHelpProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [on, setOn] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     const stored = localStorage.getItem(KEY);
@@ -29,14 +31,14 @@ export function FEAnalogueProvider({ children }: { children: React.ReactNode }) 
   return <Ctx.Provider value={{ on, toggle }}>{children}</Ctx.Provider>;
 }
 
-export function useFEAnalogue() {
+export function useTechnicalHelp() {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useFEAnalogue outside provider");
+  if (!ctx) throw new Error("useTechnicalHelp outside provider");
   return ctx;
 }
 
-export function FEAnalogueToggle() {
-  const { on, toggle } = useFEAnalogue();
+export function TechnicalHelpToggle() {
+  const { on, toggle } = useTechnicalHelp();
   return (
     <button
       onClick={toggle}
@@ -53,17 +55,15 @@ export function FEAnalogueToggle() {
   );
 }
 
-type AnalogueProps = {
+type TechnicalHelpProps = {
   // The dense/technical statement. Shown first in the popover.
-  go: string;
-  // One or many plain-language analogies. The old prop `fe` is accepted as a
-  // single-string analogy for back-compat with existing content.
-  fe?: string;
+  technical: string;
+  // One or many plain-language analogies.
   analogies?: string[];
 };
 
-export function Analogue({ go, fe, analogies }: AnalogueProps) {
-  const { on } = useFEAnalogue();
+export function TechnicalHelp({ technical, analogies }: TechnicalHelpProps) {
+  const { on } = useTechnicalHelp();
   const [open, setOpen] = useState(false);
   const [hover, setHover] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -81,10 +81,7 @@ export function Analogue({ go, fe, analogies }: AnalogueProps) {
 
   if (!on) return null;
 
-  const list: string[] = [
-    ...(analogies ?? []),
-    ...(fe ? [fe] : []),
-  ];
+  const list: string[] = analogies ?? [];
 
   const show = open || hover;
 
@@ -116,7 +113,9 @@ export function Analogue({ go, fe, analogies }: AnalogueProps) {
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
               What&apos;s happening (technical)
             </div>
-            <div className="text-sm text-zinc-800 dark:text-zinc-200">{go}</div>
+            <div className="text-sm text-zinc-800 dark:text-zinc-200">
+              {technical}
+            </div>
           </div>
           {list.length > 0 ? (
             <div>

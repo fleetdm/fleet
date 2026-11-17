@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FLEET_VALUES, canonicalize } from "./values";
 import { useIsHydrated } from "@/lib/use-is-hydrated";
 
-const STORAGE_KEY_BEST = "fleet-atlas:values-quiz-best";
+const STORAGE_KEY = "fleet-atlas:values-quiz-best";
 
 type Best = {
   bestCorrect: number;
@@ -15,7 +15,7 @@ type Best = {
 function readBest(): Best | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_BEST);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as Best;
   } catch {
@@ -28,7 +28,7 @@ function writeBestIfBetter(correct: number, total: number) {
   const current = readBest();
   if (!current || correct > current.bestCorrect) {
     const next: Best = { bestCorrect: correct, bestTotal: total, takenAt: Date.now() };
-    localStorage.setItem(STORAGE_KEY_BEST, JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 }
 

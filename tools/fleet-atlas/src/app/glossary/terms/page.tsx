@@ -10,7 +10,7 @@ import {
 import { BUCKETS } from "@/components/glossary/questions";
 import AssessmentPanel from "@/components/start/AssessmentPanel";
 import type { AssessmentRef } from "@/components/start/paths";
-import { Analogue } from "@/components/FEAnalogue";
+import { TechnicalHelp } from "@/components/TechnicalHelp";
 
 const ALL_GLOSSARY_ASSESSMENTS: AssessmentRef[] = BUCKETS.map((b) => ({
   surface: "glossary" as const,
@@ -120,8 +120,8 @@ export default function GlossaryTermsPage() {
               ) : null}
               {t.technicalHelp ? (
                 <div className="mt-2">
-                  <Analogue
-                    go={t.technicalHelp.technical}
+                  <TechnicalHelp
+                    technical={t.technicalHelp.technical}
                     analogies={t.technicalHelp.analogies}
                   />
                 </div>

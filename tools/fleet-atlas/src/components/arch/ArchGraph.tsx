@@ -19,7 +19,7 @@ import { useTheme } from "@/components/Theme";
 import { GROUP_META, type ArchEdge, type ArchNode } from "./graph-data";
 import TooltipEdge from "./TooltipEdge";
 import { ArchHoverCtx, type ArchHoverState } from "./hover-context";
-import { useFEAnalogue } from "@/components/FEAnalogue";
+import { useTechnicalHelp } from "@/components/TechnicalHelp";
 
 function GraphNodeBase({ data }: NodeProps<ArchNode>) {
   const meta = GROUP_META[data.group];
@@ -242,7 +242,7 @@ function HoverTooltip({
   text: string;
   techHelp?: string;
 }) {
-  const { on: techHelpOn } = useFEAnalogue();
+  const { on: techHelpOn } = useTechnicalHelp();
   const showTechHelp = techHelpOn && techHelp;
   return (
     <div
