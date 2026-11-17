@@ -2,7 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useTechnicalHelp } from "./TechnicalHelp";
+import { useTechnicalHelp } from "@/providers/TechnicalHelp";
 import GlossaryTermChip from "./GlossaryTermChip";
 
 // Section headings that are hidden when Technical help mode is off.

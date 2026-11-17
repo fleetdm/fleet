@@ -15,11 +15,11 @@ import ReactFlow, {
   useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useTheme } from "@/components/Theme";
+import { useTheme } from "@/providers/Theme";
 import { GROUP_META, type ArchEdge, type ArchNode } from "./graph-data";
 import TooltipEdge from "./TooltipEdge";
 import { ArchHoverCtx, type ArchHoverState } from "./hover-context";
-import { useTechnicalHelp } from "@/components/TechnicalHelp";
+import { useTechnicalHelp } from "@/providers/TechnicalHelp";
 
 function GraphNodeBase({ data }: NodeProps<ArchNode>) {
   const meta = GROUP_META[data.group];

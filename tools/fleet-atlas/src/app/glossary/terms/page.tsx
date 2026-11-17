@@ -10,7 +10,7 @@ import {
 import { BUCKETS } from "@/components/glossary/questions";
 import AssessmentPanel from "@/components/start/AssessmentPanel";
 import type { AssessmentRef } from "@/components/start/paths";
-import { TechnicalHelp } from "@/components/TechnicalHelp";
+import { TechnicalHelp } from "@/providers/TechnicalHelp";
 
 const ALL_GLOSSARY_ASSESSMENTS: AssessmentRef[] = BUCKETS.map((b) => ({
   surface: "glossary" as const,

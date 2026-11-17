@@ -11,7 +11,7 @@ import ReactFlow, {
   Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useTheme } from "@/components/Theme";
+import { useTheme } from "@/providers/Theme";
 import { ACTOR_COLORS, type Actor, type Step } from "./scenarios";
 
 const COL_W = 280;

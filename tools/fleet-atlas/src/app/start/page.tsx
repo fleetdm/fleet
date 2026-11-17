@@ -13,7 +13,7 @@ import {
   CROSS_CUTTING,
   handbookRoleForSlug,
 } from "@/components/start/handbook-data";
-import { useIsHydrated } from "@/lib/use-is-hydrated";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 
 const AXIS_KEY = "fleet-atlas:start-axis";
 const ROLE_KEY = "fleet-atlas:start-role";

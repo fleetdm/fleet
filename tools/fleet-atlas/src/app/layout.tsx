@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
-import { TechnicalHelpProvider } from "@/components/TechnicalHelp";
-import { ThemeProvider } from "@/components/Theme";
+import { TechnicalHelpProvider } from "@/providers/TechnicalHelp";
+import { ThemeProvider } from "@/providers/Theme";
 import CommandPalette from "@/components/palette/CommandPalette";
 import { PaletteProvider } from "@/components/palette/PaletteContext";
 

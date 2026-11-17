@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TechnicalHelp } from "@/components/TechnicalHelp";
+import { TechnicalHelp } from "@/providers/TechnicalHelp";
 import Markdown from "@/components/Markdown";
 import { GROUP_META, getNode } from "@/components/arch/graph-data";
 import { NODE_DETAILS } from "@/components/arch/node-details";

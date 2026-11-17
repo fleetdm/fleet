@@ -10,7 +10,7 @@ import {
   type QuizBucket,
   type QuizQuestion,
 } from "./questions";
-import { TechnicalHelp } from "@/components/TechnicalHelp";
+import { TechnicalHelp } from "@/providers/TechnicalHelp";
 import { CATEGORY_COLORS, TERMS } from "./terms";
 import QuizFormatChip from "@/components/QuizFormatChip";
 

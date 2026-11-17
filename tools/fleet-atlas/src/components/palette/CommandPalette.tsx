@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { filterItems, PALETTE_ITEMS, type PaletteItem } from "./palette-items";
+import { filterItems, PALETTE_ITEMS, type PaletteItem } from "@/lib/palette-items";
 import { usePalette } from "./PaletteContext";
 
 const GROUP_ORDER: PaletteItem["group"][] = [

@@ -2,7 +2,7 @@
 // interaction pattern consistently (on /self-assessments and in each quiz's
 // own header).
 
-import type { SurfaceKind } from "@/components/self-assessments/all-buckets";
+import type { SurfaceKind } from "@/lib/all-buckets";
 
 export type QuizFormat =
   | "adaptive-multiple-choice"

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FLEET_VALUES, canonicalize } from "./values";
-import { useIsHydrated } from "@/lib/use-is-hydrated";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 
 const STORAGE_KEY = "fleet-atlas:values-quiz-best";
 

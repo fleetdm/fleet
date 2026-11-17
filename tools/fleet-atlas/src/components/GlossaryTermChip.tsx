@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { TERMS, CATEGORY_COLORS } from "@/components/glossary/terms";
-import { TechnicalHelp } from "@/components/TechnicalHelp";
+import { TechnicalHelp } from "@/providers/TechnicalHelp";
 
 export default function GlossaryTermChip({
   slug,

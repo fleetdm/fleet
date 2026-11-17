@@ -19,7 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState } from "react";
 import QuizFormatChip from "@/components/QuizFormatChip";
-import { useIsHydrated } from "@/lib/use-is-hydrated";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 
 export type SortStep = {
   key: string;

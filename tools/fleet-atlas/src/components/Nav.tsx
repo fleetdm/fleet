@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TechnicalHelpToggle } from "./TechnicalHelp";
-import { ThemeToggle } from "./Theme";
+import { TechnicalHelpToggle } from "@/providers/TechnicalHelp";
+import { ThemeToggle } from "@/providers/Theme";
 import SearchButton from "./palette/SearchButton";
 
 // Nav items are grouped by atlas-style purpose. Group boundaries are

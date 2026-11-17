@@ -2,7 +2,7 @@
 
 import { useContext } from "react";
 import { EdgeProps, getBezierPath } from "reactflow";
-import { useTheme } from "@/components/Theme";
+import { useTheme } from "@/providers/Theme";
 import { ArchHoverCtx } from "./hover-context";
 
 type EdgeData = { tooltip?: string };

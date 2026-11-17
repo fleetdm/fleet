@@ -19,7 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Fragment, useMemo, useState } from "react";
 import QuizFormatChip from "@/components/QuizFormatChip";
-import { useIsHydrated } from "@/lib/use-is-hydrated";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { QUEUE_STORAGE_PAIRS } from "./pairs";
 
 const STORAGE_KEY = "fleet-atlas:queue-storage-matching-quiz-best";

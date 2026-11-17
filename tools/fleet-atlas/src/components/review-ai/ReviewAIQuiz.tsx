@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useIsHydrated } from "@/lib/use-is-hydrated";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { REVIEW_AI_QUESTIONS, type ReviewAIQuestion } from "./questions";
 
 const IN_PROGRESS_KEY = "fleet-atlas:review-ai:in-progress";

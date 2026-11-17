@@ -7,7 +7,7 @@ import {
   STORAGE_KEYS,
   type SurfaceKind,
   type UnifiedBucket,
-} from "@/components/self-assessments/all-buckets";
+} from "@/lib/all-buckets";
 import QuizFormatChip from "@/components/QuizFormatChip";
 import {
   QUIZ_FORMAT_COLOR,

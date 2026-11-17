@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CodeSnippet from "@/components/CodeSnippet";
-import { TechnicalHelp } from "@/components/TechnicalHelp";
+import { TechnicalHelp } from "@/providers/TechnicalHelp";
 import Markdown from "@/components/Markdown";
 import { getTracer } from "@/components/tracer/tracers";
 import TracerStepQuiz from "@/components/tracer/TracerStepQuiz";
