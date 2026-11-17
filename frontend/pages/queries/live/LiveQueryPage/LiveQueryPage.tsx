@@ -80,7 +80,7 @@ const RunQueryPage = ({
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {

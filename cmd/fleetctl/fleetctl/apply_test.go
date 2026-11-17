@@ -785,20 +785,6 @@ spec:
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
 
-	// Test deprecation warnings
-	expected := "[!] In config: `query_report_cap` is deprecated, please use `report_cap` instead.\n[+] applied fleet config\n"
-	name = writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-`)
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", name}))
-	require.NotNil(t, savedAppConfig)
-	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
-
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -852,20 +838,6 @@ spec:
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
-}
-
-func TestApplyAppConfigAliasConfict(t *testing.T) {
-	// Test conflict error
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-    report_cap: 200
-`)
-
-	runAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
@@ -4234,6 +4206,29 @@ spec:
     windows_enabled_and_configured: true
 `,
 			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config with a removed server setting",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+`,
+			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config with a removed server setting and its new name",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    live_query_disabled: true
+    live_reporting_disabled: true
+`,
+			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

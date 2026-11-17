@@ -4473,6 +4473,20 @@ software:
 				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
 			},
 			{
+				name: "org_settings report server settings", file: "default.yml",
+				config: scriptsDisabledFile("    live_query_disabled: false\n    query_reports_disabled: true\n    Query_Report_Cap: 2000\n"),
+				want: []string{
+					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.server_settings.query_reports_disabled" key is not available anymore.`,
+					`The "org_settings.server_settings.query_report_cap" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings report server settings with the new names too", file: "default.yml",
+				config: scriptsDisabledFile("    query_report_cap: 2000\n    report_cap: 2000\n"),
+				want:   []string{`The "org_settings.server_settings.query_report_cap" key is not available anymore.`},
+			},
+			{
 				name: "org_settings file with scripts_disabled set to true", file: "default.yml",
 				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
 				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +

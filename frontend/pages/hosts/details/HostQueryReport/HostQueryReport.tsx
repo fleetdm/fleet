@@ -32,7 +32,7 @@ const HostQueryReport = ({
   params: { host_id, query_id },
 }: IHostQueryReportProps) => {
   const { config, currentTeam } = useContext(AppContext);
-  const globalReportsDisabled = config?.server_settings.query_reports_disabled;
+  const globalReportsDisabled = config?.server_settings.discard_reports_data;
   const hostId = Number(host_id);
   const queryId = Number(query_id);
 

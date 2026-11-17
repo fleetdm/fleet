@@ -2249,7 +2249,7 @@ func TestEnrichedAppConfig(t *testing.T) {
         },
         "server_settings": {
           "server_url": "https://localhost:8412",
-          "live_query_disabled": false,
+          "live_reporting_disabled": false,
           "enable_analytics": false,
           "deferred_save_host": false
         },

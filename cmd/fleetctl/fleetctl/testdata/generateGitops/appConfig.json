@@ -68,17 +68,17 @@
   },
   "server_settings": {
     "server_url": "https://dogfood.fleetdm.com",
-    "live_query_disabled": false,
+    "live_reporting_disabled": false,
     "enable_analytics": true,
     "debug_host_ids": [
       1,
       3
     ],
     "deferred_save_host": false,
-    "query_reports_disabled": false,
+    "discard_reports_data": false,
     "ai_features_disabled": false,
     "mcp_disabled": false,
-    "query_report_cap": 1
+    "report_cap": 1
   },
   "smtp_settings": {
     "enable_smtp": false,
