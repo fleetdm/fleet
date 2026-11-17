@@ -381,6 +381,14 @@ To enroll an rpm-ostree host:
    RUN rpm-ostree install -y /tmp/fleet-osquery-1.63.0-1.ostree.x86_64.rpm && rm /tmp/fleet-osquery-*.rpm && ostree container commit
    ```
 
+5. On the host, add the `nobody` user to `/etc/passwd` so Fleet can collect RPM packages:
+
+   ```sh
+   grep -q '^nobody:' /etc/passwd || getent passwd nobody | sudo tee -a /etc/passwd
+   ```
+
+   rpm-ostree hosts keep this user in `/usr/lib/passwd`, and osquery only looks for it in `/etc/passwd`. Without this step, osquery's `rpm_packages` table returns no rows, and the host's **Software** tab is empty. Learn more in the [bug](https://github.com/fleetdm/fleet/issues/58969).
+
 The host appears in Fleet a minute after it boots.
 
 `systemctl is-enabled orbit` shows `disabled` on these hosts, but fleetd still starts at boot. That's because the package turns the service on with a symlink in `/usr`. To stop fleetd from running, run `sudo systemctl mask --now orbit`.
@@ -390,8 +398,6 @@ To uninstall fleetd, run `sudo rpm-ostree uninstall fleet-osquery` and reboot. T
 ```sh
 sudo rm -rf /var/opt/orbit /var/log/orbit /var/log/osquery /var/usrlocal/bin/orbit /etc/default/orbit
 ```
-
-Fleet doesn't collect RPM packages from rpm-ostree hosts yet, because osquery's `rpm_packages` table returns no rows on them. Learn more in the [bug](https://github.com/fleetdm/fleet/issues/58969).
 
 ### Supported osquery versions
 
