@@ -82,6 +82,10 @@ const SaveNewQueryModal = ({
   const { config, isPremiumTier, currentTeam } = useContext(AppContext);
 
   const [name, setName] = useState("");
+  // Name is autofocused when the modal opens; skip blur validation until the
+  // user has typed in it so clicking away from an untouched field doesn't
+  // surface "Enter a report name".
+  const [nameDirty, setNameDirty] = useState(false);
   const [description, setDescription] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState(
     existingQuery?.interval ?? 3600
@@ -262,11 +266,14 @@ const SaveNewQueryModal = ({
       >
         <InputField
           name="name"
-          onChange={(value: string) => setName(value)}
+          onChange={(value: string) => {
+            setName(value);
+            if (!nameDirty) setNameDirty(true);
+          }}
           onBlur={() => {
             const trimmed = name.trim();
             setName(trimmed);
-            if (!trimmed) {
+            if (nameDirty && !trimmed) {
               setErrors({ ...errors, name: "Enter a report name" });
             }
           }}

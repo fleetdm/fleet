@@ -143,6 +143,26 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
+  it("does not display name error when blurring the autofocused name without typing", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
+
+    screen.getByLabelText("Name").focus();
+    await user.tab();
+
+    expect(screen.queryByText("Enter a report name")).not.toBeInTheDocument();
+  });
+
   it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,

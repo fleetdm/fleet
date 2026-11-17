@@ -132,6 +132,26 @@ describe("SaveNewPolicyModal", () => {
     expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
   });
 
+  it("does not display name error when blurring the autofocused name without typing", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewPolicyModal {...defaultProps} />);
+
+    screen.getByLabelText("Name").focus();
+    await user.tab();
+
+    expect(screen.queryByText("Enter a policy name")).not.toBeInTheDocument();
+  });
+
   describe("in premium tier", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
