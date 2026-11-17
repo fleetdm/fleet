@@ -344,7 +344,7 @@ To enroll an rpm-ostree host:
 1. Generate fleetd as an RPM. Copy the command from **Hosts > Add hosts > Linux** and change `--type=deb` to `--type=rpm`, or run the following. Replace the Fleet URL and enroll secret with yours.
 
    ```sh
-   fleetctl package --type=rpm --fleet-desktop --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
+   fleetctl package --type=rpm --enable-scripts --fleet-desktop --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
    ```
 
    For ARM hosts, add `--arch=arm64`. If the fleet requires end user authentication and the host has no desktop session (for example, Fedora CoreOS), add `--bypass-end-user-auth`.
