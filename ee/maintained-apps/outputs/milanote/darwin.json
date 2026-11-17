@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.18.143",
+      "version": "3.18.145",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.milanote.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.milanote.app' AND version_compare(bundle_short_version, '3.18.143') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.milanote.app' AND version_compare(bundle_short_version, '3.18.145') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.milanote.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://milanote-app-releases.s3.amazonaws.com/Milanote-3.18.143.dmg",
+      "installer_url": "https://milanote-app-releases.s3.amazonaws.com/Milanote-3.18.145.dmg",
       "install_script_ref": "822e30e2",
       "uninstall_script_ref": "3997ec2c",
-      "sha256": "ff403046e05bd71e591f54f8fd71fb4ca71257e5a1ea6512158027b6d56c44bd",
+      "sha256": "706506de7a4ed999bef29778045dc07eac9fa6cbbcc07509b31bd86fa8ac7f0d",
       "default_categories": [
         "Developer tools"
       ]
