@@ -574,8 +574,6 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		// differ only by a platform suffix ("R for macOS"/"R for Windows"), the
 		// row drops it, so search must ignore it too. A single-platform app keeps
 		// its suffix ("Google Credential Provider for Windows").
-		// Find the merged names once in a joined table, a subquery per row is slow with
-		// the full catalog.
 		fromClause += `
 			LEFT JOIN (
 				SELECT names.merged_app_token, names.merged_name

@@ -490,6 +490,44 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
 
+	// add a custom Maintained3 package to Unassigned, the Maintained3 FMA should show as added
+	// for Unassigned only
+	_, unassignedTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Maintained3",
+		InstallScript:    "nothing",
+		Filename:         "maintained3.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: "fleet.maintained3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, ptr.Uint(0), fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, 4, meta.TotalResults)
+	require.Nil(t, apps[0].TitleID)
+	require.Nil(t, apps[1].TitleID)
+	require.Equal(t, ptr.Uint(unassignedTitleID), apps[2].TitleID)
+	require.Nil(t, apps[3].TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, ptr.Uint(0))
+	require.NoError(t, err)
+	require.Equal(t, ptr.Uint(unassignedTitleID), gotApp.TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotApp.TitleID)
+
+	// list with hide added apps for Unassigned, the Maintained3 FMA should be hidden
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, ptr.Uint(0), fleet.MaintainedAppListOptions{AvailableOnly: true, ListOptions: fleet.ListOptions{IncludeMetadata: true}})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, meta.TotalResults)
+	for _, app := range apps {
+		require.NotEqual(t, maintained3.ID, app.ID)
+	}
+
 	// Ordering: the combined-by-app view is only meaningfully sortable by name,
 	// so "name" is the one allowed order key. expectedApps is declared in
 	// ascending name order, so we derive the expected name sequences from it.
