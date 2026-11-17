@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "101.26082.0012",
+      "version": "101.26092.0012",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.wdav';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.wdav' AND version_compare(bundle_short_version, '101.26082.0012') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.wdav' AND version_compare(bundle_short_version, '101.26092.0012') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.microsoft.wdav' AND a.bundle_executable != '');"
       },
       "installer_url": "https://go.microsoft.com/fwlink/?linkid=2097502",
       "install_script_ref": "4051ef27",
       "uninstall_script_ref": "8bbf0b48",
-      "sha256": "8fb49c5951884ce91b8f6278eb0ccc109490a6cf91160a51c994a01edd82edca",
+      "sha256": "f7ee0f5491380336d93f4a33e8907d25cc51459d888e6fe0642796fa348fe7e3",
       "default_categories": [
         "Security"
       ]
