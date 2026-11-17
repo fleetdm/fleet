@@ -176,11 +176,10 @@ describe("AISessionsCard", () => {
     await waitFor(() => expect(onPreviousPage).toHaveBeenCalled());
   });
 
-  it("doesn't open or page past sessions shown while new ones load", async () => {
+  it("doesn't open sessions shown while new ones load", async () => {
     const onSelectSession = jest.fn();
-    const onNextPage = jest.fn();
     const { user } = renderCard(
-      { isPreviousData: true, onSelectSession, onNextPage },
+      { isPreviousData: true, onSelectSession },
       createMockGetHostAISessionsResponse({
         ai_sessions: Array.from({ length: 10 }, (_, i) =>
           createMockHostAISession({ id: i + 1 })
@@ -193,10 +192,24 @@ describe("AISessionsCard", () => {
     await user.click(screen.getAllByText("Claude Code")[0]);
 
     expect(onSelectSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps paging when next is clicked again while a page loads", async () => {
+    const onNextPage = jest.fn();
+    const { user } = renderCard(
+      { page: 1, isPreviousData: true, onNextPage },
+      createMockGetHostAISessionsResponse({
+        ai_sessions: Array.from({ length: 10 }, (_, i) =>
+          createMockHostAISession({ id: i + 1 })
+        ),
+        count: 40,
+        meta: { has_next_results: true, has_previous_results: false },
+      })
+    );
 
     await user.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(onNextPage).not.toHaveBeenCalled();
+    expect(onNextPage).toHaveBeenCalledTimes(1);
   });
 
   it("shows a spinner while loading", async () => {

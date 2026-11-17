@@ -249,6 +249,7 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 	}{
 		{[]string{"category", "network"}, http.StatusUnprocessableEntity, `"command" or "file_access"`},
 		{[]string{"per_page", "10001"}, http.StatusUnprocessableEntity, "no greater than 10000"},
+		{[]string{"order_key", "tool_call_index", "after", "1"}, http.StatusUnprocessableEntity, "not supported"},
 		{[]string{"page", "-1"}, http.StatusBadRequest, "negative page"},
 		{[]string{"per_page", "-1"}, http.StatusBadRequest, "invalid per_page"},
 	} {

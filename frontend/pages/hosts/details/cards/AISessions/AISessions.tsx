@@ -55,11 +55,8 @@ const AISessionsCard = ({
 }: IAISessionsCardProps) => {
   const onQueryChange = useCallback(
     (newQuery: ITableQueryData) => {
-      // Disabling the buttons instead would hide the pagination on the first
-      // page while the next one loads.
-      if (isPreviousData && newQuery.pageIndex !== page) {
-        return undefined;
-      }
+      // Page changes aren't held back while a page loads: the table has
+      // already moved its own page by then and would be left ahead of this one.
       switch (true) {
         case newQuery.pageIndex > page:
           return onNextPage();
@@ -75,15 +72,7 @@ const AISessionsCard = ({
           return undefined; // noop
       }
     },
-    [
-      isPreviousData,
-      onNextPage,
-      onPreviousPage,
-      onSortChange,
-      page,
-      sortDirection,
-      sortHeader,
-    ]
+    [onNextPage, onPreviousPage, onSortChange, page, sortDirection, sortHeader]
   );
 
   const renderContent = () => {

@@ -99,6 +99,10 @@ func (svc *Service) ListHostAISessionEvents(ctx context.Context, hostID, aiSessi
 	invalid := &fleet.InvalidArgumentError{}
 	validateAISessionCategory(invalid, opts.Category)
 	validateAISessionPerPage(invalid, opts.PerPage)
+	// The datastore ignores a cursor, which would return the first page again.
+	if opts.After != "" {
+		invalid.Append("after", "is not supported, use page instead")
+	}
 	if invalid.HasErrors() {
 		return nil, nil, ctxerr.Wrap(ctx, invalid)
 	}

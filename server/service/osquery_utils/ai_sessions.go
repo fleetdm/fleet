@@ -138,7 +138,11 @@ func parseAISessionUint(s string) uint64 {
 
 // parseAISessionCount parses a count for an INT UNSIGNED column.
 func parseAISessionCount(s string) uint {
-	return uint(min(parseAISessionUint(s), math.MaxUint32))
+	v := parseAISessionUint(s)
+	if v > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint(v)
 }
 
 // parseAISessionTime parses a fleetd Unix timestamp, where 0 means unknown.
