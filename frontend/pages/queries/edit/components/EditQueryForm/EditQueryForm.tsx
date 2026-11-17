@@ -465,24 +465,34 @@ const EditQueryForm = ({
   };
 
   const handleSaveAsNewQuery = () => {
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
+    const queryBlocked = !valid && newErrs.query === EMPTY_QUERY_ERR;
     const hasPlatform = platformSelector.isAnyPlatformSelected;
     setPlatformError(hasPlatform ? null : "Select at least one platform");
     setShowLabelsError(labelsRequired);
-    if (!hasPlatform || labelsRequired) return;
+    if (queryBlocked) {
+      setErrors({ ...errors, query: newErrs.query });
+    }
+    if (queryBlocked || !hasPlatform || labelsRequired) return;
     toggleSaveAsNewQueryModal();
   };
 
   // Pre-validate before opening the confirm-changes modal so inline errors
-  // (name, platforms, labels) aren't hidden behind it.
+  // (name, query, platforms, labels) aren't hidden behind it.
   const handleSaveWithConfirm = () => {
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
+    const queryBlocked = !valid && newErrs.query === EMPTY_QUERY_ERR;
     const nameInvalid = !lastEditedQueryName.trim();
     const hasPlatform = platformSelector.isAnyPlatformSelected;
     setPlatformError(hasPlatform ? null : "Select at least one platform");
     setShowLabelsError(labelsRequired);
-    if (nameInvalid) {
-      setErrors({ ...errors, name: "Enter a report name" });
+    if (nameInvalid || queryBlocked) {
+      const nextErrors = { ...errors };
+      if (nameInvalid) nextErrors.name = "Enter a report name";
+      if (queryBlocked) nextErrors.query = newErrs.query;
+      setErrors(nextErrors);
     }
-    if (nameInvalid || !hasPlatform || labelsRequired) return;
+    if (nameInvalid || queryBlocked || !hasPlatform || labelsRequired) return;
     toggleConfirmSaveChangesModal();
   };
 
