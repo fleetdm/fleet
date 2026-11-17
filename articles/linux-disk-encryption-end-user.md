@@ -30,6 +30,14 @@ Follow the steps below to get set up.
   ![Linux MDM Fedora setup "Installation summary" screen](../website/assets/images/articles/fedora-1-1200x675@2x.png)
   ![Linux MDM Fedora setup: Installation destination > Encryption > Encrypt my data ](../website/assets/images/articles/fedora-2-1200x675@2x.png)
 
+  #### Omarchy
+
+  - Omarchy (4 and later) encrypts the disk with LUKS by default during installation. Set a strong passphrase when prompted.
+  - Fleet's passphrase prompt uses `zenity`, which Omarchy doesn't install by default. Before you escrow your key, install it:
+    ```bash
+      sudo pacman -S zenity
+    ```
+
 ## 2. Verify encryption
 
   - Once installation is complete, verify that your disk is encrypted by running:
@@ -38,6 +46,7 @@ Follow the steps below to get set up.
     ```
   - **Ubuntu Linux**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
   - **Fedora Linux**: Ensure the `/` (root) and `/home` partitions are encrypted.
+  - **Omarchy**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
 
 ## 3. Escrow your key with Fleet
 
