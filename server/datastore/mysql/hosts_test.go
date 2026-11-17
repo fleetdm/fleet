@@ -182,7 +182,6 @@ func TestHosts(t *testing.T) {
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"HostRecordNoPolicies", testHostsRecordNoPolicies},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
-		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
 		{"ListHostsDiskEncryption", testHostsListHostsDiskEncryption},
 		{"HostOrder", testHostOrder},
@@ -206,7 +205,6 @@ func TestHosts(t *testing.T) {
 		{"ListHostsWithPagination", testListHostsWithPagination},
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
-		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
 		{"UpdateHostIssues", testUpdateHostIssues},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
@@ -11193,7 +11191,7 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	for i, host := range createdHosts {
 		hostIDs[i] = host.ID
 	}
-	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	require.NoError(t, updateHostIssuesFailingPolicies(ctx, ds.writer(ctx), hostIDs))
 	hosts, err = ds.ListHosts(
 		ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
 			ListOptions: fleet.ListOptions{
@@ -11259,87 +11257,6 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	// Vanilla osquery host: no orbit info loaded.
 	assert.Nil(t, vanillaHost.OrbitVersion)
 	assert.Nil(t, vanillaHost.DesktopVersion)
-}
-
-func testHostIDsByOSID(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	t.Run("no OS", func(t *testing.T) {
-		actual, err := ds.HostIDsByOSID(ctx, 1, 0, 100)
-		require.NoError(t, err)
-		require.Empty(t, actual)
-	})
-
-	t.Run("returns empty if no more pages", func(t *testing.T) {
-		for i := 1; i <= 510; i++ {
-			os := fleet.OperatingSystem{
-				Name:          "Microsoft Windows 11 Enterprise Evaluation II",
-				Version:       "21H2",
-				Arch:          "64-bit",
-				KernelVersion: "10.0.22000.795",
-				Platform:      "windows",
-			}
-
-			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, uint(i+100), os))
-		}
-
-		storedOS, err := ds.ListOperatingSystems(ctx)
-		require.NoError(t, err)
-		for _, sOS := range storedOS {
-			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation II" {
-
-				actual, err := ds.HostIDsByOSID(ctx, sOS.ID, 0, 500)
-				require.NoError(t, err)
-				require.Len(t, actual, 500)
-
-				actual, err = ds.HostIDsByOSID(ctx, sOS.ID, 500, 500)
-				require.NoError(t, err)
-				require.Len(t, actual, 10)
-
-				actual, err = ds.HostIDsByOSID(ctx, sOS.ID, 510, 500)
-				require.NoError(t, err)
-				require.Empty(t, actual)
-				break
-			}
-		}
-	})
-
-	t.Run("returns matching entries", func(t *testing.T) {
-		os := []fleet.OperatingSystem{
-			{
-				Name:          "Microsoft Windows 11 Enterprise Evaluation",
-				Version:       "21H2",
-				Arch:          "64-bit",
-				KernelVersion: "10.0.22000.795",
-				Platform:      "windows",
-			},
-			{
-				Name:          "macOS",
-				Version:       "12.3.1",
-				Arch:          "x86_64",
-				KernelVersion: "21.4.0",
-				Platform:      "darwin",
-			},
-		}
-
-		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 1, os[0]))
-		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 2, os[1]))
-
-		storedOS, err := ds.ListOperatingSystems(ctx)
-		require.NoError(t, err)
-
-		for _, sOS := range storedOS {
-			actual, err := ds.HostIDsByOSID(ctx, sOS.ID, 0, 100)
-			require.NoError(t, err)
-			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation" {
-				require.Equal(t, []uint{1}, actual)
-			}
-
-			if sOS.Name == "macOS" {
-				require.Equal(t, []uint{2}, actual)
-			}
-		}
-	})
 }
 
 func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
@@ -13803,70 +13720,6 @@ func testGetHostOrbitInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "sentinel", stored.DesktopVersion.String)
 }
 
-func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	// create a few hosts with different identifiers
-	h1, err := ds.NewHost(
-		ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
-			PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-			NodeKey:        ptr.String("abc"),
-			UUID:           "def",
-			Hostname:       "ghi.local",
-			HardwareSerial: "jkl",
-		},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, h1)
-
-	h2, err := ds.NewHost(
-		ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
-			PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-			NodeKey:        ptr.String("def"),
-			UUID:           "mno",
-			Hostname:       "pqr.local",
-			HardwareSerial: "sty",
-		},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, h2)
-
-	h3, err := ds.NewHost(
-		ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
-			PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-			NodeKey:        ptr.String("mno"),
-			UUID:           "vwx",
-			Hostname:       "yzA.local",
-			HardwareSerial: "def",
-		},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, h3)
-
-	cases := []struct {
-		desc string
-		in   []string
-		out  []string
-	}{
-		{desc: "no identifier", in: nil, out: nil},
-		{desc: "no match", in: []string{"ZZZ"}, out: nil},
-		{desc: "single match", in: []string{"abc"}, out: []string{h1.Hostname}},
-		{desc: "two matches", in: []string{"mno"}, out: []string{h2.Hostname, h3.Hostname}},
-		{desc: "all matches", in: []string{"def"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "multiple identifiers", in: []string{"abc", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "duplicate identifiers", in: []string{"abc", "abc", "ghi"}, out: []string{h1.Hostname}},
-	}
-	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HostnamesByIdentifiers(ctx, c.in)
-			require.NoError(t, err)
-			require.ElementsMatch(t, c.out, got)
-		})
-	}
-}
-
 func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -14099,7 +13952,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	)
 
 	// No issues with positive counts expected
-	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	require.NoError(t, updateHostIssuesFailingPolicies(ctx, ds.writer(ctx), hostIDs))
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	type issue struct {
 		HostID uint `db:"host_id"`
@@ -14255,7 +14108,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	hostIssuesInsertBatchSize = 2
 	hostIssuesUpdateFailingPoliciesBatchSize = 2
 
-	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	require.NoError(t, updateHostIssuesFailingPolicies(ctx, ds.writer(ctx), hostIDs))
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	issues = nil
 	assert.NoError(
@@ -14339,7 +14192,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 			},
 		),
 	)
-	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	require.NoError(t, updateHostIssuesFailingPolicies(ctx, ds.writer(ctx), hostIDs))
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	issues = nil
 	assert.NoError(

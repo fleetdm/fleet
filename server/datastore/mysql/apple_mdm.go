@@ -1257,30 +1257,6 @@ ON DUPLICATE KEY UPDATE
 	}, nil
 }
 
-func (ds *Datastore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	var enrollmentProfiles []*fleet.MDMAppleEnrollmentProfile
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&enrollmentProfiles,
-		`
-SELECT
-    id,
-    token,
-    type,
-    dep_profile,
-    created_at,
-    updated_at
-FROM
-    mdm_apple_enrollment_profiles
-ORDER BY created_at DESC
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
-	}
-	return enrollmentProfiles, nil
-}
-
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 	var enrollment fleet.MDMAppleEnrollmentProfile
 	if err := sqlx.GetContext(

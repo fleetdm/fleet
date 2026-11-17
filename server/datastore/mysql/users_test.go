@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -34,7 +32,6 @@ func TestUsers(t *testing.T) {
 		{"List", testUsersList},
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
-		{"SaveMany", testUsersSaveMany},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -469,28 +466,4 @@ func testUsersCreateWithTeams(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "observer", user.Teams[1].Role)
 	assert.Equal(t, uint(9), user.Teams[2].ID)
 	assert.Equal(t, "maintainer", user.Teams[2].Role)
-}
-
-func testUsersSaveMany(t *testing.T, ds *Datastore) {
-	u1 := test.NewUser(t, ds, t.Name()+"Admin1", t.Name()+"admin1@fleet.co", true)
-	u2 := test.NewUser(t, ds, t.Name()+"Admin2", t.Name()+"admin2@fleet.co", true)
-	u3 := test.NewUser(t, ds, t.Name()+"Admin3", t.Name()+"admin3@fleet.co", true)
-
-	u1.Email += "m"
-	u2.Email += "m"
-	u3.Email += "m"
-
-	require.NoError(t, ds.SaveUsers(context.Background(), []*fleet.User{u1, u2, u3}))
-
-	gotU1, err := ds.UserByID(context.Background(), u1.ID)
-	require.NoError(t, err)
-	assert.True(t, strings.HasSuffix(gotU1.Email, "fleet.com"))
-
-	gotU2, err := ds.UserByID(context.Background(), u3.ID)
-	require.NoError(t, err)
-	assert.True(t, strings.HasSuffix(gotU2.Email, "fleet.com"))
-
-	gotU3, err := ds.UserByID(context.Background(), u3.ID)
-	require.NoError(t, err)
-	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
 }

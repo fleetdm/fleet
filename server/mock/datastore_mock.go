@@ -86,8 +86,6 @@ type UserOrDeletedUserByIDFunc func(ctx context.Context, id uint) (*fleet.User, 
 
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
-type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
-
 type DeleteUserFunc func(ctx context.Context, id uint) error
 
 type DeleteUserIfNotLastAdminFunc func(ctx context.Context, id uint) error
@@ -127,8 +125,6 @@ type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*flee
 type QueriesByNameFunc func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error)
 
 type QueriesPerHostFunc func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
-
-type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
 type CleanupGlobalDiscardQueryResultsFunc func(ctx context.Context) error
 
@@ -244,8 +240,6 @@ type HostIDsByIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, 
 
 type HostIDsByLabelIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error)
 
-type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
-
 type HostMembershipForLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
 
 type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
@@ -259,10 +253,6 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, params *fleet.AddHostsToTeamParams) error
-
-type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
-
-type UpdateHostIssuesFailingPoliciesFunc func(ctx context.Context, hostIDs []uint) error
 
 type UpdateHostIssuesFailingPoliciesForSingleHostFunc func(ctx context.Context, hostID uint) error
 
@@ -465,8 +455,6 @@ type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID u
 type QueryResultRowsForHostByQueryFunc func(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*fleet.StoredQueryResultRow, error)
 
 type UpdateQueryResultsLastFetchedFunc func(ctx context.Context, ids []uint, lastFetched time.Time) error
-
-type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
 type ResultCountsForQueriesFunc func(ctx context.Context, queryIDs []uint) (map[uint]int, error)
 
@@ -745,8 +733,6 @@ type PolicyQueriesForHostFilteredFunc func(ctx context.Context, host *fleet.Host
 type GetSetupExperiencePolicyResultFunc func(ctx context.Context, hostID uint, policyID uint, since time.Time) (*bool, error)
 
 type ClearHostPolicyMembershipForPoliciesFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
-
-type StalePolicyIDsForHostFunc func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error)
 
 type ClearHostPolicyUpdatedAtFunc func(ctx context.Context, hostID uint) error
 
@@ -1131,8 +1117,6 @@ type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token str
 type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (previousTokenExpiresAt *time.Time, err error)
 
 type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
-
-type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -2434,8 +2418,6 @@ type GetCertificateTemplatesByIdsAndTeamFunc func(ctx context.Context, ids []uin
 
 type GetCertificateTemplateByTeamIDAndNameFunc func(ctx context.Context, teamID uint, name string) (*fleet.CertificateTemplateResponse, error)
 
-type ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc func(ctx context.Context, offset int, limit int) ([]string, error)
-
 type ListCertificateTemplatesForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error)
 
 type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error)
@@ -2678,9 +2660,6 @@ type DataStore struct {
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
 
-	SaveUsersFunc        SaveUsersFunc
-	SaveUsersFuncInvoked bool
-
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
 
@@ -2740,9 +2719,6 @@ type DataStore struct {
 
 	QueriesPerHostFunc        QueriesPerHostFunc
 	QueriesPerHostFuncInvoked bool
-
-	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
-	ObserverCanRunQueryFuncInvoked bool
 
 	CleanupGlobalDiscardQueryResultsFunc        CleanupGlobalDiscardQueryResultsFunc
 	CleanupGlobalDiscardQueryResultsFuncInvoked bool
@@ -2915,9 +2891,6 @@ type DataStore struct {
 	HostIDsByLabelIdentifierFunc        HostIDsByLabelIdentifierFunc
 	HostIDsByLabelIdentifierFuncInvoked bool
 
-	HostIDsByOSIDFunc        HostIDsByOSIDFunc
-	HostIDsByOSIDFuncInvoked bool
-
 	HostMembershipForLabelsFunc        HostMembershipForLabelsFunc
 	HostMembershipForLabelsFuncInvoked bool
 
@@ -2938,12 +2911,6 @@ type DataStore struct {
 
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
-
-	HostnamesByIdentifiersFunc        HostnamesByIdentifiersFunc
-	HostnamesByIdentifiersFuncInvoked bool
-
-	UpdateHostIssuesFailingPoliciesFunc        UpdateHostIssuesFailingPoliciesFunc
-	UpdateHostIssuesFailingPoliciesFuncInvoked bool
 
 	UpdateHostIssuesFailingPoliciesForSingleHostFunc        UpdateHostIssuesFailingPoliciesForSingleHostFunc
 	UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked bool
@@ -3247,9 +3214,6 @@ type DataStore struct {
 
 	UpdateQueryResultsLastFetchedFunc        UpdateQueryResultsLastFetchedFunc
 	UpdateQueryResultsLastFetchedFuncInvoked bool
-
-	ResultCountForQueryAndHostFunc        ResultCountForQueryAndHostFunc
-	ResultCountForQueryAndHostFuncInvoked bool
 
 	ResultCountsForQueriesFunc        ResultCountsForQueriesFunc
 	ResultCountsForQueriesFuncInvoked bool
@@ -3667,9 +3631,6 @@ type DataStore struct {
 
 	ClearHostPolicyMembershipForPoliciesFunc        ClearHostPolicyMembershipForPoliciesFunc
 	ClearHostPolicyMembershipForPoliciesFuncInvoked bool
-
-	StalePolicyIDsForHostFunc        StalePolicyIDsForHostFunc
-	StalePolicyIDsForHostFuncInvoked bool
 
 	ClearHostPolicyUpdatedAtFunc        ClearHostPolicyUpdatedAtFunc
 	ClearHostPolicyUpdatedAtFuncInvoked bool
@@ -4246,9 +4207,6 @@ type DataStore struct {
 
 	GetMDMAppleEnrollmentProfileByTypeFunc        GetMDMAppleEnrollmentProfileByTypeFunc
 	GetMDMAppleEnrollmentProfileByTypeFuncInvoked bool
-
-	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
-	ListMDMAppleEnrollmentProfilesFuncInvoked bool
 
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
@@ -6200,9 +6158,6 @@ type DataStore struct {
 	GetCertificateTemplateByTeamIDAndNameFunc        GetCertificateTemplateByTeamIDAndNameFunc
 	GetCertificateTemplateByTeamIDAndNameFuncInvoked bool
 
-	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc        ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc
-	ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked bool
-
 	ListCertificateTemplatesForHostsFunc        ListCertificateTemplatesForHostsFunc
 	ListCertificateTemplatesForHostsFuncInvoked bool
 
@@ -6645,13 +6600,6 @@ func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	return s.SaveUserFunc(ctx, user)
 }
 
-func (s *DataStore) SaveUsers(ctx context.Context, users []*fleet.User) error {
-	s.mu.Lock()
-	s.SaveUsersFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveUsersFunc(ctx, users)
-}
-
 func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteUserFuncInvoked = true
@@ -6790,13 +6738,6 @@ func (s *DataStore) QueriesPerHost(ctx context.Context, hostID uint, teamID *uin
 	s.QueriesPerHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueriesPerHostFunc(ctx, hostID, teamID)
-}
-
-func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
-	s.mu.Lock()
-	s.ObserverCanRunQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ObserverCanRunQueryFunc(ctx, queryID)
 }
 
 func (s *DataStore) CleanupGlobalDiscardQueryResults(ctx context.Context) error {
@@ -7198,13 +7139,6 @@ func (s *DataStore) HostIDsByLabelIdentifier(ctx context.Context, filter fleet.T
 	return s.HostIDsByLabelIdentifierFunc(ctx, filter, hostIdentifiers)
 }
 
-func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error) {
-	s.mu.Lock()
-	s.HostIDsByOSIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.HostIDsByOSIDFunc(ctx, osID, offset, limit)
-}
-
 func (s *DataStore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	s.mu.Lock()
 	s.HostMembershipForLabelsFuncInvoked = true
@@ -7252,20 +7186,6 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsTo
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.AddHostsToTeamFunc(ctx, params)
-}
-
-func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
-	s.mu.Lock()
-	s.HostnamesByIdentifiersFuncInvoked = true
-	s.mu.Unlock()
-	return s.HostnamesByIdentifiersFunc(ctx, identifiers)
-}
-
-func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
-	s.mu.Lock()
-	s.UpdateHostIssuesFailingPoliciesFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error {
@@ -7973,13 +7893,6 @@ func (s *DataStore) UpdateQueryResultsLastFetched(ctx context.Context, ids []uin
 	s.UpdateQueryResultsLastFetchedFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateQueryResultsLastFetchedFunc(ctx, ids, lastFetched)
-}
-
-func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint, hostID uint) (int, error) {
-	s.mu.Lock()
-	s.ResultCountForQueryAndHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.ResultCountForQueryAndHostFunc(ctx, queryID, hostID)
 }
 
 func (s *DataStore) ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
@@ -8953,13 +8866,6 @@ func (s *DataStore) ClearHostPolicyMembershipForPolicies(ctx context.Context, ho
 	s.ClearHostPolicyMembershipForPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearHostPolicyMembershipForPoliciesFunc(ctx, hostID, policyIDs)
-}
-
-func (s *DataStore) StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
-	s.mu.Lock()
-	s.StalePolicyIDsForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.StalePolicyIDsForHostFunc(ctx, hostID, reported)
 }
 
 func (s *DataStore) ClearHostPolicyUpdatedAt(ctx context.Context, hostID uint) error {
@@ -10304,13 +10210,6 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ 
 	s.GetMDMAppleEnrollmentProfileByTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleEnrollmentProfileByTypeFunc(ctx, typ)
-}
-
-func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	s.mu.Lock()
-	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
@@ -14861,13 +14760,6 @@ func (s *DataStore) GetCertificateTemplateByTeamIDAndName(ctx context.Context, t
 	s.GetCertificateTemplateByTeamIDAndNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCertificateTemplateByTeamIDAndNameFunc(ctx, teamID, name)
-}
-
-func (s *DataStore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
-	s.mu.Lock()
-	s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListAndroidHostUUIDsWithDeliverableCertificateTemplatesFunc(ctx, offset, limit)
 }
 
 func (s *DataStore) ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error) {

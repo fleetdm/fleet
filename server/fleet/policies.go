@@ -989,12 +989,6 @@ type PolicySetHost struct {
 	DisplayName string
 }
 
-type PolicyMembershipResult struct {
-	HostID   uint
-	PolicyID uint
-	Passes   *bool
-}
-
 const (
 	PolicyTypeDynamic = "dynamic"
 	PolicyTypePatch   = "patch"

@@ -84,7 +84,6 @@ type Datastore interface {
 	UserByID(ctx context.Context, id uint) (*User, error)
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	SaveUser(ctx context.Context, user *User) error
-	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
 	// DeleteUserIfNotLastAdmin atomically checks that the user being deleted
@@ -162,9 +161,6 @@ type Datastore interface {
 	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
 	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
 	QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
-	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
-	// identified query
-	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 	// CleanupGlobalDiscardQueryResults deletes all cached query results. Used in cleanups_then_aggregation cron.
 	CleanupGlobalDiscardQueryResults(ctx context.Context) error
 	// IsSavedQuery returns true if the given query is a saved query.
@@ -350,9 +346,6 @@ type Datastore interface {
 	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByLabelIdentifier(ctx context.Context, filter TeamFilter, hostIdentifiers []string) ([]uint, error)
 
-	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
-	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
-
 	// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
 	// Labels that do not exist are not included in the result. The returned map is keyed by the
 	// requested label names (preserving the caller's casing), not the DB-stored names.
@@ -375,11 +368,6 @@ type Datastore interface {
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if params.TeamID is nil.
 	AddHostsToTeam(ctx context.Context, params *AddHostsToTeamParams) error
-	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
-	// as understood by HostByIdentifier.
-	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
-	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
-	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
 	// UpdateHostIssuesFailingPoliciesForSingleHost updates the failing policies count in host_issues table for a single host.
 	UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error
 	// Gets the last time the host's row in `host_issues` was updated
@@ -711,7 +699,6 @@ type Datastore interface {
 	// UpdateQueryResultsLastFetched sets last_fetched of the query_results rows with the given IDs to
 	// lastFetched, unless it is already more recent. IDs that no longer exist are ignored.
 	UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error
-	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	// ResultCountsForQueries returns the number of stored rows with data per query. Queries with
 	// no rows are absent from the result.
 	ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error)
@@ -1136,9 +1123,6 @@ type Datastore interface {
 	// ClearHostPolicyMembershipForPolicies deletes the host's policy_membership rows for the given policies, so the next report
 	// writes a fresh row and advances updated_at. Used at setup-experience enqueue time for the gating policies.
 	ClearHostPolicyMembershipForPolicies(ctx context.Context, hostID uint, policyIDs []uint) error
-
-	// StalePolicyIDsForHost returns the policies the host has a policy_membership row for but no result in reported.
-	StalePolicyIDsForHost(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error)
 
 	// ClearHostPolicyUpdatedAt resets the host's policy_updated_at to a stale sentinel so its full policy set re-runs promptly.
 	// Used after a setup-experience gating policy result is consumed (setup reports only the gated subset).
@@ -1808,9 +1792,6 @@ type Datastore interface {
 
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)
-
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a
 	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
@@ -4298,8 +4279,6 @@ type Datastore interface {
 	GetCertificateTemplatesByIdsAndTeam(ctx context.Context, ids []uint, teamID uint) ([]*CertificateTemplateResponse, error)
 	// GetCertificateTemplateByTeamIDAndName gets a certificate template by team ID and name.
 	GetCertificateTemplateByTeamIDAndName(ctx context.Context, teamID uint, name string) (*CertificateTemplateResponse, error)
-	// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a paginated list of Android host UUIDs that have certificate templates.
-	ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error)
 	// ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
 	ListCertificateTemplatesForHosts(ctx context.Context, hostUUIDs []string) ([]CertificateTemplateForHost, error)
 	// GetCertificateTemplateForHost returns a certificate template for the given host UUID and certificate template ID.

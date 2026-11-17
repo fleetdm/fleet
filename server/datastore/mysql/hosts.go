@@ -7045,35 +7045,6 @@ func (ds *Datastore) CountAllHosts(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (ds *Datastore) HostIDsByOSID(
-	ctx context.Context,
-	osID uint,
-	offset int,
-	limit int,
-) ([]uint, error) {
-	var ids []uint
-
-	stmt := dialect.From("host_operating_system").
-		Select("host_id").
-		Where(
-			goqu.C("os_id").Eq(osID),
-		).
-		Order(goqu.I("host_id").Desc()).
-		Offset(uint(offset)).
-		Limit(uint(limit))
-
-	sql, args, err := stmt.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
-	}
-
-	return ids, nil
-}
-
 // TODO Refactor this: We should be using the operating system type for this
 func (ds *Datastore) HostIDsByOSVersion(
 	ctx context.Context,
@@ -7477,38 +7448,6 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 	return host, nil
 }
 
-// HostnamesByIdentifiers returns a list of hostnames (exactly the
-// "hosts.hostname" column) for the given identifiers as understood by
-// HostByIdentifier.
-func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
-	const selectStmt = `
-		SELECT
-			DISTINCT h.hostname
-		FROM hosts h,
-		(%s) ids
-		WHERE ids.identifier IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
-`
-	if len(identifiers) == 0 {
-		return nil, nil
-	}
-
-	var sb strings.Builder
-	args := make([]any, len(identifiers))
-	for i, id := range identifiers {
-		if i > 0 {
-			sb.WriteString(` UNION `)
-		}
-		sb.WriteString(`SELECT ? AS identifier`)
-		args[i] = id
-	}
-	var hostnames []string
-	stmt := fmt.Sprintf(selectStmt, sb.String())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostnames, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
-	}
-	return hostnames, nil
-}
-
 func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
 	stmt := `
 		SELECT updated_at FROM host_issues WHERE host_id = ?
@@ -7525,12 +7464,6 @@ func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) 
 		return time.Time{}, ctxerr.New(ctx, "Multiple host_issues rows found for this host_id")
 	}
 	return out[0], nil
-}
-
-func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
-	})
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error {
