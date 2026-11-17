@@ -71,13 +71,10 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
 		return nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 1, Name: name}, nil
-	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error { return nil }
+	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return nil }
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{}, nil
 	}
@@ -94,6 +91,9 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	}
 
 	// MDM profiles
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,

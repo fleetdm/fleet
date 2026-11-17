@@ -1,0 +1,1 @@
+- Fixed Linux remote wipe on NixOS hosts deleting nothing while still halting the host and reporting the host as wiped. The wipe now also aborts before deleting anything if the tools it needs to detect network filesystems are missing.

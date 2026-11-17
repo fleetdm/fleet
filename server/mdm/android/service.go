@@ -51,7 +51,7 @@ type Service interface {
 	// SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 	// Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 	// not additive/PATCH semantics.
-	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
+	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
 	BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
 	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts

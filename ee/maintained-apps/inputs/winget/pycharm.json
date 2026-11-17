@@ -3,6 +3,7 @@
   "slug": "pycharm/windows",
   "package_identifier": "JetBrains.PyCharm.Professional",
   "unique_identifier": "PyCharm",
+  "open_process_names": ["pycharm.exe", "pycharm64.exe"],
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.';",
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/pycharm_install.ps1",

@@ -19,10 +19,10 @@ var orbitConfigFieldTriggers = map[string]string{
 	"script_execution_timeout":   "hook: orbitconfig_notify SaveAppConfig/SaveTeam/AddHostsToTeam",
 	"command_line_startup_flags": "hook: orbitconfig_notify SaveAppConfig/SaveTeam/AddHostsToTeam",
 	"extensions":                 "hook: orbitconfig_notify SaveAppConfig/SaveTeam/AddHostsToTeam; fallback-only for label membership changes",
-	"nudge_config":               "fallback-only: macOS < 14 only, unsupported",
 	"update_channels":            "hook: orbitconfig_notify SaveAppConfig/SaveTeam/AddHostsToTeam",
 	"debug_logging":              "fallback-only: expiry is time-based",
 	"websocket_transport":        "fallback-only: server config, changes on restart",
+	"entra_device_token_request": "hook: orbitconfig_notify AddHostsToTeam; fallback-only for conditional access integration and setting changes",
 	"notifications":              "see the notifications fields",
 
 	// fleet.OrbitConfigNotifications

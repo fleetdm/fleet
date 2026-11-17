@@ -37,8 +37,8 @@ const hostsResponseWith = (
     id: number;
     display_name: string;
     status: string;
-    team_id: number | null;
-    team_name: string | null;
+    fleet_id: number | null;
+    fleet_name: string | null;
   }>
 ): ILoadHostsResponse =>
   (({
@@ -108,15 +108,15 @@ describe("HostPicker", () => {
           id: 42,
           display_name: "results-first-host",
           status: "online",
-          team_id: null,
-          team_name: null,
+          fleet_id: null,
+          fleet_name: null,
         },
         {
           id: 43,
           display_name: "results-second-host",
           status: "offline",
-          team_id: null,
-          team_name: null,
+          fleet_id: null,
+          fleet_name: null,
         }
       )
     );
@@ -157,8 +157,8 @@ describe("HostPicker", () => {
       id: 1,
       display_name: "Rachel's MacBook",
       status: "online",
-      team_id: 5,
-      team_name: "Engineering",
+      fleet_id: 5,
+      fleet_name: "Engineering",
     });
 
     // The shared QueryClient persists React Query's cache across tests

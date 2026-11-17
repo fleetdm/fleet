@@ -3,6 +3,7 @@
   "slug": "xnconvert/windows",
   "package_identifier": "XnSoft.XnConvert",
   "unique_identifier": "XnConvert",
+  "open_process_names": ["xnconvert.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

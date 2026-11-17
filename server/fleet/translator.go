@@ -4,6 +4,7 @@ const (
 	TranslatorTypeUserEmail = "user"
 	TranslatorTypeLabel     = "label"
 	TranslatorTypeTeam      = "team"
+	TranslatorTypeFleet     = "fleet"
 	TranslatorTypeHost      = "host"
 )
 

@@ -572,6 +572,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Download package using a token](#download-package-using-a-token)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Rotate automatic enrollment token](#rotate-automatic-enrollment-token)
 - [Over the air enrollment](#over-the-air-enrollment)
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Get host's DEP assignment](#get-hosts-dep-assignment)
@@ -685,7 +686,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Disposition: form-data; name="token"; filename="server_token_ab.p7m"
 Content-Type: application/octet-stream
 
 <TOKEN_DATA>
@@ -714,7 +715,7 @@ Content-Type: application/octet-stream
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -822,7 +823,7 @@ None.
     "ipados_fleet": 3,
     "byod_fleet": 3
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -880,7 +881,7 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 2,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -926,7 +927,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Disposition: form-data; name="token"; filename="server_token_ab.p7m"
 Content-Type: application/octet-stream
 
 <TOKEN_DATA>
@@ -955,7 +956,7 @@ Content-Type: application/octet-stream
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -1031,7 +1032,7 @@ Content-Type: application/octet-stream
 "vpp_token": {
   "id": 1,
   "org_name": "Fleet Device Management Inc.",
-  "organization_unit": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
   "renew_date": "2025-10-20T00:00:00Z",
   "created_at": "2023-10-20T14:02:11Z",
   "terms_expired": false,
@@ -1180,6 +1181,56 @@ following query parameters:
   showing a generic error. This happens when the user takes longer than
   `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
   or when the callback is replayed (the session is single use).
+
+### Rotate automatic enrollment token
+
+_Available in Fleet Premium_
+
+Replaces the automatic enrollment token. Fleet puts this token in the `url` of the automatic enrollment profile for fleets without end user authentication. The previous token keeps working for a grace period. Only global admins can rotate the token.
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| grace_period_hours | integer | body | How long the previous token keeps working, in hours. Default: `24`. Must be between `0` and `720`. `0` stops accepting the previous token immediately. |
+
+#### Example
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+##### Request body
+
+```json
+{
+  "grace_period_hours": 24
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "previous_token_expires_at": "2026-10-01T15:04:05Z"
+}
+```
+
+`previous_token_expires_at` is `null` when `grace_period_hours` is `0`. Token values are never returned.
+
+After rotating, Fleet updates every fleet's automatic enrollment profile in Apple Business (AB) with the new `url`, and reassigns the fleet's devices to it. Rotating again during a grace period ends the earlier grace period.
+
+Devices keep the automatic enrollment configuration they got when they were activated. A device that was activated before the rotation, but hasn't enrolled yet, can't enroll with the old token once the grace period ends. To fix it, erase and reactivate it.
+
+##### Error responses
+
+- `400` when Apple MDM isn't turned on.
+- `402` on Fleet Free.
+- `403` for any role other than global admin.
+- `404` when there's no automatic enrollment profile yet (no AB token has synced).
+- `422` when `grace_period_hours` is out of range.
 
 ### Over the air enrollment
 
@@ -1615,6 +1666,8 @@ Creates and/or modifies the reports included in the list. To modify an existing 
 
 If a query field is not specified in the "spec" then its default value depending on its type will be assumed, e.g. if `interval` is not set then `0` will be assumed, if `discard_data` is omitted then `false` will be assumed, etc.
 
+Fleets can have labels with the same name. If a global report's `labels_include_any` or `labels_include_all` includes a name that labels on more than one fleet use, this endpoint returns `409`.
+
 `POST /api/v1/fleet/spec/queries`
 
 #### Parameters
@@ -1776,6 +1829,8 @@ Creates and/or modifies the policies included in the list. To modify an existing
 
 NOTE: when updating a policy, fleet and platform will be ignored.
 
+Fleets can have labels with the same name. If a global policy's label fields (`labels_include_any`, `labels_include_all`, `labels_exclude_any`, or `labels_exclude_all`) include a name that labels on more than one fleet use, this endpoint returns `409`.
+
 `POST /api/v1/fleet/spec/policies`
 
 #### Parameters
@@ -1800,7 +1855,8 @@ NOTE: when updating a policy, fleet and platform will be ignored.
       "team": "No team",
       "fleet": "Unassigned",
       "resolution": "some resolution steps here",
-      "critical": false
+      "critical": false,
+      "webhooks_and_tickets_enabled": true
     },
     {
       “name”: “Is FileVault enabled on macOS devices?”,
@@ -1828,6 +1884,8 @@ NOTE: when updating a policy, fleet and platform will be ignored.
 ```
 
 The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
+
+Each policy can have one automation. If a policy in the list has more than one, the request fails. Set `webhooks_and_tickets_enabled` to `true` to send the policy's failing hosts to the webhook, Jira, or Zendesk destination configured for the policy's fleet (or the global destination for "All fleets" policies).
 
 ##### Default response
 
@@ -2051,9 +2109,9 @@ If the `name` is not already associated with an existing fleet, this API route c
 | features                                  | object | body  | The features that are applied to the hosts assigned to the specified fleet. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                       |
 | secrets                                   | array   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | mdm                                       | object | body  | The fleet's MDM configuration options.                                                                                                                                                                                              |
-| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
+| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
-| mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
+| mdm.macos_updates.deadline                | string | body  | The required installation date to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
 | mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
@@ -2068,7 +2126,7 @@ If the `name` is not already associated with an existing fleet, this API route c
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
 | software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
-| software.app_store_apps.organization_unit      | string   | body  | The name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from. If not specified, apps that are already added to the fleet keep their current VPP token, and new apps are added from the fleet's first-added VPP token. |
+| software.app_store_apps.location      | string   | body  | The name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from. If not specified, apps that are already added to the fleet keep their current VPP token, and new apps are added from the fleet's first-added VPP token. |
 | software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.packages                          | array   | body  | An array of objects with values below. |
@@ -2217,9 +2275,11 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | team_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
 | specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
-| names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other fleets. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct fleet can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
+| labels_to_move | object[] | body | Labels in `specs` whose names are moving between the global level and a fleet. Each object has a `name` and, when applying global labels, the `from_fleet_id` of the fleet the name is moving from. List a name once per fleet it's moving from. Omit `from_fleet_id` when applying a fleet's labels, since the name is moving from the global level. |
 
-The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one fleet (or global) to using that same label name on another fleet (or switching a fleet label to a global label). Once labels are created on the correct fleets, the old labels are cleaned up when GitOps is run on the old fleet via explicit `DELETE` calls.
+A global label and a fleet label can't have the same name. `labels_to_move` lets a GitOps run move a name across that boundary in one run: this endpoint renames the existing labels so the new ones can be created, and GitOps deletes the renamed labels at the end of the run.
+
+When applying global labels, only the listed fleets' labels are renamed. If another fleet has a label with one of the names, the request fails with `409` and no labels are renamed. Names with no label to rename are skipped, since an earlier request in the same GitOps run may already have renamed it.
 
 #### Example
 
@@ -2243,7 +2303,12 @@ The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance
       "hosts": ["C02XK1Z2JG5J"]
     }
   ],
-  "names_to_move": ["local_machine"]
+  "labels_to_move": [
+    {
+      "name": "local_machine",
+      "from_fleet_id": 2
+    }
+  ]
 }
 ```
 
@@ -2370,6 +2435,8 @@ Gets all labels visible to the currently logged-in user.
 ### Get label
 
 Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user.
+
+Fleets can have labels with the same name. If the name matches labels on more than one fleet the user can access, this endpoint returns `409`.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
@@ -2565,6 +2632,7 @@ for which the user has an observer role.
 | query             | string  | body | The query used to identify hosts to target. Searchable items include a `display_name`, `hostname`, `hardware_serial`, `uuid` or `primary_ip`. |
 | query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
+| exclude_mobile_hosts | boolean | body | If `true`, iOS, iPadOS, and Android hosts are omitted from the search results. Used when targeting live reports, which mobile hosts can't run. Default is `false`. |
 
 #### Example
 
@@ -2603,7 +2671,8 @@ for which the user has an observer role.
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
         "platform": "rhel",
         "osquery_version": "4.5.1",
-        "os_version": "CentOS 6.10.0",
+        "os_name": "CentOS",
+        "os_version": "6.10.0",
         "build": "",
         "platform_like": "rhel",
         "code_name": "",
@@ -2809,6 +2878,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "failing_unhidden_policies_count": 1, // Available in Fleet Premium
   "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
@@ -2817,8 +2887,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   "config": {
     "org_info": {
       "org_name": "Fleet",
-      "org_logo_url": "https://example.com/logo.jpg",
-      "org_logo_url_light_background": "https://example.com/logo-light.jpg",
+      "org_logo_url_dark_mode": "https://example.com/logo.jpg",
+      "org_logo_url_light_mode": "https://example.com/logo-light.jpg",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "mdm": {
@@ -2829,6 +2899,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   }
 }
 ```
+
+`failing_policies_count` counts all failing policies, including those marked `hidden`. `failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
 
 In regards to the `notifications` key:
 
@@ -3231,6 +3303,7 @@ Lists the policies applied to the current device. Policies are returned in a dev
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+| include_hidden_policies | boolean | query | If `true`, the response includes policies marked `hidden`. Hidden policies are omitted by default. |
 
 ##### Example
 
@@ -3832,37 +3905,6 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
       "platform": "linux"
     }
   },
-  "nudge_config": {
-    "osVersionRequirements": [
-      {
-        "requiredInstallationDate": "2024-12-04T20:00:00Z",
-        "requiredMinimumOSVersion": "15.1.1",
-        "aboutUpdateURLs": [
-          {
-            "_language": "en",
-            "aboutUpdateURL": "https://fleetdm.com/learn-more-about/os-updates"
-          }
-        ]
-      }
-    ],
-    "userInterface": {
-      "simpleMode": true,
-      "showDeferralCount": false,
-      "updateElements": [
-        {
-          "_language": "en",
-          "actionButtonText": "Update",
-          "mainHeader": "Your device requires an update"
-        }
-      ]
-    },
-    "userExperience": {
-      "initialRefreshCycle": 86400,
-      "approachingRefreshCycle": 86400,
-      "imminentRefreshCycle": 7200,
-      "elapsedRefreshCycle": 3600
-    }
-  },
   "notifications": {
     "renew_enrollment_profile": true,
     "rotate_disk_encryption_key": true,
@@ -4324,7 +4366,7 @@ If the Fleet instance is provided required parameters to complete setup.
   },
   "org_info": {
     "org_name": "Fleet Device Management",
-    "org_logo_url": "https://fleetdm.com/logo.png"
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png"
   },
   "server_url": "https://localhost:8080",
   "osquery_enroll_secret": null,
@@ -5047,7 +5089,7 @@ Response format varies by operation according to the SCEP protocol specification
 
 ## Android fleetdm.com proxy
 
-The following endpoints are exposed on fleetdm.com to proxy Google Android Management API.
+The following endpoints are exposed on fleetdm.com to proxy Google Android Management API. For what customers need to allowlist, see [Android MDM](https://fleetdm.com/docs/deploy/reference-architectures#android-mdm).
 
 ### Create Android signup URL
 

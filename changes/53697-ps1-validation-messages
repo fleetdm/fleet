@@ -1,0 +1,1 @@
+- Fixed two confusing validation messages for `.ps1` packages: `setup_experience_platform` on a `.ps1` now reports that the field is unsupported for that package type instead of showing an empty allowed list, and uploading a `.ps1` with a `pwsh` shebang now returns the PowerShell shebang error instead of the shell/Python interpreter list.

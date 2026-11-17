@@ -1,0 +1,1 @@
+* Added the `sshd_config` table on macOS and Linux to report the OpenSSH server's effective configuration (`sshd -G`), including `Match` block evaluation for a given connection.

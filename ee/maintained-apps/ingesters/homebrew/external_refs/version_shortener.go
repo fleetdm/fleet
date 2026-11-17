@@ -43,6 +43,69 @@ var (
 	OneDriveVersionShortener            = makeVersionShortener(3) // "26.139.0720.0007" → "26.139.0720"
 	HarmonySASEVersionShortener         = makeVersionShortener(3) // "12.11.0.12314" → "12.11.0"
 	OutsetVersionShortener              = makeVersionShortener(3) // "4.2.0.21973" → "4.2.0"
+	ExpressVPNVersionShortener          = makeVersionShortener(3) // "14.3.1.15429" → "14.3.1"
+	CmuxVersionShortener                = makeVersionShortener(3) // hotfix tag "0.65.2.2" → "0.65.2"
+	MEGAsyncVersionShortener            = makeVersionShortener(3) // "6.7.0.3" → "6.7.0"
+	CapCutVersionShortener              = makeVersionShortener(3) // "9.5.0.4590" → "9.5.0"
+	DevToysVersionShortener             = makeVersionShortener(3) // "2.0.9.0" → "2.0.9"
+	FontLabVersionShortener             = makeVersionShortener(3) // "8.4.2.8950" → "8.4.2"
+	MemoryAnalyzerVersionShortener      = makeVersionShortener(3) // "1.17.0.20260601" → "1.17.0"
+	NDIToolsVersionShortener            = makeVersionShortener(3) // "6.3.2.0" → "6.3.2"
+	PlexVersionShortener                = makeVersionShortener(3) // "1.115.0.426" → "1.115.0"
+	PlexHTPCVersionShortener            = makeVersionShortener(3) // "1.71.1.346" → "1.71.1"
+	ElgatoCameraHubVersionShortener     = makeVersionShortener(3) // "2.3.0.7295" → "2.3.0"
+	MuseScoreVersionShortener           = makeVersionShortener(3) // "4.7.6.261022093" → "4.7.6"
+	Shapr3DVersionShortener             = makeVersionShortener(3) // "26.202.0.12281" → "26.202.0"
+	YACReaderVersionShortener           = makeVersionShortener(3) // "10.4.0.261009428" → "10.4.0"
+	AdGuardVersionShortener             = makeVersionShortener(3) // "2.20.2.2629" → "2.20.2"
+	NumiVersionShortener                = makeVersionShortener(2) // "3.35.743" → "3.35"
+	OrigamiStudioVersionShortener       = makeVersionShortener(2) // "231.0.0.0.0" → "231.0"
+	SQLProVersionShortener              = makeVersionShortener(2) // "2026.301.2" → "2026.301"
+	KritaVersionShortener               = makeVersionShortener(3) // re-signed DMG "5.3.4.1" → "5.3.4"
+)
+
+// Apps whose CFBundleVersion is the full cask version. Their patched queries
+// compare bundle_version against the unshortened cask version (see the
+// homebrew ingester), so the shortened version only changes what Fleet shows.
+var (
+	OpenMediaVersionShortener               = makeVersionShortener(2) // 4K apps: "26.3.5" → "26.3"
+	GoogleEarthProVersionShortener          = makeVersionShortener(2) // "7.3.7.1327" → "7.3"
+	DiskDrillVersionShortener               = makeVersionShortener(2) // "6.3.2326" → "6.3"
+	KdenliveVersionShortener                = makeVersionShortener(2) // "26.08.3" → "26.08"
+	SyncMateVersionShortener                = makeVersionShortener(2) // "8.11.604" → "8.11"
+	REDCINEXProVersionShortener             = makeVersionShortener(2) // "65.2.1" → "65.2"
+	Bitrix24VersionShortener                = makeVersionShortener(3) // "24.0.37.92" → "24.0.37"
+	ChromeRemoteDesktopHostVersionShortener = makeVersionShortener(3) // "157.0.8103.38" → "157.0.8103"
+	MalwarebytesVersionShortener            = makeVersionShortener(3) // "5.29.2.4310" → "5.29.2"
+	PlexMediaServerVersionShortener         = makeVersionShortener(3) // "1.43.5.11079" → "1.43.5"
+	SigmaOSVersionShortener                 = makeVersionShortener(3) // "1.19.0.4" → "1.19.0"
+)
+
+// makeTrailingZeroTrimmer returns a manifest enricher that drops trailing ".0"
+// segments from the Homebrew version, keeping at least minSegments, for apps
+// whose bundle_short_version omits them ("4.6" for "4.6.0") but keeps a
+// nonzero patch ("4.5.1").
+func makeTrailingZeroTrimmer(minSegments int) func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	return func(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+		if app.Version == "" {
+			return app, fmt.Errorf("empty version for app %s", app.Slug)
+		}
+		parts := strings.Split(app.Version, ".")
+		for len(parts) > minSegments && parts[len(parts)-1] == "0" {
+			parts = parts[:len(parts)-1]
+		}
+		app.Version = strings.Join(parts, ".")
+		return app, nil
+	}
+}
+
+var (
+	MoomVersionTrimmer                     = makeTrailingZeroTrimmer(2) // "4.6.0" → "4.6"
+	OpalComposerVersionTrimmer             = makeTrailingZeroTrimmer(2) // "2.0.0" → "2.0"
+	PlistEditProVersionTrimmer             = makeTrailingZeroTrimmer(2) // "1.10.0" → "1.10"
+	RocketmanChoicesPackagerVersionTrimmer = makeTrailingZeroTrimmer(2) // "1.0.0" → "1.0"
+	// Runs after AdGuardVersionShortener: AdGuard reports "2.20" for "2.20.0.2626".
+	AdGuardVersionTrimmer = makeTrailingZeroTrimmer(2)
 )
 
 // SublimeVersionTransformer prepends "Build " to match what macOS reports as

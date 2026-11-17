@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -17,6 +18,12 @@ import (
 type fieldInfo struct {
 	jsonName string
 	typ      reflect.Type
+	// removed marks a key named in a `removedkey` tag, rejected wherever it appears.
+	removed bool
+	// pathName is the field's current name (its `renameto` alias, when it has one), used in
+	// error paths. The YAML is rewritten to the deprecated names before validation, so the key
+	// as found can be a name the user didn't write.
+	pathName string
 }
 
 // ValidKeysProvider is implemented by types with custom JSON marshaling
@@ -106,18 +113,28 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 			continue
 		}
 
-		keys[name] = fieldInfo{
-			jsonName: name,
-			typ:      field.Type,
-		}
-
 		// Also register the "renameto" alias (deprecated field name mappings)
 		// so that both old and new names are accepted. Strip any options like
 		// ",inline" so the registered key is just the new name.
-		if alias, _, _ := strings.Cut(field.Tag.Get("renameto"), ","); alias != "" {
+		alias, _, _ := strings.Cut(field.Tag.Get("renameto"), ",")
+		pathName := name
+		if alias != "" {
+			pathName = alias
 			keys[alias] = fieldInfo{
 				jsonName: alias,
 				typ:      field.Type,
+				pathName: alias,
+			}
+		}
+		keys[name] = fieldInfo{
+			jsonName: name,
+			typ:      field.Type,
+			pathName: pathName,
+		}
+
+		for removed := range strings.SplitSeq(field.Tag.Get("removedkey"), ",") {
+			if removed = strings.TrimSpace(removed); removed != "" {
+				keys[removed] = fieldInfo{jsonName: removed, typ: field.Type, removed: true}
 			}
 		}
 	}
@@ -150,7 +167,10 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 func suggestKey(unknown string, known map[string]fieldInfo) string {
 	bestKey := ""
 	bestDist := len(unknown) // worst case: replace every character
-	for candidate := range known {
+	for candidate, fi := range known {
+		if fi.removed {
+			continue
+		}
 		d := levenshtein.ComputeDistance(unknown, candidate)
 		if d < bestDist {
 			bestDist = d
@@ -164,6 +184,18 @@ func suggestKey(unknown string, known map[string]fieldInfo) string {
 		return bestKey
 	}
 	return ""
+}
+
+// foldKey returns the known key that matches key ignoring case, among the removed keys or
+// among the current ones. Keys must match exactly, but GitOps decodes the YAML into structs
+// ignoring case, so a differently cased key still reaches its field.
+func foldKey(key string, known map[string]fieldInfo, removed bool) (string, bool) {
+	for name, fi := range known {
+		if fi.removed == removed && strings.EqualFold(name, key) {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 // validateUnknownKeys walks parsed JSON data and compares keys against
@@ -206,12 +238,26 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 	for key, val := range data {
 		fi, ok := known[key]
 		if !ok {
+			if name, removed := foldKey(key, known, true); removed {
+				errs = append(errs, &ParseRemovedKeyError{Filename: filePath, Path: strings.Join(path, "."), Field: name})
+				continue
+			}
 			errs = append(errs, &ParseUnknownKeyError{
 				Filename:   filePath,
 				Path:       strings.Join(path, "."),
 				Field:      key,
 				Suggestion: suggestKey(key, known),
 			})
+			// The block still decodes into its field, so removed keys under it must be
+			// reported too.
+			name, folded := foldKey(key, known, false)
+			if !folded {
+				continue
+			}
+			key, fi = name, known[name]
+		}
+		if fi.removed {
+			errs = append(errs, &ParseRemovedKeyError{Filename: filePath, Path: strings.Join(path, "."), Field: key})
 			continue
 		}
 
@@ -228,7 +274,7 @@ func validateMapKeys(data map[string]any, targetType reflect.Type, path []string
 		}
 
 		// Recurse into nested structs or slices.
-		childPath := append(slices.Clone(path), key)
+		childPath := append(slices.Clone(path), cmp.Or(fi.pathName, key))
 		childErrs := validateUnknownKeys(val, fieldType, childPath, filePath)
 		errs = append(errs, childErrs...)
 	}

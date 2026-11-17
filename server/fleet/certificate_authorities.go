@@ -21,17 +21,20 @@ const (
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 	CAConfigEJBCA           CAConfigAssetType = "ejbca"
+	// CAConfigConditionalAccess marks certificates issued by Fleet's own conditional access SCEP server. It is a
+	// managed certificate type only, never a certificate authority admins configure.
+	CAConfigConditionalAccess CAConfigAssetType = "conditional_access"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
 func ListCATypesWithRenewalSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA}
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA, CAConfigConditionalAccess}
 }
 
 // ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
 // is not included as renewal does not need special support within the profile
 func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+	return []CAConfigAssetType{CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigConditionalAccess}
 }
 
 // SupportsRenewalID returns whether the CA type supports renewal IDs.
@@ -331,11 +334,12 @@ type ESTProxyCA struct {
 	Password string `json:"password"`
 }
 
+// Equals checks if two ESTProxyCA instances are equal, including the password
 func (h *ESTProxyCA) Equals(other *ESTProxyCA) bool {
 	return h.Name == other.Name &&
 		h.URL == other.URL &&
 		h.Username == other.Username &&
-		(h.Password == "" || h.Password == MaskedPassword || h.Password == other.Password)
+		h.Password == other.Password
 }
 
 func (h *ESTProxyCA) NeedToVerify(other *ESTProxyCA) bool {
@@ -358,11 +362,12 @@ type HydrantCA struct {
 	ClientSecret string `json:"client_secret,omitempty" db:"-"`
 }
 
+// Equals checks if two HydrantCA instances are equal, including the client secret
 func (h *HydrantCA) Equals(other *HydrantCA) bool {
 	return h.Name == other.Name &&
 		h.URL == other.URL &&
 		h.ClientID == other.ClientID &&
-		(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
+		h.ClientSecret == other.ClientSecret
 }
 
 func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
@@ -416,10 +421,11 @@ type CustomSCEPProxyCA struct {
 	Challenge string `json:"challenge"`
 }
 
+// Equals checks if two CustomSCEPProxyCA instances are equal, including the challenge
 func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
 	return s.Name == other.Name &&
 		s.URL == other.URL &&
-		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
+		s.Challenge == other.Challenge
 }
 
 func (s *CustomSCEPProxyCA) Preprocess() {
@@ -995,6 +1001,15 @@ type SmallstepSCEPProxyCA struct {
 	ChallengeURL string `json:"challenge_url,omitempty"`
 	Username     string `json:"username"`
 	Password     string `json:"password"` // not stored here -- encrypted in DB
+}
+
+// Equals checks if two SmallstepSCEPProxyCA instances are equal, including the password
+func (s *SmallstepSCEPProxyCA) Equals(other *SmallstepSCEPProxyCA) bool {
+	return s.Name == other.Name &&
+		s.URL == other.URL &&
+		s.ChallengeURL == other.ChallengeURL &&
+		s.Username == other.Username &&
+		s.Password == other.Password
 }
 
 func (s *SmallstepSCEPProxyCA) Preprocess() {

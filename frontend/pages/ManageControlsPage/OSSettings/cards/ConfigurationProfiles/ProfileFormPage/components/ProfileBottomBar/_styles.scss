@@ -18,13 +18,15 @@
 
   // Fades the form out above the card on short viewports. Anchored to the
   // padding box, so offset by the border or it paints over the top edge.
+  // No taller than the form's gap, so the last field is clear once scrolled
+  // to the end.
   &::before {
     content: "";
     position: absolute;
     left: 0;
     right: 0;
     bottom: calc(100% + 1px);
-    height: $pad-xlarge;
+    height: $pad-large;
     background: linear-gradient(
       to bottom,
       $core-fleet-white-transparent,

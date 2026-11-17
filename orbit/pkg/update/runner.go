@@ -247,7 +247,7 @@ func (r *Runner) UpdateAction() (bool, error) {
 
 	// TODO(sarah): Should we reconsider usage of `didUpdate`? It seems that in most cases it is
 	// used to signal that orbit should restart. Does that make sense when we are dealing with more
-	// loosely coupled components such as Nudge?
+	// loosely coupled components such as swiftDialog?
 	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)

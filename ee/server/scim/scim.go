@@ -289,7 +289,7 @@ func RegisterSCIM(
 // scimOTELMiddleware provides OpenTelemetry instrumentation for SCIM endpoints
 // It creates proper span names without exposing sensitive IDs
 func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig) http.Handler {
-	if !cfg.Logging.TracingEnabled || cfg.Logging.TracingType != "opentelemetry" {
+	if !cfg.OTELEnabled() {
 		return next
 	}
 
@@ -334,18 +334,9 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 		case scimPath == "ResourceTypes" || scimPath == "ResourceTypes/":
 			route = prefix + "/ResourceTypes"
 		default:
-			// For any other path, use the full path but check for potential IDs
-			// If the path looks like it might contain an ID (has multiple segments),
-			// we should sanitize it
-			segments := strings.Split(strings.Trim(scimPath, "/"), "/")
-			if len(segments) > 1 {
-				// Might be something like CustomResource/123
-				// Replace the last segment with {id} if it looks like an ID
-				route = prefix + "/" + segments[0] + "/{id}"
-			} else {
-				// Single segment path, use as is
-				route = prefix + "/" + scimPath
-			}
+			// This middleware runs before authentication, so any path segment here is caller-controlled. A fixed label keeps it
+			// out of span names and http.route.
+			route = prefix + "/{unknown}"
 		}
 
 		// Create the instrumented handler with the proper route

@@ -1,0 +1,1 @@
+- Fleet no longer sends Nudge settings to fleetd for hosts on macOS 13 and older, which are no longer supported. Hosts on macOS 14 and later continue to get OS update enforcement via DDM. Nudge is still available as a Fleet-maintained app.

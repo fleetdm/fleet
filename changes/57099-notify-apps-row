@@ -1,0 +1,1 @@
+- Fixed the Apps row in the notify before patching activity details modal cutting off the list of apps. The row now wraps so that every app can be read.

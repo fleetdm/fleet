@@ -1,0 +1,1 @@
+- Resending an Apple configuration profile, manually or after an IdP user or certificate authority change, now gives it a fresh set of verification retries.

@@ -1,8 +1,9 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
 import {
+  createMockAppStoreAppVersion,
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
@@ -305,6 +306,64 @@ describe("InstallSoftware", () => {
     });
     expect(saveButton).toBeVisible();
     expect(saveButton).toBeDisabled();
+  });
+
+  it("preselects a title when any of its app_store_apps has install_during_setup, and preserves it across a save that adds another title", async () => {
+    const updateSetupExperienceSoftwareSpy = jest
+      .spyOn(mdmAPI, "updateSetupExperienceSoftware")
+      .mockResolvedValue({});
+
+    const { user } = render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareMacOS={false}
+        currentTeamId={1}
+        softwareTitles={[
+          createMockSoftwareTitle({
+            id: 1,
+            name: "Preselected app store title",
+            software_package: null,
+            app_store_apps: [
+              createMockAppStoreAppVersion({
+                id: 10,
+                install_during_setup: false,
+              }),
+              createMockAppStoreAppVersion({
+                id: 11,
+                install_during_setup: true,
+              }),
+            ],
+          }),
+          createMockSoftwareTitle({
+            id: 2,
+            name: "Other package title",
+            software_package: createMockSoftwarePackage({
+              install_during_setup: false,
+            }),
+          }),
+        ]}
+        hasManualAgentInstall={false}
+        platform="macos"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    const preselectedRow = screen.getByRole("row", {
+      name: /Preselected app store title/,
+    });
+    expect(within(preselectedRow).getByRole("checkbox")).toBeChecked();
+    expect(screen.getByText(/1 software item/)).toBeVisible();
+
+    const otherRow = screen.getByRole("row", { name: /Other package title/ });
+    await user.click(within(otherRow).getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(updateSetupExperienceSoftwareSpy).toHaveBeenCalledTimes(1);
+    });
+    const [, , sentIds] = updateSetupExperienceSoftwareSpy.mock.calls[0];
+    expect(sentIds).toEqual(expect.arrayContaining([1, 2]));
+    expect(sentIds).toHaveLength(2);
   });
 
   it.each(SETUP_EXPERIENCE_PLATFORMS.filter((val) => val !== "macos"))(

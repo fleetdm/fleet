@@ -1194,6 +1194,13 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:    "brotli",
+				Source:  "homebrew_packages",
+				Version: "1.2.1",
+			}, cpe: "cpe:2.3:a:google:brotli:1.2.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "click",
 				Source:           "python_packages",
 				Version:          "8.0.3",

@@ -13,6 +13,7 @@ import (
 type MockLiveQuery struct {
 	mock.Mock
 	fleet.LiveQueryStore
+	StopQueryOverride                        func(name string) error
 	GetQueryResultsCountsOverride            func(queryIDs []uint) (map[uint]int, error)
 	IncrQueryResultsCountsOverride           func(queryIDsToAmounts map[uint]int) error
 	SetQueryResultsCountOverride             func(queryID uint, count int) error
@@ -51,6 +52,9 @@ func (m *MockLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 
 // StopQuery mocks the live query store StopQuery method.
 func (m *MockLiveQuery) StopQuery(name string) error {
+	if m.StopQueryOverride != nil {
+		return m.StopQueryOverride(name)
+	}
 	args := m.Called(name)
 	return args.Error(0)
 }

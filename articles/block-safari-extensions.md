@@ -49,7 +49,7 @@ Here, the composed identifier is `com.example.WebExtension (ABCDE12345)`.
 }
 ```
 
-2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+2. In Fleet, go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 3. Choose the `.json` file and select **Add profile** to upload it.
 
 Each key under `ManagedExtensions` is a composed identifier, and `State` is one of:

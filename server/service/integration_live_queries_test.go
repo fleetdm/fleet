@@ -1042,7 +1042,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignIgnoresBlankHos
 	// The suite's hosts all have an empty hardware serial, so a blank identifier would match every one of them.
 	labeledHost := s.hosts[0]
 	var labelResp fleet.CreateLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Hosts: []string{labeledHost.Hostname}}, http.StatusOK, &labelResp)
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Hosts: []string{labeledHost.UUID}}, http.StatusOK, &labelResp)
 	labelID := labelResp.Label.ID
 	t.Cleanup(func() {
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", labelID), nil, http.StatusOK)

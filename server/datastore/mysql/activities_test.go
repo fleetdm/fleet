@@ -152,7 +152,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
 	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
-	test.CreateInsertGlobalVPPToken(t, ds)
+	vppTok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, vppTok)
 
 	// create four hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -241,7 +242,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// vppCommand1 is now active for h1
 
 	// install the VPP app on h2, self-service
-	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true})
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true, VPPTokenID: vppTok.ID})
 	require.NoError(t, err)
 	// vppCommand2 is now active for h2
 
@@ -507,6 +508,17 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Equal(t, wantExec, details["command_uuid"], "result %d", i)
 					require.Equal(t, "vpp_no_team_app_1", details["software_title"], "result %d", i)
 					require.Equal(t, !execIDsWithUser[wantExec], details["self_service"], "result %d", i)
+					if wantExec == vppCommand2 {
+						require.Equal(t, map[string]any{
+							"id":           float64(vppTok.ID),
+							"location":     vppTok.Location,
+							"country_code": vppTok.CountryCode,
+						}, details["vpp_token"], "result %d", i)
+					} else {
+						// no token was recorded at queue time
+						require.Contains(t, details, "vpp_token", "result %d", i)
+						require.Nil(t, details["vpp_token"], "result %d", i)
+					}
 					wantUser = u2
 
 				default:
@@ -807,7 +819,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_2, pendingActs[3].UUID)
 
 	// listing scripts ready to execute returns script1_1
-	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
+	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Len(t, pendingScripts, 1)
 	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
@@ -907,7 +919,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Len(t, pendingSw, 0)
 
 	// without only active, returns it
-	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID)
+	pendingSw, err = ds.listUpcomingSoftwareInstalls(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 1)
 	require.Equal(t, sw1_1, pendingSw[0])
@@ -1424,7 +1436,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec1, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1636,7 +1648,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			// the next upcoming activity (and only this one) should show up in those
 			// lists of ready-to-process activities.
 			var gotExecIDs []string
-			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID, false)
+			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID)
 			require.NoError(t, err)
 			require.True(t, len(scripts) <= 1)
 			if len(scripts) == 1 {
@@ -2114,7 +2126,7 @@ func testReleaseFleetInitiatedUpcomingActivities(t *testing.T, ds *Datastore) {
 	}
 
 	readyExecIDs := func(hostID uint) []string {
-		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID, false)
+		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID)
 		require.NoError(t, err)
 		ids := make([]string, 0, len(ready))
 		for _, r := range ready {

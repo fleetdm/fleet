@@ -32,7 +32,7 @@ const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<number[]>((acc, software) => {
     if (
       software.software_package?.install_during_setup ||
-      software.app_store_app?.install_during_setup
+      software.app_store_apps?.some((v) => v.install_during_setup)
     ) {
       acc.push(software.id);
     }
@@ -284,7 +284,7 @@ const InstallSoftwareForm = ({
         />
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
-            {/* `require_all_software_macos` lives in MDM.MacOSSetup, which is
+            {/* `macos_require_all_software` lives in MDM.MacOSSetup, which is
                 applied unconditionally during gitops regardless of
                 exceptions.software — keep this checkbox globally gated. */}
             <GitOpsModeTooltipWrapper
@@ -311,7 +311,7 @@ const InstallSoftwareForm = ({
         )}
         {platform === "windows" && (
           <div className={`${baseClass}__windows_options`}>
-            {/* `require_all_software_windows` lives in MDM.MacOSSetup, which is
+            {/* `windows_require_all_software` lives in MDM.MacOSSetup, which is
                 applied unconditionally during gitops regardless of
                 exceptions.software — keep this checkbox globally gated. */}
             <GitOpsModeTooltipWrapper

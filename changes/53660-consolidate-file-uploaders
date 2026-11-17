@@ -1,1 +1,0 @@
-- Replaced hand-rolled file inputs on the Add asset and Add profile modals with the shared FileUploader for consistent drop zone, error, and loading states.

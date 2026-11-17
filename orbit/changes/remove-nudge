@@ -1,0 +1,1 @@
+- fleetd no longer installs or launches its built-in Nudge for macOS 13 and older. Nudge is still available as a Fleet-maintained app.

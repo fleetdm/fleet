@@ -17,7 +17,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      enable_recovery_lock_password: false
+      macos_recovery_lock_password_enabled: false
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
@@ -42,80 +42,12 @@ spec:
         lock_end_user_info: false
         apple_setup_assistant: null
         macos_manual_agent_install: null
-        require_all_software_macos: false
-        require_all_software_windows: false
+        macos_enable_bootstrap_package_during_manual_enrollment: false
+        macos_enable_bootstrap_package_during_migration: false
+        macos_require_all_software: false
+        windows_require_all_software: false
         apple_enable_release_device_manually: false
         macos_script: null
-        software: null
-      macos_updates:
-        deadline: null
-        deadline_days: null
-        minimum_version: null
-        update_new_hosts: null
-      ios_updates:
-        deadline: null
-        deadline_days: null
-        minimum_version: null
-        update_new_hosts: null
-      ipados_updates:
-        deadline: null
-        deadline_days: null
-        minimum_version: null
-        update_new_hosts: null
-      windows_updates:
-        deadline_days: null
-        grace_period_days: null
-    scripts: null
-    secrets: null
-    webhook_settings:
-      host_status_webhook: null
-      failing_policies_webhook: null
-      host_activities_webhook: null
-    name: tm1
-  team:
-    features:
-      enable_host_users: true
-      enable_software_inventory: true
-      historical_data:
-        uptime: true
-        vulnerabilities: true
-    host_expiry_settings:
-      host_expiry_enabled: false
-      host_expiry_window: 0
-    integrations:
-      google_calendar: null
-      conditional_access_enabled: null
-    mdm:
-      enable_disk_encryption: false
-      enable_recovery_lock_password: false
-      name_template: null
-      windows_require_bitlocker_pin: null
-      macos_settings:
-        custom_settings: null
-        enable_disk_encryption: false
-        enable_escrow_disk_encryption_key: false
-      windows_settings:
-        require_bitlocker_pin: false
-        custom_settings: null
-        enable_disk_encryption: false
-        enable_managed_local_account: false
-      linux_settings:
-        enable_escrow_disk_encryption_key: false
-      android_settings:
-        custom_settings: null
-        certificates: null
-      macos_setup:
-        bootstrap_package: null
-        enable_end_user_authentication: false
-        enable_managed_local_account: false
-        end_user_local_account_type: "admin"
-        lock_end_user_info: false
-        macos_setup_assistant: null
-        manual_agent_install: null
-        require_all_software_macos: false
-        require_all_software_windows: false
-        enable_release_device_manually: false
-        script: null
         software: null
       macos_updates:
         deadline: null
@@ -161,7 +93,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      enable_recovery_lock_password: false
+      macos_recovery_lock_password_enabled: false
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
@@ -187,68 +119,6 @@ spec:
         apple_enable_release_device_manually: false
         lock_end_user_info: false
         macos_script: null
-        software: null
-      macos_updates:
-        deadline: null
-        deadline_days: null
-        minimum_version: null
-      ios_updates:
-        deadline: null
-        deadline_days: null
-        minimum_version: null
-      ipados_updates:
-        deadline: null
-        deadline_days: null
-        minimum_version: null
-      windows_updates:
-        deadline_days: null
-        grace_period_days: null
-    scripts: null
-    secrets: null
-    webhook_settings:
-      host_status_webhook: null
-    name: tm2
-  team:
-    features:
-      enable_host_users: true
-      enable_software_inventory: true
-      historical_data:
-        uptime: true
-        vulnerabilities: true
-    host_expiry_settings:
-      host_expiry_enabled: false
-      host_expiry_window: 0
-    integrations:
-      google_calendar: null
-      conditional_access_enabled: null
-    mdm:
-      enable_disk_encryption: false
-      enable_recovery_lock_password: false
-      name_template: null
-      windows_require_bitlocker_pin: null
-      macos_settings:
-        custom_settings: null
-        enable_disk_encryption: false
-        enable_escrow_disk_encryption_key: false
-      windows_settings:
-        require_bitlocker_pin: false
-        custom_settings: null
-        enable_disk_encryption: false
-        enable_managed_local_account: false
-      linux_settings:
-        enable_escrow_disk_encryption_key: false
-      android_settings:
-        custom_settings: null
-        certificates: null
-      macos_setup:
-        bootstrap_package: null
-        macos_setup_assistant: null
-        manual_agent_install: null
-        enable_managed_local_account: false
-        end_user_local_account_type: "admin"
-        enable_release_device_manually: false
-        lock_end_user_info: false
-        script: null
         software: null
       macos_updates:
         deadline: null

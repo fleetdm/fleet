@@ -79,14 +79,14 @@ const AccountSidePanel = ({
     global_role: globalRole,
     updated_at: updatedAt,
     sso_enabled: ssoEnabled,
-    teams,
+    fleets,
   } = currentUser;
 
-  const roleText = generateRole(teams, globalRole);
-  const teamsText = generateTeam(teams, globalRole);
+  const roleText = generateRole(fleets, globalRole);
+  const teamsText = generateTeam(fleets, globalRole);
 
-  const teamNames = generateTeamNames(teams);
-  const roleGroups = generateRoleGroups(teams);
+  const teamNames = generateTeamNames(fleets);
+  const roleGroups = generateRoleGroups(fleets);
 
   const lastUpdatedAt = updatedAt && (
     <HumanTimeDiffWithDateTip timeString={updatedAt} />

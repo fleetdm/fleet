@@ -128,7 +128,7 @@ func (svc *Service) ListSoftwareTitles(
 
 type getSoftwareTitleRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getSoftwareTitleResponse struct {
@@ -164,7 +164,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -265,9 +265,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						}
 						pkg.PatchPolicy = patchPolicy
 
-						// While patch_when_closed or notify_before_patching is on, the pre-install
-						// query is Fleet's managed app open query, shown read-only.
-						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching) {
+						// While patch_when_closed, notify_before_patching, or patch_deadline is on, the
+						// pre-install query is Fleet's managed app open query, shown read-only.
+						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching || patchPolicy.PatchDeadline) {
 							pkg.PreInstallQuery = pkg.AppOpenQuery
 						}
 					}
@@ -292,8 +292,23 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 			}
+			vppTokensByID := make(map[uint]*fleet.VPPTokenSummary)
 			for _, meta := range versions {
 				meta.Status = summaries[meta.VPPAppsTeamsID]
+
+				if meta.VPPTokenID != nil {
+					if _, ok := vppTokensByID[*meta.VPPTokenID]; !ok {
+						var tok *fleet.VPPTokenDB
+						tok, err = svc.ds.GetVPPToken(ctx, *meta.VPPTokenID)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get vpp token for app store app")
+						}
+						if tok != nil {
+							vppTokensByID[*meta.VPPTokenID] = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
+						}
+					}
+					meta.VPPToken = vppTokensByID[*meta.VPPTokenID]
+				}
 
 				// Wrap iOS / iPadOS plist as a JSON string for the response.
 				if len(meta.Configuration) > 0 {

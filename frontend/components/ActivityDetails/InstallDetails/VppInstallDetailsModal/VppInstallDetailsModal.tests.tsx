@@ -21,6 +21,22 @@ import VppInstallDetailsModal, {
 } from "./VppInstallDetailsModal";
 
 describe("getStatusMessage helper function", () => {
+  it("on activity feed, shows the activity's timestamp instead of the command's", () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    render(
+      getStatusMessage({
+        displayStatus: "installed",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        activityCreatedAt: fiveMinutesAgo,
+      })
+    );
+    expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+  });
+
   it("shows NotNow message when isStatusNotNow is true", () => {
     render(
       getStatusMessage({
@@ -115,7 +131,7 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Anna's iPad",
         commandUpdatedAt: "2026-05-27T22:49:52Z",
         platform: "ipados",
-        failureReason: "There is no IdP email for this host. …",
+        failureReason: "There is no IdP username for this host. …",
         selfService: true,
         actorFullName: "Anna",
       })
@@ -691,6 +707,94 @@ describe("VPP Install Details Modal", () => {
         expect(screen.getByText(/Keynote/)).toBeInTheDocument();
       });
       expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("license sentence", () => {
+    const licenseRe = /Fleet assigned license from/i;
+
+    const renderLicenseCase = (
+      platform: "ios" | "ipados" | "darwin",
+      fleetInstallStatus: "installed" | "pending_install" | "failed_install",
+      withTokenLocation = true
+    ) => {
+      mockServer.use(
+        http.get(baseUrl("/commands/results"), ({ request }) => {
+          const url = new URL(request.url);
+          return HttpResponse.json({
+            results: [
+              {
+                host_uuid: "11111111-2222-3333-4444-555555555555",
+                command_uuid: url.searchParams.get("command_uuid"),
+                status: "Acknowledged",
+                updated_at: "2025-08-10T12:05:00Z",
+                request_type: "InstallApplication",
+                hostname: "Mock Host",
+                payload: btoa("<Command />"),
+                result: btoa("<Result />"),
+              },
+            ],
+          });
+        })
+      );
+
+      // Activity feed entry point: no hostSoftware.
+      renderWithBackend(
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus,
+            hostDisplayName: "Marko's iPhone",
+            appName: "Zoom Workplace",
+            commandUuid: "mock-uuid",
+            platform,
+            vppTokenLocation: withTokenLocation ? "Acme Inc." : undefined,
+          }}
+          onCancel={jest.fn()}
+        />
+      );
+    };
+
+    it.each(["ios", "ipados"] as const)(
+      "names the token for %s installed",
+      async (platform) => {
+        renderLicenseCase(platform, "installed");
+        expect(await screen.findByText("Acme Inc.")).toBeInTheDocument();
+        expect(screen.getByText(licenseRe)).toHaveTextContent(
+          /Fleet assigned license from Acme Inc\. VPP token\./
+        );
+      }
+    );
+
+    it.each(["ios", "ipados"] as const)(
+      "names the token for %s pending_install",
+      async (platform) => {
+        renderLicenseCase(platform, "pending_install");
+        expect(await screen.findByText("Acme Inc.")).toBeInTheDocument();
+      }
+    );
+
+    it("omits the sentence on macOS", async () => {
+      renderLicenseCase("darwin", "installed");
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the sentence on failed installs", async () => {
+      renderLicenseCase("ios", "failed_install");
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the sentence when the token location is missing", async () => {
+      renderLicenseCase("ios", "installed", false);
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
     });
   });
 

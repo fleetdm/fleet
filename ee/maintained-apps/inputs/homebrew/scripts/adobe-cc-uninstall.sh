@@ -3,15 +3,15 @@
 quit_app() {
   b="$1"
   # try a friendly quit if a GUI user is active
-  app_running=$(osascript -e "application id \"$b\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$b" 2>/dev/null)
   if [ "$app_running" = "true" ]; then
     cu="$(stat -f "%Su" /dev/console 2>/dev/null || true)"
     if [ "$(id -u)" -ne 0 ] || [ "$cu" != "root" ]; then
       i=0
       while [ "$i" -lt 10 ]; do
-        osascript -e "tell application id \"$b\" to quit" >/dev/null 2>&1 || true
+        osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$b" >/dev/null 2>&1 || true
         sleep 1
-        if still_running=$(osascript -e "application id \"$b\" is running" 2>/dev/null) && [ "$still_running" = "false" ]; then break; fi
+        if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$b" 2>/dev/null) && [ "$still_running" = "false" ]; then break; fi
         i=$((i+1))
       done
     fi

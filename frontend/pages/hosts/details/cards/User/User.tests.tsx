@@ -122,6 +122,25 @@ describe("User card", () => {
     expect(screen.getAllByText("+ 1 more")).toHaveLength(2); // one for groups, one for Chrome profiles
   });
 
+  it("shows every chrome profile in the tooltip when hovering the first profile", async () => {
+    const endUsers = [
+      createMockHostEndUser({
+        other_emails: [
+          { email: "Profile1", source: "google_chrome_profiles" },
+          { email: "Profile2", source: "google_chrome_profiles" },
+        ],
+      }),
+    ];
+    const { user } = render(
+      <User endUsers={endUsers} onClickUpdateUser={noop} />
+    );
+
+    await user.hover(screen.getByText("Profile1"));
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip").textContent).toBe("Profile1Profile2");
+    });
+  });
+
   it("renders other emails field when has other email values", () => {
     const endUsers = [
       createMockHostEndUser({

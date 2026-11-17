@@ -1,0 +1,1 @@
+- Fixed selected-hosts table on **Select targets** rendering a 2px overhang past the "No matching hosts" dropdown that covers it.

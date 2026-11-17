@@ -1,1 +1,0 @@
-* Fixed `fleetctl generate-gitops` so `windows_enabled_and_configured` and `android_enabled_and_configured` are only exported to the global controls file (including on Fleet Free), and no longer leak into fleet YAML files.

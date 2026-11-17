@@ -10,6 +10,7 @@ import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage"
 import { AppContext } from "context/app";
 import { hasLicenseExpired } from "utilities/helpers";
 
+import EJBCACertRenewalMessage from "./banners/EJBCACertRenewalMessage";
 import LicenseHostLimitMessage from "./banners/LicenseHostLimitMessage";
 import MicrosoftGraphCredentialInvalidMessage from "./banners/MicrosoftGraphCredentialInvalidMessage";
 import VppRenewalMessage from "./banners/VppRenewalMessage";
@@ -52,12 +53,14 @@ const MainContent = ({
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
+    isEJBCACertExpired,
     needsAbmTermsRenewal,
     hasInvalidABMToken,
     invalidAbmTokenOrgNames,
     willAppleBmExpire,
     willApplePnsExpire,
     willVppExpire,
+    willEJBCACertExpire,
   } = useContext(AppContext);
 
   const renderAppWideBanner = () => {
@@ -88,6 +91,8 @@ const MainContent = ({
         );
       } else if (isVppExpired || willVppExpire) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
+      } else if (isEJBCACertExpired || willEJBCACertExpire) {
+        banner = <EJBCACertRenewalMessage expired={isEJBCACertExpired} />;
       } else if (config?.mdm.microsoft_graph_credential_invalid) {
         banner = <MicrosoftGraphCredentialInvalidMessage />;
       } else if (isFleetLicenseExpired) {

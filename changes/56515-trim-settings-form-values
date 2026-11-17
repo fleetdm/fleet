@@ -1,0 +1,1 @@
+- Fixed Settings forms (Okta ACS URL, Fleet web address, SMTP sender address, ticket destination URL/email) showing a validation error for a valid URL or email with a leading or trailing space, which Save accepts after trimming.

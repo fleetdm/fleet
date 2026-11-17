@@ -17,7 +17,7 @@ describe("teamPoliciesAPI patch policy flags", () => {
 
   it("forwards both flags when creating a patch policy", async () => {
     await teamPoliciesAPI.create({
-      team_id: 1,
+      fleet_id: 1,
       type: "patch",
       patch_software_title_id: 10,
       patch_when_closed: true,
@@ -36,7 +36,7 @@ describe("teamPoliciesAPI patch policy flags", () => {
 
   it("retains false flag values when updating a patch policy", async () => {
     await teamPoliciesAPI.update(22, {
-      team_id: 1,
+      fleet_id: 1,
       patch_when_closed: false,
       continuous_automations_enabled: false,
     });

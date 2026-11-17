@@ -4,16 +4,20 @@ import (
 	"bytes"
 	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -418,4 +422,42 @@ func TestClientCertificateAuth(t *testing.T) {
 	_, err = bc.HTTP.Do(request)
 	require.NoError(t, err)
 	require.True(t, httpRequestReceived)
+}
+
+// roundTripperFunc wraps a transport without forwarding CloseIdleConnections,
+// like orbit's HTTP signature wrapper.
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestBaseClientCloseIdleConnections(t *testing.T) {
+	var closed atomic.Int64
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			closed.Add(1)
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	signerWrapper := func(c *http.Client) *http.Client {
+		inner := c.Transport
+		c.Transport = roundTripperFunc(func(r *http.Request) (*http.Response, error) { return inner.RoundTrip(r) })
+		return c
+	}
+	bc, err := NewBaseClient(srv.URL, true, "", "", nil, fleet.CapabilityMap{}, signerWrapper)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL, nil)
+	require.NoError(t, err)
+	resp, err := bc.HTTP.Do(req)
+	require.NoError(t, err)
+	_, _ = io.Copy(io.Discard, resp.Body)
+	require.NoError(t, resp.Body.Close())
+
+	// The connection is now idle in the pool; closing it must reach the
+	// *http.Transport through the signer and otelhttp wrappers.
+	bc.CloseIdleConnections()
+	assert.Eventually(t, func() bool { return closed.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
 }

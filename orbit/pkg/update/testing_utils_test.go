@@ -83,7 +83,6 @@ type withTUF struct {
 func (ts *withTUF) SetupSuite() {
 	t := ts.s.T()
 	ts.mockFiles = map[string][]byte{
-		"nudge/macos/stable/nudge.app.tar.gz":       ts.memTarGz("/Nudge.app/Contents/MacOS/Nudge", "nudge"),
 		"osqueryd/macos/stable/osqueryd.app.tar.gz": ts.memTarGz("osqueryd", "osqueryd"),
 		"escrowBuddy/macos/stable/escrowBuddy.pkg":  {},
 	}

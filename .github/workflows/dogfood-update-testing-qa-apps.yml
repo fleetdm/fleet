@@ -51,13 +51,13 @@ jobs:
           .github/scripts/dogfood-update-testing-qa-apps.sh
           if [ $? -eq 0 ]; then
             # Check if there are any changes
-            if git diff --quiet it-and-security/teams/testing-and-qa.yml; then
+            if git diff --quiet it-and-security/fleets/testing-and-qa.yml; then
               echo "changed=false" >> $GITHUB_OUTPUT
               echo "No changes detected"
             else
               echo "changed=true" >> $GITHUB_OUTPUT
               echo "Changes detected"
-              git diff it-and-security/teams/testing-and-qa.yml
+              git diff it-and-security/fleets/testing-and-qa.yml
             fi
           else
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -102,7 +102,7 @@ jobs:
           commit-message: |
             Update Testing & QA maintained apps
 
-            Automatically added new Fleet-maintained apps to the Testing & QA team configuration.
+            Automatically added new Fleet-maintained apps to the Testing & QA fleet configuration.
           title: "Update Testing & QA maintained apps"
           body: |
             This PR automatically updates the `fleet_maintained_apps` list in `testing-and-qa.yml` with any new apps from Fleet's maintained apps library.

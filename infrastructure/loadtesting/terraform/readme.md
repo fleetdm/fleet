@@ -211,7 +211,7 @@ We run simulated hosts in containers of 500 at a time. Once the infrastructure i
 
 With the variable `loadtest_containers` you can specify how many containers of 500 hosts you want to start. In the example above, it will run 4000. If the `fleet` instances need special configuration, you can pass them as environment variables to the `fleet_config` terraform variable, which is a map, using the following syntax (note the use of single quotes around the whole `fleet_config` variable assignment, and the use of double quotes inside its map value):
 
-`terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING":"host_last_seen=true","FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL":"host_last_seen=10s"}'`
+`terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_LABEL_UPDATE_INTERVAL":"30m","FLEET_OSQUERY_POLICY_UPDATE_INTERVAL":"30m"}'`
 
 ### Monitoring the infrastructure
 
