@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.GeorgSeifert.Glyphs4' AND version_compare(bundle_short_version, '4.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.GeorgSeifert.Glyphs4' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.glyphsapp.com/Glyphs4.2-4203.zip",
+      "installer_url": "https://updates.glyphsapp.com/Glyphs4.2-4204.zip",
       "install_script_ref": "3b72f05d",
       "uninstall_script_ref": "84fead69",
-      "sha256": "421ddb92d16b4a11827fb83f86dacb43c13f9739a5eeb4bf97170b56d09bf66d",
+      "sha256": "11da0def5dd94cceda9adebfc88c1a014cf3e9c26a14264978157f08f1e200aa",
       "default_categories": [
         "Productivity"
       ]
