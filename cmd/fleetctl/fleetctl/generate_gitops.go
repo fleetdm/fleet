@@ -1583,9 +1583,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
+	macosSettingsT := reflect.TypeFor[fleet.GitOpsMacOSSettings]()
 	macosSettings := map[string]any{}
-	windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
+	windowsSettingsT := reflect.TypeFor[fleet.GitOpsWindowsSettings]()
 	windowsSettings := map[string]any{}
 	linuxSettingsT := reflect.TypeFor[fleet.LinuxSettings]()
 	linuxSettings := map[string]any{}
@@ -1600,7 +1600,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
-		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
+		androidSettingsT := reflect.TypeFor[fleet.GitOpsAndroidSettings]()
 
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
 			if profiles != nil {
@@ -1652,7 +1652,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	mdmT := reflect.TypeFor[fleet.TeamMDM]()
 
 	if len(certSummaries) > 0 {
-		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
+		androidSettingsType := reflect.TypeFor[fleet.GitOpsAndroidSettings]()
 		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
 		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {

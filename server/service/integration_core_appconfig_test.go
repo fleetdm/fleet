@@ -1886,13 +1886,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
 
-	// set the macos custom settings fields, fails due to MDM not configured
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
-	  }`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
-
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)
 	var defAppCfg fleet.AppConfig
