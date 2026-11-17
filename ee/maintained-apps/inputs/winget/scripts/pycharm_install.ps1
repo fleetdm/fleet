@@ -13,10 +13,6 @@ try {
 # "PyCharm <ProductVersion>"), stopping PyCharm if it's running from there.
 # Unsaved changes are lost.
 $version = (Get-Item $exeFilePath).VersionInfo.ProductVersion
-# This installer has no version resource; its file name carries the version.
-if (-not $version -and ([IO.Path]::GetFileNameWithoutExtension($exeFilePath) -match '-(\d+(\.\d+)+)$')) {
-    $version = $Matches[1]
-}
 $programFiles = if (${env:ProgramW6432}) { ${env:ProgramW6432} } else { ${env:ProgramFiles} }
 $installDir = Join-Path $programFiles "JetBrains\PyCharm $version"
 
@@ -43,9 +39,12 @@ if ($version -and (Test-Path -LiteralPath $installDir)) {
     }
 }
 
+# On Windows on Arm the installer refuses this x64 build with a message box
+# that hangs under SYSTEM. /IGNORE_ARCH skips that check; the app runs under
+# x64 emulation.
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "/S /IGNORE_ARCH"
   PassThru = $true
   Wait = $true
 }
