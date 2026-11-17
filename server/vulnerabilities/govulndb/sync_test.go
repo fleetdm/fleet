@@ -27,7 +27,13 @@ func writeArtifact(t *testing.T, dir string, name string, artifact *Artifact) st
 	return path
 }
 
-func TestLoadLatestArtifact(t *testing.T) {
+func TestLoadArtifact(t *testing.T) {
+	t.Run("no artifact is not an error", func(t *testing.T) {
+		artifact, err := LoadArtifact(t.Context(), t.TempDir())
+		require.NoError(t, err)
+		require.Nil(t, artifact)
+	})
+
 	t.Run("reads the artifact and ignores other files", func(t *testing.T) {
 		dir := t.TempDir()
 		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", &Artifact{
@@ -36,7 +42,7 @@ func TestLoadLatestArtifact(t *testing.T) {
 		})
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "osv-ubuntu-2204-2026-09-10.json.gz"), []byte("not ours"), 0o600))
 
-		artifact, err := loadLatestArtifact(t.Context(), dir)
+		artifact, err := LoadArtifact(t.Context(), dir)
 		require.NoError(t, err)
 		require.NotNil(t, artifact)
 		require.Contains(t, artifact.Modules, "github.com/air-verse/air")
@@ -46,7 +52,7 @@ func TestLoadLatestArtifact(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "govulndb-2026-09-09.json.gz"), []byte("not gzip"), 0o600))
 
-		_, err := loadLatestArtifact(t.Context(), dir)
+		_, err := LoadArtifact(t.Context(), dir)
 		require.Error(t, err)
 	})
 }

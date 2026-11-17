@@ -21,15 +21,15 @@ import (
 // vulnBatchSize is how many matched vulnerabilities are written per INSERT.
 const vulnBatchSize = 500
 
-// Analyze matches Go binaries and Go toolchain installs against the most recent mirrored Go
-// vulnerability database artifact in vulnPath. startTime is when the vulnerability run began:
+// Analyze matches Go binaries and Go toolchain installs against artifact, as loaded by
+// LoadArtifact; a nil artifact matches nothing. startTime is when the vulnerability run began:
 // matched rows have their updated_at refreshed, and anything older is treated as remediated.
-// toolchains must be the rules the NVD pass of the same run skipped, so that every toolchain
-// install is matched by exactly one of them; with nil rules, toolchain installs are left to NVD.
+// toolchains are the rules from ToolchainRulesFrom(artifact), the same ones the NVD pass skipped;
+// with nil rules, toolchain installs are left to NVD.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
-	vulnPath string,
+	artifact *Artifact,
 	toolchains *ToolchainRules,
 	collectVulns bool,
 	startTime time.Time,
@@ -37,12 +37,8 @@ func Analyze(
 ) ([]fleet.SoftwareVulnerability, error) {
 	analysisStart := time.Now()
 
-	artifact, err := loadLatestArtifact(ctx, vulnPath)
-	if err != nil {
-		return nil, err
-	}
 	if artifact == nil {
-		logger.DebugContext(ctx, "no Go vulnerability database artifact found", "path", vulnPath)
+		logger.DebugContext(ctx, "no Go vulnerability database artifact")
 		return nil, nil
 	}
 
@@ -268,9 +264,9 @@ func toolchainVersion(release string) (string, bool) {
 	return version, true
 }
 
-// loadLatestArtifact reads the newest mirrored artifact in vulnPath, or nil if the directory
-// holds none.
-func loadLatestArtifact(ctx context.Context, vulnPath string) (*Artifact, error) {
+// LoadArtifact reads the newest mirrored artifact in vulnPath, or nil if the directory holds
+// none.
+func LoadArtifact(ctx context.Context, vulnPath string) (*Artifact, error) {
 	latest, err := vulnrepo.NewestLocalAsset(vulnPath, isArtifactAsset)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding newest Go vulnerability database artifact")

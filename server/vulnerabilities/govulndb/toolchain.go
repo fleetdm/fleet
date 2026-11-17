@@ -118,14 +118,9 @@ func compileToolchainRule(r ToolchainInstallRule) (toolchainRule, error) {
 	return compiled, nil
 }
 
-// LoadToolchainRules returns the rules published in the newest artifact in vulnPath, or nil when
-// there is no artifact yet, it predates the rules, or this server cannot apply them.
-func LoadToolchainRules(ctx context.Context, vulnPath string, logger *slog.Logger) *ToolchainRules {
-	artifact, err := loadLatestArtifact(ctx, vulnPath)
-	if err != nil {
-		logger.WarnContext(ctx, "no Go toolchain install rules: reading artifact failed", "err", err)
-		return nil
-	}
+// ToolchainRulesFrom returns the rules published in artifact, or nil when there is no artifact,
+// it predates the rules, or this server cannot apply them.
+func ToolchainRulesFrom(ctx context.Context, artifact *Artifact, logger *slog.Logger) *ToolchainRules {
 	if artifact == nil || artifact.ToolchainInstalls == nil {
 		return nil
 	}

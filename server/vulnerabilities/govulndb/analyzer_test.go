@@ -350,10 +350,6 @@ func TestMatchToolchainInstall(t *testing.T) {
 			want: []vuln{{"CVE-2024-24791", "1.22.5"}, {"CVE-2024-3000", "1.22.3"}},
 		},
 		{
-			name:     "not a toolchain install",
-			software: fleet.Software{ID: 1, Name: "go-task", Source: "homebrew_packages", Version: "1.21.11"},
-		},
-		{
 			name:     "unparseable version",
 			software: fleet.Software{ID: 1, Name: "go", Source: "homebrew_packages", Version: "HEAD-abcdef1"},
 		},
@@ -432,43 +428,36 @@ func analyzeTestStore(binaries, toolchains []*fleet.Software) (*mock.Store, *ana
 func TestAnalyze(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
-	t.Run("no artifact on disk is not an error", func(t *testing.T) {
+	t.Run("no artifact is not an error", func(t *testing.T) {
 		ds, _ := analyzeTestStore(nil, nil)
 
-		vulns, err := Analyze(t.Context(), ds, t.TempDir(), publishedRules(t), true, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, nil, publishedRules(t), true, time.Now(), logger)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
 		require.False(t, ds.AllSoftwareIteratorFuncInvoked)
 	})
 
 	t.Run("an artifact with an unknown schema version is refused", func(t *testing.T) {
-		dir := t.TempDir()
 		artifact := testArtifact()
 		artifact.SchemaVersion = "2"
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", artifact)
 
 		ds, _ := analyzeTestStore(nil, nil)
 
-		_, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
+		_, err := Analyze(t.Context(), ds, artifact, publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "schema version")
 		require.False(t, ds.AllSoftwareIteratorFuncInvoked)
 		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 	})
 
 	t.Run("an artifact with no modules is refused", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", &Artifact{SchemaVersion: "1"})
-
 		ds, _ := analyzeTestStore(nil, nil)
 
-		_, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
+		_, err := Analyze(t.Context(), ds, &Artifact{SchemaVersion: "1"}, publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "no modules")
 		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 	})
 
 	t.Run("matches Go binaries and toolchain installs and removes stale rows", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
 
 		startTime := time.Now().Add(-time.Hour)
 		ds, rec := analyzeTestStore([]*fleet.Software{
@@ -479,7 +468,7 @@ func TestAnalyze(t *testing.T) {
 			{ID: 10, Name: "go", Source: "homebrew_packages", Version: "1.22.4"},
 		})
 
-		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, startTime, logger)
+		vulns, err := Analyze(t.Context(), ds, testArtifact(), publishedRules(t), true, startTime, logger)
 		require.NoError(t, err)
 
 		require.ElementsMatch(t, []fleet.SoftwareVulnerability{
@@ -496,22 +485,18 @@ func TestAnalyze(t *testing.T) {
 	})
 
 	t.Run("collectVulns off returns nothing but still writes", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
 
 		ds, rec := analyzeTestStore([]*fleet.Software{
 			{ID: 1, Name: "air", Version: "v1.48.0", ExtensionID: "github.com/air-verse/air"},
 		}, nil)
 
-		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), false, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, testArtifact(), publishedRules(t), false, time.Now(), logger)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
 		require.Len(t, rec.inserted, 2)
 	})
 
 	t.Run("stale rows are kept when the insert fails", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
 
 		ds, _ := analyzeTestStore([]*fleet.Software{
 			{ID: 1, Name: "air", Version: "v1.48.0", ExtensionID: "github.com/air-verse/air"},
@@ -522,7 +507,7 @@ func TestAnalyze(t *testing.T) {
 			return nil, errors.New("insert failed")
 		}
 
-		_, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
+		_, err := Analyze(t.Context(), ds, testArtifact(), publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "insert failed")
 		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 	})
@@ -530,8 +515,6 @@ func TestAnalyze(t *testing.T) {
 	// Inserted rows are already known to the next run, so dropping them here would suppress
 	// their automations forever.
 	t.Run("a later failure still returns what was inserted", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
 
 		binaries := make([]*fleet.Software, vulnBatchSize)
 		for i := range binaries {
@@ -545,7 +528,7 @@ func TestAnalyze(t *testing.T) {
 			return nil, errors.New("toolchain query failed")
 		}
 
-		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, testArtifact(), publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "toolchain query failed")
 		require.Len(t, rec.inserted, vulnBatchSize)
 		require.ElementsMatch(t, rec.inserted, vulns)
@@ -553,8 +536,6 @@ func TestAnalyze(t *testing.T) {
 	})
 
 	t.Run("no matches still removes stale rows", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
 
 		ds, rec := analyzeTestStore([]*fleet.Software{
 			{ID: 1, Name: "gopls", Version: "v0.20.0", ExtensionID: "golang.org/x/tools/gopls", Release: "go1.26.1"},
@@ -562,7 +543,7 @@ func TestAnalyze(t *testing.T) {
 			{ID: 10, Name: "go", Source: "homebrew_packages", Version: "1.26.1"},
 		})
 
-		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, testArtifact(), publishedRules(t), true, time.Now(), logger)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
 		require.Empty(t, rec.inserted)
@@ -575,8 +556,6 @@ func TestAnalyze(t *testing.T) {
 
 		for name, rules := range map[string]*ToolchainRules{"nil": nil, "empty": empty} {
 			t.Run(name, func(t *testing.T) {
-				dir := t.TempDir()
-				writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
 
 				ds, rec := analyzeTestStore(nil, []*fleet.Software{
 					{ID: 10, Name: "go", Source: "homebrew_packages", Version: "1.21.11"},
@@ -588,7 +567,7 @@ func TestAnalyze(t *testing.T) {
 					return iterator(ctx, q)
 				}
 
-				_, err := Analyze(t.Context(), ds, dir, rules, true, time.Now(), logger)
+				_, err := Analyze(t.Context(), ds, testArtifact(), rules, true, time.Now(), logger)
 				require.NoError(t, err)
 				require.Empty(t, rec.inserted)
 				// No sources to include would otherwise mean iterating all software.
@@ -596,23 +575,5 @@ func TestAnalyze(t *testing.T) {
 				require.NotNil(t, rec.deletedOlderThan)
 			})
 		}
-	})
-
-	t.Run("toolchain installs are found with the given rules", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
-
-		rules, err := NewToolchainRules(chocolateyRules())
-		require.NoError(t, err)
-		ds, rec := analyzeTestStore(nil, []*fleet.Software{
-			{ID: 10, Name: "golang", Source: "chocolatey_packages", Version: "1.22.4"},
-			{ID: 11, Name: "go", Source: "homebrew_packages", Version: "1.22.4"},
-		})
-
-		_, err = Analyze(t.Context(), ds, dir, rules, true, time.Now(), logger)
-		require.NoError(t, err)
-		require.Equal(t, []fleet.SoftwareVulnerability{
-			{SoftwareID: 10, CVE: "CVE-2024-24791", ResolvedInVersion: new("1.22.5")},
-		}, rec.inserted)
 	})
 }

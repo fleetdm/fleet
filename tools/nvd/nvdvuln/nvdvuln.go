@@ -201,8 +201,12 @@ func main() {
 	}
 
 	printf("Translating software to CPE...\n")
-	toolchains := govulndb.LoadToolchainRules(ctx, *dbDir, logger)
-	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger, []func(*fleet.Software) bool{toolchains.IsToolchainInstall})
+	goVulnDB, err := govulndb.LoadArtifact(ctx, *dbDir)
+	if err != nil {
+		panic(err)
+	}
+	toolchains := govulndb.ToolchainRulesFrom(ctx, goVulnDB, logger)
+	err = nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger, []func(*fleet.Software) bool{toolchains.IsToolchainInstall})
 	if err != nil {
 		panic(err)
 	}

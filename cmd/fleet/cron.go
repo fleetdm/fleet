@@ -204,10 +204,11 @@ func scanVulnerabilities(
 	scanStart := time.Now()
 
 	// The Go vulnerability database carries the rules for which software is a Go toolchain install.
-	// NVD skips those installs and the govulndb phase matches them, so both phases need the same
-	// rules: sync once, before NVD, and load them once.
+	// NVD skips those installs and the govulndb phase matches them, so it is synced and loaded
+	// once, before NVD, and both phases get the same rules.
 	phaseStart := time.Now()
-	goToolchains := syncGoVulnDB(ctx, logger, vulnPath, config)
+	goVulnDB := syncGoVulnDB(ctx, logger, vulnPath, config)
+	goToolchains := govulndb.ToolchainRulesFrom(ctx, goVulnDB, logger)
 	logger.InfoContext(ctx, "phase completed", "phase", "govulndb_sync", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
@@ -249,7 +250,7 @@ func scanVulnerabilities(
 	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
-	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, vulnPath, vulnAutomationEnabled != "", startTime, goToolchains)
+	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, goVulnDB, goToolchains, vulnAutomationEnabled != "", startTime)
 	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
@@ -828,14 +829,14 @@ func checkGovalDictionaryVulnerabilities(
 	return results
 }
 
-// syncGoVulnDB downloads the latest Go vulnerability database and returns the Go toolchain
-// install rules to use for this run.
+// syncGoVulnDB downloads the latest Go vulnerability database, unless data sync is disabled, and
+// returns the newest artifact on disk, or nil if there is none or it cannot be read.
 func syncGoVulnDB(
 	ctx context.Context,
 	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
-) *govulndb.ToolchainRules {
+) *govulndb.Artifact {
 	ctx, span := tracer.Start(ctx, "vuln.govulndb.sync")
 	defer span.End()
 
@@ -848,17 +849,22 @@ func syncGoVulnDB(
 		}
 	}
 
-	return govulndb.LoadToolchainRules(ctx, vulnPath, logger)
+	artifact, err := govulndb.LoadArtifact(ctx, vulnPath)
+	if err != nil {
+		errHandler(ctx, logger, "loading Go vulnerability database", err)
+		return nil
+	}
+	return artifact
 }
 
 func checkGoVulnDBVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger *slog.Logger,
-	vulnPath string,
+	artifact *govulndb.Artifact,
+	toolchains *govulndb.ToolchainRules,
 	collectVulns bool,
 	startTime time.Time,
-	toolchains *govulndb.ToolchainRules,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_govulndb")
 	defer span.End()
@@ -866,7 +872,7 @@ func checkGoVulnDBVulnerabilities(
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.govulndb.analyze")
 	defer analyzeSpan.End()
 
-	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, toolchains, collectVulns, startTime, logger)
+	r, err := govulndb.Analyze(analyzeCtx, ds, artifact, toolchains, collectVulns, startTime, logger)
 	if err != nil {
 		errHandler(analyzeCtx, logger, "analyzing Go binaries and toolchains for vulnerabilities", err)
 	}

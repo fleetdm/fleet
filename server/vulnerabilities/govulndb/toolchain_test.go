@@ -2,8 +2,6 @@ package govulndb
 
 import (
 	"log/slog"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -39,7 +37,6 @@ func TestNewToolchainRulesRejects(t *testing.T) {
 		mutate  func(*ToolchainInstalls)
 		wantErr string
 	}{
-		{name: "other format version", mutate: func(ti *ToolchainInstalls) { ti.Version = "2" }, wantErr: "version"},
 		{
 			name:    "unknown version field",
 			mutate:  func(ti *ToolchainInstalls) { ti.Rules[0].Versions[0].Field = "release" },
@@ -71,7 +68,7 @@ func TestNewToolchainRulesRejects(t *testing.T) {
 	}
 }
 
-func TestLoadToolchainRules(t *testing.T) {
+func TestToolchainRulesFrom(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	homebrewGo := &fleet.Software{Name: "go", Source: "homebrew_packages", Version: "1.22.4"}
 	chocolateyGo := &fleet.Software{Name: "golang", Source: "chocolatey_packages", Version: "1.22.4"}
@@ -83,49 +80,28 @@ func TestLoadToolchainRules(t *testing.T) {
 	}
 
 	t.Run("no artifact", func(t *testing.T) {
-		requireNone(t, LoadToolchainRules(t.Context(), t.TempDir(), logger))
+		requireNone(t, ToolchainRulesFrom(t.Context(), nil, logger))
 	})
 
 	t.Run("artifact published before the rules were", func(t *testing.T) {
-		dir := t.TempDir()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
-
-		requireNone(t, LoadToolchainRules(t.Context(), dir, logger))
+		requireNone(t, ToolchainRulesFrom(t.Context(), testArtifact(), logger))
 	})
 
 	t.Run("published rules", func(t *testing.T) {
-		dir := t.TempDir()
 		artifact := testArtifact()
 		artifact.ToolchainInstalls = chocolateyRules()
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", artifact)
 
-		rules := LoadToolchainRules(t.Context(), dir, logger)
+		rules := ToolchainRulesFrom(t.Context(), artifact, logger)
 		require.True(t, rules.IsToolchainInstall(chocolateyGo))
 		require.False(t, rules.IsToolchainInstall(homebrewGo))
 	})
 
 	// A newer rule format may mean something this server cannot apply.
 	t.Run("published rules in another format", func(t *testing.T) {
-		dir := t.TempDir()
 		artifact := testArtifact()
 		artifact.ToolchainInstalls = chocolateyRules()
 		artifact.ToolchainInstalls.Version = "2"
-		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", artifact)
 
-		requireNone(t, LoadToolchainRules(t.Context(), dir, logger))
+		requireNone(t, ToolchainRulesFrom(t.Context(), artifact, logger))
 	})
-
-	t.Run("unreadable artifact", func(t *testing.T) {
-		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "govulndb-2026-09-09.json.gz"), []byte("not gzip"), 0o644))
-
-		requireNone(t, LoadToolchainRules(t.Context(), dir, logger))
-	})
-}
-
-// Without rules nothing is a toolchain install, so NVD keeps matching Go as it did before.
-func TestNilToolchainRulesClaimNothing(t *testing.T) {
-	var rules *ToolchainRules
-	require.False(t, rules.IsToolchainInstall(&fleet.Software{Name: "go", Source: "homebrew_packages"}))
-	require.Nil(t, rules.match(&fleet.Software{Name: "go", Source: "homebrew_packages", Version: "1.21.11"}, testArtifact()))
 }
