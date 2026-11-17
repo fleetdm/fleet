@@ -308,7 +308,8 @@ func TestPKIOperationFleetBadRequestError(t *testing.T) {
 	defer teardown()
 
 	guarded := berGuardService{Service: svc}
-	slogLogger := slog.New(slog.DiscardHandler)
+	var logBuf bytes.Buffer
+	slogLogger := slog.New(slog.NewTextHandler(&logBuf, nil))
 	r := http.NewServeMux()
 	r.Handle("/scep", scepserver.MakeHTTPHandler(scepserver.MakeServerEndpoints(guarded), guarded, slogLogger))
 	server := httptest.NewServer(r)
@@ -330,6 +331,11 @@ func TestPKIOperationFleetBadRequestError(t *testing.T) {
 	}
 	if got := strings.TrimSpace(string(respBody)); got != "invalid request body" {
 		t.Errorf("expected body %q, got %q", "invalid request body", got)
+	}
+	// The response only carries the public message, so the BER depth error must reach the log.
+	if logs := logBuf.String(); !strings.Contains(logs, "SCEP request failed") || !strings.Contains(logs, "status=400") ||
+		!strings.Contains(logs, "internal=") || !strings.Contains(logs, "depth") {
+		t.Errorf("expected the internal error to be logged, got %q", logs)
 	}
 }
 
