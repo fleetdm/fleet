@@ -571,7 +571,12 @@ const PackageForm = ({
           className={`${baseClass}__multi-package-banner`}
         >
           If multiple versions target the same host, Fleet will deploy the one
-          that was added first.
+          that was added first.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
+            text="Learn more"
+            newTab
+          />
         </InfoBanner>
       )}
       <DropdownTargetLabelSelector
