@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.5.3",
+      "version": "3.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superultra.Homerow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superultra.Homerow' AND version_compare(bundle_short_version, '1.5.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superultra.Homerow' AND version_compare(bundle_short_version, '3.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superultra.Homerow' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://builds.homerow.app/v1.5.3/Homerow.zip",
+      "installer_url": "https://builds.homerow.app/v3.0.0/Homerow.zip",
       "install_script_ref": "b1410b05",
       "uninstall_script_ref": "05442fdf",
-      "sha256": "39616e577d74459d2a095e2da571fce2e528d5375615abf102b8080c1f091c6b",
+      "sha256": "3590a02640fb22bdd0425df9967375fb135b0bd6aecb0b6c687e5a584acb3276",
       "default_categories": [
         "Productivity"
       ]
