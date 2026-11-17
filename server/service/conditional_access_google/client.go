@@ -7,12 +7,12 @@ import (
 )
 
 // Relay registers this server with the relay on fleetdm.com. Customer IDs include the
-// leading "C".
+// leading "C". serverURL is this server's current URL, which fleetdm.com calls back.
 type Relay interface {
 	// Register replaces the secret when called again from the same server.
-	Register(ctx context.Context, customerID string) (*Registration, error)
+	Register(ctx context.Context, serverURL, customerID string) (*Registration, error)
 	// Deregister returns a fleet.IsNotFound error when there's no matching registration.
-	Deregister(ctx context.Context, customerID, secret string) error
+	Deregister(ctx context.Context, serverURL, customerID, secret string) error
 }
 
 // CloudIdentity calls the Cloud Identity API for one customer as the delegated admin.

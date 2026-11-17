@@ -73,6 +73,8 @@ type Service struct {
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
+	googleConditionalAccess *GoogleConditionalAccessClient
+
 	keyValueStore         fleet.KeyValueStore
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter
 
@@ -198,6 +200,7 @@ func NewService(
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
+	googleConditionalAccess *GoogleConditionalAccessClient,
 	keyValueStore fleet.KeyValueStore,
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	androidSvc android.Service,
@@ -249,6 +252,7 @@ func NewService(
 		digiCertService:      digiCertService,
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
+		googleConditionalAccess:         googleConditionalAccess,
 		keyValueStore:                   keyValueStore,
 		configETagStateOnce:             new(sync.Once),
 		configETagErrLast:               new(atomic.Int64),
