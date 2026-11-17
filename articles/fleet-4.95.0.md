@@ -95,10 +95,9 @@ GitHub issues: [#30986](https://github.com/fleetdm/fleet/issues/30986) and [#526
 
 ## Changes
 
-- Removed fleetd's built-in Nudge integration. Fleet no longer sends Nudge settings to fleetd for hosts on macOS 13 and older, which are no longer supported. Hosts on macOS 14 and later continue to get OS update enforcement via DDM. To keep using Nudge, deploy it with the Nudge Fleet-maintained app. Learn how in the [Nudge guide](https://fleetdm.com/guides/enforce-os-updates-on-macos-with-nudge).
-
 ### Changes that may require action
 
+- Removed fleetd's built-in Nudge integration. Fleet no longer sends Nudge settings to fleetd for hosts on macOS 13 and older, which are no longer supported. Hosts on macOS 14 and later continue to get OS update enforcement via DDM. To keep using Nudge, deploy it with the Nudge Fleet-maintained app. Learn how in the [Nudge guide](https://fleetdm.com/guides/enforce-os-updates-on-macos-with-nudge).
 - Changed `fleetctl gitops` and the batch APIs to reject configuration profiles, scripts, reports, and labels whose names differ only by letter case, accents, or trailing spaces. Previously these were accepted and only one of them was saved. Rename the duplicates before upgrading.
 - Changed `fleetctl gitops` on Fleet Free to return an error for custom EST and Smallstep certificate authorities, which require Fleet Premium. Previously they were ignored. Remove them from your YAML before upgrading.
 - Changed Windows BitLocker key escrow to require `server.private_key`. Deployments that turned on Windows disk encryption without one should set it when upgrading.
