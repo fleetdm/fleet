@@ -1862,18 +1862,20 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 }
 
 func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) ([]*fleet.Policy, error) {
-	var args []interface{}
-
 	automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
 	}
-
 	platformClause, platformArgs := platformFilterClause(platform)
+	return listMergedTeamPoliciesDB(ctx, ds.reader(ctx), teamID, opts, automationFilter+platformClause, append(filterArgs, platformArgs...))
+}
 
-	query := fmt.Sprintf(`
+// listMergedTeamPoliciesDB lists the fleet's policies and the "All fleets" policies, with the host counts of the fleet's
+// hosts.
+func listMergedTeamPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions, filterClause string, filterArgs []any) ([]*fleet.Policy, error) {
+	query := `
 		SELECT
-			`+policyCols+`,
+			` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			ps.updated_at as host_count_updated_at,
@@ -1884,37 +1886,84 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
-		%s
-		%s
-    `, automationFilter, platformClause)
-
-	args = append(args, teamID, teamID)
-	if len(filterArgs) > 0 {
-		args = append(args, filterArgs...)
-	}
-	if len(platformArgs) > 0 {
-		args = append(args, platformArgs...)
-	}
+		` + filterClause
+	args := append([]any{teamID, teamID}, filterArgs...)
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, _, err = appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
+	query, _, err := appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 
 	var policies []*fleet.Policy
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
+	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing merged team policies")
 	}
 
-	if err := loadLabelsForPolicies(ctx, ds.reader(ctx), policies); err != nil {
+	if err := loadLabelsForPolicies(ctx, q, policies); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
 
 	return policies, nil
+}
+
+// policyListFilterClause builds the conditions of a policy list filter. Requires the policies table to be aliased as p.
+func policyListFilterClause(filter fleet.PolicyListFilter) (string, []any) {
+	var clause string
+	var args []any
+	switch filter.AutomationType {
+	case fleet.PolicyAutomationConditionalAccess:
+		clause += " AND p.conditional_access_enabled = 1"
+	case fleet.PolicyAutomationSoftware:
+		clause += " AND " + policiesSoftwareAutomationClause
+	case fleet.PolicyAutomationScript:
+		clause += " AND p.script_id IS NOT NULL"
+	case fleet.PolicyAutomationConfigurationProfile:
+		clause += " AND (p.resend_apple_profile_uuid IS NOT NULL OR p.resend_windows_profile_uuid IS NOT NULL)"
+	case fleet.PolicyAutomationCalendar:
+		clause += " AND p.calendar_events_enabled = 1"
+	case fleet.PolicyAutomationWebhookOrTicket:
+		clause += " AND p.webhooks_and_tickets_enabled = 1"
+	}
+	if filter.Type != "" {
+		clause += " AND p.type = ?"
+		args = append(args, filter.Type)
+	}
+	platformClause, platformArgs := platformFilterClause(filter.Platform)
+	return clause + platformClause, append(args, platformArgs...)
+}
+
+func (ds *Datastore) ListPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
+	filterClause, filterArgs := policyListFilterClause(filter)
+	if teamID != nil && mergeInherited {
+		return listMergedTeamPoliciesDB(ctx, ds.reader(ctx), *teamID, opts, filterClause, filterArgs)
+	}
+	return listPoliciesDB(ctx, ds.reader(ctx), teamID, opts, filterClause, filterArgs)
+}
+
+func (ds *Datastore) CountPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error) {
+	query, args := `SELECT COUNT(*) FROM policies p WHERE p.team_id IS NULL`, []any{}
+	switch {
+	case teamID != nil && mergeInherited:
+		query, args = `SELECT COUNT(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`, []any{*teamID}
+	case teamID != nil:
+		query, args = `SELECT COUNT(*) FROM policies p WHERE p.team_id = ?`, []any{*teamID}
+	}
+	filterClause, filterArgs := policyListFilterClause(filter)
+	query += filterClause
+	args = append(args, filterArgs...)
+
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	query, args = searchLike(query, args, norm.NFC.String(matchQuery), policySearchColumns...)
+
+	var count int
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting policies in scope")
+	}
+	return count, nil
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {

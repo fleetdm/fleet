@@ -822,6 +822,10 @@ type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.List
 
 type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) ([]*fleet.Policy, error)
 
+type ListPoliciesInScopeFunc func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error)
+
+type CountPoliciesInScopeFunc func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error)
+
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
@@ -3803,6 +3807,12 @@ type DataStore struct {
 
 	ListMergedTeamPoliciesFunc        ListMergedTeamPoliciesFunc
 	ListMergedTeamPoliciesFuncInvoked bool
+
+	ListPoliciesInScopeFunc        ListPoliciesInScopeFunc
+	ListPoliciesInScopeFuncInvoked bool
+
+	CountPoliciesInScopeFunc        CountPoliciesInScopeFunc
+	CountPoliciesInScopeFuncInvoked bool
 
 	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
 	DeleteTeamPoliciesFuncInvoked bool
@@ -9274,6 +9284,20 @@ func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opt
 	s.ListMergedTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts, automationType, platform)
+}
+
+func (s *DataStore) ListPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListPoliciesInScopeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPoliciesInScopeFunc(ctx, teamID, mergeInherited, opts, filter)
+}
+
+func (s *DataStore) CountPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesInScopeFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesInScopeFunc(ctx, teamID, mergeInherited, matchQuery, filter)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {

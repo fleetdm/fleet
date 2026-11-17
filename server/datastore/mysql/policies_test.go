@@ -63,6 +63,7 @@ func TestPolicies(t *testing.T) {
 		{"WebhooksAndTicketsPolicies", testWebhooksAndTicketsPolicies},
 		{"WebhooksAndTicketsWrites", testWebhooksAndTicketsWrites},
 		{"WebhooksAndTicketsByPatchPolicySlug", testWebhooksAndTicketsByPatchPolicySlug},
+		{"ListAndCountPoliciesInScope", testListAndCountPoliciesInScope},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
@@ -11773,4 +11774,73 @@ func testWebhooksAndTicketsByPatchPolicySlug(t *testing.T, ds *Datastore) {
 	bySlug, err = ds.WebhooksAndTicketsByPatchPolicySlug(ctx, team.ID, nil)
 	require.NoError(t, err)
 	require.Empty(t, bySlug)
+}
+
+func testListAndCountPoliciesInScope(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "scope team"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "scope other team"})
+	require.NoError(t, err)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "scope.sh", ScriptContents: "echo", TeamID: &team.ID})
+	require.NoError(t, err)
+
+	newPolicy := func(name string, teamID *uint, payload fleet.PolicyPayload) uint {
+		payload.Name, payload.Query = name, "SELECT 1;"
+		var p *fleet.Policy
+		var err error
+		if teamID == nil {
+			p, err = ds.NewGlobalPolicy(ctx, nil, payload)
+		} else {
+			p, err = ds.NewTeamPolicy(ctx, *teamID, nil, payload)
+		}
+		require.NoError(t, err)
+		return p.ID
+	}
+	newPolicy("global webhook", nil, fleet.PolicyPayload{WebhooksAndTicketsEnabled: true, Platform: "darwin"})
+	newPolicy("global plain", nil, fleet.PolicyPayload{Platform: "windows"})
+	newPolicy("team script", &team.ID, fleet.PolicyPayload{ScriptID: &script.ID})
+	newPolicy("team calendar", &team.ID, fleet.PolicyPayload{CalendarEventsEnabled: true})
+	newPolicy("team webhook", &team.ID, fleet.PolicyPayload{WebhooksAndTicketsEnabled: true})
+	newPolicy("unassigned conditional", new(uint(0)), fleet.PolicyPayload{ConditionalAccessEnabled: true, Platform: "darwin"})
+	newPolicy("other team", &otherTeam.ID, fleet.PolicyPayload{})
+
+	check := func(teamID *uint, merge bool, filter fleet.PolicyListFilter, want ...string) {
+		t.Helper()
+		policies, err := ds.ListPoliciesInScope(ctx, teamID, merge, fleet.ListOptions{OrderKey: "name"}, filter)
+		require.NoError(t, err)
+		var got []string
+		for _, p := range policies {
+			got = append(got, p.Name)
+		}
+		require.ElementsMatch(t, want, got)
+		count, err := ds.CountPoliciesInScope(ctx, teamID, merge, "", filter)
+		require.NoError(t, err)
+		require.Equal(t, len(want), count)
+	}
+	none := fleet.PolicyListFilter{}
+	check(nil, false, none, "global webhook", "global plain")
+	check(nil, true, none, "global webhook", "global plain") // merging needs a fleet
+	check(&team.ID, false, none, "team script", "team calendar", "team webhook")
+	check(&team.ID, true, none, "team script", "team calendar", "team webhook", "global webhook", "global plain")
+	check(new(uint(0)), false, none, "unassigned conditional")
+	check(new(uint(0)), true, none, "unassigned conditional", "global webhook", "global plain")
+
+	webhook := fleet.PolicyListFilter{AutomationType: fleet.PolicyAutomationWebhookOrTicket}
+	check(nil, false, webhook, "global webhook")
+	check(&team.ID, false, webhook, "team webhook")
+	check(&team.ID, true, webhook, "team webhook", "global webhook")
+	check(&team.ID, false, fleet.PolicyListFilter{AutomationType: fleet.PolicyAutomationScript}, "team script")
+	check(&team.ID, false, fleet.PolicyListFilter{AutomationType: fleet.PolicyAutomationCalendar}, "team calendar")
+	check(new(uint(0)), false, fleet.PolicyListFilter{AutomationType: fleet.PolicyAutomationConditionalAccess}, "unassigned conditional")
+	check(&team.ID, false, fleet.PolicyListFilter{AutomationType: fleet.PolicyAutomationSoftware})
+	check(&team.ID, false, fleet.PolicyListFilter{AutomationType: fleet.PolicyAutomationConfigurationProfile})
+	check(&team.ID, false, fleet.PolicyListFilter{Type: fleet.PolicyTypeDynamic}, "team script", "team calendar", "team webhook")
+	check(&team.ID, false, fleet.PolicyListFilter{Type: fleet.PolicyTypePatch})
+	check(nil, false, fleet.PolicyListFilter{Platform: "darwin"}, "global webhook")
+	check(&team.ID, true, fleet.PolicyListFilter{Platform: "windows"}, "team script", "team calendar", "team webhook", "global plain")
+
+	count, err := ds.CountPoliciesInScope(ctx, &team.ID, true, "calendar", none)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
 }

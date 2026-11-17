@@ -146,15 +146,6 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 // Count
 // ///////////////////////////////////////////////////////////////////////////////
 
-func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.CountGlobalPoliciesRequest)
-	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery, req.Platform)
-	if err != nil {
-		return fleet.CountGlobalPoliciesResponse{Err: err}, nil
-	}
-	return fleet.CountGlobalPoliciesResponse{Count: resp}, nil
-}
-
 func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return 0, err
