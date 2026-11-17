@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -377,9 +378,28 @@ func enrollHost(t *testing.T, f *Fleet) (string, error) {
 	retryStrategy.MaxInterval = 5 * time.Minute
 
 	if err := backoff.Retry(func() error {
-		host, err := client.HostByIdentifier(hostname)
+		// The client is built from this branch but talks to older versions too, so avoid
+		// HostByIdentifier: its endpoint differs between versions. Search and numeric-ID lookups work on all of them.
+		hosts, err := client.GetHosts(url.Values{"query": {hostname}}.Encode())
 		if err != nil {
-			t.Logf("get host by identifier %s: %s", hostname, err)
+			t.Logf("list hosts matching %s: %s", hostname, err)
+			return err
+		}
+		var hostID uint
+		for _, h := range hosts {
+			if h.Hostname == hostname {
+				hostID = h.ID
+				break
+			}
+		}
+		if hostID == 0 {
+			t.Logf("host %s not enrolled yet", hostname)
+			return errors.New("host not enrolled yet")
+		}
+
+		host, err := client.GetHost(hostID)
+		if err != nil {
+			t.Logf("get host %d (%s): %s", hostID, hostname, err)
 			return err
 		}
 

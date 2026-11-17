@@ -20,12 +20,10 @@
     text-decoration: underline;
   }
   input {
-    border-radius: 6px;
-    height: 48px;
+    .text-input(large);
   }
   .form-control {
     color: #515774;
-    font-size: 14px;
   }
   [purpose='note'] {
     display: flex;
@@ -100,9 +98,6 @@
         transform: scale(1);
       }
     }
-    .form-control {
-      height: 40px;
-    }
   }
   .form-group.is-invalid {
     color: @core-vibrant-red;
@@ -118,10 +113,6 @@
   }
   [purpose='submit-button'] {
     display: flex;
-    padding: 16px 32px;
-    height: 48px;
-    font-size: 16px;
-    line-height: 16px;
     align-items: center;
     justify-content: center;
     background-color: @core-vibrant-green;
@@ -148,8 +139,7 @@
     pointer-events: none;
   }
   .selectbox select {
-    border-radius: 6px;
-    height: 48px;
+    .text-input(large);
     appearance: none;
     -webkit-appearance: none;
   }

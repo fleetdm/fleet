@@ -5,7 +5,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +21,7 @@ func TestRouteTableMatchesGorilla(t *testing.T) {
 		methods        []string
 	}
 	var walked, recorded []route
-	require.NoError(t, router.Walk(func(r *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+	require.NoError(t, router.Gorilla().Walk(func(r *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		tpl, err := r.GetPathTemplate()
 		require.NoError(t, err)
 		methods, err := r.GetMethods()
@@ -30,7 +29,7 @@ func TestRouteTableMatchesGorilla(t *testing.T) {
 		walked = append(walked, route{name: r.GetName(), template: tpl, methods: methods})
 		return nil
 	}))
-	for _, rt := range endpointer.RoutesOf(router).Routes() {
+	for _, rt := range router.Routes() {
 		recorded = append(recorded, route{name: rt.Name, template: rt.Template(), methods: rt.Methods})
 	}
 

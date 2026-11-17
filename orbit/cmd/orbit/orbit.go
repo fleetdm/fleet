@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1818,24 +1819,17 @@ func orbitAction(c *cli.Context) error {
 	)
 
 	if c.Bool("fleet-desktop") {
-		var (
-			rawClientCrt []byte
-			rawClientKey []byte
-		)
-		if fleetClientCrt != nil {
-			rawClientCrt = fleetClientCrt.RawCrt
-			rawClientKey = fleetClientCrt.RawKey
-		}
 		desktopRunner := newDesktopRunner(
 			desktopPath,
 			fleetURL,
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			trw,
-			rawClientCrt,
-			rawClientKey,
+			fleetClientCertPath,
+			fleetClientKeyPath,
 			c.String("fleet-desktop-alternative-browser-host"),
 			opt.RootDirectory,
+			c.String("root-dir"),
 		)
 		go func() {
 			for {
@@ -2063,6 +2057,101 @@ func deleteSecretPathIfExists(enrollSecretPath string) {
 	}
 }
 
+// prepareDesktopTLSFiles creates copies of the TLS client cert/key owned by
+// the target user so Fleet Desktop (unprivileged) can read them. This is
+// called before execuser.Run, so the files are fully ready before the desktop
+// process starts.
+func (d *desktopRunner) prepareDesktopTLSFiles(username string) (certPath, keyPath string, err error) {
+	if username == "" {
+		return "", "", errors.New("cannot prepare TLS files without a target username")
+	}
+
+	// Use the id command instead of os/user.Lookup because the Linux arm64
+	// build has CGO disabled, so os/user cannot resolve LDAP/SSSD users.
+	uid, err := lookupUID(username)
+	if err != nil {
+		return "", "", err
+	}
+	gid, err := lookupGID(username)
+	if err != nil {
+		return "", "", err
+	}
+
+	certDst := filepath.Join(d.rootDir, ".desktop_fleet_client.crt")
+	keyDst := filepath.Join(d.rootDir, ".desktop_fleet_client.key")
+
+	crt, err := os.ReadFile(d.fleetClientCertPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read cert: %w", err)
+	}
+	key, err := os.ReadFile(d.fleetClientKeyPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read key: %w", err)
+	}
+
+	if err := os.WriteFile(certDst, crt, 0o644); err != nil {
+		return "", "", fmt.Errorf("write cert copy: %w", err)
+	}
+	if err := os.Chown(certDst, uid, gid); err != nil {
+		return "", "", fmt.Errorf("chown cert: %w", err)
+	}
+
+	// Write key to a temp file and rename to avoid a previous user retaining
+	// a read descriptor on the destination inode.
+	tmpKey, err := os.CreateTemp(d.rootDir, ".desktop_fleet_client_key_*")
+	if err != nil {
+		return "", "", fmt.Errorf("create temp key file: %w", err)
+	}
+	tmpKeyPath := tmpKey.Name()
+	if _, err := tmpKey.Write(key); err != nil {
+		tmpKey.Close()
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("write key temp: %w", err)
+	}
+	if err := tmpKey.Chmod(0o400); err != nil {
+		tmpKey.Close()
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("chmod key temp: %w", err)
+	}
+	tmpKey.Close()
+	if err := os.Chown(tmpKeyPath, uid, gid); err != nil {
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("chown key temp: %w", err)
+	}
+	if err := os.Rename(tmpKeyPath, keyDst); err != nil {
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("rename key to final path: %w", err)
+	}
+
+	return certDst, keyDst, nil
+}
+
+// lookupUID returns the numeric UID for the given username using the id command.
+func lookupUID(username string) (int, error) {
+	out, err := exec.Command("id", "-u", username).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lookup uid for %q: %w", username, err)
+	}
+	uid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("parse uid for %q: %w", username, err)
+	}
+	return uid, nil
+}
+
+// lookupGID returns the numeric primary GID for the given username using the id command.
+func lookupGID(username string) (int, error) {
+	out, err := exec.Command("id", "-g", username).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lookup gid for %q: %w", username, err)
+	}
+	gid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("parse gid for %q: %w", username, err)
+	}
+	return gid, nil
+}
+
 // setServerOverrides overrides specific variables in c with values fetched from Fleet.
 func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	overrideCfg, err := loadServerOverrides(c.String("root-dir"))
@@ -2244,12 +2333,12 @@ type desktopRunner struct {
 	fleetRootCA string
 	// insecure disables all TLS verification.
 	insecure bool
-	// fleetClientCrt is the raw TLS client certificate (in PEM format)
-	// to use for authenticating to the Fleet server.
-	fleetClientCrt []byte
-	// fleetClientKey is the raw TLS client private key (in PEM format)
-	// to use for authenticating to the Fleet server.
-	fleetClientKey []byte
+	// fleetClientCertPath is the path to the TLS client certificate file.
+	fleetClientCertPath string
+	// fleetClientKeyPath is the path to the TLS client key file.
+	fleetClientKeyPath string
+	// rootDir is the orbit root directory.
+	rootDir string
 	// fleetAlternativeBrowserHost is an alternative host:port to use for
 	// the browser URLs in Fleet Desktop.
 	fleetAlternativeBrowserHost string
@@ -2267,9 +2356,10 @@ func newDesktopRunner(
 	desktopPath, fleetURL, fleetRootCA string,
 	insecure bool,
 	trw *token.ReadWriter,
-	fleetClientCrt []byte, fleetClientKey []byte,
+	fleetClientCertPath, fleetClientKeyPath string,
 	fleetAlternativeBrowserHost string,
 	updateRoot string,
+	rootDir string,
 ) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:                 desktopPath,
@@ -2278,8 +2368,9 @@ func newDesktopRunner(
 		trw:                         trw,
 		fleetRootCA:                 fleetRootCA,
 		insecure:                    insecure,
-		fleetClientCrt:              fleetClientCrt,
-		fleetClientKey:              fleetClientKey,
+		fleetClientCertPath:         fleetClientCertPath,
+		fleetClientKeyPath:          fleetClientKeyPath,
+		rootDir:                     rootDir,
 		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
 		interruptCh:                 make(chan struct{}),
 		executeDoneCh:               make(chan struct{}),
@@ -2309,7 +2400,7 @@ func (d *desktopRunner) Execute() error {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
 	deviceURL.Path = path.Join(url.Path, "device", d.trw.GetCached())
-	opts := []execuser.Option{
+	baseOpts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
 
@@ -2317,17 +2408,15 @@ func (d *desktopRunner) Execute() error {
 		// we should remove it once we think is safe
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
 
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
-
 		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
 		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
 	}
+
 	if d.fleetRootCA != "" {
-		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
+		baseOpts = append(baseOpts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
 	}
 	if d.insecure {
-		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
+		baseOpts = append(baseOpts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
 	for {
@@ -2352,8 +2441,48 @@ func (d *desktopRunner) Execute() error {
 				return true
 			}
 			log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
+
+			// Build a fresh opts slice for each attempt to avoid accumulating
+			// stale WithUser/cert path entries from prior retries.
+			opts := make([]execuser.Option, len(baseOpts))
+			copy(opts, baseOpts)
+
 			if *loggedInUser != "" {
 				opts = append(opts, execuser.WithUser(*loggedInUser))
+			}
+
+			if d.fleetClientCertPath != "" && d.fleetClientKeyPath != "" {
+				if runtime.GOOS == "windows" {
+					// On Windows, env vars are passed securely via os.Setenv
+					// (not in process cmdline). Read on each attempt to pick
+					// up rotated credentials.
+					crtData, err := os.ReadFile(d.fleetClientCertPath)
+					if err != nil {
+						log.Warn().Err(err).Msg("reading TLS client certificate for desktop")
+					}
+					keyData, err := os.ReadFile(d.fleetClientKeyPath)
+					if err != nil {
+						log.Warn().Err(err).Msg("reading TLS client key for desktop")
+					}
+					if len(crtData) > 0 && len(keyData) > 0 {
+						opts = append(opts,
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(crtData)),
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(keyData)),
+						)
+					}
+				} else {
+					// On Linux/macOS, pass file paths (not content) to avoid
+					// exposing secrets in process argv.
+					certCopy, keyCopy, err := d.prepareDesktopTLSFiles(*loggedInUser)
+					if err != nil {
+						log.Warn().Err(err).Msg("preparing TLS files for desktop, launching without TLS client cert")
+					} else {
+						opts = append(opts,
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE_PATH", certCopy),
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY_PATH", keyCopy),
+						)
+					}
+				}
 			}
 
 			log.Info().Msg("killing any pre-existing fleet-desktop instances")

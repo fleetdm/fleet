@@ -66,4 +66,10 @@ describe("getErrorMessage", () => {
       REQUEST_TIMEOUT_ERROR_MESSAGE
     );
   });
+
+  it("shows the friendly timeout message on 524 (Cloudflare origin timeout)", () => {
+    expect(getErrorMessage(errWithStatus(524, "anything"))).toBe(
+      REQUEST_TIMEOUT_ERROR_MESSAGE
+    );
+  });
 });

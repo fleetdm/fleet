@@ -30,6 +30,10 @@
     margin: 0;
   }
 
+  &__fleet-name {
+    overflow-wrap: anywhere;
+  }
+
   &__title-bar {
     display: flex;
     justify-content: space-between;

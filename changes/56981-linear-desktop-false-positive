@@ -1,0 +1,1 @@
+- Fixed false positive vulnerabilities (CVE-2024-12496, CVE-2024-13709) reported for the Linear desktop app on macOS, which was incorrectly matched to the "Linear" WordPress plugin CPE.

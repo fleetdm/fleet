@@ -17,9 +17,12 @@ openssl genpkey -algorithm RSA -out "$KEY_PATH" -pkeyopt rsa_keygen_bits:2048
 chmod 600 "$KEY_PATH"
 
 # Fleet replaces $FLEET_VAR_NDES_SCEP_CHALLENGE with a one-time challenge from Okta.
+# string_mask = pkix encodes the challenge as a PrintableString, which Microsoft NDES
+# requires (OpenSSL's default UTF8String is rejected with badRequest).
 openssl req -new -sha256 -key "$KEY_PATH" -out /tmp/okta-verify.csr -config <(cat <<EOF
 [req]
 prompt = no
+string_mask = pkix
 distinguished_name = dn
 attributes = attrs
 

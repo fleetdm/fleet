@@ -99,9 +99,9 @@ export const getUninstallErrorMessage = (e: unknown) => {
 };
 
 export const getLastInstall = (software: IHostSoftware | IVPPHostSoftware) =>
-  software.software_package?.last_install ||
+  software.package?.last_install ||
   software.app_store_app?.last_install ||
   null;
 
 export const getLastUninstall = (software: IHostSoftware) =>
-  software.software_package?.last_uninstall || null;
+  software.package?.last_uninstall || null;
