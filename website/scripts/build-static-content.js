@@ -506,6 +506,17 @@ module.exports = {
                 return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
               });//∞
 
+              // Replace embedded content with the <embedded-content> component, which only loads the iframe if the visitor consented to cookies or chooses to load it.
+              // > An <iframe> in the page's HTML would start loading before any client-side code could check for consent.
+              htmlString = htmlString.replace(/<div purpose="embedded-content">\s*<iframe\s([^>]*)>\s*<\/iframe>\s*<\/div>/g, (embeddedContentHtml, iframeAttributes) => {
+                let iframeSrc = iframeAttributes.match(/(?:^|\s)src="([^"]*)"/);
+                if (!iframeSrc) {
+                  return embeddedContentHtml;
+                }
+                let iframeTitle = iframeAttributes.match(/(?:^|\s)title="([^"]*)"/);
+                return `<embedded-content src="${iframeSrc[1]}"${iframeTitle ? ` title="${iframeTitle[1]}"` : ''}></embedded-content>`;
+              });//∞
+
               // Modify images in the /articles folder
               if (sectionRepoPath === 'articles/') {
                 // modifying relative links e.g. `../website/assets/images/articles/foo-200x300@2x.png`
