@@ -1204,10 +1204,11 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 #### What to do
 
+By default, manual enrollment profiles you downloaded before the upgrade stop working for new enrollments. Hosts that already turned on MDM with one of those profiles aren't affected.
+
 1. If you use the [manual enrollment profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile), set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`.
    - That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host.
-   - Previously downloaded profiles stop working.
-   - Hosts that already have MDM on aren't affected.
+   - Manual enrollment profiles you downloaded before the upgrade work again.
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
