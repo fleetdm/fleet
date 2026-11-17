@@ -19,7 +19,7 @@ TODO
   6. Replace the **DPC extras** with the JSON you copied, then save the configuration.
   7. Repeat for each fleet that has a passcode profile.
 
-  The old DPC extras keep working, so there's no deadline to update them. Hosts that are already enrolled aren't affected. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-a-passcode-on-android).
+  The old DPC extras keep working, so there's no deadline to update them. Hosts that are already enrolled aren't affected.
 
 ## Ready to upgrade?
 
