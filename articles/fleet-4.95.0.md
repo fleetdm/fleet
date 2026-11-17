@@ -1,10 +1,8 @@
 # Fleet 4.95.0 | Okta conditional access for Windows, built-in MCP server, AI tools in inventory, and more...
 
-<!--
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/TODO" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/LxUJ__j6LVw" title="0" allowfullscreen></iframe>
 </div>
--->
 
 Fleet 4.95.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.95.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
