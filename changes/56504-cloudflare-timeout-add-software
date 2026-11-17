@@ -1,0 +1,1 @@
+- Fixed add/edit software showing a generic "Couldn't add. Please try again." instead of the friendly timeout message when Fleet is behind Cloudflare and the request hits Cloudflare's 524 origin timeout.

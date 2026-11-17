@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 type addFleetMaintainedAppRequest struct {
@@ -32,8 +35,16 @@ type addFleetMaintainedAppRequest struct {
 func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var req addFleetMaintainedAppRequest
 
-	// Decode JSON body
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: "failed to read request body", InternalErr: err}
+	}
+	if !endpointer.SkipsRemovedNamesScan(r.URL.Path) {
+		if err := endpointer.RejectRemovedJSONKeys(body, reflect.TypeFor[addFleetMaintainedAppRequest]()); err != nil {
+			return nil, err
+		}
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to decode request body",
 			InternalErr: err,

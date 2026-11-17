@@ -993,21 +993,21 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				GracePeriodDays: optjson.SetInt(3),
 			},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString("bootstrap"),
-				MacOSSetupAssistant:         optjson.SetString("assistant"),
-				EnableReleaseDeviceManually: optjson.SetBool(false),
-				Script:                      optjson.String{Set: true},
-				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-				ManualAgentInstall:          optjson.SetBool(true),
-				LockEndUserInfo:             optjson.SetBool(false),
-				EnableManagedLocalAccount:   optjson.SetBool(false),
-				EndUserLocalAccountType:     optjson.SetString("admin"),
+				BootstrapPackage:                 optjson.SetString("bootstrap"),
+				MacOSSetupAssistant:              optjson.SetString("assistant"),
+				EnableReleaseDeviceManually:      optjson.SetBool(false),
+				Script:                           optjson.String{Set: true},
+				Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+				ManualAgentInstall:               optjson.SetBool(true),
+				LockEndUserInfo:                  optjson.SetBool(false),
+				EnableManagedLocalAccount:        optjson.SetBool(false),
+				EndUserLocalAccountType:          optjson.SetString("admin"),
+				EnableManagedLocalAccountWindows: optjson.SetBool(false),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:            optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
-				EnableManagedLocalAccount: optjson.SetBool(false),
-				EnableDiskEncryption:      optjson.SetBool(false),
-				RequireBitLockerPIN:       optjson.SetBool(false),
+				CustomSettings:       optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(false),
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
@@ -1126,7 +1126,7 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 
 	// Name key matches, which the collation doesn't see.
 	existing := make(map[string]uint)
-	for _, name := range []string{"Workstations", "Laptops 💻", "開発チーム", "Team 𝐀", "straße", "はは"} {
+	for _, name := range []string{"Workstations", "Laptops 💻", "開発チーム", "Team 𝐀", "straße", "はは", "राम", "กิน", "мой"} {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
 		require.NoError(t, err)
 		existing[name] = tm.ID
@@ -1153,6 +1153,14 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 		{"Team 𝐁", "Team 𝐀"},
 		{"ハハ", "はは"},
 		{"パパ", "はは"},
+		{"राम!", "राम"},
+		{"กิน 🚀", "กิน"},
+		{"МОЙ.", "мой"},
+		// Outside Latin script a combining mark can make a different word.
+		{"रम", ""},
+		{"रम!", ""},
+		{"กัน", ""},
+		{"мои", ""},
 		{"Workstations 2", ""},
 		{"Workstation", ""},
 		{"Laptop", ""},

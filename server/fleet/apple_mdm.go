@@ -786,8 +786,9 @@ type MDMAppleSetupPayload struct {
 	MacOSEnableBootstrapPackageDuringManualEnrollment *bool   `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
 	MacOSEnableBootstrapPackageDuringMigration        *bool   `json:"macos_enable_bootstrap_package_during_migration"`
 	LockEndUserInfo                                   *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount                         *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType                           *string `json:"end_user_local_account_type"`
+	EnableManagedLocalAccount                         *bool   `json:"macos_managed_local_account_enabled" removedkey:"enable_managed_local_account,enable_create_local_admin_account"`
+	EndUserLocalAccountType                           *string `json:"macos_end_user_local_account_type" removedkey:"end_user_local_account_type"`
+	EnableManagedLocalAccountWindows                  *bool   `json:"windows_managed_local_account_enabled"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -798,14 +799,24 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 // Validate validates the MDMAppleSetupPayload and updates the provided MacOSSetup with the new values if they are valid.
 // It returns an error if any of the values are invalid, and a boolean indicating whether any updates were made to the MacOSSetup.
 func (p MDMAppleSetupPayload) Validate(macOSSetupConfig *MacOSSetup) (didUpdate bool, err error) {
-	if p.EndUserLocalAccountType != nil {
-		if !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
-			return false, NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
-		}
-		if PrimaryAccountType(*p.EndUserLocalAccountType).RequiresLocalAdminAccount() && (!macOSSetupConfig.EnableManagedLocalAccount.Valid || !macOSSetupConfig.EnableManagedLocalAccount.Value) {
-			return false, NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, *p.EndUserLocalAccountType))
-		}
+	if p.EndUserLocalAccountType != nil && !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
+		return false, NewInvalidArgumentError("macos_end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
 
+	// Check the pair as it will be saved, so turning the account off alone can't strand a stored account type that
+	// needs it. The caller has already applied EnableManagedLocalAccount. Only when the request touches the pair, so an
+	// already invalid stored pair doesn't block unrelated settings.
+	if p.EndUserLocalAccountType != nil || p.EnableManagedLocalAccount != nil {
+		accountType := macOSSetupConfig.EndUserLocalAccountType.Value
+		if p.EndUserLocalAccountType != nil {
+			accountType = *p.EndUserLocalAccountType
+		}
+		if PrimaryAccountType(accountType).RequiresLocalAdminAccount() && !macOSSetupConfig.EnableManagedLocalAccount.Value {
+			return false, NewInvalidArgumentError("macos_managed_local_account_enabled", fmt.Sprintf(`macos_managed_local_account_enabled is required to be enabled when using %q for the macos_end_user_local_account_type`, accountType))
+		}
+	}
+
+	if p.EndUserLocalAccountType != nil {
 		if !macOSSetupConfig.EndUserLocalAccountType.Valid || macOSSetupConfig.EndUserLocalAccountType.Value != *p.EndUserLocalAccountType {
 			macOSSetupConfig.EndUserLocalAccountType = optjson.SetString(*p.EndUserLocalAccountType)
 			didUpdate = true

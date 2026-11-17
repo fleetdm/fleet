@@ -12,7 +12,6 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 2. Work through the list of [breaking changes](#breaking-changes). Best practice is to use your AI tool of choice (e.g. Claude, Codex, Copilot). Point it at your GitOps repository, scripts, and automations, along with this guide. Ask it to find and update everything that changes in Fleet 5.
 3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
 4. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
-5. If you use the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD), upgrade fleetctl to 5 everywhere you run it. fleetctl 4 isn't supported with Fleet 5 and can fail in [GitOps runs](#fleetctl-5-required-for-gitops).
 
 #### Why are we doing this?
 
@@ -357,17 +356,22 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in host responses | Separate `os_name` and `os_version` keys in the hosts returned by [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts), [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token), [Get host's device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report), [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts), and [Search targets](https://fleetdm.com/docs/rest-api/rest-api#search-targets), and as columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). For example, `"os_name": "macOS"` and `"os_version": "15.2"`, or `"os_name": "Windows 11 Home Single Language 23H2"` and `"os_version": "10.0.22631.5335"`. |
-| Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter |
+| Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter and in `os_name` in List operating systems and Get operating system version |
+| `name` (name and version, for example `macOS 14.1.2`), `name_only` (name only), and `version` for each operating system in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems), [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version), and the `os_versions` in [Get vulnerability](https://fleetdm.com/docs/rest-api/rest-api#get-vulnerability). `order_key=version` in List operating systems | `os_name` and `os_version`. For example, `"os_name": "macOS"` and `"os_version": "14.1.2"`. `name` and `name_only` are removed. `order_key=os_version` sorts in the same order |
+| CachyOS, Omarchy, and Arch Linux ARM hosts are all counted in the `Arch Linux` operating system in List operating systems and **Software > OS** | CachyOS and Omarchy each have their own operating system. Arch Linux ARM hosts are still counted in `Arch Linux` |
 
 #### What to do
 
-Fleet 4 doesn't return `os_name`, so you can't switch to it early. Instead:
+Fleet 4 doesn't return `os_name` from these endpoints, so you can't switch to it early. Instead:
 
 1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
-2. If you run the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard), update it to the version in the Fleet 5 release before you upgrade Fleet. That version works with Fleet 4 too. An older version can't match hosts to their operating system in Fleet 5, so it removes them every time it syncs, and their vulnerability history starts over.
-3. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+2. Before you upgrade, update code that reads operating systems from List operating systems, Get operating system version, and Get vulnerability. When an operating system has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, read `name_only` and `version`. This works on both versions.
+3. If you run the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard), update it to the version in the Fleet 5 release before you upgrade Fleet. That version works with Fleet 4 too. An older version can't match hosts to their operating system in Fleet 5, so it removes them every time it syncs, and their vulnerability history starts over.
+4. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+5. After you upgrade, change `order_key=version` to `order_key=os_version` in calls to List operating systems. Until you do, those calls fail with a `422` error.
+6. After you upgrade, if you count CachyOS or Omarchy hosts under the `Arch Linux` operating system, look for their own operating systems instead.
 
-GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
+GitHub issues: [#53877](https://github.com/fleetdm/fleet/issues/53877), [#56203](https://github.com/fleetdm/fleet/issues/56203)
 
 ### Windows wipe options moved
 

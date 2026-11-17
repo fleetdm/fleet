@@ -915,7 +915,7 @@ describe("Disk encryption data", () => {
       enabled: true,
       status: "On",
       message:
-        "The disk is encrypted. If recently turned on, encryption could take awhile.",
+        "The disk is encrypted. If recently turned on, encryption could take a while.",
     },
   ])(
     "renders the $platform '$status' tooltip without forced line breaks",

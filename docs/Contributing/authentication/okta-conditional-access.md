@@ -155,6 +155,44 @@ sequenceDiagram
 * [1Password Extended Access Management's Okta integration](https://blog.1password.com/extended-access-management-okta-guide)
 * [Connect Kolide to Okta](https://www.kolide.com/docs/admins/setting-up-kolide/connect-kolide-to-okta)
 
+### Client certificate delivery
+
+Fleet's conditional access SCEP server (`/api/fleet/conditional_access/scep`) issues the client certificate. It accepts only global enroll secrets as the challenge. The certificate's SAN URI carries the host UUID, which the SCEP depot uses to link the certificate's serial to the host. The IdP then looks up the host by the serial that the mTLS proxy forwards in `X-Client-Cert-Serial`. Both platforms use `CN=Fleet conditional access for Okta`, which browsers filter on, and put `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the OU so Fleet renews the certificate.
+
+#### macOS
+
+`GET /api/v1/fleet/conditional_access/idp/apple/profile` renders one `.mobileconfig` with user scope. It trusts Fleet's CA, enrolls the certificate over SCEP, sets an identity preference, and sets Chrome's `AutoSelectCertificateForUrls` for the mTLS URL. The SAN URI prefix is `urn:device:apple:uuid:`.
+
+#### Windows
+
+`GET /api/v1/fleet/conditional_access/idp/windows/profiles` returns two SyncML profiles as JSON (`scep_profile` and `browser_profile`).
+
+**Why two profiles.** Fleet requires a Windows SCEP profile to contain only `ClientCertificateInstall/SCEP/` nodes and exactly one `Exec` on `Install/Enroll`. Windows enrolls asynchronously: the SCEP CSP answers the `Exec` with 200 as soon as it queues the enrollment and reports the result later through the `Status` and `ErrorCode` nodes. Fleet's tracking (verifying status, status probe, retries, renewal) assumes one profile is exactly one certificate, so the browser configuration can't ride along. The scopes also differ: the certificate is `./User`, the browser policies are `./Device`, and Fleet delivers a profile with any `./User` node only after a user signs in.
+
+**SCEP profile.** Nodes live under `./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`, so the certificate lands in the signed-in user's `CurrentUser\My` store, where browsers look for client certificates. Fleet wraps the profile in `<Atomic>` so the node tree exists before the `Exec` runs.
+
+| Node | Value |
+|------|-------|
+| `ServerURL` | `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL`, filled in at delivery as `<server_url>/api/fleet/conditional_access/scep`. The Windows SCEP client appends `/pkiclient.exe`, which the SCEP server also serves. |
+| `Challenge` | A global enroll secret written in by the admin, directly or through a `$FLEET_SECRET_*` variable. The rendered profile carries an XML comment placeholder, which parses as an empty challenge, so upload rejects the profile until it's replaced. Windows encodes the challenge as a PrintableString, so upload also rejects characters outside letters, numbers, spaces, and `' ( ) + , - . / : = ?`. |
+| `CAThumbprint` | Uppercase hex SHA-1 of Fleet's conditional access CA certificate. |
+| `SubjectName` | `CN=Fleet conditional access for Okta,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID` |
+| `SubjectAlternativeNames` | `7+urn:device:fleet:uuid:$FLEET_VAR_HOST_UUID` (`7` is a URI). |
+| `EKUMapping` | `1.3.6.1.5.5.7.3.2` (client authentication). |
+| `KeyUsage`, `KeyLength`, `HashAlgorithm` | `160`, `2048`, `SHA-2`, matching the macOS payload. |
+| `KeyProtection` | `2`: TPM when available, so the private key isn't exportable. |
+
+The SAN prefix `urn:device:fleet:uuid:` is platform-neutral. The depot accepts it and the Apple prefix, which deployed macOS profiles keep using.
+
+**Browser profile.** Windows MDM can't write a registry value directly, so the profile ingests a small Fleet-authored ADMX (`./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetConditionalAccess/Policy/FleetConditionalAccessAdmx`) and then sets its two policies through the Policy CSP. They write the `AutoSelectCertificateForUrls` rule (the same JSON as the macOS profile) to value `999` under `HKLM\Software\Policies\Google\Chrome\AutoSelectCertificateForUrls` and `HKLM\Software\Policies\Microsoft\Edge\AutoSelectCertificateForUrls`. Chromium reads every integer-named value under those keys, so `999` leaves an admin's own rules (`1`, `2`, ...) alone. A Group Policy that manages the same key takes precedence. Windows Home doesn't support ADMX ingestion and answers the `ADMXInstall` with 406, which is why the feature requires Windows 11 Pro, Enterprise, or Education. Firefox has no equivalent policy and prompts for the certificate.
+
+**Fleet-tracked delivery.** `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` marks the profile as conditional access, the same way NDES and custom SCEP variables mark theirs. At delivery, Fleet writes a `host_mdm_managed_certificates` row with type `conditional_access`. Because of that type:
+
+- After the device acknowledges the profile, it moves to verifying, not verified.
+- 30 seconds later, Fleet sends a status probe (a `Get` on the SCEP node's `Status` and `ErrorCode`) and repeats it up to 15 times until the host reports a result. `1` marks the profile verified. `16` marks it failed with the error code and retries.
+- When osquery (5.23.1 or later) reports the certificate with OU `fleet-<profile_uuid>`, Fleet records its serial and validity on the row, as for NDES. The depot doesn't write these.
+- The renewal job resends the profile about 30 days before the certificate expires. The `Add`s come back 418 and Fleet resends them as `Replace`, then the `Exec` enrolls a new certificate. Chromium prefers the newest valid certificate, so no cleanup is needed.
+
 ---
 
 ## Using a device posture provider instead of Okta Verify (Early Access)

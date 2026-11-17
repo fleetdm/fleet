@@ -877,7 +877,9 @@
       <% } %>
 
 
-      <%- body %>
+      <div purpose="page-body">
+        <%- body %>
+      </div>
       <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
@@ -897,10 +899,12 @@
               <a href="/support">Support</a>
               <a href="/pricing">Pricing</a>
               <a href="/partners">Partners</a>
+              <a href="/login">Login</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
               <a href="/docs">Docs</a>
+              <a href="/guides">Guides</a>
               <a href="/docs/rest-api">API</a>
               <a href="/releases">Release notes</a>
               <a href="/download">Downloads</a>
@@ -1057,6 +1061,7 @@
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/teams-chat-graphic.component.js"></script>
+    <script src="/js/utilities/primary-button-spotlight.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
     <script src="/js/pages/admin/email-preview.page.js"></script>

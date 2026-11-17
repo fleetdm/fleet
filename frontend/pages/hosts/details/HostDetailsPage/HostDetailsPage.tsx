@@ -1400,9 +1400,10 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
-            : mdmConfig?.setup_experience?.enable_create_local_admin_account ??
-              false
+            ? mdmConfig?.setup_experience
+                ?.windows_managed_local_account_enabled ?? false
+            : mdmConfig?.setup_experience
+                ?.macos_managed_local_account_enabled ?? false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
@@ -2495,10 +2496,6 @@ const HostDetailsPage = ({
             iosOrIpadosDetails={{
               isIosOrIpadosHost,
               hostMdmDeviceStatus,
-            }}
-            onClickLock={() => {
-              setShowLockHostModal(true);
-              setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
           />

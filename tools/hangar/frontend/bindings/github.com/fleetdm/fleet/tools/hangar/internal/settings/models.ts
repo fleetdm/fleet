@@ -107,6 +107,198 @@ export class FleetServeConfig {
 }
 
 /**
+ * InstallerOptions is what gets built, whatever the context.
+ */
+export class InstallerOptions {
+    /**
+     * Platforms are installer keys (see internal/installers.Platforms).
+     */
+    "platforms": string[];
+    "fleet_desktop": boolean;
+    "enable_scripts": boolean;
+    "debug": boolean;
+
+    /**
+     * ExtraFlags are additional `fleetctl package` flags, shell-quoted.
+     */
+    "extra_flags": string;
+
+    /**
+     * UpdateSource is "official" (updates.fleetdm.com) or "local-tuf"
+     * (Hangar's test_tuf repo, served at Tuf.TufURL).
+     */
+    "update_source": string;
+    "orbit_channel": string;
+    "desktop_channel": string;
+    "osqueryd_channel": string;
+
+    /** Creates a new InstallerOptions instance. */
+    constructor($$source: Partial<InstallerOptions> = {}) {
+        if (!("platforms" in $$source)) {
+            this["platforms"] = [];
+        }
+        if (!("fleet_desktop" in $$source)) {
+            this["fleet_desktop"] = false;
+        }
+        if (!("enable_scripts" in $$source)) {
+            this["enable_scripts"] = false;
+        }
+        if (!("debug" in $$source)) {
+            this["debug"] = false;
+        }
+        if (!("extra_flags" in $$source)) {
+            this["extra_flags"] = "";
+        }
+        if (!("update_source" in $$source)) {
+            this["update_source"] = "";
+        }
+        if (!("orbit_channel" in $$source)) {
+            this["orbit_channel"] = "";
+        }
+        if (!("desktop_channel" in $$source)) {
+            this["desktop_channel"] = "";
+        }
+        if (!("osqueryd_channel" in $$source)) {
+            this["osqueryd_channel"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InstallerOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InstallerOptions {
+        const $$createField0_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("platforms" in $$parsedSource) {
+            $$parsedSource["platforms"] = $$createField0_0($$parsedSource["platforms"]);
+        }
+        return new InstallerOptions($$parsedSource as Partial<InstallerOptions>);
+    }
+}
+
+/**
+ * InstallerTarget is where one context's packages enroll. The Fleet URL and
+ * enroll secret are baked into the packages; scanning the context's server
+ * fills them in, or they're typed by hand.
+ */
+export class InstallerTarget {
+    /**
+     * TeamID is the fleet whose enroll secret is used; nil = Unassigned (the
+     * global enroll secret). TeamName is "" when the secret was typed in.
+     */
+    "team_id": number | null;
+    "team_name": string;
+    "fleet_url": string;
+    "enroll_secret": string;
+
+    /** Creates a new InstallerTarget instance. */
+    constructor($$source: Partial<InstallerTarget> = {}) {
+        if (!("team_id" in $$source)) {
+            this["team_id"] = null;
+        }
+        if (!("team_name" in $$source)) {
+            this["team_name"] = "";
+        }
+        if (!("fleet_url" in $$source)) {
+            this["fleet_url"] = "";
+        }
+        if (!("enroll_secret" in $$source)) {
+            this["enroll_secret"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InstallerTarget instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InstallerTarget {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InstallerTarget($$parsedSource as Partial<InstallerTarget>);
+    }
+}
+
+/**
+ * InstallersConfig is the saved state of the Installers tab: which fleetctl
+ * context the packages are built for, what each context enrolls into, and the
+ * build options shared by all of them. Packages land in
+ * <file-server dir or primary repo>/packages/<context>/ (see
+ * internal/installers.OutputDir).
+ */
+export class InstallersConfig {
+    /**
+     * Context is the fleetctl context to build for; "" means not picked yet
+     * (the "default" context when there is one).
+     */
+    "context": string;
+
+    /**
+     * Manual builds without a context, from a typed-in Fleet URL and secret.
+     */
+    "manual": boolean;
+
+    /**
+     * Targets is what each context enrolls into, keyed by context name;
+     * ManualTarget is the same for manual builds.
+     */
+    "targets": { [_ in string]?: InstallerTarget };
+    "manual_target": InstallerTarget;
+    "options": InstallerOptions;
+
+    /**
+     * SharePort is the port for sharing the packages folder over HTTP; 0 means
+     * pick a free one.
+     */
+    "share_port": number;
+
+    /** Creates a new InstallersConfig instance. */
+    constructor($$source: Partial<InstallersConfig> = {}) {
+        if (!("context" in $$source)) {
+            this["context"] = "";
+        }
+        if (!("manual" in $$source)) {
+            this["manual"] = false;
+        }
+        if (!("targets" in $$source)) {
+            this["targets"] = {};
+        }
+        if (!("manual_target" in $$source)) {
+            this["manual_target"] = (new InstallerTarget());
+        }
+        if (!("options" in $$source)) {
+            this["options"] = (new InstallerOptions());
+        }
+        if (!("share_port" in $$source)) {
+            this["share_port"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InstallersConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InstallersConfig {
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("targets" in $$parsedSource) {
+            $$parsedSource["targets"] = $$createField2_0($$parsedSource["targets"]);
+        }
+        if ("manual_target" in $$parsedSource) {
+            $$parsedSource["manual_target"] = $$createField3_0($$parsedSource["manual_target"]);
+        }
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField4_0($$parsedSource["options"]);
+        }
+        return new InstallersConfig($$parsedSource as Partial<InstallersConfig>);
+    }
+}
+
+/**
  * NgrokConfig configures the optional ngrok tunnel process.
  */
 export class NgrokConfig {
@@ -250,7 +442,7 @@ export class NgrokYamlInfo {
      * Creates a new NgrokYamlInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): NgrokYamlInfo {
-        const $$createField4_0 = $$createType4;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tunnels" in $$parsedSource) {
             $$parsedSource["tunnels"] = $$createField4_0($$parsedSource["tunnels"]);
@@ -438,6 +630,11 @@ export class ServerPorts {
      */
     "s3_console": number;
 
+    /**
+     * mock APNs server (cmd/apple-apns-mock) listen port
+     */
+    "apns_mock": number;
+
     /** Creates a new ServerPorts instance. */
     constructor($$source: Partial<ServerPorts> = {}) {
         if (!("server" in $$source)) {
@@ -454,6 +651,9 @@ export class ServerPorts {
         }
         if (!("s3_console" in $$source)) {
             this["s3_console"] = 0;
+        }
+        if (!("apns_mock" in $$source)) {
+            this["apns_mock"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -510,6 +710,14 @@ export class ServerProfile {
     "fleet_serve": FleetServeConfig;
     "enabled": boolean;
 
+    /**
+     * MockAPNs runs cmd/apple-apns-mock with this server's stack and points
+     * fleet serve's Apple MDM pushes at it, so osquery-perf's simulated Apple
+     * devices can MDM-enroll. Real Apple devices on this server get no pushes
+     * while it's on.
+     */
+    "mock_apns": boolean;
+
     /** Creates a new ServerProfile instance. */
     constructor($$source: Partial<ServerProfile> = {}) {
         if (!("id" in $$source)) {
@@ -539,6 +747,9 @@ export class ServerProfile {
         if (!("enabled" in $$source)) {
             this["enabled"] = false;
         }
+        if (!("mock_apns" in $$source)) {
+            this["mock_apns"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -547,8 +758,8 @@ export class ServerProfile {
      * Creates a new ServerProfile instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerProfile {
-        const $$createField5_0 = $$createType5;
-        const $$createField7_0 = $$createType6;
+        const $$createField5_0 = $$createType8;
+        const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ports" in $$parsedSource) {
             $$parsedSource["ports"] = $$createField5_0($$parsedSource["ports"]);
@@ -579,6 +790,7 @@ export class Settings {
     "theme": ThemePreference;
     "favorite_crons": string[];
     "tuf": TufConfig;
+    "installers": InstallersConfig;
 
     /**
      * Servers is nil in a pre-multi-server file; migrate() backfills it from
@@ -632,6 +844,9 @@ export class Settings {
         if (!("tuf" in $$source)) {
             this["tuf"] = (new TufConfig());
         }
+        if (!("installers" in $$source)) {
+            this["installers"] = (new InstallersConfig());
+        }
         if (!("servers" in $$source)) {
             this["servers"] = [];
         }
@@ -652,13 +867,14 @@ export class Settings {
      * Creates a new Settings instance from a string or object.
      */
     static createFrom($$source: any = {}): Settings {
-        const $$createField4_0 = $$createType7;
-        const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType6;
+        const $$createField4_0 = $$createType10;
+        const $$createField5_0 = $$createType11;
+        const $$createField6_0 = $$createType9;
         const $$createField8_0 = $$createType2;
-        const $$createField9_0 = $$createType9;
-        const $$createField10_0 = $$createType11;
-        const $$createField12_0 = $$createType13;
+        const $$createField9_0 = $$createType12;
+        const $$createField10_0 = $$createType13;
+        const $$createField11_0 = $$createType15;
+        const $$createField13_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ngrok" in $$parsedSource) {
             $$parsedSource["ngrok"] = $$createField4_0($$parsedSource["ngrok"]);
@@ -675,11 +891,14 @@ export class Settings {
         if ("tuf" in $$parsedSource) {
             $$parsedSource["tuf"] = $$createField9_0($$parsedSource["tuf"]);
         }
+        if ("installers" in $$parsedSource) {
+            $$parsedSource["installers"] = $$createField10_0($$parsedSource["installers"]);
+        }
         if ("servers" in $$parsedSource) {
-            $$parsedSource["servers"] = $$createField10_0($$parsedSource["servers"]);
+            $$parsedSource["servers"] = $$createField11_0($$parsedSource["servers"]);
         }
         if ("scep_profiles" in $$parsedSource) {
-            $$parsedSource["scep_profiles"] = $$createField12_0($$parsedSource["scep_profiles"]);
+            $$parsedSource["scep_profiles"] = $$createField13_0($$parsedSource["scep_profiles"]);
         }
         return new Settings($$parsedSource as Partial<Settings>);
     }
@@ -754,14 +973,18 @@ export class TufConfig {
 const $$createType0 = EnvVar.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = NgrokTunnel.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = ServerPorts.createFrom;
-const $$createType6 = FleetServeConfig.createFrom;
-const $$createType7 = NgrokConfig.createFrom;
-const $$createType8 = PythonConfig.createFrom;
-const $$createType9 = TufConfig.createFrom;
-const $$createType10 = ServerProfile.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = ScepProfile.createFrom;
-const $$createType13 = $Create.Array($$createType12);
+const $$createType3 = InstallerTarget.createFrom;
+const $$createType4 = $Create.Map($Create.Any, $$createType3);
+const $$createType5 = InstallerOptions.createFrom;
+const $$createType6 = NgrokTunnel.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = ServerPorts.createFrom;
+const $$createType9 = FleetServeConfig.createFrom;
+const $$createType10 = NgrokConfig.createFrom;
+const $$createType11 = PythonConfig.createFrom;
+const $$createType12 = TufConfig.createFrom;
+const $$createType13 = InstallersConfig.createFrom;
+const $$createType14 = ServerProfile.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = ScepProfile.createFrom;
+const $$createType17 = $Create.Array($$createType16);

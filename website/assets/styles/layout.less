@@ -1,4 +1,3 @@
-@footer-height: 433px;
 @container-md-max-width: 1100px;
 
 [v-cloak] { display: none; }
@@ -14,14 +13,16 @@ html, body {
   height: auto !important;//lesshint-disable-line importantRule,duplicateProperty
   min-height: 100%;
   position: relative;
-  padding-bottom: @footer-height;
+  // Flex column so the footer sits in normal flow below [purpose='page-body'] and is pushed to the bottom on short pages.
+  display: flex;
+  flex-direction: column;
   background: linear-gradient(180deg, #E8F1F6 0%, #FFFFFF 100px);
   background-position: center 40px;
   opacity: 1;
   // Note: This element has the "show" class toggled by the mobile header nav menu button.
   // We are overriding bootstrap classes here to allow us to prevent the page being scrolled while the mobile menu is open.
   &.collapse {
-    display: block;
+    display: flex;
     [purpose='mobile-nav'] {
       display: none;
     }
@@ -38,6 +39,11 @@ html, body {
       opacity: 1;
     }
   }
+}
+
+// Wraps the page body so page markup stays in block layout instead of becoming flex items of page-wrap.
+[purpose='page-body'] {
+  flex: 1 0 auto;
 }
 
 [purpose='header-background'] {
@@ -60,7 +66,7 @@ html, body {
   transition-duration: 500ms;
 }
 // The announcement banner (configured in config/announcement-banner.js): reeded glass, in the aqua of the domes in our cloud city art.
-// Each flute carries the same shine as our green CTA buttons (see .cta-button() in buttons.less).  Script in layout.ejs lights the
+// Each flute carries a diagonal shine.  Script in layout.ejs lights the
 // flutes: a broad shine at rest, a light that follows the cursor on hover, and the occasional glint.  On hover, the
 // glass near the cursor reflects a stretch of the cloud city.
 a[purpose='announcement-banner'] {
@@ -236,60 +242,8 @@ a[purpose='announcement-banner'] {
   }
 
   [purpose='glass-header-btn'] {
-    .cta-button();
-    height: 36px;
-    font-size: 14px;
-    line-height: 1;
-    padding: 16px 12px;
-    border-radius: 8px;
-  }
-
-  [purpose='layout-animated-arrow-button'] {
-    width: fit-content;
+    .primary-button();
     display: flex;
-    align-items: center;
-    padding: 6px 0px;
-    text-align: center;
-    font-family: Inter;
-    font-size: 15px;
-    line-height: 24px; /* 160% */
-    color: @core-fleet-black;
-    font-weight: 600;
-    text-decoration: none;
-    margin-right: 16px;
-    margin-left: 8px;
-    cursor: pointer;
-    [purpose='button-text'] {
-      color: @core-fleet-black;
-    }
-    [purpose='animated-arrow'] {
-      margin-left: 8px;
-      stroke-width: 2px;
-      height: 12px;
-      width: 12px;
-      fill: none;
-      stroke: @core-vibrant-green;
-    }
-    [purpose='arrow-line'] {
-      opacity: 0;
-      transition: opacity 10ms ease-out;
-    }
-    [purpose='chevron'] {
-      transition: transform 100ms ease-out;
-    }
-    &:hover {
-      text-decoration: none;
-      [purpose='button-text'] {
-        color: @core-fleet-black;
-      }
-      [purpose='arrow-line'] {
-        opacity: 1;
-        transition: opacity 150ms ease-out;
-      }
-      [purpose='chevron'] {
-        transform: translateX(5px);
-      }
-    }
   }
 
   [purpose='mobile-nav-toggle-btn'] {
@@ -349,9 +303,6 @@ a[purpose='announcement-banner'] {
         width: 16px;
       }
     }
-    [purpose='layout-animated-arrow-button'] {
-      margin-left: 16px;
-    }
     [purpose='mobile-dropdown-link'] {
       width: 100%;
       padding: 8px 32px 8px 0px;
@@ -403,7 +354,7 @@ a[purpose='announcement-banner'] {
         background: #FFF;
         align-items: center;
         &:focus-within {
-          border: 1px solid @core-vibrant-green;
+          border: 1px solid @core-fleet-black;
         }
       }
       [purpose='inner-search-input'] {
@@ -744,47 +695,18 @@ a[purpose='announcement-banner'] {
           line-height: 18px; /* 150% */
           margin-bottom: 8px;
         }
+        // Plain-HTML copy of <animated-arrow-button>: the header renders outside the Vue app.
         [purpose='cta-animated-arrow-button'] {
-          color: #192147;
-          text-align: center;
-          font-family: Inter;
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 600;
-          line-height: 24px; /* 200% */
-
+          .secondary-button();
+          padding: 0px;
         }
       }
     }
-    [purpose='button-text'] {
-      color: @core-fleet-black;
-    }
-    [purpose='animated-arrow'] {
-      margin-left: 8px;
-      stroke-width: 2px;
-      height: 12px;
-      width: 12px;
-      fill: none;
-      stroke: @core-vibrant-green;
-    }
-    [purpose='arrow-line'] {
-      opacity: 0;
-      transition: opacity 10ms ease-out;
-    }
-    [purpose='chevron'] {
-      transition: transform 100ms ease-out;
-    }
+    // The whole card is the link, so hovering anywhere on it animates the arrow.
     &:hover {
       text-decoration: none;
-      [purpose='button-text'] {
-        color: @core-fleet-black;
-      }
-      [purpose='arrow-line'] {
-        opacity: 1;
-        transition: opacity 150ms ease-out;
-      }
-      [purpose='chevron'] {
-        transform: translateX(5px);
+      [purpose='cta-animated-arrow-button'] {
+        .secondary-button-hover();
       }
     }
   }
@@ -820,12 +742,8 @@ a[purpose='announcement-banner'] {
 [purpose='page-footer'] {
   background-color: #FFF;
   color: #515774;
-  height: @footer-height;
   width: 100%;
   padding: 64px;
-  position: absolute;
-  left: 0px;
-  bottom: 0px;
   a {
     color: #515774;
     text-decoration: none;
@@ -922,21 +840,14 @@ a[purpose='announcement-banner'] {
     margin-top: 2px;
   }
 }
-[purpose='page-wrap'].reduced-footer-links {
-  padding-bottom: 96px;
-}
 [purpose='page-wrap'].header-hidden {
   padding-top: 0px;
-  padding-bottom: 0px;
   background: #FFF;
 }
 
 // Landing page footer styles
 [purpose='reduced-nav-footer'] {
-  position: absolute;
-  bottom: 0px;
   width: 100%;
-  height: 96px;
   padding: 24px 32px;
   color: @core-fleet-black-75;
   a {
@@ -954,12 +865,8 @@ body.detected-mobile {
   // …
 }
 @media (max-width: 991px) {
-  [purpose='page-wrap'] {
-    padding-bottom: 487px;
-  }
   [purpose='page-footer'] {
     padding: 64px 40px;
-    height: 487px;
     [purpose='footer-socials'] {
       margin-bottom: 32px;
     }
@@ -1072,21 +979,13 @@ body.detected-mobile {
       }
     }
   }
-  [purpose='page-wrap'] {
-    padding-bottom: 728px;
-  }
   [purpose='footer-nav-column']:not(:last-of-type) {
     margin-bottom: 64px;
   }
   [purpose='page-footer'] {
     padding: 64px 32px;
-    height: 728px;
-  }
-  [purpose='page-wrap'].reduced-footer-links {
-    padding-bottom: 150px;
   }
   [purpose='reduced-nav-footer'] {
-    height: 150px;
     [purpose='footer-socials'] {
       margin-bottom: 32px;
     }
@@ -1095,9 +994,6 @@ body.detected-mobile {
 
 }
 @media (max-width: 575px) {
-  [purpose='page-wrap'] {
-    padding-bottom: 955px;
-  }
   [purpose='page-header'] {
     padding: 19px 20px;
     [purpose='mobile-nav'] {
@@ -1126,15 +1022,10 @@ body.detected-mobile {
       display: inline;
     }
   }
-  [purpose='page-wrap'].reduced-footer-links {
-    padding-bottom: 200px;
-  }
   [purpose='reduced-nav-footer'] {
-    height: 200px;
     padding: 24px;
   }
   [purpose='page-footer'] {
-    height: 955px;
     padding: 64px 24px;
   }
   [purpose='footer-nav'] {

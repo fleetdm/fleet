@@ -3,9 +3,7 @@ locals {
   prefix      = "fleet-${terraform.workspace}"
   fleet_image = "${aws_ecr_repository.fleet.repository_url}:${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
 
-  # Tracing configuration. OpenTelemetry is the only option: Elastic APM instrumentation is gorilla-specific, so
-  # MakeHandler turns off the stdlib ServeMux fast path whenever it is active, which costs more than the traces are
-  # worth in a loadtest. Tracing is off entirely unless enable_otel is set.
+  # Tracing is off unless enable_otel is set.
   otel_environment_variables = var.enable_otel ? {
     OTEL_SERVICE_NAME             = "fleet"
     OTEL_RESOURCE_ATTRIBUTES      = "deployment.environment.name=${terraform.workspace},deployment.environment=${terraform.workspace}"
