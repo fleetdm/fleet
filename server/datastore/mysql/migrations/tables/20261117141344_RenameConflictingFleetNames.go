@@ -14,38 +14,53 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261113214300, Down_20261113214300)
+	MigrationClient.AddMigration(Up_20261117141344, Down_20261117141344)
 }
 
-const fleetNameMaxLength20261113214300 = 255
+const fleetNameMaxLength20261117141344 = 255
 
-// fleetNameKey20261113214300 is a frozen copy of fleet.TeamNameKey, so this migration keeps renaming the same fleets
+// fleetNameKey20261117141344 is a frozen copy of fleet.TeamNameKey, so this migration keeps renaming the same fleets
 // if that rule changes later.
-func fleetNameKey20261113214300(name string) string {
+func fleetNameKey20261117141344(name string) string {
 	folded := norm.NFKD.String(cases.Fold().String(norm.NFKD.String(name)))
 	var key strings.Builder
+	// Combining marks are ignored after a Latin letter, so "é" matches "e". After a letter of any other script they are
+	// kept, because there a mark can make a different letter or word ("й" and "и", "राम" and "रम"). Pairs the teams.name
+	// collation treats as equal ("ё" and "е", "ガ" and "カ") still conflict through the collation check.
+	var keepMarks bool
 	for _, r := range folded {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+		switch {
+		case unicode.IsLetter(r):
 			key.WriteRune(r)
+			keepMarks = !unicode.Is(unicode.Latin, r)
+		case unicode.IsNumber(r):
+			key.WriteRune(r)
+			keepMarks = false
+		case unicode.IsMark(r):
+			if keepMarks {
+				key.WriteRune(r)
+			}
+		default:
+			keepMarks = false
 		}
 	}
 	return key.String()
 }
 
-type renamedFleet20261113214300 struct {
+type renamedFleet20261117141344 struct {
 	id      uint
 	oldName string
 	newName string
 }
 
-// Up_20261113214300 renames fleets that break the Fleet 5 name rules: a name needs at least one letter or number, and
+// Up_20261117141344 renames fleets that break the Fleet 5 name rules: a name needs at least one letter or number, and
 // must not match another fleet's name by name key or under the teams.name collation.
 //
 // Fleets are processed in id order and each rename is written right away, so the teams table always holds the final
 // names of the fleets already processed and the current names of the rest. A fleet whose name has no letter or number is
 // numbered from 1. A fleet that matches a name an earlier fleet ended up with is numbered from 2, so the oldest fleet
 // keeps its name. A number is skipped if the result would match any name in the table.
-func Up_20261113214300(tx *sql.Tx) error {
+func Up_20261117141344(tx *sql.Tx) error {
 	type fleetRow struct {
 		id   uint
 		name string
@@ -53,12 +68,12 @@ func Up_20261113214300(tx *sql.Tx) error {
 	}
 	var fleets []fleetRow
 	liveKeys := make(map[string]int)
-	err := forEachRow20261113214300(tx, `SELECT id, name FROM teams ORDER BY id`, func(rows *sql.Rows) error {
+	err := forEachRow20261117141344(tx, `SELECT id, name FROM teams ORDER BY id`, func(rows *sql.Rows) error {
 		var f fleetRow
 		if err := rows.Scan(&f.id, &f.name); err != nil {
 			return err
 		}
-		f.key = fleetNameKey20261113214300(f.name)
+		f.key = fleetNameKey20261117141344(f.name)
 		liveKeys[f.key]++
 		fleets = append(fleets, f)
 		return nil
@@ -70,7 +85,7 @@ func Up_20261113214300(tx *sql.Tx) error {
 	// A new name never matches a current name, so a fleet can only match an earlier fleet under the collation if it
 	// did before the migration. That limits the per-fleet collation query to these fleets.
 	matchedEarlierFleet := make(map[uint]struct{})
-	err = forEachRow20261113214300(tx, `
+	err = forEachRow20261117141344(tx, `
 		SELECT DISTINCT later.id
 		FROM teams later
 		JOIN teams earlier ON earlier.name = later.name AND earlier.id < later.id`,
@@ -95,7 +110,7 @@ func Up_20261113214300(tx *sql.Tx) error {
 	}
 
 	finalKeys := make(map[string]struct{}, len(fleets))
-	var renamed []renamedFleet20261113214300
+	var renamed []renamedFleet20261117141344
 	for _, f := range fleets {
 		liveKeys[f.key]--
 
@@ -121,8 +136,8 @@ func Up_20261113214300(tx *sql.Tx) error {
 		if firstNumber > 0 {
 			var finalName string
 			for n := firstNumber; ; n++ {
-				finalName = numberedFleetName20261113214300(f.name, n)
-				finalKey = fleetNameKey20261113214300(finalName)
+				finalName = numberedFleetName20261117141344(f.name, n)
+				finalKey = fleetNameKey20261117141344(finalName)
 				if liveKeys[finalKey] > 0 {
 					continue
 				}
@@ -138,7 +153,7 @@ func Up_20261113214300(tx *sql.Tx) error {
 				return fmt.Errorf("rename fleet %d: %w", f.id, err)
 			}
 			logger.Info.Printf("Renamed fleet ID %d from %q to %q to follow the Fleet 5 fleet name rules.\n", f.id, f.name, finalName)
-			renamed = append(renamed, renamedFleet20261113214300{id: f.id, oldName: f.name, newName: finalName})
+			renamed = append(renamed, renamedFleet20261117141344{id: f.id, oldName: f.name, newName: finalName})
 		}
 		finalKeys[finalKey] = struct{}{}
 		liveKeys[finalKey]++
@@ -147,11 +162,11 @@ func Up_20261113214300(tx *sql.Tx) error {
 	if len(renamed) == 0 {
 		return nil
 	}
-	return rewriteFleetNameCopies20261113214300(tx, renamed)
+	return rewriteFleetNameCopies20261117141344(tx, renamed)
 }
 
-// forEachRow20261113214300 closes the rows before returning, so the transaction's connection is free for the next query.
-func forEachRow20261113214300(tx *sql.Tx, query string, scan func(*sql.Rows) error) error {
+// forEachRow20261117141344 closes the rows before returning, so the transaction's connection is free for the next query.
+func forEachRow20261117141344(tx *sql.Tx, query string, scan func(*sql.Rows) error) error {
 	rows, err := tx.Query(query)
 	if err != nil {
 		return err
@@ -165,20 +180,20 @@ func forEachRow20261113214300(tx *sql.Tx, query string, scan func(*sql.Rows) err
 	return rows.Err()
 }
 
-// numberedFleetName20261113214300 appends " n" to name, shortening name so the result fits the teams.name column.
-func numberedFleetName20261113214300(name string, n int) string {
+// numberedFleetName20261117141344 appends " n" to name, shortening name so the result fits the teams.name column.
+func numberedFleetName20261117141344(name string, n int) string {
 	suffix := " " + strconv.Itoa(n)
-	if runes := []rune(name); len(runes)+len(suffix) > fleetNameMaxLength20261113214300 {
-		name = string(runes[:fleetNameMaxLength20261113214300-len(suffix)])
+	if runes := []rune(name); len(runes)+len(suffix) > fleetNameMaxLength20261117141344 {
+		name = string(runes[:fleetNameMaxLength20261117141344-len(suffix)])
 	}
 	return name + suffix
 }
 
-// rewriteFleetNameCopies20261113214300 updates the copies of the renamed fleets' names that app config keeps for
+// rewriteFleetNameCopies20261117141344 updates the copies of the renamed fleets' names that app config keeps for
 // Apple Business and VPP tokens, the same copies a rename through the API updates. abm_tokens and vpp_token_teams are
 // the source of truth, so only the entries of tokens assigned to a renamed fleet are touched. Keys are matched in both
 // their Fleet 4 and Fleet 5 spellings.
-func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet20261113214300) error {
+func rewriteFleetNameCopies20261117141344(tx *sql.Tx, renamed []renamedFleet20261117141344) error {
 	var raw []byte
 	switch err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1`).Scan(&raw); {
 	case errors.Is(err, sql.ErrNoRows):
@@ -207,7 +222,7 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 	}
 
 	abmFleetIDs := make(map[string]map[uint]struct{}) // organization name to default fleet IDs
-	err := forEachRow20261113214300(tx, `
+	err := forEachRow20261117141344(tx, `
 		SELECT organization_name, macos_default_team_id, ios_default_team_id, ipados_default_team_id, byod_default_team_id
 		FROM abm_tokens`,
 		func(rows *sql.Rows) error {
@@ -250,7 +265,7 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 	}
 
 	vppFleetIDs := make(map[string]map[uint]struct{}) // location to assigned fleet IDs
-	err = forEachRow20261113214300(tx, `
+	err = forEachRow20261117141344(tx, `
 		SELECT vt.location, vtt.team_id
 		FROM vpp_token_teams vtt
 		JOIN vpp_tokens vt ON vt.id = vtt.vpp_token_id
@@ -305,6 +320,6 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 	return nil
 }
 
-func Down_20261113214300(tx *sql.Tx) error {
+func Down_20261117141344(tx *sql.Tx) error {
 	return nil
 }

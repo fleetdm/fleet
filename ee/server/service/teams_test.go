@@ -190,6 +190,16 @@ func TestNewTeamNameValidation(t *testing.T) {
 			wantErr:  "must include at least one letter or number",
 		},
 		{
+			name:     "combining mark only is rejected",
+			teamName: new("\u093e"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "Devanagari name is accepted",
+			teamName: new("राम"),
+			wantName: "राम",
+		},
+		{
 			name:     "CJK name is accepted",
 			teamName: new("開発"),
 			wantName: "開発",
@@ -390,6 +400,16 @@ func TestModifyTeamNameValidation(t *testing.T) {
 			wantErr:  "must include at least one letter or number",
 		},
 		{
+			name:     "combining mark only is rejected",
+			teamName: new("\u093e"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "Devanagari name is accepted",
+			teamName: new("राम"),
+			wantName: "राम",
+		},
+		{
 			name:     "CJK name is accepted",
 			teamName: new("開発"),
 			wantName: "開発",
@@ -568,6 +588,16 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 			name:     "emoji separated by spaces is rejected",
 			teamName: "🚀 🚀",
 			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "combining mark only is rejected",
+			teamName: "\u093e",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "Devanagari name is accepted",
+			teamName: "राम",
+			wantName: "राम",
 		},
 		{
 			name:     "CJK name is accepted",

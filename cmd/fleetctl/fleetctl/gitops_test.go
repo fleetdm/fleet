@@ -9055,6 +9055,8 @@ software:
 			"-f", writeFleet(t, dir, "workstations2.yml", "Workstations 2"),
 			"-f", writeFleet(t, dir, "dev.yml", "開発"),
 			"-f", writeFleet(t, dir, "rocket.yml", "Fleet 🚀"),
+			"-f", writeFleet(t, dir, "ram.yml", "राम"),
+			"-f", writeFleet(t, dir, "ram2.yml", "रम"),
 		})
 		require.NoError(t, err)
 	})

@@ -1126,7 +1126,7 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 
 	// Name key matches, which the collation doesn't see.
 	existing := make(map[string]uint)
-	for _, name := range []string{"Workstations", "Laptops 💻", "開発チーム", "Team 𝐀", "straße", "はは"} {
+	for _, name := range []string{"Workstations", "Laptops 💻", "開発チーム", "Team 𝐀", "straße", "はは", "राम", "กิน", "мой"} {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
 		require.NoError(t, err)
 		existing[name] = tm.ID
@@ -1153,6 +1153,14 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 		{"Team 𝐁", "Team 𝐀"},
 		{"ハハ", "はは"},
 		{"パパ", "はは"},
+		{"राम!", "राम"},
+		{"กิน 🚀", "กิน"},
+		{"МОЙ.", "мой"},
+		// Outside Latin script a combining mark can make a different word.
+		{"रम", ""},
+		{"रम!", ""},
+		{"กัน", ""},
+		{"мои", ""},
 		{"Workstations 2", ""},
 		{"Workstation", ""},
 		{"Laptop", ""},

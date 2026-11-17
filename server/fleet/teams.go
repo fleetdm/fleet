@@ -59,8 +59,9 @@ const TeamNameConflictHint = "Choose a fleet name distinct from other fleets."
 
 // TeamNameKey returns the form of a fleet name that must be unique across
 // fleets: compatibility-decomposed, case-folded, and reduced to letters and
-// numbers. It ignores letter case, diacritics, whitespace, punctuation,
-// symbols, and emoji. It is empty for a name with no letter or number.
+// numbers. It ignores letter case, accents on Latin letters, whitespace,
+// punctuation, symbols, and emoji. It is empty for a name with no letter or
+// number.
 //
 // It does not reproduce every equality of the teams.name collation (for
 // example, the collation treats all characters outside the Basic Multilingual
@@ -70,9 +71,26 @@ func TeamNameKey(name string) string {
 	// Folding can produce characters that decompose further, so decompose again.
 	folded := norm.NFKD.String(cases.Fold().String(norm.NFKD.String(name)))
 	var key strings.Builder
+	// Combining marks are ignored after a Latin letter, so "é" matches "e". After
+	// a letter of any other script they are kept, because there a mark can make
+	// a different letter or word ("й" and "и", "राम" and "रम"). Pairs the
+	// teams.name collation treats as equal ("ё" and "е", "ガ" and "カ") still
+	// conflict through the collation check.
+	var keepMarks bool
 	for _, r := range folded {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+		switch {
+		case unicode.IsLetter(r):
 			key.WriteRune(r)
+			keepMarks = !unicode.Is(unicode.Latin, r)
+		case unicode.IsNumber(r):
+			key.WriteRune(r)
+			keepMarks = false
+		case unicode.IsMark(r):
+			if keepMarks {
+				key.WriteRune(r)
+			}
+		default:
+			keepMarks = false
 		}
 	}
 	return key.String()

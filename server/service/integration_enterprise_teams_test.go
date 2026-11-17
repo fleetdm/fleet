@@ -1617,7 +1617,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 
 	// Rule 1: at least one letter or number.
 	const noLetterOrNumber = "must include at least one letter or number"
-	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・", "  ---  "} {
+	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・", "  ---  ", "\u093e"} {
 		res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
 		requireError(res, "name", noLetterOrNumber, name)
 		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
@@ -1647,6 +1647,9 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 		{"Team 𝐀", []string{"Team 𝐁", "Team A"}},
 		{"開発チーム", []string{"開発・チーム", "開発チーム。"}},
 		{"はは", []string{"ハハ", "パパ"}},
+		{"राम", []string{"राम!", "रा-म"}},
+		{"กิน", []string{"กิน 🚀"}},
+		{"мой", []string{"МОЙ", "Мой!"}},
 	}
 	for _, c := range conflicts {
 		id := workstations
@@ -1694,6 +1697,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 	}
 	// A number makes the name distinct.
 	createFleet("Workstations 2")
+	// Outside Latin script a combining mark can make a different word, so these don't conflict with "राम", "กิน",
+	// and "мой".
+	for _, name := range []string{"रम", "กัน", "мои"} {
+		createFleet(name)
+	}
 
 	// Two specs in one request.
 	res := applySpecs(http.StatusConflict, false, map[string]any{"name": "Work Stations"}, map[string]any{"name": "work-stations"})

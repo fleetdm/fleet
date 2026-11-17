@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-func TestUp_20261113214300(t *testing.T) {
+func TestUp_20261117141344(t *testing.T) {
 	// Each name is inserted in order, so its index is its id order.
 	insertFleets := func(t *testing.T, db *sqlx.DB, names []string) []int64 {
 		ids := make([]int64, 0, len(names))
@@ -94,6 +94,13 @@ func TestUp_20261113214300(t *testing.T) {
 			after:  []string{"straße", "strasse 2", "Strasse! 3"},
 		},
 		{
+			// Outside Latin script a combining mark can make a different letter or word, so these aren't renamed
+			// unless they also differ only by ignored characters ("काम!") or match under the collation ("カス", "ёж").
+			name:   "marks outside Latin script",
+			before: []string{"राम", "रम", "काम", "कम", "काम!", "กิน", "กัน", "мой", "мои", "آب", "اب", "ガス", "カス", "еж", "ёж"},
+			after:  []string{"राम", "रम", "काम", "कम", "काम! 2", "กิน", "กัน", "мой", "мои", "آب", "اب", "ガス", "カス 2", "еж", "ёж 2"},
+		},
+		{
 			name:   "non Latin names",
 			before: []string{"開発チーム", "開発・チーム", "開発チーム。", "開発", "Ingeniería", "2026"},
 			after:  []string{"開発チーム", "開発・チーム 2", "開発チーム。 3", "開発", "Ingeniería", "2026"},
@@ -148,7 +155,7 @@ func TestUp_20261113214300(t *testing.T) {
 			var wantLog strings.Builder
 			for i, name := range after {
 				assert.LessOrEqual(t, utf8.RuneCountInString(name), 255)
-				assert.NotEmpty(t, fleetNameKey20261113214300(name))
+				assert.NotEmpty(t, fleetNameKey20261117141344(name))
 				if name != tc.before[i] {
 					fmt.Fprintf(&wantLog, "Renamed fleet ID %d from %q to %q to follow the Fleet 5 fleet name rules.\n", ids[i], tc.before[i], name)
 				}
@@ -164,7 +171,7 @@ func TestUp_20261113214300(t *testing.T) {
 			// No fleet matches another by name key or under the collation.
 			keys := make(map[string]string)
 			for _, name := range after {
-				key := fleetNameKey20261113214300(name)
+				key := fleetNameKey20261117141344(name)
 				assert.NotContains(t, keys, key, "%q and %q have the same name key", keys[key], name)
 				keys[key] = name
 			}
@@ -454,7 +461,7 @@ func TestUp_20261113214300(t *testing.T) {
 	})
 }
 
-func TestFleetNameKey20261113214300(t *testing.T) {
+func TestFleetNameKey20261117141344(t *testing.T) {
 	for name, want := range map[string]string{
 		"Workstations":    "workstations",
 		"Work-stations":   "workstations",
@@ -475,8 +482,17 @@ func TestFleetNameKey20261113214300(t *testing.T) {
 		"ǅ":               "dz",
 		"ﬁre":             "fire",
 		"İstanbul":        "istanbul",
-		"ΣΊΣΥΦΟΣ σίσυφος": "σισυφοσσισυφοσ",
+		"ΣΊΣΥΦΟΣ σίσυφος": "σι\u0301συφοσσι\u0301συφοσ",
+		"राम":             "राम",
+		"रम":              "रम",
+		"राम!":            "राम",
+		"มอย":             "มอย",
+		"мой":             "мои\u0306",
+		"мои":             "мои",
+		"Việt Nam":        "vietnam",
+		"\u093e":          "",
+		"🚀\u093e":         "",
 	} {
-		assert.Equal(t, want, fleetNameKey20261113214300(name), name)
+		assert.Equal(t, want, fleetNameKey20261117141344(name), name)
 	}
 }

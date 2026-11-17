@@ -469,6 +469,10 @@ func TestTeamNameKey(t *testing.T) {
 		{"Ångström", "angstrom", "A\u030angstro\u0308m"},
 		{"ǅ", "DŽ", "dž", "dz"},
 		{"Workstations 2", "workstations2", "Workstations (2)", "Workstations ②"},
+		{"राम", "राम!", "रा-म", "राम 🚀", "「राम」"},
+		{"กิน", "กิน.", " กิน "},
+		{"Мой", "мой", "МОЙ!", "мо\u0438\u0306"},
+		{"Việt Nam", "Viet Nam", "VIETNAM", "viê\u0323t-nam"},
 	}
 	keys := make(map[string]string)
 	for _, names := range sameKey {
@@ -481,8 +485,12 @@ func TestTeamNameKey(t *testing.T) {
 		}
 	}
 
-	// Letters the teams.name collation also tells apart.
-	distinct := []string{"Workstations", "Workstation", "Workstations 2", "Servers", "開発", "開発チーム", "2026", "2027", "Ingeniería 1", "Ingeniería 2"}
+	// Names the teams.name collation also tells apart. Outside Latin script a combining mark can make a different
+	// letter or word, so it is part of the key.
+	distinct := []string{
+		"Workstations", "Workstation", "Workstations 2", "Servers", "開発", "開発チーム", "2026", "2027", "Ingeniería 1", "Ingeniería 2",
+		"राम", "रम", "काम", "कम", "กิน", "กัน", "мой", "мои", "їжак", "іжак", "آب", "اب",
+	}
 	keys = make(map[string]string)
 	for _, name := range distinct {
 		key := TeamNameKey(name)
@@ -491,7 +499,7 @@ func TestTeamNameKey(t *testing.T) {
 		keys[key] = name
 	}
 
-	for _, name := range []string{"", " ", "\t\n", "🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "___", "「」", "・・・", "。", "👩‍💻", "\u0301", "$€£", "+-=", "🏳️‍🌈"} {
+	for _, name := range []string{"", " ", "\t\n", "🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "___", "「」", "・・・", "。", "👩‍💻", "\u0301", "$€£", "+-=", "🏳️‍🌈", "\u093e", "\u0e34\u0e34", "🚀\u093e", "- \u0306"} {
 		assert.Empty(t, TeamNameKey(name), "%q", name)
 	}
 	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀", "a", "1", "١", "½", "Ⅻ", "é", "ß", "ー", "🚀1"} {
@@ -501,4 +509,6 @@ func TestTeamNameKey(t *testing.T) {
 	assert.Equal(t, "workstations", TeamNameKey("Work-Stations"))
 	assert.Equal(t, "strasse", TeamNameKey("Straße"))
 	assert.Equal(t, "開発チーム2", TeamNameKey("開発・チーム 2"))
+	// A mark only counts right after its letter: here the breve follows a space and the digit.
+	assert.Equal(t, "и1", TeamNameKey("и \u0306 1\u0306"))
 }
