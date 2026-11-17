@@ -916,6 +916,9 @@ func orbitAction(c *cli.Context) error {
 		// Perform early check for updates before starting any sub-system.
 		// This is to prevent bugs in other sub-systems to mess up with
 		// the download of available updates.
+		//
+		// New code/sub-systems must go after this check: if they crash or
+		// hang before it, devices can't auto-update to a fix.
 		didUpdate, err := updateRunner.UpdateAction()
 		if err != nil {
 			log.Info().Err(err).Msg("early update check failed")
