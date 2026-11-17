@@ -61,6 +61,8 @@ module.exports = {
     fleetDesktopSSOEnabled: {required: true, type: 'boolean'},
     numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
     numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
+    numHostsFleetMDMEnrolledIOS: {required: true, type: 'number'},
+    numHostsFleetMDMEnrolledIpadOS: {required: true, type: 'number'},
     resultLogDestination: {required: true, type: 'string'},
     statusLogDestination: {required: true, type: 'string'},
     auditLogDestination: {required: true, type: 'string'},
