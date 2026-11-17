@@ -74,12 +74,6 @@ If the fleet was deleted after you created the configuration, hosts using that c
 
 If the device has no network connection during setup, zero-touch is skipped. The device will factory reset itself after it connects to the internet. Ensure the device has Wi-Fi or cellular during initial setup.
 
-**End user isn't asked for a passcode during setup**
-
-- Confirm that the configuration in the zero-touch portal uses the latest DPC extras from Fleet. See [Update your DPC extras after upgrading](#update-your-dpc-extras-after-upgrading).
-- Confirm that the passcode profile targets all hosts on the fleet and doesn't use variables. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-a-passcode-on-android).
-- Check the passcode profile's status on the host's **Controls** tab. If it's **Failed**, the error message shows why Android didn't apply the passcode settings.
-
 ## Further reading
 
 - [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup)

@@ -176,18 +176,9 @@ To require an end user agreement, in Fleet, head to **Settings > Integrations > 
 
 ## Require a passcode on Android
 
-Fleet can ask the end user to set a screen lock during setup, before they reach the home screen. This way, no one can use work apps on a company-owned Android host that doesn't have a passcode. This works for hosts that enroll with [zero-touch](https://fleetdm.com/guides/android-zero-touch-enrollment) or a QR code, and it's available in Fleet Free and Fleet Premium.
+To require Android end users to set a passcode during setup, before they reach the home screen, add a passcode profile to the fleet. Use the [example passcode profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/android/configuration-profiles/password-policy.json) as a starting point.
 
-To require a passcode during setup, add a passcode profile to the fleet that hosts enroll to. Use the [example passcode profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/android/configuration-profiles/password-policy.json) as a starting point. Learn more about adding profiles in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
-
-A passcode profile is any Android profile with `passwordPolicies` or `passwordRequirements`. For Fleet to apply it during setup:
-
-- Target all hosts on the fleet. Fleet can't apply a profile that includes or excludes labels during setup because the host doesn't have labels until it enrolls. These profiles are applied after setup.
-- Don't use variables. Fleet sends the same passcode settings to every host before it knows which host is enrolling. Fleet rejects passcode profiles that use Fleet variables (`$FLEET_VAR_*`), secrets (`$FLEET_SECRET_*`), or custom host vitals.
-
-Fleet's other profiles are applied after the host enrolls. On personal (BYOD) hosts, the passcode profile is also applied after enrollment.
-
-If you set up zero-touch before Fleet 4.96.0, [update your DPC extras](https://fleetdm.com/guides/android-zero-touch-enrollment#update-your-dpc-extras-after-upgrading) so hosts are asked for a passcode during setup.
+Passcode profiles scoped with labels are applied after setup, not during it, because a host doesn't have labels until it enrolls.
 
 ## Bootstrap package
 
