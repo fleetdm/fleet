@@ -114,7 +114,7 @@ func TestAuthorizeConditionalAccessGoogle(t *testing.T) {
 		test.UserTechnician, test.UserGitOps, test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1,
 		test.UserTeamObserverTeam1, test.UserTeamObserverPlusTeam1, test.UserTeamGitOpsTeam1, test.UserTeamTechnicianTeam1,
 	} {
-		cases = append(cases, authTestCase{user: user, object: integration, action: write, allow: user == test.UserAdmin})
+		cases = append(cases, authTestCase{user: user, object: integration, action: write, allow: user == test.UserAdmin || user == test.UserGitOps})
 	}
 	runTestCases(t, cases)
 }
