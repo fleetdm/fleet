@@ -94,7 +94,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t, filename, mobileconfigForTest(name, ident), s.token, fields,
@@ -117,7 +117,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration := func(filename, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
 		bytes := []byte(fmt.Sprintf(`{
@@ -176,7 +176,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertWindowsProfile := func(filename, locURI string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t,
@@ -217,7 +217,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile := func(filename string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
 		bytes := []byte(`{
@@ -2085,7 +2085,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 }`)
 
 	fields := make(map[string][]string)
-	fields["team_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
+	fields["fleet_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
 	body, headers := generateNewProfileMultipartRequest(t, "remove-user-disabled.json", bytes, s.token, fields)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	require.NotNil(t, res)
@@ -2162,7 +2162,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	teamFields := func(extra map[string][]string) map[string][]string {
-		fields := map[string][]string{"team_id": {fmt.Sprint(team.ID)}}
+		fields := map[string][]string{"fleet_id": {fmt.Sprint(team.ID)}}
 		maps.Copy(fields, extra)
 		return fields
 	}
@@ -2373,7 +2373,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	teamID := fmt.Sprint(team.ID)
 
 	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
-		fields["team_id"] = []string{teamID}
+		fields["fleet_id"] = []string{teamID}
 		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
 		defer res.Body.Close()
