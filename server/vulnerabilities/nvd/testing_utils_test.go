@@ -76,6 +76,10 @@ const XmlCPETestDict = `
     <title xml:lang="en-US">JetBrains Fleet 1.64.0</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:jetbrains:fleet:1.64.0:*:*:*:*:*:*:*"/>
   </cpe-item>
+  <cpe-item name="cpe:/a:adobe:photoshop:27.0">
+    <title xml:lang="en-US">Adobe Photoshop 27.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:adobe:photoshop:27.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
   <cpe-item name="cpe:/a:python:requests:2.31.0">
     <title xml:lang="en-US">Python Requests 2.31.0</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:python:requests:2.31.0:*:*:*:*:*:*:*"/>

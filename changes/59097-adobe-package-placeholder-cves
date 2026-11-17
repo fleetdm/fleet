@@ -1,0 +1,1 @@
+- Adobe deployment package registrations with the placeholder version `1.0.0000` on Windows no longer match every CVE of the Adobe product.
