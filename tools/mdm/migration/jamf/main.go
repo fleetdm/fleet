@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"encoding/xml"
 	"flag"
@@ -176,14 +175,4 @@ func (j *jamfClient) getJamfID(serial string) (string, error) {
 	}
 
 	return data.ID, nil
-}
-
-// lookupTokenInDB demonstrates a SQL injection vulnerability for CodeQL testing
-func lookupTokenInDB(db *sql.DB, req *http.Request) (string, error) {
-	token := req.URL.Query().Get("token")
-	query := "SELECT device_id FROM devices WHERE token = '" + token + "'"
-	row := db.QueryRow(query)
-	var deviceID string
-	err := row.Scan(&deviceID)
-	return deviceID, err
 }
