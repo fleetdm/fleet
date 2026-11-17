@@ -156,7 +156,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"all params defined": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
 				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_version_id=4&os_id=5" +
-				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
+				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&apple_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&populate_end_users=true&profile_uuid=123-abc&profile_status=verified" +
@@ -205,7 +205,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"all params defined (deprecated)": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
 				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_version_id=4&os_id=5" +
-				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
+				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&apple_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
@@ -358,10 +358,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?mdm_enrollment_status=foo",
 			errorMessage: "Invalid mdm_enrollment_status",
 		},
-		"error in macos_settings (invalid option)": {
-			url:          "/foo?macos_settings=foo",
-			errorMessage: "Invalid apple_settings",
-		},
 		"error in macos_settings_disk_encryption (invalid option)": {
 			url:          "/foo?macos_settings_disk_encryption=foo",
 			errorMessage: "Invalid macos_settings_disk_encryption",
@@ -509,7 +505,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				TeamFilter: ptr.Uint(5),
 			},
 		},
-		"apple_settings (new name for macos_settings)": {
+		"apple_settings": {
 			url: "/foo?apple_settings=pending",
 			hostListOptions: fleet.HostListOptions{
 				MacOSSettingsFilter: fleet.OSSettingsPending,
@@ -534,10 +530,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			errorMessage: "Invalid macos_bootstrap_package",
 		},
 		// Conflict: both old and new param names specified
-		"error when both macos_settings and apple_settings specified": {
-			url:          "/foo?macos_settings=pending&apple_settings=verified",
-			errorMessage: "Cannot specify both macos_settings and apple_settings",
-		},
 		"error when both bootstrap_package and macos_bootstrap_package specified": {
 			url:          "/foo?bootstrap_package=installed&macos_bootstrap_package=pending",
 			errorMessage: "Cannot specify both bootstrap_package and macos_bootstrap_package",
@@ -616,6 +608,17 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 	_, err = hostListOptionsFromRequest(&http.Request{URL: emptySoftwareIDURL})
 	require.ErrorAs(t, err, &invalidArgumentErr)
 	require.Equal(t, removedSoftwareIDMessage, invalidArgumentErr.Invalid()[0]["reason"])
+
+	removedMacOSSettingsMessage := `The "macos_settings" parameter is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	for _, query := range []string{"macos_settings=pending", "macos_settings=pending&apple_settings=verified"} {
+		u, err := url.Parse("/foo?" + query)
+		require.NoError(t, err)
+		_, err = hostListOptionsFromRequest(&http.Request{URL: u})
+		require.ErrorAs(t, err, &invalidArgumentErr, query)
+		require.Equal(t, "macos_settings", invalidArgumentErr.Invalid()[0]["name"], query)
+		require.Equal(t, removedMacOSSettingsMessage, invalidArgumentErr.Invalid()[0]["reason"], query)
+	}
 }
 
 func TestCarveListOptionsFromRequest(t *testing.T) {

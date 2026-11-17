@@ -56,6 +56,12 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 		})
 	}
 
+	for _, path := range []string{"/api/latest/fleet/hosts", "/api/latest/fleet/hosts/count"} {
+		res := s.DoRaw("GET", path+"?macos_settings=failed", nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), removedMsg("macos_settings"), path)
+		s.DoRaw("GET", path+"?apple_settings=failed", nil, http.StatusOK)
+	}
+
 	// nothing was saved by the rejected requests
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", configPath, nil, http.StatusOK, &acResp)

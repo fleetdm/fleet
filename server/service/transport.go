@@ -433,10 +433,12 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.ConnectedToFleetFilter = ptr.Bool(true)
 	}
 
-	macOSSettingsStatus, err := handleDeprecatedParams(r, "macos_settings", "apple_settings")
-	if err != nil {
-		return hopt, err
+	if r.URL.Query().Has("macos_settings") {
+		if removedEntry, ok := removednames.Find(removednames.KindQueryParam, "macos_settings", ""); ok {
+			return hopt, ctxerr.Wrap(r.Context(), fleet.NewInvalidArgumentError("macos_settings", removedEntry.Message()))
+		}
 	}
+	macOSSettingsStatus := r.URL.Query().Get("apple_settings")
 	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
 	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
 		hopt.MacOSSettingsFilter = fleet.OSSettingsStatus(macOSSettingsStatus)

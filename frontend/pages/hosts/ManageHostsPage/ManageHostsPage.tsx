@@ -359,8 +359,7 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus =
-    queryParams?.apple_settings ?? queryParams?.macos_settings;
+  const macSettingsStatus = queryParams?.apple_settings;
   const softwareVersionId =
     queryParams?.software_version_id !== undefined
       ? parseInt(queryParams.software_version_id, 10)
