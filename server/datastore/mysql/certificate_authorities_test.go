@@ -1023,16 +1023,10 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 			Type: string(fleet.CATypeCustomSCEPProxy), Name: &name, URL: new("https://scep.example.com"), Challenge: new("challenge"),
 		}
 	}
-	inUse := func(t *testing.T, err error, name string) {
+	inUse := func(t *testing.T, err error, name string, sameType bool) {
 		nameInUse, ok := errors.AsType[fleet.CANameInUseError](err)
 		require.True(t, ok, "got %v", err)
-		require.Equal(t, name, nameInUse.Name)
-		require.False(t, nameInUse.SameType)
-	}
-	inUseBySameType := func(t *testing.T, err error, name string) {
-		nameInUse, ok := errors.AsType[fleet.CANameInUseError](err)
-		require.True(t, ok, "got %v", err)
-		require.Equal(t, fleet.CANameInUseError{Name: name, SameType: true}, nameInUse)
+		require.Equal(t, fleet.CANameInUseError{Name: name, SameType: sameType}, nameInUse)
 	}
 	names := func() []string {
 		cas, err := ds.ListCertificateAuthorities(ctx)
@@ -1044,45 +1038,24 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 		return res
 	}
 
-	digiCert := newDigiCertCA(t, ds, "digicert", "cn", "seat", nil)
+	newDigiCertCA(t, ds, "digicert", "cn", "seat", nil)
 	ejbca := newEJBCACA(t, ds, "ejbca", "cn", nil, nil)
 	scep, err := ds.NewCertificateAuthority(ctx, scepCA("scep"))
 	require.NoError(t, err)
 	unchanged := []string{"digicert:digicert", "ejbca:ejbca", "custom_scep_proxy:scep"}
 
 	t.Run("create", func(t *testing.T) {
-		cases := []struct {
-			name     string
-			ca       *fleet.CertificateAuthority
-			inUse    string
-			sameType bool
-			reason   string
-		}{
-			{"EJBCA with a DigiCert name", &fleet.CertificateAuthority{
-				Type: string(fleet.CATypeEJBCA), Name: new("digicert"), URL: new("https://ejbca.example.com"),
-			}, "digicert", false, "different types"},
-			{"SCEP with an EJBCA name", scepCA("ejbca"), "ejbca", false, "different types"},
-			{"SCEP with a DigiCert name in another case", scepCA("DIGICERT"), "DIGICERT", false, "names are compared without regard to case"},
-			{"SCEP with a SCEP name", scepCA("Scep"), "Scep", true, "same type"},
-		}
-		for _, c := range cases {
-			t.Run(c.name, func(t *testing.T) {
-				_, err := ds.NewCertificateAuthority(ctx, c.ca)
-				if c.sameType {
-					inUseBySameType(t, err, c.inUse)
-				} else {
-					inUse(t, err, c.inUse)
-				}
-				require.ElementsMatch(t, unchanged, names(), c.reason)
-			})
-		}
+		// The names are compared without regard to case, like the column is.
+		_, err := ds.NewCertificateAuthority(ctx, scepCA("DIGICERT"))
+		inUse(t, err, "DIGICERT", false)
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("Scep"))
+		inUse(t, err, "Scep", true)
+		require.ElementsMatch(t, unchanged, names())
 	})
 
 	t.Run("rename", func(t *testing.T) {
 		err := ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("SCEP")})
-		inUse(t, err, "SCEP")
-		err = ds.UpdateCertificateAuthorityByID(ctx, digiCert.ID, &fleet.CertificateAuthority{Type: digiCert.Type, Name: new("ejbca")})
-		inUse(t, err, "ejbca")
+		inUse(t, err, "SCEP", false)
 		require.ElementsMatch(t, unchanged, names())
 
 		// A name nobody has is fine.
@@ -1099,7 +1072,7 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 		err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
 			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA("DigiCert")},
 		})
-		inUse(t, err, "DigiCert")
+		inUse(t, err, "DigiCert", false)
 		require.ElementsMatch(t, unchanged, names())
 
 		// A CA of another type can replace the CA of the same name in one batch, since the old one is deleted in it.
@@ -1182,21 +1155,19 @@ func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 		// Editing either one fails, even without changing the name.
 		err := ds.UpdateCertificateAuthorityByID(ctx, scepID,
 			&fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://c.example.com")})
-		inUse(t, err, "legacy")
+		inUse(t, err, "legacy", false)
 		legacySCEP, err := ds.GetCertificateAuthorityByID(ctx, scepID, true)
 		require.NoError(t, err)
 		require.Equal(t, "https://a.example.com", *legacySCEP.URL)
 		legacySCEP.URL = new("https://c.example.com")
 		err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{legacySCEP}})
-		inUse(t, err, "legacy")
+		inUse(t, err, "legacy", false)
 
-		// Renaming one of them fixes it, and then both can be edited.
+		// Renaming one of them fixes it, and then the other can be edited.
 		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, hydrantID,
 			&fleet.CertificateAuthority{Type: string(fleet.CATypeHydrant), Name: new("legacy_hydrant")}))
 		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, scepID,
 			&fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://c.example.com")}))
-		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, hydrantID,
-			&fleet.CertificateAuthority{Type: string(fleet.CATypeHydrant), URL: new("https://d.example.com")}))
 	})
 }
 

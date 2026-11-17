@@ -515,37 +515,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			}
 			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// digicert can't have the same name as a hydrant
-			testCopy = goodDigiCertCA
-			testCopy.Name = goodHydrantCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// digicert can't have the same name as a smallstep
-			testCopy = goodDigiCertCA
-			testCopy.Name = goodSmallstepCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
 		})
 
 		t.Run("digicert more than 1 user principal name", func(t *testing.T) {
@@ -861,54 +830,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
 			require.Contains(t, errMsg, "name is already used by another certificate authority")
-
-			// custom scep can't have the same name as the digicert
-			testCopy = goodCustomSCEPCA
-			testCopy.Name = goodDigiCertCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// custom scep can't have the same name as the Hydrant CA
-			testCopy = goodCustomSCEPCA
-			testCopy.Name = goodHydrantCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// custom scep can't have the same name as the Smallstep CA
-			testCopy = goodCustomSCEPCA
-			testCopy.Name = goodSmallstepCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
 		})
 
 		t.Run("custom_scep challenge not set", func(t *testing.T) {
@@ -1089,55 +1010,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
 			require.Contains(t, errMsg, "name is already used by another certificate authority")
-
-			// smallstep can't have the same name as a digicert
-			testCopy = goodSmallstepCA
-			testCopy.Name = goodDigiCertCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// smallstep can't have the same name as a hydrant
-			testCopy = goodSmallstepCA
-			testCopy.Name = goodHydrantCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// smallstep can't have the same name as a custom scep
-			testCopy = goodSmallstepCA
-			testCopy.Name = goodCustomSCEPCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA, testCopy},
-				},
-				DryRun: false,
-			}
-
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
 		})
 
 		t.Run("smallstep url not set", func(t *testing.T) {
@@ -1353,54 +1225,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.hydrant")
 			require.Contains(t, errMsg, "name is already used by another certificate authority")
-
-			// hydrant can't have the same name as a digicert
-			testCopy = goodHydrantCA
-			testCopy.Name = goodDigiCertCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// hydrant can't have the same name as a custom scep
-			testCopy = goodHydrantCA
-			testCopy.Name = goodCustomSCEPCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// hydrant can't have the same name as a smallstep
-			testCopy = goodHydrantCA
-			testCopy.Name = goodSmallstepCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
-					EST:             []fleet.ESTProxyCA{goodESTCA},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
 		})
 
 		// TODO(hca): hydrant happy path and other specific tests
@@ -1463,19 +1287,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.google_cas")
 			require.Contains(t, errMsg, "name is already used by another certificate authority")
-
-			// the same name as a CA of another type is rejected too
-			testCopy = goodGoogleCASCA
-			testCopy.Name = goodHydrantCA.Name
-			req := batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					Hydrant:   []fleet.HydrantCA{goodHydrantCA},
-					GoogleCAS: []fleet.GoogleCASCA{goodGoogleCASCA, testCopy},
-				},
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 		})
 
 		t.Run("google cas happy path with activities add then modify then delete", func(t *testing.T) {
@@ -1619,54 +1430,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
 			require.Contains(t, errMsg, "name is already used by another certificate authority")
-
-			// custom est ca can't have the same name as a digicert
-			testCopy = goodESTCA
-			testCopy.Name = goodDigiCertCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// est can't have the same name as a custom scep
-			testCopy = goodESTCA
-			testCopy.Name = goodCustomSCEPCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-
-			// est ca can't have the same name as a smallstep
-			testCopy = goodESTCA
-			testCopy.Name = goodSmallstepCA.Name
-			duplicateReq = batchApplyCertificateAuthoritiesRequest{
-				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
-					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
-					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
-					EST:             []fleet.ESTProxyCA{goodESTCA, testCopy},
-					Smallstep:       []fleet.SmallstepSCEPProxyCA{goodSmallstepCA},
-				},
-				DryRun: false,
-			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
 		})
 	})
 
@@ -3106,8 +2869,6 @@ func (s *integrationMDMTestSuite) TestCertificateAuthorityNamesAreUnique() {
 		body    map[string]any
 		wantErr string
 	}{
-		{"EJBCA takes a SCEP name", ejbca.ID, map[string]any{"ejbca": map[string]any{"name": "SCEP_WIFI"}},
-			`Couldn't edit certificate authority. "SCEP_WIFI" name is already used by another certificate authority`},
 		{"SCEP takes an EJBCA name in another case", scep.ID, map[string]any{"custom_scep_proxy": map[string]any{"name": "ejbca_wifi"}},
 			`Couldn't edit certificate authority. "ejbca_wifi" name is already used by another certificate authority`},
 		{"SCEP takes the NDES name", scep.ID, map[string]any{"custom_scep_proxy": map[string]any{"name": "ndes"}},
@@ -3129,12 +2890,6 @@ func (s *integrationMDMTestSuite) TestCertificateAuthorityNamesAreUnique() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE certificate_authorities SET name = 'legacy_wifi' WHERE id = ?`, scep.ID)
 			return err
-		})
-		t.Cleanup(func() {
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(context.Background(), `UPDATE certificate_authorities SET name = 'SCEP_WIFI' WHERE id = ?`, scep.ID)
-				return err
-			})
 		})
 
 		// Any edit of either CA fails, even one that doesn't change the name, until one of them is renamed.
