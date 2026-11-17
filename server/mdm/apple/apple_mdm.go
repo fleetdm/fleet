@@ -57,8 +57,6 @@ const (
 	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
 	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
 	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
-	// InstallerPath is the HTTP path that serves installers to Apple devices.
-	InstallerPath = "/api/mdm/apple/installer"
 
 	// FleetUISSOCallbackPath is the front-end route used to
 	// redirect after the SSO flow is completed.
@@ -1195,7 +1193,7 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					logger.ErrorContext(ctx, "Apple DEP client: failed to save app config", "err", err)
 				}
 				logger.InfoContext(ctx, "Apple DEP client: updated app config Terms Expired flag",
-					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
+					"apple_business_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
 

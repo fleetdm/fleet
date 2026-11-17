@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // FeatureRouteFunc registers the routes of a bounded-context / feature module
-// onto a mux router. It mirrors endpointer.HandlerRoutesFunc.
-type FeatureRouteFunc func(r *mux.Router, opts []kithttp.ServerOption)
+// onto a router. It mirrors endpointer.HandlerRoutesFunc.
+type FeatureRouteFunc func(r *endpointer.Router, opts []kithttp.ServerOption)
 
 //go:embed api_endpoints.yml
 var apiEndpointsYAML []byte
@@ -48,43 +48,32 @@ func IsInCatalog(fingerprint string) bool {
 	return ok
 }
 
-// routerProvider is implemented by handlers that wrap the gorilla router rather than being one.
+// routerProvider is implemented by handlers that wrap the router rather than being one.
 type routerProvider interface {
-	Router() *mux.Router
+	Router() *endpointer.Router
 }
 
-// Validate checks that every endpoint in the embedded catalog is registered
-// on the provided handler or one of the given feature routes. Feature routes
-// are walked on a throwaway router so callers can validate routes that are
-// declared elsewhere.
+// Validate checks that every endpoint in the embedded catalog is registered on the provided handler or one of the given
+// feature routes, reading the routes recorded by the endpointer. Feature routes are registered on a throwaway router so
+// callers can validate routes that are declared elsewhere.
 func Validate(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
-	r, ok := h.(*mux.Router)
+	r, ok := h.(*endpointer.Router)
 	if !ok {
-		// The API handler may be wrapped by a faster router that keeps the gorilla route table for introspection.
+		// The API handler may be wrapped by a faster router that keeps the route table for introspection.
 		provider, isProvider := h.(routerProvider)
 		if !isProvider {
-			return fmt.Errorf("expected *mux.Router, got %T", h)
+			return fmt.Errorf("expected *endpointer.Router, got %T", h)
 		}
 		r = provider.Router()
 	}
 
 	registered := make(map[string]struct{})
-	collect := func(rt *mux.Router) {
-		_ = rt.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-			tpl, err := route.GetPathTemplate()
-			if err != nil {
-				return nil
+	collect := func(rt *endpointer.Router) {
+		for _, route := range rt.Routes() {
+			for _, m := range route.Methods {
+				registered[fleet.NewAPIEndpointFromTpl(m, route.Path).Fingerprint()] = struct{}{}
 			}
-			meths, err := route.GetMethods()
-			if err != nil || len(meths) == 0 {
-				return nil
-			}
-			for _, m := range meths {
-				val := fleet.NewAPIEndpointFromTpl(m, tpl)
-				registered[val.Fingerprint()] = struct{}{}
-			}
-			return nil
-		})
+		}
 	}
 
 	collect(r)
@@ -93,7 +82,7 @@ func Validate(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 		if fr == nil {
 			continue
 		}
-		tmp := mux.NewRouter()
+		tmp := endpointer.NewRouter()
 		fr(tmp, nil)
 		collect(tmp)
 	}

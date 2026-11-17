@@ -608,6 +608,7 @@ const UserForm = ({
         <form
           autoComplete="off"
           id={formId}
+          noValidate
           onSubmit={handleSubmit(onValidSubmit)}
         >
           {isNewUser && renderAccountSection()}

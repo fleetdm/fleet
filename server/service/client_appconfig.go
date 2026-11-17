@@ -110,14 +110,13 @@ func (c *Client) planAndStripOrgLogos(
 	}
 
 	type modeSpec struct {
-		mode             fleet.OrgLogoMode
-		pathKey          string
-		urlKey           string
-		deprecatedURLKey string
+		mode    fleet.OrgLogoMode
+		pathKey string
+		urlKey  string
 	}
 	specs := []modeSpec{
-		{fleet.OrgLogoModeLight, "org_logo_path_light_mode", "org_logo_url_light_mode", "org_logo_url_light_background"},
-		{fleet.OrgLogoModeDark, "org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"},
+		{fleet.OrgLogoModeLight, "org_logo_path_light_mode", "org_logo_url_light_mode"},
+		{fleet.OrgLogoModeDark, "org_logo_path_dark_mode", "org_logo_url_dark_mode"},
 	}
 
 	var actions []orgLogoAction
@@ -144,44 +143,18 @@ func (c *Client) planAndStripOrgLogos(
 				return nil, fmt.Errorf("org logo (%s): %w", s.mode, err)
 			}
 			actions = append(actions, orgLogoAction{mode: s.mode, uploadPath: absPath})
-			// Strip every URL key for this mode: PUT will set the served URL
-			// (and its deprecated alias) after the PATCH, so we must keep
-			// PATCH from writing anything to either URL field.
+			// Strip the URL key for this mode: PUT will set the served URL
+			// after the PATCH, so we must keep PATCH from writing it.
 			delete(orgInfo, s.pathKey)
 			delete(orgInfo, s.urlKey)
-			delete(orgInfo, s.deprecatedURLKey)
 			if dryRun {
 				logFn("[+] would upload org logo (%s) from %s\n", s.mode, yamlPath)
 			}
 		case yamlURL != "":
-			// Mirror the new key into the deprecated alias: PATCH merges,
-			// and the server rejects the request if the two keys end up
-			// disagreeing after the merge. If the user explicitly set the
-			// deprecated alias to a different value, surface the
-			// conflict instead of silently overwriting it.
-			if dep, ok := orgInfo[s.deprecatedURLKey].(string); ok && dep != yamlURL {
-				return nil, fmt.Errorf(
-					"org_settings.org_info: '%s' (%q) conflicts with '%s' (%q) for %s mode",
-					s.urlKey, yamlURL, s.deprecatedURLKey, dep, s.mode,
-				)
-			}
 			delete(orgInfo, s.pathKey)
-			orgInfo[s.deprecatedURLKey] = yamlURL
 		default:
-			// Clearing this mode: surface any contradictory deprecated
-			// alias value rather than silently overwriting it.
-			if dep, ok := orgInfo[s.deprecatedURLKey].(string); ok && dep != "" {
-				return nil, fmt.Errorf(
-					"org_settings.org_info: '%s' is being cleared but '%s' is set to %q for %s mode",
-					s.urlKey, s.deprecatedURLKey, dep, s.mode,
-				)
-			}
 			delete(orgInfo, s.pathKey)
-			// Send both URL keys as "". If only the deprecated alias is
-			// sent, NormalizeLogoFields mirrors the still-populated new
-			// key back into it after merge, leaving the URL unchanged.
 			orgInfo[s.urlKey] = ""
-			orgInfo[s.deprecatedURLKey] = ""
 		}
 	}
 	return actions, nil

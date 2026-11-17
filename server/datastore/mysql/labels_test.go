@@ -1487,19 +1487,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	p, err := db.NewPack(ctx, &fleet.Pack{
-		Name:     t.Name(),
-		LabelIDs: []uint{l.ID},
-	})
-	require.NoError(t, err)
-
 	require.NoError(t, db.DeleteLabel(ctx, l.ID))
-
-	newP, err := db.Pack(ctx, p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Labels)
-
-	require.NoError(t, db.DeletePack(ctx, newP.Name))
 
 	// delete a label that no longer exists
 	err = db.DeleteLabel(ctx, l.ID)
@@ -4436,7 +4424,7 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 		"label_membership_type",
 		"author_id",
 		"criteria",
-		"team_id",
+		"fleet_id",
 		"host_count",
 	} {
 		t.Run("order_"+key, func(t *testing.T) {
@@ -4447,8 +4435,10 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
-		require.Error(t, err)
+		for _, key := range []string{"l.id; SELECT 1", "team_id"} {
+			_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key}, false)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {

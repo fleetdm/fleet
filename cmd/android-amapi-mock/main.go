@@ -41,6 +41,9 @@ type fakeDevice struct {
 	PolicyName           string   `json:"policy_name"`
 	PendingCommands      []string `json:"pending_commands"`
 	PendingCertificates  []uint   `json:"pending_certificates"`
+	// AgentEnrollSecret is the enroll secret in the Fleet agent's last managed configuration, which the simulated agent
+	// enrolls orbit with.
+	AgentEnrollSecret string `json:"agent_enroll_secret"`
 }
 
 // maxRestorablePolicyVersion bounds the policy version a device may report when it
@@ -91,7 +94,13 @@ type deviceStore struct {
 	// as AMAPI does. Off by default: after a restart every policy would look missing until its
 	// device registers again or Fleet patches it.
 	requirePolicies bool
+
+	// agentPackage is the Fleet agent's package name, whose managed configuration carries the enroll secret.
+	agentPackage string
 }
+
+// defaultAgentPackage is Fleet's default mdm.android_agent.package.
+const defaultAgentPackage = "com.fleetdm.agent"
 
 func newDeviceStore() *deviceStore {
 	return &deviceStore{
@@ -104,6 +113,7 @@ func newDeviceStore() *deviceStore {
 		policyVersion:  1,
 
 		restoredPolicies: make(map[string]struct{}),
+		agentPackage:     defaultAgentPackage,
 	}
 }
 
@@ -326,6 +336,7 @@ func main() {
 	requirePolicies := flag.Bool("require-policies", false, "Fail policy actions (e.g. modifyPolicyApplications) with 404 on a policy that was never created, as AMAPI does")
 	var policyOpts policyOptions
 	flag.BoolVar(&policyOpts.rejectDefaultPolicyApps, "reject-default-policy-apps", false, "Fail any change to the app list of the default policy (policies/1) with 400. Fleet only manages apps in host-specific policies, so such a request is a Fleet bug")
+	agentPackage := flag.String("agent-package", defaultAgentPackage, "Package name of the Fleet Android agent (Fleet's mdm.android_agent.package), whose enroll secret simulated devices enroll with")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
@@ -336,6 +347,7 @@ func main() {
 
 	store := newDeviceStore()
 	store.requirePolicies = *requirePolicies
+	store.agentPackage = *agentPackage
 
 	// Set up authenticated Google API client for real device forwarding
 	var google *googleForwarder

@@ -112,9 +112,6 @@ type Query struct {
 	// AuthorEmail is the email address of the author, which is also used to
 	// generate the avatar.
 	AuthorEmail string `json:"author_email" db:"author_email"`
-	// Packs is loaded when retrieving queries, but is stored in a join
-	// table in the MySQL backend.
-	Packs []Pack `json:"packs" db:"-"`
 	// AggregatedStats are the stats aggregated from all the individual stats reported
 	// by hosts.
 	//
@@ -152,14 +149,6 @@ func (q *Query) Copy() *Query {
 	}
 	if q.AuthorID != nil {
 		clone.AuthorID = ptr.Uint(*q.AuthorID)
-	}
-
-	if q.Packs != nil {
-		clone.Packs = make([]Pack, len(q.Packs))
-		for i, p := range q.Packs {
-			newP := p.Copy()
-			clone.Packs[i] = *newP
-		}
 	}
 
 	if q.AggregatedStats.SystemTimeP50 != nil {

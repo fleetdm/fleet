@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.0",
+      "version": "4.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient' AND version_compare(bundle_short_version, '4.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient' AND version_compare(bundle_short_version, '4.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.setapp.DesktopClient' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/165/1794245125/Setapp-165.zip",
+      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/166/1794577690/Setapp-166.zip",
       "install_script_ref": "7c17a154",
       "uninstall_script_ref": "6e556d6d",
-      "sha256": "a124004ba0c6555e8bb05904a65e78b7d32a8eaa069b304f8e9a78e4e859735a",
+      "sha256": "fd38d38b8b7646e8741632c800f39d4eea8922db634eb41e174fa83830ac0301",
       "default_categories": [
         "Productivity"
       ]

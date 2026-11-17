@@ -255,13 +255,6 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	packs, err := ts.ds.ListPacks(ctx, fleet.PackListOptions{})
-	require.NoError(t, err)
-	for _, pack := range packs {
-		err := ts.ds.DeletePack(ctx, pack.Name)
-		require.NoError(t, err)
-	}
-
 	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)

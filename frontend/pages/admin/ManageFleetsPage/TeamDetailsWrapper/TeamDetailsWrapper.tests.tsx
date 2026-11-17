@@ -25,22 +25,23 @@ jest.mock("components/BackButton", () => ({
 
 const TEAM = { id: 1, name: "Fleet 1", description: "", host_count: 0 };
 
-const setupHandlers = () =>
+const setupHandlers = (secrets: unknown[] = []) =>
   mockServer.use(
     http.get(baseUrl("/me"), () =>
       HttpResponse.json({ user: createMockUser({ global_role: "admin" }) })
     ),
-    http.get(baseUrl("/fleets"), () => HttpResponse.json({ fleets: [TEAM] })),
-    http.get(baseUrl("/fleets/1/secrets"), () =>
-      HttpResponse.json({ secrets: [] })
-    )
+    http.get(baseUrl("/fleets"), () =>
+      HttpResponse.json({ fleets: [{ ...TEAM, secrets }] })
+    ),
+    http.get(baseUrl("/fleets/1/secrets"), () => HttpResponse.json({ secrets }))
   );
 
 const renderPage = (
   gitOpsModeEnabled: boolean,
-  exceptions?: IGitOpsExceptions
+  exceptions?: IGitOpsExceptions,
+  secrets: unknown[] = []
 ) => {
-  setupHandlers();
+  setupHandlers(secrets);
   const config = createMockConfig();
   const render = createCustomRenderer({
     withBackendMock: true,
@@ -124,5 +125,35 @@ describe("TeamDetailsWrapper", () => {
     expect(await button("Manage enroll secrets")).toBeEnabled();
     expect(await button("Rename fleet")).toBeEnabled();
     expect(await button("Delete fleet")).toBeEnabled();
+  });
+
+  it("hides the enroll secrets list while the add secret modal is open", async () => {
+    const { user } = renderPage(false);
+
+    await user.click(await button("Manage enroll secrets"));
+    await user.click(await screen.findByText("Add secret"));
+    expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
+
+    await user.keyboard("{Escape}");
+    expect(
+      await screen.findByRole("button", { name: "Done" })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the enroll secrets list while the delete secret modal is open", async () => {
+    const { user } = renderPage(false, undefined, [
+      { secret: "abc", created_at: "2024-01-01T00:00:00Z" },
+    ]);
+
+    await user.click(await button("Manage enroll secrets"));
+    await user.click(
+      await screen.findByRole("button", { name: "Delete enroll secret" })
+    );
+    expect(screen.queryByRole("button", { name: "Done" })).toBeNull();
+
+    await user.keyboard("{Escape}");
+    expect(
+      await screen.findByRole("button", { name: "Done" })
+    ).toBeInTheDocument();
   });
 });

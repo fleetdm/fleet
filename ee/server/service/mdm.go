@@ -270,6 +270,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	var didUpdateWindowsManagedLocalAccount bool
+	if payload.EnableManagedLocalAccountWindows != nil && ac.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != *payload.EnableManagedLocalAccountWindows {
+		ac.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(*payload.EnableManagedLocalAccountWindows)
+		didUpdateWindowsManagedLocalAccount = true
+		didUpdate = true
+	}
+
 	if didUpdateFromValidation, err := payload.Validate(&ac.MDM.MacOSSetup); err != nil {
 		return err
 	} else if didUpdateFromValidation {
@@ -287,6 +294,11 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 		if didUpdateMacOSManagedLocalAccount {
 			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", nil, nil); err != nil {
+				return err
+			}
+		}
+		if didUpdateWindowsManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", nil, nil); err != nil {
 				return err
 			}
 		}
@@ -362,7 +374,8 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return fleet.ErrMDMNotConfigured
 	}
 
-	if payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows && !ac.MDM.WindowsEnabledAndConfigured {
+	if ((payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows) ||
+		(payload.EnableManagedLocalAccountWindows != nil && *payload.EnableManagedLocalAccountWindows)) && !ac.MDM.WindowsEnabledAndConfigured {
 		return fleet.ErrWindowsMDMNotConfigured
 	}
 

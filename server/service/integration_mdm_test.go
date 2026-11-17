@@ -1919,7 +1919,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true,
 					"lock_end_user_info": %t
 				}
@@ -1943,7 +1943,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 						"idp_name": "",
 						"metadata_url": ""
 					},
-					"macos_setup": {
+					"setup_experience": {
 						"enable_end_user_authentication": false,
 						"lock_end_user_info": false
 					}
@@ -2340,7 +2340,7 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	var combined getMDMProfilesSummaryResponse

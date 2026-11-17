@@ -858,9 +858,9 @@ describe("Activity Feed", () => {
     });
   });
 
-  it("renders a 'viewed_host_recovery_lock_password' type activity", () => {
+  it("renders a 'read_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.ViewedHostRecoveryLockPassword,
+      type: ActivityType.ReadHostRecoveryLockPassword,
       details: { host_display_name: "Anna's MacBook Pro" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);

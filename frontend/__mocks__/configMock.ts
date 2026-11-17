@@ -10,9 +10,8 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   windows_entra_tenant_ids: [],
   windows_entra_client_ids: [],
   microsoft_graph_credential_invalid: false,
-  apple_bm_default_team: "Apples",
-  apple_bm_enabled_and_configured: true,
-  apple_bm_terms_expired: false,
+  apple_business_enabled_and_configured: true,
+  apple_business_terms_expired: false,
   enabled_and_configured: true,
   android_enabled_and_configured: false,
   apple_require_hardware_attestation: false,
@@ -94,8 +93,8 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
 const DEFAULT_CONFIG_MOCK: IConfig = {
   org_info: {
     org_name: "fleet",
-    org_logo_url: "",
-    org_logo_url_light_background: "",
+    org_logo_url_dark_mode: "",
+    org_logo_url_light_mode: "",
     contact_url: "https://fleetdm.com/company/contact",
   },
   server_settings: {

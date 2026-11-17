@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.3",
+      "version": "1.18.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.loki-project.messenger-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.loki-project.messenger-desktop' AND version_compare(bundle_short_version, '1.18.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.loki-project.messenger-desktop' AND version_compare(bundle_short_version, '1.18.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.loki-project.messenger-desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/session-foundation/session-desktop/releases/download/v1.18.3/session-desktop-mac-arm64-1.18.3.dmg",
+      "installer_url": "https://github.com/session-foundation/session-desktop/releases/download/v1.18.4/session-desktop-mac-arm64-1.18.4.dmg",
       "install_script_ref": "5d6beeb9",
       "uninstall_script_ref": "40cc4d3b",
-      "sha256": "bc3f81ce0062a0577bc9b59ed3fb47262a801e6ff455c73b5f5d8582d56cb5dc",
+      "sha256": "2d759b67eada803546dcb5831a816aa283ae40ff7d7c330adaf29b61f5d265ac",
       "default_categories": [
         "Communication"
       ]

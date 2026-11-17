@@ -305,7 +305,7 @@ const HostDetailsPage = ({
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
-  const hostIdFromURL = parseInt(host_id, 10);
+  const hostIdFromURL = /^\d+$/.test(host_id) ? Number(host_id) : NaN;
 
   const {
     config,
@@ -322,6 +322,10 @@ const HostDetailsPage = ({
   } = useContext(AppContext);
 
   const handlePageError = useErrorHandler();
+
+  if (!hostIdFromURL) {
+    handlePageError({ status: 404 });
+  }
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
@@ -1464,8 +1468,10 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
-            : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+            ? mdmConfig?.setup_experience
+                ?.windows_managed_local_account_enabled ?? false
+            : mdmConfig?.setup_experience
+                ?.macos_managed_local_account_enabled ?? false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
@@ -2585,10 +2591,6 @@ const HostDetailsPage = ({
             iosOrIpadosDetails={{
               isIosOrIpadosHost,
               hostMdmDeviceStatus,
-            }}
-            onClickLock={() => {
-              setShowLockHostModal(true);
-              setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
           />

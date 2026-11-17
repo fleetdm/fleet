@@ -114,11 +114,14 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 			PolicyName          string   `json:"policy_name"`
 			PendingCommands     []string `json:"pending_commands"`
 			PendingCertificates []uint   `json:"pending_certificates"`
+			// Always present, so a simulated agent can tell this proxy reports the secret even before it has one.
+			AgentEnrollSecret string `json:"agent_enroll_secret"`
 		}{
 			PolicyVersion:       policyVersion,
 			PolicyName:          d.PolicyName,
 			PendingCommands:     d.PendingCommands,
 			PendingCertificates: d.PendingCertificates,
+			AgentEnrollSecret:   d.AgentEnrollSecret,
 		}
 		d.PendingCommands = nil
 		d.mu.Unlock()
@@ -383,6 +386,18 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 			return
 		}
 
+		// The app list Fleet patches includes the Fleet agent with its managed configuration.
+		if isFakeDevice && r.Body != nil {
+			if bodyBytes, err := io.ReadAll(r.Body); err == nil {
+				var policy struct {
+					Applications []managedApp `json:"applications"`
+				}
+				if json.Unmarshal(bodyBytes, &policy) == nil {
+					storeAgentEnrollSecret(store, hostUUID, policy.Applications)
+				}
+			}
+		}
+
 		version := store.nextPolicyVersion(name)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -533,14 +548,18 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []byte) {
 	var req struct {
 		Changes []struct {
-			Application struct {
-				ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-			} `json:"application"`
+			Application managedApp `json:"application"`
 		} `json:"changes"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		return
 	}
+
+	apps := make([]managedApp, 0, len(req.Changes))
+	for _, change := range req.Changes {
+		apps = append(apps, change.Application)
+	}
+	storeAgentEnrollSecret(store, hostUUID, apps)
 
 	// Keep looking after a change that carries no install operation: returning early here
 	// dropped certificates that were listed in a later change.
@@ -575,6 +594,34 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 	d.mu.Lock()
 	d.PendingCertificates = certIDs
 	d.mu.Unlock()
+}
+
+// managedApp is the part of an AMAPI application policy the mock reads.
+type managedApp struct {
+	PackageName          string          `json:"packageName"`
+	ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+}
+
+// storeAgentEnrollSecret records the enroll secret in the Fleet agent's managed configuration, so the simulated agent can
+// enroll orbit with it. Only the agent's package counts, since other apps' configurations are free-form.
+func storeAgentEnrollSecret(store *deviceStore, hostUUID string, apps []managedApp) {
+	d := store.getByESID(hostUUID)
+	if d == nil {
+		return
+	}
+	for _, app := range apps {
+		if app.PackageName != store.agentPackage || len(app.ManagedConfiguration) == 0 {
+			continue
+		}
+		var config android.AgentManagedConfiguration
+		if err := json.Unmarshal(app.ManagedConfiguration, &config); err != nil || config.EnrollSecret == "" || config.HostUUID != hostUUID {
+			continue
+		}
+		d.mu.Lock()
+		d.AgentEnrollSecret = config.EnrollSecret
+		d.mu.Unlock()
+		return
+	}
 }
 
 func handleCatchAll(_ *googleForwarder) http.HandlerFunc {

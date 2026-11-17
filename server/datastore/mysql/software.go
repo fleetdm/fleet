@@ -7757,6 +7757,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				hs.AppStoreApp.VersionName = hostVersion.Name
 			}
 		}
+		hs.Package = hs.SoftwarePackage
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 

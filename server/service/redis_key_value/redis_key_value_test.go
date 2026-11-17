@@ -14,6 +14,7 @@ import (
 func TestRedisKeyValue(t *testing.T) {
 	for _, f := range []func(*testing.T, *RedisKeyValue){
 		testSetGet,
+		testSetIfNotExists,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -26,6 +27,30 @@ func TestRedisKeyValue(t *testing.T) {
 			})
 		})
 	}
+}
+
+func testSetIfNotExists(t *testing.T, kv *RedisKeyValue) {
+	ctx := t.Context()
+
+	set, err := kv.SetIfNotExists(ctx, "reserved", "first", 10*time.Second)
+	require.NoError(t, err)
+	require.True(t, set)
+	set, err = kv.SetIfNotExists(ctx, "reserved", "second", 10*time.Second)
+	require.NoError(t, err)
+	require.False(t, set)
+	value, err := kv.Get(ctx, "reserved")
+	require.NoError(t, err)
+	require.NotNil(t, value)
+	require.Equal(t, "first", *value)
+
+	// It expires like Set.
+	set, err = kv.SetIfNotExists(ctx, "short", "v", 50*time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, set)
+	require.Eventually(t, func() bool {
+		set, err := kv.SetIfNotExists(ctx, "short", "v", 50*time.Millisecond)
+		return err == nil && set
+	}, 2*time.Second, 25*time.Millisecond)
 }
 
 func setupRedis(t testing.TB, cluster, redir bool) *RedisKeyValue {

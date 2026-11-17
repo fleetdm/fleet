@@ -2161,6 +2161,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
 		},
 		{
+			// The Linear desktop app has no CPE of its own. Without a translation it matched
+			// linear:linear, the "Linear" WordPress plugin, and inherited its CVEs
+			// (CVE-2024-12496, CVE-2024-13709).
+			software: fleet.Software{
+				Name:             "Linear.app",
+				BundleIdentifier: "com.linear",
+				Source:           "apps",
+				Version:          "1.32.7",
+			},
+			cpe: "",
+		},
+		{
 			// teamcity-cli installs as "teamcity" via the JetBrains Homebrew tap, but it is a
 			// separate product from the TeamCity CI server and has no CPE of its own, so it must
 			// not inherit the server's vulnerabilities.

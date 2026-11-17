@@ -16,10 +16,11 @@ OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317" \
 ./build/fleet serve \
   --logging_tracing_enabled=true \
   --logging_tracing_type=opentelemetry \
+  --logging_otel_logs_enabled=true \
   --dev --logging_debug
 ```
 
-Afterwards, you can navigate to http://localhost:16686/ to access the Jaeger UI.
+Afterwards, you can navigate to http://localhost:16686/ to access the Jaeger UI. Logs exported by Fleet are printed by the collector (`docker compose logs -f otel-collector`).
 
 ## Alternatives
 

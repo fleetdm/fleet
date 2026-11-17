@@ -15,7 +15,6 @@ const DEFAULT_QUERY_MOCK: ISchedulableQuery = {
   observer_can_run: false,
   discard_data: false,
   interval: 300,
-  packs: [],
   fleet_id: null,
   platform: "",
   min_osquery_version: "",

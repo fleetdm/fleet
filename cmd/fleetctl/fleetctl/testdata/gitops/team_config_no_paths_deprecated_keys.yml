@@ -49,13 +49,13 @@ controls:
     enable: false
     mode: ""
     webhook_url: ""
-  macos_setup:
-    bootstrap_package: ${SOFTWARE_INSTALLER_URL}/signed.pkg
+  setup_experience:
+    macos_bootstrap_package: ${SOFTWARE_INSTALLER_URL}/signed.pkg
     enable_end_user_authentication: false
-    macos_setup_assistant: null
-    enable_release_device_manually: false
-    script: ./lib/setup_script.sh
-    manual_agent_install: false
+    apple_setup_assistant: null
+    apple_enable_release_device_manually: false
+    macos_script: ./lib/setup_script.sh
+    macos_manual_agent_install: false
     macos_enable_bootstrap_package_during_manual_enrollment: true
     macos_enable_bootstrap_package_during_migration: true
   macos_updates:

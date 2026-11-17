@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.0",
+      "version": "3.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.spectra.dev';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.spectra.dev' AND version_compare(bundle_short_version, '3.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.spectra.dev' AND version_compare(bundle_short_version, '3.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.spectra.dev' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/kaochenlong/spectra-app/releases/download/v3.0.0/Spectra_3.0.0_aarch64.dmg",
+      "installer_url": "https://github.com/kaochenlong/spectra-app/releases/download/v3.1.0/Spectra_3.1.0_aarch64.dmg",
       "install_script_ref": "d503cbae",
       "uninstall_script_ref": "16757acf",
-      "sha256": "ac751081de41f86ff3493e826f64fc1acc7b60180c9c7ef90cace72aa23af267",
+      "sha256": "4dcafae67812d3f0cd7526f00960def776478c823ec174d2ef49420b8c2611b1",
       "default_categories": [
         "Productivity"
       ]

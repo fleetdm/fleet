@@ -88,7 +88,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		return map[string]any{"org_info": orgInfo}
 	}
 
-	t.Run("path key plans upload and strips every URL key for the mode", func(t *testing.T) {
+	t.Run("path key plans upload and strips the URL key for the mode", func(t *testing.T) {
 		os := orgSettings(map[string]any{
 			"org_logo_path_dark_mode": "logo.png",
 			"org_logo_url_dark_mode":  "",
@@ -100,13 +100,13 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		assert.NotEmpty(t, actions[0].uploadPath)
 
 		orgInfo := os["org_info"].(map[string]any)
-		for _, k := range []string{"org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"} {
+		for _, k := range []string{"org_logo_path_dark_mode", "org_logo_url_dark_mode"} {
 			_, present := orgInfo[k]
-			assert.False(t, present, "%s should be stripped (PUT controls the stored URLs)", k)
+			assert.False(t, present, "%s should be stripped (PUT controls the stored URL)", k)
 		}
 	})
 
-	t.Run("external URL set rides on the PATCH and mirrors deprecated alias", func(t *testing.T) {
+	t.Run("external URL set rides on the PATCH", func(t *testing.T) {
 		// Switching path → URL must preserve the new URL.
 		os := orgSettings(map[string]any{
 			"org_logo_url_dark_mode": "https://example.com/logo.png",
@@ -117,10 +117,9 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 
 		orgInfo := os["org_info"].(map[string]any)
 		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url_dark_mode"])
-		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url"])
 	})
 
-	t.Run("explicit empty URL mirrors deprecated alias as empty", func(t *testing.T) {
+	t.Run("explicit empty URL is sent as empty", func(t *testing.T) {
 		os := orgSettings(map[string]any{
 			"org_logo_url_light_mode": "",
 		})
@@ -128,17 +127,15 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, actions)
 
-		// Both new and deprecated keys must be sent as "" — otherwise the
-		// server preserves the deprecated field on merge and copies it
-		// back into the new one in NormalizeLogoFields.
 		orgInfo := os["org_info"].(map[string]any)
+		assert.Contains(t, orgInfo, "org_logo_url_light_mode")
 		assert.Empty(t, orgInfo["org_logo_url_light_mode"])
-		assert.Empty(t, orgInfo["org_logo_url_light_background"])
+		assert.NotContains(t, orgInfo, "org_logo_url_light_background")
 	})
 
-	t.Run("empty path key clears both new and deprecated URL fields", func(t *testing.T) {
+	t.Run("empty path key clears the URL field", func(t *testing.T) {
 		// `org_logo_path_dark_mode: ""` (path key only, no URL key in YAML)
-		// must produce a PATCH that clears both URL fields.
+		// must produce a PATCH that clears the URL field.
 		os := orgSettings(map[string]any{
 			"org_logo_path_dark_mode": "",
 		})
@@ -149,24 +146,8 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		orgInfo := os["org_info"].(map[string]any)
 		_, pathPresent := orgInfo["org_logo_path_dark_mode"]
 		assert.False(t, pathPresent, "path key should be stripped")
-		assert.Empty(t, orgInfo["org_logo_url_dark_mode"], "new key must be in the PATCH as \"\"")
-		assert.Empty(t, orgInfo["org_logo_url"], "deprecated alias must be in the PATCH as \"\"")
-	})
-
-	t.Run("clearing new URL keeps the deprecated alias in sync", func(t *testing.T) {
-		os := orgSettings(map[string]any{
-			"org_logo_url_dark_mode":  "",
-			"org_logo_url_light_mode": "",
-		})
-		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
-		require.NoError(t, err)
-		assert.Empty(t, actions)
-
-		orgInfo := os["org_info"].(map[string]any)
-		assert.Empty(t, orgInfo["org_logo_url_dark_mode"])
-		assert.Empty(t, orgInfo["org_logo_url"], "deprecated dark alias must be sent as \"\"")
-		assert.Empty(t, orgInfo["org_logo_url_light_mode"])
-		assert.Empty(t, orgInfo["org_logo_url_light_background"], "deprecated light alias must be sent as \"\"")
+		assert.Contains(t, orgInfo, "org_logo_url_dark_mode")
+		assert.Empty(t, orgInfo["org_logo_url_dark_mode"], "URL key must be in the PATCH as \"\"")
 	})
 
 	t.Run("missing keys preserve current state", func(t *testing.T) {
@@ -174,26 +155,6 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
 		assert.Empty(t, actions, "absent keys must not trigger any action")
-	})
-
-	t.Run("conflicting new and deprecated URL keys rejected", func(t *testing.T) {
-		os := orgSettings(map[string]any{
-			"org_logo_url_dark_mode": "https://example.com/new.png",
-			"org_logo_url":           "https://example.com/old.png",
-		})
-		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "conflicts with")
-	})
-
-	t.Run("clearing a mode while setting deprecated alias rejected", func(t *testing.T) {
-		os := orgSettings(map[string]any{
-			"org_logo_path_dark_mode": "",
-			"org_logo_url":            "https://example.com/keep.png",
-		})
-		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "being cleared")
 	})
 
 	t.Run("both path and url for same mode rejected", func(t *testing.T) {
@@ -224,14 +185,13 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		assert.NotEmpty(t, actions[0].uploadPath, "dark mode should plan an upload")
 
 		orgInfo := os["org_info"].(map[string]any)
-		// Dark: every URL key for the mode is stripped (PUT will set them).
-		for _, k := range []string{"org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"} {
+		// Dark: the path and URL keys are stripped (PUT will set the URL).
+		for _, k := range []string{"org_logo_path_dark_mode", "org_logo_url_dark_mode"} {
 			_, present := orgInfo[k]
 			assert.False(t, present, "%s should be stripped", k)
 		}
-		// Light: URL ride on the PATCH with the deprecated alias mirrored.
+		// Light: the URL rides on the PATCH.
 		assert.Equal(t, "https://example.com/light.png", orgInfo["org_logo_url_light_mode"])
-		assert.Equal(t, "https://example.com/light.png", orgInfo["org_logo_url_light_background"])
 	})
 
 	t.Run("missing path file surfaces a validation error", func(t *testing.T) {

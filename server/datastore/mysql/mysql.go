@@ -223,7 +223,6 @@ type entity struct {
 var (
 	hostsTable    = entity{"hosts"}
 	invitesTable  = entity{"invites"}
-	packsTable    = entity{"packs"}
 	queriesTable  = entity{"queries"}
 	sessionsTable = entity{"sessions"}
 	usersTable    = entity{"users"}
@@ -480,7 +479,6 @@ func toCommonLoggingConfig(conf *config.LoggingConfig) *common_mysql.LoggingConf
 	}
 	return &common_mysql.LoggingConfig{
 		TracingEnabled: conf.TracingEnabled,
-		TracingType:    conf.TracingType,
 	}
 }
 

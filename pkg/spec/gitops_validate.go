@@ -103,6 +103,12 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 			continue
 		}
 
+		for removed := range strings.SplitSeq(field.Tag.Get("removedkey"), ",") {
+			if removed = strings.TrimSpace(removed); removed != "" {
+				keys[removed] = fieldInfo{jsonName: removed, typ: field.Type, removed: true}
+			}
+		}
+
 		tag := field.Tag.Get("json")
 		if tag == "" || tag == "-" {
 			continue
@@ -130,12 +136,6 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 			jsonName: name,
 			typ:      field.Type,
 			pathName: pathName,
-		}
-
-		for removed := range strings.SplitSeq(field.Tag.Get("removedkey"), ",") {
-			if removed = strings.TrimSpace(removed); removed != "" {
-				keys[removed] = fieldInfo{jsonName: removed, typ: field.Type, removed: true}
-			}
 		}
 	}
 }

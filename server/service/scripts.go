@@ -426,7 +426,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
@@ -689,9 +689,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 
 	// cursor-based pagination is not supported for scripts
 	opt.After = ""
-	// custom ordering is not supported, always by name
+	// only name ordering is supported; direction comes from the request (ascending by default)
 	opt.OrderKey = "name"
-	opt.OrderDirection = fleet.OrderAscending
 	// no matching query support
 	opt.MatchQuery = ""
 	// always include metadata for scripts
@@ -904,7 +903,8 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 		return ctxerr.Wrap(ctx, err, "canceling batch script")
 	}
 
-	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	// Read from the primary, a replica may not have the canceled count written above yet.
+	batchActivity, err := svc.ds.GetBatchActivity(ctxdb.RequirePrimary(ctx, true), batchExecutionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting canceled activity stats")
 	}

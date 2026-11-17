@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
-	"github.com/gorilla/mux"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,8 +208,7 @@ func (UpdateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	vars := mux.Vars(r)
-	scriptIDStr, ok := vars["script_id"]
+	scriptIDStr, ok := platform_http.PathVar(r, "script_id")
 	if !ok {
 		return nil, &BadRequestError{Message: "missing script id"}
 	}

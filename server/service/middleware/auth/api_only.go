@@ -15,8 +15,8 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
-// RouteTemplateRequestFunc captures the gorilla/mux route template for the
-// matched request and stores it in the context. Alias of the platform
+// RouteTemplateRequestFunc copies the route template of the matched request
+// into the context. Alias of the platform
 // implementation, re-exported so callers that already import this package can
 // continue to reference it here.
 var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
@@ -25,7 +25,7 @@ var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
 // access control for API-only users (api_only=true) that have configured
 // endpoint restrictions. It must be wired inside AuthenticatedUser (so a Viewer
 // is already in context when it runs) and the enclosing transport must register
-// RouteTemplateRequestFunc as a ServerBefore option so the mux route template
+// RouteTemplateRequestFunc as a ServerBefore option so the route template
 // is available in context.
 //
 // The check is skipped entirely for: non-API-only users, requests with no
@@ -57,8 +57,8 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 		requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 		routeTemplate, _ := eu.RouteTemplateFromContext(ctx)
 
-		// Missing method or route template means the transport wasn't wired
-		// with RouteTemplateRequestFunc; fail closed naming the misconfiguration.
+		// A missing method means the transport wasn't wired with kithttp.PopulateRequestContext, and a missing route template means
+		// the route wasn't registered through endpointer.Router; fail closed naming the misconfiguration.
 		if requestMethod == "" {
 			return nil, endpointRestrictionDenied(ctx, routeTemplate, "request method missing from request context")
 		}
