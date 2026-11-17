@@ -2609,13 +2609,13 @@ This activity contains the following fields:
 Generated when VPP features are enabled in Fleet.
 
 This activity contains the following fields:
-- "organization_unit": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location."
+- "location": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
 
 #### Example
 
 ```json
 {
-  "organization_unit": "Acme Inc."
+  "location": "Acme Inc."
 }
 ```
 
@@ -2624,13 +2624,13 @@ This activity contains the following fields:
 Generated when VPP features are disabled in Fleet.
 
 This activity contains the following fields:
-- "organization_unit": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location."
+- "location": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
 
 #### Example
 
 ```json
 {
-  "organization_unit": "Acme Inc."
+  "location": "Acme Inc."
 }
 ```
 
