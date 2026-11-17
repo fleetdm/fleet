@@ -101,7 +101,8 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
   );
 
   const renderBanner = () => {
-    if (!failingResponses?.length) {
+    // Admins see each policy's status in the table; the banner guides end users.
+    if (!deviceUser || !failingResponses?.length) {
       return null;
     }
     if (conditionalAccessBypassed) {

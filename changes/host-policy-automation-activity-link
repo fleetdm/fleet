@@ -1,1 +1,1 @@
-- Added a **View automation activity** button to a policy's details on the host details page. It opens the policy's automation activity filtered to that host.
+- Clicking a policy on the host details page now opens the policy's automation runs, filtered to that host when the policy has an automation. Removed the failing policies banner from host details for admins; end users still see it on **My device**.

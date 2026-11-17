@@ -10,8 +10,6 @@ interface IPolicyDetailsProps {
   policy: IHostPolicy | null;
   onResolveLater?: () => void;
   isDeviceUser?: boolean;
-  /** Opens the policy's automation activity filtered to this host. */
-  onViewAutomationActivity?: () => void;
 }
 
 const baseClass = "policy-details-modal";
@@ -21,7 +19,6 @@ const PolicyDetailsModal = ({
   policy,
   onResolveLater,
   isDeviceUser = false,
-  onViewAutomationActivity,
 }: IPolicyDetailsProps): JSX.Element => {
   const hasNoDescriptionOrResolution =
     !policy?.description && !policy?.resolution;
@@ -58,11 +55,6 @@ const PolicyDetailsModal = ({
         )}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Close</Button>
-          {onViewAutomationActivity && (
-            <Button onClick={onViewAutomationActivity} variant="secondary">
-              View automation activity
-            </Button>
-          )}
           {policy?.conditional_access_enabled &&
             policy.response === "fail" &&
             onResolveLater && (
