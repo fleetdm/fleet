@@ -50,7 +50,7 @@ func TestRemovedPaths(t *testing.T) {
 	}
 
 	// A router of its own, not MakeHandler's: that one instruments every route with global Prometheus counters, which TestAPIRoutesMetrics
-	// asserts exactly. TestAPIRoutesConflicts checks these routes against the real router.
+	// asserts exactly. TestRouterServesEveryRoute checks them against the real router.
 	router := endpointer.NewRouter()
 	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
@@ -97,8 +97,8 @@ func TestRemovedPaths(t *testing.T) {
 }
 
 // TestRemovedPathsThroughHandler sends requests to removed paths that sit next to a literal or a wildcard of another removed path. It
-// does not use MakeHandler, whose metrics are global counters that TestAPIRoutesMetrics asserts exactly; TestAPIRoutesConflicts checks
-// these routes against the real router.
+// does not use MakeHandler, whose metrics are global counters that TestAPIRoutesMetrics asserts exactly; TestRouterServesEveryRoute
+// checks them against the real router.
 func TestRemovedPathsThroughHandler(t *testing.T) {
 	t.Parallel()
 

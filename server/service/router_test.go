@@ -160,6 +160,11 @@ func TestRouterEdgeCases(t *testing.T) {
 			wantStatus: 200, wantBody: "get_hosts_identifier__identifier_ identifier_segment=identifier,identifier=device_mapping",
 		},
 		{
+			name: "removed resend spelling behind a live resend whose constraint fails", method: "POST",
+			path:       "/api/latest/fleet/hosts/abc/configuration_profiles/foo/resend",
+			wantStatus: 200, wantBody: "post_hosts__host_id__configuration_profiles_resend__profile_uuid_ host_id=abc,resend_segment=foo,profile_uuid=resend",
+		},
+		{
 			// Deliberate: the ServeMux answers a wrong method before any route constraint runs, so the invalid id stays a 405.
 			name: "invalid id on a path only other methods serve", method: "POST", path: "/api/latest/fleet/certificates/abc",
 			wantStatus: 405, wantAllow: "DELETE, GET, HEAD",
