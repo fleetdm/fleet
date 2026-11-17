@@ -5,7 +5,7 @@
 // so the CPE path gave every binary named "air" Adobe AIR's CVEs. The Go database is keyed on
 // module path (software.extension_id) and toolchain version (software.release) instead.
 //
-// Go toolchain installs (see IsToolchainInstall) are matched here too rather than through NVD,
+// Go toolchain installs (see ToolchainRules) are matched here too rather than through NVD,
 // which matched the Homebrew "go" formula to ecies:go and lags the Go database on new CVEs.
 //
 // Fleet does not reach vuln.go.dev directly. cmd/govulndb-mirror, run by a job in
@@ -52,6 +52,9 @@ type Artifact struct {
 	// Modules maps a module path to its advisories, with the standard library under
 	// StdlibModule and the `go` command under ToolchainModule.
 	Modules map[string][]Advisory `json:"modules"`
+	// ToolchainInstalls are the rules identifying Go toolchain installs. Artifacts published
+	// before the rules existed have none, and servers then use the ones built into them.
+	ToolchainInstalls *ToolchainInstalls `json:"toolchain_installs,omitempty"`
 }
 
 // Advisory is one Go vulnerability report's effect on one module.

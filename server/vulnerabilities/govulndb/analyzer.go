@@ -24,10 +24,13 @@ const vulnBatchSize = 500
 // Analyze matches Go binaries and Go toolchain installs against the most recent mirrored Go
 // vulnerability database artifact in vulnPath. startTime is when the vulnerability run began:
 // matched rows have their updated_at refreshed, and anything older is treated as remediated.
+// toolchains must be the rules the NVD pass of the same run skipped, so that every toolchain
+// install is matched by exactly one of them; with nil rules, toolchain installs are left to NVD.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
+	toolchains *ToolchainRules,
 	collectVulns bool,
 	startTime time.Time,
 	logger *slog.Logger,
@@ -110,11 +113,10 @@ func Analyze(
 	}, matchSoftware); err != nil {
 		return newVulns, err
 	}
-	if err := scan("go toolchain", fleet.SoftwareIterQueryOptions{
-		IncludedSources: toolchainSources,
-		NameMatch:       toolchainNameMatch,
-	}, matchToolchainInstall); err != nil {
-		return newVulns, err
+	if opts, ok := toolchains.iterOptions(); ok {
+		if err := scan("go toolchain", opts, toolchains.match); err != nil {
+			return newVulns, err
+		}
 	}
 
 	if len(found) > 0 {

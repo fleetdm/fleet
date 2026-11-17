@@ -1,6 +1,21 @@
 package main
 
-import "github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
+import (
+	"errors"
+	"fmt"
+	"slices"
+
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
+)
+
+// minNamePrefixLen keeps a toolchain install rule from claiming unrelated software by a short
+// prefix.
+const minNamePrefixLen = 3
+
+// deniedToolchainSources never hold toolchain installs a version comparison can judge:
+// distributions backport fixes to deb and rpm packages without changing the upstream version,
+// and Go binaries have their own matcher.
+var deniedToolchainSources = []string{"deb_packages", "rpm_packages", "go_binaries"}
 
 // validate reports whether a snapshot is safe to publish.
 //
@@ -21,6 +36,10 @@ func validate(artifact, previous *govulndb.Artifact, maxDropPercent float64) err
 	// count check.
 	if len(artifact.Modules[govulndb.StdlibModule]) == 0 {
 		return suspectf("artifact has no %q advisories; every snapshot of the database carries some", govulndb.StdlibModule)
+	}
+
+	if err := validateToolchainInstalls(artifact.ToolchainInstalls); err != nil {
+		return suspectf("artifact has unsafe toolchain install rules: %v", err)
 	}
 
 	if previous == nil {
@@ -50,4 +69,45 @@ func checkDrop(what string, was, now int, maxPercent float64) error {
 
 	return suspectf("%s dropped %.1f%% against the last published artifact (%d to %d, %d fewer), past the %.1f%% allowed",
 		what, percent, was, now, dropped, maxPercent)
+}
+
+// validateToolchainInstalls checks the rules before they reach servers, which apply whatever is
+// published. NVD skips everything the rules claim, so a broad or misdirected rule would remove
+// vulnerabilities from customer hosts, and rules a server cannot apply leave Go toolchain
+// installs to NVD's name matching.
+func validateToolchainInstalls(installs *govulndb.ToolchainInstalls) error {
+	if installs == nil {
+		return errors.New("none published")
+	}
+	if len(installs.Rules) == 0 {
+		return errors.New("no rules")
+	}
+	for i, r := range installs.Rules {
+		if err := validateToolchainInstallRule(r); err != nil {
+			return fmt.Errorf("rule %d (%s): %w", i, r.Source, err)
+		}
+	}
+	_, err := govulndb.NewToolchainRules(installs)
+	return err
+}
+
+func validateToolchainInstallRule(r govulndb.ToolchainInstallRule) error {
+	switch {
+	case r.Source == "":
+		return errors.New("no source")
+	case slices.Contains(deniedToolchainSources, r.Source):
+		return fmt.Errorf("source %s cannot hold toolchain installs", r.Source)
+	case len(r.Names) == 0 && len(r.NamePrefixes) == 0:
+		return errors.New("no names or name prefixes")
+	case slices.Contains(r.Names, ""):
+		return errors.New("empty name")
+	case len(r.Versions) == 0:
+		return errors.New("no versions")
+	}
+	for _, prefix := range r.NamePrefixes {
+		if len(prefix) < minNamePrefixLen {
+			return fmt.Errorf("name prefix %q is shorter than %d characters", prefix, minNamePrefixLen)
+		}
+	}
+	return nil
 }

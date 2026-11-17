@@ -1,0 +1,56 @@
+{
+  "version": "1",
+  "rules": [
+    {
+      "source": "homebrew_packages",
+      "names": ["go"],
+      "name_prefixes": ["go@"],
+      "versions": [
+        {
+          "field": "version",
+          "pattern": "^([^_]+)",
+          "note": "Homebrew appends _N when it rebuilds a formula without an upstream version change."
+        }
+      ]
+    },
+    {
+      "source": "nix_packages",
+      "names": ["go"],
+      "versions": [{ "field": "version", "pattern": "^(.+)$" }]
+    },
+    {
+      "source": "pacman_packages",
+      "names": ["go"],
+      "versions": [
+        {
+          "field": "version",
+          "pattern": "^(?:\\d+:)?(.+?)(?:-[^-]+)?$",
+          "note": "Fleet stores only the upstream version, but rows ingested by Fleet before 4.93.0 carry Arch's [epoch:]version-pkgrel form."
+        }
+      ]
+    },
+    {
+      "source": "portage_packages",
+      "names": ["dev-lang/go"],
+      "versions": [
+        {
+          "field": "version",
+          "pattern": "^(.+?)(?:-r\\d+)?$",
+          "note": "-rN is a Gentoo ebuild revision, not part of the Go release."
+        }
+      ]
+    },
+    {
+      "source": "programs",
+      "name_prefixes": ["Go Programming Language "],
+      "versions": [
+        {
+          "field": "name",
+          "pattern": "\\s(go\\S+)$",
+          "note": "The Windows installer names itself after the Go tag (... amd64 go1.22rc1). Its MSI version must be numeric, so it cannot represent a release candidate."
+        },
+        { "field": "version", "pattern": "^(.+)$" }
+      ]
+    }
+  ]
+}

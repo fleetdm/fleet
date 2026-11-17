@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/google/go-cmp/cmp"
 	"github.com/shirou/gopsutil/v4/process"
@@ -200,7 +201,8 @@ func main() {
 	}
 
 	printf("Translating software to CPE...\n")
-	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger)
+	toolchains := govulndb.LoadToolchainRules(ctx, *dbDir, logger)
+	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger, []func(*fleet.Software) bool{toolchains.IsToolchainInstall})
 	if err != nil {
 		panic(err)
 	}

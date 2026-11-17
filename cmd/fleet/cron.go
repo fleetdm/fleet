@@ -203,8 +203,15 @@ func scanVulnerabilities(
 
 	scanStart := time.Now()
 
+	// The Go vulnerability database carries the rules for which software is a Go toolchain install.
+	// NVD skips those installs and the govulndb phase matches them, so both phases need the same
+	// rules: sync once, before NVD, and load them once.
 	phaseStart := time.Now()
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	goToolchains := syncGoVulnDB(ctx, logger, vulnPath, config)
+	logger.InfoContext(ctx, "phase completed", "phase", "govulndb_sync", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime, goToolchains)
 	logger.InfoContext(ctx, "phase completed", "phase", "nvd", "elapsed", time.Since(phaseStart))
 
 	var ovalVulns []fleet.SoftwareVulnerability
@@ -242,7 +249,7 @@ func scanVulnerabilities(
 	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
-	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, vulnPath, vulnAutomationEnabled != "", startTime, goToolchains)
 	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
@@ -821,33 +828,45 @@ func checkGovalDictionaryVulnerabilities(
 	return results
 }
 
+// syncGoVulnDB downloads the latest Go vulnerability database and returns the Go toolchain
+// install rules to use for this run.
+func syncGoVulnDB(
+	ctx context.Context,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+) *govulndb.ToolchainRules {
+	ctx, span := tracer.Start(ctx, "vuln.govulndb.sync")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		artifact, err := govulndb.Refresh(ctx, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating Go vulnerability database", err)
+		} else {
+			logger.DebugContext(ctx, "finished sync Go vulnerability database", "artifact", artifact)
+		}
+	}
+
+	return govulndb.LoadToolchainRules(ctx, vulnPath, logger)
+}
+
 func checkGoVulnDBVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	vulnPath string,
-	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 	startTime time.Time,
+	toolchains *govulndb.ToolchainRules,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_govulndb")
 	defer span.End()
 
-	if !config.DisableDataSync {
-		syncCtx, syncSpan := tracer.Start(ctx, "vuln.govulndb.sync")
-		artifact, err := govulndb.Refresh(syncCtx, vulnPath)
-		if err != nil {
-			errHandler(syncCtx, logger, "updating Go vulnerability database", err)
-		} else {
-			logger.DebugContext(syncCtx, "finished sync Go vulnerability database", "artifact", artifact)
-		}
-		syncSpan.End()
-	}
-
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.govulndb.analyze")
 	defer analyzeSpan.End()
 
-	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, collectVulns, startTime, logger)
+	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, toolchains, collectVulns, startTime, logger)
 	if err != nil {
 		errHandler(analyzeCtx, logger, "analyzing Go binaries and toolchains for vulnerabilities", err)
 	}
@@ -863,6 +882,7 @@ func checkNVDVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 	startTime time.Time,
+	toolchains *govulndb.ToolchainRules,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_nvd")
 	defer span.End()
@@ -892,7 +912,9 @@ func checkNVDVulnerabilities(
 	loadSpan.End()
 
 	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
-	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
+	// By name, Go toolchain installs match unrelated CPEs (the Homebrew go formula matched
+	// ecies:go), and the govulndb phase matches them against the Go vulnerability database.
+	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger, []func(*fleet.Software) bool{toolchains.IsToolchainInstall})
 	if err != nil {
 		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
 		cpeSpan.End()

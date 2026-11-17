@@ -227,6 +227,15 @@ func TestIsToolchainInstall(t *testing.T) {
 		{name: "homebrew formula with go in its name", software: fleet.Software{Name: "go-task", Source: "homebrew_packages"}},
 		{name: "arch go", software: fleet.Software{Name: "go", Source: "pacman_packages"}, want: true},
 		{name: "arch go tools", software: fleet.Software{Name: "go-tools", Source: "pacman_packages"}},
+		{name: "nixos go", software: fleet.Software{Name: "go", Source: "nix_packages"}, want: true},
+		{name: "nixos go tools", software: fleet.Software{Name: "gotools", Source: "nix_packages"}},
+		{name: "gentoo go", software: fleet.Software{Name: "dev-lang/go", Source: "portage_packages"}, want: true},
+		{
+			// Only used to build dev-lang/go, and pinned to an old release.
+			name:     "gentoo go bootstrap",
+			software: fleet.Software{Name: "dev-lang/go-bootstrap", Source: "portage_packages"},
+		},
+		{name: "gentoo package named go in another category", software: fleet.Software{Name: "app-misc/go", Source: "portage_packages"}},
 		{
 			name:     "windows go installer",
 			software: fleet.Software{Name: "Go Programming Language amd64 go1.27.4", Source: "programs"},
@@ -242,13 +251,16 @@ func TestIsToolchainInstall(t *testing.T) {
 		{name: "go binary named go", software: fleet.Software{Name: "go", Source: "go_binaries"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, IsToolchainInstall(&tc.software))
+			rules := publishedRules(t)
+			require.Equal(t, tc.want, rules.IsToolchainInstall(&tc.software))
 
 			// NVD skips every toolchain install, so if the SQL prefilter dropped one it would get
 			// no CVEs at all. (?i) because MySQL's REGEXP ignores case under the column's collation.
 			if tc.want {
-				require.Contains(t, toolchainSources, tc.software.Source)
-				require.Regexp(t, "(?i)"+toolchainNameMatch, tc.software.Name)
+				opts, ok := rules.iterOptions()
+				require.True(t, ok)
+				require.Contains(t, opts.IncludedSources, tc.software.Source)
+				require.Regexp(t, "(?i)"+opts.NameMatch, tc.software.Name)
 			}
 		})
 	}
@@ -297,6 +309,21 @@ func TestMatchToolchainInstall(t *testing.T) {
 			want:     []vuln{{"CVE-2024-24791", "1.22.5"}, {"CVE-2024-3000", "1.22.3"}},
 		},
 		{
+			name:     "nixos",
+			software: fleet.Software{ID: 1, Name: "go", Source: "nix_packages", Version: "1.22.2"},
+			want:     []vuln{{"CVE-2024-24791", "1.22.5"}, {"CVE-2024-3000", "1.22.3"}},
+		},
+		{
+			name:     "gentoo",
+			software: fleet.Software{ID: 1, Name: "dev-lang/go", Source: "portage_packages", Version: "1.22.4"},
+			want:     []vuln{{"CVE-2024-24791", "1.22.5"}},
+		},
+		{
+			name:     "gentoo ebuild revision",
+			software: fleet.Software{ID: 1, Name: "dev-lang/go", Source: "portage_packages", Version: "1.22.4-r1"},
+			want:     []vuln{{"CVE-2024-24791", "1.22.5"}},
+		},
+		{
 			name:     "advisory with no fix leaves the fix unset",
 			software: fleet.Software{ID: 1, Name: "go", Source: "homebrew_packages", Version: "1.27.1"},
 			want:     []vuln{{"CVE-2024-3000", ""}},
@@ -333,7 +360,7 @@ func TestMatchToolchainInstall(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var got []vuln
-			for _, v := range matchToolchainInstall(&tc.software, artifact) {
+			for _, v := range publishedRules(t).match(&tc.software, artifact) {
 				require.Equal(t, tc.software.ID, v.SoftwareID)
 				// "" in want means unset: a missing fix is never stored as an empty string.
 				if v.ResolvedInVersion != nil {
@@ -408,7 +435,7 @@ func TestAnalyze(t *testing.T) {
 	t.Run("no artifact on disk is not an error", func(t *testing.T) {
 		ds, _ := analyzeTestStore(nil, nil)
 
-		vulns, err := Analyze(t.Context(), ds, t.TempDir(), true, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, t.TempDir(), publishedRules(t), true, time.Now(), logger)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
 		require.False(t, ds.AllSoftwareIteratorFuncInvoked)
@@ -422,7 +449,7 @@ func TestAnalyze(t *testing.T) {
 
 		ds, _ := analyzeTestStore(nil, nil)
 
-		_, err := Analyze(t.Context(), ds, dir, true, time.Now(), logger)
+		_, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "schema version")
 		require.False(t, ds.AllSoftwareIteratorFuncInvoked)
 		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -434,7 +461,7 @@ func TestAnalyze(t *testing.T) {
 
 		ds, _ := analyzeTestStore(nil, nil)
 
-		_, err := Analyze(t.Context(), ds, dir, true, time.Now(), logger)
+		_, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "no modules")
 		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 	})
@@ -452,7 +479,7 @@ func TestAnalyze(t *testing.T) {
 			{ID: 10, Name: "go", Source: "homebrew_packages", Version: "1.22.4"},
 		})
 
-		vulns, err := Analyze(t.Context(), ds, dir, true, startTime, logger)
+		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, startTime, logger)
 		require.NoError(t, err)
 
 		require.ElementsMatch(t, []fleet.SoftwareVulnerability{
@@ -476,7 +503,7 @@ func TestAnalyze(t *testing.T) {
 			{ID: 1, Name: "air", Version: "v1.48.0", ExtensionID: "github.com/air-verse/air"},
 		}, nil)
 
-		vulns, err := Analyze(t.Context(), ds, dir, false, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), false, time.Now(), logger)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
 		require.Len(t, rec.inserted, 2)
@@ -495,7 +522,7 @@ func TestAnalyze(t *testing.T) {
 			return nil, errors.New("insert failed")
 		}
 
-		_, err := Analyze(t.Context(), ds, dir, true, time.Now(), logger)
+		_, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "insert failed")
 		require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 	})
@@ -518,7 +545,7 @@ func TestAnalyze(t *testing.T) {
 			return nil, errors.New("toolchain query failed")
 		}
 
-		vulns, err := Analyze(t.Context(), ds, dir, true, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
 		require.ErrorContains(t, err, "toolchain query failed")
 		require.Len(t, rec.inserted, vulnBatchSize)
 		require.ElementsMatch(t, rec.inserted, vulns)
@@ -535,10 +562,57 @@ func TestAnalyze(t *testing.T) {
 			{ID: 10, Name: "go", Source: "homebrew_packages", Version: "1.26.1"},
 		})
 
-		vulns, err := Analyze(t.Context(), ds, dir, true, time.Now(), logger)
+		vulns, err := Analyze(t.Context(), ds, dir, publishedRules(t), true, time.Now(), logger)
 		require.NoError(t, err)
 		require.Empty(t, vulns)
 		require.Empty(t, rec.inserted)
 		require.NotNil(t, rec.deletedOlderThan)
+	})
+
+	t.Run("without rules toolchain installs are left alone", func(t *testing.T) {
+		empty, err := NewToolchainRules(&ToolchainInstalls{Version: ToolchainInstallsVersion})
+		require.NoError(t, err)
+
+		for name, rules := range map[string]*ToolchainRules{"nil": nil, "empty": empty} {
+			t.Run(name, func(t *testing.T) {
+				dir := t.TempDir()
+				writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
+
+				ds, rec := analyzeTestStore(nil, []*fleet.Software{
+					{ID: 10, Name: "go", Source: "homebrew_packages", Version: "1.21.11"},
+				})
+				var queries int
+				iterator := ds.AllSoftwareIteratorFunc
+				ds.AllSoftwareIteratorFunc = func(ctx context.Context, q fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+					queries++
+					return iterator(ctx, q)
+				}
+
+				_, err := Analyze(t.Context(), ds, dir, rules, true, time.Now(), logger)
+				require.NoError(t, err)
+				require.Empty(t, rec.inserted)
+				// No sources to include would otherwise mean iterating all software.
+				require.Equal(t, 1, queries, "want only the Go binaries query")
+				require.NotNil(t, rec.deletedOlderThan)
+			})
+		}
+	})
+
+	t.Run("toolchain installs are found with the given rules", func(t *testing.T) {
+		dir := t.TempDir()
+		writeArtifact(t, dir, "govulndb-2026-09-09.json.gz", testArtifact())
+
+		rules, err := NewToolchainRules(chocolateyRules())
+		require.NoError(t, err)
+		ds, rec := analyzeTestStore(nil, []*fleet.Software{
+			{ID: 10, Name: "golang", Source: "chocolatey_packages", Version: "1.22.4"},
+			{ID: 11, Name: "go", Source: "homebrew_packages", Version: "1.22.4"},
+		})
+
+		_, err = Analyze(t.Context(), ds, dir, rules, true, time.Now(), logger)
+		require.NoError(t, err)
+		require.Equal(t, []fleet.SoftwareVulnerability{
+			{SoftwareID: 10, CVE: "CVE-2024-24791", ResolvedInVersion: new("1.22.5")},
+		}, rec.inserted)
 	})
 }

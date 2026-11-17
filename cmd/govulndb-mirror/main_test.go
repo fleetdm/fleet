@@ -309,6 +309,7 @@ func TestExecutePublishesAHealthyDatabase(t *testing.T) {
 	require.Len(t, artifact.Modules, 2, "want stdlib and github.com/example/tool")
 	require.Contains(t, artifact.Modules, govulndb.StdlibModule)
 	require.Contains(t, artifact.Modules, "github.com/example/tool")
+	require.Equal(t, govulndb.PublishedToolchainInstalls(), artifact.ToolchainInstalls)
 }
 
 func TestExecuteAcceptsATrailingSlashOnTheURL(t *testing.T) {

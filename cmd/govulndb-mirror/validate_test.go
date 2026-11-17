@@ -18,7 +18,11 @@ func artifactOf(counts map[string]int) *govulndb.Artifact {
 		}
 		modules[module] = advisories
 	}
-	return &govulndb.Artifact{SchemaVersion: govulndb.SchemaVersion, Modules: modules}
+	return &govulndb.Artifact{
+		SchemaVersion:     govulndb.SchemaVersion,
+		Modules:           modules,
+		ToolchainInstalls: govulndb.PublishedToolchainInstalls(),
+	}
 }
 
 // modulesOf builds an artifact of n modules, each with one advisory, always including stdlib.
@@ -51,6 +55,62 @@ func TestValidateRejectsArtifactWithoutStdlib(t *testing.T) {
 	err := validate(artifact, nil, defaultMaxDropPercent)
 
 	requireSuspect(t, err, govulndb.StdlibModule)
+}
+
+// Without the rules, servers fall back to the ones they were built with, so a fix shipped in the
+// rules would silently stop reaching them.
+func TestValidateRejectsArtifactWithoutToolchainRules(t *testing.T) {
+	artifact := modulesOf(10)
+	artifact.ToolchainInstalls = nil
+
+	requireSuspect(t, validate(artifact, nil, defaultMaxDropPercent), "toolchain install rules")
+}
+
+// Servers apply whatever rules are published, and NVD skips everything they claim, so a broad or
+// misdirected rule would remove vulnerabilities from customer hosts.
+func TestValidateRejectsUnsafeToolchainRules(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		mutate  func(*govulndb.ToolchainInstallRule)
+		wantErr string
+	}{
+		{name: "no source", mutate: func(r *govulndb.ToolchainInstallRule) { r.Source = "" }, wantErr: "source"},
+		{
+			// Distributions backport fixes without changing the upstream version.
+			name: "deb packages", mutate: func(r *govulndb.ToolchainInstallRule) { r.Source = "deb_packages" }, wantErr: "deb_packages",
+		},
+		{name: "rpm packages", mutate: func(r *govulndb.ToolchainInstallRule) { r.Source = "rpm_packages" }, wantErr: "rpm_packages"},
+		{name: "go binaries", mutate: func(r *govulndb.ToolchainInstallRule) { r.Source = "go_binaries" }, wantErr: "go_binaries"},
+		{
+			name:    "no names",
+			mutate:  func(r *govulndb.ToolchainInstallRule) { r.Names, r.NamePrefixes = nil, nil },
+			wantErr: "names",
+		},
+		{name: "empty name", mutate: func(r *govulndb.ToolchainInstallRule) { r.Names = []string{""} }, wantErr: "empty name"},
+		{name: "short prefix", mutate: func(r *govulndb.ToolchainInstallRule) { r.NamePrefixes = []string{"go"} }, wantErr: "prefix"},
+		{name: "no versions", mutate: func(r *govulndb.ToolchainInstallRule) { r.Versions = nil }, wantErr: "versions"},
+		{
+			name: "pattern without a capture group",
+			mutate: func(r *govulndb.ToolchainInstallRule) {
+				r.Versions = []govulndb.VersionSource{{Field: "version", Pattern: `^.+$`}}
+			},
+			wantErr: "capture group",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			artifact := modulesOf(10)
+			tc.mutate(&artifact.ToolchainInstalls.Rules[0])
+
+			requireSuspect(t, validate(artifact, nil, defaultMaxDropPercent), "toolchain install rules", tc.wantErr)
+		})
+	}
+
+	t.Run("no rules", func(t *testing.T) {
+		artifact := modulesOf(10)
+		artifact.ToolchainInstalls.Rules = nil
+
+		requireSuspect(t, validate(artifact, nil, defaultMaxDropPercent), "toolchain install rules", "no rules")
+	})
 }
 
 // The very first run has nothing to compare against, which must not stop it publishing.
