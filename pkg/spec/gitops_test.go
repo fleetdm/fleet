@@ -2054,6 +2054,7 @@ func TestGitOpsPolicyAutomationKeys(t *testing.T) {
   query: SELECT 1;
   calendar_events_enabled: false
   conditional_access_enabled: false
+  resend_configuration_profile: " "
   webhooks_and_tickets_enabled: true
 `)
 		require.NoError(t, err)

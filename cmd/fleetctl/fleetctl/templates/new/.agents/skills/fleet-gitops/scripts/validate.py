@@ -1023,7 +1023,8 @@ def check_policies(ctx, fs, policies):
                 ctx.fail(isrc, f"{what}: needs a 'query'")
             else:
                 check_query(ctx, isrc, what, item["query"], platforms, is_policy=True)
-        automations = [k for k in AUTOMATION_KEYS if item.get(k)]
+        # A blank profile name means no profile, like a key set to false.
+        automations = [k for k in AUTOMATION_KEYS if (item[k].strip() if isinstance(item.get(k), str) else item.get(k))]
         if len(automations) > 1:
             ctx.fail(isrc, f"{what}: a policy can only have one automation, but it sets {', '.join(automations)}")
         fleet_only = [k for k in automations if k != "webhooks_and_tickets_enabled"]
@@ -1202,15 +1203,16 @@ def run_checks(ctx):
             ctx.fail(src, "top level must be a mapping")
             continue
         check_removed_keys(ctx, src, data)
-        org_ref = data.get("org_settings")
-        org_path = org_ref.get("path") if isinstance(org_ref, dict) else None
-        if isinstance(org_path, str) and org_path.startswith("$"):
-            ctx.info(src, f"org_settings: path {org_path} is an environment variable; not resolved, removed-key checks skipped")
-        elif isinstance(org_path, str):
-            org_file = Path(src).parent / org_path
-            org_data = load_yaml_file(ctx, org_file) if org_file.is_file() else None
-            if isinstance(org_data, dict):
-                check_removed_keys(ctx, org_file, {"org_settings": org_data})
+        for settings_key in ("org_settings", "settings"):
+            ref = data.get(settings_key)
+            ref_path = ref.get("path") if isinstance(ref, dict) else None
+            if isinstance(ref_path, str) and ref_path.startswith("$"):
+                ctx.info(src, f"{settings_key}: path {ref_path} is an environment variable; not resolved, removed-key checks skipped")
+            elif isinstance(ref_path, str):
+                ref_file = Path(src).parent / ref_path
+                ref_data = load_yaml_file(ctx, ref_file) if ref_file.is_file() else None
+                if isinstance(ref_data, dict):
+                    check_removed_keys(ctx, ref_file, {settings_key: ref_data})
         for k in list(data):
             if k in DEPRECATED_TOP_LEVEL:
                 ctx.warn(src, f"'{k}' is deprecated; use '{DEPRECATED_TOP_LEVEL[k]}'")

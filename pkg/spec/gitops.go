@@ -2400,7 +2400,7 @@ func checkPolicyAutomationKeys(filePath string, teamName *string, policy *GitOps
 	}{
 		{policy.InstallSoftware.Bool || (policy.InstallSoftware.IsOther && policy.InstallSoftware.Other != nil), "install_software"},
 		{policy.RunScript != nil, "run_script"},
-		{policy.ResendConfigurationProfile != "", "resend_configuration_profile"},
+		{strings.TrimSpace(policy.ResendConfigurationProfile) != "", "resend_configuration_profile"},
 		{policy.CalendarEventsEnabled, "calendar_events_enabled"},
 		{policy.ConditionalAccessEnabled, "conditional_access_enabled"},
 		{policy.WebhooksAndTicketsEnabled, "webhooks_and_tickets_enabled"},
