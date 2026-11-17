@@ -22,7 +22,6 @@ import (
 	"compress/bzip2"
 	"compress/zlib"
 	"crypto"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
@@ -196,9 +195,15 @@ func XARHasDistribution(r io.Reader) (bool, error) {
 
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
-func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
-	h := sha256.New()
-	size, _ := io.Copy(h, tfr) // writes to a hash cannot fail
+func ExtractXARMetadata(tfr fleet.InstallerReader) (*InstallerMetadata, error) {
+	sum, err := installerSHA256(tfr)
+	if err != nil {
+		return nil, err
+	}
+	size, err := tfr.Size()
+	if err != nil {
+		return nil, fmt.Errorf("get xar size: %w", err)
+	}
 	if err := tfr.Rewind(); err != nil {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
@@ -227,7 +232,7 @@ func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 			if err != nil {
 				return nil, fmt.Errorf("parsing Distribution file: %w", err)
 			}
-			meta.SHASum = h.Sum(nil)
+			meta.SHASum = sum
 			return meta, nil
 
 		case "PackageInfo":
@@ -246,11 +251,11 @@ func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parsing PackageInfo file: %w", err)
 		}
-		meta.SHASum = h.Sum(nil)
+		meta.SHASum = sum
 		return meta, nil
 	}
 
-	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
+	return &InstallerMetadata{SHASum: sum}, nil
 }
 
 func readXARFileHeader(r io.Reader) (xarHeader, error) {

@@ -52,10 +52,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, err
 	}
 	if payload.StagedUploadID != "" {
-		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+		var staged fleet.InstallerReadCloser
+		staged, err = svc.openStagedSoftwareUpload(ctx, payload.StagedUploadID)
+		if err != nil {
 			return nil, err
 		}
-		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
+		payload.InstallerFile = staged
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, staged, &err)
 	}
 
 	if payload.AutomaticInstall {
@@ -370,10 +373,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, err
 	}
 	if payload.StagedUploadID != "" {
-		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+		var staged fleet.InstallerReadCloser
+		staged, err = svc.openStagedSoftwareUpload(ctx, payload.StagedUploadID)
+		if err != nil {
 			return nil, err
 		}
-		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
+		payload.InstallerFile = staged
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, staged, &err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -2660,7 +2666,7 @@ func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoft
 		return ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		if err := svc.softwareInstallStore.Put(ctx, payload.StorageID, payload.InstallerFile); err != nil {
+		if err := svc.putInstaller(ctx, payload.StorageID, payload.InstallerFile); err != nil {
 			return ctxerr.Wrap(ctx, err, "storing installer")
 		}
 	}
@@ -3279,7 +3285,10 @@ var installerDownloadStallTimeout = 60 * time.Second
 
 var errInstallerDownloadStalled = errors.New("installer download stalled")
 
-// stallResetReader pushes the download stall timer back on every read that returns bytes.
+// stallResetReader runs the download stall timer only while a read waits on
+// the network. The timer is stopped between reads, so time the consumer spends
+// on the bytes (e.g. uploading them to the installer store when streaming)
+// doesn't count as a stall.
 type stallResetReader struct {
 	r       io.Reader
 	timer   *time.Timer
@@ -3287,10 +3296,9 @@ type stallResetReader struct {
 }
 
 func (s stallResetReader) Read(p []byte) (int, error) {
+	s.timer.Reset(s.timeout)
 	n, err := s.r.Read(p)
-	if n > 0 {
-		s.timer.Reset(s.timeout)
-	}
+	s.timer.Stop()
 	return n, err
 }
 
@@ -3299,8 +3307,14 @@ func (s stallResetReader) Read(p []byte) (int, error) {
 //
 // On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304 and a
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
-func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
+//
+// If streamStore is not nil, the installer is streamed to a staging object of
+// that store instead of a temp file.
+func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64, streamStore fleet.StreamingInstallerStore) (*http.Response, fleet.InstallerReadCloser, error) {
 	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(maxInstallerSize))
+	// The reader of a streamed installer outlives this call, so its requests
+	// must use the caller's context, not the stall context cancelled on return.
+	readerCtx := ctx
 
 	// The client has no timeout so large installers can finish, which leaves a server that stops sending free to
 	// hang the batch. The stall timer cancels the request instead, before or after the headers arrive.
@@ -3365,7 +3379,13 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 		)
 	}
 
-	tfr, err := fleet.NewTempFileReader(stallResetReader{r: resp.Body, timer: stall, timeout: timeout}, nil)
+	body := stallResetReader{r: resp.Body, timer: stall, timeout: timeout}
+	var tfr fleet.InstallerReadCloser
+	if streamStore != nil {
+		tfr, err = fleet.StageInstaller(ctx, readerCtx, streamStore, body, file.NewTarGzStreamValidator())
+	} else {
+		tfr, err = fleet.NewTempFileReader(body, nil)
+	}
 	if err != nil {
 		if stallErr := stalledErr(); stallErr != nil {
 			return nil, nil, stallErr
@@ -3495,15 +3515,16 @@ func (svc *Service) softwareBatchUpload(
 	defer close(done)
 
 	maxInstallerSize := svc.config.Server.MaxInstallerSizeBytes
-	downloadURLFn := func(ctx context.Context, downloadURL string, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
-		return downloadInstallerURL(ctx, downloadURL, ifNoneMatch, maxInstallerSize)
+	streamStore := svc.streamingInstallerStore()
+	downloadURLFn := func(ctx context.Context, downloadURL string, ifNoneMatch string) (*http.Response, fleet.InstallerReadCloser, error) {
+		return downloadInstallerURL(ctx, downloadURL, ifNoneMatch, maxInstallerSize, streamStore)
 	}
 
 	// retryDownload wraps downloadURLFn with the standard retry policy.
 	// Note: a 304 response returns nil error and is treated as success (not retried).
-	retryDownload := func(ctx context.Context, downloadURL, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
+	retryDownload := func(ctx context.Context, downloadURL, ifNoneMatch string) (*http.Response, fleet.InstallerReadCloser, error) {
 		var resp *http.Response
-		var tfr *fleet.TempFileReader
+		var tfr fleet.InstallerReadCloser
 		err := retry.Do(func() error {
 			// Close resources from a previous attempt to avoid leaking
 			// file descriptors, temp files, and HTTP connections.
@@ -3586,7 +3607,7 @@ func (svc *Service) softwareBatchUpload(
 	// critical to avoid data race, the slices are pre-allocated and each
 	// goroutine only writes to its index.
 	installers := make([]*installerPayloadWithExtras, len(payloads))
-	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
+	toBeClosedTFRs := make([]fleet.InstallerReadCloser, len(payloads))
 
 	setDownloadProgress := func(payloadIndex int, status fleet.SoftwarePackageDownloadStatus) {
 		downloadProgressMutex.Lock()

@@ -559,7 +559,6 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
 		PostInstallScript: req.PostInstallScript,
-		InstallerFile:     tfr,
 		StagedUploadID:    req.StagedUploadID,
 		Filename:          req.Filename,
 		SelfService:       req.SelfService,
@@ -569,6 +568,10 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		AutomaticInstall:  req.AutomaticInstall,
 		Configuration:     req.Configuration,
+	}
+	if tfr != nil {
+		// Only set when non-nil, so the interface field isn't a typed nil.
+		payload.InstallerFile = tfr
 	}
 
 	installer, err := svc.UploadSoftwareInstaller(ctx, payload)

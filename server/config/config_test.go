@@ -1645,3 +1645,42 @@ func TestRemovedConfigKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateStreamInstallerDownloads(t *testing.T) {
+	cases := []struct {
+		name    string
+		cfg     FleetConfig
+		wantErr string
+	}{
+		{name: "disabled without object store"},
+		{
+			name:    "enabled without object store",
+			cfg:     FleetConfig{CloudStorage: CloudStorageConfig{StreamInstallerDownloads: true}},
+			wantErr: "cloud_storage.stream_installer_downloads requires",
+		},
+		{
+			name: "enabled with s3",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b"},
+				CloudStorage: CloudStorageConfig{StreamInstallerDownloads: true},
+			},
+		},
+		{
+			name: "enabled with azure",
+			cfg: FleetConfig{CloudStorage: CloudStorageConfig{
+				StreamInstallerDownloads: true,
+				Azure:                    AzureConfig{SoftwareInstallersContainer: "c"},
+			}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := c.cfg.ValidateStreamInstallerDownloads()
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}

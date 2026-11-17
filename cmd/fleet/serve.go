@@ -607,6 +607,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Must run before initOrgLogoStore, which picks the object store backend regardless of license tier.
 	config.ValidateSoftwareInstallersBackend(initFatal)
 	softwareInstallersBackend, _ := config.SoftwareInstallersBackend()
+	if err := config.ValidateStreamInstallerDownloads(); err != nil {
+		initFatal(err, "validating cloud storage config")
+	}
 
 	orgLogoStore := initOrgLogoStore(ctx, softwareInstallersBackend, config.S3, config.CloudStorage.Azure, mds, logger)
 
@@ -1383,6 +1386,14 @@ func newAzureSoftwareInstallerStores(ctx context.Context, cfg configpkg.AzureCon
 		initFatal(err, "initializing Azure Blob software title icon store")
 	}
 	logger.InfoContext(ctx, "using Azure Blob software title icon store", "container", cfg.SoftwareInstallersContainer)
+
+	// Azure doesn't support client uploads straight to the store, but the store
+	// holds the staging objects of streamed installer downloads, which the
+	// staged uploads cleanup removes if abandoned.
+	stores.stagedUpload, err = azure.NewStagedUploadStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob staged upload store")
+	}
 
 	return stores
 }

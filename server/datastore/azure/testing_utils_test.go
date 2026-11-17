@@ -49,12 +49,7 @@ type testStoreIface interface {
 func setupTestStore[T testStoreIface](tb testing.TB, container string, newFn func(config.AzureConfig) (T, error)) T {
 	checkTestEnv(tb)
 
-	store, err := newFn(config.AzureConfig{
-		SoftwareInstallersAccountName:  testAccountName,
-		SoftwareInstallersAccountKey:   testAccountKey,
-		SoftwareInstallersContainer:    container,
-		SoftwareInstallersContainerURL: testContainerURL,
-	})
+	store, err := newFn(testAzureConfig(container))
 	require.NoError(tb, err)
 
 	err = store.CreateTestContainer(context.Background(), container)
@@ -72,5 +67,14 @@ func setupTestStore[T testStoreIface](tb testing.TB, container string, newFn fun
 func checkTestEnv(tb testing.TB) {
 	if _, ok := os.LookupEnv("AZURE_STORAGE_TEST"); !ok {
 		tb.Skip("set AZURE_STORAGE_TEST environment variable to run Azure-based tests")
+	}
+}
+
+func testAzureConfig(container string) config.AzureConfig {
+	return config.AzureConfig{
+		SoftwareInstallersAccountName:  testAccountName,
+		SoftwareInstallersAccountKey:   testAccountKey,
+		SoftwareInstallersContainer:    container,
+		SoftwareInstallersContainerURL: testContainerURL,
 	}
 }

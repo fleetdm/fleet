@@ -197,6 +197,27 @@ func TestAutoUpdateDownloadsAndPromotes(t *testing.T) {
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 }
 
+func TestAutoUpdateStreamsDownload(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	store := mocksoftware.NewMemStreamingInstallerStore()
+	require.NoError(t, AutoUpdateFleetMaintainedApps(t.Context(), ds, store, discardLogger(), WithStreamInstallerDownloads(true)))
+
+	require.Equal(t, 1, srv.installerHits)
+	require.NotNil(t, gotPayload)
+	require.Equal(t, srv.sha, gotPayload.StorageID)
+	// Promoted from the staging object, not uploaded with Put.
+	require.False(t, store.PutFuncInvoked)
+	require.Equal(t, srv.bytes, store.Installers[srv.sha])
+	require.Zero(t, store.StagingCount())
+}
+
 func TestAutoUpdateByteDedupSkipsDownload(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := baseDownloadStore(t, "149.0.0", 9)
@@ -662,7 +683,7 @@ func TestAutoUpdateCachedMissingPutFailure(t *testing.T) {
 	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return true, srv.sha, nil }
 	store := memStore()
 	store.PutFunc = func(context.Context, string, io.ReadSeeker) error { return errors.New("read-only store") }
-	version, err := downloadNewVersionIfEligible(t.Context(), ds, store, discardLogger(),
+	version, err := downloadNewVersionIfEligible(t.Context(), ds, store, nil, discardLogger(),
 		fleet.FMAAutoUpdateCandidate{TeamID: new(uint(1)), FleetMaintainedAppID: testFMAAppID, Slug: testFMASlug},
 		"", srv.srv.Client(), map[string]*manifestEntry{})
 	require.ErrorContains(t, err, "read-only store")
@@ -677,7 +698,7 @@ func TestAutoUpdateCachedExistsError(t *testing.T) {
 	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return true, srv.sha, nil }
 	store := memStore()
 	store.ExistsFunc = func(context.Context, string) (bool, error) { return false, errors.New("AccessDenied") }
-	version, err := downloadNewVersionIfEligible(t.Context(), ds, store, discardLogger(),
+	version, err := downloadNewVersionIfEligible(t.Context(), ds, store, nil, discardLogger(),
 		fleet.FMAAutoUpdateCandidate{TeamID: new(uint(1)), FleetMaintainedAppID: testFMAAppID, Slug: testFMASlug},
 		"", srv.srv.Client(), map[string]*manifestEntry{})
 	require.ErrorContains(t, err, "AccessDenied")
