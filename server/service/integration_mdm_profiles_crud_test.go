@@ -318,7 +318,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
 		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
-		assertAppleDeclaration(name+".json", name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %q is not allowed`, name))
+		assertAppleDeclaration(name+".json", name+"-ident", 0, nil, http.StatusUnprocessableEntity, fmt.Sprintf(`name %q is not allowed`, name))
 		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't add. Profile name %q is not allowed.`, name))
 	}
 

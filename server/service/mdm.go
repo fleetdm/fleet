@@ -3375,7 +3375,7 @@ func getAppleProfiles(
 				reason := err.Error()
 				name := fmt.Sprintf("apple_settings.configuration_profiles[%d]", i)
 				if iae, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok && iae.HasErrors() {
-					reason = iae.Invalid()[0]["reason"]
+					reason = iae.Invalid()[0]["reason"] // nolint:nilaway // iae.HasErrors check length, so [0] is not a nil potential
 					name = fmt.Sprintf("%s.%s", name, iae.Invalid()[0]["name"])
 				}
 				return nil, nil, ctxerr.Wrap(ctx,
