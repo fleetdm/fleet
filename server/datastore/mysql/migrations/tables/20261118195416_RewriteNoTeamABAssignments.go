@@ -9,13 +9,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118163029, Down_20261118163029)
+	MigrationClient.AddMigration(Up_20261118195416, Down_20261118195416)
 }
 
-// Up_20261118163029 rewrites "No team", in any letter case, in the stored Apple Business assignments to the empty string that
+// Up_20261118195416 rewrites "No team", in any letter case, in the stored Apple Business assignments to the empty string that
 // unassigned saves as. Fleet 5 rejects "No team", and GET /config and generate-gitops would hand it back. Old key names are covered too,
 // in case the key renames have not run yet.
-func Up_20261118163029(tx *sql.Tx) error {
+func Up_20261118195416(tx *sql.Tx) error {
 	var raw []byte
 	switch err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1 FOR UPDATE`).Scan(&raw); {
 	case errors.Is(err, sql.ErrNoRows):
@@ -48,6 +48,6 @@ func Up_20261118163029(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261118163029(tx *sql.Tx) error {
+func Down_20261118195416(tx *sql.Tx) error {
 	return nil
 }

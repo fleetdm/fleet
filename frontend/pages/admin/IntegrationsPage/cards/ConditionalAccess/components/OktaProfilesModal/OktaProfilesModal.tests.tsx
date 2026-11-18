@@ -40,9 +40,7 @@ const windowsProfilesErrorHandler = http.get(
     HttpResponse.json(
       {
         message: "Bad request",
-        errors: [
-          { name: "base", reason: "global enroll secret is not configured" },
-        ],
+        errors: [{ name: "base", reason: "server URL is not configured" }],
       },
       { status: 400 }
     )
@@ -98,11 +96,6 @@ describe("OktaProfilesModal", () => {
       expect(getCopyButton("certificate profile")).toBeEnabled();
     });
     expect(getCopyButton("browser profile")).toBeEnabled();
-    expect(
-      screen.getByText(
-        "Replace the placeholder with a global enroll secret before uploading. For GitOps, use a secret variable instead."
-      )
-    ).toBeInTheDocument();
 
     // Spy after render: user-event's setup() replaces navigator.clipboard
     const writeTextSpy = jest.spyOn(navigator.clipboard, "writeText");
@@ -123,7 +116,7 @@ describe("OktaProfilesModal", () => {
 
     await waitFor(() => {
       expect(notify.error).toHaveBeenCalledWith(
-        expect.stringContaining("global enroll secret is not configured"),
+        expect.stringContaining("server URL is not configured"),
         expect.anything()
       );
     });

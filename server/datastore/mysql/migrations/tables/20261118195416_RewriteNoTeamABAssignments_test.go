@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261118163029(t *testing.T) {
+func TestUp_20261118195416(t *testing.T) {
 	db := applyUpToPrev(t)
 	// "No team" in any letter case is rewritten, under both the new and the old key names, and nothing else is.
 	execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_business', CAST(? AS JSON),
