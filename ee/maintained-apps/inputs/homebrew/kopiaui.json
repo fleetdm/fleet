@@ -1,0 +1,10 @@
+{
+  "name": "KopiaUI",
+  "unique_identifier": "io.kopia.ui",
+  "token": "kopiaui",
+  "installer_format": "dmg",
+  "slug": "kopiaui/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}
