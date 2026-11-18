@@ -8,6 +8,8 @@ This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and 
 
 macOS setup features require [connecting Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
+You can also configure the setup experience with [GitOps](https://fleetdm.com/docs/configuration/yaml-files#setup-experience) or the [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+
 > For macOS, Fleet only installs setup experience software and run scripts on newly enrolling, or re-enrolling, Macs (not during migration).
 
 Below is the end user experience for macOS. Check out the separate videos for [iOS](https://www.youtube.com/watch?v=bPtr3Qgp1JY), [iPadOS](https://www.youtube.com/watch?v=sK3ZR2iItJY), and [Android](https://www.youtube.com/watch?v=-zB1zgtGAMs).
@@ -345,14 +347,6 @@ To replace the Fleet logo in the setup experience window with your organization'
 3. Press **Save**.
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
-
-## Configuring via REST API
-
-Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
-
-## Configuring via GitOps
-
-To manage setup experience software and script using Fleet's best practice GitOps, check out the `setup_experience` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)
 
 ## Advanced
 
