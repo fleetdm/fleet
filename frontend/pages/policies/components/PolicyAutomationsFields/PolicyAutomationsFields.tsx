@@ -51,6 +51,9 @@ const NONE = "none";
 const WEBHOOK_OR_TICKET_ADMIN_ONLY =
   "Only admins can turn the webhook or ticket automation on or off.";
 
+const SET_BY_PATCH =
+  "To choose another automation, select End user initiated (manual) under Patch.";
+
 /** Result returned to the parent on save. Field-level validation errors are
  *  displayed within the component itself; the parent only needs `isValid` to
  *  decide whether to stop the submit. */
@@ -509,8 +512,14 @@ const PolicyAutomationsFields = forwardRef<
       },
     ];
     if (!isGlobalPolicy) {
+      // A patch policy's software automation is set by the Patch options.
+      if (patchOption === undefined) {
+        automationOptions.push({
+          label: "Install software",
+          value: "software",
+        });
+      }
       automationOptions.push(
-        { label: "Install software", value: "software" },
         { label: "Run script", value: "script" },
         {
           label: "Resend configuration profile",
@@ -538,10 +547,23 @@ const PolicyAutomationsFields = forwardRef<
       });
     }
 
-    const selectedAutomationOption =
-      automationOptions.find(
-        (o) => o.value === (effectiveAutomation ?? NONE)
-      ) ?? automationOptions[0];
+    const isPatching = patchOption !== undefined && patchOption !== "manual";
+    // A patching policy's automation is software, which isn't an option.
+    const patchingOption: CustomOptionType = {
+      label: "Install software",
+      value: "software",
+    };
+    const selectedAutomationOption = isPatching
+      ? patchingOption
+      : automationOptions.find(
+          (o) => o.value === (effectiveAutomation ?? NONE)
+        ) ?? automationOptions[0];
+
+    const getAutomationDisabledTooltip = () => {
+      if (isWebhookOrTicketLocked) return WEBHOOK_OR_TICKET_ADMIN_ONLY;
+      if (isPatching) return SET_BY_PATCH;
+      return undefined;
+    };
 
     const renderItemPicker = () => {
       if (showSoftwarePicker) {
@@ -665,16 +687,9 @@ const PolicyAutomationsFields = forwardRef<
               label="Automation"
               ariaLabel="Automation"
               isDisabled={
-                disableChildren ||
-                isWebhookOrTicketLocked ||
-                // A patching patch policy's automation follows the Patch radios.
-                (patchOption !== undefined && patchOption !== "manual")
+                disableChildren || isWebhookOrTicketLocked || isPatching
               }
-              disabledTooltipContent={
-                isWebhookOrTicketLocked
-                  ? WEBHOOK_OR_TICKET_ADMIN_ONLY
-                  : undefined
-              }
+              disabledTooltipContent={getAutomationDisabledTooltip()}
               value={selectedAutomationOption}
               options={automationOptions}
               onChange={handleSelectAutomation}

@@ -920,6 +920,36 @@ describe("PolicyAutomationsFields — Automation dropdown", () => {
     });
   });
 
+  it("leaves software to the Patch options on a patch policy", async () => {
+    const { user } = renderWithHandle(
+      {
+        type: "patch",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+      },
+      undefined,
+      { patchOption: "manual", automationsConfig: webhookConfig }
+    );
+
+    expect(optionLabels(await openAutomationOptions(user))).not.toContain(
+      "Install software"
+    );
+  });
+
+  it("shows software and locks the dropdown while a patch policy patches", () => {
+    renderWithHandle(
+      {
+        type: "patch",
+        automation_type: "software",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+      },
+      undefined,
+      { patchOption: "closed" }
+    );
+
+    expect(screen.getByText("Install software")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Automation" })).toBeDisabled();
+  });
+
   describe("for a maintainer", () => {
     const renderAsMaintainer = createCustomRenderer({
       context: {
