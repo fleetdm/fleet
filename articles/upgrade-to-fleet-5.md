@@ -66,6 +66,11 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 | `team` as a target type | `fleet` |
 | `team_id` and `team_name` columns in the hosts CSV | `fleet_id` and `fleet_name` columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
 | `macos_team_id`, `ios_team_id`, `ipados_team_id`, and `byod_team_id` when you assign fleets to an Apple Business token | `macos_fleet_id`, `ios_fleet_id`, `ipados_fleet_id`, and `byod_fleet_id` |
+| `"No team"` and `"All teams"` as fleet names in `POST /spec/policies`, `POST /spec/certificates`, and the `apple_business` and `volume_purchasing_program` settings in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `"Unassigned"` and `"All fleets"` |
+| `"No team"` as the name of hosts that aren't in a fleet (fleet `0`) in responses, like `GET /fleets/0`, `GET /ab_tokens`, `GET /vpp_tokens`, and `fleet_name` in activity details | `"Unassigned"` |
+| `team_id` under `data` in the host status webhook | `fleet_id` |
+
+Fleet 5 returns a `410` error for the removed endpoints and a `422` error for the removed names. Both errors link to this guide.
 
 #### What to do
 
@@ -73,9 +78,11 @@ Fleet 4 already supports the `/fleets` endpoints and `fleet_id`, so change them 
 
 1. Search your scripts and integrations for the old names:
    ```sh
-   grep -rnE '/fleet/teams|/teams\b|team_ids?\b|team_name|available_teams|(macos|ios|ipados|byod)_team_id' .
+   grep -rnE '/fleet/teams|/teams\b|team_ids?\b|team_name|available_teams|(macos|ios|ipados|byod)_team_id|No team|All teams' .
    ```
 2. Replace each match with its Fleet 5 name.
+   - Fleet 4 doesn't accept `"Unassigned"` in these requests, so change `"No team"` after you upgrade.
+3. If your host status webhook receiver reads `team_id`, change it to read `fleet_id`.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -755,7 +762,9 @@ Change these before you upgrade, so Fleet doesn't rename your fleets.
 
 If you upgrade first, update your YAML to use the new names: `name` in each renamed fleet's file, and any other YAML that refers to those fleets by name, like Apple Business, VPP, and Windows automatic enrollment settings in `default.yml`. Otherwise, your GitOps runs fail.
 
-GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
+Fleet doesn't rename a fleet called "Unassigned" (in any letter case), which older Fleet versions allowed. In Fleet 5, "Unassigned" means hosts that aren't in a fleet, so rename that fleet before you upgrade. Until you do, Fleet 5 rejects "Unassigned" in Apple Business and VPP settings, and policies and certificates that name "Unassigned" apply to hosts that aren't in a fleet instead of that fleet.
+
+GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### $FLEET_VAR_HOST_END_USER_EMAIL_IDP removed
 
@@ -858,12 +867,16 @@ GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
 |:--|:--|
 | `team_settings` in a fleet's YAML file | `settings` |
 | `teams` under `org_settings.mdm.volume_purchasing_program` | `fleets` |
+| `no-team.yml` with `name: No team` | `unassigned.yml` with `name: Unassigned` |
+| `"No team"` and `"All teams"` as fleet names under `apple_business` and `volume_purchasing_program` | `"Unassigned"` and `"All fleets"` |
+| `kind: team`, and the `team` key in a fleet spec, in `fleetctl apply` files | `kind: fleet` and `fleet` |
 
 #### What to do
 
-Fleet 4 already supports the new names, so change them before you upgrade.
+Fleet 4 already supports most of the new names, so change them before you upgrade.
 
-Rename these keys in your YAML files.
+1. Rename these keys and files in your YAML.
+2. Right after you upgrade, before your next GitOps run, change `"No team"` to `"Unassigned"` under `apple_business` and `volume_purchasing_program`. Fleet 4 doesn't accept `"Unassigned"` there, and Fleet 5 doesn't accept `"No team"`.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -1185,11 +1198,13 @@ GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 | `--team` on `fleetctl report`, `user create`, `hosts transfer`, `run-script`, `get reports`, `get labels`, `get hosts`, and `get software` | `--fleet` on the same commands |
 | `-t` on `fleetctl user create` | `--fleet` |
 | `fleetctl generate-gitops --team no-team`, and `no-team` as the value of `--fleet` or `--key` | `--fleet unassigned` and `--key unassigned` |
+| `team` column in `fleetctl get reports` | `fleet` column, which shows "All fleets" for global reports |
 
 #### What to do
 
 1. Search your scripts and CI for `--team`, `-t`, `--policies-team`, `--delete-other-teams`, `DELETE_OTHER_TEAMS`, `no-team`, and `get teams`, and replace each match.
    - The new flags already work in Fleet 4.
+2. If a script reads the output of `fleetctl get reports`, update it for the `fleet` column.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -1429,6 +1444,21 @@ This only applies if you send Fleet server performance data (traces) to a monito
 
 GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
 
+### Server log fields renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `team_id` and `teamID` in Fleet server logs | `fleet_id` |
+| `team_name`, `teams`, and `team_count` in Fleet server logs | `fleet_name`, `fleets`, and `fleet_count` |
+
+Log messages, error messages, and `fleet serve --help` also say "fleet" instead of "team".
+
+#### What to do
+
+Update any log alerts, dashboards, or queries that filter on the old fields.
+
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
+
 
 ## Single sign-on (SSO)
 
@@ -1532,6 +1562,19 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 To keep scripts off, deploy fleetd without `--enable-scripts`.
 
 GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
+
+### Team page links removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Links to `/settings/teams` pages redirect to `/settings/fleets` | Removed. They show a "not found" page. |
+| `team_id` in a Fleet UI link selects a fleet | Removed. Use `fleet_id`. |
+
+#### What to do
+
+Update bookmarks, wiki pages, and runbooks that link to `/settings/teams` or use `team_id` in a Fleet UI link.
+
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 
 ## Deprecated
