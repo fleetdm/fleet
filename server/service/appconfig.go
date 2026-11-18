@@ -2756,9 +2756,21 @@ func (svc *Service) validateABMAssignments(
 		if err != nil {
 			return nil, nil, err
 		}
-		teamsByName := map[string]*uint{"": nil, fleet.DisplayNameNoTeam: nil}
+		teamsByName := map[string]*uint{"": nil}
+		// Fleets created before "Unassigned" was reserved can still have that name.
+		var fleetsNamedUnassigned []string
 		for _, tm := range teams {
 			teamsByName[tm.Name] = &tm.ID
+			if fleet.IsUnassignedFleetName(tm.Name) {
+				fleetsNamedUnassigned = append(fleetsNamedUnassigned, fmt.Sprintf("%q", tm.Name))
+			}
+		}
+		slices.Sort(fleetsNamedUnassigned)
+		fleetID := func(name string) *uint {
+			if fleet.IsUnassignedFleetName(name) {
+				return nil
+			}
+			return teamsByName[norm.NFC.String(name)]
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
@@ -2799,6 +2811,13 @@ func (svc *Service) validateABMAssignments(
 					invalid.Append("mdm.apple_business", reason)
 					return nil, nil, nil
 				}
+				if fleet.IsUnassignedFleetName(tmName) {
+					if len(fleetsNamedUnassigned) > 0 {
+						invalid.Appendf("mdm.apple_business", "fleets with the reserved name Unassigned must be renamed before you assign an Apple Business token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
+						return nil, nil, nil
+					}
+					continue
+				}
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "fleet %s doesn't exist", tmName)
 					return nil, nil, nil
@@ -2811,10 +2830,10 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			tok := tokensByName[orgName]
-			tok.MacOSDefaultTeamID = teamsByName[norm.NFC.String(bm.MacOSTeam)]
-			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
-			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
-			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
+			tok.MacOSDefaultTeamID = fleetID(bm.MacOSTeam)
+			tok.IOSDefaultTeamID = fleetID(bm.IOSTeam)
+			tok.IPadOSDefaultTeamID = fleetID(bm.IpadOSTeam)
+			tok.BYODDefaultTeamID = fleetID(bm.BYODTeam)
 		}
 
 		return tokens, defaultTokenID, nil

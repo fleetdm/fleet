@@ -4502,7 +4502,7 @@ func TestStagedUploadAvailable(t *testing.T) {
 	}
 }
 
-func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
+func TestValidateAssignmentsFleetNames(t *testing.T) {
 	newSvc := func(teams ...*fleet.TeamSummary) *Service {
 		ds := new(mock.Store)
 		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
@@ -4511,9 +4511,21 @@ func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
 		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
 			return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}}, nil
 		}
+		ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1, OrganizationName: "HQ"}}, nil
+		}
 		return &Service{ds: ds}
 	}
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	// AB takes fleet names like VPP, so it is checked with the same fleets.
+	validateABM := func(svc *Service, macOSFleet string) ([]*fleet.ABMToken, *fleet.InvalidArgumentError) {
+		var mdm fleet.MDM
+		mdm.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "HQ", MacOSTeam: macOSFleet}})
+		invalid := &fleet.InvalidArgumentError{}
+		tokens, _, err := svc.validateABMAssignments(t.Context(), &mdm, &fleet.MDM{}, invalid, lic)
+		require.NoError(t, err)
+		return tokens, invalid
+	}
 
 	t.Run("a fleet name in decomposed form resolves to that fleet", func(t *testing.T) {
 		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Caf\u00e9 Macs"})
@@ -4539,6 +4551,14 @@ func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, got)
 		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: "Unassigned", "unassigned"`)
+		_, invalid = validateABM(svc, "unassigned")
+		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign an Apple Business token to Unassigned: "Unassigned", "unassigned"`)
+	})
+
+	t.Run("AB takes Unassigned in any letter case as fleet 0", func(t *testing.T) {
+		tokens, invalid := validateABM(newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}), "UNASSIGNED")
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Nil(t, tokens[0].MacOSDefaultTeamID)
 	})
 
 	t.Run("other fleets still work while a fleet is named Unassigned", func(t *testing.T) {
