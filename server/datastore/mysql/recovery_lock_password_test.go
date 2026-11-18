@@ -2844,6 +2844,30 @@ func testRecoveryLockCurrentPasswordDuringRotation(t *testing.T, ds *Datastore) 
 		requireCurrent(t, host.UUID, oldPw)
 	})
 
+	t.Run("no password after a rotation verify is retried", func(t *testing.T) {
+		host, _ := setupVerified(t, "rot-current-vretry", "rotcurrentvretry")
+
+		setCmd := uuid.NewString()
+		newPw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, setCmd, newPw))
+		verifyCmd := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, setCmd, verifyCmd))
+		requireCurrent(t, host.UUID, newPw)
+
+		// A stale result must leave the in-flight verify and its password intact.
+		require.NoError(t, ds.RetryRecoveryLock(ctx, host.UUID, uuid.NewString()))
+		requireCurrent(t, host.UUID, newPw)
+
+		require.NoError(t, ds.RetryRecoveryLock(ctx, host.UUID, verifyCmd))
+		requireNone(t, host.UUID)
+
+		// The cron queues a fresh password; neither previous password is proven current.
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: host.UUID, Password: apple_mdm.GenerateRecoveryLockPassword(), PendingSetCommandUUID: uuid.NewString()},
+		}))
+		requireNone(t, host.UUID)
+	})
+
 	t.Run("prior password while a rotation is retried", func(t *testing.T) {
 		host, oldPw := setupVerified(t, "rot-current-retry", "rotcurrentretry")
 

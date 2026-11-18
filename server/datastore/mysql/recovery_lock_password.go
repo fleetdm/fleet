@@ -892,12 +892,13 @@ func (ds *Datastore) RetryRecoveryLock(ctx context.Context, hostUUID, commandUUI
 		UPDATE host_recovery_key_passwords
 		SET retry = retry + 1,
 		status = NULL,
+		verify_command_uuid = IF(pending_verify_command_uuid = ?, NULL, verify_command_uuid),
 		pending_set_command_uuid = NULL,
 		pending_verify_command_uuid = NULL
 		WHERE host_uuid = ?
 			AND (pending_set_command_uuid = ? OR pending_verify_command_uuid = ?)
 		  	AND deleted = 0
-	`, hostUUID, commandUUID, commandUUID)
+	`, commandUUID, hostUUID, commandUUID, commandUUID)
 	return ctxerr.Wrap(ctx, err, "retry recovery lock")
 }
 
