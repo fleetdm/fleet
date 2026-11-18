@@ -59,7 +59,7 @@ jobs:
       address: ${{ steps.gen.outputs.address }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -75,7 +75,7 @@ jobs:
     needs: gen
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -187,7 +187,7 @@ jobs:
      token: ${{ steps.login.outputs.token }}
    steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -371,7 +371,7 @@ jobs:
     needs: [gen, login]
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -443,7 +443,8 @@ jobs:
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
-        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        # With a Fleet 5 server, orbit renames its process to fleet.
+        pgrep -x fleet || pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
         # Don't check for Fleet Desktop as it doesn't run in the windowless CI environment.
         echo "All processes are running."
 

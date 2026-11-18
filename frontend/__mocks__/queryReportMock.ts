@@ -1,7 +1,7 @@
 import { IQueryReport } from "interfaces/query_report";
 
 const DEFAULT_QUERY_REPORT_MOCK: IQueryReport = {
-  query_id: 31,
+  report_id: 31,
   results: [
     {
       host_id: 1,

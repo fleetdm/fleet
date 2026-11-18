@@ -2685,17 +2685,17 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	// Adding a team2 host to a team1 label should fail
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam2.ID}, filter)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+	require.ErrorIs(t, err, errLabelMismatchHostTeam)
 
 	// Adding a no-team host to a team1 label should fail
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostNoTeam.ID}, filter)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+	require.ErrorIs(t, err, errLabelMismatchHostTeam)
 
 	// Adding mixed hosts (team1 + team2) to a team1 label should fail
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam1.ID, hostTeam2.ID}, filter)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+	require.ErrorIs(t, err, errLabelMismatchHostTeam)
 
 	// Global label can have hosts from any team
 	globalMembershipLabel, err := ds.NewLabel(ctx, &fleet.Label{
@@ -4424,7 +4424,7 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 		"label_membership_type",
 		"author_id",
 		"criteria",
-		"team_id",
+		"fleet_id",
 		"host_count",
 	} {
 		t.Run("order_"+key, func(t *testing.T) {
@@ -4435,8 +4435,10 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
-		require.Error(t, err)
+		for _, key := range []string{"l.id; SELECT 1", "team_id"} {
+			_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key}, false)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {

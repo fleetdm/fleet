@@ -396,9 +396,9 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	// helper (defense against SQL injection via crafted ORDER BY). The
 	// helper's InvalidOrderKeyError implements the validation-error
 	// interface, so the response is a 422.
-	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&order_key=team_id", h.UUID), nil, http.StatusUnprocessableEntity)
+	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&order_key=not_a_column", h.UUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "team_id")
+	require.Contains(t, errMsg, "not_a_column")
 
 	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&order_key=hostname", h.UUID), nil, http.StatusOK)
 

@@ -63,7 +63,7 @@ export const generateSoftwareTableHeaders = ({
           bundle_identifier,
           source,
           app_store_app,
-          software_package,
+          package: pkg,
           icon_url,
           auto_update_enabled,
           auto_update_window_start,
@@ -75,9 +75,8 @@ export const generateSoftwareTableHeaders = ({
           { fleet_id: teamId }
         );
 
-        const hasInstaller = !!app_store_app || !!software_package;
-        const isSelfService =
-          app_store_app?.self_service || software_package?.self_service;
+        const hasInstaller = !!app_store_app || !!pkg;
+        const isSelfService = app_store_app?.self_service || pkg?.self_service;
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );

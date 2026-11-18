@@ -780,7 +780,7 @@ Clears a policy's pass/fail results. Fleet does this automatically when you edit
 
 ((Global admin)) ((Global GitOps))
 
-Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Okta](https://www.okta.com/), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA. Okta uses NDES under the hood, so Okta CAs use the same `ndes_scep_proxy` object as Microsoft NDES.
+Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [EJBCA](https://www.ejbca.org/), [Okta](https://www.okta.com/), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA. Okta uses NDES under the hood, so Okta CAs use the same `ndes_scep_proxy` object as Microsoft NDES.
 
 
 `POST /api/v1/fleet/certificate_authorities`
@@ -796,6 +796,7 @@ Only one of the objects is allowed in a single request.
 | custom_scep_proxy | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | custom_est_proxy  | object | body | See [custom_est_proxy](#custom-est-proxy) |
 | hydrant           | object | body | See [hydrant](#hydrant) |
+| google_cas        | object | body | See [google_cas](#google-cas) |
 | smallstep         | object | body | See [smallstep](#smallstep) |
 | ejbca             | object | body | See [ejbca](#ejbca) |
 
@@ -809,7 +810,7 @@ Object with the following structure:
 | url | string | **Required** DigiCert instance URL, used as base URL for DigiCert API requests. |
 | api_token | string | **Required** API token used to authenticate requests to DigiCert. |
 | profile_id | string | **Required** The ID of certificate profile in DigiCert. |
-| certificate_common_name | string | **Required** The certificate's common name. Supports these [built-in variables](https://fleetdm.com/guides/fleet-variables): `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, and `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`. |
+| certificate_common_name | string | **Required** The certificate's common name. Supports these [built-in variables](https://fleetdm.com/guides/fleet-variables): `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, and `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID`. |
 | certificate_user_principal_names | array | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Supports the same variables as `certificate_common_name`. |
 | certificate_seat_id | string | **Required** The ID of the DigiCert seat. Seats are license units in DigiCert. Supports the same variables as `certificate_common_name`. |
 
@@ -859,6 +860,19 @@ Object with the following structure:
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
 
+##### google_cas
+
+Object with the following structure:
+
+| Name               | Type      | Description                                                                                          |
+| ------------------ | --------- | ---------------------------------------------------------------------------------------------------- |
+| name               | string    | **Required**. Name of the certificate authority. Only letters, numbers, and underscores are allowed. |
+| project            | string    | **Required**. The Google Cloud project ID that contains the CA pool. |
+| location           | string    | **Required**. The Google Cloud location of the CA pool. |
+| ca_pool            | string    | **Required**. The name of the CA pool with an issuing CA. |
+| api_key_json       | string    | **Required**. The service account JSON key with the CA Service Certificate Manager role. |
+
+
 ##### smallstep
 
 Object with the following structure:
@@ -874,11 +888,21 @@ Object with the following structure:
 
 Object with the following structure:
 
-| Name                    | Type    | Description   |
-| ---------------------   | ------- | ---------------------------------------------------- |
-| name                    | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive). |
-| url                     | string  | **Required**. URL of the EJBCA REST API endpoint. |
-| password                | string  | **Required**. The password for the client certificate. |
+| Name                             | Type    | Description   |
+| -------------------------------- | ------- | ---------------------------------------------------- |
+| name                             | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive), and can't be `NDES`. |
+| url                              | string  | **Required**. URL of your EJBCA instance, used as base URL for EJBCA REST API requests (for example, `https://ejbca.example.com:8443`). Must be an `https` URL without a username or password. |
+| client_p12                       | string  | **Required**. Base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. Must be under 1 MB and the certificate can't be expired. |
+| password                         | string  | **Required**. The password of the PKCS#12 file. |
+| trust_ca_bundle                  | string  | PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance: the root CA and any intermediate CAs. The order doesn't matter. If it's empty, Fleet trusts public CAs. |
+| certificate_authority_name       | string  | **Required**. Name of the CA in EJBCA that issues the certificates (for example, `ManagementCA`). |
+| certificate_profile_name         | string  | **Required**. Name of the certificate profile in EJBCA. |
+| end_entity_profile_name          | string  | **Required**. Name of the end entity profile in EJBCA. |
+| certificate_common_name          | string  | **Required**. The certificate's common name. Supports the same [built-in variables](https://fleetdm.com/guides/fleet-variables) as `digicert`. |
+| username_template                | string  | The username of the end entity that EJBCA creates for each host. Supports the same variables as `certificate_common_name`. Defaults to `certificate_common_name`. |
+| certificate_user_principal_names | array   | The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Supports the same variables as `certificate_common_name`. Only one item is allowed. |
+
+When Fleet adds or edits an EJBCA CA, it checks that EJBCA accepts the client certificate, and that the CA and, when EJBCA can look it up, the certificate profile exist. It can't check the end entity profile.
 
 #### Example
 
@@ -921,6 +945,49 @@ Object with the following structure:
 },
 {
   "id": 7,
+  "name": "EJBCA_WIFI",
+  "type": "ejbca"
+}
+```
+
+#### Example (EJBCA)
+
+`POST /api/v1/fleet/certificate_authorities`
+
+##### Request body
+
+```json
+{
+  "ejbca": {
+    "name": "EJBCA_WIFI",
+    "url": "https://ejbca.example.com:8443",
+    "client_p12": "MIIJ...",
+    "password": "********",
+    "trust_ca_bundle": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
+    "certificate_authority_name": "ManagementCA",
+    "certificate_profile_name": "ENDUSER",
+    "end_entity_profile_name": "WIFI_DEVICES",
+    "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "username_template": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "certificate_user_principal_names": [
+      "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 7,
+  "name": "GOOGLE_WIFI",
+  "type": "google_cas"
+},
+{
+  "id": 8,
   "name": "EJBCA_WIFI",
   "type": "ejbca"
 }
@@ -985,6 +1052,10 @@ When editing a CA, specify one object and only its fields that you want to updat
 
 When you change a DigiCert CA's `certificate_common_name`, `certificate_user_principal_names`, or `certificate_seat_id`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Changing only other fields, like `url` or `api_token`, doesn't reissue certificates.
 
+When you change an EJBCA CA's `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Only changing other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates.
+
+To replace the client certificate of an EJBCA CA, send `client_p12` and `password` together. Fleet keeps the stored client certificate until EJBCA accepts the new one. Fleet never returns `client_p12` or `password`, and ignores either one when it's `********`. Fleet checks the connection to EJBCA when you change `url`, `client_p12`, `trust_ca_bundle`, `certificate_authority_name`, or `certificate_profile_name`.
+
 #### Parameters
 
 | Name            | Type    | In   | Description                                                 |
@@ -996,6 +1067,7 @@ When you change a DigiCert CA's `certificate_common_name`, `certificate_user_pri
 | custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
 | smallstep   | object | body | See [smallstep](#smallstep) |
+| ejbca   | object | body | See [ejbca](#ejbca) |
 
 See [Connect certificate authority](#connect-certificate-authority-ca) above for the structure of each CA object.
 
@@ -1040,6 +1112,12 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
       "type": "digicert"
     },
     {
+      "id": 7,
+      "name": "EJBCA_WIFI",
+      "type": "ejbca",
+      "mtls_cert_expires_at": "2027-10-15T09:21:10Z"
+    },
+    {
       "id": 2,
       "name": "DIGICERT_STAGE",
       "type": "digicert"
@@ -1077,7 +1155,7 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
 
 ((Admin)) ((Maintainer)) ((GitOps))
 
-Get details of the certificate authority.
+Get details of the certificate authority. Secrets, like the API token of a DigiCert CA or the client certificate and password of an EJBCA CA, are masked or not returned.
 
 `GET /api/v1/fleet/certificate_authorities/:id`
 
@@ -1108,6 +1186,44 @@ Get details of the certificate authority.
     "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+},
+{
+  "id": 7,
+  "type": "google_cas",
+  "name": "GOOGLE_WIFI",
+  "project": "my-project",
+  "location": "us-central1",
+  "ca_pool": "my-ca-pool",
+  "api_key_json": "********"
+}
+```
+
+#### Example (EJBCA)
+
+`GET /api/v1/fleet/certificate_authorities/7`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 7,
+  "type": "ejbca",
+  "name": "EJBCA_WIFI",
+  "url": "https://ejbca.example.com:8443",
+  "trust_ca_bundle": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
+  "certificate_authority_name": "ManagementCA",
+  "certificate_profile_name": "ENDUSER",
+  "end_entity_profile_name": "WIFI_DEVICES",
+  "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "username_template": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "certificate_user_principal_names": [
+    "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+  ],
+  "mtls_cert_expires_at": "2027-10-15T09:21:10Z",
+  "created_at": "2026-10-15T09:21:10Z",
+  "updated_at": "2026-10-15T09:21:10Z"
 }
 ```
 
@@ -1313,9 +1429,11 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 ((Global admin)) ((Global maintainer))
 
-Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant), [custom EST](#custom-est-proxy), and [NDES and Okta](#ndes-scep-proxy) (Okta uses NDES under the hood) CAs. Google CA [coming soon](https://github.com/fleetdm/fleet/issues/52623)
+Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant), [custom EST](#custom-est-proxy), [NDES and Okta](#ndes-scep-proxy) (Okta uses NDES under the hood), and [Google CAS](#google-cas) CAs.
 
 For NDES and Okta CAs, the CSR must include a one-time challenge in its `challengePassword` attribute. To get one in a script, use the [`$FLEET_VAR_NDES_SCEP_CHALLENGE`](https://fleetdm.com/guides/fleet-variables) variable.
+
+For Google CAS CAs, the CSR must instead contain exactly one UPN and no other named SANs (email, DNS, URI, IP). Google CAS rejects CSRs that mix named SANs with the UPN. The UPN must match the username returned by the IdP or the host's recorded end user, compared case-insensitively.
 
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
@@ -1529,6 +1647,7 @@ The available metrics are:
 
 - [Get Okta certificate](#get-okta-certificate)
 - [Get Okta configuration profile](#get-okta-configuration-profile)
+- [Get Okta Windows configuration profiles](#get-okta-windows-configuration-profiles)
 - [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
 
 ### Get Okta certificate
@@ -1576,6 +1695,44 @@ None.
 `Status: 200`
 
 Returns an Apple configuration profile file with `Content-Type: application/x-apple-aspen-config`.
+
+### Get Okta Windows configuration profiles
+
+((Global admin)) ((Global maintainer)) ((Global GitOps)) ((Global technician))
+
+_Available in Fleet Premium._
+
+Get the Windows configuration profiles (SyncML) for Okta conditional access. Requires a global admin, maintainer, technician, or GitOps user.
+
+`scep_profile` uses `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` and `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE`, which Fleet fills in when it sends the profile to each host.
+
+The profiles require Windows 11 Pro, Enterprise, or Education. Windows Home isn't supported.
+
+`GET /api/v1/fleet/conditional_access/idp/windows/profiles`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/idp/windows/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scep_profile": "<!-- Fleet conditional access for Okta: SCEP certificate (user store) -->\n<Add>...</Exec>",
+  "browser_profile": "<!-- Fleet conditional access for Okta: Chrome and Edge auto-select the certificate for the mTLS endpoint -->\n<Add>...</Replace>"
+}
+```
+
+| Field | Description |
+| ----- | ----------- |
+| scep_profile | Profile that enrolls the conditional access certificate into the signed-in user's certificate store. |
+| browser_profile | Profile that configures Chrome and Edge to present the certificate to Okta. Optional: without it, the browser asks the end user to pick the certificate. |
 
 ### Delete Microsoft Entra ID
 
@@ -1826,7 +1983,8 @@ None.
     "live_reporting_disabled": false,
     "discard_reports_data": false,
     "ai_features_disabled": false,
-    "ai_sessions_disabled": false
+    "ai_sessions_disabled": false,
+    "mcp_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -1941,6 +2099,8 @@ None.
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
+      "macos_enable_bootstrap_package_during_manual_enrollment": false,
+      "macos_enable_bootstrap_package_during_migration": false,
       "enable_end_user_authentication": false,
       "apple_enable_release_device_manually": false,
       "macos_manual_agent_install": false
@@ -2182,7 +2342,8 @@ Modifies the Fleet's configuration with the supplied information.
     "live_reporting_disabled": false,
     "discard_reports_data": false,
     "ai_features_disabled": false,
-    "ai_sessions_disabled": false
+    "ai_sessions_disabled": false,
+    "mcp_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
@@ -2455,6 +2616,7 @@ Modifies the Fleet's configuration with the supplied information.
 | discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
 | ai_sessions_disabled              | boolean | _Available in Fleet Premium._ Whether Fleet stops collecting AI coding agent sessions from hosts. Sessions already collected are kept until they expire. (Default: `false`) |
+| mcp_disabled                      | boolean | _Available in Fleet Premium._ Whether Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp) is turned off. |
 | report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. This cap doesn't change the per-host limit: Fleet doesn't store a host's results if the host returns more than 1,000 rows. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
@@ -2471,7 +2633,8 @@ Modifies the Fleet's configuration with the supplied information.
     "live_reporting_disabled": false,
     "discard_reports_data": false,
     "ai_features_disabled": false,
-    "ai_sessions_disabled": false
+    "ai_sessions_disabled": false,
+    "mcp_disabled": false
   }
 }
 ```
@@ -3527,13 +3690,7 @@ the `software` table.
 
 `GET /api/v1/fleet/hosts`
 
-> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
-
-> `populate_end_users` runs several extra database queries for each host in the response. Note that `other_emails` is built from the same data as the `device_mapping` parameter, so there's no need to request both.
-
-> Searching with `query` and setting `device_mapping=true` or `populate_end_users=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
-
-> `group_tag` is the Windows Autopilot group tag, and is only returned for hosts synced from a tenant's Autopilot registry. See [Connect Fleet to Microsoft Graph](https://fleetdm.com/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph).
+> `query`, `device_mapping`, `populate_software`, and `populate_end_users` can overload the Fleet server when combined with large page lengths (`per_page`). When using them use a lower `per_page` (e.g. `50`).
 
 #### Parameters
 
@@ -3572,10 +3729,10 @@ the `software` table.
 | macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
-| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. For vulnerability details across many hosts, use `without_vulnerability_details` and the [Get vulnerability](#get-vulnerability) endpoint, which returns details once per vulnerability instead of once per host. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
-| populate_end_users     | boolean | query | If `true`, the response will include end user data for each host, including identity provider (IdP) details and other emails. |
+| populate_end_users     | boolean | query | If `true`, the response will include end user data for each host, including identity provider (IdP) details and other emails. `other_emails` uses the same data as `device_mapping`, so you don't need both. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 | include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
@@ -3599,7 +3756,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 If `order_key` is `os_version`, hosts are sorted by operating system name, then version, and `after` takes both together (for example, `macOS 15.2`), not the `os_version` value alone.
 
-If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe/reset state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`, `reset`, `resetting`. `pending_action` indicates if a lock, unlock, wipe, or reset command is pending with possible values: `lock`, `unlock`, `wipe`, `reset`, or an empty string (no pending action).
+If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe/reset state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`, `reset`, `resetting`. `pending_action` indicates if a lock, unlock, wipe, reset, or unenroll command is pending with possible values: `lock`, `unlock`, `wipe`, `reset`, `unenroll`, or an empty string (no pending action). `unenroll` is only used for personally-owned (BYOD) Android hosts, where turning off MDM removes the work profile. While it's pending, `device_status` stays `unlocked`.
 
 To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
@@ -3856,6 +4013,8 @@ Response payload for a Windows host (other host fields not shown):
 }
 ```
 
+`group_tag` is the Windows Autopilot group tag. It's only returned for hosts synced from a tenant's Autopilot registry. See [Connect Fleet to Microsoft Graph](https://fleetdm.com/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph).
+
 Response payload with the `mdm_id` filter provided:
 
 ```json
@@ -3901,9 +4060,9 @@ Response payload with the `munki_issue_id` filter provided:
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
-| software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
-| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
-| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
+| software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |  
+| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer.      |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -4098,6 +4257,8 @@ To get the number of Linux hosts, use the [Count hosts](#count-hosts) endpoint w
 Returns the information of the host specified using its `id`, `hardware_serial`, `uuid`, or `hostname`.
 
 `GET /api/v1/fleet/hosts/:id`
+
+For iOS, iPadOS, and Android hosts, `google_device_id` is the host's device ID in Google. It's `""` until it's set with [Update host's Google device ID](#update-hosts-google-device-id).
 
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
@@ -4457,7 +4618,6 @@ A profile with `"status": null` is a self-service profile the host can install b
     "scripts_enabled": false,
     "os_name": "iOS",
     "os_version": "17.4.1",
-    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "21E236",
@@ -4474,6 +4634,7 @@ A profile with `"status": null` is a self-service profile the host can install b
     "hardware_model": "iPhone15,2",
     "hardware_version": "iPhone 15 Pro",
     "hardware_serial": "F2LXX1XXXXXX",
+    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "computer_name": "Anna's iPhone",
     "timezone": null,
     "display_name": "Anna's iPhone",
@@ -4802,6 +4963,7 @@ A profile with `"status": null` is a self-service profile the host can install b
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
+    "google_device_id": "8f2e6b1c-4d3a-4c9e-b7a5-1e0f9d2c3b4a",
     "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
     "display_name": "Anna Chao's Google Pixel 9",
@@ -5418,7 +5580,7 @@ _Available in Fleet Premium_
 
 Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
-> On BYOD Android (work profile), Fleet sends a wipe command via the Android Management API. Unlike the [delete device command](https://developers.google.com/android/management/deprovision-device) in the Android Management API, the wipe command does not expire after 30 days. That way, Fleet makes sure that the work profile is wiped even if the host is offline for more than 30 days.
+> On BYOD Android (work profile), Fleet sends a wipe command via the Android Management API. Unlike the [delete device command](https://developers.google.com/android/management/deprovision-device) in the Android Management API, the wipe command does not expire after 30 days. That way, Fleet makes sure that the work profile is wiped even if the host is offline for more than 30 days. Until the host comes online and removes the work profile, the [Get host](#get-host) endpoint returns `mdm.pending_action` as `unenroll`, and another request to this endpoint returns a `409` error.
 
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
@@ -5657,7 +5819,7 @@ _Available in Fleet Premium._
 
 `DELETE /api/v1/fleet/hosts/:id/google_device_id`
 
-Removes the host's device ID in Google, so another device can register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
+Removes the host's device ID in Google and marks the device as unmanaged in Google, so another device can register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
 
 #### Parameters
 
@@ -5672,7 +5834,6 @@ Removes the host's device ID in Google, so another device can register as this h
 ##### Default response
 
 `Status: 204`
-
 
 ### Get host's device health report
 
@@ -6045,7 +6206,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
 
 `skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
-On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
+For App Store apps, `app_store_app.version_id` is the ID of the version of the app that the host is scoped to. `app_store_app.version_name` is that version's name, and it's only included when the app has more than one version on the host's fleet.
 
 #### Example
 
@@ -6412,8 +6573,8 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
-| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
-| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
+| software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer.      |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -6483,6 +6644,25 @@ The host will only return a key if its disk encryption status is "Verified." Get
 ```
 
 `rotation_pending` is `true` while a [rotation request](#rotate-hosts-disk-encryption-key) is waiting for the host to acknowledge it. `key` is the current key until the host acknowledges the rotation.
+
+
+##### Key can't be decrypted
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet has a key for the host but can't decrypt it. For a Windows host that Fleet has asked to escrow a new key, the reason says so, as in this example.
+
+```json
+{
+  "message": "Unprocessable Entity",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Couldn't decrypt the disk encryption key. The host will escrow a new one when it comes online."
+    }
+  ]
+}
+```
 
 ### Rotate host's disk encryption key
 
@@ -8176,6 +8356,78 @@ Deletes the label specified by ID.
 
 ---
 
+## MCP server
+
+- [Use Fleet's MCP server](#use-fleets-mcp-server)
+
+### Use Fleet's MCP server
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+_Available in Fleet Premium._
+
+Connects an AI tool to Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp). Point an MCP client at this URL, using the Streamable HTTP transport. The request body is an MCP JSON-RPC message.
+
+Only API-only users can use this endpoint. If the user is limited to specific API endpoints, each tool also needs the endpoints it calls. To turn the MCP server off, set `server_settings.mcp_disabled` with [Modify configuration](#modify-configuration).
+
+`POST /api/v1/fleet/mcp`
+
+#### Example
+
+`POST /api/v1/fleet/mcp`
+
+##### Request body
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "description": "Get the total count of active systems enrolled in Fleet",
+        "inputSchema": {
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "name": "get_total_system_count"
+      }
+    ]
+  }
+}
+```
+
+#### Errors
+
+| Status | Description |
+| ------ | ----------- |
+| 400    | The MCP server is turned off (`server_settings.mcp_disabled`). |
+| 401    | The API token is missing or invalid. |
+| 402    | Fleet Premium is required. |
+| 403    | The user isn't an API-only user, the user is limited to specific API endpoints that don't include this one, or the `Origin` header doesn't match `server_settings.server_url`. |
+| 405    | `GET` requests aren't supported. |
+
+---
+
 ## OS settings
 
 - [Create configuration profile](#create-configuration-profile)
@@ -8782,6 +9034,14 @@ Returned on Fleet Free, or with an expired license, when the Fleet server has no
 
 ---
 
+```json
+{
+  "warning": "Some Windows settings may not be cleanly removed from hosts and will remain at their last configured value. See https://fleetdm.com/learn-more-about/removal-behavior"
+}
+```
+
+> The `warning` field is only returned when deleting a **Windows** configuration profile. The warning is informational and the profile is successfully deleted regardless. Some settings may remain on hosts at their last configured value but are no longer enforced by Fleet. See [Removal behavior](https://fleetdm.com/guides/custom-os-settings#removal-behavior) for more information.
+
 ### Resend configuration profile
 
 ((Admin)) ((Maintainer)) ((GitOps)) ((Technician))
@@ -9357,7 +9617,7 @@ Sending an empty `name_template` clears the template. Clearing the template stop
 | fleet_id      | integer | body | The fleet ID to apply the host name template to. The template is applied to "Unassigned" hosts if the value is absent or `0`. |
 | name_template | string  | body | The host name template. Send an empty string to clear the template.                                                            |
 
-The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
+The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
 
 If a host is missing the IdP data a variable needs, that host's rename fails. A referenced custom variable must already exist (an undefined one returns a `422`); custom variables are global, and a custom variable's value becomes the host's (publicly visible) name, so it isn't kept hidden as it is in scripts and configuration profiles.
 
@@ -9775,6 +10035,8 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | upload_id | string | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `package` for a package uploaded directly to GCS. |
 | filename | string | body | The package's file name, for example `bootstrap-package.pkg`. Required with `upload_id`. |
 | fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
+| manual_agent_install | boolean | body | If set to `true`, Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts, or on hosts that turn on MDM manually if the bootstrap package is installed during manual enrollment. (Default: `false`) |
+
 
 #### Example
 
@@ -9967,7 +10229,9 @@ _Available in Fleet Premium_
 | macos_require_all_software            | boolean | body  | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | windows_require_all_software          | boolean | body  | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | apple_enable_release_device_manually  | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
-| macos_manual_agent_install            | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| macos_manual_agent_install            | boolean | body  | If set to `true`, Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts, or on hosts that turn on MDM manually if the bootstrap package is installed during manual enrollment. (Default: `false`) |
+| macos_enable_bootstrap_package_during_manual_enrollment | boolean | body | If set to `true`, the bootstrap package is also installed on macOS hosts that turn on MDM manually, rather than automatically via Apple Business. This includes re-enrollment. Requires a bootstrap package. (Default: `false`) |
+| macos_enable_bootstrap_package_during_migration         | boolean | body | If set to `true`, the bootstrap package is installed on macOS hosts assigned to Fleet in Apple Business that migrate from another MDM, including re-enrollment via `sudo profiles renew`. Requires a bootstrap package. (Default: `false`) |
 | macos_managed_local_account_enabled   | boolean | body  | If set to `true`, a hidden managed local admin account is created on macOS hosts during automatic enrollment (ADE). (Default: `false`) |
 | macos_end_user_local_account_type     | string  | body  | The end user's local account type on macOS hosts. Options: `"admin"`, `"standard"`, or `"none"`. `"standard"` and `"none"` require `macos_managed_local_account_enabled` to be `true`. (Default: `"admin"`) |
 | windows_managed_local_account_enabled | boolean | body  | If set to `true`, a hidden managed local admin account is created on Windows hosts with MDM turned on, including hosts enrolled before the setting was turned on. (Default: `false`) |
@@ -15664,7 +15928,8 @@ To add more than one version of the same app, call this endpoint once per versio
 ```json
 {
   "software_title_id": 123,
-  "name": "Xcode"
+  "name": "Xcode",
+  "version_id": 41
 }
 ```
 
@@ -15675,7 +15940,8 @@ To add more than one version of the same app, call this endpoint once per versio
 ```json
 {
   "software_title_id": 456,
-  "name": "Slack"
+  "name": "Slack",
+  "version_id": 42
 }
 ```
 

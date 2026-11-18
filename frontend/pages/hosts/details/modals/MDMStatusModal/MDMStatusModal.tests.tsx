@@ -46,7 +46,7 @@ const mockDepAssignmentResponse = {
     response_updated_at: "2025-12-04 01:35:27",
     added_at: "2025-12-04 01:35:27",
     deleted_at: null,
-    abm_token_id: 1,
+    ab_token_id: 1,
     mdm_migration_deadline: "2025-12-05 00:00:00.000000",
     mdm_migration_completed: "2025-12-05 00:00:00.000000",
   },

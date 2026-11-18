@@ -218,6 +218,13 @@ policies:
   critical: false
   hidden: false
   resend_configuration_profile: "Passcode requirements"
+- name: Windows - Antivirus is healthy
+  description: This policy checks that Windows Security Center reports antivirus protection as healthy.
+  resolution: Turn on Microsoft Defender Antivirus or another antivirus app, and keep it up to date.
+  query: "SELECT 1 FROM windows_security_center WHERE antivirus = 'Good';"
+  platform: windows
+  critical: false
+  conditional_access_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -519,6 +526,8 @@ controls:
         subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
   setup_experience: # Available in Fleet Premium
     macos_bootstrap_package: https://example.org/bootstrap_package.pkg
+    macos_enable_bootstrap_package_during_manual_enrollment: false
+    macos_enable_bootstrap_package_during_migration: false
     enable_end_user_authentication: true
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
@@ -630,7 +639,9 @@ The `apple_account_provisioning` section can only be configured for "All fleets"
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
 - `macos_bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
-- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
+- `macos_enable_bootstrap_package_during_manual_enrollment` specifies whether the bootstrap package is also installed on macOS hosts that turn on MDM manually, rather than automatically via Apple Business. This includes re-enrollment. Requires `bootstrap_package`. Applies to macOS only (default: `false`).
+- `macos_enable_bootstrap_package_during_migration` specifies whether the bootstrap package is installed on macOS hosts assigned to Fleet in Apple Business that migrate from another MDM, including re-enrollment via `sudo profiles renew`. Requires `bootstrap_package`. Applies to macOS only (default: `false`).
+- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. When `true`, fleetd also isn't installed on hosts that turn on MDM manually if the bootstrap package is installed during manual enrollment. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `macos_require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `windows_require_all_software` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
@@ -651,6 +662,8 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 ```yaml
 setup_experience:
   macos_bootstrap_package: "https://your-storage/package.pkg"
+  macos_enable_bootstrap_package_during_manual_enrollment: false
+  macos_enable_bootstrap_package_during_migration: false
   macos_manual_agent_install: false
   enable_end_user_authentication: true
   lock_end_user_info: true
@@ -805,9 +818,9 @@ In all cases, once Fleet collects software inventory, the inventory name is used
 
 You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
 
-`self_service`, `categories`, and labels are defined per package. `setup_experience` is defined on the fleet-level.
+`self_service`, `categories`, and labels are defined per version. `setup_experience` is defined on the fleet-level.
 
-If multiple packages target the same host, Fleet will install the one that was added first.
+If multiple versions target the same host, Fleet will deploy the one that was added first.
 
 > In GitOps, the first package added is the first one in the package YAML file's list on the initial run that adds the title's packages. Reordering the list on a later run doesn't change the order.
 >
@@ -910,15 +923,17 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 - `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
-- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
+
+- `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. Custom icons will only override the icon for the software title and fleet where they are added.
+- `display_name` is the name displayed in the Fleet UI. It applies to every version of the app. If omitted, Fleet uses the app's name from the App Store or Google Play.
 - `setup_experience` installs the app when hosts enroll (default: `false`). It's defined for the app, not per version. Currently, custom targets (labels) don't apply during setup experience, so first added version will be always installed.
 - `versions` is a list of one or more versions (instances) of the app. Fleet always installs the latest version available in the App Store or Google Play. Each version carries its own settings, which lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
   - `name` identifies the version in Fleet (e.g. `Production`). It must be unique for the app on the fleet.
-  - `self_service`, `categories`, `display_name`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration` are defined per version. See [self_service, labels, categories, setup_experience, and display_name](#self_service-labels-categories-setup_experience-and-display_name) for the shared fields.
+  - Each version defines its own `self_service`, `categories`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration`. See [self_service, labels, categories, setup_experience, and display_name](#self-service-labels-categories-setup-experience-and-display-name) for the shared fields.
   - Up to 10 versions are supported per app.
   - If a host is in scope for more than one version, Fleet installs the one that was added first. Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
 - `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
-  - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<Dict></Dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
+  - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<dict></dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
   + Android: all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`.
   - Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
@@ -949,6 +964,8 @@ software:
 ```
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
+
+With the default server configuration, GitOps supports over 200 Android Play Store apps per fleet. If `FLEET_LIVE_QUERY_REST_PERIOD` is set to `30s` or less, GitOps can time out with fewer apps.
 
 #### Example
 
@@ -988,12 +1005,23 @@ software:
 `lib/software/zoom.app-store-app.yml`
 
 ```yaml
-- app_store_id: "546505307"
+- app_store_id: "6443476492"
   platform: ios
-  categories:
-    - "👬 Communication"
-  configuration:
-    path: zoom-config.xml
+  versions:
+    - name: Production
+      categories:
+        - "👬 Communication"
+      labels_exclude_any:
+        - Test
+      configuration:
+        path: ios-cloudflare-one-agent-config-production.xml
+    - name: Test
+      categories:
+        - "👬 Communication"
+      labels_include_any:
+        - Test
+      configuration:
+        path: ios-cloudflare-one-agent-config-test.xml
 ```
 
 ### fleet_maintained_apps
@@ -1227,6 +1255,7 @@ org_settings:
 - `ai_sessions_disabled` stops Fleet from collecting AI coding agent sessions from hosts. Sessions already collected are kept until they expire, 30 days after they were last active. Available in Fleet Premium. (default: `false`)
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
 - `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
+- `mcp_disabled` turns off Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp), so AI tools can't connect to it. (default: `false`) _Available in Fleet Premium._
 - `discard_reports_data` disables storing results for all reports and deletes existing stored data. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. (default: `false`)
 - `report_cap` sets the maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. This cap doesn't change the per-host limit: Fleet doesn't store a host's results if the host returns more than 1,000 rows. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
@@ -1243,6 +1272,7 @@ org_settings:
     ai_sessions_disabled: false
     enable_analytics: true
     live_reporting_disabled: false
+    mcp_disabled: false
     discard_reports_data: false
     server_url: https://instance.fleet.com
 ```
@@ -1435,7 +1465,16 @@ org_settings:
     ejbca:
       - name: EJBCA_WIFI
         url: https://ejbca.example.com:8443
+        client_p12: $EJBCA_CLIENT_P12
         password: $EJBCA_CLIENT_P12_PASSWORD
+        trust_ca_bundle: $EJBCA_TRUST_CA_BUNDLE
+        certificate_authority_name: ManagementCA
+        certificate_profile_name: ENDUSER
+        end_entity_profile_name: WIFI_DEVICES
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL
+        username_template: $FLEET_VAR_HOST_HARDWARE_SERIAL
+        certificate_user_principal_names:
+          - $FLEET_VAR_HOST_END_USER_IDP_USERNAME
 ```
 
 #### digicert
@@ -1444,7 +1483,7 @@ org_settings:
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
 - `profile_id` is the ID of certificate profile in DigiCert.
-- `certificate_common_name` is the certificate's CN. Accepts these Fleet variables: `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, and `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`. Available on Apple hosts only.
+- `certificate_common_name` is the certificate's CN. Accepts these Fleet variables: `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, and `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID`. Available on Apple hosts only.
 - `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Accepts the same Fleet variables as `certificate_common_name`.
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert. Accepts the same Fleet variables as `certificate_common_name`.
 
@@ -1493,9 +1532,21 @@ Can only be configured for "All fleets" (`org_settings`).
 
 #### ejbca
 
-- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive).
-- `url` is the URL of the EJBCA REST API endpoint.
-- `password` is the password for the client certificate.
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive), and can't be `NDES`.
+- `url` is the URL of your EJBCA instance (for example, `https://ejbca.example.com:8443`). It must be an `https` URL without a username or password.
+- `client_p12` is the base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. To get the value, run `base64 -i client.p12`, and store the output in an environment variable.
+- `password` is the password of the PKCS#12 file.
+- `trust_ca_bundle` is the PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance: the root CA and any intermediate CAs (optional). The order doesn't matter. If it's empty, Fleet trusts public CAs.
+- `certificate_authority_name` is the name of the CA in EJBCA that issues the certificates.
+- `certificate_profile_name` is the name of the certificate profile in EJBCA.
+- `end_entity_profile_name` is the name of the end entity profile in EJBCA.
+- `certificate_common_name` is the certificate's CN. Accepts the same Fleet variables as `digicert`. Available on Apple hosts only.
+- `username_template` is the username of the end entity that EJBCA creates for each host (optional). Accepts the same Fleet variables as `certificate_common_name`. Defaults to `certificate_common_name`.
+- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN) (optional). Only one item is allowed. Accepts the same Fleet variables as `certificate_common_name`.
+
+When GitOps adds or changes an EJBCA CA, Fleet checks the connection to EJBCA, so the client certificate must be valid and EJBCA must know the CA. Fleet doesn't return the client certificate or its password, so `fleetctl generate-gitops` adds placeholders for `client_p12` and `password` that you have to fill in.
+
+When `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names` is edited, certificates are reissued to every host with a configuration profile that uses this CA, across all fleets. Editing only other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates. Certificates are also reissued when a host's IdP variable value changes.
 
 Can only be configured for "All fleets" (`org_settings`).
 

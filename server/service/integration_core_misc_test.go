@@ -124,14 +124,12 @@ func (s *integrationTestSuite) TestTranslator() {
 	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), tm.ID)) })
-	for _, typ := range []string{fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet} {
-		payload = translatorResponse{}
-		params = translatorRequest{List: []fleet.TranslatePayload{{Type: typ, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
-		s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
-		require.Len(t, payload.List, 1)
-		assert.Equal(t, typ, payload.List[0].Type)
-		assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
-	}
+	payload = translatorResponse{}
+	params = translatorRequest{List: []fleet.TranslatePayload{{Type: fleet.TranslatorTypeFleet, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+	s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
+	require.Len(t, payload.List, 1)
+	assert.Equal(t, fleet.TranslatorTypeFleet, payload.List[0].Type)
+	assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
 
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)
@@ -249,7 +247,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch",
 		appleProfilesBatchRequest([][]byte{mobileconfigForTest("N1", "I1")}), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.Contains(t, errMsg, fleet.AppleMDMNotConfiguredMessage)
 
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)

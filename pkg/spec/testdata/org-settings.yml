@@ -47,7 +47,6 @@ integrations:
       username: reed@fleetdm.com
   zendesk: []
 mdm:
-  apple_bm_default_team: ""
   end_user_authentication:
     entity_id: ""
     idp_name: ""

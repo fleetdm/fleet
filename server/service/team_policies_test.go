@@ -191,9 +191,9 @@ func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 	}
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{
-			AppStoreApp: &fleet.VPPAppStoreApp{
+			AppStoreApps: []*fleet.VPPAppStoreApp{{
 				VPPAppID: appID,
-			},
+			}},
 		}, nil
 	}
 

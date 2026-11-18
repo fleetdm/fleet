@@ -1,1 +1,0 @@
-- Fixed `fleetctl report --labels` without `--hosts` also running the live report on every host with an empty hardware serial.

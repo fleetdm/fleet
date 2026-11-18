@@ -422,7 +422,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		team, err := svc.ds.TeamLite(ctx, *enrollTeamID)
 		if err != nil {
 			recordErrorDetail(ctx, err)
-			return "", fleet.OrbitError{Message: "failed to get team config"}
+			return "", fleet.OrbitError{Message: "failed to get fleet config"}
 		}
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
@@ -491,7 +491,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 						"host_uuid", hostInfo.HardwareUUID,
 						"hardware_serial", hostInfo.HardwareSerial,
 						"platform", platform,
-						"team_id", teamID,
+						"fleet_id", teamID,
 					)
 					return "", fleet.NewOrbitIDPAuthRequiredError()
 				}
@@ -510,11 +510,13 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 		fleet.WithEnrollOrbitCreated(&hostCreated),
 		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
 		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
 			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
+			svc.maybeResendAndroidAgentEnrollSecret(ctx, appConfig, rejected)
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
 		recordErrorDetail(ctx, err)
@@ -640,7 +642,7 @@ func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, ho
 	svc.logger.InfoContext(
 		ctx, "stamped orbit debug logging on enroll",
 		"host_id", host.ID,
-		"team_id", host.TeamID,
+		"fleet_id", host.TeamID,
 		"orbit_debug_until", until,
 		"duration", duration.String(),
 	)
@@ -1104,7 +1106,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 // windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled for the host's team.
 func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (bool, error) {
 	if host.TeamID == nil {
-		return appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
+		return appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, nil
 	}
 	teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 	if err != nil {
@@ -1113,7 +1115,7 @@ func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host 
 	if teamMDM == nil {
 		return false, nil
 	}
-	return teamMDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
+	return teamMDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
@@ -1808,7 +1810,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
 		svc.logger.DebugContext(
 			ctx,
-			"skipping key archival, disk encryption not enabled for host team/globally",
+			"skipping key archival, disk encryption not enabled for host fleet/globally",
 			"host_id", host.ID,
 		)
 		return nil
@@ -1895,7 +1897,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
 		svc.logger.DebugContext(
 			ctx,
-			"skipping LUKS key archival, disk encryption not enabled for host team/globally",
+			"skipping LUKS key archival, disk encryption not enabled for host fleet/globally",
 			"host_id", host.ID,
 		)
 		return nil

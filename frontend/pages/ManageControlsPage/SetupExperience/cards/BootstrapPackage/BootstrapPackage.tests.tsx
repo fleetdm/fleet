@@ -80,7 +80,7 @@ describe("BootstrapPackage", () => {
       createGetConfigHandler({
         mdm: createMockMdmConfig({
           enabled_and_configured: true,
-          apple_bm_enabled_and_configured: false,
+          apple_business_enabled_and_configured: false,
         }),
       })
     );
@@ -177,9 +177,9 @@ describe("BootstrapPackage", () => {
       createSetupExperienceSoftwareHandler({
         software_titles: [
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({ install_during_setup: true }),
+            ],
           }),
         ],
       })
@@ -209,7 +209,7 @@ describe("BootstrapPackage", () => {
       createSetupExperienceSoftwareHandler({
         software_titles: [
           createMockSoftwareTitle({
-            software_package: null,
+            packages: null,
             app_store_apps: [
               createMockAppStoreAppVersion({ install_during_setup: false }),
               createMockAppStoreAppVersion({ install_during_setup: true }),
