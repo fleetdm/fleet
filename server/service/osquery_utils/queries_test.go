@@ -2971,10 +2971,10 @@ func TestDiskSpaceUnixRootFilesystem(t *testing.T) {
 			expectedTotal: "102.4",
 		},
 		{
-			name: "ext4 / with /sysroot, as in ostree without composefs",
+			name: "ext4 / wins over /sysroot",
 			mounts: []mount{
 				{"/", "ext4", "/dev/sda2", 25_000_000, 10_000_000, 4096},
-				{"/sysroot", "ext4", "/dev/sda2", 25_000_000, 10_000_000, 4096},
+				{"/sysroot", "ext4", "/dev/sdb1", 10_000_000, 8_000_000, 4096},
 			},
 			expectedTotal: "102.4",
 		},
