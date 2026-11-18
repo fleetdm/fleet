@@ -1301,6 +1301,40 @@ to the amount of time it takes for Fleet to give the host the label queries.
     max_jitter_percent: 10
   ```
 
+### osquery_ai_session_max_tool_calls
+
+Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session. Set it to 0 to store sessions without their tool calls. It can't be negative.
+
+Fleet stores each tool call with its arguments, which take around 1 KB in the database on average, so a single long session can add up. Once a session reaches the limit, Fleet stops collecting its tool calls. Fleet keeps a session's first tool calls rather than its latest, so for a session longer than the limit, the newest tool calls are the ones missing. The session's tool call count still shows how many it made in total.
+
+Raising the limit lets Fleet collect the rest of the tool calls of sessions that hit it, as long as they haven't expired and their transcripts are still on the host. Lowering it doesn't delete tool calls Fleet already stored; they're removed when the session expires, 30 days after it was last active.
+
+Setting it to 0 stops Fleet from asking hosts for tool calls, which also keeps commands and their arguments out of Fleet. Sessions are still collected, and the **Host details** page shows them without events. To stop collecting AI sessions altogether, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
+
+- Default value: 10000
+- Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS`
+- Config file format:
+  ```yaml
+  osquery:
+    ai_session_max_tool_calls: 10000
+  ```
+
+### osquery_ai_session_max_tool_calls_per_refresh
+
+Applies only to Fleet Premium. The maximum number of new tool calls Fleet asks a host for, per AI coding agent session, each time it refreshes the host's vitals (every [`osquery_detail_update_interval`](#osquery-detail-update-interval), one hour by default).
+
+At each refresh, Fleet asks a host for the tool calls it hasn't collected yet from up to 5 of its sessions. With the default of 0, the host sends as many as fit in one result, about 1 MB. When many hosts report their sessions for the first time, such as right after you upgrade Fleet or turn on AI sessions, every host sends that much at each refresh until it has caught up, which can put a heavy write load on the database.
+
+Setting a limit spreads that work over more refreshes, at the cost of collecting long sessions more slowly. For example, with a limit of 500, a session with 10,000 tool calls is fully collected after 20 refreshes, about 20 hours at the default refresh interval. Once a host has caught up, it rarely reaches the limit, since each refresh only asks for the tool calls made since the last one.
+
+- Default value: 0
+- Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS_PER_REFRESH`
+- Config file format:
+  ```yaml
+  osquery:
+    ai_session_max_tool_calls_per_refresh: 500
+  ```
+
 ### osquery_max_concurrent_query_report_reads
 
 The maximum number of osquery log requests that each Fleet server checks against stored report results at the same time. Fleet reads a host's stored results from the database (the read replica, if configured) so it can skip writing results that haven't changed. When a server is at the limit, it skips storing report results for the request instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. Set it to 0 to remove the limit.
