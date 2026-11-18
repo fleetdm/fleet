@@ -255,6 +255,11 @@ const Modal = ({
         // palette, which wraps Radix Dialog with aria-modal="true"). Let it
         // own Tab instead of pulling focus back into this modal.
         if (active?.closest('[aria-modal="true"]')) return;
+        // react-select menus (ActionsDropdown, DropdownWrapper,
+        // SingleSelectDropdown) portal their options to document.body when
+        // inside tables. The options belong to this modal; let the menu's own
+        // handlers manage Tab (it closes the menu and advances focus).
+        if (active?.closest('[role="listbox"], [role="option"]')) return;
         e.preventDefault();
         first.focus();
         return;

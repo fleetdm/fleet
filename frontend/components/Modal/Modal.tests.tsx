@@ -743,6 +743,32 @@ describe("Modal", () => {
       document.body.removeChild(palette);
     });
 
+    it("yields Tab handling to a portaled listbox opened from inside the modal", () => {
+      // react-select-based menus (ActionsDropdown, DropdownWrapper) portal
+      // their options to document.body. An option with focus is outside the
+      // modal container but belongs to a menu spawned from inside it — the
+      // trap must not pull focus back to the modal's first control.
+      render(
+        <Modal title="With dropdown" onExit={noop}>
+          <input type="text" aria-label="modal-input" />
+        </Modal>
+      );
+
+      const listbox = document.createElement("div");
+      listbox.setAttribute("role", "listbox");
+      const option = document.createElement("div");
+      option.setAttribute("role", "option");
+      option.tabIndex = 0;
+      listbox.appendChild(option);
+      document.body.appendChild(listbox);
+      option.focus();
+
+      fireEvent.keyDown(document, { key: "Tab" });
+
+      expect(option).toHaveFocus();
+      document.body.removeChild(listbox);
+    });
+
     it("only the topmost of two stacked modals handles Tab", () => {
       render(
         <>
