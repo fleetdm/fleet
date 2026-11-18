@@ -39,7 +39,6 @@ import (
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
@@ -1702,11 +1701,10 @@ func newUpdateMDMConfigProfileRequest(t *testing.T, profileUUID string, fields m
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	vars := map[string]string{}
 	if profileUUID != "" {
-		vars["profile_uuid"] = profileUUID
+		req.SetPathValue("profile_uuid", profileUUID)
 	}
-	return mux.SetURLVars(req, vars)
+	return req
 }
 
 func TestDeleteMDMConfigProfileFreeLicenseTeam(t *testing.T) {
@@ -1977,7 +1975,8 @@ func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
 		req.Header.Set("Content-Type", w.FormDataContentType())
-		return mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+		req.SetPathValue("profile_uuid", "abc-123")
+		return req
 	}
 
 	t.Run("a file replaces the activation", func(t *testing.T) {
@@ -2004,7 +2003,7 @@ func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
 		req.Header.Set("Content-Type", w.FormDataContentType())
-		req = mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+		req.SetPathValue("profile_uuid", "abc-123")
 
 		_, err = updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), req)
 		require.Error(t, err)

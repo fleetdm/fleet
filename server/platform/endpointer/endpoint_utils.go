@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
@@ -304,16 +303,13 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 	return u, nil
 }
 
+// StringFromRequest returns the named path variable, which the router has already decoded.
 func StringFromRequest(r *http.Request, name string) (string, error) {
 	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
+	return s, nil
 }
 
 func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string, optional bool) error {
