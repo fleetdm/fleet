@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117173218, Down_20261117173218)
+	MigrationClient.AddMigration(Up_20261118174438, Down_20261118174438)
 }
 
-func Up_20261117173218(tx *sql.Tx) error {
+func Up_20261118174438(tx *sql.Tx) error {
 	// actions and event_count through events_empty_reads summarize the session's stored events, so picking the
 	// sessions that still need events at each detail refresh reads only this table. agent and
 	// agent_session_id compare exactly, as the host reports them: IDs differing only in case or trailing spaces are
@@ -81,6 +81,6 @@ CREATE TABLE IF NOT EXISTS host_ai_session_events (
 	return nil
 }
 
-func Down_20261117173218(tx *sql.Tx) error {
+func Down_20261118174438(tx *sql.Tx) error {
 	return nil
 }
