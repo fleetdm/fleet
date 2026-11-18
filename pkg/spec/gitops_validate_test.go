@@ -153,7 +153,7 @@ func TestValidateUnknownKeys(t *testing.T) {
 		}
 		require.NotNil(t, removedErr)
 		assert.Equal(t, `in "default.yml": The "controls.setup_experience.require_all_software_macos" key is not available anymore. `+
-			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, removedErr.Error())
+			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, removedErr.Error())
 		require.NotNil(t, unknownErr)
 		assert.Empty(t, unknownErr.Suggestion, "the removed key is never suggested")
 
