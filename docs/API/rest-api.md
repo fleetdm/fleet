@@ -16835,8 +16835,6 @@ A software title can have more than one version of the same App Store app on a f
 
 All settings are set per version, so updating one version doesn't change any other version of the same app.
 
-For iOS and iPadOS apps, `configuration` can also set options in the app's install command. See [Add app store app](#add-app-store-app).
-
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 If a host is in scope for more than one version, Fleet installs the one that was added first. Fleet generates each version's `id` when it's added, and the response includes the `id` and a `created_at` timestamp so you can confirm which version takes precedence.
