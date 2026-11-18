@@ -16774,7 +16774,7 @@ To add more than one version of the same app, call this endpoint once per versio
 
 ```json
 {
-  "app_store_id": "546505307",
+  "app_store_id": "6443476492",
   "fleet_id": 2,
   "platform": "ios",
   "configuration": "<dict><key>Command</key><dict><key>Attributes</key><dict><key>VPNUUID</key><string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string></dict></dict></dict>"
