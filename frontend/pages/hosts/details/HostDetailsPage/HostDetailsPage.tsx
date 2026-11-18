@@ -2555,7 +2555,10 @@ const HostDetailsPage = ({
                 // Not refetching the host: its lock/wipe status is read from a
                 // replica, which can still lack the reset and clear the badge.
                 setHostMdmDeviceState("resetting");
-                refetchPastActivities();
+                setActivityPage(0);
+                queryClient.invalidateQueries([
+                  { scope: "past-activities", hostId: host.id },
+                ]);
               }}
               onClose={() => setShowResetModal(false)}
             />

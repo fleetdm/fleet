@@ -733,31 +733,44 @@ describe("HostDetailsPage - reset", () => {
     jest.resetAllMocks();
   });
 
-  it("shows Reset pending and refetches the activity feed after a reset", async () => {
+  it("shows Reset pending and reloads the activity feed from its first page after a reset", async () => {
     const host = createMockHost({ platform: "windows", status: "online" });
     host.mdm.enrollment_status = "On (manual)";
     host.mdm.connected_to_fleet = true;
     stubQueries(host);
+    (activitiesAPI.getHostPastActivities as jest.Mock).mockResolvedValue({
+      activities: [createMockActivity({ type: ActivityType.LockedHost })],
+      meta: { has_next_results: true, has_previous_results: false },
+    });
     jest.mocked(hostAPI.resetHost).mockResolvedValue({});
     const { user } = renderHostDetails({
       isWindowsMdmEnabledAndConfigured: true,
     });
+
+    await user.click(await screen.findByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenLastCalledWith(
+        host.id,
+        1,
+        expect.any(Number)
+      )
+    );
 
     await user.click(await screen.findByText("Actions"));
     await user.click(await screen.findByText("Reset"));
     await user.click(
       screen.getByRole("checkbox", { name: new RegExp(host.display_name) })
     );
-    const pastActivityCalls = jest.mocked(activitiesAPI.getHostPastActivities)
-      .mock.calls.length;
     await user.click(screen.getByRole("button", { name: "Reset" }));
 
     expect(await screen.findByText("Reset pending")).toBeInTheDocument();
     expect(hostAPI.resetHost).toHaveBeenCalledTimes(1);
     expect(hostAPI.resetHost).toHaveBeenCalledWith(host.id);
     await waitFor(() =>
-      expect(activitiesAPI.getHostPastActivities).toHaveBeenCalledTimes(
-        pastActivityCalls + 1
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenLastCalledWith(
+        host.id,
+        0,
+        expect.any(Number)
       )
     );
   });
