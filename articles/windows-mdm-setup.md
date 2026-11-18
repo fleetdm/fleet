@@ -457,7 +457,7 @@ Fleet syncs every 5 minutes, so give it a cycle before your devices appear. To c
 
 > **Note:** Fleet matches Autopilot devices to hosts by hardware serial number. It skips any device whose serial is a factory placeholder, such as `Default string` or `To be filled by O.E.M.`. Those devices stay visible in Intune but won't appear in Fleet. Support for them is [planned](https://github.com/fleetdm/fleet/issues/51180).
 
-New pending hosts land in the fleet set as **Default fleet** in **Settings** > **Integrations** > **MDM** > **Windows MDM**. If you haven't set one, they land in **No team**. Enrolling the device doesn't move it, so a fleet you assign now survives enrollment.
+New pending hosts land in the fleet set as **Default fleet** in **Settings** > **Integrations** > **MDM** > **Windows MDM**. If you haven't set one, they land in **Unassigned**. Enrolling the device doesn't move it, so a fleet you assign now survives enrollment.
 
 ## Automatic Windows MDM migration
 
