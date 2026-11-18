@@ -166,6 +166,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
 	assert.Equal(t, meta.InstallerID, orbitSoftwareResp.InstallerID)
+	assert.Equal(t, payload.StorageID, orbitSoftwareResp.InstallerSHA256)
 	require.NotNil(t, orbitSoftwareResp.SoftwareInstallerURL)
 	assert.Equal(t, "https://example.com/signed", orbitSoftwareResp.SoftwareInstallerURL.URL)
 	require.Equal(t, filename, orbitSoftwareResp.SoftwareInstallerURL.Filename)

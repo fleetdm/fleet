@@ -2,6 +2,8 @@ package installer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -444,6 +446,9 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 			tmpDir,
 			progressFn(),
 		)
+		if err == nil {
+			err = verifyInstallerSHA256(installerPath, installer.InstallerSHA256)
+		}
 		if err != nil {
 			logger.Err(err).Msg("downloading software installer from URL")
 			// If download fails, we will fall back to downloading the installer directly from Fleet server
@@ -458,6 +463,9 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 			tmpDir,
 			progressFn(),
 		)
+		if err == nil {
+			err = verifyInstallerSHA256(installerPath, installer.InstallerSHA256)
+		}
 		if err != nil {
 			logger.Err(err).Msg("failed to download software installer")
 			// Set a special exit code to indicate that the installer download failed, so that Fleet
@@ -549,6 +557,37 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 	return payload, nil
 }
 
+var errInstallerHashMismatch = errors.New("downloaded installer doesn't match its SHA-256")
+
+// verifyInstallerSHA256 catches downloads that were cut short without an HTTP
+// error (e.g. a proxy ending the response early), which would otherwise reach
+// the install script as a truncated file.
+func verifyInstallerSHA256(path, want string) error {
+	// Servers before the hash was sent leave it empty; anything else that isn't a
+	// SHA-256 is skipped rather than failing installs over it.
+	if len(want) != sha256.Size*2 {
+		return nil
+	}
+	if _, err := hex.DecodeString(want); err != nil {
+		return nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("opening installer to verify SHA-256: %w", err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("reading installer to verify SHA-256: %w", err)
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); !strings.EqualFold(got, want) {
+		return fmt.Errorf("%w: got %s, want %s", errInstallerHashMismatch, got, want)
+	}
+	return nil
+}
+
 // isNetworkOrTransientError determines if an error is network-related or otherwise transient
 // and would benefit from waiting before retry
 func isNetworkOrTransientError(err error) bool {
@@ -559,6 +598,7 @@ func isNetworkOrTransientError(err error) bool {
 	// Check standard library errors using errors.Is
 	// These are errors that the client creates directly
 	if errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, errInstallerHashMismatch) ||
 		errors.Is(err, io.EOF) ||
 		errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, context.Canceled) ||

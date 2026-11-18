@@ -1,0 +1,1 @@
+- Fleet now sends each software installer's SHA-256 to fleetd with the install details, so fleetd can reject an incomplete download before running the install script.
