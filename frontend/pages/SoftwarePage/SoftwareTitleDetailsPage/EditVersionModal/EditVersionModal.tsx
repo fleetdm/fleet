@@ -39,6 +39,9 @@ interface IEditVersionModalProps {
   /** Other version names on this title, used for client-side uniqueness
    * validation. Excludes the version being edited. */
   siblingVersionNames: string[];
+  /** Android web apps hold a single version, so the modal only edits
+   * targets (no Name or Configuration). */
+  isWebApp?: boolean;
   onExit: () => void;
   onSuccess: () => void;
 }
@@ -49,6 +52,7 @@ const EditVersionModal = ({
   version,
   titleDisplayName,
   siblingVersionNames,
+  isWebApp = false,
   onExit,
   onSuccess,
 }: IEditVersionModalProps) => {
@@ -117,10 +121,13 @@ const EditVersionModal = ({
 
     try {
       await softwareAPI.editAppStoreAppVersion(softwareId, teamId, version.id, {
-        name: data.name,
+        // Web apps don't expose Name or Configuration; omit so they're unchanged.
+        ...(!isWebApp && {
+          name: data.name,
+          configuration: configurationPayload,
+        }),
         self_service: data.selfService,
         categories: data.categories,
-        configuration: configurationPayload,
         ...buildLabelsForPayload(data, "clear"),
         auto_update_enabled: data.autoUpdateEnabled,
         auto_update_window_start:
@@ -135,7 +142,8 @@ const EditVersionModal = ({
 
       notify.success(
         <>
-          Successfully updated <strong>{data.name}</strong>.
+          Successfully updated{" "}
+          <strong>{isWebApp ? titleDisplayName : data.name}</strong>.
         </>
       );
       queryClient.invalidateQueries({
@@ -158,9 +166,9 @@ const EditVersionModal = ({
     <>
       <Modal
         className={baseClass}
-        title="Edit version"
+        title={isWebApp ? "Edit targets" : "Edit version"}
         onExit={onExit}
-        width="large"
+        width={isWebApp ? "medium" : "large"}
       >
         <form
           className={`${baseClass}__form`}
@@ -183,6 +191,7 @@ const EditVersionModal = ({
               onClickPreviewEndUserExperience={() =>
                 setShowPreviewEndUserExperience(true)
               }
+              isWebApp={isWebApp}
               disabled={gitOpsModeEnabled}
             />
           </div>

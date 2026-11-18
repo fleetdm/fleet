@@ -18,6 +18,7 @@ import {
   getAutoUpdateTooltip,
   getDisplayedSoftwareName,
   getSelfServiceTooltip,
+  isAndroidWebApp,
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
@@ -306,12 +307,24 @@ const SoftwareSummaryCard = ({
     />
   );
 
+  // Android web apps can only ever have one version, so Versions is hidden
+  // and Type reads "Web app".
+  const isWebApp = isAndroidWebApp(firstAppStoreApp?.app_store_id);
+  const softwareType = isWebApp
+    ? "Web app (Android)"
+    : formatSoftwareType(softwareTitle);
+
   // Multi-version App Store titles show the admin-added version count (the
   // number of versions on the title's `app_store_apps` array) rather than
   // the inventory version count.
-  const versionsCount = canActivateMultipleVersions
-    ? softwareTitle.app_store_apps?.length ?? 0
-    : softwareTitle.versions?.length ?? 0;
+  const getVersionsCount = () => {
+    if (isWebApp) return undefined;
+    if (canActivateMultipleVersions) {
+      return softwareTitle.app_store_apps?.length ?? 0;
+    }
+    return softwareTitle.versions?.length ?? 0;
+  };
+  const versionsCount = getVersionsCount();
 
   if (!installerResult) {
     return (
@@ -319,7 +332,7 @@ const SoftwareSummaryCard = ({
         <Card className={baseClass}>
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
-            type={formatSoftwareType(softwareTitle)}
+            type={softwareType}
             versions={versionsCount}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
@@ -387,7 +400,7 @@ const SoftwareSummaryCard = ({
       <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
-          type={formatSoftwareType(softwareTitle)}
+          type={softwareType}
           versions={versionsCount}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
@@ -446,7 +459,7 @@ const SoftwareSummaryCard = ({
           previewInfo={{
             name: softwareDisplayName,
             titleName: softwareTitle.name,
-            type: formatSoftwareType(softwareTitle),
+            type: softwareType,
             source: softwareTitle.source,
             currentIconUrl: softwareTitle.icon_url,
             versions: softwareTitle.versions?.length ?? 0,
