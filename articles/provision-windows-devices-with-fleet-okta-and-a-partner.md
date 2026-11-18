@@ -4,7 +4,7 @@ Fleet supports zero-touch Windows deployment without Autopilot for any identity 
 
 When a hardware partner prepares your Windows devices with a provisioning package, you can have each one arrive with Okta Verify and Okta's device certificate installed, ready for the end user to sign in with their Okta username.
 
-> **Note:** Today, the end user's local account username can match their Okta username. Automatic local account creation, with a username and password that match Okta, is coming soon.
+> **Note:** Fleet creates the end user's local account with a username that matches Okta. A password that matches Okta is coming soon.
 
 Here's how it works:
 
@@ -30,9 +30,9 @@ Fleet creates a policy that installs Okta Verify on each host that doesn't have 
 
 ## Step 2: Create the end user's local account
 
-> **Note:** Automatic local account creation is coming soon. Until then, the local account username can match Okta, but the account isn't created automatically and its password doesn't match Okta.
+Have Fleet create the end user's local account from their Okta account, so their Windows username matches Okta. Learn how in [Windows zero touch without Entra or Autopilot](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot).
 
-When it's available, the end user's local account is created automatically, with a username and password that match Okta, so they can sign in at the login window with their Okta credentials.
+> **Note:** A password that matches Okta is coming soon. Today, the end user chooses a password for their new Windows account during setup.
 
 ## Step 3: Deploy the Okta SCEP certificate
 
