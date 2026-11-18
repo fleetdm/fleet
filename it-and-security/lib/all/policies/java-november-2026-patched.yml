@@ -60,8 +60,8 @@
     Corretto and IntelliJ-downloaded JDKs), the Java browser plugin, and Homebrew openjdk formulas. Java copies
     bundled inside apps and SDKMAN installs aren't checked.
   resolution: >-
-    Update every Java on your Mac to the latest patched build. For Homebrew, run `brew update && brew upgrade
-    $(brew list --formula | grep '^openjdk')`. For a JDK in
+    Update every Java on your Mac to the latest patched build. For Homebrew, run `brew update && brew list
+    --formula | grep '^openjdk' | xargs -r brew upgrade`. For a JDK in
     /Library/Java/JavaVirtualMachines, install the newest update from the same vendor (Oracle, Adoptium Temurin,
     Azul Zulu or Amazon Corretto), then delete the old JDK folder. If you're on an end-of-life Java version like
     23 or 24, move to Java 25 (LTS). If your vendor hasn't published a patched build yet, this policy keeps
