@@ -125,6 +125,7 @@ const renderHostDetails = (overrides?: {
   currentUser?: IUser;
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
+  isWindowsMdmEnabledAndConfigured?: boolean;
   location?: typeof mockLocation;
   hostId?: string;
 }) => {
@@ -132,6 +133,7 @@ const renderHostDetails = (overrides?: {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
+    isWindowsMdmEnabledAndConfigured = false,
     location = mockLocation,
     hostId = "1",
   } = overrides || {};
@@ -144,6 +146,7 @@ const renderHostDetails = (overrides?: {
         isGlobalAdmin,
         isPremiumTier: true,
         isMacMdmEnabledAndConfigured,
+        isWindowsMdmEnabledAndConfigured,
         config: createMockConfig(),
       },
     },
@@ -722,6 +725,41 @@ describe("HostDetailsPage - enrollment rejection details", () => {
     expect(await screen.findByText("Enrollment details")).toBeInTheDocument();
     expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
     expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
+  });
+});
+
+describe("HostDetailsPage - reset", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("shows Reset pending and refetches the activity feed after a reset", async () => {
+    const host = createMockHost({ platform: "windows", status: "online" });
+    host.mdm.enrollment_status = "On (manual)";
+    host.mdm.connected_to_fleet = true;
+    stubQueries(host);
+    jest.mocked(hostAPI.resetHost).mockResolvedValue({});
+    const { user } = renderHostDetails({
+      isWindowsMdmEnabledAndConfigured: true,
+    });
+
+    await user.click(await screen.findByText("Actions"));
+    await user.click(await screen.findByText("Reset"));
+    await user.click(
+      screen.getByRole("checkbox", { name: new RegExp(host.display_name) })
+    );
+    const pastActivityCalls = jest.mocked(activitiesAPI.getHostPastActivities)
+      .mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    expect(await screen.findByText("Reset pending")).toBeInTheDocument();
+    expect(hostAPI.resetHost).toHaveBeenCalledTimes(1);
+    expect(hostAPI.resetHost).toHaveBeenCalledWith(host.id);
+    await waitFor(() =>
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenCalledTimes(
+        pastActivityCalls + 1
+      )
+    );
   });
 });
 

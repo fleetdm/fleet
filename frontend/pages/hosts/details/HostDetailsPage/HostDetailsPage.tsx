@@ -2551,7 +2551,12 @@ const HostDetailsPage = ({
               key={host.id}
               id={host.id}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("resetting")}
+              onSuccess={() => {
+                // Not refetching the host: its lock/wipe status is read from a
+                // replica, which can still lack the reset and clear the badge.
+                setHostMdmDeviceState("resetting");
+                refetchPastActivities();
+              }}
               onClose={() => setShowResetModal(false)}
             />
           )}
