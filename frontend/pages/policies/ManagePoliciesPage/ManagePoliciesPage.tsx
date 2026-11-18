@@ -55,12 +55,11 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import { DEFAULT_POLICY } from "../constants";
 
-import { getPoliciesFilterParams, PoliciesAutomationFilter } from "./helpers";
-
 import AutomationsModal from "./components/AutomationsModal";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import PoliciesTable from "./components/PoliciesTable";
+import { getPoliciesFilterParams, PoliciesAutomationFilter } from "./helpers";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -290,10 +289,7 @@ const ManagePolicyPage = ({
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      const { scope, ...params } = queryKey[0];
-      return policiesAPI.loadAll(params);
-    },
+    ({ queryKey }) => policiesAPI.loadAll(queryKey[0]),
     {
       enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
@@ -316,10 +312,7 @@ const ManagePolicyPage = ({
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      const { scope, ...params } = queryKey[0];
-      return policiesAPI.getCount(params);
-    },
+    ({ queryKey }) => policiesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isAllTeamsSelected,
       keepPreviousData: true,
@@ -356,10 +349,7 @@ const ManagePolicyPage = ({
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      const { scope, ...params } = queryKey[0];
-      return policiesAPI.loadAll(params);
-    },
+    ({ queryKey }) => policiesAPI.loadAll(queryKey[0]),
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadAllPoliciesResponse) => data.policies || [],
@@ -382,10 +372,7 @@ const ManagePolicyPage = ({
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      const { scope, ...params } = queryKey[0];
-      return policiesAPI.getCount(params);
-    },
+    ({ queryKey }) => policiesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       keepPreviousData: true,
@@ -411,10 +398,7 @@ const ManagePolicyPage = ({
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      const { scope, ...params } = queryKey[0];
-      return policiesAPI.getCount(params);
-    },
+    ({ queryKey }) => policiesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       keepPreviousData: true,
