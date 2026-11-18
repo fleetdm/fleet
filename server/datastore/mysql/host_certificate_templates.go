@@ -824,7 +824,10 @@ func (ds *Datastore) GetOrCreateFleetChallengeForCertificateTemplate(
 		}
 
 		// Create new challenge using the transaction
-		newChal, err := newChallenge(ctx, tx)
+		newChal, err := newChallenge(ctx, tx, fleet.ChallengeScope{
+			HostUUID:    hostUUID,
+			ProfileUUID: fmt.Sprintf("%s%d", fleet.MDMAndroidProfileUUIDPrefix, certificateTemplateID),
+		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create challenge")
 		}

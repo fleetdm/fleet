@@ -2400,9 +2400,9 @@ type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.Scim
 
 type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, hostID uint) error
 
-type NewChallengeFunc func(ctx context.Context) (string, error)
+type NewChallengeFunc func(ctx context.Context, scope fleet.ChallengeScope) (string, error)
 
-type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
+type ConsumeChallengeFunc func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error
 
 type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
 
@@ -14844,18 +14844,18 @@ func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID u
 	return s.MaybeAssociateHostWithScimUserFunc(ctx, hostID)
 }
 
-func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
+func (s *DataStore) NewChallenge(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 	s.mu.Lock()
 	s.NewChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewChallengeFunc(ctx)
+	return s.NewChallengeFunc(ctx, scope)
 }
 
-func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string) error {
+func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 	s.mu.Lock()
 	s.ConsumeChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConsumeChallengeFunc(ctx, challenge)
+	return s.ConsumeChallengeFunc(ctx, challenge, scope)
 }
 
 func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error) {

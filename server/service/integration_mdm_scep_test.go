@@ -1949,6 +1949,31 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.NoError(t, err)
 	message := base64.StdEncoding.EncodeToString(data)
 
+	// Another host with the same profile pending cannot use this host's challenge, and trying doesn't use it up.
+	otherHostUUID := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+				(profile_identifier, host_uuid, command_uuid, profile_name, checksum, profile_uuid, status, operation_type)
+			SELECT profile_identifier, ?, command_uuid, profile_name, checksum, profile_uuid, status, operation_type
+			FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`, otherHostUUID, host.UUID, profileUUID)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid, type, ca_name) VALUES (?, ?, ?, ?)`,
+			otherHostUUID, profileUUID, fleet.CAConfigCustomSCEPProxy, "scepName")
+		require.NoError(t, err)
+		return nil
+	})
+	otherHostIdentifier := url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", otherHostUUID, profileUUID, "scepName", gotChallenge))
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+otherHostIdentifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	checkChallenge(t, gotChallenge, true)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles WHERE host_uuid = ?`, otherHostUUID)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `DELETE FROM host_mdm_managed_certificates WHERE host_uuid = ?`, otherHostUUID)
+		require.NoError(t, err)
+		return nil
+	})
+
 	// Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
 	// and this request is sufficient for testing our proxy functionality.
 	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",

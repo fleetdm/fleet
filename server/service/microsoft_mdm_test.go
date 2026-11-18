@@ -1508,7 +1508,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		}, nil
 	}
 
-	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+	ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 		return "secret", nil
 	}
 
@@ -1575,7 +1575,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}, nil
 	}
 
-	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+	ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 		return "secret", nil
 	}
 
