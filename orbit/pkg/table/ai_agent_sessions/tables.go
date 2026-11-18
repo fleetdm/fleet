@@ -15,6 +15,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"sync/atomic"
@@ -199,6 +200,8 @@ func generateSessions(qc table.QueryContext) []map[string]string {
 func generateMessages(qc table.QueryContext) []map[string]string {
 	started := now()
 	q := parseQuery(qc, "timestamp", started)
+	// Unlike an index, a timestamp can be negative (a date before 1970).
+	q.times = parseBounds(qc, "timestamp", math.MinInt64)
 	// Naming a session asks for that conversation, however old.
 	if len(q.sessionIDs) > 0 {
 		q.cutoff = time.Time{}
@@ -331,6 +334,9 @@ type query struct {
 	// messages bounds message_index; calls bounds tool_call_index, and when
 	// set at all, only tool_use rows can match.
 	messages, calls bounds
+	// times bounds the timestamp of message rows, in Unix seconds as they
+	// report it, so rows outside it don't count toward the size limit.
+	times bounds
 	// blockLo bounds block_index on message messages.lo, to resume inside a
 	// message the size limit cut.
 	blockLo int64
@@ -358,9 +364,10 @@ func (b *bounds) atMost(v int64) {
 
 func (b bounds) allows(v int64) bool { return v >= b.lo && (!b.hasHi || v <= b.hi) }
 
-// parseBounds reads the single-column comparisons on column.
-func parseBounds(qc table.QueryContext, column string) bounds {
-	var b bounds
+// parseBounds reads the single-column comparisons on column, whose values
+// start at floor.
+func parseBounds(qc table.QueryContext, column string, floor int64) bounds {
+	b := bounds{lo: floor}
 	for _, c := range qc.Constraints[column].Constraints {
 		v, err := strconv.ParseInt(c.Expression, 10, 64)
 		if err != nil {
@@ -421,8 +428,8 @@ func parseQuery(qc table.QueryContext, timeColumn string, at time.Time) query {
 		q.cutoff, q.defaultWindow = time.Time{}, false
 	}
 
-	q.messages = parseBounds(qc, "message_index")
-	q.calls = parseBounds(qc, "tool_call_index")
+	q.messages = parseBounds(qc, "message_index", 0)
+	q.calls = parseBounds(qc, "tool_call_index", 0)
 	for _, c := range qc.Constraints["block_index"].Constraints {
 		v, err := strconv.ParseInt(c.Expression, 10, 64)
 		if err != nil {

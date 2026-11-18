@@ -246,8 +246,12 @@ func (r *recorder) wanted() bool {
 	return r.q != nil && !r.past && !r.q.calls.set && r.onPage()
 }
 
+// onPage also holds a block to the query's time range. Each block is checked,
+// rather than the range being skipped to or stopped at: a session's times
+// don't always follow its order.
 func (r *recorder) onPage() bool {
-	return r.msgIndex >= r.q.messages.lo && (r.msgIndex > r.q.messages.lo || r.blockIndex >= r.q.blockLo)
+	return r.msgIndex >= r.q.messages.lo && (r.msgIndex > r.q.messages.lo || r.blockIndex >= r.q.blockLo) &&
+		r.q.times.allows(unixSeconds(r.ts))
 }
 
 // Every block of a message takes a block index, whether or not it becomes a
