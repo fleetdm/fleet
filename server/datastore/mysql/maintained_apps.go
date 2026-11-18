@@ -448,29 +448,26 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 // fleetMaintainedAppsTeamJoin is the FROM clause plus the LEFT JOIN that
 // determines, for a given team, whether each Fleet-maintained app has already
 // been added (via a software installer or VPP app). team_titles.id is non-NULL
-// when the app is already added to the team. It expects two `?` args, both the
+// when the app is already added to the team. It expects three `?` args, all the
 // team's global_or_team_id.
 const fleetMaintainedAppsTeamJoin = `
 			FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				-- COALESCE the platform so VPP-added titles (no installer row) still
-				-- carry a platform for the platform-scoped identifier fallback below.
-				SELECT DISTINCT st.id, st.unique_identifier, st.name, COALESCE(si.platform, va.platform) AS platform, si.fleet_maintained_app_id
-				FROM software_titles st
-				LEFT JOIN
-					software_installers si
-					ON si.title_id = st.id AND si.global_or_team_id = ?
-					AND si.platform IN ('darwin','windows')
-				LEFT JOIN
-					vpp_apps va
-					ON va.title_id = st.id
-					AND va.platform = 'darwin'
-				LEFT JOIN
-					vpp_apps_teams vat
-					ON vat.adam_id = va.adam_id
-					AND vat.platform = va.platform
-					AND vat.global_or_team_id = ?
-				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
+				SELECT st.id, st.unique_identifier, st.name, si.platform, si.fleet_maintained_app_id
+				FROM software_installers si
+				INNER JOIN software_titles st ON st.id = si.title_id
+				WHERE si.global_or_team_id = ? AND si.platform IN ('darwin','windows')
+				UNION
+				SELECT st.id, st.unique_identifier, st.name, va.platform, NULL
+				FROM vpp_apps_teams vat
+				INNER JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+				INNER JOIN software_titles st ON st.id = va.title_id
+				WHERE vat.global_or_team_id = ? AND vat.platform = 'darwin'
+					-- Skip VPP titles that also have an installer, the installer row above wins for them
+					AND NOT EXISTS (
+						SELECT 1 FROM software_installers si2
+						WHERE si2.title_id = st.id AND si2.global_or_team_id = ? AND si2.platform IN ('darwin','windows')
+					)
 			) team_titles
 				-- Match the exact FMA the title was added with, so a shared bundle
 				-- identifier (Firefox vs Firefox ESR) doesn't mark the sibling added.
@@ -503,7 +500,7 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 
 	if teamID != nil {
 		stmt += teamFMATitlesJoin
-		args = []any{teamID, teamID}
+		args = []any{teamID, teamID, teamID}
 	} else {
 		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
@@ -529,7 +526,7 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 
 	if teamID != nil {
 		stmt += teamFMATitlesJoin
-		args = []any{teamID, teamID}
+		args = []any{teamID, teamID, teamID}
 	} else {
 		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
@@ -566,14 +563,30 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	var fromArgs []any
 	if teamID != nil {
 		fromClause = fleetMaintainedAppsTeamJoin
-		fromArgs = []any{teamID, teamID}
+		fromArgs = []any{teamID, teamID, teamID}
 	}
 
 	// Build the filter conditions shared by the count and page-name queries.
 	where := ` WHERE TRUE`
 	var whereArgs []any
 	if match := opt.MatchQuery; match != "" {
-		where += ` AND fma.name LIKE ?`
+		// Match the name the UI shows: when an app's macOS and Windows entries
+		// differ only by a platform suffix ("R for macOS"/"R for Windows"), the
+		// row drops it, so search must ignore it too. A single-platform app keeps
+		// its suffix ("Google Credential Provider for Windows").
+		fromClause += `
+			LEFT JOIN (
+				SELECT names.merged_app_token, names.merged_name
+				FROM (
+					SELECT SUBSTRING_INDEX(slug, '/', 1) AS merged_app_token, REGEXP_REPLACE(name, ' for (macOS|Mac|Windows)$', '') AS merged_name
+					FROM fleet_maintained_apps
+				) names
+				GROUP BY names.merged_app_token, names.merged_name
+				HAVING COUNT(*) > 1
+			) merged_names ON merged_names.merged_app_token = SUBSTRING_INDEX(fma.slug, '/', 1)
+				AND merged_names.merged_name = REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '')`
+
+		where += ` AND (CASE WHEN merged_names.merged_app_token IS NOT NULL THEN merged_names.merged_name ELSE fma.name END) LIKE ?`
 		whereArgs = append(whereArgs, likePattern(match))
 	}
 	if opt.Platform == "darwin" || opt.Platform == "windows" {
@@ -650,7 +663,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	var rowsArgs []any
 	if teamID != nil {
 		selectStmt += teamFMATitlesJoin + ` WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
-		rowsArgs = []any{teamID, teamID, pageTokens}
+		rowsArgs = []any{teamID, teamID, teamID, pageTokens}
 	} else {
 		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
 		rowsArgs = []any{pageTokens}

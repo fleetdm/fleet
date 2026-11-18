@@ -32,8 +32,8 @@ const GET_HOST_SOFTWARE: IApiEndpoint = {
 
 const DEPRECATED_ENDPOINT: IApiEndpoint = {
   method: "GET",
-  path: "/api/v1/fleet/packs",
-  display_name: "List packs",
+  path: "/api/v1/fleet/mdm/apple/profiles",
+  display_name: "List custom macOS settings (configuration profiles)",
   deprecated: true,
 };
 
@@ -172,10 +172,12 @@ describe("ApiEndpointSelectorTable", () => {
 
     await user.type(
       screen.getByPlaceholderText("Search by name or path"),
-      "packs"
+      "custom macOS"
     );
 
-    await screen.findByText("List packs");
+    await screen.findByText(
+      "List custom macOS settings (configuration profiles)"
+    );
     expect(screen.getByText("Deprecated")).toBeInTheDocument();
   });
 

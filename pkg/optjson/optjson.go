@@ -13,6 +13,7 @@ package optjson
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 )
 
 // String represents an optional string value.
@@ -138,6 +139,9 @@ type Slice[T any] struct {
 	Value []T
 }
 
+// JSONValueType returns the type the JSON value decodes into, so a scan of the request body can look inside it.
+func (Slice[T]) JSONValueType() reflect.Type { return reflect.TypeFor[[]T]() }
+
 func SetSlice[T any](s []T) Slice[T] {
 	return Slice[T]{Set: true, Valid: true, Value: s}
 }
@@ -175,6 +179,9 @@ type Any[T any] struct {
 	Valid bool
 	Value T
 }
+
+// JSONValueType returns the type the JSON value decodes into, so a scan of the request body can look inside it.
+func (Any[T]) JSONValueType() reflect.Type { return reflect.TypeFor[T]() }
 
 func (s Any[T]) MarshalJSON() ([]byte, error) {
 	if !s.Valid {

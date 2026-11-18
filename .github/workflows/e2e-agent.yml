@@ -59,7 +59,7 @@ jobs:
       address: ${{ steps.gen.outputs.address }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -75,7 +75,7 @@ jobs:
     needs: gen
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -187,7 +187,7 @@ jobs:
      token: ${{ steps.login.outputs.token }}
    steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -371,7 +371,7 @@ jobs:
     needs: [gen, login]
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -443,7 +443,8 @@ jobs:
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
-        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        # With a Fleet 5 server, orbit renames its process to fleet.
+        pgrep -x fleet || pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
         # Don't check for Fleet Desktop as it doesn't run in the windowless CI environment.
         echo "All processes are running."
 
@@ -664,7 +665,7 @@ jobs:
       # Only retry scheduled runs or manual runs that are retries for scheduled runs (inputs.retry > 0)
       if: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.retry || 0) > 0)) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3 }}
       run: |
-        gh workflow run e2e-agent.yml --repo ${{ github.repository }} --ref ${{ github.head_ref || github.ref_name }} -f retry=${{ steps.next-retry.outputs.value }}
+        gh workflow run e2e-agent.yml --repo ${{ github.repository }} --ref "$GITHUB_REF" -f retry=${{ steps.next-retry.outputs.value }}
       env:
         GH_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
 

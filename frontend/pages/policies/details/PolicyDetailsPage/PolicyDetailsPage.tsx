@@ -73,7 +73,7 @@ const getPolicyFleetName = (
   if (!policy) return null;
   if (policy.fleet_id === null) return APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
   if (policy.fleet_id === 0) return APP_CONTEXT_NO_TEAM_SUMMARY.name;
-  return teamData?.team?.name ?? null;
+  return teamData?.fleet?.name ?? null;
 };
 
 export const getLabelModalData = (policy: IPolicy): ILabelModalData => {
@@ -180,7 +180,7 @@ const PolicyDetailsPage = ({
     state: ticketOrWebhookState,
     policyIds: currentAutomatedPolicies,
   } = getTicketOrWebhookInfo(
-    storedPolicy?.fleet_id == null ? config ?? undefined : teamData?.team
+    storedPolicy?.fleet_id == null ? config ?? undefined : teamData?.fleet
   );
   const otherAutomationType: OtherAutomationType | undefined =
     ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
@@ -215,7 +215,7 @@ const PolicyDetailsPage = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,

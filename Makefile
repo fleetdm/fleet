@@ -536,7 +536,7 @@ clean: clean-assets
 .help-short--clean-assets:
 	@echo "Clean assets only"
 clean-assets:
-	git clean -fx assets
+	git clean -fqx assets
 
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .

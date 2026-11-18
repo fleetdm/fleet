@@ -17,15 +17,9 @@ type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
   "unlocked"
 >;
 
-// We exclude "unlocked" as we dont display any device status tag for it, and
-// "unenrolling" because Android BYOD unenroll intentionally shows no badge (#41683).
-type HostMdmDeviceStatusUIStateWithTag = Exclude<
-  HostMdmDeviceStatusUIStateNoUnlock,
-  "unenrolling"
->;
-
+// We exclude "unlocked" as we dont display any device status tag for it.
 type DeviceStatusTagConfig = Record<
-  HostMdmDeviceStatusUIStateWithTag,
+  HostMdmDeviceStatusUIStateNoUnlock,
   IDeviceStatusTag
 >;
 
@@ -127,6 +121,13 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     tagType: "warning",
     generateTooltip: () =>
       "Passcode will clear when the host comes online. If the host is online, it will clear the next time it checks in to Fleet.",
+  },
+  /** Android BYOD only: Unenroll and Wipe both remove the work profile. */
+  unenrolling: {
+    title: "Unenroll pending",
+    tagType: "warning",
+    generateTooltip: () =>
+      "Host will unenroll when it comes online. If the host is online, it will unenroll the next time it checks in to Fleet.",
   },
 };
 

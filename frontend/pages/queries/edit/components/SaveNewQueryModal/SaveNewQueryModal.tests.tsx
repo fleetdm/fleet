@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
@@ -209,7 +209,7 @@ describe("SaveNewQueryModal", () => {
         getSelectedPlatforms: () => [] as QueryablePlatform[],
         setSelectedPlatforms: jest.fn(),
         isAnyPlatformSelected: false,
-        render: () => <></>,
+        render: (error?: string | null) => <>{error}</>,
       },
     };
 
@@ -220,6 +220,9 @@ describe("SaveNewQueryModal", () => {
     await user.type(nameInput, "name");
     await user.click(saveButton);
     expect(saveQuery).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Select at least one platform")
+    ).toBeInTheDocument();
   });
 
   it("should send platforms when saving a new query", async () => {
@@ -280,6 +283,19 @@ describe("SaveNewQueryModal", () => {
 
     beforeEach(() => {
       mockServer.use(labelSummariesHandler);
+    });
+
+    it("keeps Save enabled while labels are being fetched", async () => {
+      mockServer.use(
+        http.get(baseUrl("/labels/summary"), async () => {
+          await delay(500);
+          return HttpResponse.json({ labels: mockLabels });
+        })
+      );
+      render(<SaveNewQueryModal {...defaultProps} />);
+      // Before the labels request resolves, Save must stay enabled so name
+      // and platform errors can surface on click.
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     });
 
     it("should show the target selector in All hosts target mode when the query has no labels", async () => {

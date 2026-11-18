@@ -141,7 +141,7 @@ func (ds *Datastore) expireWindowsFMAMatchesCache() {
 	ds.windowsFMAMatchesExpiry = time.Now().Add(-time.Second)
 }
 
-func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
 	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -151,7 +151,11 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 		))
 	defer span.End()
 
-	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
+	var options fleet.UpdateHostSoftwareOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software, options)
 }
 
 // MarkSoftwareAsAITool reads first and only updates the rows not yet flagged, so the hourly
@@ -262,6 +266,19 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	hsip, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
 	if err != nil {
 		return err
+	}
+
+	// Preserved software was not reported this time, so its stored paths are left as they are
+	// rather than deleted for not being reported.
+	if mutationResults != nil && len(mutationResults.Preserved) > 0 {
+		preserved := make(map[uint]struct{}, len(mutationResults.Preserved))
+		for _, sw := range mutationResults.Preserved {
+			preserved[sw.ID] = struct{}{}
+		}
+		hsip = slices.DeleteFunc(hsip, func(p fleet.HostSoftwareInstalledPath) bool {
+			_, ok := preserved[p.SoftwareID]
+			return ok
+		})
 	}
 
 	toI, toU, toD, err := hostSoftwareInstalledPathsDelta(ctx, hostID, reported, hsip, currS, ds.logger)
@@ -729,6 +746,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	ctx context.Context,
 	hostID uint,
 	incomingSoftware []fleet.Software,
+	opts fleet.UpdateHostSoftwareOptions,
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
 
@@ -745,6 +763,26 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 	r.WasCurrInstalled = currentSoftware
+
+	// Preserved rows are re-reported as the host already has them, so they are never deleted
+	// and, being unchanged, never written. A row the report does contain is not preserved, so
+	// its paths are reconciled against the report like any other.
+	if len(opts.PreserveSources) > 0 {
+		reported := make(map[string]struct{}, len(incomingSoftware))
+		for _, sw := range incomingSoftware {
+			reported[sw.ToUniqueStr()] = struct{}{}
+		}
+		for _, sw := range currentSoftware {
+			if !slices.Contains(opts.PreserveSources, sw.Source) {
+				continue
+			}
+			if _, ok := reported[sw.ToUniqueStr()]; ok {
+				continue
+			}
+			r.Preserved = append(r.Preserved, sw)
+			incomingSoftware = append(incomingSoftware, sw)
+		}
+	}
 
 	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware, ds.minLastOpenedAtDiff)
 	if noChanges {
@@ -5738,7 +5776,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		default:
 			ds.logger.WarnContext(
 				ctx, "software title record should have an associated VPP application or software package",
-				"team_id", teamID,
+				"fleet_id", teamID,
 				"host_id", host.ID,
 				"software_title_id", softwareTitleRecord.ID,
 			)
@@ -6448,6 +6486,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				NULL as status
 			FROM
 				software_titles st
+			-- The WHERE below only keeps titles with an installer, VPP app or in-house app in the fleet
+			INNER JOIN (` + fleetInstallableTitleIDsSQL(globalOrTeamID) + `) fleet_installable_titles
+				ON fleet_installable_titles.title_id = st.id
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
 				-- .sh and .py packages are available for both linux and darwin hosts
@@ -7719,6 +7760,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				hs.AppStoreApp.VersionName = hostVersion.Name
 			}
 		}
+		hs.Package = hs.SoftwarePackage
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
@@ -8160,28 +8202,6 @@ WHERE id = ?
 		return nil, ctxerr.Wrap(ctx, err, "get software category")
 	}
 	return &category, nil
-}
-
-func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error) {
-	if len(names) == 0 {
-		return []uint{}, nil
-	}
-	names = fleet.TranslateLegacySoftwareCategoryNames(names)
-
-	stmt := `SELECT id FROM software_categories WHERE team_id = ? AND name IN (?)`
-	stmt, args, err := sqlx.In(stmt, teamID, names)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category ids")
-	}
-
-	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, args...); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, err, "get software category ids")
-		}
-	}
-
-	return ids, nil
 }
 
 // GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.

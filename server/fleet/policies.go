@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"golang.org/x/text/unicode/norm"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -163,7 +164,7 @@ var (
 	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
 	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
 	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
-	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"team\" field is required.")
+	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"fleet\" field is required.")
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
@@ -529,7 +530,7 @@ type PolicyData struct {
 	AuthorEmail string `json:"author_email" db:"author_email"`
 	// TeamID is the ID of the team the policy belongs to.
 	// If TeamID is nil, then this is a global policy.
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 	// Platform is a comma-separated string to indicate the target platforms.
@@ -809,7 +810,7 @@ type PolicySpec struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
-	Team string `json:"team,omitempty" renameto:"fleet"`
+	Team string `json:"fleet,omitempty"`
 	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
@@ -950,13 +951,15 @@ func (p PolicySpec) VerifyLabelScopes() error {
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
 	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if team, ok := teams[spec.Team]; ok {
-			if _, ok = team[spec.Name]; ok {
+		// Names are stored NFC-normalized, so names that differ only in normalization are the same policy.
+		teamName, name := norm.NFC.String(spec.Team), norm.NFC.String(spec.Name)
+		if team, ok := teams[teamName]; ok {
+			if _, ok = team[name]; ok {
 				return spec.Name
 			}
-			team[spec.Name] = struct{}{}
+			team[name] = struct{}{}
 		} else {
-			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
+			teams[teamName] = map[string]struct{}{name: {}}
 		}
 	}
 	return ""

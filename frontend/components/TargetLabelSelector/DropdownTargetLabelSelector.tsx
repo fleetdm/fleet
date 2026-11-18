@@ -108,18 +108,37 @@ const LabelChooser = ({
       ?.helpText;
   };
 
+  const errorBanner = !!labelsError && (
+    <div
+      className={`${baseClass}__description ${baseClass}__description--error`}
+    >
+      {labelsError}
+    </div>
+  );
+
   if (isLoading) {
-    return <Spinner centered={false} />;
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
   }
 
   if (isError) {
-    return <DataError />;
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
   }
 
   // Not using <EmptyState/> here as we want to include short string only
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>
+        {errorBanner}
         <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
         specific hosts.
       </div>

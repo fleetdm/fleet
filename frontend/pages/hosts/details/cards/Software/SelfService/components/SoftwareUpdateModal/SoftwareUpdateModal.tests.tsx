@@ -240,7 +240,7 @@ describe("SoftwareUpdateModal", () => {
           hostDisplayName="Test Host"
           software={createMockHostSoftware({
             display_name: "Slack",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "2.0.0",
             }),
             ...overrides,

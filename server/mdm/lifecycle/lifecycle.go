@@ -431,7 +431,7 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 	case "ipados":
 		abmDefaultTeamID = tok.IPadOSDefaultTeamID
 	default:
-		return nil, ctxerr.NewWithData(ctx, "attempting to get default ABM team for host with invalid platform", map[string]any{"host_platform": host.FleetPlatform(), "host_id": host.ID})
+		return nil, ctxerr.NewWithData(ctx, "attempting to get default ABM fleet for host with invalid platform", map[string]any{"host_platform": host.FleetPlatform(), "host_id": host.ID})
 	}
 
 	if abmDefaultTeamID == nil {
@@ -445,8 +445,8 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 	}
 
 	if !exists {
-		t.logger.InfoContext(ctx, "unable to find default team assigned to abm token, mdm devices won't be assigned to a team",
-			"team_id", abmDefaultTeamID,
+		t.logger.InfoContext(ctx, "unable to find default fleet assigned to abm token, mdm devices won't be assigned to a fleet",
+			"fleet_id", abmDefaultTeamID,
 		)
 		return nil, nil
 	}

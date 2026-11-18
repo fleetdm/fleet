@@ -59,14 +59,15 @@ interface IInstallSoftwareModal {
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
-  const vppOption = title.source === "apps" && !!title.app_store_app;
+  const firstAppStoreApp = title.app_store_apps?.[0];
+  const vppOption = title.source === "apps" && !!firstAppStoreApp;
   let platformString = "";
   let versionString = "";
 
   if (vppOption) {
     platformString = "macOS (App Store)";
-    versionString = title.app_store_app?.version
-      ? ` • ${title.app_store_app?.version}`
+    versionString = firstAppStoreApp?.version
+      ? ` • ${firstAppStoreApp.version}`
       : "";
   } else {
     if (title.platform && title.extension) {
@@ -74,8 +75,8 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
         title.extension
       })`;
     }
-    versionString = title.software_package?.version
-      ? ` • ${title.software_package?.version}`
+    versionString = title.packages?.[0]?.version
+      ? ` • ${title.packages[0].version}`
       : "";
   }
 
@@ -148,8 +149,8 @@ const InstallSoftwareModal = ({
       select: (data): IEnhancedSoftwareTitle[] =>
         data.software_titles.map((title) => {
           const extension =
-            (title.software_package &&
-              getExtensionFromFileName(title.software_package?.name)) ||
+            (title.packages?.[0] &&
+              getExtensionFromFileName(title.packages[0].name)) ||
             undefined;
 
           return {

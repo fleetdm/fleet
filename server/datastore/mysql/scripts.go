@@ -40,10 +40,9 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 }
 
 // NewInternalHostScriptExecutionRequest enqueues a host script run flagged
-// as internal (fleet-initiated). Internal scripts run even when scripts
-// are globally disabled and do not appear in the user-facing host activity
-// feed. Use for server-driven follow-up actions (e.g. cleanup scripts
-// after MDM events) rather than user-requested runs.
+// as internal (fleet-initiated). Internal scripts do not appear in the
+// user-facing host activity feed. Use for server-driven follow-up actions
+// (e.g. cleanup scripts after MDM events) rather than user-requested runs.
 func (ds *Datastore) NewInternalHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	return ds.newHostScriptExecutionRequestPublic(ctx, request, true)
 }
@@ -312,22 +311,18 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, false)
 }
 
-func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, true)
 }
 
-func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
-	if onlyShowInternal {
-		// software_uninstalls are implicitly internal
-		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
-	}
 	if onlyReadyToExecute {
-		extraWhere += " AND ua.activated_at IS NOT NULL"
+		extraWhere = " AND ua.activated_at IS NOT NULL"
 	}
 	// this selects software uninstalls too as they run as scripts
 	listStmt := fmt.Sprintf(`
@@ -2728,7 +2723,18 @@ func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan ti
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeRanScript{}, ids, olderThan)
+			if err != nil {
+				return err
+			}
+
+			n, err = deleteHostScriptResultsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
 		if err != nil {
 			return deleted, err
 		}
@@ -3289,15 +3295,15 @@ FROM (
   SELECT
     COUNT(bahr.host_id)                     AS num_targeted,
     COUNT(bahr.error)                       AS num_incompatible,
-    COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
-    COUNT(IF(hsr.exit_code <> 0, 1, NULL))   AS num_errored,
-    COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL)) AS num_cancelled,
+    COUNT(IF(hsr.exit_code = 0 AND hsr.canceled = 0, 1, NULL))   AS num_ran,
+    COUNT(IF(hsr.exit_code <> 0 AND hsr.canceled = 0, 1, NULL))   AS num_errored,
+    COUNT(IF(hsr.canceled = 1 OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL)) AS num_cancelled,
     (
       COUNT(bahr.host_id)
       - COUNT(bahr.error)
-      - COUNT(IF(hsr.exit_code = 0, 1, NULL))
-      - COUNT(IF(hsr.exit_code <> 0, 1, NULL))
-      - COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL))
+      - COUNT(IF(hsr.exit_code = 0 AND hsr.canceled = 0, 1, NULL))
+      - COUNT(IF(hsr.exit_code <> 0 AND hsr.canceled = 0, 1, NULL))
+      - COUNT(IF(hsr.canceled = 1 OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL))
     ) AS num_pending,
     ba.execution_id,
     ba.script_id,
@@ -3426,9 +3432,9 @@ JOIN (
     ba2.id AS batch_id,
     COUNT(bahr.host_id)                                        AS num_targeted,
     COUNT(bahr.error)                                          AS num_incompatible,
-    COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
-    COUNT(IF(hsr.exit_code <> 0, 1, NULL))                     AS num_errored,
-	COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba2.canceled = 1), 1, NULL)) AS num_canceled
+    COUNT(IF(hsr.exit_code = 0 AND hsr.canceled = 0, 1, NULL))  AS num_ran,
+    COUNT(IF(hsr.exit_code <> 0 AND hsr.canceled = 0, 1, NULL)) AS num_errored,
+	COUNT(IF(hsr.canceled = 1 OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba2.canceled = 1), 1, NULL)) AS num_canceled
   FROM batch_activities AS ba2
   LEFT JOIN batch_activity_host_results AS bahr
 	  ON ba2.execution_id = bahr.batch_execution_id

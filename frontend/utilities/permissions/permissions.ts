@@ -18,7 +18,7 @@ export const isMacMdmEnabledAndConfigured = (config: IConfig): boolean => {
 };
 
 export const isWindowsMdmEnabledAndConfigured = (config: IConfig): boolean => {
-  return Boolean(config.mdm.windows_enabled_and_configured);
+  return Boolean(config.mdm.windows_mdm_enabled);
 };
 
 export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
