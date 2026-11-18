@@ -16064,7 +16064,7 @@ For example:
         "🔐 Security"
       ],
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
+      "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Production config --></dict></dict></dict>"
     },
     {
       "id": 42,
@@ -16093,7 +16093,7 @@ For example:
       "created_at": "2026-02-03T10:14:22.882031Z",
       "categories": null,
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+      "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
     }
   ],
   "app_store_app": {
@@ -16121,7 +16121,7 @@ For example:
       "🔐 Security"
     ],
     "display_name": "Cloudflare One Agent",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
+    "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Production config --></dict></dict></dict>",
     "vpp_token": {
       "id": 1,
       "org_name": "Fleet Device Management Inc.",
@@ -16866,7 +16866,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
   "team_id": 2,
   "name": "Test",
   "labels_include_any": ["Test"],
-  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+  "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
 }
 ```
 
@@ -16897,7 +16897,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
     "auto_update_window_start": null,
     "auto_update_window_end": null,
     "created_at": "2026-08-25T14:22:03Z",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->",
+    "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>",
     "automatic_install_policies": [
       {
         "id": 345,
