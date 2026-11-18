@@ -135,10 +135,13 @@ If you leave out a key, Fleet uses its default. Fleet always sets the rest of th
 <details>
 <summary>Fleet's default install command</summary>
 
-This is the `InstallApplication` command Fleet sends when `Command` has only the Zoom `Configuration` from the example above. `ManagementFlags` and `Attributes` you set in `Command` replace or add to these keys. Fleet fills in the rest:
+This is the `InstallApplication` command Fleet sends to install an app. Keys you set in `Command` replace or add to these keys. Fleet fills in the placeholders:
 
-- For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), Fleet sends `ManifestURL` instead of `iTunesStoreID`.
-- On personal (BYOD) hosts, Fleet leaves out `ChangeManagementState`, because Apple rejects it there.
+- `APP_STORE_ID` is the app's App Store ID. For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), Fleet sends `ManifestURL` instead of `iTunesStoreID`.
+- `Configuration` is the `Configuration` from your `Command`. If you don't set one, Fleet leaves it out.
+- `COMMAND_UUID` is a unique ID Fleet generates for each command.
+
+On personal (BYOD) hosts, Fleet leaves out `ChangeManagementState`, because Apple rejects it there.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -160,18 +163,15 @@ This is the `InstallApplication` command Fleet sends when `Command` has only the
     </dict>
     <key>Configuration</key>
     <dict>
-      <key>ForceLoginWithSSO</key>
-      <true />
-      <key>SetSSOURL</key>
-      <string>example</string>
+      <!-- The app's managed configuration -->
     </dict>
     <key>RequestType</key>
     <string>InstallApplication</string>
     <key>iTunesStoreID</key>
-    <integer>546505307</integer>
+    <integer>APP_STORE_ID</integer>
   </dict>
   <key>CommandUUID</key>
-  <string>0C3F6B1E-8A2D-4E57-9B6C-2D1F4A7E9C30</string>
+  <string>COMMAND_UUID</string>
 </dict>
 </plist>
 ```
