@@ -191,6 +191,15 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// an unsupported order_key returns 422
 	s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusUnprocessableEntity, "order_key", "vendor_old")
 
+	// Only List operating systems renamed its version sort key, so other lists still sort by version.
+	versionsResp = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "order_key", "version", "order_direction", "desc")
+	var versions []string
+	for _, sw := range versionsResp.Software {
+		versions = append(versions, sw.Version)
+	}
+	require.Equal(t, []string{"v1.48.0", "0.0.3", "0.0.1"}, versions)
+
 	// default sort, not only vulnerable
 	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp)
