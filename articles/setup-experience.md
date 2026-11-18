@@ -334,6 +334,18 @@ Testing requires a test Mac that is present in your Apple Business (AB) account.
 
 4. Boot up your test Mac and complete the custom out-of-the-box setup experience.
 
+## Replace the Fleet logo
+
+To replace the Fleet logo in the setup experience window with your organization's logo:
+
+1. Go to **Settings** > **Organization settings** > **Organization info**.
+
+2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields.
+
+3. Press **Save**.
+ 
+> See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
+
 ## Configuring via REST API
 
 Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
@@ -526,18 +538,6 @@ The Fleet setup experience for macOS will exit if any of the following occurs:
 ### Automatic installs and scripts during setup
 
 Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
-
-### Replace the Fleet logo
-
-To replace the Fleet logo in the setup experience window with your organization's logo:
-
-1. Go to **Settings** > **Organization settings** > **Organization info**.
-
-2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields.
-
-3. Press **Save**.
- 
-> See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
 ### swiftDialog
 
