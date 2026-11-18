@@ -615,6 +615,7 @@ CREATE TABLE `google_conditional_access_device_users` (
 CREATE TABLE `google_conditional_access_devices` (
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `customer_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `registration_token_hash` binary(32) DEFAULT NULL,
   `registration_token_expires_at` datetime(6) DEFAULT NULL,
   `registration_attempts` int unsigned NOT NULL DEFAULT '0',
@@ -623,8 +624,9 @@ CREATE TABLE `google_conditional_access_devices` (
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`host_uuid`),
   UNIQUE KEY `idx_google_conditional_access_devices_registration_token_hash` (`registration_token_hash`),
+  UNIQUE KEY `idx_google_conditional_access_devices_google_device_id` (`google_device_id`),
   KEY `idx_google_conditional_access_devices_customer_id` (`customer_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -934,16 +936,6 @@ CREATE TABLE `host_emails` (
   PRIMARY KEY (`id`),
   KEY `idx_host_emails_host_id_email` (`host_id`,`email`),
   KEY `idx_host_emails_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `host_google_device_ids` (
-  `host_id` int unsigned NOT NULL,
-  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`host_id`),
-  UNIQUE KEY `idx_host_google_device_ids_google_device_id` (`google_device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
