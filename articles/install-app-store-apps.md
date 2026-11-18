@@ -82,13 +82,17 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 ## Managed configuration
 
-### Apple (VPP)
+### iOS and iPadOS managed configuration
 
-Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+The **Configuration** field does more than set the app's managed configuration (App Config). It can also set options in the install command Fleet sends to the host, like per-app VPN or keeping the app after the host unenrolls.
+
+New or updated configuration isn't applied until the end user fully quits and reopens the app. If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt.
+
+For App Store apps, Fleet sends the updated configuration to hosts in scope when you save it. For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), the field works the same way, but changes apply only the next time the app is installed or updated on each host.
+
+#### Managed configuration only
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
-
-New or updated configuration isn't applied until the end user fully quits and reopens the app.
 
 This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
 
@@ -100,6 +104,60 @@ This example Zoom configuration ensures that the end user has only the SSO login
   <string>example</string>
 </dict>
 ```
+
+#### Managed configuration and install options
+
+To set install options, wrap everything in a `<dict>` whose only key is `Command`. Put the app's managed configuration under `Configuration`.
+
+This example keeps Zoom on the host after it unenrolls, sends Zoom's traffic through a per-app VPN, and sets the same managed configuration as above:
+
+```xml
+<dict>
+  <key>Command</key>
+  <dict>
+    <key>ManagementFlags</key>
+    <integer>0</integer>
+    <key>Attributes</key>
+    <dict>
+      <key>VPNUUID</key>
+      <string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string>
+    </dict>
+    <key>Configuration</key>
+    <dict>
+      <key>ForceLoginWithSSO</key>
+      <true />
+      <key>SetSSOURL</key>
+      <string>example</string>
+    </dict>
+  </dict>
+</dict>
+```
+
+`Command` supports these keys. Fleet rejects any other key.
+
+| Key | What it does |
+| --- | ------------ |
+| `Configuration` | The app's managed configuration, as a `<dict>`. |
+| `ManagementFlags` | What happens to the app when the host unenrolls. `1` (default) removes the app. `0` keeps it. `4` prevents backup of the app's data, and `5` does both `1` and `4`. |
+| `Attributes` | App attributes from Apple's [InstallApplication command](https://developer.apple.com/documentation/devicemanagement/install-application-command), as a `<dict>`: `VPNUUID`, `DNSProxyUUID`, `ContentFilterUUID`, `RelayUUID`, `CellularSliceUUID`, `AssociatedDomains`, `AssociatedDomainsEnableDirectDownloads`, `Removable`, `Hideable`, `Lockable`, and `TapToPayScreenLock`. |
+
+If you leave out a key, Fleet uses its default. Fleet always sets the rest of the install command itself, like the app's ID and `ChangeManagementState`.
+
+> **Note:** On personal (BYOD) hosts, Apple always removes managed apps when the host unenrolls, even if `ManagementFlags` is `0`.
+
+> **Note:** Fleet sends attributes even if the host's iOS or iPadOS version doesn't support them yet. If the host rejects the install, the error shows in the install details on **Host details > Activity**.
+
+#### Per-app VPN
+
+[Per-app VPN](https://support.apple.com/guide/deployment/depae3d361d0/web) sends only the selected apps' traffic through a VPN.
+
+1. Add a per-app VPN configuration profile (`com.apple.vpn.managed.applayer`) in **Controls > OS settings > Configuration profiles**. To start the VPN automatically when the app connects, set `OnDemandMatchAppEnabled` to `true` in the profile. For the profile's other settings, check your VPN provider's documentation.
+
+2. Copy the `VPNUUID` value from the profile.
+
+3. In the app's **Configuration**, add the `VPNUUID` under `Command` > `Attributes`, like in the example above, and save.
+
+> **Note:** Fleet doesn't check that the `VPNUUID` matches a profile. If it doesn't, the app installs without the VPN.
 
 ### Google Play (Android)
 
@@ -204,10 +262,6 @@ If the end user declined, installing the app again from **Host details** usually
 [AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
 
 Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
-
-#### iOS and iPadOS managed configuration
-
-If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
 
 ### Google Play (Android)
 
