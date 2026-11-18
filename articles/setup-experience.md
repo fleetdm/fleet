@@ -174,12 +174,6 @@ To require an end user agreement, in Fleet, head to **Settings > Integrations > 
 - **macOS**: Upload a PDF. The end user license agreement (EULA) is displayed for macOS hosts that automatically enroll via Apple Business (AB). Use the [Fleet API](/docs/rest-api/rest-api#create-eula) to upload, view, or delete it.
 - **Windows**: Upload a markdown file (512 KB max, HTML is limited to tables and text styles). The terms and conditions are displayed for Windows hosts that enroll via Microsoft Entra. Use the [Fleet API](/docs/rest-api/rest-api#create-eula) to upload, view, or delete it. If no custom terms are uploaded, Fleet uses a default terms of service page.
 
-## Require a passcode on Android
-
-To require Android end users to set a passcode during setup, add a passcode profile to the fleet. Use the [example passcode profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/android/configuration-profiles/password-policy.json) as a starting point.
-
-Passcode profiles scoped with labels are applied after setup, not during it, because a host doesn't have labels until it enrolls.
-
 ## Bootstrap package
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
