@@ -77,7 +77,7 @@ describe("PolicyPicker", () => {
     });
   });
 
-  it("lists with fleetId 0 for Unassigned", async () => {
+  it("lists with fleetId 0 and mergeInherited for Unassigned", async () => {
     renderPicker(
       <PolicyPicker
         search=""
@@ -88,7 +88,7 @@ describe("PolicyPicker", () => {
 
     await waitFor(() => {
       expect(mockedPolicies.loadAll).toHaveBeenCalledWith(
-        expect.objectContaining({ fleetId: 0 })
+        expect.objectContaining({ fleetId: 0, mergeInherited: true })
       );
     });
   });
