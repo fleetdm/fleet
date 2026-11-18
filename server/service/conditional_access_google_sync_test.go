@@ -38,13 +38,14 @@ func TestGoogleMarkRetryDue(t *testing.T) {
 }
 
 func TestGoogleUnmarkRetryDue(t *testing.T) {
-	registered := time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC)
-	queued := fleet.GoogleConditionalAccessDeviceUser{CreatedAt: registered, UpdatedAt: registered.Add(24 * time.Hour)}
+	queuedAt := time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC)
+	queued := fleet.GoogleConditionalAccessDeviceUser{CreatedAt: queuedAt, UpdatedAt: queuedAt}
 	// A queued unmark goes at once.
-	require.True(t, googleUnmarkRetryDue(queued, queued.UpdatedAt))
-	// A failed one waits, up to an hour.
+	require.True(t, googleUnmarkRetryDue(queued, queuedAt))
+	// A failed one waits as long as it has been queued.
 	failed := queued
-	failed.ErrorMessage = new("Google returned HTTP 500")
-	require.False(t, googleUnmarkRetryDue(failed, failed.UpdatedAt.Add(59*time.Minute)))
-	require.True(t, googleUnmarkRetryDue(failed, failed.UpdatedAt.Add(time.Hour)))
+	failed.ErrorMessage = new("Google returned HTTP 400")
+	failed.UpdatedAt = queuedAt.Add(5 * time.Minute)
+	require.False(t, googleUnmarkRetryDue(failed, failed.UpdatedAt.Add(4*time.Minute)))
+	require.True(t, googleUnmarkRetryDue(failed, failed.UpdatedAt.Add(5*time.Minute)))
 }

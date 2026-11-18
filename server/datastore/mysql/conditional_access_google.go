@@ -382,8 +382,9 @@ func recordGoogleDeviceUsersDB(ctx context.Context, tx sqlx.ExtContext, hostUUID
 		}
 	}
 	if len(dropped) > 0 {
+		// created_at restarts, as in queueGoogleConditionalAccessUnmarkDB.
 		if err := googleExecIn(ctx, tx, "queueing unmark of dropped names", `
-			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL
+			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL, created_at = NOW(6)
 			WHERE device_user_name IN (?) AND host_uuid = ? AND state <> ?`,
 			fleet.GoogleConditionalAccessDeviceUserUnmanaging, dropped, hostUUID, fleet.GoogleConditionalAccessDeviceUserUnmanaging); err != nil {
 			return err
@@ -498,8 +499,9 @@ func queueGoogleConditionalAccessUnmarkDB(ctx context.Context, tx sqlx.ExtContex
 			registered, fleet.GoogleConditionalAccessDeviceUserStale); err != nil {
 			return err
 		}
+		// created_at restarts with the queueing, since the unmark retry backoff counts from it.
 		if err := googleExecIn(ctx, tx, "queueing google conditional access unmark", `
-			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL
+			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL, created_at = NOW(6)
 			WHERE host_uuid IN (?) AND state IN (?)`,
 			fleet.GoogleConditionalAccessDeviceUserUnmanaging, registered, []fleet.GoogleConditionalAccessDeviceUserState{
 				fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged,

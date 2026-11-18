@@ -1004,11 +1004,14 @@ func testConditionalAccessGoogleFailureTimes(t *testing.T, ds *Datastore) {
 	const customer = "C02cajzvg"
 	name := "devices/d1/deviceUsers/a"
 	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, []string{name}))
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE google_conditional_access_device_users
-			SET created_at = NOW(6) - INTERVAL 1 HOUR, updated_at = NOW(6) - INTERVAL 1 HOUR`)
-		return err
-	})
+	backdate := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE google_conditional_access_device_users
+				SET created_at = NOW(6) - INTERVAL 1 HOUR, updated_at = NOW(6) - INTERVAL 1 HOUR`)
+			return err
+		})
+	}
+	backdate()
 	list := func() fleet.GoogleConditionalAccessDeviceUser {
 		dus, err := ds.ListGoogleConditionalAccessDeviceUsers(ctx, fleet.GoogleConditionalAccessDeviceUserFilter{
 			CustomerID: customer, States: []fleet.GoogleConditionalAccessDeviceUserState{fleet.GoogleConditionalAccessDeviceUserPending}, Limit: 10,
@@ -1041,4 +1044,33 @@ func testConditionalAccessGoogleFailureTimes(t *testing.T, ds *Datastore) {
 	again := list()
 	require.Nil(t, again.ErrorMessage)
 	require.WithinDuration(t, time.Now(), again.CreatedAt, 30*time.Second)
+
+	// So does queueing a name for unmark, by a registration that drops it or for a host
+	// that is gone. A name already queued keeps its backoff.
+	queuedAt := func() map[string]time.Time {
+		dus, err := ds.ListGoogleConditionalAccessDeviceUsers(ctx, fleet.GoogleConditionalAccessDeviceUserFilter{
+			CustomerID: customer, States: []fleet.GoogleConditionalAccessDeviceUserState{fleet.GoogleConditionalAccessDeviceUserUnmanaging}, Limit: 10,
+		})
+		require.NoError(t, err)
+		at := make(map[string]time.Time, len(dus))
+		for _, du := range dus {
+			at[du.Name] = du.CreatedAt
+		}
+		return at
+	}
+	const other = "devices/d1/deviceUsers/b"
+	backdate()
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, []string{other}))
+	at := queuedAt()
+	require.Len(t, at, 1)
+	require.WithinDuration(t, time.Now(), at[name], 30*time.Second)
+
+	backdate()
+	queued, err := ds.QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts(ctx, customer, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, queued)
+	at = queuedAt()
+	require.Len(t, at, 2)
+	require.WithinDuration(t, time.Now(), at[other], 30*time.Second)
+	require.WithinDuration(t, time.Now().Add(-time.Hour), at[name], 30*time.Second)
 }

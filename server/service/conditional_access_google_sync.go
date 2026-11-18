@@ -642,7 +642,7 @@ func googleMarkRetryDue(du fleet.GoogleConditionalAccessDeviceUser, now time.Tim
 }
 
 // googleUnmarkRetryDue reports whether the cron should unmark a queued name: at once,
-// and after a failure with the backoff of a failed mark.
+// and after a failure with the backoff of a failed mark, counted from the queueing.
 func googleUnmarkRetryDue(du fleet.GoogleConditionalAccessDeviceUser, now time.Time) bool {
 	return du.ErrorMessage == nil || googleMarkRetryDue(du, now)
 }

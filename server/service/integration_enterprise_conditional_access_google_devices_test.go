@@ -504,9 +504,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUnmark() {
 	s.token = s.getTestAdminToken()
 
 	// Deleting the host queues the names; a record Google no longer has counts as
-	// unmarked, and a failed unmark is retried.
+	// unmarked, and a failed unmark is retried. Its backoff counts from the queueing,
+	// however long ago the name was registered.
 	deleted := g.newIOSHost("ios", true)
 	register(deleted, "devices/deleted/deviceUsers/gone", "devices/deleted/deviceUsers/flaky")
+	g.execSQL(`UPDATE google_conditional_access_device_users SET created_at = NOW(6) - INTERVAL 1 DAY WHERE host_uuid = ?`, deleted.UUID)
 	g.client.reset()
 	g.client.setDev(func(d *googleDeviceMock) {
 		d.unmarkErrs = map[string]error{
