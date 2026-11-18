@@ -4953,13 +4953,15 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 			},
 		},
 		{
-			name: "only dotted versions and years are trimmed from program names",
+			name: "only trailing versions, years and parenthesized parts are trimmed from program names",
 			mainResults: []map[string]string{
 				{"name": "7-Zip-26.06", "source": "programs", "installed_path": ""},
 				{"name": "Autodesk 3ds Max 2026", "source": "programs", "installed_path": ""},
 				{"name": "Microsoft 365 Apps for enterprise - en-us", "source": "programs", "installed_path": ""},
+				{"name": "Acme (CAD) Suite", "source": "programs", "installed_path": ""},
 			},
 			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Acme Suite\viewer.exe`, "filename": "viewer.exe", "product_version": "3.0", "file_version": "3.0.0.0"},
 				{"path": `C:\Program Files\7-Zip\7z.exe`, "filename": "7z.exe", "product_version": "26.06", "file_version": "26.6.0.0"},
 				{"path": `C:\Program Files\Autodesk\AutoCAD 2026\acad.exe`, "filename": "acad.exe", "product_version": "25.1", "file_version": "25.1.0.0"},
 				{"path": `C:\Program Files\Microsoft\Tool\tool.exe`, "filename": "tool.exe", "product_version": "1.0", "file_version": "1.0"},
@@ -4968,6 +4970,13 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 				{"name": "7-Zip-26.06", "source": "programs", "installed_path": ""},
 				{"name": "Autodesk 3ds Max 2026", "source": "programs", "installed_path": ""},
 				{"name": "Microsoft 365 Apps for enterprise - en-us", "source": "programs", "installed_path": ""},
+				{"name": "Acme (CAD) Suite", "source": "programs", "installed_path": ""},
+				{
+					"name": "viewer.exe", "version": "3.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Acme Suite`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
 				{
 					"name": "acad.exe", "version": "25.1", "source": "programs",
 					"vendor": "", "installed_path": `C:\Program Files\Autodesk\AutoCAD 2026`,
