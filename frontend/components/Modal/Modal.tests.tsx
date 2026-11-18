@@ -528,6 +528,17 @@ describe("Modal", () => {
       expect(screen.getByTestId("close-icon").closest("button")).toHaveFocus();
     });
 
+    it("gives the header Close button an accessible name", () => {
+      render(
+        <Modal title="Focus" onExit={noop}>
+          <input type="text" aria-label="first-input" />
+        </Modal>
+      );
+
+      // Screen readers announce the initially focused control by this name.
+      expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+    });
+
     it("restores focus to the trigger element when the modal unmounts", () => {
       const trigger = document.createElement("button");
       trigger.textContent = "open";
@@ -739,6 +750,30 @@ describe("Modal", () => {
       fireEvent.keyDown(document, { key: "Tab" });
 
       // Focus must stay in the palette; the modal below must not pull it back.
+      expect(paletteInput).toHaveFocus();
+      document.body.removeChild(palette);
+    });
+
+    it("yields Tab to a higher dialog even when the modal has no focusables", () => {
+      // FileProgressModal-style: no children, disableClosingModal hides the
+      // header's close button too. Cmd+K opening a palette above it must not
+      // get its Tab blocked by this trap's empty-focusables fallback.
+      render(
+        <Modal title="Progress" onExit={noop} disableClosingModal>
+          <></>
+        </Modal>
+      );
+
+      const palette = document.createElement("div");
+      palette.setAttribute("role", "dialog");
+      palette.setAttribute("aria-modal", "true");
+      const paletteInput = document.createElement("input");
+      palette.appendChild(paletteInput);
+      document.body.appendChild(palette);
+      paletteInput.focus();
+
+      fireEvent.keyDown(document, { key: "Tab" });
+
       expect(paletteInput).toHaveFocus();
       document.body.removeChild(palette);
     });

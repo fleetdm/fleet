@@ -2,7 +2,6 @@ import classnames from "classnames";
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import Button from "components/buttons/Button/Button";
-import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
 const CLOSE_ANIMATION_MS = 100;
@@ -239,6 +238,26 @@ const Modal = ({
       // don't pull focus out of a stacked dialog on top.
       if (focusTrapStack[focusTrapStack.length - 1] !== container) return;
 
+      const active = document.activeElement as HTMLElement | null;
+
+      // Focus is outside our container: yield to higher dialogs or portaled
+      // menus, otherwise pull focus back in. Must run before the empty-
+      // focusables fallback so a childless modal (e.g. FileProgressModal)
+      // doesn't block Tab inside the command palette above it.
+      if (!container.contains(active)) {
+        // Another modal dialog above us (e.g. the command palette, which
+        // wraps Radix Dialog with aria-modal="true").
+        if (active?.closest('[aria-modal="true"]')) return;
+        // react-select menus (ActionsDropdown, DropdownWrapper,
+        // SingleSelectDropdown) portal their options to document.body when
+        // inside tables. Let the menu's own handlers manage Tab.
+        if (active?.closest('[role="listbox"], [role="option"]')) return;
+        e.preventDefault();
+        const focusables = getFocusable(container);
+        (focusables[0] ?? container).focus();
+        return;
+      }
+
       const focusables = getFocusable(container);
       if (focusables.length === 0) {
         e.preventDefault();
@@ -248,22 +267,6 @@ const Modal = ({
 
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-
-      if (!container.contains(active)) {
-        // Focus is inside another modal dialog above us (e.g. the command
-        // palette, which wraps Radix Dialog with aria-modal="true"). Let it
-        // own Tab instead of pulling focus back into this modal.
-        if (active?.closest('[aria-modal="true"]')) return;
-        // react-select menus (ActionsDropdown, DropdownWrapper,
-        // SingleSelectDropdown) portal their options to document.body when
-        // inside tables. The options belong to this modal; let the menu's own
-        // handlers manage Tab (it closes the menu and advances focus).
-        if (active?.closest('[role="listbox"], [role="option"]')) return;
-        e.preventDefault();
-        first.focus();
-        return;
-      }
 
       // Container itself holds focus (tabIndex=-1): treat as a boundary so
       // Shift+Tab doesn't escape to the page behind.
@@ -378,11 +381,11 @@ const Modal = ({
             <div className={`${baseClass}__ex`}>
               <Button
                 variant="subdued"
+                icon="close"
+                ariaLabel="Close"
                 onClick={handleClose}
                 autofocus={isContentDisabled}
-              >
-                <Icon name="close" color="core-fleet-black" size="medium" />
-              </Button>
+              />
             </div>
           )}
         </div>
