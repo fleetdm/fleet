@@ -412,7 +412,7 @@ var linuxPlatforms = map[string]struct{}{
 	"linuxmint": {}, "void": {}, "nixos": {}, "endeavouros": {}, "manjaro": {},
 	"manjaro-arm": {}, "opensuse-leap": {}, "opensuse-tumbleweed": {}, "tuxedo": {},
 	"neon": {}, "archarm": {}, "flatcar": {}, "coreos": {}, "cachyos": {}, "omarchy": {},
-	"fedora": {}, "alpine": {},
+	"chainguard": {}, "fedora": {}, "alpine": {},
 }
 
 func isLinuxPlatform(p string) bool {
