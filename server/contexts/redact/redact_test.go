@@ -31,7 +31,7 @@ func TestScrubJSONQuotedForms(t *testing.T) {
 		"html and quote": `x&y<z>"q'`,
 		"control char":   "a\x01b",
 		"nbsp":           "a b",
-		"zero width":     "a​b",
+		"zero width":     "a\u200bb",
 		"invalid utf8":   "a\xff\xfeb",
 		"emoji":          "a🔑b",
 	} {
