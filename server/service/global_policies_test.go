@@ -438,27 +438,22 @@ func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	req := []*fleet.PolicySpec{
-		{
-			Name:     "query1",
-			Query:    "select 1;",
-			Platform: "windows",
-		},
-		{
-			Name:     "query1",
-			Query:    "select 1;",
-			Platform: "windows",
-		},
-	}
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	err := svc.ApplyPolicySpecs(ctx, req)
+	// Unassigned in a different letter case is the same fleet.
+	for _, fleets := range [][2]string{{"", ""}, {"Unassigned", "unassigned"}} {
+		req := []*fleet.PolicySpec{
+			{Name: "query1", Query: "select 1;", Platform: "windows", Team: fleets[0]},
+			{Name: "query1", Query: "select 2;", Platform: "windows", Team: fleets[1]},
+		}
 
-	badRequestError := &fleet.BadRequestError{}
-	require.ErrorAs(t, err, &badRequestError)
-	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+		err := svc.ApplyPolicySpecs(ctx, req)
+
+		badRequestError := &fleet.BadRequestError{}
+		require.ErrorAs(t, err, &badRequestError)
+		require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+	}
 }
 
 func TestApplyPolicySpecsLabelsValidation(t *testing.T) {

@@ -437,7 +437,11 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
 		}
-		if policy.Team != "" && !fleet.IsUnassignedFleetName(policy.Team) {
+		// One spelling, so that the duplicate check and the datastore's grouping by fleet name treat any letter case as one fleet.
+		if fleet.IsUnassignedFleetName(policy.Team) {
+			policy.Team = fleet.DisplayNameNoTeam
+		}
+		if policy.Team != "" && policy.Team != fleet.DisplayNameNoTeam {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned

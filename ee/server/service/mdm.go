@@ -1777,21 +1777,22 @@ func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken)
 		idxByOrg[entry.OrganizationName] = i
 	}
 
-	abmTeamName := func(name string) string {
-		if name == fleet.DisplayNameNoTeam {
+	// Unassigned is ID 0. Going by ID keeps a fleet created as "Unassigned" before that name was reserved.
+	abmTeamName := func(tm fleet.ABMTokenTeam) string {
+		if tm.ID == 0 {
 			return ""
 		}
-		return name
+		return tm.Name
 	}
 
 	for _, tok := range tokens {
 		entry := fleet.MDMAppleABMAssignmentInfo{
 			OrganizationName: tok.OrganizationName,
 			Default:          tok.IsDefault,
-			MacOSTeam:        abmTeamName(tok.MacOSTeam.Name),
-			IOSTeam:          abmTeamName(tok.IOSTeam.Name),
-			IpadOSTeam:       abmTeamName(tok.IPadOSTeam.Name),
-			BYODTeam:         abmTeamName(tok.BYODTeam.Name),
+			MacOSTeam:        abmTeamName(tok.MacOSTeam),
+			IOSTeam:          abmTeamName(tok.IOSTeam),
+			IpadOSTeam:       abmTeamName(tok.IPadOSTeam),
+			BYODTeam:         abmTeamName(tok.BYODTeam),
 		}
 
 		if i, ok := idxByOrg[tok.OrganizationName]; ok {

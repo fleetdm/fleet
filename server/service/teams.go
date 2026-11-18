@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -492,4 +494,14 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+// removedFleetName returns the error reason when name is "No team" or "All teams", the old names of Unassigned and All fleets.
+func removedFleetName(name string) (string, bool) {
+	for _, names := range [][2]string{{fleet.ReservedNameNoTeam, fleet.DisplayNameNoTeam}, {fleet.ReservedNameAllTeams, fleet.DisplayNameAllTeams}} {
+		if strings.EqualFold(name, names[0]) {
+			return removednames.Message(fmt.Sprintf("%q", names[0]), fmt.Sprintf("%q", names[1])), true
+		}
+	}
+	return "", false
 }

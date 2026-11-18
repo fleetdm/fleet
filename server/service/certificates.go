@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -434,16 +433,6 @@ func applyCertificateTemplateSpecsEndpoint(ctx context.Context, request interfac
 		return applyCertificateTemplateSpecsResponse{Err: err}, nil
 	}
 	return applyCertificateTemplateSpecsResponse{}, nil
-}
-
-// removedFleetName returns the error reason when name is "No team" or "All teams", the old names of Unassigned and All fleets.
-func removedFleetName(name string) (string, bool) {
-	for _, names := range [][2]string{{fleet.ReservedNameNoTeam, fleet.DisplayNameNoTeam}, {fleet.ReservedNameAllTeams, fleet.DisplayNameAllTeams}} {
-		if strings.EqualFold(name, names[0]) {
-			return removednames.Message(fmt.Sprintf("%q", names[0]), fmt.Sprintf("%q", names[1])), true
-		}
-	}
-	return "", false
 }
 
 func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) (map[string]uint, error) {
