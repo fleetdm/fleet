@@ -1,10 +1,13 @@
-import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { screen, waitFor, within } from "@testing-library/react";
+import { UserEvent } from "@testing-library/user-event";
+import { http, HttpResponse, RequestHandler } from "msw";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
 import createMockUser from "__mocks__/userMock";
+import { notify } from "components/ToastNotification";
 import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
@@ -196,6 +199,7 @@ describe("ManagePoliciesPage - fleet's own policies", () => {
     createMockPolicy({ id: 11, name: "Inherited two", fleet_id: null }),
   ];
   const ownPolicies: Record<number, ReturnType<typeof createMockPolicy>[]> = {
+    0: [createMockPolicy({ id: 30, name: "Unassigned one", fleet_id: 0 })],
     [INHERITED_ONLY_FLEET_ID]: [],
     [MIXED_FLEET_ID]: [
       createMockPolicy({
@@ -208,19 +212,38 @@ describe("ManagePoliciesPage - fleet's own policies", () => {
 
   // The count has to differ with merge_inherited, or a page that used the
   // merged count wouldn't be caught.
+  let deletedIds = new Set<number>();
+  beforeEach(() => {
+    deletedIds = new Set();
+  });
+
   const policiesFor = (request: Request) => {
     const params = new URL(request.url).searchParams;
+    if (!params.has("fleet_id")) {
+      return inheritedPolicies.filter((policy) => !deletedIds.has(policy.id));
+    }
     const own = ownPolicies[Number(params.get("fleet_id"))] ?? [];
-    return params.get("merge_inherited") === "true"
+    return (params.get("merge_inherited") === "true"
       ? [...own, ...inheritedPolicies]
-      : own;
+      : own
+    ).filter((policy) => !deletedIds.has(policy.id));
   };
 
-  const renderPage = (fleetId: number, isPrimo = false) => {
+  /** `fleetId` undefined is "All fleets". `handlers` override the defaults.
+   *  `keepCache` keeps inactive queries cached like the app does; the test
+   *  renderer drops them at once. */
+  const renderPage = (
+    fleetId: number | undefined,
+    isPrimo = false,
+    handlers: RequestHandler[] = [],
+    keepCache = false
+  ) => {
     const config = createMockConfig({
       partnerships: { enable_primo: isPrimo },
     });
     mockServer.use(
+      // The first matching handler wins, so overrides go first.
+      ...handlers,
       http.get(baseUrl("/config"), () => HttpResponse.json(config)),
       getFleetHandler(),
       http.get(baseUrl("/policies"), ({ request }) =>
@@ -228,7 +251,12 @@ describe("ManagePoliciesPage - fleet's own policies", () => {
       ),
       http.get(baseUrl("/policies/count"), ({ request }) =>
         HttpResponse.json({ count: policiesFor(request).length })
-      )
+      ),
+      http.post(baseUrl("/policies/delete"), async ({ request }) => {
+        const { ids } = (await request.json()) as { ids: number[] };
+        ids.forEach((id) => deletedIds.add(id));
+        return HttpResponse.json({ deleted: ids });
+      })
     );
 
     const render = createCustomRenderer({
@@ -253,19 +281,58 @@ describe("ManagePoliciesPage - fleet's own policies", () => {
       },
     });
 
-    const query = { fleet_id: fleetId.toString() };
-    return render(
-      <ManagePoliciesPage
-        router={createMockRouter()}
-        location={{
-          action: "PUSH",
-          hash: "",
-          key: "",
-          pathname: "/policies/manage",
-          query,
-          search: `?${new URLSearchParams(query).toString()}`,
-        }}
-      />
+    const router = createMockRouter();
+    const cacheClient = keepCache
+      ? new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      : undefined;
+    const page = (id: number | undefined) => {
+      const query: Record<string, string> =
+        id === undefined ? {} : { fleet_id: id.toString() };
+      const element = (
+        <ManagePoliciesPage
+          router={router}
+          location={{
+            action: "PUSH",
+            hash: "",
+            key: "",
+            pathname: "/policies/manage",
+            query,
+            search: `?${new URLSearchParams(query).toString()}`,
+          }}
+        />
+      );
+      return cacheClient ? (
+        <QueryClientProvider client={cacheClient}>
+          {element}
+        </QueryClientProvider>
+      ) : (
+        element
+      );
+    };
+    const result = render(page(fleetId));
+    /** Changes the fleet in the URL without onTeamChange, like browser Back. */
+    const showFleet = (id: number | undefined) => result.rerender(page(id));
+    return { ...result, showFleet };
+  };
+
+  const rowCheckbox = async (name: string) =>
+    within(
+      (await screen.findAllByText(name))[0].closest("tr") as HTMLElement
+    ).getByRole("checkbox");
+
+  const confirmDelete = async (user: UserEvent) => {
+    await user.click(screen.getByRole("button", { name: /Delete/ }));
+    await screen.findByText("Delete policies");
+    // The modal's Delete renders after the table's.
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+  };
+
+  const ownCountRequest = (fleetId: number) => (request: Request) => {
+    const params = new URL(request.url).searchParams;
+    return (
+      params.get("fleet_id") === String(fleetId) &&
+      params.get("merge_inherited") !== "true"
     );
   };
 
@@ -273,6 +340,9 @@ describe("ManagePoliciesPage - fleet's own policies", () => {
     renderPage(INHERITED_ONLY_FLEET_ID);
 
     await screen.findAllByText("Inherited one");
+    // The button starts disabled, so wait for the merged count; a page using
+    // it would enable the button once it arrives.
+    await screen.findByText(/2 policies/);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: /Manage automations/i })
@@ -294,12 +364,121 @@ describe("ManagePoliciesPage - fleet's own policies", () => {
   });
 
   it("still lets Primo mode delete inherited policies", async () => {
+    const deleteRequests: number[][] = [];
     // Primo mode has no fleets; its policies view is "Unassigned".
-    renderPage(0, true);
+    const { user } = renderPage(0, true, [
+      http.post(baseUrl("/policies/delete"), async ({ request }) => {
+        const { ids } = (await request.json()) as { ids: number[] };
+        deleteRequests.push(ids);
+        ids.forEach((id) => deletedIds.add(id));
+        return HttpResponse.json({ deleted: ids });
+      }),
+    ]);
 
-    await screen.findAllByText("Inherited one");
+    await user.click(await rowCheckbox("Inherited one"));
+    await user.click(await rowCheckbox("Unassigned one"));
+    await confirmDelete(user);
+
     await waitFor(() =>
-      expect(screen.queryAllByRole("checkbox").length).toBeGreaterThan(0)
+      expect(screen.queryByText("Unassigned one")).not.toBeInTheDocument()
     );
+    expect(screen.queryAllByText("Inherited one")).toHaveLength(0);
+    expect(deleteRequests).toEqual([[10, 30]]);
+  });
+
+  it("refreshes and clears the selection when a delete fails partway", async () => {
+    const notifyErrorSpy = jest.spyOn(notify, "error");
+    const { user } = renderPage(0, true, [
+      // The inherited policy is deleted before the request fails.
+      http.post(baseUrl("/policies/delete"), () => {
+        deletedIds.add(10);
+        return HttpResponse.json({ message: "failed" }, { status: 500 });
+      }),
+    ]);
+
+    await user.click(await rowCheckbox("Inherited one"));
+    await user.click(await rowCheckbox("Unassigned one"));
+    await confirmDelete(user);
+
+    await waitFor(() =>
+      expect(screen.queryByText("Inherited one")).not.toBeInTheDocument()
+    );
+    expect(await rowCheckbox("Unassigned one")).not.toBeChecked();
+    expect(notifyErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Some may have been deleted"),
+      expect.anything()
+    );
+    notifyErrorSpy.mockRestore();
+  });
+
+  it("closes the delete confirmation when the fleet changes", async () => {
+    const { user, showFleet } = renderPage(MIXED_FLEET_ID);
+
+    await user.click(await rowCheckbox("Own policy"));
+    await user.click(screen.getByRole("button", { name: /Delete/ }));
+    await screen.findByText("Delete policies");
+
+    showFleet(INHERITED_ONLY_FLEET_ID);
+
+    await waitFor(() =>
+      expect(screen.queryByText("Delete policies")).not.toBeInTheDocument()
+    );
+  });
+
+  it("doesn't use the previous fleet's count while the new one loads", async () => {
+    const { showFleet } = renderPage(MIXED_FLEET_ID, false, [
+      http.get(baseUrl("/policies/count"), ({ request }) =>
+        ownCountRequest(INHERITED_ONLY_FLEET_ID)(request)
+          ? new Promise<never>(() => undefined)
+          : undefined
+      ),
+    ]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Manage automations/i })
+      ).toBeEnabled()
+    );
+
+    showFleet(INHERITED_ONLY_FLEET_ID);
+
+    await screen.findByText(/2 policies/);
+    expect(
+      screen.getByRole("button", { name: /Manage automations/i })
+    ).toBeDisabled();
+  });
+
+  it("keeps the fleet's own policies actionable when their count fails", async () => {
+    renderPage(MIXED_FLEET_ID, false, [
+      http.get(baseUrl("/policies/count"), ({ request }) =>
+        ownCountRequest(MIXED_FLEET_ID)(request)
+          ? HttpResponse.json({ message: "failed" }, { status: 500 })
+          : undefined
+      ),
+    ]);
+
+    await screen.findAllByText("Own policy");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Manage automations/i })
+      ).toBeEnabled()
+    );
+  });
+
+  it("doesn't show a deleted policy from another fleet's cached list", async () => {
+    const { user, showFleet } = renderPage(MIXED_FLEET_ID, false, [], true);
+    await screen.findAllByText("Inherited one");
+
+    showFleet(undefined);
+    await user.click(await rowCheckbox("Inherited one"));
+    await confirmDelete(user);
+    await waitFor(() =>
+      expect(screen.queryByText("Inherited one")).not.toBeInTheDocument()
+    );
+
+    showFleet(MIXED_FLEET_ID);
+
+    expect(screen.queryByText("Inherited one")).not.toBeInTheDocument();
+    await screen.findAllByText("Own policy");
+    expect(screen.queryByText("Inherited one")).not.toBeInTheDocument();
   });
 });

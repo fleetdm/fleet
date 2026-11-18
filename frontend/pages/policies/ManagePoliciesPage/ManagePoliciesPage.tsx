@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { SingleValue } from "react-select-5";
 
@@ -385,8 +385,9 @@ const ManagePolicyPage = ({
   // The fleet's own policies, without the inherited ones, which decide
   // whether there's anything to automate or delete here.
   const {
-    data: teamOwnPoliciesCount,
+    data: teamOwnPoliciesCountData,
     isError: isErrorTeamOwnPoliciesCount,
+    isPreviousData: isPreviousTeamOwnPoliciesCount,
     refetch: refetchTeamOwnPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
@@ -407,6 +408,12 @@ const ManagePolicyPage = ({
       select: (data) => data.count,
     }
   );
+
+  // keepPreviousData can still hold another fleet's count; don't use it as
+  // this fleet's.
+  const teamOwnPoliciesCount = isPreviousTeamOwnPoliciesCount
+    ? undefined
+    : teamOwnPoliciesCountData;
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
@@ -454,6 +461,26 @@ const ManagePolicyPage = ({
       refetchGlobalPoliciesCount();
     }
   };
+
+  const queryClient = useQueryClient();
+
+  // Fleet and Unassigned lists include inherited policies, so any scope's
+  // cached list or count can hold a deleted policy. Cached scopes not on
+  // screen are dropped, since a stale cache would still show the row while it
+  // refetches.
+  const invalidateAllPolicies = useCallback(() => {
+    ["policies", "policiesCount"].forEach((scope) => {
+      queryClient.removeQueries([{ scope }], { inactive: true });
+      queryClient.invalidateQueries([{ scope }]);
+    });
+  }, [queryClient]);
+
+  // Browser Back changes the fleet without onTeamChange; a delete
+  // confirmation must not carry another fleet's selection.
+  useEffect(() => {
+    setShowDeletePoliciesModal(false);
+    setSelectedPolicyIds([]);
+  }, [teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -568,21 +595,24 @@ const ManagePolicyPage = ({
       // policies Primo mode lists in a fleet view.
       await policiesAPI.destroy(selectedPolicyIds);
       notify.success("Successfully deleted policies.");
-      setResetSelectedRows(true);
-      refetchPolicies(teamIdForApi);
     } catch (e) {
-      notify.error("Unable to delete policies. Please try again.", {
-        response: e,
-      });
+      // Deletes across scopes aren't atomic, so some may be gone; refresh
+      // rather than retry the same IDs.
+      notify.error(
+        "Unable to delete policies. Some may have been deleted. Please try again.",
+        { response: e }
+      );
     } finally {
+      setResetSelectedRows(true);
+      setSelectedPolicyIds([]);
+      invalidateAllPolicies();
       toggleDeletePoliciesModal();
       setIsUpdatingPolicies(false);
     }
   }, [
-    refetchPolicies,
+    invalidateAllPolicies,
     selectedPolicyIds,
     setResetSelectedRows,
-    teamIdForApi,
     toggleDeletePoliciesModal,
   ]);
 
@@ -612,9 +642,12 @@ const ManagePolicyPage = ({
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
+  // A listed row of this fleet's own also counts, so a failed count request
+  // doesn't hide the fleet's policies from automations and delete.
   const hasPoliciesToAutomate = isAllTeamsSelected
     ? (globalPoliciesCount ?? 0) > 0
-    : (teamOwnPoliciesCount ?? 0) > 0;
+    : (teamOwnPoliciesCount ?? 0) > 0 ||
+      !!teamPolicies?.some((policy) => policy.fleet_id === teamIdForApi);
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
