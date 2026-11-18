@@ -194,6 +194,17 @@ If Fleet can't connect to Entra:
 
 To see the underlying error, check the Fleet server logs for `setup is not done`, or the `setup_error` field in the `POST /api/latest/fleet/conditional-access/microsoft/confirm` response. If it keeps failing, [reach out to support](https://fleetdm.com/support).
 
+### Stopped reporting a device ID
+
+With `microsoft_compliance_partner.windows_trusted_device_id_only` set, a host's activity feed can show **Fleet stopped reporting Microsoft Entra device ID**. Fleet no longer reports that device to Entra, but Entra keeps the last status Fleet reported for it, which might be compliant.
+
+To make sure the device can't pass conditional access with that status:
+
+1. In Microsoft Entra, go to **Devices > All devices** and search for the device ID from the activity.
+2. If the device isn't this host, or it's this host's old device from before it rejoined Entra, select it and select **Disable**.
+
+If the activity says the host now reports a new device ID, the host keeps its access through the new one.
+
 ## Disable
 
 If you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
@@ -216,6 +227,8 @@ On that scenario, after hitting "Continue" the user will be redirected to https:
 
 Users enroll their hosts to Entra via the [Settings > Access work or school workflow](
 https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973).
+
+If your Fleet server sets [`microsoft_compliance_partner.windows_trusted_device_id_only`](https://fleetdm.com/docs/configuration/fleet-server-configuration#microsoft-compliance-partner-windows-trusted-device-id-only), only Entra joined or hybrid joined hosts, and registered hosts that enrolled to Fleet's MDM through Entra, are reported to Entra. Other registered hosts are blocked by Entra policies that require a compliant device.
 
 ### Access blocked experience
 

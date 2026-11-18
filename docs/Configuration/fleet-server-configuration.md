@@ -4140,6 +4140,25 @@ This configuration allows Fleet to correctly parse the serial number regardless 
     cert_serial_format: decimal
   ```
 
+### microsoft_compliance_partner_windows_trusted_device_id_only
+
+When enabled, Fleet uses a Windows host's Entra device ID for Microsoft Entra conditional access only if it comes from:
+
+- The device certificate of an Entra joined or hybrid joined host.
+- A device certificate whose device ID matches the one Microsoft issued when the host enrolled to Fleet's MDM through Entra, or the one in the host's Windows Autopilot record.
+
+Hosts that are only registered with Entra (**Settings > Accounts > Access work or school > Connect**) and didn't enroll to MDM through Entra aren't reported to Entra.
+
+When a host stops reporting a device ID that Fleet already reported to Entra, Fleet stops reporting it. Entra keeps the last status Fleet reported for that device, so Fleet adds a [`stopped_reporting_microsoft_entra_device_id`](https://fleetdm.com/docs/api/global-audit-logs#stopped-reporting-microsoft-entra-device-id) activity to the host and logs a warning with the same device ID. After you turn this option on, watch for these activities for at least an hour, since hosts check in hourly. For what to do when you see one, see [Conditional access: Entra](https://fleetdm.com/guides/entra-conditional-access-integration#stopped-reporting-a-device-id).
+
+- Default value: `false`
+- Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_WINDOWS_TRUSTED_DEVICE_ID_ONLY`
+- Config file format:
+  ```yaml
+  microsoft_compliance_partner:
+    windows_trusted_device_id_only: true
+  ```
+
 ## Partnerships
 
 ### partnerships_enable_secureframe
