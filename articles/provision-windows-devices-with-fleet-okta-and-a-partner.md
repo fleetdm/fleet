@@ -4,7 +4,7 @@ Fleet supports zero-touch Windows deployment without Autopilot for any identity 
 
 When a hardware partner prepares your Windows devices with a provisioning package, you can have each one arrive with Okta Verify and Okta's device certificate installed, ready for the end user to sign in with their Okta username.
 
-> **Note:** Today, the end user's local account username can match their Okta username. Automatic local account creation, with a username and password that match Okta, isn't available yet. It depends on Okta's local account provisioning for Windows, which is coming soon.
+> **Note:** Today, the end user's local account username can match their Okta username. Automatic local account creation, with a username and password that match Okta, is coming soon.
 
 Here's how it works:
 
@@ -28,11 +28,11 @@ In Okta, the device appears as **Managed**.
 
 Fleet creates a policy that installs Okta Verify on each host that doesn't have it. Learn more in the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-## Step 2: Add Okta's local account provisioning
+## Step 2: Create the end user's local account
 
-> **Note:** This Okta feature is coming soon. Until then, the local account username can match Okta, but the account isn't created automatically and its password doesn't match Okta.
+> **Note:** Automatic local account creation is coming soon. Until then, the local account username can match Okta, but the account isn't created automatically and its password doesn't match Okta.
 
-Set up Okta's local account provisioning for Windows. It creates the end user's local account automatically, with a username and password that match Okta, so they can sign in at the login window with their Okta credentials.
+When it's available, the end user's local account is created automatically, with a username and password that match Okta, so they can sign in at the login window with their Okta credentials.
 
 ## Step 3: Deploy the Okta SCEP certificate
 
