@@ -626,6 +626,7 @@ import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
 import Malwarebytes from "./png/Malwarebytes.png";
+import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
 import Markedit from "./png/Markedit.png";
 import Marsedit from "./png/Marsedit.png";
@@ -1878,6 +1879,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
   multitouch: Multitouch,
+  munki: ManagedSoftwareCenter,
   mural: Mural,
   museeks: Museeks,
   musescore: Musescore,

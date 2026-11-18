@@ -5931,6 +5931,13 @@
       "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
     },
     {
+      "name": "Munki",
+      "slug": "munki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+      "description": "Munki is a software installation manager."
+    },
+    {
       "name": "MURAL",
       "slug": "mural/darwin",
       "platform": "darwin",
