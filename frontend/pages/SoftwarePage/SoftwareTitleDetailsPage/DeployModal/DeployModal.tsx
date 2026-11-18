@@ -143,14 +143,22 @@ const DeployModal = ({
           await policiesAPI.destroy([patchPolicy.id]);
         }
         savedAnyChange = true;
-      } else if (
-        patch &&
-        patchPolicy &&
+      } else if (patch && patchPolicy) {
+        // A manual patch policy can run another automation (e.g. a script),
+        // which owns automation_type and continuous; only turning patching
+        // off clears them.
+        const keepsOtherAutomation =
+          patchOption === "manual" && !patchHasAutomation;
+        const {
+          continuous_automations_enabled: continuousEnabled,
+          ...patchOnlyFlags
+        } = patchFlags;
         // Normalize undefined to false on the stored side: legacy policies
         // (notify_before_patching, patch_deadline) can arrive without the
         // field at all, and strict !== would otherwise flag undefined vs
         // false as a change and fire a no-op PATCH.
-        (patchOption !== initialPatchOption ||
+        if (
+          patchOption !== initialPatchOption ||
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
           (patchPolicy.patch_when_closed ?? false) !==
@@ -158,14 +166,21 @@ const DeployModal = ({
           (patchPolicy.notify_before_patching ?? false) !==
             patchFlags.notify_before_patching ||
           (patchPolicy.patch_deadline ?? false) !== patchFlags.patch_deadline ||
-          (patchPolicy.continuous_automations_enabled ?? false) !==
-            patchFlags.continuous_automations_enabled)
-      ) {
-        await policiesAPI.update(patchPolicy.id, {
-          automation_type: patchOption === "manual" ? null : "software",
-          ...patchFlags,
-        });
-        savedAnyChange = true;
+          (!keepsOtherAutomation &&
+            (patchPolicy.continuous_automations_enabled ?? false) !==
+              continuousEnabled)
+        ) {
+          await policiesAPI.update(
+            patchPolicy.id,
+            keepsOtherAutomation
+              ? patchOnlyFlags
+              : {
+                  automation_type: patchOption === "manual" ? null : "software",
+                  ...patchFlags,
+                }
+          );
+          savedAnyChange = true;
+        }
       }
 
       if (savedAnyChange) {
