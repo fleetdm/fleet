@@ -1353,6 +1353,128 @@ osascript() {
 	require.Len(t, opened, 13)
 }
 
+// TestInstallScriptRelaunchRetriesAndLogs runs generated install scripts with
+// osascript and open stubbed out. An app installed from a single .app is
+// relaunched by path, otherwise by bundle ID; a failed open is retried every
+// 10 seconds for up to 2 minutes with its error logged, and a relaunch that
+// keeps failing doesn't fail the install.
+func TestInstallScriptRelaunchRetriesAndLogs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	app := func(names ...string) *brewArtifact {
+		a := &brewArtifact{}
+		for _, n := range names {
+			a.App = append(a.App, optjson.StringOr[*brewAppTarget]{String: n})
+		}
+		return a
+	}
+	for name, tc := range map[string]struct {
+		format   string
+		artifact *brewArtifact
+		openArgs []string
+	}{
+		"single app":   {"zip", app("Foo.app"), []string{"/Applications//Foo.app"}},
+		"app with $":   {"zip", app("Foo $HOME.app"), []string{"/Applications//Foo", "$HOME.app"}},
+		"several apps": {"zip", app("Foo.app", "Foo Helper.app"), []string{"-b", "com.example.Foo"}},
+		"pkg":          {"pkg", &brewArtifact{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}}, []string{"-b", "com.example.Foo"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script, err := installScriptForApp(inputApp{
+				Token:            "foo",
+				UniqueIdentifier: "com.example.Foo",
+				InstallerFormat:  tc.format,
+			}, &brewCask{Artifacts: []*brewArtifact{tc.artifact}})
+			require.NoError(t, err)
+
+			// open fails its first openFailures calls, and records each call's
+			// arguments on one line. running is whether the app is open before
+			// the install; it quits on the first quit event.
+			run := func(t *testing.T, running bool, openFailures int) (string, []string) {
+				dir := t.TempDir()
+				openFile := filepath.Join(dir, "opened")
+				stubs := `running=` + strconv.FormatBool(running) + `
+open_failures=` + strconv.Itoa(openFailures) + `
+opened=` + shellSingleQuote(openFile) + `
+quits=` + shellSingleQuote(filepath.Join(dir, "quits")) + `
+stat() { echo alice; }
+realpath() { echo /tmp/fleet-test/installer; }
+ditto() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+ps() { :; }
+open() {
+  echo "$*" >> "$opened"
+  if (( $(grep -c . "$opened") <= open_failures )); then
+    echo "LSOpenURLsWithRole() failed with error -10810." >&2
+    return 1
+  fi
+}
+osascript() {
+  case "$4" in
+    *" to quit") echo quit >> "$quits" ;;
+    *" is running") if [[ "$running" == true && ! -e "$quits" ]]; then echo true; else echo false; fi ;;
+  esac
+}
+`
+				out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+				require.NoError(t, err, string(out))
+				opened, err := os.ReadFile(openFile)
+				if !os.IsNotExist(err) {
+					require.NoError(t, err)
+				}
+				var lines []string
+				for _, l := range strings.Split(strings.TrimSpace(string(opened)), "\n") {
+					if l != "" {
+						lines = append(lines, l)
+					}
+				}
+				return string(out), lines
+			}
+			want := strings.Join(tc.openArgs, " ")
+			const (
+				success = "Application 'com.example.Foo' relaunched successfully."
+				failure = "Failed to relaunch application 'com.example.Foo'."
+			)
+			attempt := func(n int) string {
+				return "Attempt " + strconv.Itoa(n) + " to relaunch application 'com.example.Foo' failed"
+			}
+
+			out, opened := run(t, false, 0)
+			require.NotContains(t, out, "Relaunching application")
+			require.Empty(t, opened)
+
+			out, opened = run(t, true, 0)
+			require.Contains(t, out, success)
+			require.Equal(t, []string{want}, opened)
+
+			out, opened = run(t, true, 2)
+			require.Contains(t, out, attempt(1)+" (exit 1): LSOpenURLsWithRole() failed with error -10810.")
+			require.Contains(t, out, attempt(2))
+			require.Contains(t, out, success)
+			require.NotContains(t, out, failure)
+			require.Equal(t, []string{want, want, want}, opened)
+
+			// sleep advances SECONDS, so the last attempt starts at the 120-second
+			// deadline: 13 attempts in all.
+			out, opened = run(t, true, 100)
+			require.Contains(t, out, attempt(13))
+			require.NotContains(t, out, attempt(14))
+			require.Contains(t, out, failure)
+			require.NotContains(t, out, success)
+			require.Len(t, opened, 13)
+		})
+	}
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
