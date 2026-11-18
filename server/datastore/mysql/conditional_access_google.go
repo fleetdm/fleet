@@ -81,6 +81,63 @@ func (ds *Datastore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Cont
 	return int(n), nil
 }
 
+func (ds *Datastore) PurgeDeletedGoogleConditionalAccessIntegration(ctx context.Context, deletedBefore time.Time, limit int) (bool, error) {
+	var more bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		more = false
+		// Locking the row makes a concurrent re-add wait for this batch, and the next batch
+		// sees it and stops, so a re-added integration keeps the rows not purged yet.
+		var deleted bool
+		if err := sqlx.GetContext(ctx, tx, &deleted, `
+			SELECT 1 FROM google_conditional_access_integrations
+			WHERE id = 1 AND state = ? AND updated_at < ?
+			FOR UPDATE`, fleet.ConditionalAccessGoogleStateDeleted, deletedBefore); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "locking deleted google_conditional_access_integrations")
+		}
+		// A row with no customer was migrated from the bookmark flow and isn't the integration's.
+		res, err := tx.ExecContext(ctx, `DELETE FROM google_conditional_access_devices WHERE customer_id <> '' LIMIT ?`, limit)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "purging google_conditional_access_devices")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "purged google_conditional_access_devices")
+		}
+		if int(n) == limit {
+			more = true
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM google_conditional_access_integrations WHERE id = 1`); err != nil {
+			return ctxerr.Wrap(ctx, err, "purging google_conditional_access_integrations")
+		}
+		return nil
+	})
+	return more, err
+}
+
+func (ds *Datastore) SetGoogleConditionalAccessIntegrationState(
+	ctx context.Context, secret string, fromStates []fleet.ConditionalAccessGoogleState,
+	toState fleet.ConditionalAccessGoogleState, errorMessage *string,
+) (bool, error) {
+	stmt, args, err := sqlx.In(`UPDATE google_conditional_access_integrations SET state = ?, error_message = ?
+		WHERE id = 1 AND proxy_server_secret = ? AND state IN (?)`, toState, errorMessage, secret, fromStates)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "building update of google conditional access state")
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating google conditional access state")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updated google conditional access state")
+	}
+	return n > 0, nil
+}
+
 func (ds *Datastore) GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID, customerID string) (*fleet.GoogleConditionalAccessDevice, error) {
 	// One row per name, or a single row without one for a device with no names.
 	var rows []struct {
@@ -325,8 +382,9 @@ func recordGoogleDeviceUsersDB(ctx context.Context, tx sqlx.ExtContext, hostUUID
 		}
 	}
 	if len(dropped) > 0 {
+		// created_at restarts, as in queueGoogleConditionalAccessUnmarkDB.
 		if err := googleExecIn(ctx, tx, "queueing unmark of dropped names", `
-			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL
+			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL, created_at = NOW(6)
 			WHERE device_user_name IN (?) AND host_uuid = ? AND state <> ?`,
 			fleet.GoogleConditionalAccessDeviceUserUnmanaging, dropped, hostUUID, fleet.GoogleConditionalAccessDeviceUserUnmanaging); err != nil {
 			return err
@@ -337,10 +395,11 @@ func recordGoogleDeviceUsersDB(ctx context.Context, tx sqlx.ExtContext, hostUUID
 	for _, name := range names {
 		args = append(args, hostUUID, name, fleet.GoogleConditionalAccessDeviceUserPending)
 	}
+	// created_at restarts with each registration, since the mark retry backoff counts from it.
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO google_conditional_access_device_users (host_uuid, device_user_name, state)
 		VALUES `+strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(names)), ",")+`
-		ON DUPLICATE KEY UPDATE state = VALUES(state), error_message = NULL`, args...); err != nil {
+		ON DUPLICATE KEY UPDATE state = VALUES(state), error_message = NULL, created_at = NOW(6)`, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting google_conditional_access_device_users")
 	}
 
@@ -440,8 +499,9 @@ func queueGoogleConditionalAccessUnmarkDB(ctx context.Context, tx sqlx.ExtContex
 			registered, fleet.GoogleConditionalAccessDeviceUserStale); err != nil {
 			return err
 		}
+		// created_at restarts with the queueing, since the unmark retry backoff counts from it.
 		if err := googleExecIn(ctx, tx, "queueing google conditional access unmark", `
-			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL
+			UPDATE google_conditional_access_device_users SET state = ?, error_message = NULL, created_at = NOW(6)
 			WHERE host_uuid IN (?) AND state IN (?)`,
 			fleet.GoogleConditionalAccessDeviceUserUnmanaging, registered, []fleet.GoogleConditionalAccessDeviceUserState{
 				fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged,
@@ -467,7 +527,7 @@ func (ds *Datastore) ListGoogleConditionalAccessDeviceUsers(
 		return nil, ctxerr.New(ctx, "listing google device users needs states and a limit")
 	}
 	query := `
-		SELECT du.host_uuid, du.device_user_name, du.state, du.error_message, du.updated_at
+		SELECT du.host_uuid, du.device_user_name, du.state, du.error_message, du.created_at, du.updated_at
 		FROM google_conditional_access_device_users du
 		JOIN google_conditional_access_devices d ON d.host_uuid = du.host_uuid
 		WHERE d.customer_id = ? AND du.state IN (?) AND du.device_user_name > ?`
@@ -486,10 +546,10 @@ func (ds *Datastore) ListGoogleConditionalAccessDeviceUsers(
 	return dus, nil
 }
 
-func (ds *Datastore) DeleteGoogleConditionalAccessDeviceUser(
-	ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool,
-) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) DeleteGoogleConditionalAccessUnmarkedDeviceUser(ctx context.Context, name string) (bool, error) {
+	var deleted bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deleted = false
 		var hostUUID string
 		if err := sqlx.GetContext(ctx, tx, &hostUUID, `
 			SELECT host_uuid FROM google_conditional_access_device_users WHERE device_user_name = ?`, name); err != nil {
@@ -509,7 +569,7 @@ func (ds *Datastore) DeleteGoogleConditionalAccessDeviceUser(
 		}
 		res, err := tx.ExecContext(ctx, `
 			DELETE FROM google_conditional_access_device_users WHERE device_user_name = ? AND host_uuid = ? AND state = ?`,
-			name, hostUUID, state)
+			name, hostUUID, fleet.GoogleConditionalAccessDeviceUserUnmanaging)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting google device user")
 		}
@@ -518,16 +578,12 @@ func (ds *Datastore) DeleteGoogleConditionalAccessDeviceUser(
 			return ctxerr.Wrap(ctx, err, "deleted google device user")
 		}
 		if n == 0 {
-			return nil // another transaction changed or deleted the name
+			return nil // registered again, or deleted, since the caller listed it
 		}
-		if err := repointGoogleDeviceIDDB(ctx, tx, hostUUID); err != nil {
-			return err
-		}
-		if !deleteEmptyDevice {
-			return nil
-		}
+		deleted = true
 		return googleExecIn(ctx, tx, "deleting empty google_conditional_access_devices row", deleteEmptyGoogleDevicesStmt, []string{hostUUID})
 	})
+	return deleted, err
 }
 
 func (ds *Datastore) ListGoogleConditionalAccessBookmarkHosts(
@@ -551,7 +607,7 @@ func (ds *Datastore) ListGoogleConditionalAccessBookmarkHosts(
 }
 
 func (ds *Datastore) ListGoogleConditionalAccessUnresolvedAndroidHosts(
-	ctx context.Context, customerID string, maxAttempts, limit int,
+	ctx context.Context, customerID string, minAttempts, maxAttempts, limit int,
 ) ([]fleet.GoogleConditionalAccessAndroidHost, error) {
 	var hosts []fleet.GoogleConditionalAccessAndroidHost
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, `
@@ -562,11 +618,11 @@ func (ds *Datastore) ListGoogleConditionalAccessUnresolvedAndroidHosts(
 		JOIN host_mdm hm ON hm.host_id = h.id AND hm.enrolled = 1 AND hm.installed_from_dep = 1
 		-- Another customer's row counts as none: its names and attempts go when the host is claimed.
 		LEFT JOIN google_conditional_access_devices d ON d.host_uuid = h.uuid AND d.customer_id = ?
-		WHERE (? <= 0 OR COALESCE(d.registration_attempts, 0) < ?) AND NOT EXISTS (
+		WHERE COALESCE(d.registration_attempts, 0) >= ? AND (? <= 0 OR COALESCE(d.registration_attempts, 0) < ?) AND NOT EXISTS (
 			SELECT 1 FROM google_conditional_access_device_users du
 			WHERE du.host_uuid = d.host_uuid AND du.state IN (?, ?))
 		ORDER BY COALESCE(d.registration_attempts, 0), h.id
-		LIMIT ?`, customerID, maxAttempts, maxAttempts,
+		LIMIT ?`, customerID, minAttempts, maxAttempts, maxAttempts,
 		fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing unresolved android google hosts")

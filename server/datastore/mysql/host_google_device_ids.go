@@ -129,50 +129,6 @@ func bindGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, cus
 	return setGoogleDeviceIDDB(ctx, tx, hostUUID, &googleDeviceID)
 }
 
-// repointGoogleDeviceIDDB keeps the host's device ID on a device it has a registered
-// name under: when the last one under it is gone, the ID moves to the device of another
-// registered name, or is cleared. The caller holds the lock on the host's row.
-func repointGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
-	// The caller read before it took the lock, which fixed the transaction's snapshot, so
-	// only locking reads see what was committed while it waited.
-	var row struct {
-		ID         *string `db:"google_device_id"`
-		CustomerID string  `db:"customer_id"`
-	}
-	if err := sqlx.GetContext(ctx, tx, &row, `
-		SELECT google_device_id, customer_id FROM google_conditional_access_devices
-		WHERE host_uuid = ? FOR UPDATE`, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reading host google device id")
-	}
-	if row.ID == nil {
-		return nil
-	}
-	stmt, args, err := sqlx.In(`
-		SELECT device_user_name FROM google_conditional_access_device_users
-		WHERE host_uuid = ? AND state IN (?) ORDER BY device_user_name FOR UPDATE`, hostUUID,
-		[]fleet.GoogleConditionalAccessDeviceUserState{fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building select of registered google device users")
-	}
-	var names []string
-	if err := sqlx.SelectContext(ctx, tx, &names, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting registered google device users")
-	}
-	next, _, kept := googleDeviceIDForNames(*row.ID, names)
-	switch {
-	case kept:
-		return nil
-	case next == nil:
-		err = setGoogleDeviceIDDB(ctx, tx, hostUUID, nil)
-	default:
-		if err = bindGoogleDeviceIDDB(ctx, tx, hostUUID, row.CustomerID, *next); IsDuplicate(err) {
-			// Another host is bound to that device; this one is left without an ID.
-			err = setGoogleDeviceIDDB(ctx, tx, hostUUID, nil)
-		}
-	}
-	return ctxerr.Wrap(ctx, err, "moving host google device id")
-}
-
 // googleDeviceIDForNames picks the device ID of a host with the given names: stored,
 // reported as kept, when one of the names is under it, else the device of the first
 // name, returned with the name it came from, or nil with no names.
