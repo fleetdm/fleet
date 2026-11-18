@@ -19,7 +19,6 @@ import html
 import json
 import os
 import re
-import statistics
 import sys
 
 STALE_DAYS = 30
@@ -73,9 +72,9 @@ WINDOWS_BUILTIN_RE = re.compile(
     r"^(microsoft\.|microsoftwindows\.|windows\.|windows |microsoft edge|microsoft store|"
     r"microsoft onedrive|microsoft update|microsoft visual c\+\+|microsoft \.net|"
     r"microsoft windows desktop runtime|microsoft gameinput|microsoft teams meeting add-in|"
-    r"[0-9a-f]{8}-[0-9a-f]{4}-)|"
-    r"\.exe$|webview2|redistributable|runtime\b|\bsdk\b|\bdriver|chipset|firmware|realtek|"
-    r"^intel\(r\)|^nvidia|^amd |thunderbolt|bluetooth|health tools|pc health check", re.I)
+    r"[0-9a-f]{8}-[0-9a-f]{4}-|intel\(r\)|nvidia|amd )|"
+    r"webview2|redistributable|runtime\b|\bsdk\b|\bdriver|chipset|firmware|realtek|"
+    r"thunderbolt|bluetooth|health tools|pc health check|\.exe$", re.I)
 # Microsoft publishes Windows' own apps too, so only its licensed products count.
 MICROSOFT_SEATS_RE = re.compile(
     r"^microsoft (365|office|teams|visio|project|visual studio|power bi|sql server management)|"
@@ -1297,8 +1296,6 @@ def build_ai(snap, hist):
         return p["h"].setdefault(hid, {"s": set(), "v": "", "live": False, "opened": None, "sess": None})
 
     for hid in ids:
-        h = hosts[hid]
-        plat = platform_of(h)
         # Last-opened times from Fleet's software inventory (apps only).
         for sname, ver, source, bid, last, path, vendor in software_rows(snap, hid):
             prod = AI_INVENTORY_APPS.get(html.unescape(sname)) if source in ("apps", "programs") else None
@@ -1459,7 +1456,6 @@ def build_ai(snap, hist):
 
     reported = {hid for hid in ids if hid in reports}
     day = {}
-    sev = {"high": 0, "medium": 0}
     flag_sev = {f: s for f, (s, _, _) in AI_RISKS.items()}
     by_host_sev = {}
     for hid, flag, *_ in findings:

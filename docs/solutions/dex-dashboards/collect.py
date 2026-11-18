@@ -110,6 +110,7 @@ class Fleet:
                     time.sleep(2 ** attempt * 3)
                     continue
                 die(f"GET {path} failed: {e}")
+        die(f"GET {path} failed after retries")
 
 
 def compact_software(sw, keep=None):
