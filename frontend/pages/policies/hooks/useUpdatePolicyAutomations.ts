@@ -1,6 +1,7 @@
-import { useMutation } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { invalidateWebhookPolicySettings } from "pages/policies/helpers";
 import policiesAPI from "services/entities/policies";
 
 /** The automation fields of a policy update. */
@@ -34,8 +35,9 @@ const useUpdatePolicyAutomations = ({
   policy,
   onSuccess,
   onError,
-}: IUseUpdatePolicyAutomationsArgs) =>
-  useMutation(
+}: IUseUpdatePolicyAutomationsArgs) => {
+  const queryClient = useQueryClient();
+  return useMutation(
     ({ policyUpdate }: IUpdatePolicyAutomationsVars) => {
       if (!policy) {
         return Promise.reject(
@@ -44,7 +46,14 @@ const useUpdatePolicyAutomations = ({
       }
       return policiesAPI.update(policy.id, policyUpdate);
     },
-    { onSuccess, onError }
+    {
+      onSuccess: () => {
+        invalidateWebhookPolicySettings(queryClient);
+        onSuccess?.();
+      },
+      onError,
+    }
   );
+};
 
 export default useUpdatePolicyAutomations;

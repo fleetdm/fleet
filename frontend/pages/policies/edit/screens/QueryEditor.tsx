@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import BackButton from "components/BackButton";
@@ -9,6 +10,7 @@ import { getErrorReason } from "interfaces/errors";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PolicyForm from "pages/policies/edit/components/PolicyForm";
+import { invalidateWebhookPolicySettings } from "pages/policies/helpers";
 import PATHS from "router/paths";
 import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
 import policiesAPI from "services/entities/policies";
@@ -67,6 +69,7 @@ const QueryEditor = ({
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
   } = useContext(PolicyContext);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (storedPolicyError) {
@@ -173,6 +176,7 @@ const QueryEditor = ({
       const policy: IPolicy = await createPolicy(payload).then(
         (data) => data.policy
       );
+      invalidateWebhookPolicySettings(queryClient);
       notify.success("Policy created.");
       router.push(
         getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
@@ -220,6 +224,7 @@ const QueryEditor = ({
 
     try {
       await policiesAPI.update(policyIdForEdit, updatedPolicy);
+      invalidateWebhookPolicySettings(queryClient);
       notify.success("Policy updated.");
     } catch (updateError) {
       console.error(updateError);
