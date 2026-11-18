@@ -64,6 +64,9 @@ type Service interface {
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
 	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
+	// PrepareHostPolicy replaces every setting of a host's own policy with its fleet's default policy (teamID 0
+	// is Unassigned), before the device is moved to it.
+	PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error
 
 	// VerifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
 	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
@@ -77,6 +80,10 @@ type Service interface {
 	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
 	// teamID is the fleet to enroll devices into; nil means "Unassigned."
 	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
+
+	// EnsureFleetDefaultPolicy makes sure the default policy of a fleet (0 is Unassigned) exists in AMAPI and
+	// returns its name, for enrollment tokens to point at.
+	EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName string, teamID uint) (string, error)
 }
 
 // /////////////////////////////////////////////

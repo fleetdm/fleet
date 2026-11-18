@@ -130,6 +130,11 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		return 0, ctxerr.Wrap(ctx, err, "reconcile certificate templates")
 	}
 
+	// Hosts' own policies don't depend on the default ones, so a failure here doesn't hold them back.
+	if err := r.reconcileFleetDefaultPolicies(ctx); err != nil {
+		r.Logger.ErrorContext(ctx, "failed to reconcile android fleet default policies", "err", err)
+	}
+
 	// Profile rows are only written once the whole batch was sent, so a host can have its
 	// rows reset for redelivery (e.g. by the setup experience replacing its policy) after they
 	// were read here. Rows reset since this time are not overwritten with the stale state.

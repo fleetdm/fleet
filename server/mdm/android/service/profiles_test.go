@@ -96,6 +96,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"RejectedProfileRedeliveredAfterFixAndPolicyReset", testRejectedProfileRedeliveredAfterFixAndPolicyReset},
 		{"PolicyResetDuringBatchIsNotOverwritten", testPolicyResetDuringBatchIsNotOverwritten},
 		{"PolicyResetDuringFirstDeliveryIsNotOverwritten", testPolicyResetDuringFirstDeliveryIsNotOverwritten},
+		{"FleetDefaultPolicies", testFleetDefaultPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1964,4 +1965,96 @@ func TestSubstituteProfileVarsForHostCustomHostVitals(t *testing.T) {
 		require.True(t, ok)
 		require.Contains(t, detail, "no value set for this host")
 	})
+}
+
+// testFleetDefaultPolicies runs the default policy sync against the database: only label-less passcode
+// profiles count, a labels-only edit takes the passcode out, and a re-created enterprise gets the policies again.
+func testFleetDefaultPolicies(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-team"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-other-team"})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "default-policy-label", Query: "select 1"})
+	require.NoError(t, err)
+	labels := []fleet.ConfigurationProfileLabel{{LabelID: label.ID, LabelName: label.Name, RequireAll: true}}
+
+	newProfile := func(teamID uint, name string, minLength int, labels []fleet.ConfigurationProfileLabel) *fleet.MDMAndroidConfigProfile {
+		p := androidProfileWithPayloadForTest(name, fmt.Sprintf(`{"passwordPolicies": [{"passwordMinimumLength": %d}]}`, minLength))
+		p.TeamID = &teamID
+		p.LabelsIncludeAll = labels
+		created, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
+		require.NoError(t, err)
+		return created
+	}
+	pin := newProfile(team.ID, "a pin", 6, nil)
+	// Sorts last, so it would win if labeled profiles counted.
+	newProfile(team.ID, "z labeled pin", 12, labels)
+	newProfile(otherTeam.ID, "other pin", 8, nil)
+	unassignedPin := newProfile(0, "unassigned pin", 4, nil)
+
+	var patched map[string]*androidmanagement.Policy
+	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patched[policyName] = policy
+		return policy, nil
+	}
+	// Through the whole reconcile, so the sync being wired into it is tested too.
+	run := func() {
+		patched = map[string]*androidmanagement.Policy{}
+		_, err := reconciler.ReconcileProfiles(ctx, "", 0)
+		require.NoError(t, err)
+	}
+	sent := func(teamID uint) *androidmanagement.Policy {
+		policyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), android.FleetDefaultPolicyID(teamID))
+		policy := patched[policyName]
+		if policy == nil {
+			t.Fatalf("%s wasn't sent", policyName)
+		}
+		return policy
+	}
+	minLength := func(teamID uint) int64 {
+		policy := sent(teamID)
+		require.Len(t, policy.PasswordPolicies, 1)
+		return policy.PasswordPolicies[0].PasswordMinimumLength
+	}
+
+	run()
+	require.Len(t, patched, 3)
+	assert.Equal(t, int64(6), minLength(team.ID))
+	assert.Equal(t, int64(8), minLength(otherTeam.ID))
+	assert.Equal(t, int64(4), minLength(0))
+
+	run()
+	require.Empty(t, patched, "nothing changed")
+
+	// Turning Android MDM off and on creates a new enterprise without the policies, so they're sent again.
+	require.NoError(t, ds.DeleteAllEnterprises(ctx))
+	run()
+	require.Len(t, patched, 3)
+	assert.Equal(t, int64(6), minLength(team.ID))
+	assert.Equal(t, int64(8), minLength(otherTeam.ID))
+	assert.Equal(t, int64(4), minLength(0))
+
+	// A labels-only edit makes the profile apply after setup only, and doesn't touch the other policies.
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: pin.ProfileUUID, Name: pin.Name, TeamID: &team.ID, LabelsIncludeAll: labels,
+	}, nil)
+	require.NoError(t, err)
+	run()
+	require.Len(t, patched, 1)
+	require.Empty(t, sent(team.ID).PasswordPolicies)
+	require.NotNil(t, sent(team.ID).StatusReportingSettings)
+
+	// A deleted fleet's zero-touch token enrolls hosts into Unassigned, so its policy takes Unassigned's
+	// passcode, and follows it.
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+	run()
+	require.Len(t, patched, 1)
+	assert.Equal(t, int64(4), minLength(team.ID))
+
+	require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, unassignedPin.ProfileUUID))
+	run()
+	require.Len(t, patched, 2)
+	assert.Empty(t, sent(0).PasswordPolicies)
+	assert.Empty(t, sent(team.ID).PasswordPolicies)
 }
