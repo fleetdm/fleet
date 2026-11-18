@@ -325,8 +325,8 @@ Delete pack by name.
       "id": 49,
       "pack_id": 15,
       "name": "new_query",
-      "query_id": 289,
-      "query_name": "new_query",
+      "report_id": 289,
+      "report_name": "new_query",
       "query": "SELECT * FROM osquery_info",
       "interval": 456,
       "snapshot": false,
@@ -342,8 +342,8 @@ Delete pack by name.
       "id": 50,
       "pack_id": 15,
       "name": "new_title_for_my_query",
-      "query_id": 288,
-      "query_name": "new_title_for_my_query",
+      "report_id": 288,
+      "report_name": "new_title_for_my_query",
       "query": "SELECT * FROM osquery_info",
       "interval": 677,
       "snapshot": true,
@@ -359,8 +359,8 @@ Delete pack by name.
       "id": 51,
       "pack_id": 15,
       "name": "osquery_info",
-      "query_id": 22,
-      "query_name": "osquery_info",
+      "report_id": 22,
+      "report_name": "osquery_info",
       "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
       "interval": 6667,
       "snapshot": true,
@@ -383,7 +383,7 @@ Delete pack by name.
 | Name     | Type    | In   | Description                                                                                                   |
 | -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | pack_id  | integer | body | **Required.** The pack's ID.                                                                                  |
-| query_id | integer | body | **Required.** The query's ID.                                                                                 |
+| report_id | integer | body | **Required.** The query's ID.                                                                                 |
 | interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                 |
 | snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                  |
 | removed  | boolean | body | **Required.** Whether "removed" actions should be logged.                                                     |
@@ -401,7 +401,7 @@ Delete pack by name.
 {
   "interval": 120,
   "pack_id": 15,
-  "query_id": 23,
+  "report_id": 23,
   "removed": true,
   "shard": null,
   "snapshot": false,
@@ -422,8 +422,8 @@ Delete pack by name.
     "id": 56,
     "pack_id": 17,
     "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
+    "report_id": 23,
+    "report_name": "osquery_events",
     "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
@@ -461,8 +461,8 @@ Delete pack by name.
     "id": 56,
     "pack_id": 17,
     "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
+    "report_id": 23,
+    "report_name": "osquery_events",
     "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
@@ -515,8 +515,8 @@ Delete pack by name.
     "id": 56,
     "pack_id": 17,
     "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
+    "report_id": 23,
+    "report_name": "osquery_events",
     "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
@@ -2630,7 +2630,7 @@ for which the user has an observer role.
 | Name              | Type    | In   | Description                                                                                                                                     |
 | ----------------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | query             | string  | body | The query used to identify hosts to target. Searchable items include a `display_name`, `hostname`, `hardware_serial`, `uuid` or `primary_ip`. |
-| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
+| report_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
 | exclude_mobile_hosts | boolean | body | If `true`, iOS, iPadOS, and Android hosts are omitted from the search results. Used when targeting live reports, which mobile hosts can't run. Default is `false`. |
 
@@ -2643,7 +2643,7 @@ for which the user has an observer role.
 ```json
 {
   "query": "foo",
-  "query_id": 42,
+  "report_id": 42,
   "selected": {
     "hosts": [],
     "labels": [],
@@ -2713,7 +2713,7 @@ Counts the number of online and offline hosts included in a given set of selecte
 
 | Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | -------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| report_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | selected | object  | body | The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and fleet IDs (`selected.fleets`). When provided, builtin label IDs, custom label IDs and fleet IDs become `AND` filters. Within each selector, selecting two or more fleets, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.fleets`). Use `0` fleet ID to filter by hosts assigned to "Unassigned". See examples below. |
 
 #### Example
@@ -2724,7 +2724,7 @@ Counts the number of online and offline hosts included in a given set of selecte
 
 ```json
 {
-  "query_id": 1337,
+  "report_id": 1337,
   "selected": {
     "hosts": [],
     "labels": [42],

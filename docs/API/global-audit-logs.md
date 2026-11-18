@@ -3106,8 +3106,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_id": 123,
-  "query_name": "foo",
   "report_id": 123,
   "report_name": "foo",
   "fleet_id": 1,
@@ -3129,8 +3127,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_id": 123,
-  "query_name": "foo",
   "report_id": 123,
   "report_name": "foo",
   "fleet_id": 1,
@@ -3151,7 +3147,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_name": "foo",
   "report_name": "foo",
   "fleet_id": 1,
   "fleet_name": "Workstations"
@@ -3171,7 +3166,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_ids": [1, 42, 100],
   "report_ids": [1, 42, 100],
   "fleet_id": 123,
   "fleet_name": "Workstations"
@@ -3207,7 +3201,7 @@ Generated when running live queries.
 
 This activity contains the following fields:
 - "targets_count": Number of hosts where the live query was targeted to run.
-- "query_sql": The SQL query to run on hosts.
+- "query": The SQL query to run on hosts.
 - "report_name": Name of the report (this field is not set if this was not a saved report).
 
 #### Example
@@ -3215,8 +3209,7 @@ This activity contains the following fields:
 ```json
 {
   "targets_count": 5000,
-  "query_sql": "SELECT * from osquery_info;",
-  "query_name": "foo",
+  "query": "SELECT * from osquery_info;",
   "report_name": "foo"
 }
 ```

@@ -1821,8 +1821,8 @@ None.
   "server_settings": {
     "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
-    "live_query_disabled": false,
-    "query_reports_disabled": false,
+    "live_reporting_disabled": false,
+    "discard_reports_data": false,
     "ai_features_disabled": false
   },
   "smtp_settings": {
@@ -2175,8 +2175,8 @@ Modifies the Fleet's configuration with the supplied information.
   "server_settings": {
     "server_url": "https://instance.fleet.com",
     "enable_analytics": true,
-    "live_query_disabled": false,
-    "query_reports_disabled": false,
+    "live_reporting_disabled": false,
+    "discard_reports_data": false,
     "ai_features_disabled": false
   },
   "smtp_settings": {
@@ -3583,12 +3583,12 @@ the `software` table.
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
+| apple_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
+| macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
@@ -3699,11 +3699,11 @@ To filter hosts by platform (macOS, Windows, Linux), use the ["List label's host
           "pack_id": 0,
           "pack_name": "Global",
           "type": "global",
-          "query_stats": [
+          "report_stats": [
             {
-            "scheduled_query_name": "Get recently added or removed USB drives",
-            "scheduled_query_id": 5535,
-            "query_name": "Get recently added or removed USB drives",
+            "scheduled_report_name": "Get recently added or removed USB drives",
+            "scheduled_report_id": 5535,
+            "report_name": "Get recently added or removed USB drives",
             "discard_data": false,
             "last_fetched": null,
             "automations_enabled": false,
@@ -3931,11 +3931,11 @@ Response payload with the `munki_issue_id` filter provided:
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
+| apple_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 
@@ -3971,7 +3971,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 ((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
-Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
+Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `missing_30_days_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
 
 For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
 
@@ -4001,7 +4001,6 @@ To get the number of Linux hosts, use the [Count hosts](#count-hosts) endpoint w
   "totals_hosts_count": 2408,
   "online_count": 2267,
   "offline_count": 141,
-  "mia_count": 0,
   "missing_30_days_count": 0,
   "new_count": 0,
   "low_disk_space_count": 12,
@@ -4381,10 +4380,6 @@ If the value is a number, Fleet first looks for a host with that `id`. Otherwise
       "device_status": "unlocked",
       "pending_action": "",
       "bootstrap_token_escrowed": true,
-      "macos_settings": {
-        "disk_encryption": "verified",
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -4746,10 +4741,6 @@ A profile with `"status": null` is a self-service profile the host can install b
       "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -5230,10 +5221,6 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
       "bootstrap_token_escrowed": true,
-      "macos_settings": {
-        "disk_encryption": "verified",
-        "action_required": null
-      },
       "apple_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -6407,11 +6394,11 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
-| macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
+| apple_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                                     |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".** |
+| macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".** |
 | disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
@@ -7801,10 +7788,10 @@ Returns a list of the hosts that belong to the specified label.
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
-| macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
+| apple_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
-| bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 
@@ -12133,47 +12120,6 @@ Returns a list of reports. To see each report's data, use the [get report data](
 
 ```json
 {
-  "queries": [
-    {
-      "created_at": "2021-01-04T21:19:57Z",
-      "updated_at": "2021-01-04T21:19:57Z",
-      "id": 1,
-      "name": "report1",
-      "description": "report",
-      "query": "SELECT * FROM osquery_info",
-      "fleet_id": null,
-      "interval": 3600,
-      "platform": "darwin,windows,linux",
-      "min_osquery_version": "",
-      "automations_enabled": true,
-      "logging": "snapshot",
-      "saved": true,
-      "observer_can_run": true,
-      "discard_data": false,
-      "author_id": 1,
-      "author_name": "noah",
-      "author_email": "noah@example.com",
-      "labels_include_any": [],
-      "packs": [
-        {
-          "created_at": "2021-01-05T21:13:04Z",
-          "updated_at": "2021-01-07T19:12:54Z",
-          "id": 1,
-          "name": "Pack",
-          "description": "Pack",
-          "platform": "",
-          "disabled": true
-        }
-      ],
-      "stats": {
-        "system_time_p50": 1.32,
-        "system_time_p95": 4.02,
-        "user_time_p50": 3.55,
-        "user_time_p95": 3.00,
-        "total_executions": 3920
-      }
-    }
-  ],
   "reports": [
     {
       "created_at": "2021-01-04T21:19:57Z",
@@ -12371,7 +12317,7 @@ Returns the report specified by ID.
 
 ```json
 {
-  "query": {
+  "report": {
     "created_at": "2021-01-19T17:08:24Z",
     "updated_at": "2021-01-19T17:08:24Z",
     "id": 31,
@@ -12443,7 +12389,6 @@ Returns a specific report's data.
 
 ```json
 {
-  "query_id": 31,
   "report_id": 31,
   "report_clipped": false,
   "count": 12,
@@ -12509,7 +12454,6 @@ If a report has no results stored, then `results` will be an empty array:
 
 ```json
 {
-  "query_id": 32,
   "report_id": 32,
   "report_clipped": false,
   "count": 0,
@@ -12544,7 +12488,6 @@ Returns a specific report's data for a single host.
 
 ```json
 {
-  "query_id": 31,
   "report_id": 31,
   "host_id": 1,
   "host_name": "foo",
@@ -12579,7 +12522,6 @@ If a report has no results stored for the specified host, then `results` will be
 
 ```json
 {
-  "query_id": 31,
   "report_id": 31,
   "host_id": 1,
   "host_name": "foo",
@@ -12649,30 +12591,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 ```json
 {
-  "query": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 288,
-    "name": "new_query",
-    "query": "SELECT * FROM osquery_info",
-    "description": "This is a new query.",
-    "fleet_id": null,
-    "interval": 3600,
-    "platform": "darwin,windows,linux",
-    "min_osquery_version": "",
-    "automations_enabled": true,
-    "logging": "snapshot",
-    "saved": true,
-    "author_id": 1,
-    "author_name": "",
-    "author_email": "",
-    "observer_can_run": true,
-    "discard_data": false,
-    "packs": [],
-    "labels_include_any": [
-      "Hosts with Docker installed"
-    ]
-  },
   "report": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
@@ -12761,30 +12679,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 ```json
 {
-  "query": {
-    "created_at": "2021-01-22T17:23:27Z",
-    "updated_at": "2021-01-22T17:23:27Z",
-    "id": 288,
-    "name": "new_title_for_my_query",
-    "description": "This is a new query.",
-    "query": "SELECT * FROM osquery_info",
-    "fleet_id": null,
-    "interval": 3600,
-    "platform": "",
-    "min_osquery_version": "",
-    "automations_enabled": false,
-    "logging": "snapshot",
-    "saved": true,
-    "author_id": 1,
-    "author_name": "noah",
-    "observer_can_run": true,
-    "discard_data": true,
-    "packs": [],
-    "labels_include_any": [
-      "Hosts with Docker installed",
-      "macOS 13+"
-    ]
-  },
   "report": {
     "created_at": "2021-01-22T17:23:27Z",
     "updated_at": "2021-01-22T17:23:27Z",
@@ -12911,7 +12805,6 @@ The live report will stop if the request times out. Timeouts happen if targeted 
 
 ```json
 {
-  "query_id": 123,
   "report_id": 123,
   "targeted_host_count": 4,
   "responded_host_count": 2,
@@ -12953,7 +12846,7 @@ Runs the specified report as a live report on the specified hosts or group of ho
 
 After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
-> **Warning:** If you're building an automation that runs many live reports, rate-limit your requests. Every request starts a new active report, whether you pass `query` or `query_id`. While your client retrieves results, the active report holds a Redis connection. When your client closes the connection, Fleet stops the active report right away, but its Redis connection can stay open for up to an hour. If your client keeps the connection open, both stay open too. If you never connect to retrieve results, Fleet stops the active report the first time a targeted host responds after a minute. Creating many active reports, especially without closing them, adds load that can slow down or interrupt Fleet.
+> **Warning:** If you're building an automation that runs many live reports, rate-limit your requests. Every request starts a new active report, whether you pass `query` or `report_id`. While your client retrieves results, the active report holds a Redis connection. When your client closes the connection, Fleet stops the active report right away, but its Redis connection can stay open for up to an hour. If your client keeps the connection open, both stay open too. If you never connect to retrieve results, Fleet stops the active report the first time a targeted host responds after a minute. Creating many active reports, especially without closing them, adds load that can slow down or interrupt Fleet.
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
@@ -12964,10 +12857,10 @@ After you initiate the report, [get results via WebSocket](#retrieve-live-report
 | Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL if using a custom query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| report_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and fleet IDs (`selected.fleets`). When provided, builtin label IDs, custom label IDs and fleet IDs become `AND` filters. Within each selector, selecting two or more fleets, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.fleets`). Use `0` fleet ID to filter by hosts assigned to "Unassigned". See examples below. |
 
-One of `query` and `query_id` must be specified.
+One of `query` and `report_id` must be specified.
 
 #### Example with one host targeted by ID
 
@@ -13001,7 +12894,7 @@ One of `query` and `query_id` must be specified.
       "NewHosts": 1
     },
     "id": 1,
-    "query_id": 3,
+    "report_id": 3,
     "status": 0,
     "user_id": 1
   }
@@ -13040,7 +12933,7 @@ One of `query` and `query_id` must be specified.
       "NewHosts": 0
     },
     "id": 2,
-    "query_id": 3,
+    "report_id": 3,
     "status": 0,
     "user_id": 1
   }
@@ -13055,7 +12948,7 @@ Runs the specified saved report as a live report on the targets (`selected`) spe
 
 After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
-> **Warning:** If you're building an automation that runs many live reports, rate-limit your requests. Every request starts a new active report, whether you pass `query` or `query_id`. While your client retrieves results, the active report holds a Redis connection. When your client closes the connection, Fleet stops the active report right away, but its Redis connection can stay open for up to an hour. If your client keeps the connection open, both stay open too. If you never connect to retrieve results, Fleet stops the active report the first time a targeted host responds after a minute. Creating many active reports, especially without closing them, adds load that can slow down or interrupt live queries for everyone.
+> **Warning:** If you're building an automation that runs many live reports, rate-limit your requests. Every request starts a new active report, whether you pass `query` or `report_id`. While your client retrieves results, the active report holds a Redis connection. When your client closes the connection, Fleet stops the active report right away, but its Redis connection can stay open for up to an hour. If your client keeps the connection open, both stay open too. If you never connect to retrieve results, Fleet stops the active report the first time a targeted host responds after a minute. Creating many active reports, especially without closing them, adds load that can slow down or interrupt live queries for everyone.
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
@@ -13066,10 +12959,10 @@ After the report has been initiated, [get results via WebSocket](#retrieve-live-
 | Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| report_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. If a label name matches labels in more than one fleet, all matching labels the user can access are selected. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
 
-One of `query` and `query_id` must be specified.
+One of `query` and `report_id` must be specified.
 
 #### Example with one host targeted by hostname
 
@@ -13079,7 +12972,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query_id": 1,
+  "report_id": 1,
   "selected": {
     "hosts": ["macbook-pro.local"]
   }
@@ -13103,7 +12996,7 @@ One of `query` and `query_id` must be specified.
       "NewHosts": 1
     },
     "id": 1,
-    "query_id": 3,
+    "report_id": 3,
     "status": 0,
     "user_id": 1
   }
@@ -13142,7 +13035,7 @@ One of `query` and `query_id` must be specified.
       "NewHosts": 1
     },
     "id": 2,
-    "query_id": 3,
+    "report_id": 3,
     "status": 0,
     "user_id": 1
   }
@@ -16304,7 +16197,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 | Name     | Type    | In   | Description                                                                                                                                                                |
 | -------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                                                   |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.                            |
+| report_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.                            |
 | selected | object  | body | The targets already selected. The object includes a `hosts` property which contains a list of host IDs, a `labels` with label IDs and/or a `fleets` property with fleet IDs. |
 
 #### Example

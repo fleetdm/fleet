@@ -102,7 +102,7 @@ curl \
     -X GET \
     -H "Authorization: Bearer $API_TOKEN" \
     https://fleet.example.com/api/latest/fleet/queries/run \
-    -d '{"query_ids": [340], "host_ids": [375]}'
+    -d '{"report_ids": [340], "host_ids": [375]}'
 ```
 This API will wait for ~100 seconds by default and collect results for the hosts that checked in and successfully ran the query.
 
