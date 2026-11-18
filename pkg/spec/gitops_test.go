@@ -338,9 +338,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				}
 
 				// Check controls
-				_, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
-				assert.True(t, ok, "apple_settings not found")
-				_, ok = gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+				_, ok := gitops.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
+				assert.True(t, ok, "macos_settings not found")
+				_, ok = gitops.Controls.WindowsSettings.(fleet.GitOpsWindowsSettings)
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
@@ -1592,12 +1592,12 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 
 	t.Run("apply-time paths with ../ become absolute, not double-anchored", func(t *testing.T) {
 		controls := GitOpsControls{
-			MacOSSetup: &fleet.MacOSSetup{
-				MacOSSetupAssistant: optjson.SetString("../lib/no-team/macos_enrollment.json"),
-				Script:              optjson.SetString("../lib/no-team/setup.sh"),
+			MacOSSetup: &fleet.GitOpsMacOSSetup{
 				Software: optjson.SetSlice([]*fleet.MacOSSetupSoftware{
 					{PackagePath: "../lib/no-team/app.pkg"},
 				}),
+				MacOSSetupAssistant: optjson.SetString("../lib/no-team/macos_enrollment.json"),
+				Script:              optjson.SetString("../lib/no-team/setup.sh"),
 			},
 		}
 
@@ -1621,7 +1621,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 		// is a URL — re-anchoring either here would double-anchor / corrupt them.
 		scriptPath := "../lib/no-team/script.sh"
 		controls := GitOpsControls{
-			MacOSSetup: &fleet.MacOSSetup{
+			MacOSSetup: &fleet.GitOpsMacOSSetup{
 				BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
 			},
 			Scripts: []fleet.BaseItem{{Path: &scriptPath}},
@@ -1638,7 +1638,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 		// path lib/no-team/... — before the fix this double-anchored to
 		// generated/generated/lib/no-team/macos_enrollment.json at apply time.
 		controls := GitOpsControls{
-			MacOSSetup: &fleet.MacOSSetup{
+			MacOSSetup: &fleet.GitOpsMacOSSetup{
 				MacOSSetupAssistant: optjson.SetString("lib/no-team/macos_enrollment.json"),
 			},
 		}
@@ -1652,7 +1652,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 
 	t.Run("absolute and empty paths are untouched", func(t *testing.T) {
 		controls := GitOpsControls{
-			MacOSSetup: &fleet.MacOSSetup{
+			MacOSSetup: &fleet.GitOpsMacOSSetup{
 				MacOSSetupAssistant: optjson.SetString("/etc/fleet/macos_enrollment.json"),
 				Script:              optjson.SetString(""),
 			},
@@ -3778,7 +3778,7 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 
 		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.NoError(t, err)
-		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 		require.True(t, ok)
 		require.Len(t, macSettings.CustomSettings, 3)
 
@@ -3811,7 +3811,7 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 
 		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.NoError(t, err)
-		winSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+		winSettings, ok := result.Controls.WindowsSettings.(fleet.GitOpsWindowsSettings)
 		require.True(t, ok)
 		require.True(t, winSettings.CustomSettings.Valid)
 		require.Len(t, winSettings.CustomSettings.Value, 2)
@@ -3840,7 +3840,7 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 
 		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.NoError(t, err)
-		androidSettings, ok := result.Controls.AndroidSettings.(fleet.AndroidSettings)
+		androidSettings, ok := result.Controls.AndroidSettings.(fleet.GitOpsAndroidSettings)
 		require.True(t, ok)
 		require.True(t, androidSettings.CustomSettings.Valid)
 		require.Len(t, androidSettings.CustomSettings.Value, 1)
@@ -3896,7 +3896,7 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 
 		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.NoError(t, err)
-		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 		require.True(t, ok)
 		require.Len(t, macSettings.CustomSettings, 3)
 		for _, p := range macSettings.CustomSettings[:2] {
@@ -3929,7 +3929,7 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 
 		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.NoError(t, err)
-		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 		require.True(t, ok)
 		require.Len(t, macSettings.CustomSettings, 2)
 		for _, p := range macSettings.CustomSettings {
@@ -4473,6 +4473,20 @@ software:
 				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
 			},
 			{
+				name: "org_settings report server settings", file: "default.yml",
+				config: scriptsDisabledFile("    live_query_disabled: false\n    query_reports_disabled: true\n    Query_Report_Cap: 2000\n"),
+				want: []string{
+					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.server_settings.query_reports_disabled" key is not available anymore.`,
+					`The "org_settings.server_settings.query_report_cap" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings report server settings with the new names too", file: "default.yml",
+				config: scriptsDisabledFile("    query_report_cap: 2000\n    report_cap: 2000\n"),
+				want:   []string{`The "org_settings.server_settings.query_report_cap" key is not available anymore.`},
+			},
+			{
 				name: "org_settings file with scripts_disabled set to true", file: "default.yml",
 				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
 				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +
@@ -4542,12 +4556,8 @@ software:
 			},
 			{
 				name: "org_settings", file: "default.yml",
-				config: globalFile("    macos_settings:\n      enable_disk_encryption: true\n" +
-					"    windows_settings:\n      custom_settings:\n"),
-				want: []string{
-					`The "org_settings.mdm.macos_settings" key is not available anymore.`,
-					`The "org_settings.mdm.windows_settings.custom_settings" key is not available anymore.`,
-				},
+				config: globalFile("    macos_settings:\n      enable_disk_encryption: true\n"),
+				want:   []string{`The "org_settings.mdm.macos_settings" key is not available anymore.`},
 			},
 		} {
 			for _, allowUnknown := range []bool{false, true} {
@@ -4867,7 +4877,7 @@ org_settings:
 	gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 	require.NoError(t, err)
 
-	macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+	macSettings, ok := gitops.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 	require.True(t, ok, "apple_settings not parsed")
 	require.Len(t, macSettings.Assets, 1)
 	require.True(t, filepath.IsAbs(macSettings.Assets[0].Path), "asset path should be resolved to absolute")
@@ -4934,11 +4944,11 @@ org_settings:
 
 		// Verify controls parsed correctly with new key names
 		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
-		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
-		require.True(t, ok, "apple_settings not parsed")
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
 
-		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.GitOpsWindowsSettings)
 		require.True(t, ok, "windows_settings not parsed")
 		require.True(t, winSettings.CustomSettings.Valid)
 		require.Len(t, winSettings.CustomSettings.Value, 1)
@@ -5009,11 +5019,11 @@ org_settings:
 
 		// Verify controls parsed correctly from external file with new key names
 		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
-		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
-		require.True(t, ok, "apple_settings in external file not parsed")
+		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
+		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
 
-		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
+		winSettings, ok := gitops.Controls.WindowsSettings.(fleet.GitOpsWindowsSettings)
 		require.True(t, ok, "windows_settings not parsed")
 		require.True(t, winSettings.CustomSettings.Valid)
 		require.Len(t, winSettings.CustomSettings.Value, 1)
@@ -6613,7 +6623,7 @@ controls:
 		gitops, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.NoError(t, err)
 
-		macOSSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
+		macOSSettings, ok := gitops.Controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 		require.True(t, ok, "unexpected type %T", gitops.Controls.MacOSSettings)
 		require.Len(t, macOSSettings.CustomSettings, 1)
 

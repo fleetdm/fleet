@@ -10,10 +10,7 @@
     },
     "server_settings": {
       "server_url": "",
-      "live_query_disabled": false,
       "live_reporting_disabled": false,
-      "query_report_cap": 0,
-      "query_reports_disabled": false,
       "report_cap": 0,
       "discard_reports_data": false,
       "enable_analytics": false,
@@ -101,7 +98,6 @@
         "oauth_idp_client_id": null,
         "oauth_idp_client_secret": null
       },
-      "volume_purchasing_program": null,
       "windows_mdm_enabled": false,
       "enable_disk_encryption": false,
       "name_template": null,
@@ -143,23 +139,19 @@
         "webhook_url": ""
       },
       "apple_settings": {
-        "configuration_profiles": null,
         "enable_disk_encryption": false,
         "enable_escrow_disk_encryption_key": false
       },
       "setup_experience": {
         "apple_enable_release_device_manually": false,
-        "apple_setup_assistant": null,
         "macos_managed_local_account_enabled": false,
         "windows_managed_local_account_enabled": false,
         "enable_end_user_authentication": false,
         "macos_end_user_local_account_type": "admin",
         "lock_end_user_info": false,
-        "macos_bootstrap_package": null,
         "macos_enable_bootstrap_package_during_manual_enrollment": false,
         "macos_enable_bootstrap_package_during_migration": false,
         "macos_manual_agent_install": null,
-        "macos_script": null,
         "macos_require_all_software": false,
         "windows_require_all_software": false,
         "software": null
@@ -167,15 +159,13 @@
       "windows_automatic_enrollment": null,
       "windows_settings": {
         "enable_disk_encryption": false,
-        "configuration_profiles": null,
         "require_bitlocker_pin": false
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": false
       },
       "android_settings": {
-        "certificates": null,
-        "configuration_profiles": null
+        "certificates": null
       },
       "end_user_authentication": {
         "entity_id": "",
@@ -185,7 +175,6 @@
         "idp_name": ""
       }
     },
-    "scripts": null,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",

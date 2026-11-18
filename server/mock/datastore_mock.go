@@ -44,8 +44,6 @@ type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMA
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
-type GetAllCAConfigAssetsByTypeFunc func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error)
-
 type HealthCheckFunc func() error
 
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
@@ -1412,12 +1410,6 @@ type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUU
 
 type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error)
 
-type GetCAConfigAssetFunc func(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error)
-
-type SaveCAConfigAssetsFunc func(ctx context.Context, assets []fleet.CAConfigAsset) error
-
-type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
-
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
 type GetABMTokenByUniqueTokenFunc func(ctx context.Context, uniqueToken string) (*fleet.ABMToken, error)
@@ -2614,9 +2606,6 @@ type DataStore struct {
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
-
-	GetAllCAConfigAssetsByTypeFunc        GetAllCAConfigAssetsByTypeFunc
-	GetAllCAConfigAssetsByTypeFuncInvoked bool
 
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -4667,15 +4656,6 @@ type DataStore struct {
 	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
 	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
 
-	GetCAConfigAssetFunc        GetCAConfigAssetFunc
-	GetCAConfigAssetFuncInvoked bool
-
-	SaveCAConfigAssetsFunc        SaveCAConfigAssetsFunc
-	SaveCAConfigAssetsFuncInvoked bool
-
-	DeleteCAConfigAssetsFunc        DeleteCAConfigAssetsFunc
-	DeleteCAConfigAssetsFuncInvoked bool
-
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
 
@@ -6496,13 +6476,6 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets, tx)
-}
-
-func (s *DataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-	s.mu.Lock()
-	s.GetAllCAConfigAssetsByTypeFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAllCAConfigAssetsByTypeFunc(ctx, assetType)
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -11284,27 +11257,6 @@ func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context
 	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
-}
-
-func (s *DataStore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
-	s.mu.Lock()
-	s.GetCAConfigAssetFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetCAConfigAssetFunc(ctx, name, assetType)
-}
-
-func (s *DataStore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
-	s.mu.Lock()
-	s.SaveCAConfigAssetsFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveCAConfigAssetsFunc(ctx, assets)
-}
-
-func (s *DataStore) DeleteCAConfigAssets(ctx context.Context, names []string) error {
-	s.mu.Lock()
-	s.DeleteCAConfigAssetsFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteCAConfigAssetsFunc(ctx, names)
 }
 
 func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {

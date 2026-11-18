@@ -352,9 +352,7 @@ spec:
 			DeadlineDays:    optjson.SetInt(5),
 			GracePeriodDays: optjson.SetInt(1),
 		},
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
-		},
+		MacOSSettings: fleet.MacOSSettings{},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
@@ -370,7 +368,7 @@ spec:
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 	// agent options not provided, so left unchanged
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
-	// macos updates options not provided, left unchanged, and macos custom settings added
+	// macos updates options not provided, left unchanged; custom settings go to the profiles batch endpoint
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 
 	filename = writeTmpYml(t, `
@@ -414,9 +412,7 @@ spec:
 			DeadlineDays:    optjson.SetInt(5),
 			GracePeriodDays: optjson.SetInt(1),
 		},
-		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
-		},
+		MacOSSettings: fleet.MacOSSettings{},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
@@ -508,9 +504,7 @@ spec:
 			DeadlineDays:    optjson.Int{Set: true},
 			GracePeriodDays: optjson.Int{Set: true},
 		},
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{},
-		},
+		MacOSSettings: fleet.MacOSSettings{},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
@@ -785,20 +779,6 @@ spec:
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
 
-	// Test deprecation warnings
-	expected := "[!] In config: `query_report_cap` is deprecated, please use `report_cap` instead.\n[+] applied fleet config\n"
-	name = writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-`)
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", name}))
-	require.NotNil(t, savedAppConfig)
-	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
-
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -852,20 +832,6 @@ spec:
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
-}
-
-func TestApplyAppConfigAliasConfict(t *testing.T) {
-	// Test conflict error
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-    report_cap: 200
-`)
-
-	runAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
@@ -1546,7 +1512,6 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
 			EnableManagedLocalAccountWindows: optjson.SetBool(false),
@@ -1561,9 +1526,7 @@ spec:
 			DeadlineDays:    optjson.SetInt(1),
 			GracePeriodDays: optjson.SetInt(0),
 		},
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
-		},
+		MacOSSettings:               fleet.MacOSSettings{},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1592,8 +1555,6 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
-			BootstrapPackage:                 optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
 			EnableManagedLocalAccountWindows: optjson.SetBool(false),
@@ -1608,9 +1569,7 @@ spec:
 			DeadlineDays:    optjson.SetInt(1),
 			GracePeriodDays: optjson.SetInt(0),
 		},
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
-		},
+		MacOSSettings:               fleet.MacOSSettings{},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1648,9 +1607,7 @@ spec:
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
-		},
+		MacOSSettings:        fleet.MacOSSettings{},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
@@ -1691,12 +1648,10 @@ spec:
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
-	// all left untouched, only setup assistant added
+	// all left untouched; the setup assistant is saved on its own
 	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
-		},
+		MacOSSettings:        fleet.MacOSSettings{},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
@@ -1706,7 +1661,6 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
 			EnableManagedLocalAccountWindows: optjson.SetBool(false),
@@ -1732,12 +1686,10 @@ spec:
 
 	// then apply for real
 	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
-	// all left untouched, only bootstrap package added
+	// all left untouched; the bootstrap package is saved on its own
 	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
-		},
+		MacOSSettings:        fleet.MacOSSettings{},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("1992-03-01"),
@@ -1747,8 +1699,6 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
-			BootstrapPackage:                 optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
 			EnableManagedLocalAccount:        optjson.SetBool(false),
 			EnableManagedLocalAccountWindows: optjson.SetBool(false),
@@ -2252,7 +2202,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			return nil
 		}
 		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-			return nil, nil
+			return nil, &notFoundError{}
 		}
 
 		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
@@ -2391,7 +2341,7 @@ spec:
 
 		// appconfig macos setup assistant
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `uploading apple setup assistant: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `setup_experience.apple_setup_assistant: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2399,7 +2349,7 @@ spec:
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "https://example.com", ""))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `verifying bootstrap package: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `setup_experience.macos_bootstrap_package: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2408,7 +2358,7 @@ spec:
 
 		// team macos setup assistant
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", emptyMacosSetup))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `fleet "tm1": setup_experience.apple_setup_assistant: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2416,7 +2366,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "https://example.com", ""))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `fleet "tm1": setup_experience.macos_bootstrap_package: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -2498,13 +2448,29 @@ spec:
 	t.Run("setup assistant get and apply roundtrip", func(t *testing.T) {
 		ds := setupServer(t, true)
 
+		// The config doesn't save the setup assistant, so check whether one is saved on its own for
+		// each fleet name, or fleet.TeamNameNoTeam.
+		assertSavedSetupAssistants := func(want map[string]bool) {
+			t.Helper()
+			for teamName, wantSaved := range want {
+				var teamID *uint
+				if teamName != fleet.TeamNameNoTeam {
+					tm, err := ds.TeamByNameFunc(t.Context(), teamName)
+					require.NoError(t, err)
+					teamID = &tm.ID
+				}
+				_, err := ds.GetMDMAppleSetupAssistantFunc(t.Context(), teamID)
+				assert.Equal(t, wantSaved, err == nil, teamName)
+			}
+		}
+
 		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigEmpty.yml"))
 		require.NoError(t, err)
 		expectedEmptyAppCfg := string(b)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
-		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSet := string(b)
 		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
@@ -2513,7 +2479,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1Set := fmt.Sprintf(string(b), "", "")
+		expectedTm1Set := string(b)
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
@@ -2523,11 +2489,12 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
+		expectedTm1And2Set := string(b)
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false})
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
@@ -2544,6 +2511,7 @@ spec:
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false})
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -2561,6 +2529,27 @@ spec:
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+
+		// a value of the wrong type fails instead of reading as empty, which would delete the item
+		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
+		ds.DeleteMDMAppleBootstrapPackageFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+		ds.SaveTeamFuncInvoked = false
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", "42"))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, "setup_experience.apple_setup_assistant: invalid value type: expected string but got number")
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "true", ""))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, "setup_experience.macos_bootstrap_package: invalid value type: expected string but got bool")
+		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", "[assistant.json]"))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, `fleet "tm1": setup_experience.apple_setup_assistant: invalid value type: expected string but got array`)
+		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
+		assert.False(t, ds.SaveTeamFuncInvoked)
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -2580,23 +2569,28 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
-		// apply appconfig without the setup assistant key
+		// apply appconfig without the setup assistant and bootstrap package keys
+		ds.DeleteMDMAppleBootstrapPackageFuncInvoked = false
 		name = writeTmpYml(t, appConfigNoKeySpec)
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 
-		// apply team 1 without the setup assistant key
+		// apply team 1 without the setup assistant and bootstrap package keys
+		ds.DeleteMDMAppleBootstrapPackageFuncInvoked = false
 		name = writeTmpYml(t, team1NoKeySpec)
 		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -2617,15 +2611,16 @@ spec:
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
+		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false, "tm2": false})
 
-		// apply team 1 without the setup assistant key but enable device release
+		// apply team 1 with an empty setup assistant key and enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
 		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.True(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked) // nothing left to delete
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
@@ -2665,7 +2660,7 @@ spec:
 
 		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1 := fmt.Sprintf(string(b), "", "")
+		expectedTm1 := string(b)
 
 		// Apply team with windows_require_all_software enabled.
 		windowsRequireSpec := `
@@ -2733,10 +2728,6 @@ spec:
 					return nil, &notFoundError{}
 				}
 
-				mockStore.Lock()
-				assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-				mockStore.Unlock()
-
 				// create the app config yaml with server url for bootstrap package
 				tmpFilename := writeTmpYml(t, fmt.Sprintf(appConfigSpec, srv.URL, ""))
 
@@ -2746,18 +2737,12 @@ spec:
 					assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 					assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 					assert.False(t, ds.SaveAppConfigFuncInvoked)
-					mockStore.Lock()
-					assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-					mockStore.Unlock()
 				} else {
 					assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 					assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 					assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 					assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 					assert.True(t, ds.SaveAppConfigFuncInvoked)
-					mockStore.Lock()
-					assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-					mockStore.Unlock()
 				}
 			})
 		}
@@ -2775,10 +2760,6 @@ spec:
 		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 			return nil, &notFoundError{}
 		}
-
-		mockStore.Lock()
-		assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-		mockStore.Unlock()
 
 		spec := `
 apiVersion: v1
@@ -2799,7 +2780,6 @@ spec:
 		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 		mockStore.Lock()
-		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 		assert.True(t, mockStore.appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
 		mockStore.Unlock()
 	})
@@ -2874,8 +2854,7 @@ spec:
 		}
 
 		mockStore.Lock()
-		mockStore.metaHash = []byte("foobar")                                                          // initial hash is a throwaway
-		mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com") // initial value is a throwaway
+		mockStore.metaHash = []byte("foobar") // initial hash is a throwaway
 		mockStore.Unlock()
 
 		// upload a new package
@@ -2886,9 +2865,6 @@ spec:
 		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
-		mockStore.Lock()
-		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-		mockStore.Unlock()
 
 		ds.GetMDMAppleBootstrapPackageMetaFuncInvoked = false
 		ds.InsertMDMAppleBootstrapPackageFuncInvoked = false
@@ -2902,9 +2878,6 @@ spec:
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
-		mockStore.Lock()
-		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-		mockStore.Unlock()
 
 		ds.GetMDMAppleBootstrapPackageMetaFuncInvoked = false
 		ds.InsertMDMAppleBootstrapPackageFuncInvoked = false
@@ -2919,9 +2892,6 @@ spec:
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
-		mockStore.Lock()
-		assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
-		mockStore.Unlock()
 	})
 
 	// // TODO: restore this test when we have a way to mock the Apple Business API in
@@ -3165,6 +3135,32 @@ spec:
 			wantErr: `400 Bad Request: invalid value type at 'specs.0.name': expected string but got number`,
 		},
 		{
+			desc: "invalid scripts value type for team",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    scripts: script.sh
+`,
+			wantErr: `fleet "team1": scripts: invalid value type: expected array of strings but got string`,
+		},
+		{
+			desc: "invalid setup experience script value type for team",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      setup_experience:
+        macos_script: true
+`,
+			wantErr: `fleet "team1": setup_experience.macos_script: invalid value type: expected string but got bool`,
+		},
+		{
 			desc: "unknown key for team can be forced",
 			spec: `
 apiVersion: v1
@@ -3337,6 +3333,29 @@ spec:
     server_url: 123
 `,
 			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "config with invalid profiles value type",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    apple_settings:
+      configuration_profiles: profile.mobileconfig
+`,
+			wantErr: `apple_settings.configuration_profiles: invalid value type: expected array of MDMProfileSpecs but got string`,
+		},
+		{
+			desc: "config with invalid scripts value type",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  scripts:
+    - 42
+`,
+			wantErr: `scripts: invalid value type at '0': expected string but got number`,
 		},
 		{
 			desc: "config with invalid agent options in dry-run",
@@ -4110,7 +4129,8 @@ spec:
         configuration_profiles:
           - path: 123
 `,
-			wantErr: `400 Bad Request: invalid value type at 'apple_settings.configuration_profiles.path': expected string but got float64`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
 		},
 		{
 			desc: "team configuration_profiles invalid labels",
@@ -4126,7 +4146,8 @@ spec:
           - path: a
             labels: Engineering
 `,
-			wantErr: `400 Bad Request: invalid value type at 'apple_settings.configuration_profiles.labels': expected array of strings but got string`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
 		},
 		{
 			desc: "team configuration_profiles invalid label element",
@@ -4142,7 +4163,8 @@ spec:
           - path: a
             labels_include_any: [1, Engineering]
 `,
-			wantErr: `400 Bad Request: invalid value type at 'apple_settings.configuration_profiles.labels_include_any': expected string but got float64`,
+			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
+			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
 		},
 		{
 			// macOS disk encryption doesn't require Apple MDM
@@ -4233,42 +4255,27 @@ spec:
 			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
-			desc: "app config with the removed macos_settings key",
+			desc: "app config with a removed server setting",
 			spec: `
 apiVersion: v1
 kind: config
 spec:
-  mdm:
-    macos_settings:
-      enable_disk_encryption: true
+  server_settings:
+    query_report_cap: 200
 `,
-			wantErr: `The "macos_settings" parameter is not available anymore.`,
+			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
-			desc: "app config with the removed custom_settings key",
+			desc: "app config with a removed server setting and its new name",
 			spec: `
 apiVersion: v1
 kind: config
 spec:
-  mdm:
-    windows_settings:
-      custom_settings: []
+  server_settings:
+    live_query_disabled: true
+    live_reporting_disabled: true
 `,
-			wantErr: `The "custom_settings" parameter is not available anymore.`,
-		},
-		{
-			desc: "fleet with the removed custom_settings key under apple_settings",
-			spec: `
-apiVersion: v1
-kind: fleet
-spec:
-  fleet:
-    name: team1
-    mdm:
-      apple_settings:
-        custom_settings: []
-`,
-			wantErr: `The "custom_settings" parameter is not available anymore.`,
+			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

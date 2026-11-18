@@ -123,16 +123,6 @@ func SublimeVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained
 	return app, nil
 }
 
-// MySQLWorkbenchVersionTransformer appends ".CE" to match what macOS reports as
-// bundle_short_version for MySQL Workbench Community Edition (e.g. "8.0.46" → "8.0.46.CE").
-func MySQLWorkbenchVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	if app.Version == "" {
-		return app, errors.New("empty version for MySQL Workbench")
-	}
-	app.Version += ".CE"
-	return app, nil
-}
-
 // LensVersionTransformer appends "-latest" to match what macOS reports as
 // bundle_short_version for Lens (e.g. "2026.3.251250" → "2026.3.251250-latest").
 func LensVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

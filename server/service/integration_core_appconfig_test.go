@@ -130,6 +130,68 @@ func (s *integrationTestSuite) TestAppConfigDetailQueryOverridesRemoved() {
 	require.False(t, stillStored)
 }
 
+func (s *integrationTestSuite) TestRemovedReportServerSettingsKeys() {
+	t := s.T()
+
+	original := s.getConfig().ServerSettings
+	t.Cleanup(func() {
+		s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil,
+			`{"server_settings": {"live_reporting_disabled": %t, "discard_reports_data": %t, "report_cap": %d}}`,
+			original.LiveQueryDisabled, original.QueryReportsDisabled, original.QueryReportCap), http.StatusOK)
+	})
+
+	s.DoRaw("PATCH", "/api/latest/fleet/config",
+		[]byte(`{"server_settings": {"live_reporting_disabled": true, "discard_reports_data": true, "report_cap": 1234}}`), http.StatusOK)
+
+	removedMsg := func(key string) string {
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	}
+	for _, tc := range []struct{ name, path, body, want string }{
+		{"live_query_disabled", "/api/latest/fleet/config", `{"server_settings": {"live_query_disabled": false}}`, removedMsg("live_query_disabled")},
+		{"query_reports_disabled", "/api/latest/fleet/config", `{"server_settings": {"query_reports_disabled": false}}`, removedMsg("query_reports_disabled")},
+		{"query_report_cap", "/api/latest/fleet/config", `{"server_settings": {"query_report_cap": 5}}`, removedMsg("query_report_cap")},
+		{"dry run", "/api/latest/fleet/config?dry_run=true", `{"server_settings": {"query_report_cap": 5}}`, removedMsg("query_report_cap")},
+		{"force", "/api/latest/fleet/config?force=true", `{"server_settings": {"query_report_cap": 5}}`, removedMsg("query_report_cap")},
+		{
+			"old and new together", "/api/latest/fleet/config",
+			`{"server_settings": {"report_cap": 5, "query_report_cap": 5}}`, removedMsg("query_report_cap"),
+		},
+		{
+			"differently cased", "/api/latest/fleet/config",
+			`{"SERVER_SETTINGS": {"Live_Query_Disabled": false}}`, removedMsg("Live_Query_Disabled"),
+		},
+		{
+			"with another setting", "/api/latest/fleet/config",
+			`{"org_info": {"org_name": "set by a rejected request"}, "server_settings": {"query_reports_disabled": false}}`,
+			removedMsg("query_reports_disabled"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := s.DoRaw("PATCH", tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), tc.want)
+		})
+	}
+
+	// the rejected requests changed nothing
+	got := s.getConfig()
+	require.True(t, got.ServerSettings.LiveQueryDisabled)
+	require.True(t, got.ServerSettings.QueryReportsDisabled)
+	require.Equal(t, 1234, got.ServerSettings.QueryReportCap)
+	require.NotEqual(t, "set by a rejected request", got.OrgInfo.OrgName)
+
+	// the old names don't come back in responses
+	var raw struct {
+		ServerSettings map[string]any `json:"server_settings"`
+	}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &raw)
+	require.Equal(t, true, raw.ServerSettings["live_reporting_disabled"])
+	require.Equal(t, true, raw.ServerSettings["discard_reports_data"])
+	require.EqualValues(t, 1234, raw.ServerSettings["report_cap"])
+	require.NotContains(t, raw.ServerSettings, "live_query_disabled")
+	require.NotContains(t, raw.ServerSettings, "query_reports_disabled")
+	require.NotContains(t, raw.ServerSettings, "query_report_cap")
+}
+
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	config := s.getConfig()
 	s.Run("Update interval", func() {
@@ -1885,13 +1947,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
-
-	// set the macos custom settings fields, fails due to MDM not configured
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "apple_settings": { "configuration_profiles": ["foo", "bar"] } }
-	  }`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)

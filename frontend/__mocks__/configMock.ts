@@ -99,10 +99,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   server_settings: {
     server_url: "https://localhost:8080",
-    live_query_disabled: false,
+    live_reporting_disabled: false,
     enable_analytics: true,
     deferred_save_host: false,
-    query_reports_disabled: false,
+    discard_reports_data: false,
     ai_features_disabled: false,
     mcp_disabled: false,
   },

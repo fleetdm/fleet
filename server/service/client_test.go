@@ -82,7 +82,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a", Labels: []string{"foo", "bar"}}, {Path: "b"}},
 		},
 		{
-			"empty and invalid custom settings",
+			"empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -97,10 +97,6 @@ spec:
         - path: ""
           labels:
             - "foo"
-        - path: 4
-          labels:
-            - "foo"
-            - "bar"
         - path: "c"
           labels:
             - baz
@@ -142,7 +138,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a", Name: "Wi-Fi", Description: "Joins the office network"}, {Path: "b"}},
 		},
 		{
-			"old empty and invalid custom settings",
+			"old empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -154,7 +150,6 @@ spec:
       configuration_profiles:
         - "a"
         - ""
-        - 4
         - "c"
 `,
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c"}},
@@ -166,14 +161,16 @@ spec:
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
 				// Legacy fleetctl apply
-				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				got, err := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 
 				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
-				mdm["apple_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
-				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				mdm["macos_settings"] = fleet.GitOpsMacOSSettings{CustomSettings: c.want}
+				got, err = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 			}
 		})
@@ -181,20 +178,20 @@ spec:
 }
 
 func TestExtractMacOSAssetSpecs(t *testing.T) {
-	// GitOps decodes apple_settings into a fleet.MacOSSettings struct. Whenever
+	// GitOps decodes macos_settings into a fleet.GitOpsMacOSSettings struct. Whenever
 	// the struct is present, assets must be reconciled (a nil/empty asset set
 	// clears existing assets), so the extractor returns a non-nil slice.
 	t.Run("gitops struct, no assets => non-nil empty (reconcile to empty)", func(t *testing.T) {
-		got := extractMacOSAssetSpecs(fleet.MacOSSettings{CustomSettings: []fleet.MDMProfileSpec{{Path: "a"}}})
+		got := extractMacOSAssetSpecs(fleet.GitOpsMacOSSettings{CustomSettings: []fleet.MDMProfileSpec{{Path: "a"}}})
 		require.NotNil(t, got)
 		assert.Empty(t, got)
 	})
 	t.Run("gitops struct with assets", func(t *testing.T) {
-		got := extractMacOSAssetSpecs(fleet.MacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
+		got := extractMacOSAssetSpecs(fleet.GitOpsMacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
 		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
 	})
 	t.Run("gitops struct pointer with assets", func(t *testing.T) {
-		got := extractMacOSAssetSpecs(&fleet.MacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
+		got := extractMacOSAssetSpecs(&fleet.GitOpsMacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
 		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
 	})
 	// Legacy fleetctl apply passes a raw map; there the assets key drives
@@ -321,7 +318,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a", Labels: []string{"foo", "bar"}}, {Path: "b"}},
 		},
 		{
-			"empty and invalid custom settings",
+			"empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -336,10 +333,6 @@ spec:
         - path: ""
           labels:
             - "foo"
-        - path: 4
-          labels:
-            - "foo"
-            - "bar"
         - path: "c"
           labels:
             - baz
@@ -363,7 +356,7 @@ spec:
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 		},
 		{
-			"old empty and invalid custom settings",
+			"old empty paths are skipped",
 			`
 apiVersion: v1
 kind: config
@@ -375,7 +368,6 @@ spec:
       configuration_profiles:
         - "a"
         - ""
-        - 4
         - "c"
 `,
 			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c"}},
@@ -387,16 +379,18 @@ spec:
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
 				// Legacy fleetctl apply
-				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				got, err := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 
 				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
-				windowsSettings := fleet.WindowsSettings{}
+				windowsSettings := fleet.GitOpsWindowsSettings{}
 				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
 				mdm["windows_settings"] = windowsSettings
-				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				got, err = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				require.NoError(t, err)
 				assert.Equal(t, c.want, got)
 			}
 		})
@@ -405,9 +399,10 @@ spec:
 
 func TestExtractTeamSpecsMDMCustomSettings(t *testing.T) {
 	cases := []struct {
-		desc string
-		yaml string
-		want map[string]profileSpecsByPlatform
+		desc    string
+		yaml    string
+		want    map[string]profileSpecsByPlatform
+		wantErr string
 	}{
 		{
 			"no settings",
@@ -418,6 +413,7 @@ spec:
   fleet:
 `,
 			nil,
+			"",
 		},
 		{
 			"no custom settings",
@@ -441,6 +437,7 @@ spec:
       windows_settings:
 `,
 			nil,
+			"",
 		},
 		{
 			"empty custom settings",
@@ -472,6 +469,7 @@ spec:
         configuration_profiles:
 `,
 			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}},
+			"",
 		},
 		{
 			"custom settings specified",
@@ -517,6 +515,7 @@ spec:
 					{Path: "f"},
 				},
 			}},
+			"",
 		},
 		{
 			"old custom settings specified",
@@ -543,6 +542,7 @@ spec:
 					{Path: "d"},
 				},
 			}},
+			"",
 		},
 		{
 			"invalid custom settings",
@@ -578,7 +578,8 @@ spec:
           - path: 24
           - path: "y"
 `,
-			map[string]profileSpecsByPlatform{},
+			nil,
+			`fleet "Fleet": apple_settings.configuration_profiles: invalid value type`,
 		},
 		{
 			"old invalid custom settings",
@@ -602,7 +603,8 @@ spec:
           - 24
           - "y"
 `,
-			map[string]profileSpecsByPlatform{},
+			nil,
+			`fleet "Fleet": apple_settings.configuration_profiles: invalid value type`,
 		},
 	}
 	for _, c := range cases {
@@ -610,7 +612,12 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if len(specs.Teams) > 0 {
-				gotSpecs := extractTmSpecsMDMCustomSettings(specs.Teams)
+				gotSpecs, err := extractTmSpecsMDMCustomSettings(specs.Teams)
+				if c.wantErr != "" {
+					require.ErrorContains(t, err, c.wantErr)
+					return
+				}
+				require.NoError(t, err)
 				for k, wantProfs := range c.want {
 					gotProfs, ok := gotSpecs[k]
 					require.True(t, ok)
@@ -1618,4 +1625,139 @@ func TestGetProfilesContentsNameAndDescription(t *testing.T) {
 	_, err = getProfilesContents(tempDir, nil,
 		[]fleet.MDMProfileSpec{{Path: winPath, Name: "   "}}, nil, false)
 	require.ErrorContains(t, err, "Profile name can't be empty.")
+}
+
+func TestCheckMDMRequirements(t *testing.T) {
+	appConfig := func(premium, appleMDM, windowsMDM bool) *fleet.EnrichedAppConfig {
+		ac := &fleet.EnrichedAppConfig{}
+		ac.License = &fleet.LicenseInfo{Tier: fleet.TierFree}
+		if premium {
+			ac.License.Tier = fleet.TierPremium
+		}
+		ac.MDM.EnabledAndConfigured = appleMDM
+		ac.MDM.WindowsEnabledAndConfigured = windowsMDM
+		return ac
+	}
+	parse := func(t *testing.T, yml string) *spec.Group {
+		specs, err := spec.GroupFromBytes([]byte(yml))
+		require.NoError(t, err)
+		return specs
+	}
+
+	cases := []struct {
+		name    string
+		yml     string
+		config  *fleet.EnrichedAppConfig
+		wantErr string
+	}{
+		{
+			name: "nothing listed doesn't need the config",
+			yml: `
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: Fleet
+`,
+		},
+		{
+			name: "apple profiles need apple mdm",
+			yml: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    apple_settings:
+      configuration_profiles: [{path: a.mobileconfig}]
+`,
+			config:  appConfig(true, false, true),
+			wantErr: "Couldn't update apple_settings because MDM features aren't turned on",
+		},
+		{
+			name: "windows profiles need windows mdm",
+			yml: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_settings:
+      configuration_profiles: [{path: a.xml}]
+`,
+			config:  appConfig(true, true, false),
+			wantErr: "Couldn’t edit windows_settings.configuration_profiles",
+		},
+		{
+			name: "windows mdm turned on in the same run",
+			yml: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_mdm_enabled: true
+    windows_settings:
+      configuration_profiles: [{path: a.xml}]
+`,
+			config: appConfig(true, true, false),
+		},
+		{
+			name: "fleet setup assistant needs premium",
+			yml: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: Workstations
+    mdm:
+      setup_experience:
+        apple_setup_assistant: assistant.json
+`,
+			config:  appConfig(false, true, true),
+			wantErr: `fleet "Workstations": setup_experience.apple_setup_assistant`,
+		},
+		{
+			name: "fleet bootstrap package needs apple mdm",
+			yml: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: Workstations
+    mdm:
+      setup_experience:
+        macos_bootstrap_package: https://example.com/bootstrap.pkg
+`,
+			config:  appConfig(true, false, true),
+			wantErr: `fleet "Workstations": setup_experience.macos_bootstrap_package: macOS MDM isn't turned on`,
+		},
+		{
+			name: "allowed",
+			yml: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    apple_settings:
+      configuration_profiles: [{path: a.mobileconfig}]
+    setup_experience:
+      macos_bootstrap_package: https://example.com/bootstrap.pkg
+      apple_setup_assistant: assistant.json
+`,
+			config: appConfig(true, true, false),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var fetched bool
+			err := checkMDMRequirements(parse(t, c.yml), func() (*fleet.EnrichedAppConfig, error) {
+				fetched = true
+				return c.config, nil
+			})
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.config != nil, fetched)
+		})
+	}
 }

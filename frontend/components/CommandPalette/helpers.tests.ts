@@ -1151,7 +1151,6 @@ describe("CommandPalette helpers", () => {
         "apple_settings=failing",
         "os_settings_disk_encryption=verified",
         "macos_bootstrap_package=failed",
-        "bootstrap_package=pending",
       ])("strips %s when switching to All fleets", (filter) => {
         const [name] = filter.split("=");
         const url = parse(

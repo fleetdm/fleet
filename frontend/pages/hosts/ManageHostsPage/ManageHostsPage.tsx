@@ -406,7 +406,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =

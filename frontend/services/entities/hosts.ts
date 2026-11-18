@@ -111,7 +111,6 @@ export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
   "apple_settings",
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "macos_bootstrap_package",
-  "bootstrap_package",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
 ];
 

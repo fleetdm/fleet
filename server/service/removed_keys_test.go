@@ -37,26 +37,8 @@ func TestRemovedKeyTagsRegistered(t *testing.T) {
 func TestRemovedAppleSettingsKeysAreScoped(t *testing.T) {
 	for _, typ := range []any{fleet.AppConfig{}, fleet.TeamPayload{}, fleet.TeamSpec{}} {
 		rules := endpointer.ExtractRemovedKeyRules(typ)
-		bodies := []string{
-			`{"mdm": {"apple_settings": {"custom_settings": []}}}`,
-			`{"mdm": {"windows_settings": {"custom_settings": []}}}`,
-			`{"mdm": {"android_settings": {"custom_settings": []}}}`,
-		}
-		if _, ok := typ.(fleet.TeamPayload); ok {
-			// PATCH /fleets/:id takes no profile list under any name
-			bodies = nil
-		}
-		for _, body := range append(bodies,
-			`{"mdm": {"macos_settings": {}}}`,
-		) {
-			var removed *endpointer.RemovedKeyError
-			require.ErrorAs(t, endpointer.CheckRemovedKeys([]byte(body), rules), &removed, "%T: %s", typ, body)
-		}
-		for _, body := range []string{
-			`{"macos_settings": {}, "custom_settings": []}`,
-			`{"mdm": {"custom_settings": []}}`,
-		} {
-			require.NoError(t, endpointer.CheckRemovedKeys([]byte(body), rules), "%T: %s", typ, body)
-		}
+		var removed *endpointer.RemovedKeyError
+		require.ErrorAs(t, endpointer.CheckRemovedKeys([]byte(`{"mdm": {"macos_settings": {}}}`), rules), &removed, "%T", typ)
+		require.NoError(t, endpointer.CheckRemovedKeys([]byte(`{"macos_settings": {}}`), rules), "%T", typ)
 	}
 }

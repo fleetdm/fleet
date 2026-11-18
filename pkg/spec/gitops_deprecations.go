@@ -30,11 +30,6 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Top-level gitops keys
 	{"queries", "reports"},
 
-	// Org settings: server_settings
-	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
-	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
-	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
-
 	// The following entries are renameto tags on struct fields that appear in serialized
 	// API output (fleetctl get and fleetctl apply) but are not gitops input keys. They are
 	// included here so that buildAliasRules can derive them. The paths are leaf-only (no dots)
@@ -42,18 +37,13 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"available_teams", "available_fleets"},
 	{"default_team", "default_fleet"},
 	{"host_team_id", "host_fleet_id"},
-	{"inherited_query_count", "inherited_report_count"},
 	{"ios_team_id", "ios_fleet_id"},
 	{"ipados_team_id", "ipados_fleet_id"},
-	{"live_query_results", "live_report_results"},
 	{"macos_team_id", "macos_fleet_id"},
 	{"query_count", "report_count"},
 	{"query_id", "report_id"},
 	{"query_ids", "report_ids"},
 	{"query_name", "report_name"},
-	{"query_stats", "report_stats"},
-	{"scheduled_query_id", "scheduled_report_id"},
-	{"scheduled_query_name", "scheduled_report_name"},
 	{"team", "fleet"},
 	{"team_id", "fleet_id"},
 	{"team_ids_by_name", "fleet_ids_by_name"},

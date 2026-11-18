@@ -47,8 +47,6 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 		},
 		{"fleet macos_settings", "PATCH", fleetPath, `{"mdm": {"macos_settings": {"enable_disk_encryption": true}}}`, "macos_settings"},
 		{"fleet spec macos_settings", "POST", specPath, spec(`{"macos_settings": {"enable_disk_encryption": true}}`), "macos_settings"},
-		{"fleet spec apple custom_settings", "POST", specPath, spec(`{"apple_settings": {"custom_settings": []}}`), "custom_settings"},
-		{"fleet spec windows custom_settings force", "POST", specPath + "?force=true", spec(`{"windows_settings": {"custom_settings": []}}`), "custom_settings"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res := s.DoRaw(tc.method, tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
@@ -76,7 +74,7 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 
 	// the new names are returned alone
 	oldKeys := []string{`"macos_settings"`, `"custom_settings"`}
-	newKeys := []string{`"apple_settings"`, `"configuration_profiles"`}
+	newKeys := []string{`"apple_settings"`}
 	rawBody := func(path string) []byte {
 		res := s.DoRaw("GET", path, nil, http.StatusOK)
 		body, err := io.ReadAll(res.Body)

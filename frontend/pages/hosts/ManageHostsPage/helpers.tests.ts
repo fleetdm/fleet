@@ -23,7 +23,6 @@ describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
     "apple_settings=failing",
     "os_settings_disk_encryption=verified",
     "macos_bootstrap_package=failed",
-    "bootstrap_package=pending",
     "software_status=failed",
   ])("drops %s when switching to All fleets", (filter) => {
     expect(

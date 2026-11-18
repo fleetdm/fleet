@@ -97,10 +97,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			GracePeriodDays: optjson.SetInt(2),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.String{Set: true},
-			BootstrapPackage:                 optjson.String{Set: true},
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
-			Script:                           optjson.String{Set: true},
 			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:               optjson.Bool{Set: true},
 			LockEndUserInfo:                  optjson.SetBool(false),
@@ -110,8 +107,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), getTmResp.Team.Config.MDM)
 
