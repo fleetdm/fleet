@@ -1824,6 +1824,84 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
 }
 
+// Validation runs on secret-expanded content, so an error quoting that content
+// must not carry the secret's value back to the caller.
+func (s *integrationMDMTestSuite) TestProfileValidationErrorsDontLeakSecrets() {
+	t := s.T()
+
+	const value = "leak-sentinel-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_LEAK", Value: value}},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	mobileconfig := func(payloadType string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>leak</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.leak</string>
+	<key>PayloadType</key>
+	<string>%s</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, payloadType, uuid.NewString()))
+	}
+	leakyMobileconfig := mobileconfig("$FLEET_SECRET_LEAK")
+	leakyDeclaration := []byte(`{"Type": "$FLEET_SECRET_LEAK", "Identifier": "com.example.leak.decl", "Payload": {}}`)
+
+	checkNotLeaked := func(t *testing.T, res *http.Response) {
+		t.Helper()
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.NotEmpty(t, body)
+		require.NotContains(t, string(body), value)
+	}
+
+	t.Run("create mobileconfig", func(t *testing.T) {
+		body, headers := generateNewProfileMultipartRequest(t, "leak.mobileconfig", leakyMobileconfig, s.token, nil)
+		checkNotLeaked(t, s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+			http.StatusBadRequest, headers))
+	})
+
+	t.Run("create declaration", func(t *testing.T) {
+		body, headers := generateNewProfileMultipartRequest(t, "leak.json", leakyDeclaration, s.token, nil)
+		checkNotLeaked(t, s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+			http.StatusUnprocessableEntity, headers))
+	})
+
+	t.Run("edit mobileconfig", func(t *testing.T) {
+		body, headers := generateNewProfileMultipartRequest(t, "leak.mobileconfig", mobileconfig("Configuration"), s.token, nil)
+		var created newMDMConfigProfileResponse
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&created))
+		t.Cleanup(func() {
+			s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+created.ProfileUUID, nil, http.StatusOK)
+		})
+
+		body, headers = generateNewProfileMultipartRequest(t, "leak.mobileconfig", leakyMobileconfig, s.token, nil)
+		checkNotLeaked(t, s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+created.ProfileUUID,
+			body.Bytes(), http.StatusBadRequest, headers))
+	})
+
+	t.Run("batch", func(t *testing.T) {
+		for _, p := range []fleet.MDMProfileBatchPayload{
+			{Name: "leak", Contents: leakyMobileconfig},
+			{Name: "leak-decl", Contents: leakyDeclaration},
+		} {
+			checkNotLeaked(t, s.Do("POST", "/api/latest/fleet/mdm/profiles/batch",
+				batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{p}}, http.StatusUnprocessableEntity))
+		}
+	})
+}
+
 func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
 	t := s.T()
 	ctx := t.Context()

@@ -3371,6 +3371,17 @@ func getAppleProfiles(
 				return nil, nil, err
 			}
 
+			if err := fleet.ValidateMDMProfileName(prof.Name); err != nil {
+				reason := err.Error()
+				name := "apple_settings.configuration_profiles"
+				if iae, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok && iae.HasErrors() {
+					reason = iae.Invalid()[0]["reason"] // nolint:nilaway // iae.HasErrors check length, so [0] is not a nil potential
+					name = fmt.Sprintf("%s.%s", name, iae.Invalid()[0]["name"])
+				}
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(name, "Couldn't edit configuration_profiles. "+reason))
+			}
+
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			mdmDecl.Description = prof.Description
 			mdmDecl.Hidden = prof.Hidden
