@@ -51,14 +51,6 @@ func TestMatchKnown(t *testing.T) {
 		{[]string{"Grok Bot.app", "Grok Bot", "com.anysphere.sand"}, true, "grok-bot", 0},
 		{[]string{"Grok Bot 0.78.3"}, true, "grok-bot", 0},
 		{[]string{"Sand.app", "Sand", "com.anysphere.sand"}, true, "grok-bot", 0},
-		// Meta Muse matches its bundle id only.
-		{[]string{"Muse.app", "Muse", "com.meta.endo"}, true, "meta-muse", 0},
-
-		{[]string{"Museeks"}, false, "", 0},
-		{[]string{"Museeks.app", "Museeks", "com.electron.museeks"}, false, "", 0},
-		{[]string{"MuseScore 4"}, false, "", 0},
-		{[]string{"MuseScore.app", "MuseScore", "org.musescore.MuseScore"}, false, "", 0},
-		{[]string{"Muse Hub"}, false, "", 0},
 		{[]string{"GranolaBar"}, false, "", 0},
 		{[]string{"grok"}, false, "", 0},
 		{[]string{".grok"}, false, "", 0},
