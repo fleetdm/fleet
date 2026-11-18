@@ -105,6 +105,9 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareAIToolFilter", testListHostSoftwareAIToolFilter},
 		{"ListHostSoftwareHomebrewExecutableHashes", testListHostSoftwareHomebrewExecutableHashes},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
+		{"ListHostSoftwareScopedToHostInventory", testListHostSoftwareScopedToHostInventory},
+		{"ListHostSoftwareInstalledVersionsAcrossOptions", testListHostSoftwareInstalledVersionsAcrossOptions},
+		{"ListHostSoftwarePagedDetailsAndTotals", testListHostSoftwarePagedDetailsAndTotals},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
@@ -16637,4 +16640,401 @@ func testSoftwareListSharedCVEs(t *testing.T, ds *Datastore) {
 		// The CVSS filter selects software, not the CVEs listed on it.
 		require.Len(t, got["alpha 1.0"].Vulnerabilities, 2)
 	})
+}
+
+func testListHostSoftwareScopedToHostInventory(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	noInventoryHost := test.NewHost(t, ds, "no-inventory", "", "noinventorykey", "noinventoryuuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(tm.ID))
+	otherHost := test.NewHost(t, ds, "other", "", "otherkey", "otheruuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(tm.ID))
+
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Scoped App",
+		Source:           "apps",
+		BundleIdentifier: "com.example.scoped",
+		InstallScript:    "echo",
+		Filename:         "scoped.pkg",
+		Extension:        "pkg",
+		Platform:         "darwin",
+		Version:          "2.0",
+		StorageID:        "scoped-storage",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Only the other host reports the title, with a vulnerable version.
+	_, err = ds.UpdateHostSoftware(ctx, otherHost.ID, []fleet.Software{
+		{Name: "Scoped App", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.scoped"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, otherHost, false))
+	require.Len(t, otherHost.Software, 1)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: otherHost.Software[0].ID, CVE: "CVE-2024-0001",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// The install record keeps the title listed for the host that has no inventory.
+	_, err = ds.InsertSoftwareInstallRequest(ctx, noInventoryHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	list := func(t *testing.T, host *fleet.Host, vulnerable bool, query string) []*fleet.HostSoftwareWithInstaller {
+		t.Helper()
+		sw, meta, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", MatchQuery: query},
+			IncludeAvailableForInstall: true,
+			VulnerableOnly:             vulnerable,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.EqualValues(t, len(sw), meta.TotalResults)
+		return sw
+	}
+
+	sw := list(t, otherHost, true, "")
+	require.Len(t, sw, 1)
+	require.Equal(t, titleID, sw[0].ID)
+	require.Len(t, sw[0].InstalledVersions, 1)
+	require.Equal(t, []string{"CVE-2024-0001"}, sw[0].InstalledVersions[0].Vulnerabilities)
+	require.Len(t, list(t, otherHost, false, "CVE-2024-0001"), 1)
+
+	for _, c := range []struct {
+		name       string
+		vulnerable bool
+		query      string
+		listed     bool
+	}{
+		{name: "no filter", listed: true},
+		{name: "name search", query: "scoped", listed: true},
+		{name: "vulnerable", vulnerable: true},
+		{name: "cve search", query: "CVE-2024-0001"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			sw := list(t, noInventoryHost, c.vulnerable, c.query)
+			if !c.listed {
+				require.Empty(t, sw)
+				return
+			}
+			require.Len(t, sw, 1)
+			require.Equal(t, titleID, sw[0].ID)
+			require.NotNil(t, sw[0].SoftwarePackage)
+			require.Empty(t, sw[0].InstalledVersions)
+		})
+	}
+}
+
+func testListHostSoftwareInstalledVersionsAcrossOptions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("darwin"))
+
+	_, slackTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Slack",
+		Source:           "apps",
+		BundleIdentifier: "com.tinyspeck.slackmacgap",
+		InstallScript:    "echo",
+		Filename:         "slack.pkg",
+		Extension:        "pkg",
+		Platform:         "darwin",
+		Version:          "4.2",
+		StorageID:        "slack-storage",
+		SelfService:      true,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	lastOpened := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "requests", Version: "2.0", Source: "python_packages"},
+		{Name: "requests", Version: "2.1", Source: "python_packages"},
+		{Name: "Slack", Version: "4.0", Source: "apps", BundleIdentifier: "com.tinyspeck.slackmacgap"},
+		{Name: "Slack", Version: "4.1", Source: "apps", BundleIdentifier: "com.tinyspeck.slackmacgap"},
+		{Name: "Zoom", Version: "5.0", Source: "apps", BundleIdentifier: "us.zoom.xos", LastOpenedAt: &lastOpened},
+	})
+	require.NoError(t, err)
+	// Versions of the same titles that only another host has must never be listed.
+	_, err = ds.UpdateHostSoftware(ctx, otherHost.ID, []fleet.Software{
+		{Name: "requests", Version: "1.9", Source: "python_packages"},
+		{Name: "Slack", Version: "3.9", Source: "apps", BundleIdentifier: "com.tinyspeck.slackmacgap"},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 5)
+	swPaths := map[string]fleet.ExecutableHashes{}
+	softwareIDByVersion := make(map[string]uint)
+	for _, hs := range host.Software {
+		softwareIDByVersion[hs.Name+" "+hs.Version] = hs.ID
+		if hs.Version == "2.0" || hs.Name == "Zoom" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0002"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+		if hs.Name == "Zoom" {
+			key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", "/Applications/zoom.us.app", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
+			swPaths[key] = nil
+		}
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+
+	// list returns the host's titles by name, failing if a title is listed twice.
+	list := func(t *testing.T, opts fleet.HostSoftwareTitleListOptions) map[string]*fleet.HostSoftwareWithInstaller {
+		t.Helper()
+		opts.ListOptions = fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", MatchQuery: opts.ListOptions.MatchQuery}
+		sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.EqualValues(t, len(sw), meta.TotalResults)
+		got := make(map[string]*fleet.HostSoftwareWithInstaller, len(sw))
+		for _, s := range sw {
+			require.NotContains(t, got, s.Name)
+			got[s.Name] = s
+		}
+		return got
+	}
+	// versions returns a title's installed versions in the order they were returned.
+	versions := func(t *testing.T, title *fleet.HostSoftwareWithInstaller) []fleet.HostSoftwareInstalledVersion {
+		t.Helper()
+		require.NotNil(t, title)
+		got := make([]fleet.HostSoftwareInstalledVersion, 0, len(title.InstalledVersions))
+		for _, v := range title.InstalledVersions {
+			require.Equal(t, title.ID, v.SoftwareTitleID)
+			got = append(got, *v)
+		}
+		return got
+	}
+
+	unfiltered := list(t, fleet.HostSoftwareTitleListOptions{})
+	require.Len(t, unfiltered, 3)
+
+	requests := versions(t, unfiltered["requests"])
+	require.Len(t, requests, 2)
+	require.Less(t, requests[0].SoftwareID, requests[1].SoftwareID)
+	byVersion := make(map[string]fleet.HostSoftwareInstalledVersion, len(requests))
+	for _, v := range requests {
+		byVersion[v.Version] = v
+	}
+	require.Equal(t, softwareIDByVersion["requests 2.0"], byVersion["2.0"].SoftwareID)
+	require.Equal(t, "python_packages", byVersion["2.0"].Source)
+	require.Equal(t, []string{"CVE-2024-0002"}, byVersion["2.0"].Vulnerabilities)
+	require.Equal(t, softwareIDByVersion["requests 2.1"], byVersion["2.1"].SoftwareID)
+	require.Empty(t, byVersion["2.1"].Vulnerabilities)
+
+	zoom := versions(t, unfiltered["Zoom"])
+	require.Len(t, zoom, 1)
+	require.Equal(t, softwareIDByVersion["Zoom 5.0"], zoom[0].SoftwareID)
+	require.Equal(t, "5.0", zoom[0].Version)
+	require.Equal(t, "apps", zoom[0].Source)
+	require.Equal(t, "us.zoom.xos", zoom[0].BundleIdentifier)
+	require.NotNil(t, zoom[0].LastOpenedAt)
+	require.WithinDuration(t, lastOpened, *zoom[0].LastOpenedAt, time.Second)
+	require.Equal(t, []string{"/Applications/zoom.us.app"}, zoom[0].InstalledPaths)
+	require.Equal(t, []string{"CVE-2024-0002"}, zoom[0].Vulnerabilities)
+
+	slackTitle := unfiltered["Slack"]
+	require.NotNil(t, slackTitle)
+	require.Equal(t, slackTitleID, slackTitle.ID)
+	slack := versions(t, slackTitle)
+	require.Len(t, slack, 2)
+	// Software IDs are not assigned in version order, so only the ID order is fixed.
+	require.Less(t, slack[0].SoftwareID, slack[1].SoftwareID)
+	require.Equal(t, map[string]uint{"4.0": softwareIDByVersion["Slack 4.0"], "4.1": softwareIDByVersion["Slack 4.1"]},
+		map[string]uint{slack[0].Version: slack[0].SoftwareID, slack[1].Version: slack[1].SoftwareID})
+
+	// A title with a package lists once, with the host's versions, however available software is included.
+	for _, c := range []struct {
+		name   string
+		opts   fleet.HostSoftwareTitleListOptions
+		titles int
+	}{
+		{name: "include available", opts: fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true}, titles: 3},
+		{name: "only available", opts: fleet.HostSoftwareTitleListOptions{OnlyAvailableForInstall: true}, titles: 1},
+		{name: "self-service", opts: fleet.HostSoftwareTitleListOptions{SelfServiceOnly: true, IncludeAvailableForInstall: true}, titles: 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := list(t, c.opts)
+			require.Len(t, got, c.titles)
+			require.NotNil(t, got["Slack"])
+			require.NotNil(t, got["Slack"].SoftwarePackage)
+			require.Equal(t, slack, versions(t, got["Slack"]))
+		})
+	}
+
+	// A search returns the same installed versions for the titles it keeps.
+	search := func(query string) fleet.HostSoftwareTitleListOptions {
+		return fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{MatchQuery: query}}
+	}
+	require.ElementsMatch(t, requests, versions(t, list(t, search("requests"))["requests"]))
+	require.ElementsMatch(t, slack, versions(t, list(t, search("slack"))["Slack"]))
+	require.Equal(t, zoom, versions(t, list(t, search("zoom"))["Zoom"]))
+
+	// The vulnerable filter keeps the vulnerable version and never adds a version the host lacks.
+	vulnerable := list(t, fleet.HostSoftwareTitleListOptions{VulnerableOnly: true})
+	require.Len(t, vulnerable, 2)
+	require.Contains(t, versions(t, vulnerable["requests"]), byVersion["2.0"])
+	require.Subset(t, requests, versions(t, vulnerable["requests"]))
+	require.Equal(t, zoom, versions(t, vulnerable["Zoom"]))
+}
+
+func testListHostSoftwarePagedDetailsAndTotals(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(tm.ID))
+
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "App E",
+		Source:           "apps",
+		BundleIdentifier: "com.example.e",
+		InstallScript:    "echo",
+		Filename:         "e.pkg",
+		Extension:        "pkg",
+		Platform:         "darwin",
+		Version:          "2.0",
+		StorageID:        "e-storage",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, tm.ID, &user.ID, fleet.PolicyPayload{
+		Name: "install E", Query: "SELECT 1", SoftwareInstallerID: &installerID,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "App A", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.a"},
+		{Name: "App B", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.b"},
+		{Name: "App C", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.c"},
+		{Name: "App C", Version: "1.1", Source: "apps", BundleIdentifier: "com.example.c"},
+		{Name: "App D", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.d"},
+		{Name: "App E", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.e"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 6)
+	// Each version of App C has its own CVE, so a mix-up between versions shows.
+	cveByVersionOfC := map[string]string{"1.0": "CVE-2024-0004", "1.1": "CVE-2024-0005"}
+	for _, hs := range host.Software {
+		var cve string
+		switch hs.Name {
+		case "App B", "App D", "App E":
+			cve = "CVE-2024-0003"
+		case "App C":
+			cve = cveByVersionOfC[hs.Version]
+		default:
+			continue
+		}
+		_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: cve}, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	list := func(t *testing.T, opts fleet.HostSoftwareTitleListOptions, page, perPage uint) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata) {
+		t.Helper()
+		opts.IncludeAvailableForInstall = true
+		opts.ListOptions = fleet.ListOptions{
+			Page: page, PerPage: perPage, IncludeMetadata: true, OrderKey: "name", MatchQuery: opts.ListOptions.MatchQuery,
+		}
+		sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		return sw, meta
+	}
+	names := func(sw []*fleet.HostSoftwareWithInstaller) []string {
+		got := make([]string, 0, len(sw))
+		for _, s := range sw {
+			got = append(got, s.Name)
+		}
+		return got
+	}
+
+	// The display name moves App D to the last page, and the icon and policy sit on the page before it.
+	all, _ := list(t, fleet.HostSoftwareTitleListOptions{}, 0, 100)
+	require.Len(t, all, 5)
+	titleIDByName := make(map[string]uint, len(all))
+	for _, s := range all {
+		titleIDByName[s.Name] = s.ID
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &tm.ID, titleIDByName["App D"], "Delta")
+	})
+	_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID: tm.ID, TitleID: titleIDByName["App E"], StorageID: "icon-storage", Filename: "e.png",
+	})
+	require.NoError(t, err)
+
+	all, _ = list(t, fleet.HostSoftwareTitleListOptions{}, 0, 100)
+	require.Equal(t, []string{"App A", "App B", "App C", "App E", "App D"}, names(all))
+	appE, appD := all[3], all[4]
+	require.Equal(t, "Delta", appD.DisplayName)
+	require.Len(t, appD.InstalledVersions, 1)
+	require.Equal(t, []string{"CVE-2024-0003"}, appD.InstalledVersions[0].Vulnerabilities)
+	require.NotNil(t, appE.IconUrl)
+	require.NotNil(t, appE.SoftwarePackage)
+	require.Len(t, appE.SoftwarePackage.AutomaticInstallPolicies, 1)
+	require.Equal(t, "install E", appE.SoftwarePackage.AutomaticInstallPolicies[0].Name)
+	require.Len(t, all[0].InstalledVersions, 1)
+	require.Empty(t, all[0].InstalledVersions[0].Vulnerabilities)
+	require.Len(t, all[2].InstalledVersions, 2)
+	for _, v := range all[2].InstalledVersions {
+		require.Equal(t, []string{cveByVersionOfC[v.Version]}, v.Vulnerabilities)
+	}
+
+	for _, c := range []struct {
+		name string
+		opts fleet.HostSoftwareTitleListOptions
+		want []string
+	}{
+		{name: "no filter", want: []string{"App A", "App B", "App C", "App E", "App D"}},
+		{name: "vulnerable", opts: fleet.HostSoftwareTitleListOptions{VulnerableOnly: true}, want: []string{"App B", "App C", "App E", "App D"}},
+		{
+			name: "name search",
+			opts: fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{MatchQuery: "app"}},
+			want: []string{"App A", "App B", "App C", "App E", "App D"},
+		},
+		{
+			name: "cve search",
+			opts: fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{MatchQuery: "CVE-2024-0003"}},
+			want: []string{"App B", "App E", "App D"},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			unpaged, meta := list(t, c.opts, 0, 100)
+			require.Equal(t, c.want, names(unpaged))
+			require.EqualValues(t, len(c.want), meta.TotalResults)
+
+			// Every page carries the total and the same details as the unpaged list.
+			var paged []*fleet.HostSoftwareWithInstaller
+			for page := uint(0); ; page++ {
+				require.Less(t, page, uint(10))
+				sw, meta := list(t, c.opts, page, 2)
+				require.EqualValues(t, len(c.want), meta.TotalResults)
+				require.Equal(t, page > 0, meta.HasPreviousResults)
+				paged = append(paged, sw...)
+				if !meta.HasNextResults {
+					break
+				}
+				require.Len(t, sw, 2)
+			}
+			require.Equal(t, unpaged, paged)
+
+			sw, meta := list(t, c.opts, 50, 2)
+			require.Empty(t, sw)
+			require.EqualValues(t, len(c.want), meta.TotalResults)
+			require.False(t, meta.HasNextResults)
+			require.True(t, meta.HasPreviousResults)
+		})
+	}
 }
