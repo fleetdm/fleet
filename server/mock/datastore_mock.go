@@ -44,8 +44,6 @@ type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMA
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
-type GetAllCAConfigAssetsByTypeFunc func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error)
-
 type HealthCheckFunc func() error
 
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
@@ -1034,6 +1032,8 @@ type GetHostOneTimeEnrollSecretFunc func(ctx context.Context, secret string) (*f
 
 type CleanupHostOneTimeEnrollSecretsFunc func(ctx context.Context) (int64, error)
 
+type MintAndroidOneTimeEnrollSecretFunc func(ctx context.Context, hostID uint) (string, error)
+
 type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error)
 
 type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
@@ -1135,18 +1135,6 @@ type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMA
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
-
-type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
-
-type MDMAppleInstallerFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
-
-type MDMAppleInstallerDetailsByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
-
-type DeleteMDMAppleInstallerFunc func(ctx context.Context, id uint) error
-
-type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
-
-type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
@@ -1421,12 +1409,6 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 
 type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error)
-
-type GetCAConfigAssetFunc func(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error)
-
-type SaveCAConfigAssetsFunc func(ctx context.Context, assets []fleet.CAConfigAsset) error
-
-type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
@@ -2636,9 +2618,6 @@ type DataStore struct {
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
-
-	GetAllCAConfigAssetsByTypeFunc        GetAllCAConfigAssetsByTypeFunc
-	GetAllCAConfigAssetsByTypeFuncInvoked bool
 
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -4122,6 +4101,9 @@ type DataStore struct {
 	CleanupHostOneTimeEnrollSecretsFunc        CleanupHostOneTimeEnrollSecretsFunc
 	CleanupHostOneTimeEnrollSecretsFuncInvoked bool
 
+	MintAndroidOneTimeEnrollSecretFunc        MintAndroidOneTimeEnrollSecretFunc
+	MintAndroidOneTimeEnrollSecretFuncInvoked bool
+
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
 
@@ -4274,24 +4256,6 @@ type DataStore struct {
 
 	GetVPPCommandResultsFunc        GetVPPCommandResultsFunc
 	GetVPPCommandResultsFuncInvoked bool
-
-	NewMDMAppleInstallerFunc        NewMDMAppleInstallerFunc
-	NewMDMAppleInstallerFuncInvoked bool
-
-	MDMAppleInstallerFunc        MDMAppleInstallerFunc
-	MDMAppleInstallerFuncInvoked bool
-
-	MDMAppleInstallerDetailsByIDFunc        MDMAppleInstallerDetailsByIDFunc
-	MDMAppleInstallerDetailsByIDFuncInvoked bool
-
-	DeleteMDMAppleInstallerFunc        DeleteMDMAppleInstallerFunc
-	DeleteMDMAppleInstallerFuncInvoked bool
-
-	MDMAppleInstallerDetailsByTokenFunc        MDMAppleInstallerDetailsByTokenFunc
-	MDMAppleInstallerDetailsByTokenFuncInvoked bool
-
-	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
-	ListMDMAppleInstallersFuncInvoked bool
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
@@ -4703,15 +4667,6 @@ type DataStore struct {
 
 	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
 	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
-
-	GetCAConfigAssetFunc        GetCAConfigAssetFunc
-	GetCAConfigAssetFuncInvoked bool
-
-	SaveCAConfigAssetsFunc        SaveCAConfigAssetsFunc
-	SaveCAConfigAssetsFuncInvoked bool
-
-	DeleteCAConfigAssetsFunc        DeleteCAConfigAssetsFunc
-	DeleteCAConfigAssetsFuncInvoked bool
 
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
@@ -6551,13 +6506,6 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets, tx)
-}
-
-func (s *DataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-	s.mu.Lock()
-	s.GetAllCAConfigAssetsByTypeFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAllCAConfigAssetsByTypeFunc(ctx, assetType)
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -10018,6 +9966,13 @@ func (s *DataStore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64,
 	return s.CleanupHostOneTimeEnrollSecretsFunc(ctx)
 }
 
+func (s *DataStore) MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.MintAndroidOneTimeEnrollSecretFuncInvoked = true
+	s.mu.Unlock()
+	return s.MintAndroidOneTimeEnrollSecretFunc(ctx, hostID)
+}
+
 func (s *DataStore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOsqueryFuncInvoked = true
@@ -10373,48 +10328,6 @@ func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string
 	s.GetVPPCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPCommandResultsFunc(ctx, commandUUID, hostUUID)
-}
-
-func (s *DataStore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.NewMDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewMDMAppleInstallerFunc(ctx, name, size, manifest, installer, urlToken)
-}
-
-func (s *DataStore) MDMAppleInstaller(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.MDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleInstallerFunc(ctx, token)
-}
-
-func (s *DataStore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.MDMAppleInstallerDetailsByIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleInstallerDetailsByIDFunc(ctx, id)
-}
-
-func (s *DataStore) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleInstallerFunc(ctx, id)
-}
-
-func (s *DataStore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.MDMAppleInstallerDetailsByTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleInstallerDetailsByTokenFunc(ctx, token)
-}
-
-func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.ListMDMAppleInstallersFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleInstallersFunc(ctx)
 }
 
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
@@ -11374,27 +11287,6 @@ func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context
 	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
-}
-
-func (s *DataStore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
-	s.mu.Lock()
-	s.GetCAConfigAssetFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetCAConfigAssetFunc(ctx, name, assetType)
-}
-
-func (s *DataStore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
-	s.mu.Lock()
-	s.SaveCAConfigAssetsFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveCAConfigAssetsFunc(ctx, assets)
-}
-
-func (s *DataStore) DeleteCAConfigAssets(ctx context.Context, names []string) error {
-	s.mu.Lock()
-	s.DeleteCAConfigAssetsFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteCAConfigAssetsFunc(ctx, names)
 }
 
 func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {

@@ -86,8 +86,8 @@ func main() {
 	for _, title := range titles {
 		if len(title.AppStoreApps) > 0 {
 			macOSSoftware = append(macOSSoftware, title)
-		} else if title.SoftwarePackage != nil {
-			if ext := filepath.Ext(title.SoftwarePackage.Name); ext == ".exe" || ext == ".msi" {
+		} else if len(title.Packages) > 0 {
+			if ext := filepath.Ext(title.Packages[0].Name); ext == ".exe" || ext == ".msi" {
 				windowsSoftware = append(windowsSoftware, title)
 			} else {
 				macOSSoftware = append(macOSSoftware, title)

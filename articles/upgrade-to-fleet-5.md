@@ -12,7 +12,6 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 2. Work through the list of [breaking changes](#breaking-changes). Best practice is to use your AI tool of choice (e.g. Claude, Codex, Copilot). Point it at your GitOps repository, scripts, and automations, along with this guide. Ask it to find and update everything that changes in Fleet 5.
 3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
 4. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
-5. If you use the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD), upgrade fleetctl to 5 everywhere you run it. fleetctl 4 isn't supported with Fleet 5 and can fail in [GitOps runs](#fleetctl-5-required-for-gitops).
 
 #### Why are we doing this?
 
@@ -266,13 +265,26 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.setup_experience` |
+| `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `mdm.setup_experience` |
+| `bootstrap_package` under `mdm.setup_experience` in the same endpoints | `macos_bootstrap_package` |
+| `macos_setup_assistant` under `mdm.setup_experience` in the same endpoints | `apple_setup_assistant` |
+| `enable_release_device_manually` under `mdm.setup_experience` in the same endpoints, and in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `apple_enable_release_device_manually` |
+| `manual_agent_install` under `mdm.setup_experience` in the same endpoints, and in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `macos_manual_agent_install` |
+| `script` under `mdm.setup_experience` in the same endpoints | `macos_script`. Deprecated, and removed in Fleet 6. See [Setup experience script deprecated](#setup-experience-script-deprecated). |
+| `mdm.macos_setup` (bootstrap package status) in [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), and [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) | Removed. Read `mdm.setup_experience`, which has the same keys. |
 
 #### What to do
 
-Fleet 4 already supports `setup_experience`, so change it before you upgrade.
+Fleet 4.95 already supports `setup_experience` and the new key names in Get configuration, Update configuration, Get fleet, Update setup experience, and host responses, so change them before you upgrade.
 
-Search for `macos_setup` and rename it to `setup_experience`.
+1. Search for `macos_setup` and rename it to `setup_experience`.
+2. Under `setup_experience`, rename the keys in the table above.
+3. In host responses, read the bootstrap package status from `mdm.setup_experience` instead of `mdm.macos_setup`.
+
+Fleet 4.95 doesn't read `setup_experience` in Update fleet (`PATCH /fleets/:id`). It only reads `mdm.macos_setup` and ignores `mdm.setup_experience` without an error. So keep using `macos_setup` and the old key names in Update fleet until you upgrade:
+
+1. Right after you upgrade, rename them in your Update fleet calls.
+   - Until you do, calls that use the old names fail with a `422` error like: `The "macos_setup" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -357,17 +369,22 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in host responses | Separate `os_name` and `os_version` keys in the hosts returned by [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts), [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token), [Get host's device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report), [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts), and [Search targets](https://fleetdm.com/docs/rest-api/rest-api#search-targets), and as columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). For example, `"os_name": "macOS"` and `"os_version": "15.2"`, or `"os_name": "Windows 11 Home Single Language 23H2"` and `"os_version": "10.0.22631.5335"`. |
-| Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter |
+| Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter and in `os_name` in List operating systems and Get operating system version |
+| `name` (name and version, for example `macOS 14.1.2`), `name_only` (name only), and `version` for each operating system in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems), [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version), and the `os_versions` in [Get vulnerability](https://fleetdm.com/docs/rest-api/rest-api#get-vulnerability). `order_key=version` in List operating systems | `os_name` and `os_version`. For example, `"os_name": "macOS"` and `"os_version": "14.1.2"`. `name` and `name_only` are removed. `order_key=os_version` sorts in the same order |
+| CachyOS, Omarchy, and Arch Linux ARM hosts are all counted in the `Arch Linux` operating system in List operating systems and **Software > OS** | CachyOS and Omarchy each have their own operating system. Arch Linux ARM hosts are still counted in `Arch Linux` |
 
 #### What to do
 
-Fleet 4 doesn't return `os_name`, so you can't switch to it early. Instead:
+Fleet 4 doesn't return `os_name` from these endpoints, so you can't switch to it early. Instead:
 
 1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
-2. If you run the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard), update it to the version in the Fleet 5 release before you upgrade Fleet. That version works with Fleet 4 too. An older version can't match hosts to their operating system in Fleet 5, so it removes them every time it syncs, and their vulnerability history starts over.
-3. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+2. Before you upgrade, update code that reads operating systems from List operating systems, Get operating system version, and Get vulnerability. When an operating system has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, read `name_only` and `version`. This works on both versions.
+3. If you run the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard), update it to the version in the Fleet 5 release before you upgrade Fleet. That version works with Fleet 4 too. An older version can't match hosts to their operating system in Fleet 5, so it removes them every time it syncs, and their vulnerability history starts over.
+4. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+5. After you upgrade, change `order_key=version` to `order_key=os_version` in calls to List operating systems. Until you do, those calls fail with a `422` error.
+6. After you upgrade, if you count CachyOS or Omarchy hosts under the `Arch Linux` operating system, look for their own operating systems instead.
 
-GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
+GitHub issues: [#53877](https://github.com/fleetdm/fleet/issues/53877), [#56203](https://github.com/fleetdm/fleet/issues/56203)
 
 ### Windows wipe options moved
 
@@ -708,6 +725,19 @@ Follow the steps in [Static SCEP challenge off by default](#static-scep-challeng
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
+### HEAD requests run the GET endpoint
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `HEAD` on an endpoint that supports `GET` returns a `405` | Fleet runs the `GET` endpoint and returns its status code and headers without the body |
+
+The `HEAD` request has the same effects as the `GET` request. An [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with permission for a `GET` endpoint can also send `HEAD` to it.
+
+#### What to do
+
+After you upgrade, check that your scripts, monitoring, and proxies don't send `HEAD` to endpoints with side effects, like downloads. Nothing in Fleet 4 relied on HEAD requests.
+
+GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
 
 ## YAML (GitOps)
 
@@ -747,12 +777,18 @@ GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795]
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `controls.macos_setup` | [`controls.setup_experience`](https://fleetdm.com/docs/configuration/yaml-files#setup-experience) |
+| `bootstrap_package` under `controls.setup_experience` | `macos_bootstrap_package` |
+| `macos_setup_assistant` under `controls.setup_experience` | `apple_setup_assistant` |
+| `enable_release_device_manually` under `controls.setup_experience` | `apple_enable_release_device_manually` |
+| `manual_agent_install` under `controls.setup_experience` | `macos_manual_agent_install` |
 
 #### What to do
 
-Fleet 4 already supports `setup_experience`, so change it before you upgrade.
+Fleet 4.95 already supports `setup_experience` and the new key names, so change them before you upgrade.
 
-Rename `macos_setup` to `setup_experience` in your YAML files.
+1. Rename `macos_setup` to `setup_experience` in your YAML files.
+2. Under `setup_experience`, rename the keys in the table above. To replace `script`, see [Setup experience script key removed](#setup-experience-script-key-removed).
+   - Until you do, your GitOps run fails in Fleet 5 with an error like: `The "controls.setup_experience.bootstrap_package" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -1039,11 +1075,11 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl get config` prints `macos_setup` | `fleetctl get config` prints `setup_experience` |
+| `fleetctl get config` prints `macos_setup` | `fleetctl get config` prints `setup_experience`, with `macos_bootstrap_package`, `apple_setup_assistant`, `apple_enable_release_device_manually`, `macos_manual_agent_install`, and `macos_script` in place of `bootstrap_package`, `macos_setup_assistant`, `enable_release_device_manually`, `manual_agent_install`, and `script` |
 
 #### What to do
 
-Update scripts that read `macos_setup` from `fleetctl get config` output.
+Update scripts that read `macos_setup` or these keys from `fleetctl get config` output.
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -1181,10 +1217,11 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 #### What to do
 
+By default, manual enrollment profiles you downloaded before the upgrade stop working for new enrollments. Hosts that already turned on MDM with one of those profiles aren't affected.
+
 1. If you use the [manual enrollment profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile), set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`.
    - That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host.
-   - Previously downloaded profiles stop working.
-   - Hosts that already have MDM on aren't affected.
+   - Manual enrollment profiles you downloaded before the upgrade work again.
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 

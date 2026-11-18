@@ -693,8 +693,8 @@ const HostDetailsPage = ({
   // wait to show the host details page until we have the activities data.
   const {
     data: pastActivities,
-    isFetching: pastActivitiesIsFetching,
     isLoading: pastActivitiesIsLoading,
+    isPreviousData: pastActivitiesIsPreviousData,
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
@@ -706,7 +706,6 @@ const HostDetailsPage = ({
       hostId: number;
       pageIndex: number;
       perPage: number;
-      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -715,7 +714,6 @@ const HostDetailsPage = ({
         hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
-        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
@@ -730,8 +728,8 @@ const HostDetailsPage = ({
 
   const {
     data: upcomingActivities,
-    isFetching: upcomingActivitiesIsFetching,
     isLoading: upcomingActivitiesIsLoading,
+    isPreviousData: upcomingActivitiesIsPreviousData,
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
@@ -743,7 +741,6 @@ const HostDetailsPage = ({
       hostId: number;
       pageIndex: number;
       perPage: number;
-      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -752,7 +749,6 @@ const HostDetailsPage = ({
         hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
-        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
@@ -783,8 +779,8 @@ const HostDetailsPage = ({
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
-    isFetching: pastMDMCommandsIsFetching,
     isLoading: pastMDMCommandsIsLoading,
+    isPreviousData: pastMDMCommandsIsPreviousData,
   } = useQuery(
     [
       {
@@ -792,7 +788,6 @@ const HostDetailsPage = ({
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
-        activeTab: activeActivityTab,
         commandStatus: "ran,failed",
       },
     ],
@@ -815,8 +810,8 @@ const HostDetailsPage = ({
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
-    isFetching: upcomingMDMCommandsIsFetching,
     isLoading: upcomingMDMCommandsIsLoading,
+    isPreviousData: upcomingMDMCommandsIsPreviousData,
   } = useQuery(
     [
       {
@@ -824,7 +819,6 @@ const HostDetailsPage = ({
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
-        activeTab: activeActivityTab,
         commandStatus: "pending",
       },
     ],
@@ -1400,9 +1394,10 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
-            : mdmConfig?.setup_experience?.enable_create_local_admin_account ??
-              false
+            ? mdmConfig?.setup_experience
+                ?.windows_managed_local_account_enabled ?? false
+            : mdmConfig?.setup_experience
+                ?.macos_managed_local_account_enabled ?? false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
@@ -1935,9 +1930,14 @@ const HostDetailsPage = ({
                   }
                   isLoading={
                     activeActivityTab === "past"
-                      ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
-                      : upcomingActivitiesIsFetching ||
-                        upcomingMDMCommandsIsFetching
+                      ? pastActivitiesIsLoading ||
+                        pastMDMCommandsIsLoading ||
+                        pastActivitiesIsPreviousData ||
+                        pastMDMCommandsIsPreviousData
+                      : upcomingActivitiesIsLoading ||
+                        upcomingMDMCommandsIsLoading ||
+                        upcomingActivitiesIsPreviousData ||
+                        upcomingMDMCommandsIsPreviousData
                   }
                   isError={
                     activeActivityTab === "past"
@@ -2082,7 +2082,7 @@ const HostDetailsPage = ({
                     router={router}
                     location={location}
                     saveReportsDisabledInConfig={
-                      config?.server_settings?.query_reports_disabled
+                      config?.server_settings?.discard_reports_data
                     }
                     showReportsEmptyState={showReportsEmptyState}
                     canScheduleReport={canScheduleReport}
@@ -2495,10 +2495,6 @@ const HostDetailsPage = ({
             iosOrIpadosDetails={{
               isIosOrIpadosHost,
               hostMdmDeviceStatus,
-            }}
-            onClickLock={() => {
-              setShowLockHostModal(true);
-              setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
           />

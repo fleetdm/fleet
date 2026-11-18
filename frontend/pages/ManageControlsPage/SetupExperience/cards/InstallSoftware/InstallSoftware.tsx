@@ -153,7 +153,7 @@ const InstallSoftware = ({
     if (softwareTitles || softwareTitles === null) {
       const appleMdmAndAbmEnabled =
         globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured;
+        globalConfig?.mdm.apple_business_enabled_and_configured;
       const turnOnAppleMdm =
         (platform === "macos" || platform === "ios" || platform === "ipados") &&
         !appleMdmAndAbmEnabled;

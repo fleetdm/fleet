@@ -57,8 +57,6 @@ const (
 	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
 	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
 	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
-	// InstallerPath is the HTTP path that serves installers to Apple devices.
-	InstallerPath = "/api/mdm/apple/installer"
 
 	// FleetUISSOCallbackPath is the front-end route used to
 	// redirect after the SSO flow is completed.
@@ -337,7 +335,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	}
 
 	if len(orgNames) == 0 {
-		d.logger.InfoContext(ctx, "skipping defining profile for team with no relevant ABM token")
+		d.logger.InfoContext(ctx, "skipping defining profile for fleet with no relevant ABM token")
 		return "", time.Time{}, nil
 	}
 
@@ -1195,7 +1193,7 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					logger.ErrorContext(ctx, "Apple DEP client: failed to save app config", "err", err)
 				}
 				logger.InfoContext(ctx, "Apple DEP client: updated app config Terms Expired flag",
-					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
+					"apple_business_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
 
@@ -3031,4 +3029,18 @@ func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
 	}
 
 	return subject
+}
+
+const (
+	MacOSDDMSoftwareUpdateIdentifier  = "macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IOSDDMSoftwareUpdateIdentifier    = "ios-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IpadOSDDMSoftwareUpdateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+)
+
+func FleetReservedDeclarationIdentifiers() map[string]struct{} {
+	return map[string]struct{}{
+		MacOSDDMSoftwareUpdateIdentifier:  {},
+		IOSDDMSoftwareUpdateIdentifier:    {},
+		IpadOSDDMSoftwareUpdateIdentifier: {},
+	}
 }

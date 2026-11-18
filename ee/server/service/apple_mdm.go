@@ -168,9 +168,9 @@ func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name 
 		if alreadyExistsErr, ok := err.(fleet.AlreadyExistsError); ok && alreadyExistsErr.IsExists() {
 			switch {
 			case strings.Contains(alreadyExistsErr.Error(), "asset_name"):
-				return "", &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this team", name)}
+				return "", &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this fleet", name)}
 			case strings.Contains(alreadyExistsErr.Error(), "asset_identifier"):
-				return "", &fleet.ConflictError{Message: fmt.Sprintf("An asset with the identifier %q already exists for this team", identifier)}
+				return "", &fleet.ConflictError{Message: fmt.Sprintf("An asset with the identifier %q already exists for this fleet", identifier)}
 			}
 		}
 		return "", ctxerr.Wrap(ctx, err, "creating Apple DDM asset")

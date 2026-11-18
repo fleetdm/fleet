@@ -22,10 +22,10 @@ Here's what the end user sees with each option:
 | **Patch when app is closed** (default) | The app is patched silently only when the app isn't running. |
 | **Force patch** > **Patch immediately** | The patch installs as soon as the policy fails. It can interrupt the end user without notice. |
 | **Force patch** > **Notify before patching** | If the app is running, end user sees a notification that the app will close and update in 1 hour. If the app isn't running it's patched silently. |
-| **Force patch** > **Deadline** ([coming soon](https://github.com/fleetdm/fleet/issues/39176)) | Apps with this option will update every __n__ days (customizable), at the chosen time. Fleet consolidates all outdated apps into a single notification that appears one day, one hour, and 5 minutes before the deadline. Users can enable a grace period for those who were offline when the deadline was reached. |
+| **Force patch** > **Deadline** | If the app is running, the end user sees a notification 1 hour before the fleet's next patch deadline. The app closes and updates at the deadline. If the app isn't running, it's patched silently. |
 | **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from Fleet Desktop > Self service when they choose. |
 
-> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
+> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** or **Deadline** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
 
 This chart shows what happens after a patch policy fails:
 
@@ -83,6 +83,38 @@ If the end user updates one of the listed apps from self-service during the hour
 
 If another patch policy fails while a timer is running, that app gets its own notification and its own 1-hour timer.
 
+
+## Force patch: deadline
+
+> Deadline is available on macOS only.
+
+This option patches apps at a deadline you choose, in each host's local time. End users get 1 hour's notice before Fleet closes and patches the app.
+
+### Set the deadline
+
+1. Go to **Software**, select a fleet, and select **Library**.
+2. Select **Settings**, then **Patch deadline**.
+3. Choose the **Days** and **Time** of the deadline.
+4. Select **Save**.
+
+The default deadline is Tuesday at 17:00. Each fleet, and "Unassigned," has its own deadline. You can also set it with the [`patch_deadline_settings`](https://fleetdm.com/docs/configuration/yaml-files#patch-deadline-settings) GitOps key.
+
+### What the end user sees
+
+When the patch policy fails, Fleet checks whether the app is running:
+
+- If the app isn't running, Fleet installs the patch. The end user isn't notified.
+- If the app is running, Fleet skips the install and waits for the next deadline. 1 hour before the deadline, Fleet Desktop shows a notification.
+
+If the install is skipped less than 1 hour before a deadline, Fleet waits for the deadline after that one.
+
+The notification is the same one end users see with [**Notify before patching**](#force-patch-notify-before-patching), and it has the same choices. All apps waiting on the same deadline appear together in one notification.
+
+Like **Notify before patching**, the 1-hour timer starts only after the notification appears on screen. If the host is offline when the notification is due, Fleet notifies the end user when the host comes back online, and patches the app 1 hour later. See [When notifications aren't shown](#when-notifications-arent-shown).
+
+> Fleet needs the host's timezone to schedule the deadline. Until Fleet collects it, apps with **Deadline** aren't patched while they're running. Fleet collects the timezone on macOS hosts running osquery 5.17.0 or later.
+
+To see a host's next deadline, go to **Hosts**, select the host, and check **Patch deadline**.
 
 ## When notifications aren't shown
 

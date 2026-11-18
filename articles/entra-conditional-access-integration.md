@@ -14,6 +14,8 @@ Before you switch to Fleet, let your team know that there will be a gap in condi
 
 To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
 
+> This group name must exactly match "Fleet conditional access". If the group name does not exactly match (including addition of a prefix or suffix), the connection will fail.
+
 ## Step 2: Configure Fleet in Intune
 
 > For Windows, you can skip this step.
@@ -106,6 +108,11 @@ Upload the following configuration profile:
         <dict>
             <key>AuthenticationMethod</key>
             <string>UserSecureEnclaveKey</string>
+            <key>ExtensionData</key>
+            <dict>
+                <key>AppAllowList</key>
+                <string>com.fleetdm.orbit</string>
+            </dict>
             <key>ExtensionIdentifier</key>
             <string>com.microsoft.CompanyPortalMac.ssoextension</string>
             <key>PayloadDisplayName</key>
@@ -166,6 +173,8 @@ Upload the following configuration profile:
 
 If you're using another MDM solution, add the same configuration profile and target only macOS hosts with Company Portal installed.
 
+The `AppAllowList` entry lets fleetd ask Entra for a token that proves the host's Entra device ID. Without it, Fleet doesn't report the host's compliance to Intune. If your profile already has an `AppAllowList`, add `com.fleetdm.orbit` to it, separated by a comma.
+
 > `UserSecureEnclaveKey` will be mandatory starting in Q3 2025. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage)
 
 ## Step 5: Add Fleet policies
@@ -211,6 +220,8 @@ After following the authentication steps, the user might hit the following messa
 ![Entra ID Platform SSO refetch needed](../website/assets/images/articles/entra-platform-sso-refetch-needed-431x351@2x.png)
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
+
+Fleet also updates Intune on its own once it has verified the host's Entra device ID, which can take up to 10 minutes after the user registers with Platform SSO. If the user still can't log in after refetching, they should wait a few minutes and try again.
 
 ### Windows
 

@@ -60,6 +60,8 @@ type Service interface {
 	// If skipHostsWithoutNewCerts is true, hosts that don't have new certificate templates to deliver
 	// will be skipped.
 	BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
+	// SendFleetAgentConfig builds and sends the host's Fleet agent configuration, returning the error when sending it fails.
+	SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error
 	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
