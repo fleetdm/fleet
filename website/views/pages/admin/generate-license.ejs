@@ -38,7 +38,7 @@
             <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
 
             <div class="pt-2">
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info">Generate license key</ajax-button>
+              <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-primary">Generate license key</ajax-button>
             </div>
           </ajax-form>
         </div>
@@ -53,7 +53,7 @@
             <code >{{generatedLicenseKey}}</code>
           </div>
           <div class="pt-4">
-            <ajax-button style="height: 40px;" spinner="true" :syncing="syncing" purpose="submit-button" class="btn btn-block btn-lg btn-info" @click="clickClearFormFields()">Generate another</ajax-button>
+            <ajax-button spinner="true" :syncing="syncing" purpose="submit-button" class="btn btn-block btn-primary" @click="clickClearFormFields()">Generate another</ajax-button>
           </div>
         </div>
         </div>

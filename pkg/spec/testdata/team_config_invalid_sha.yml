@@ -27,10 +27,10 @@ agent_options:
 policies:
 queries:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
   windows_settings:
-    custom_settings:
+    configuration_profiles:
   scripts:
   enable_disk_encryption: true
   setup_experience:

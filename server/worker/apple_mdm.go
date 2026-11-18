@@ -943,7 +943,7 @@ func QueueAppleMDMJob(
 		"from_mdm_migration", fromMDMMigration,
 	}
 	if teamID != nil {
-		attrs = append(attrs, "team_id", *teamID)
+		attrs = append(attrs, "fleet_id", *teamID)
 	}
 	if len(enrollmentCommandUUIDs) > 0 {
 		attrs = append(attrs, "enrollment_commands", fmt.Sprintf("%v", enrollmentCommandUUIDs))

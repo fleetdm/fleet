@@ -2,6 +2,7 @@
 
 ### Changes that may require action
 
+- Removed fleetd's built-in Nudge integration. Fleet no longer sends Nudge settings to fleetd for hosts on macOS 13 and older, which are no longer supported. Hosts on macOS 14 and later continue to get OS update enforcement via DDM. To keep using Nudge, deploy it with the Nudge Fleet-maintained app. Learn how in the [Nudge guide](https://fleetdm.com/guides/enforce-os-updates-on-macos-with-nudge).
 - Changed `fleetctl gitops` and the batch APIs to reject configuration profiles, scripts, reports, and labels whose names differ only by letter case, accents, or trailing spaces. Previously these were accepted and only one of them was saved. Rename the duplicates before upgrading.
 - Changed `fleetctl gitops` on Fleet Free to return an error for custom EST and Smallstep certificate authorities, which require Fleet Premium. Previously they were ignored. Remove them from your YAML before upgrading.
 - Changed Windows BitLocker key escrow to require `server.private_key`. Deployments that turned on Windows disk encryption without one should set it when upgrading.
@@ -93,7 +94,6 @@
 - Changed Windows MDM device authentication so that devices that enrolled before Fleet 4.81.0, have not connected to Fleet MDM since, and have not checked in to Fleet for more than 180 days, or whose host was removed from Fleet, can't reconnect to MDM until fleetd checks in again. Devices that can't check in must be re-enrolled in MDM.
 - Changed single sign-on to only accept a relative path for `relay_url` when initiating a login, as the REST API documents. Absolute URLs and protocol-relative values are now rejected with a 400 instead of being used as the post-login destination.
 - Removed vulnerability scanning support for Amazon Linux 2022 (the AL2023 Tech Preview), because Amazon retired its package repository. AL2023 hosts are unaffected.
-- Removed Nudge settings sent to fleetd for hosts on macOS 13 and older, which are no longer supported. Hosts on macOS 14 and later continue to get OS update enforcement via DDM. Nudge is still available as a Fleet-maintained app.
 - Changed ACME endpoints to reject requests whose embedded JWK is not an EC public key before parsing the JWS.
 - Updated `go-jose` to v4 for Apple Platform SSO.
 - Changed Google Workspace and Google Calendar integrations to perform their OAuth token exchange through Fleet's outbound HTTP client, so the same outbound network settings apply to them as to other integrations. The service-account JSON `token_uri` is only honored under the `FLEET_TEST_GOOGLE_WORKSPACE_ENDPOINT` test seam. Otherwise the exchange uses Google's token endpoint.

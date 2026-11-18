@@ -25,7 +25,7 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 4. Install fleetd on your host(s) to enroll it to Fleet.
    > On macOS, if a host is enrolled through ADE, or manually enrolled by installing an MDM enrollment profile, the fleetd agent is automatically deployed via an MDM command.
 
-If you're trying to enroll a NixOS Linux host, follow [these instructions](#enroll-nixos-hosts) instead. 
+If you're trying to enroll a NixOS Linux host, follow [these instructions](#enroll-nixos-hosts) instead. For Fedora Atomic desktops, Fedora CoreOS, Bazzite, Bluefin, Aurora, and other rpm-ostree hosts, follow [these instructions](#enroll-rpm-ostree-hosts).
 
 #### Mobile devices
 
@@ -234,6 +234,7 @@ For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 - [One-time enroll secrets](#one-time-enroll-secrets)
 - [Switch a workstation's operating system](#switch-a-workstations-operating-system)
 - [Enroll NixOS hosts](#enroll-nixos-hosts)
+- [Enroll rpm-ostree hosts](#enroll-rpm-ostree-hosts)
 - [Supported osquery versions](#supported-osquery-versions)
 - [Best practice for dual-boot workstations or VMs with duplicate hardware identifiers](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers)
 - [Fleet agent (fleetd) components](#fleetd-components)
@@ -327,6 +328,77 @@ The following features aren't supported on NixOS hosts:
 Disk encryption key escrow for NixOS is coming soon. Learn more in the [story](https://github.com/fleetdm/fleet/issues/54422).
 
 Software inventory, scripts, reports, policies, and Fleet Desktop work the same as on other Linux hosts. Vulnerability detection uses NVD only, so a CVE that nixpkgs patched without changing the package version may still be reported.
+
+### Enroll rpm-ostree hosts
+
+Fedora Atomic desktops (Silverblue, Kinoite, and others), Fedora CoreOS, Bazzite, Bluefin, and Aurora use rpm-ostree. On these hosts, `/usr` is read-only, and `/opt` and `/usr/local` point into `/var`. The RPM that `fleetctl package` generates installs to `/opt`, so `rpm-ostree install` fails, and so does `dnf install` in a Containerfile. Native support is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
+
+To enroll these hosts today, repackage fleetd with the [repackage-fleetd-for-rpm-ostree.sh](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/repackage-fleetd-for-rpm-ostree.sh) script. The new package ships fleetd in `/usr`, and systemd copies it to `/opt/orbit` when the host boots. After that, fleetd updates itself in `/opt/orbit`, the same as on other Linux hosts.
+
+Prerequisites:
+
+- [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli).
+- [Docker](https://docs.docker.com/get-started/get-docker/) or, on a Mac with Apple silicon, Apple's [container](https://github.com/apple/container) tool. On Fedora or RHEL, you can run the script directly instead after you install `rpm-build` and `cpio`.
+
+To enroll an rpm-ostree host:
+
+1. Generate fleetd as an RPM. Copy the command from **Hosts > Add hosts > Linux** and change `--type=deb` to `--type=rpm`, or run the following. Replace the Fleet URL and enroll secret with yours.
+
+   ```sh
+   fleetctl package --type=rpm --enable-scripts --fleet-desktop --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
+   ```
+
+   For ARM hosts, add `--arch=arm64`. If the fleet requires end user authentication and the host has no desktop session (for example, Fedora CoreOS), add `--bypass-end-user-auth`.
+
+2. Download the script to the same folder and make it executable (`chmod +x repackage-fleetd-for-rpm-ostree.sh`).
+
+3. Run the script in a Fedora container. Replace the file name with the RPM from step 1.
+
+   With Docker:
+
+   ```sh
+   docker run --rm -v "$PWD:/work" -w /work registry.fedoraproject.org/fedora:43 sh -c 'dnf -y -q install rpm-build cpio && ./repackage-fleetd-for-rpm-ostree.sh fleet-osquery-1.63.0.x86_64.rpm'
+   ```
+
+   With Apple's container tool, run `container system start` once, then:
+
+   ```sh
+   container run --rm -v "$PWD:/work" -w /work registry.fedoraproject.org/fedora:43 sh -c 'dnf -y -q install rpm-build cpio && ./repackage-fleetd-for-rpm-ostree.sh fleet-osquery-1.63.0.x86_64.rpm'
+   ```
+
+   The script writes a new RPM with `ostree` in its name, for example `fleet-osquery-1.63.0-1.ostree.x86_64.rpm`.
+
+4. Install the new RPM on the host, then reboot:
+
+   ```sh
+   sudo rpm-ostree install ./fleet-osquery-1.63.0-1.ostree.x86_64.rpm
+   sudo systemctl reboot
+   ```
+
+   To build fleetd into a custom image instead, add the following to your Containerfile. The image includes your enroll secret, so push it only to a private registry.
+
+   ```Dockerfile
+   COPY fleet-osquery-1.63.0-1.ostree.x86_64.rpm /tmp/
+   RUN rpm-ostree install -y /tmp/fleet-osquery-1.63.0-1.ostree.x86_64.rpm && rm /tmp/fleet-osquery-*.rpm && ostree container commit
+   ```
+
+5. On the host, add the `nobody` user to `/etc/passwd` so Fleet can collect RPM packages:
+
+   ```sh
+   grep -q '^nobody:' /etc/passwd || getent passwd nobody | sudo tee -a /etc/passwd
+   ```
+
+   rpm-ostree hosts keep this user in `/usr/lib/passwd`, and osquery only looks for it in `/etc/passwd`. Without this step, osquery's `rpm_packages` table returns no rows, and the host's **Software** tab is empty. Learn more in the [bug](https://github.com/fleetdm/fleet/issues/58969).
+
+The host appears in Fleet a minute after it boots.
+
+`systemctl is-enabled orbit` shows `disabled` on these hosts, but fleetd still starts at boot. That's because the package turns the service on with a symlink in `/usr`. To stop fleetd from running, run `sudo systemctl mask --now orbit`.
+
+To uninstall fleetd, run `sudo rpm-ostree uninstall fleet-osquery` and reboot. Then, remove the files fleetd leaves in `/var` and `/etc`:
+
+```sh
+sudo rm -rf /var/opt/orbit /var/log/orbit /var/log/osquery /var/usrlocal/bin/orbit /etc/default/orbit
+```
 
 ### Supported osquery versions
 
