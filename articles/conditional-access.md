@@ -6,7 +6,7 @@ Fleet's conditional access feature lets IT and security teams block access to th
 - Are passing specific Fleet policies. When a host fails one of these policies, access is blocked until the issue is resolved.
 
 Fleet has built-in conditional access integrations that check policies:
-- [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) (macOS and Windows)
+- [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) (macOS, Windows, iOS, iPadOS, and Android)
 - [Entra](https://fleetdm.com/guides/entra-conditional-access-integration) (macOS and Windows)
 
 You can also use Fleet's API for conditional access with:
@@ -15,10 +15,6 @@ You can also use Fleet's API for conditional access with:
 - [Google](https://fleetdm.com/guides/google-conditional-access-integration) (iOS, iPadOS, and Android): require managed hosts
 
 To require managed Windows hosts in Okta without Fleet policies, see [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile).
-
-### Okta on iOS, iPadOS, and Android
-
-Fleet deploys Okta Verify with a managed app configuration, so Okta marks enrolled devices as managed, including personal (BYOD) devices. Posture rules, like minimum OS version, live in Okta device assurance policies. Learn how in [Configure Okta management attestation for mobile devices](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices).
 
 ## How it works
 
