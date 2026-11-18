@@ -168,7 +168,10 @@ describe("Software operating systems table", () => {
     ).toHaveClass("descending");
     expect(
       container.querySelector(".hosts_count__header .header-cell")
-    ).not.toHaveClass("descending", "ascending");
+    ).not.toHaveClass("descending");
+    expect(
+      container.querySelector(".hosts_count__header .header-cell")
+    ).not.toHaveClass("ascending");
 
     // Simulate SoftwarePage recomputing its platform-dependent default
     // after the platform filter changes (order_key/order_direction reset,
@@ -193,7 +196,10 @@ describe("Software operating systems table", () => {
     ).toHaveClass("descending");
     expect(
       container.querySelector(".os_version__header .header-cell")
-    ).not.toHaveClass("descending", "ascending");
+    ).not.toHaveClass("descending");
+    expect(
+      container.querySelector(".os_version__header .header-cell")
+    ).not.toHaveClass("ascending");
   });
 
   it("disables the Version column's sort on 'All platforms', and re-enables it once a specific platform is selected", () => {

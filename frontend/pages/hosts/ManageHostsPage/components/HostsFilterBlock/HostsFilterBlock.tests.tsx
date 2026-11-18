@@ -92,9 +92,10 @@ describe("HostsFilterBlock", () => {
     ];
 
     it.each([
-      // Matches the OS version entry.
+      // Matches the OS version entry, whatever the URL's case: the label keeps
+      // the entry's.
       [
-        "Windows 11 Pro 24H2",
+        "windows 11 pro 24h2",
         "10.0.26100.1742",
         "Windows 11 Pro 24H2 10.0.26100.1742",
       ],
