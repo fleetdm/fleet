@@ -897,6 +897,7 @@ module.exports.routes = {
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
   'GET /guides/software-inventory-reference': '/software-inventory',
   'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
+  'GET /guides/configuring-default-teams-for-devices-in-fleet': '/guides/configuring-default-fleets-for-devices-in-fleet',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
   'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',

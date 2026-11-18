@@ -728,11 +728,7 @@ Content-Type: application/octet-stream
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
-    "byod_fleet": null,
-    "macos_team": null,
-    "ios_team": null,
-    "ipados_team": null,
-    "byod_team": null
+    "byod_fleet": null
   }
 }
 ```
@@ -836,10 +832,7 @@ None.
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
-    "macos_team": 1,
-    "ios_team": 2,
-    "ipados_team": 3,
-    "byod_team": 3
+    "byod_fleet": 3
   }
 }
 ```
@@ -894,10 +887,7 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
-    "macos_team": null,
-    "ios_team": null,
-    "ipados_team": null,
-    "byod_team": null
+    "byod_fleet": null
   }
 }
 ```
@@ -969,10 +959,7 @@ Content-Type: application/octet-stream
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
-    "macos_team": null,
-    "ios_team": null,
-    "ipados_team": null,
-    "byod_team": null
+    "byod_fleet": null
   }
 }
 ```
@@ -1036,7 +1023,6 @@ Content-Type: application/octet-stream
   "renew_date": "2025-10-20T00:00:00Z",
   "created_at": "2023-10-20T14:02:11Z",
   "terms_expired": false,
-  "teams": [1, 2, 3],
   "fleets": [1, 2, 3]
 }
 ```
@@ -1067,8 +1053,8 @@ Content-Type: application/octet-stream
 
 | Name      | Type   | In    | Description                                                                                                                       |
 | --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
-| team_id   | number | query | _Available in Fleet Premium_ The fleet ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
-| team_name | string | query | _Available in Fleet Premium_ The name of the fleet to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
+| fleet_id   | number | query | _Available in Fleet Premium_ The fleet ID to apply the custom settings to. Only one of `fleet_name`/`fleet_id` can be provided.          |
+| fleet_name | string | query | _Available in Fleet Premium_ The name of the fleet to apply the custom settings to. Only one of `fleet_name`/`fleet_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | no_cache  | bool   | query | Do not use the cached version of Fleet's configuration. This parameter should only be used when the configuration was updated less than 1 second ago. |
 | profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
@@ -1852,7 +1838,6 @@ Fleets can have labels with the same name. If a global policy's label fields (`l
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
-      "team": "No team",
       "fleet": "Unassigned",
       "resolution": "some resolution steps here",
       "critical": false,
@@ -1861,7 +1846,6 @@ Fleets can have labels with the same name. If a global policy's label fields (`l
     {
       “name”: “Is FileVault enabled on macOS devices?”,
       “query”: “SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;”,
-      “team”: “Workstations”,
       “fleet”: “Workstations”,
       “description”: “Checks to make sure that the FileVault feature is enabled on macOS devices.”,
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
@@ -1872,7 +1856,6 @@ Fleets can have labels with the same name. If a global policy's label fields (`l
     {
       "name": "Is Adobe Acrobat installed and up to date?",
       "query": "SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
-      "team": "Workstations",
       "fleet": "Workstations",
       "description": "Checks to make sure that Adobe Acrobat is installed and up to date.",
       "platform": "darwin",
@@ -2098,7 +2081,7 @@ If the `name` specified is associated with an existing fleet, this API route, co
 
 If the `name` is not already associated with an existing fleet, this API route creates a new fleet with the specified `name`, `agent_options`, and `secrets`.
 
-`POST /api/v1/fleet/spec/teams`
+`POST /api/v1/fleet/spec/fleets`
 
 #### Parameters
 
@@ -2144,7 +2127,7 @@ If the `name` is not already associated with an existing fleet, this API route c
 
 #### Example
 
-`POST /api/v1/fleet/spec/teams`
+`POST /api/v1/fleet/spec/fleets`
 
 ##### Request body
 
@@ -2250,9 +2233,6 @@ If the `name` is not already associated with an existing fleet, this API route c
 
 ```json
 {
-  "team_ids_by_name": {
-    "Client Platform Engineering": 123
-  },
   "fleet_ids_by_name": {
     "Client Platform Engineering": 123
   }
@@ -2273,7 +2253,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
+| fleet_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
 | specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
 | labels_to_move | object[] | body | Labels in `specs` whose names are moving between the global level and a fleet. Each object has a `name` and, when applying global labels, the `from_fleet_id` of the fleet the name is moving from. List a name once per fleet it's moving from. Omit `from_fleet_id` when applying a fleet's labels, since the name is moving from the global level. |
 
@@ -2326,7 +2306,7 @@ Gets all labels visible to the currently logged-in user.
 
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id | int | query | The ID of the fleet to view all labels from; omit to see all labels, supply 0 to see only global labels |
+| fleet_id | int | query | The ID of the fleet to view all labels from; omit to see all labels, supply 0 to see only global labels |
 
 #### Example
 
@@ -2346,8 +2326,7 @@ Gets all labels visible to the currently logged-in user.
       "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "team_id": null,
-      "team_name": null,
+      "fleet_id": null,
       "fleet_id": null,
       "fleet_name": null
     },
@@ -2359,8 +2338,7 @@ Gets all labels visible to the currently logged-in user.
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "team_id": null,
-      "team_name": null,
+      "fleet_id": null,
       "fleet_id": null,
       "fleet_name": null
     },
@@ -2372,8 +2350,7 @@ Gets all labels visible to the currently logged-in user.
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "team_id": null,
-      "team_name": null,
+      "fleet_id": null,
       "fleet_id": null,
       "fleet_name": null
     },
@@ -2384,8 +2361,7 @@ Gets all labels visible to the currently logged-in user.
       "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "team_id": null,
-      "team_name": null,
+      "fleet_id": null,
       "fleet_id": null,
       "fleet_name": null
     },
@@ -2397,8 +2373,7 @@ Gets all labels visible to the currently logged-in user.
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "team_id": null,
-      "team_name": null,
+      "fleet_id": null,
       "fleet_id": null,
       "fleet_name": null
     },
@@ -2409,8 +2384,7 @@ Gets all labels visible to the currently logged-in user.
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
-      "team_id": null,
-      "team_name": null,
+      "fleet_id": null,
       "fleet_id": null,
       "fleet_name": null
     },
@@ -2423,8 +2397,7 @@ Gets all labels visible to the currently logged-in user.
       "label_type": "regular",
       "label_membership_type": "manual",
       "display_text": "Team: g-software",
-      "team_id": 1,
-      "team_name": "Workstations",
+      "fleet_id": 1,
       "fleet_id": 1,
       "fleet_name": "Workstations"
     }
@@ -2460,7 +2433,6 @@ None.
     "description": "Includes only my local machine",
     "query": "",
     "label_membership_type": "manual",
-    "team_id": null,
     "fleet_id": null
   }
 }
@@ -2647,7 +2619,6 @@ for which the user has an observer role.
   "selected": {
     "hosts": [],
     "labels": [],
-    "teams": [1],
     "fleets": [1]
   }
 }
@@ -2728,7 +2699,6 @@ Counts the number of online and offline hosts included in a given set of selecte
   "selected": {
     "hosts": [],
     "labels": [42],
-    "teams": [],
     "fleets": []
   }
 }
@@ -3781,7 +3751,7 @@ Notifies the server about an agent error, resulting in two outcomes:
                 "status": "success",
                 "software_title_id": 1313,
                 "display_name": "My Evernote",
-                "icon_url": "/api/latest/fleet/software/titles/1313/icon?team_id=0"
+                "icon_url": "/api/latest/fleet/software/titles/1313/icon?fleet_id=0"
             }
         ],
         "configuration_profiles": [
@@ -3969,7 +3939,6 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
   "timeout": 30,
   "script_id": 42,
   "policy_id": 10,
-  "team_id": 1,
   "message": ""
 }
 ```
@@ -4362,7 +4331,7 @@ If the Fleet instance is provided required parameters to complete setup.
     "sso_enabled": false,
     "global_role": "admin",
     "api_only": false,
-    "teams": []
+    "fleets": []
   },
   "org_info": {
     "org_name": "Fleet Device Management",
@@ -4392,13 +4361,13 @@ _Available in Fleet Premium_
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id | number | query | The ID of the fleet to add the scripts to. Only one fleet identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`.
-| team_name | string | query | The name of the fleet to add the scripts to. Only one fleet identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`.
+| fleet_id | number | query | The ID of the fleet to add the scripts to. Only one fleet identifier (`fleet_id` or `fleet_name`) can be included in the request, omit this parameter if using `fleet_name`.
+| fleet_name | string | query | The name of the fleet to add the scripts to. Only one fleet identifier (`fleet_id` or `fleet_name`) can be included in the request, omit this parameter if using `fleet_id`.
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error.
-If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+If both `fleet_id` and `fleet_name` parameters are included, this endpoint will respond with an error.
+If no `fleet_name` or `fleet_id` is provided, the scripts will be applied for **all hosts**.
 
 Script contents are uploaded verbatim, without CRLF -> LF conversion.
 
@@ -4416,13 +4385,11 @@ Script contents are uploaded verbatim, without CRLF -> LF conversion.
 {
   "scripts": [
     {
-      "team_id": 3,
       "fleet_id": 3,
       "id": 6690,
       "name": "Ensure shields are up"
     },
     {
-      "team_id": 3,
       "fleet_id": 3,
       "id": 10412,
       "name": "Ensure flux capacitor is charged"
@@ -4444,8 +4411,8 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 | host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
 | script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
 | script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
-| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included.   |
-| team_id       | integer | body | The ID of the fleet of the saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
+| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `fleet_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included.   |
+| fleet_id       | integer | body | The ID of the fleet of the saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
 > Note that if any combination of `script_id`, `script_contents`, and `script_name` are included in the request, this endpoint will respond with an error.
 
@@ -4514,7 +4481,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 
 | Name                                  | Type     | In    | Description                                                                                                                                                                                                                 |
 |---------------------------------------|----------|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name                             | string   | query | The name of the fleet to add the software package to. Omitting these parameters will add software to 'Unassigned'.                                                                                                         |
+| fleet_name                             | string   | query | The name of the fleet to add the software package to. Omitting these parameters will add software to 'Unassigned'.                                                                                                         |
 | dry_run                               | bool     | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                                                   |
 | software                              | object   | body  | The fleet's software that will be available for install.                                                                                                                                                                    |
 | software.packages                     | array    | body  | An array of objects with values below.                                                                                                                                                                                      |
@@ -4563,7 +4530,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 | Name         | Type   | In    | Description                                                                                                                                                           |
 | ------------ | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | request_uuid | string | query | The request_uuid returned by the `POST /api/v1/fleet/software/batch` endpoint. |
-| team_name    | string | query | The name of the fleet to add the software package to. Omitting these parameters will add software to 'Unassigned'. |
+| fleet_name    | string | query | The name of the fleet to add the software package to. Omitting these parameters will add software to 'Unassigned'. |
 | dry_run      | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 
 ##### Default responses
@@ -4584,7 +4551,6 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
   "message": "",
   "packages": [
     {
-      "team_id": 1,
       "fleet_id": 1,
       "title_id": 2751,
       "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
@@ -4593,7 +4559,6 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "icon_filename": "firefox-custom-icon.png"
     },
     {
-      "team_id": 1,
       "fleet_id": 1,
       "title_id": 3496,
       "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
@@ -4626,7 +4591,7 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name | string | query | The name of the fleet to add the software package to. Omitting this parameter will add software to "Unassigned". |
+| fleet_name | string | query | The name of the fleet to add the software package to. Omitting this parameter will add software to "Unassigned". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
@@ -4643,11 +4608,10 @@ _Available in Fleet Premium._
 
 #### Example
 
-`POST /api/latest/fleet/software/app_store_apps/batch`
+`POST /api/latest/fleet/software/app_store_apps/batch?fleet_name=Foobar`
 
 ```json
 {
-  "team_name": "Foobar",
   "app_store_apps": [
     {
       "app_store_id": "597799333",
@@ -4678,7 +4642,7 @@ _Available in Fleet Premium._
 {
   "app_store_apps": [
     {
-      "team_id": 1,
+      "fleet_id": 1,
       "title_id": 123,
       "app_store_id": "597799333",
       "platform": "darwin",
@@ -4686,7 +4650,7 @@ _Available in Fleet Premium._
       "icon_filename": "browser-custom-icon.png"
     },
     {
-      "team_id": 1,
+      "fleet_id": 1,
       "title_id": 124,
       "app_store_id": "597799333",
       "platform": "ios",
@@ -4694,7 +4658,7 @@ _Available in Fleet Premium._
       "icon_filename": "browser-custom-icon.png"
     },
     {
-      "team_id": 1,
+      "fleet_id": 1,
       "title_id": 125,
       "app_store_id": "597799333",
       "platform": "ipados",
@@ -4778,7 +4742,7 @@ _Available in Fleet Premium_
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| specs     | array  | body  | **Required**. An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, a `team` with a fleet name,  `certificate_authority_id` with the certificate authority id, and `subject_name` with the certificate's subject name.   |
+| specs     | array  | body  | **Required**. An array of objects with the certificate templates. Each item must contain `name` with the certificate template name, a `fleet` with a fleet name (`"Unassigned"` for hosts in no fleet),  `certificate_authority_id` with the certificate authority id, and `subject_name` with the certificate's subject name.   |
 
 > Any existing certificate template that is not included in the list will be removed, and existing templates with the same name as the new template will be edited. Providing an empty list of certificate templates will remove existing scripts.
 
@@ -4793,14 +4757,12 @@ _Available in Fleet Premium_
   "specs": [
     {
       "name": "WIFI_CERTIFICATE",
-      "team": "workstations",
       "fleet": "workstations",
       "certificate_authority_id": 1,
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
     },
     {
       "name": "WIFI_CERTIFICATE_TEST",
-      "team": "workstations-canary",
       "fleet": "workstations-canary",
       "certificate_authority_id": 1,
       "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
@@ -4822,7 +4784,7 @@ _Available in Fleet Premium_
 | Name      | Type    | In    | Description                                                                            |
 |-----------|---------|-------|----------------------------------------------------------------------------------------|
 | ids       | array   | body  | **Required**. An array of certificate template ids to be deleted                       |
-| team_id   | integer | body  | **Required**. The fleet_id (team_id) which the certificate templates you want to delete belong to |
+| fleet_id  | integer | body  | **Required**. The ID of the fleet that the certificate templates you want to delete belong to |
 
 #### Example
 
@@ -4830,7 +4792,7 @@ _Available in Fleet Premium_
 ```json
 {
   "ids": [1, 2, 3, 4],
-  "team_id": 1
+  "fleet_id": 1
 }
 ```
 
@@ -4876,7 +4838,7 @@ _Available in Fleet Premium_
         "mfa_enabled": false,
         "global_role": "admin",
         "api_only": false,
-        "teams": []
+        "fleets": []
     }
 }
 ```
@@ -4904,7 +4866,6 @@ param, this endpoint is considered a documented REST API endpoint
 ```json
 {
   "user": {...},
-  "available_teams": {...},
   "available_fleets": {...}
   "settings": {"hidden_host_columns": ["hostname"]},
 }
@@ -4933,7 +4894,6 @@ param, this endpoint is considered a documented REST API endpoint
 ```json
 {
   "user": {...},
-  "available_teams": {...},
   "available_fleets": {...}
   "settings": {"hidden_host_columns": ["hostname"]},
 }
