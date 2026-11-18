@@ -6,11 +6,6 @@ In Fleet, you can customize the out-of-the-box macOS, Windows, Linux, iOS, iPadO
 
 This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and Linux in a [separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
 
-macOS setup features require [connecting Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
-
-
-> For macOS, Fleet only installs setup experience software and run scripts on newly enrolling, or re-enrolling, Macs (not during migration).
-
 Below is the end user experience for macOS. Check out the separate videos for [iOS](https://www.youtube.com/watch?v=bPtr3Qgp1JY), [iPadOS](https://www.youtube.com/watch?v=sK3ZR2iItJY), and [Android](https://www.youtube.com/watch?v=-zB1zgtGAMs).
 
 <div purpose="embedded-content">
@@ -253,6 +248,8 @@ You can install software during first time macOS, iOS, iPadOS, Android, and [Win
 
 Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB).
 
+> For macOS, Fleet only installs setup experience software on newly enrolling, or re-enrolling, Macs (not during migration).
+
 On Windows and Linux hosts, Fleet checks policies before installing setup experience software. If the host already passes the software's associated policies, the install is skipped. Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#policies-are-checked-before-install). On macOS, iOS, iPadOS, and Android, software is always installed.
 
 Add setup experience software:
@@ -284,6 +281,8 @@ When this feature is enabled, any failed software will immediately end the setup
 End users won't continue through setup experience unless they press Command (⌘) + Shift + X.
 
 ## Run script
+
+> For macOS, Fleet only runs the setup experience script on newly enrolling, or re-enrolling, Macs (not during migration).
 
 To configure a script to run during setup experience:
 
