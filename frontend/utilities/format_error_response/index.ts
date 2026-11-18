@@ -12,12 +12,20 @@ const formatServerErrors = (errors: IFleetApiError[]) => {
   errors.forEach((error) => {
     const { name, reason } = error;
 
-    // `base` is the global error (fed to toasts and callers that only read
-    // `.base`); field-keyed entries let forms render the same message inline on
-    // the offending field.
-    if (!result.base) {
+    // `base` is the global error read by toast-only callers (LoginPage,
+    // ForgotPasswordPage, ResetPasswordPage). Preserve the legacy behavior:
+    // repeated explicit `name:"base"` entries get joined with a comma; anything
+    // else overwrites so the latest reason wins.
+    if (name === "base" && result.base) {
+      result.base = join([result.base, reason], ", ");
+    } else {
       result.base = reason;
     }
+
+    // Field-keyed entries are the new surface for forms that render inline
+    // errors next to the offending field. Repeated field errors join with a
+    // comma; `name` of `""` or `"base"` has no field to attach to and is
+    // covered by `base` above.
     if (name && name !== "base") {
       result[name] = result[name] ? join([result[name], reason], ", ") : reason;
     }

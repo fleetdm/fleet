@@ -74,6 +74,11 @@ describe("ChangePasswordForm - component", () => {
     const { user } = renderWithSetup(<ChangePasswordForm {...props} />);
 
     await user.type(screen.getByLabelText("New password"), "short1!");
+    // No error while typing; blur is what triggers validation.
+    expect(
+      screen.queryByText("Enter a password with at least 12 characters")
+    ).not.toBeInTheDocument();
+
     await user.tab();
 
     expect(
@@ -85,6 +90,12 @@ describe("ChangePasswordForm - component", () => {
     const { user } = renderWithSetup(<ChangePasswordForm {...props} />);
 
     await user.type(screen.getByLabelText("New password"), "12345678901!");
+    expect(
+      screen.queryByText(
+        "Enter a password with at least 1 letter, 1 number, and 1 symbol"
+      )
+    ).not.toBeInTheDocument();
+
     await user.tab();
 
     expect(
