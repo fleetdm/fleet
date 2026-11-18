@@ -88,11 +88,26 @@ func (c *cloudIdentityClient) CheckDelegation(ctx context.Context) error {
 	return nil
 }
 
-func (c *cloudIdentityClient) SetUnmanaged(ctx context.Context, deviceUserName string) error {
+func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName string, state fleet.GoogleConditionalAccessClientState) error {
+	var body cloudidentity.GoogleAppsCloudidentityDevicesV1ClientState
+	var mask []string
+	if state.Managed != nil {
+		body.Managed = "UNMANAGED"
+		if *state.Managed {
+			body.Managed = "MANAGED"
+		}
+		mask = append(mask, "managed")
+	}
+	if state.CustomID != nil {
+		body.CustomId = *state.CustomID
+		mask = append(mask, "customId")
+	}
+	if len(mask) == 0 {
+		return errors.New("client state has no field to write")
+	}
 	name := deviceUserName + "/clientStates/" + c.bareCustomerID + ClientStateSuffix
-	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(name, &cloudidentity.GoogleAppsCloudidentityDevicesV1ClientState{
-		Managed: "UNMANAGED",
-	}).Customer(c.customer()).UpdateMask("managed").Context(ctx).Do(); err != nil {
+	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(name, &body).
+		Customer(c.customer()).UpdateMask(strings.Join(mask, ",")).Context(ctx).Do(); err != nil {
 		return &Error{err: err, resourceCall: true}
 	}
 	return nil

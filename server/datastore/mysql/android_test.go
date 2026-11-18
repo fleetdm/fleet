@@ -4040,10 +4040,16 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	googleName := "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(testCtx(), res.Host.UUID, "C02cajzvg", []string{googleName}))
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
 	require.True(t, didUnenroll)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, res.Host.UUID))
 
 	// Calling unenrolled again returns false
 	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
@@ -4088,7 +4094,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 
 	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
 	isCompanyOwned := func(i int) bool { return i%2 == 0 }
-	var androidHostUUIDs []string
+	androidHostUUIDs := make([]string, 0, 5)
 	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
@@ -4160,12 +4166,24 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 		require.Len(t, records, 1)
 	}
 
+	// Google names are queued for unmark on the Android hosts only.
+	googleNames := map[string]string{androidHostUUIDs[0]: "devices/d1/deviceUsers/a", macHost.UUID: "devices/d2/deviceUsers/a"}
+	for hostUUID, name := range googleNames {
+		require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(testCtx(), hostUUID, "C02cajzvg", []string{name}))
+	}
+
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
 	})
 	require.Equal(t, 1, enrolledCount)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleNames[androidHostUUIDs[0]]: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, androidHostUUIDs[0]))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleNames[macHost.UUID]: fleet.GoogleConditionalAccessDeviceUserPending,
+	}, googleDeviceUserStates(t, ds, macHost.UUID))
 
 	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
 	for i, hostID := range androidHostIDs {

@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // GoogleConditionalAccessIntegration is the app config part of the integration.
@@ -136,4 +137,134 @@ func (g *GoogleConditionalAccessIntegration) Validate(invalid *InvalidArgumentEr
 			invalid.Append("api_key_json", "api_key_json must include client_email and private_key")
 		}
 	}
+}
+
+// GoogleConditionalAccessDeviceUserState is the marking state of a stored DeviceUser.
+type GoogleConditionalAccessDeviceUserState string
+
+const (
+	// GoogleConditionalAccessDeviceUserPending is stored but not yet marked MANAGED.
+	GoogleConditionalAccessDeviceUserPending GoogleConditionalAccessDeviceUserState = "pending"
+	GoogleConditionalAccessDeviceUserManaged GoogleConditionalAccessDeviceUserState = "managed"
+	// GoogleConditionalAccessDeviceUserStale is a name Google refused (404 or 403). It
+	// doesn't count as registered, so the host signs in again on the next open.
+	GoogleConditionalAccessDeviceUserStale GoogleConditionalAccessDeviceUserState = "stale"
+	// GoogleConditionalAccessDeviceUserUnmanaging is queued for the UNMANAGED write.
+	GoogleConditionalAccessDeviceUserUnmanaging GoogleConditionalAccessDeviceUserState = "unmanaging"
+)
+
+const (
+	// GoogleConditionalAccessMaxRegistrationAttempts is how many sign-ins a host can
+	// start without a register call within GoogleConditionalAccessRegistrationWindow.
+	GoogleConditionalAccessMaxRegistrationAttempts = 3
+	GoogleConditionalAccessRegistrationWindow      = 24 * time.Hour
+)
+
+// GoogleConditionalAccessDeviceUser is a Google DeviceUser resource name stored on a host.
+type GoogleConditionalAccessDeviceUser struct {
+	HostUUID     string                                 `db:"host_uuid"`
+	Name         string                                 `db:"device_user_name"`
+	State        GoogleConditionalAccessDeviceUserState `db:"state"`
+	ErrorMessage *string                                `db:"error_message"`
+	UpdatedAt    time.Time                              `db:"updated_at"`
+}
+
+// GoogleConditionalAccessClientState is what Fleet tells Google about a DeviceUser. A nil
+// field is left as Google has it; the client writes only the fields that are set.
+type GoogleConditionalAccessClientState struct {
+	Managed *bool
+	// CustomID is Google's free-form identifier for the device; Fleet sets the host UUID.
+	CustomID *string
+}
+
+// GoogleConditionalAccessDesiredClientState decides the client state a stored DeviceUser
+// should have in Google. It is the single place to extend when Fleet reports more than
+// enrollment, such as compliance from policies.
+func GoogleConditionalAccessDesiredClientState(du GoogleConditionalAccessDeviceUser) GoogleConditionalAccessClientState {
+	if du.State == GoogleConditionalAccessDeviceUserUnmanaging {
+		return GoogleConditionalAccessClientState{Managed: new(false)}
+	}
+	return GoogleConditionalAccessClientState{Managed: new(true), CustomID: new(du.HostUUID)}
+}
+
+// GoogleConditionalAccessDevice is a host's registration row with its DeviceUsers.
+type GoogleConditionalAccessDevice struct {
+	HostUUID    string `db:"host_uuid"`
+	DeviceUsers []GoogleConditionalAccessDeviceUser
+}
+
+// Registered reports whether the host has a name that is marked or waiting to be.
+func (d *GoogleConditionalAccessDevice) Registered() bool {
+	if d == nil {
+		return false
+	}
+	for _, du := range d.DeviceUsers {
+		if du.State == GoogleConditionalAccessDeviceUserPending || du.State == GoogleConditionalAccessDeviceUserManaged {
+			return true
+		}
+	}
+	return false
+}
+
+// Managed reports whether the host is registered and every name it is registered with
+// is marked MANAGED.
+func (d *GoogleConditionalAccessDevice) Managed() bool {
+	if d == nil || !d.Registered() {
+		return false
+	}
+	for _, du := range d.DeviceUsers {
+		if du.State == GoogleConditionalAccessDeviceUserPending {
+			return false
+		}
+	}
+	return true
+}
+
+// GoogleConditionalAccessDeviceUserFilter selects DeviceUsers for the sync cron.
+type GoogleConditionalAccessDeviceUserFilter struct {
+	CustomerID string
+	States     []GoogleConditionalAccessDeviceUserState
+	// HostExists skips names whose host was deleted.
+	HostExists bool
+	// AfterName pages through the names in order.
+	AfterName string
+	Limit     int
+}
+
+// GoogleDeviceIDFromDeviceUserName returns the device ID of a DeviceUser resource name
+// (devices/{device}/deviceUsers/{deviceUser}), or "" if the name isn't one.
+func GoogleDeviceIDFromDeviceUserName(name string) string {
+	parts := strings.Split(name, "/")
+	if len(parts) != 4 || parts[0] != "devices" || parts[2] != "deviceUsers" {
+		return ""
+	}
+	return parts[1]
+}
+
+// GoogleConditionalAccessBookmarkHost is a host with a Google device ID and no stored
+// DeviceUsers: a row migrated from the bookmark flow that the sync cron still has to
+// resolve.
+type GoogleConditionalAccessBookmarkHost struct {
+	HostID         uint   `db:"host_id"`
+	HostUUID       string `db:"host_uuid"`
+	GoogleDeviceID string `db:"google_device_id"`
+}
+
+// GoogleConditionalAccessAndroidHost is a company-owned Android host with no registered
+// DeviceUser, which the sync cron resolves from its Android Management API device ID.
+type GoogleConditionalAccessAndroidHost struct {
+	HostID   uint   `db:"host_id"`
+	HostUUID string `db:"host_uuid"`
+	// AndroidDeviceID is also the deviceId of the host's record in Google.
+	AndroidDeviceID string `db:"android_device_id"`
+}
+
+// GoogleConditionalAccessDeviceUserConflictError is returned when a DeviceUser is
+// already stored on another host.
+type GoogleConditionalAccessDeviceUserConflictError struct {
+	Name string
+}
+
+func (e *GoogleConditionalAccessDeviceUserConflictError) Error() string {
+	return "This Google device user is already registered to another host."
 }
