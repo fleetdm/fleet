@@ -2,7 +2,7 @@
 
 Users have different abilities depending on their role.
 
-The tables below summarize what each role can do. For permissions on a specific API endpoint, check out the [REST API docs](https://fleetdm.com/docs/api/rest-api).
+The tables in this guide summarize what each role can do. To see more granular API permissions, check out the [REST API docs](https://fleetdm.com/docs/api/rest-api).
 
 ## Roles
 
@@ -118,7 +118,6 @@ Users in Fleet either have global access or access to specific fleets.
 
 Users with access to specific fleets only have access to data for their assigned fleet.
 
-Global users can access data for all fleets. Check out [the user permissions table](#user-permissions) above for global user permissions.
 
 Users can be assigned to multiple fleets, and can have different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
 
