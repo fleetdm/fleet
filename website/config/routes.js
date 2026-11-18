@@ -473,11 +473,23 @@ module.exports.routes = {
   },
 
   'GET /integrations': {
-    action: 'view-integrations',
+    action: 'docs/view-integrations-directory',// Meta title set in view action
     locals: {
-      pageTitleForMeta: 'Integrations',
       pageDescriptionForMeta: 'Integrate IT ticketing systems, SIEM and SOAR platforms, custom IT workflows, and more.',
-      currentSection: 'platform'
+      currentSection: 'documentation',
+    }
+  },
+  'GET /integrate/:categorySlug': {
+    action: 'docs/view-integrations-directory',// Meta title set in view action
+    locals: {
+      pageDescriptionForMeta: 'Integrate IT ticketing systems, SIEM and SOAR platforms, custom IT workflows, and more.',
+      currentSection: 'documentation',
+    }
+  },
+  'GET /integrate/:categorySlug/:integrationSlug': {
+    action: 'docs/view-integration-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
     }
   },
 
@@ -1358,6 +1370,9 @@ module.exports.routes = {
   'GET /downloads': '/download',
   'GET /deals': '/partners#deals',
   'GET /partner': '/partners',
+  'GET /integrate': (req, res) => { return res.redirect(301, '/integrations' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
+  'GET /zta': '/integrate/identity-provider',
+  'GET /pki': '/integrate/certificates',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad

@@ -1,0 +1,76 @@
+<div id="integrations-directory" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <docs-nav-and-search current-section="integrations" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <div purpose="page-title">
+        <h1>Integrations</h1>
+        <p>Connect Fleet to the tools your team already uses, or <a href="/integrate/build-anything">build your own</a> integrations.</p>
+      </div>
+      <div purpose="directory-and-sidebar">
+        <div purpose="table-of-contents">
+          <a purpose="category-link" href="/integrations" class="<%= selectedCategory ? '' : 'active' %>">All integrations</a>
+          <% for (let category of allCategories) { %>
+            <a purpose="category-link" href="<%= category.url %>" class="<%= selectedCategory && selectedCategory.slug === category.slug ? 'active' : '' %>"><%= category.name %></a>
+          <% } %>
+          <% if (buildingBlocks.length > 0) { %>
+            <div purpose="table-of-contents-divider"></div>
+            <a purpose="category-link" href="/integrate/build-anything" class="<%= isBuildAnythingPage ? 'active' : '' %>">Build anything</a>
+          <% } %>
+          <div purpose="table-of-contents-divider"></div>
+          <a purpose="edit-link" href="https://github.com/fleetdm/fleet/edit/main/<%= integrationsYmlRepoPath %>" target="_blank" no-icon><img src="/images/icon-edit-16x16@2x.png" alt="">Suggest an edit</a>
+        </div>
+        <div purpose="mobile-custom-select" @click="clickOpenTableOfContents()">
+          <p><%= selectedCategory ? selectedCategory.name : 'All integrations' %></p>
+          <img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the list of categories">
+        </div>
+        <% if (isBuildAnythingPage) { %>
+          <div purpose="building-blocks">
+            <p purpose="building-blocks-intro">Configure custom IdPs, trigger automations with webhooks, or build custom dashboards using Fleet’s REST API.</p>
+            <div purpose="building-block-cards">
+              <% for (let buildingBlock of buildingBlocks) { %>
+                <a href="<%= buildingBlock.url %>" purpose="building-block-card">
+                  <div purpose="building-block-heading">
+                    <% if (buildingBlock.logo) { %>
+                      <img alt="" src="/images/<%= buildingBlock.logo %>">
+                    <% } %>
+                    <h4><%= buildingBlock.name %></h4>
+                  </div>
+                  <p><%= buildingBlock.description %></p>
+                </a>
+              <% } %>
+            </div>
+          </div>
+        <% } else { %>
+          <div purpose="integration-cards">
+            <% for (let integration of integrationsToShow) { %>
+              <a href="<%= integration.url %>" purpose="integration-card">
+                <div purpose="integration-logo">
+                  <% if (integration.logo) { %>
+                    <img alt="<%= integration.name %>" src="/images/<%= integration.logo %>">
+                  <% } %>
+                </div>
+                <p purpose="integration-summary"><%= integration.summary %></p>
+              </a>
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  <modal purpose="table-of-contents-modal" v-if="modal === 'table-of-contents'" @close="closeModal()">
+    <p purpose="mobile-table-of-contents-header"><strong>Integrations</strong></p>
+    <div purpose="table-of-contents">
+      <a purpose="category-link" href="/integrations" class="<%= selectedCategory ? '' : 'active' %>">All integrations</a>
+      <% for (let category of allCategories) { %>
+        <a purpose="category-link" href="<%= category.url %>" class="<%= selectedCategory && selectedCategory.slug === category.slug ? 'active' : '' %>"><%= category.name %></a>
+      <% } %>
+      <% if (buildingBlocks.length > 0) { %>
+        <div purpose="table-of-contents-divider"></div>
+        <a purpose="category-link" href="/integrate/build-anything" class="<%= isBuildAnythingPage ? 'active' : '' %>">Build anything</a>
+      <% } %>
+      <div purpose="table-of-contents-divider"></div>
+      <a purpose="edit-link" href="https://github.com/fleetdm/fleet/edit/main/<%= integrationsYmlRepoPath %>" target="_blank" no-icon><img src="/images/icon-edit-16x16@2x.png" alt="">Suggest an edit</a>
+    </div>
+  </modal>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

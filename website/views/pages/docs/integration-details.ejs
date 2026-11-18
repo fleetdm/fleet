@@ -1,0 +1,48 @@
+<div id="integration-details" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <docs-nav-and-search current-section="integrations" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <div purpose="breadcrumbs">
+        <a purpose="breadcrumbs-category" href="/integrations">Integrations</a>
+        <span purpose="breadcrumbs-separator">/</span>
+        <a purpose="breadcrumbs-category" href="<%= thisCategory.url %>"><%= thisCategory.name %></a>
+        <span purpose="breadcrumbs-separator">/</span>
+        <span purpose="breadcrumbs-title"><%= thisIntegration.name %></span>
+      </div>
+      <div purpose="integration-details">
+        <div purpose="logo-and-name">
+          <div purpose="integration-logo">
+            <% if (thisIntegration.logo) { %>
+              <img alt="<%= thisIntegration.name %> logo" src="/images/<%= thisIntegration.logo %>">
+            <% } else { %>
+              <span purpose="logo-placeholder"><%= thisIntegration.name.charAt(0) %></span>
+            <% } %>
+          </div>
+          <div>
+            <h1 purpose="integration-name"><%= thisIntegration.name %></h1>
+            <p purpose="integration-category"><%= thisIntegration.categoryName %></p>
+          </div>
+        </div>
+        <p purpose="integration-description"><%= thisIntegration.description %></p>
+        <% if (thisIntegration.docs.length > 0) { %>
+          <div purpose="integration-setup">
+            <h2>Set up <%= thisIntegration.name %> with Fleet</h2>
+            <ul>
+              <% for (let doc of thisIntegration.docs) { %>
+                <li><a href="<%= doc.url %>"><%= doc.label %></a></li>
+              <% } %>
+            </ul>
+          </div>
+        <% } %>
+        <% if (thisIntegration.vendorUrl) { %>
+          <div purpose="integration-learn-more">
+            <h2>Learn more about <%= thisIntegration.name %></h2>
+            <p><a href="<%= thisIntegration.vendorUrl %>" target="_blank"><%= thisIntegration.vendorUrl %></a></p>
+          </div>
+        <% } %>
+        <a purpose="edit-link" href="https://github.com/fleetdm/fleet/edit/main/<%= integrationsYmlRepoPath %>#L<%= thisIntegration.lineNumberInYaml %>" target="_blank" no-icon><img src="/images/icon-edit-16x16@2x.png" alt="">Suggest an edit</a>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
