@@ -200,7 +200,7 @@ func ValidateAndroidPasscodeProfileVariables(rawJSON []byte) error {
 		for _, prefix := range prefixes {
 			if names := ContainsPrefixVars(text, prefix); len(names) > 0 {
 				return fmt.Errorf(`Profiles with "passwordPolicies" or "passwordRequirements" can't include variables ($%s%s). `+
-					"The passcode is required during setup, before Fleet knows which host it is.", prefix, names[0])
+					"Passcode settings are enforced during setup, before Fleet knows which host it is.", prefix, names[0])
 			}
 		}
 	}
