@@ -16735,6 +16735,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 An Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token for all requests to Apple related to the app in that fleet, like assigning licenses. To add the app from a different VPP token, delete the app from the fleet and add it again.
 
+For iOS and iPadOS apps, `configuration` is a `<dict>` of the app's managed configuration keys. To also set options in the app's install command (e.g. per-app VPN), use a `<dict>` whose only key is `Command`. `Command` supports `ManagementFlags`, `Configuration` (the app's managed configuration), and `Attributes` (e.g. `VPNUUID`). Any other key is rejected. Learn more about [iOS and iPadOS managed configuration](https://fleetdm.com/learn-more-about/ios-software-managed-configuration).
+
 `configuration` supports all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) except `packageName` and `installType`. Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
 #### Example
@@ -16765,6 +16767,17 @@ To add more than one version of the same app, call this endpoint once per versio
   "name": "Test",
   "labels_include_any": ["Test"],
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+}
+```
+
+##### Request body adding a version with per-app VPN
+
+```json
+{
+  "app_store_id": "546505307",
+  "fleet_id": 2,
+  "platform": "ios",
+  "configuration": "<dict><key>Command</key><dict><key>Attributes</key><dict><key>VPNUUID</key><string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string></dict></dict></dict>"
 }
 ```
 
@@ -16821,6 +16834,8 @@ A software title can have more than one version of the same App Store app on a f
 | configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 All settings are set per version, so updating one version doesn't change any other version of the same app.
+
+For iOS and iPadOS apps, `configuration` can also set options in the app's install command. See [Add app store app](#add-app-store-app).
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
