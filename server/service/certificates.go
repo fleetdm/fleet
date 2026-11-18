@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -443,8 +444,11 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 			continue
 		}
 
-		// Handle empty string and "No team" as teamID = 0
-		if spec.Team == "" || spec.Team == "No team" {
+		if strings.EqualFold(spec.Team, fleet.ReservedNameNoTeam) {
+			return nil, fleet.NewInvalidArgumentError("specs.fleet",
+				removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameNoTeam), fmt.Sprintf("%q", fleet.DisplayNameNoTeam)))
+		}
+		if spec.Team == "" || fleet.IsUnassignedFleetName(spec.Team) {
 			teamNameToID[spec.Team] = 0
 			continue
 		}
