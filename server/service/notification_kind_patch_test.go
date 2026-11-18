@@ -1757,9 +1757,16 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 		return svc, ds, notificationsSvc, &deleted, &payload
 	}
 
+	requireDisplayable := func(t *testing.T, svc *Service) {
+		t.Helper()
+		failureMessage, nothingToShow := svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID)
+		require.Empty(t, failureMessage)
+		require.False(t, nothingToShow)
+	}
+
 	t.Run("the 1 hour notice drops the apps updated since the skip", func(t *testing.T) {
 		svc, _, _, deleted, payload := newService(&fleet.PatchNotification{})
-		require.Empty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		requireDisplayable(t, svc)
 
 		require.Equal(t, []uint{updatedTitleID}, *deleted)
 		require.JSONEq(t, `{"reminder":false}`, string(*payload))
@@ -1775,7 +1782,7 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 		ds.ListSoftwareTitleVersionsForHostsFunc = func(context.Context, []uint, []uint) ([]fleet.HostSoftwareTitleVersion, error) {
 			return nil, nil
 		}
-		require.Empty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		requireDisplayable(t, svc)
 
 		require.Equal(t, []uint{staleTitleID}, *deleted)
 	})
@@ -1785,7 +1792,7 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 		ds.ListSoftwareTitleVersionsForHostsFunc = func(context.Context, []uint, []uint) ([]fleet.HostSoftwareTitleVersion, error) {
 			return nil, nil
 		}
-		require.Empty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		requireDisplayable(t, svc)
 
 		require.Empty(t, *deleted)
 		require.False(t, ds.DeletePatchNotificationAppsFuncInvoked)
@@ -1793,14 +1800,14 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 
 	t.Run("the reminder doesn't prune", func(t *testing.T) {
 		svc, ds, _, deleted, payload := newService(&fleet.PatchNotification{InstallAt: new(time.Now().UTC().Add(2 * time.Minute))})
-		require.Empty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		requireDisplayable(t, svc)
 
 		require.False(t, ds.ListPatchNotificationAppsForNotificationsFuncInvoked)
 		require.Empty(t, *deleted)
 		require.JSONEq(t, `{"reminder":true}`, string(*payload))
 	})
 
-	t.Run("the 1 hour notice fails the notification instead of running the script when every app was updated", func(t *testing.T) {
+	t.Run("the 1 hour notice reports nothing to show instead of running the script when every app was updated", func(t *testing.T) {
 		svc, ds, notificationsSvc, deleted, _ := newService(&fleet.PatchNotification{})
 		ds.ListSoftwareTitleVersionsForHostsFunc = func(context.Context, []uint, []uint) ([]fleet.HostSoftwareTitleVersion, error) {
 			return []fleet.HostSoftwareTitleVersion{
@@ -1808,36 +1815,27 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 				{HostID: hostID, SoftwareTitleID: staleTitleID, Version: "2.0"},
 			}, nil
 		}
-		var gotStatus string
-		var gotReason *string
-		notificationsSvc.SetNotificationStatusFunc = func(_ context.Context, uuid, status string, reason *string, whereStatusIn []string) error {
-			require.Equal(t, notificationUUID, uuid)
-			require.ElementsMatch(t, []string{notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched}, whereStatusIn)
-			gotStatus, gotReason = status, reason
-			return nil
-		}
 
-		require.NotEmpty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		failureMessage, nothingToShow := svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID)
+		require.NotEmpty(t, failureMessage)
+		require.True(t, nothingToShow)
 
 		require.ElementsMatch(t, []uint{updatedTitleID, staleTitleID}, *deleted)
-		require.Equal(t, notifications_api.EndUserNotificationFailed, gotStatus)
-		require.NotNil(t, gotReason)
-		require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, *gotReason)
+		// the caller closes it once the script's result is recorded
+		require.False(t, notificationsSvc.SetNotificationStatusFuncInvoked)
 		require.False(t, notificationsSvc.SetNotificationPayloadFuncInvoked)
 	})
 
-	t.Run("the 1 hour notice fails a notification that already had no apps", func(t *testing.T) {
+	t.Run("the 1 hour notice reports nothing to show for a notification that already had no apps", func(t *testing.T) {
 		svc, ds, notificationsSvc, _, _ := newService(&fleet.PatchNotification{})
 		ds.ListPatchNotificationAppsForNotificationsFunc = func(context.Context, []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
 			return nil, nil
 		}
-		notificationsSvc.SetNotificationStatusFunc = func(context.Context, string, string, *string, []string) error {
-			return nil
-		}
 
-		require.NotEmpty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		failureMessage, nothingToShow := svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID)
+		require.NotEmpty(t, failureMessage)
+		require.True(t, nothingToShow)
 
-		require.True(t, notificationsSvc.SetNotificationStatusFuncInvoked)
 		require.False(t, ds.DeletePatchNotificationAppsFuncInvoked)
 		require.False(t, notificationsSvc.SetNotificationPayloadFuncInvoked)
 	})
@@ -1847,7 +1845,9 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 		ds.DeletePatchNotificationAppsFunc = func(context.Context, string, []uint) error {
 			return errors.New("delete failed")
 		}
-		require.NotEmpty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+		failureMessage, nothingToShow := svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID)
+		require.NotEmpty(t, failureMessage)
+		require.False(t, nothingToShow)
 		require.False(t, notificationsSvc.SetNotificationPayloadFuncInvoked)
 	})
 }

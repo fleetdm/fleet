@@ -250,6 +250,42 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Contains(t, string(*globalFeed.Activities[0].Details), notificationUUID)
 	})
 
+	t.Run("a notification with no apps left when its script is fetched fails as nothing to show without running", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-nothing-to-show")
+		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+
+		// stands in for every app being pruned as already updated
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM patch_notification_apps WHERE notification_uuid = ?`, notificationUUID)
+			return err
+		})
+
+		var resp fleet.OrbitGetScriptResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *host.OrbitNodeKey, *dispatched.ExecutionID)),
+			http.StatusOK, &resp)
+		// fleetd skips a script that comes back with a result already set
+		require.NotNil(t, resp.HostScriptResult)
+		require.NotNil(t, resp.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *resp.ExitCode)
+
+		// the stand-in result's url_unresolved must not replace nothing_to_show, or reschedule it
+		got := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationFailed, got.Status)
+		require.NotNil(t, got.LastReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, *got.LastReason)
+
+		var hostFeed listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostFeed)
+		require.Empty(t, hostFeed.Activities)
+
+		dispatch(t)
+		require.Equal(t, notifications_api.EndUserNotificationFailed, getTestNotification(t, s.ds, notificationUUID).Status)
+	})
+
 	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
 		// the logos are restored afterwards
 		setOrgLogos := func(light, dark string) {

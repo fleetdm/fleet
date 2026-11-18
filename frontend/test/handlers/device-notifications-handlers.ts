@@ -174,6 +174,12 @@ export const errorDeviceNotificationHandler = http.get(notificationUrl, () =>
   )
 );
 
+/** The request never gets a response, so there's no HTTP status. */
+export const networkErrorDeviceNotificationHandler = http.get(
+  notificationUrl,
+  () => HttpResponse.error()
+);
+
 /** POST /actions — echoes the update_now → Updating... transition. */
 export const defaultDeviceNotificationActionHandler = http.post(
   notificationActionsUrl,

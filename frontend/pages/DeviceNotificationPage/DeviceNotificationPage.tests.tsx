@@ -8,6 +8,7 @@ import {
   errorDeviceNotificationActionHandler,
   errorDeviceNotificationHandler,
   installingThenSettledDeviceNotificationHandler,
+  networkErrorDeviceNotificationHandler,
   notFoundDeviceNotificationHandler,
   reminderThenInstallingDeviceNotificationHandler,
   settledDeviceNotificationHandler,
@@ -128,6 +129,21 @@ describe("DeviceNotificationPage", () => {
           payload: {
             message: "Fleet couldn't load the notification (HTTP 500).",
           },
+        })
+      );
+    });
+  });
+
+  it("posts `error` without a status when the request gets no response", async () => {
+    mockServer.use(networkErrorDeviceNotificationHandler);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "error",
+          payload: { message: "Fleet couldn't load the notification." },
         })
       );
     });

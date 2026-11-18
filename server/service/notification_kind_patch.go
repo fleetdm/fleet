@@ -54,14 +54,17 @@ func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, no
 	return false
 }
 
-func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, hostID uint, notificationUUID string) (failureMessage string) {
+// setPatchNotificationPayloadForDisplay readies a notification for the notice its script is about to
+// show. nothingToShow means every app was already updated: the caller records failureMessage as the
+// script's result, so the script never runs, then calls failPatchNotificationWithNothingToShow.
+func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, hostID uint, notificationUUID string) (failureMessage string, nothingToShow bool) {
 	patchNotification, err := svc.ds.GetPatchNotification(ctx, notificationUUID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to get the patch notification a script belongs to", "notification_uuid", notificationUUID, "err", err)
-		return "Fleet couldn't load the notification this script belongs to."
+		return "Fleet couldn't load the notification this script belongs to.", false
 	}
 	if patchNotification == nil {
-		return ""
+		return "", false
 	}
 
 	payload := patchNotificationFirstNoticePayload
@@ -71,28 +74,30 @@ func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, h
 		remaining, err := svc.prunePatchNotificationApps(ctx, hostID, notificationUUID)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to prune the apps a patch notification no longer needs to update", "notification_uuid", notificationUUID, "err", err)
-			return "Fleet couldn't remove the apps that are already updated from the notification."
+			return "Fleet couldn't remove the apps that are already updated from the notification.", false
 		}
-		// Fail it before the script runs: Fleet Desktop would open a toast that can't render and
-		// exit 31, which reads as a failed notification for apps that were already updated.
+		// Running the script would open a toast that can't render and exit 31, which reads as a
+		// failed notification for apps that were already updated.
 		if remaining == 0 {
-			err = svc.notificationsSvc.SetNotificationStatus(ctx, notificationUUID,
-				notifications_api.EndUserNotificationFailed,
-				new(notifications_api.EndUserNotificationReasonNothingToShow),
-				[]string{notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched})
-			if err != nil {
-				svc.logger.ErrorContext(ctx, "failed to fail a patch notification with no apps left", "notification_uuid", notificationUUID, "err", err)
-				return "Fleet couldn't close the notification after finding every app in it already updated."
-			}
-			return "Every app in the notification is already updated, so Fleet didn't show it."
+			return "Every app in the notification is already updated, so Fleet didn't show it.", true
 		}
 	}
 	err = svc.notificationsSvc.SetNotificationPayload(ctx, notificationUUID, payload)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to set the patch notification payload", "notification_uuid", notificationUUID, "err", err)
-		return "Fleet couldn't record which notice this script shows."
+		return "Fleet couldn't record which notice this script shows.", false
 	}
-	return ""
+	return "", false
+}
+
+// failPatchNotificationWithNothingToShow runs after the script's stand-in result is recorded, since
+// recording it puts the notification back in the queue under the stand-in exit code's reason.
+func (svc *Service) failPatchNotificationWithNothingToShow(ctx context.Context, notificationUUID string) error {
+	err := svc.notificationsSvc.SetNotificationStatus(ctx, notificationUUID,
+		notifications_api.EndUserNotificationFailed,
+		new(notifications_api.EndUserNotificationReasonNothingToShow),
+		[]string{notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched})
+	return ctxerr.Wrap(ctx, err, "fail patch notification with nothing to show")
 }
 
 // A notification can wait days for its 1 hour notice, so remove apps the host updated in the
