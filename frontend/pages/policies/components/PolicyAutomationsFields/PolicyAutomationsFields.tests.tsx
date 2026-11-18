@@ -890,6 +890,29 @@ describe("PolicyAutomationsFields — Automation dropdown", () => {
     });
   });
 
+  it("drops a continuous change made before switching away from script", async () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    const { user } = renderWithHandle(
+      { automation_type: "script", run_script: { id: 1, name: "Rotate keys" } },
+      handleRef,
+      { automationsConfig: webhookConfig }
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    );
+    await selectAutomation(user, "Send webhook");
+
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({
+      automation_type: "webhook_or_ticket",
+      continuous_automations_enabled: false,
+    });
+  });
+
   it("sends a null automation_type when None is selected", async () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,

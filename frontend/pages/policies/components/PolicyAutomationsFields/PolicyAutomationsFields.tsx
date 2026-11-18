@@ -222,6 +222,13 @@ const PolicyAutomationsFields = forwardRef<
       // Manual patch hides the continuous checkbox; preserve the stored value
       // on the wire so a policy that had continuous on doesn't silently flip.
       if (patchOption === "manual") return initialContinuous;
+      // Same for automations that hide it, so an earlier toggle doesn't stick.
+      if (
+        effectiveAutomation !== "software" &&
+        effectiveAutomation !== "script"
+      ) {
+        return initialContinuous;
+      }
       return continuousEnabled;
     };
     const continuousAutomationsRequiredTooltip = getContinuousAutomationsRequiredTooltip();
