@@ -7085,17 +7085,6 @@ Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_c
 | order_key | string | query | What to order results by. Options include `"started_at"`, `"ended_at"`, `"agent"`, `"username"`, `"model"`, and `"output_token_count"`. Default is `"ended_at"`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
 
-`agent_session_id` is the agent's own identifier for the session. `username` is the local account whose home directory holds the session.
-
-`account_identifier` is the account the agent is signed in with, taken from the agent's own config files. It's usually an email address, or a GitHub username for Copilot CLI. When the agent records no user, it's how the agent authenticates instead, such as `API KEY` or a provider name such as `bedrock` or `vertex`. Users can edit their agent's config files, so `account_identifier` isn't a verified identity.
-
-Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts, and `null` for timestamps. For example, Cursor doesn't record `model` or token counts, and Gemini CLI doesn't record `agent_version`. For Cursor, `started_at` is when the session was created, and it's `null` only when that's unknown.
-
-`user_message_count` only includes prompts a person typed. Tool results sent back to the model aren't included. `assistant_message_count`, `tool_call_count`, and `transcript_size` include sub-agents'.
-
-`categories` lists every category of the session's tool calls that Fleet has collected. See [List host's AI session events](#list-hosts-ai-session-events) for how categories are assigned.
-
-`input_token_count` only includes uncached input tokens. Tokens read from and written to the prompt cache are reported in `cache_read_token_count` and `cache_write_token_count`.
 
 #### Example
 
@@ -7166,6 +7155,18 @@ Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts
   }
 }
 ```
+
+`agent_session_id` is the agent's own identifier for the session. `username` is the local account whose home directory holds the session.
+
+`account_identifier` is the account the agent is signed in with, taken from the agent's own config files. It's usually an email address, or a GitHub username for Copilot CLI. When the agent records no user, it's how the agent authenticates instead, such as `API KEY` or a provider name such as `bedrock` or `vertex`. Users can edit their agent's config files, so `account_identifier` isn't a verified identity.
+
+Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts, and `null` for timestamps. For example, Cursor doesn't record `model` or token counts, and Gemini CLI doesn't record `agent_version`. For Cursor, `started_at` is when the session was created, and it's `null` only when that's unknown.
+
+`user_message_count` only includes prompts a person typed. Tool results sent back to the model aren't included. `assistant_message_count`, `tool_call_count`, and `transcript_size` include sub-agents'.
+
+`categories` lists every category of the session's tool calls that Fleet has collected. See [List host's AI session events](#list-hosts-ai-session-events) for how categories are assigned.
+
+`input_token_count` only includes uncached input tokens. Tokens read from and written to the prompt cache are reported in `cache_read_token_count` and `cache_write_token_count`.
 
 ### Get host's AI session
 
