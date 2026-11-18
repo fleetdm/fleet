@@ -1,8 +1,8 @@
-macos_settings:
-  custom_settings:
+apple_settings:
+  configuration_profiles:
     - path: ./lib/macos-password.mobileconfig
 windows_settings:
-  custom_settings:
+  configuration_profiles:
     - path: ./lib/windows-screenlock.xml
 scripts:
   - path: ./lib/collect-fleetd-logs.sh

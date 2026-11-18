@@ -121,7 +121,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	// Test merge inherited
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, ts.Policies, 2)
 	require.Nil(t, ts.InheritedPolicies)
 	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
@@ -311,7 +311,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	require.Equal(t, 0, tc.InheritedPolicyCount)
 	// Test merge inherited for "No team" policies.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, ts.Policies, 3)
 	require.Nil(t, ts.InheritedPolicies)
 	assert.Equal(t, "noTeamPolicy1", ts.Policies[0].Name)
@@ -1337,7 +1337,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 
 	// A script owned by another team is rejected.
 	res = s.Do("POST", specURL, spec("gitops cross team script", team.Name, otherTeamScript.ID), http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+	require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 
 	// A script that does not exist is rejected with a clear message rather than a database error.
 	res = s.Do("POST", specURL, spec("gitops missing script", team.Name, otherTeamScript.ID+999), http.StatusBadRequest)

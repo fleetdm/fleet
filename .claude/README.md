@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 35 workflow skills (invoke with /), see "Skills reference" below
+├── skills/                    # 36 workflow skills (invoke with /), see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 30 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 31 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -204,6 +204,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/fleet-maintained-apps` | `/fleet-maintained-apps add Slack for Windows` | Adds, fixes, and debugs Fleet-maintained apps for macOS (Homebrew) and Windows (winget): verifies installer identity with real tools and queries with real osquery, and triages validator failures, ingest panics, and soak issues. Uses WebFetch. |
 | `/ai-profile-test` | `/ai-profile-test "Disable the camera"` | Proposes a new prompt test case for the AI configuration profile generator (`website/profile-generator/configuration-profile-generator-cases.js`): checks for duplicate coverage, verifies payload keys and CSP nodes against Apple/Microsoft docs, writes assertions in the file's substring style, and opens a PR. Requires `gh`; uses WebFetch. |
 | `/command-palette` | `/command-palette` | Authoring guide for the Fleet command palette — adding/editing items in `frontend/components/CommandPalette/groups/`, router paths, and new pages/actions that need a palette entry. |
+| `/new-icon` | `/new-icon low battery` | Adds or changes a Fleet UI icon or software/OS logo tile, for designers and engineers. Asks whether it's a standalone task or feature work and who's designing vs. implementing. Designers: draw to the icon guidelines, rule-check the Figma node, get Head of Design approval, add it to the design system Icons page. Engineers: implement only from the design system page, convert strokes to filled paths, add the component to `ICON_MAP`, and verify. Uses the Figma MCP server when connected. |
 | `/tier-modes` | `/tier-modes` | Authoring guide for Fleet Free (`!isPremiumTier`) and Primo (`isPrimoMode`) gating in the frontend — for new pages/surfaces or when introducing new tier gating. |
 | `/content-style` | `/content-style` | Writes, edits, and reviews public-facing Fleet content (website, handbook, docs, articles, release notes, UI copy) to follow Fleet's voice and style guidelines. |
 | `/fleet-article-formatting` | `/fleet-article-formatting` | Applies Fleet's house article format and article-specific voice to articles (`category` `articles` or `comparison`) — title → dek → key takeaways → CTA button → body → closing. Pairs with `/content-style` for word-level voice. |

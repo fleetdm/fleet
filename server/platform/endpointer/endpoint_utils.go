@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
@@ -30,10 +29,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
-type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
+type HandlerRoutesFunc func(r *Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func ParseTag(tag string) (string, bool, error) {
@@ -305,16 +303,13 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 	return u, nil
 }
 
+// StringFromRequest returns the named path variable, which the router has already decoded.
 func StringFromRequest(r *http.Request, name string) (string, error) {
 	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
+	return s, nil
 }
 
 func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string, optional bool) error {
@@ -603,7 +598,13 @@ func MakeDecoder(
 		}
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
+		rdType := indirectType(reflect.TypeOf(iface))
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			if r.URL.RawQuery != "" && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedQueryParams(r.URL.Query(), rdType); err != nil {
+					return nil, err
+				}
+			}
 			if maxRequestBodySize != -1 {
 				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 			}
@@ -647,6 +648,14 @@ func MakeDecoder(
 					ContentLength:  r.Header.Get("Content-Length"),
 					MaxRequestSize: maxRequestBodySize,
 					Gzipped:        gzipped,
+				}
+			}
+
+			// Checked even when decoding failed, since an upload that sends team_id instead of fleet_id can fail there first. r.Form
+			// also holds the query string, where uploads used to accept team_id too.
+			if r.MultipartForm != nil && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedFormFields(r.Form); err != nil {
+					return nil, err
 				}
 			}
 			return ret, err
@@ -1022,7 +1031,7 @@ func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Contex
 // RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
 // to the same handler as the canonical path, and wraps them in a handler that
 // can log deprecation warnings.
-func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
+func RegisterDeprecatedPathAliases(r *Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
 	allVersions := append(append([]string{}, versions...), "latest")
 	for _, alias := range aliases {
 		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
@@ -1036,7 +1045,7 @@ func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *H
 				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
 				handler.ServeHTTP(w, r.WithContext(ctx))
 			})
-			handleRoute(r, Route{
+			r.Handle(Route{
 				Name:     getNameFromPathAndVerb(alias.Method, path, ""),
 				Methods:  []string{alias.Method},
 				Path:     path,
@@ -1051,7 +1060,7 @@ type CommonEndpointer[H any] struct {
 	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
-	Router        *mux.Router
+	Router        *Router
 	Versions      []string
 
 	// AuthMiddleware is a pre-built authentication middleware.
@@ -1324,7 +1333,7 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		Prefix:   e.usePathPrefix,
 	}
 	handler := pathHandler(route.Template())
-	handleRoute(e.Router, route, handler)
+	e.Router.Handle(route, handler)
 	if e.HandlerRegistry != nil {
 		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
@@ -1332,7 +1341,7 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		aliasRoute := route
 		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
 		aliasRoute.Path = alias
-		handleRoute(e.Router, aliasRoute, pathHandler(aliasRoute.Template()))
+		e.Router.Handle(aliasRoute, pathHandler(aliasRoute.Template()))
 	}
 }
 

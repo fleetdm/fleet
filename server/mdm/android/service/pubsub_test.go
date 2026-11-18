@@ -4137,6 +4137,7 @@ func TestClearReusedHostPolicyApps(t *testing.T) {
 	}{
 		{name: "no applied policy", wantCleared: true},
 		{name: "default policy", appliedPolicyID: &defaultPolicyID, wantCleared: true},
+		{name: "fleet default policy", appliedPolicyID: new(android.FleetDefaultPolicyID(3)), wantCleared: true},
 		{name: "already on host policy", appliedPolicyID: new(hostUUID)},
 		{name: "AMAPI error is only logged", appliedPolicyID: &defaultPolicyID, apiErr: errors.New("quota"), wantCleared: true},
 	}

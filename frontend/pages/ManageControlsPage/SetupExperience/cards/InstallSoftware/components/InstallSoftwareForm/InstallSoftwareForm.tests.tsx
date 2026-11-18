@@ -61,15 +61,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -101,15 +105,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -141,15 +149,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -179,15 +191,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -216,9 +232,11 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(),
         ]}
@@ -321,7 +339,7 @@ describe("InstallSoftware", () => {
           createMockSoftwareTitle({
             id: 1,
             name: "Preselected app store title",
-            software_package: null,
+            packages: null,
             app_store_apps: [
               createMockAppStoreAppVersion({
                 id: 10,
@@ -336,9 +354,11 @@ describe("InstallSoftware", () => {
           createMockSoftwareTitle({
             id: 2,
             name: "Other package title",
-            software_package: createMockSoftwarePackage({
-              install_during_setup: false,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: false,
+              }),
+            ],
           }),
         ]}
         hasManualAgentInstall={false}

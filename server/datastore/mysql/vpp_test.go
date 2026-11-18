@@ -2746,16 +2746,16 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
 	require.Equal(t, titleID1, titles[0].ID)
-	require.NotNil(t, titles[0].AppStoreApp)
-	require.Equal(t, titles[0].AppStoreApp.AppStoreID, vpp1.AdamID)
+	require.Len(t, titles[0].AppStoreApps, 1)
+	require.Equal(t, titles[0].AppStoreApps[0].AppStoreID, vpp1.AdamID)
 
 	// list software available for install on team
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &tm.ID, Platform: "android", AvailableForInstall: true}, tmFilter)
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
 	require.Equal(t, titleID2, titles[0].ID)
-	require.NotNil(t, titles[0].AppStoreApp)
-	require.Equal(t, titles[0].AppStoreApp.AppStoreID, vpp2.AdamID)
+	require.Len(t, titles[0].AppStoreApps, 1)
+	require.Equal(t, titles[0].AppStoreApps[0].AppStoreID, vpp2.AdamID)
 
 	// list host software, should show as pending
 	hostTitles, _, err := ds.ListHostSoftware(ctx, host1.Host, fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true})
@@ -5254,9 +5254,8 @@ func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, titles, 1)
 		require.Equal(t, titleID, titles[0].ID)
-		require.NotNil(t, titles[0].AppStoreApp)
-		require.NotNil(t, titles[0].AppStoreApp.SelfService)
-		require.False(t, *titles[0].AppStoreApp.SelfService)
+		require.Len(t, titles[0].AppStoreApps, 2)
+		require.False(t, titles[0].AppStoreApps[0].SelfService)
 
 		// list only self-service titles, the app should be listed because the second instance is self-service
 		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID, AvailableForInstall: true, SelfServiceOnly: true}, tmFilter)

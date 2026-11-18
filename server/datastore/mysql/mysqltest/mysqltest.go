@@ -504,7 +504,6 @@ func TruncateTables(t testing.TB, ds *mysql.Datastore, tables ...string) {
 		"mdm_delivery_status":              true,
 		"mdm_operation_types":              true,
 		"migration_status_tables":          true,
-		"osquery_options":                  true,
 		"software_categories":              true,
 	}
 	_, err := ds.TestWriter(context.Background()).ExecContext(context.Background(),

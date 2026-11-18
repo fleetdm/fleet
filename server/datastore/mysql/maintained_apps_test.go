@@ -490,6 +490,36 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
 
+	// add a custom Maintained3 package to Unassigned, the Maintained3 FMA should show as added
+	// for Unassigned only
+	_, unassignedTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Maintained3",
+		InstallScript:    "nothing",
+		Filename:         "maintained3.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: "fleet.maintained3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, new(uint(0)), fleet.MaintainedAppListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, 4, meta.TotalResults)
+	require.Nil(t, apps[0].TitleID)
+	require.Nil(t, apps[1].TitleID)
+	require.Equal(t, new(unassignedTitleID), apps[2].TitleID)
+	require.Nil(t, apps[3].TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, new(uint(0)))
+	require.NoError(t, err)
+	require.Equal(t, new(unassignedTitleID), gotApp.TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotApp.TitleID)
+
 	// Ordering: the combined-by-app view is only meaningfully sortable by name,
 	// so "name" is the one allowed order key. expectedApps is declared in
 	// ascending name order, so we derive the expected name sequences from it.
@@ -917,6 +947,27 @@ func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastor
 	require.Empty(t, search("for Mac"))
 	require.ElementsMatch(t, []string{"gcpw/windows"}, search("for Windows"))
 	require.ElementsMatch(t, []string{"wechat/darwin", "wechat/windows"}, search("WeChat"))
+
+	// page through a search matching two apps one app per page, the first page should hold both
+	// platforms of the merged app and the second page the single-platform app
+	mkApp("Pagedsearch One for macOS", "pagedsearch-one/darwin", "darwin", "com.example.pagedsearch-one")
+	mkApp("Pagedsearch One for Windows", "pagedsearch-one/windows", "windows", "Pagedsearch One")
+	mkApp("Pagedsearch Two", "pagedsearch-two/darwin", "darwin", "com.example.pagedsearch-two")
+	searchOpts := fleet.MaintainedAppListOptions{MatchQuery: "Pagedsearch", IncludeMetadata: true, PerPage: 1}
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Equal(t, "pagedsearch-one/darwin", apps[0].Slug)
+	require.Equal(t, "pagedsearch-one/windows", apps[1].Slug)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.True(t, meta.HasNextResults)
+
+	searchOpts.Page = 1
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, "pagedsearch-two/darwin", apps[0].Slug)
+	require.False(t, meta.HasNextResults)
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
@@ -1603,6 +1654,27 @@ func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 	}
 	require.Contains(t, slugs, "firefox@esr/darwin")
 	require.NotContains(t, slugs, "firefox/darwin")
+
+	// add a Firefox VPP app to another fleet, the VPP app should get the same software title as the Firefox installer
+	test.CreateInsertGlobalVPPToken(t, ds)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 43"})
+	require.NoError(t, err)
+	vppFirefox, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "Mozilla Firefox",
+		AdamID:           "firefox",
+		Platform:         fleet.MacOSPlatform,
+		BundleIdentifier: "org.mozilla.firefox",
+	}, &otherTeam.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, titleID, vppFirefox.TitleID)
+
+	// move the Firefox VPP app into this fleet, the Firefox FMA should show as added and the ESR FMA should not
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET team_id = ?, global_or_team_id = ? WHERE adam_id = 'firefox'", team.ID, team.ID)
+		return err
+	})
+	require.Equal(t, &titleID, titleIDFor(firefox.ID))
+	require.Nil(t, titleIDFor(esr.ID))
 }
 
 func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {

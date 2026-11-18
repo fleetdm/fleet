@@ -331,8 +331,13 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 			}
 		case scimPath == "ServiceProviderConfig" || scimPath == "ServiceProviderConfig/":
 			route = prefix + "/ServiceProviderConfig"
-		case scimPath == "ResourceTypes" || scimPath == "ResourceTypes/":
-			route = prefix + "/ResourceTypes"
+		case strings.HasPrefix(scimPath, "ResourceTypes"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/ResourceTypes"
+			} else {
+				route = prefix + "/ResourceTypes/{id}"
+			}
 		default:
 			// This middleware runs before authentication, so any path segment here is caller-controlled. A fixed label keeps it
 			// out of span names and http.route.

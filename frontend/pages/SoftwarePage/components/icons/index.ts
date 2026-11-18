@@ -572,6 +572,7 @@ import Kitty from "./png/Kitty.png";
 import Klokki from "./png/Klokki.png";
 import Knime from "./png/Knime.png";
 import Knockknock from "./png/Knockknock.png";
+import KopiaUI from "./png/KopiaUI.png";
 import Krisp from "./png/Krisp.png";
 import Krita from "./png/Krita.png";
 import Lapce from "./png/Lapce.png";
@@ -907,6 +908,7 @@ import ScreenStudio from "./png/ScreenStudio.png";
 import Scribe from "./png/Scribe.png";
 import Scribus from "./png/Scribus.png";
 import Scrivener from "./png/Scrivener.png";
+import ScrollReverser from "./png/ScrollReverser.png";
 import Secretive from "./png/Secretive.png";
 import Securesafe from "./png/Securesafe.png";
 import Selfcontrol from "./png/Selfcontrol.png";
@@ -1113,6 +1115,7 @@ import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Winzip from "./png/Winzip.png";
 import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
@@ -1745,6 +1748,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   klokki: Klokki,
   "knime analytics platform": Knime,
   knockknock: Knockknock,
+  kopiaui: KopiaUI,
   krisp: Krisp,
   krita: Krita,
   lapce: Lapce,
@@ -2101,6 +2105,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   scribe: Scribe,
   scribus: Scribus,
   scrivener: Scrivener,
+  "scroll reverser": ScrollReverser,
   secretive: Secretive,
   securesafe: Securesafe,
   selfcontrol: Selfcontrol,
@@ -2320,6 +2325,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  winzip: Winzip,
   wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
