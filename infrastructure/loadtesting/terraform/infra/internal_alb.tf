@@ -76,7 +76,8 @@ resource "aws_lb_target_group" "internal" {
   vpc_id               = data.terraform_remote_state.shared.outputs.vpc.vpc_id
   deregistration_delay = 30
 
-  load_balancing_algorithm_type = "least_outstanding_requests"
+  # Not least_outstanding_requests: with WebSocket transport, every open WebSocket counts as an outstanding request.
+  load_balancing_algorithm_type = "round_robin"
 
   health_check {
     path                = "/healthz"

@@ -113,7 +113,7 @@ describe("EditQueryForm - component", () => {
     }
   );
 
-  it("disables save button for missing query name", async () => {
+  it("surfaces an inline name error on Save click when the name is blank", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -151,7 +151,7 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    render(
+    const { user } = render(
       <EditQueryForm
         router={mockRouter}
         location={mockLocation}
@@ -173,7 +173,78 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeEnabled();
+    await user.click(saveButton);
+    expect(screen.getByText("Enter a report name")).toBeInTheDocument();
+  });
+
+  it("does not show a syntax error on mount for an invalid-SQL stored query", async () => {
+    const invalidSQL = "SELEKT * FROM bogus";
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: mockQuery.name,
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: invalidSQL,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    render(
+      <EditQueryForm
+        router={mockRouter}
+        location={mockLocation}
+        queryIdForEdit={1}
+        apiTeamIdForQuery={1}
+        showOpenSchemaActionText
+        storedQuery={createMockQuery({ query: invalidSQL })}
+        isStoredQueryLoading={false}
+        isQuerySaving={false}
+        isQueryUpdating={false}
+        onSubmitNewQuery={jest.fn()}
+        onOsqueryTableSelect={jest.fn()}
+        onUpdate={jest.fn()}
+        onOpenSchemaSidebar={jest.fn()}
+        renderLiveQueryWarning={jest.fn()}
+        backendValidators={{}}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
+      />
+    );
+
+    // Give the former debounce window plenty of time to NOT fire.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(
+      screen.queryByText(/Syntax error\. Please review before saving\./)
+    ).not.toBeInTheDocument();
   });
 
   it("caps the report name input at 255 characters in edit mode", () => {
@@ -637,14 +708,15 @@ describe("EditQueryForm - component", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected", async () => {
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      onUpdate.mockClear();
       const testProps = {
         ...props,
         storedQuery: createMockQuery({
           labels_include_any: [{ name: "Fun", id: 1 }],
         }),
       };
-      render(<EditQueryForm {...testProps} />);
+      const { user } = render(<EditQueryForm {...testProps} />);
       let saveButton;
       let funButton;
       await waitFor(() => {
@@ -653,20 +725,24 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("Custom")).toBeChecked();
         funButton = screen.getByRole("checkbox", { name: "Fun" });
         expect(funButton).toBeChecked();
-        expect(
-          screen.getByRole("checkbox", { name: "Fresh" })
-        ).not.toBeChecked();
         saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
       });
 
-      // Unchecking the only selected label should disable the save button.
-      funButton && (await userEvent.click(funButton));
-      expect(saveButton).toBeDisabled();
-
-      // Re-checking it should enable it.
-      funButton && (await userEvent.click(funButton));
+      // Uncheck the only selected label — Save stays enabled.
+      funButton && (await user.click(funButton));
       expect(saveButton).toBeEnabled();
+
+      // Clicking Save surfaces the inline labels error and does not persist.
+      saveButton && (await user.click(saveButton));
+      expect(onUpdate).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      // Re-checking a label clears the error.
+      funButton && (await user.click(funButton));
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
     });
 
     it("should send labels when updating a query in Custom target mode", async () => {

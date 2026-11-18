@@ -1,0 +1,1 @@
+- Clarified that uploading an `.ipa` creates separate iOS and iPadOS titles that must be edited independently. The Add software page now shows a dedicated banner under the package info once an `.ipa` is selected, and the supporting tooltip on the file's iOS/iPadOS label has been removed.

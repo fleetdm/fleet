@@ -132,7 +132,7 @@ const GLOBAL_ADMIN = { isGlobalAdmin: true, isOnGlobalTeam: true };
 const FLEET_ADMIN = {
   currentUser: createMockUser({
     global_role: null,
-    teams: [{ id: 7, name: "Workstations", role: "admin" }],
+    fleets: [{ id: 7, name: "Workstations", role: "admin" }],
   }) as IUser,
 };
 

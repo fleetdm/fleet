@@ -100,19 +100,22 @@ export const StatusMessage = ({
     status || ""
   ) ? (
     <>
-      {" ("}
+      {" "}
       {activityCreatedAt ? (
-        timeAgoText
+        `(${timeAgoText})`
       ) : (
-        <TooltipWrapper
-          tipContent="Time when Fleet sent command to run script. If the host was offline, the run finished after it came online."
-          position="top"
-          showArrow
-        >
-          {timeAgoText}
-        </TooltipWrapper>
+        <span style={{ whiteSpace: "nowrap" }}>
+          {"("}
+          <TooltipWrapper
+            tipContent="Time when Fleet sent command to run script. If the host was offline, the run finished after it came online."
+            position="top"
+            showArrow
+          >
+            {timeAgoText}
+          </TooltipWrapper>
+          {")"}
+        </span>
       )}
-      {")"}
     </>
   ) : (
     ""
@@ -155,8 +158,7 @@ export const StatusMessage = ({
     <IconStatusMessage
       className={`${baseClass}__status-message`}
       iconName={
-        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-        "pending-outline"
+        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ?? "pending"
       }
       message={renderStatusCopy()}
     />

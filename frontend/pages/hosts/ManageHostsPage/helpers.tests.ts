@@ -4,7 +4,10 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 
-import { STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS } from "./helpers";
+import {
+  getHostsReportColumns,
+  STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
+} from "./helpers";
 
 describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
   const rebuild = (query: string, newTeamId: number) =>
@@ -42,5 +45,27 @@ describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
     expect(
       rebuild("?fleet_id=2&os_settings=pending", APP_CONTEXT_NO_TEAM_ID)
     ).toBe("?fleet_id=0&os_settings=pending");
+  });
+});
+
+describe("getHostsReportColumns", () => {
+  it("exports every host field a multi-field column shows", () => {
+    expect(
+      getHostsReportColumns([
+        "selection",
+        "display_name",
+        "os_version",
+        "agent",
+        "hardware_model",
+      ])
+    ).toEqual([
+      "display_name",
+      "os_name",
+      "os_version",
+      "orbit_version",
+      "osquery_version",
+      "hardware_model",
+      "hardware_marketing_name",
+    ]);
   });
 });

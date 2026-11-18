@@ -483,6 +483,8 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.errContains)
+				_, isBadRequest := errors.AsType[*fleet.BadRequestError](err)
+				require.True(t, isBadRequest, "expected a BadRequestError, got %T", err)
 			} else {
 				require.NoError(t, err)
 			}

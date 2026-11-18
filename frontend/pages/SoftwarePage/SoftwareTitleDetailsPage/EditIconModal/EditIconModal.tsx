@@ -686,7 +686,7 @@ const EditIconModal = ({
                 softwareId,
                 // Multi-package titles require `installer_id` on any edit; display_name
                 // is title-level, so target the first-added package (`software` is
-                // `software_package`, which mirrors `packages[0]`).
+                // `packages[0]`).
                 installerId: (software as ISoftwarePackage).installer_id,
                 teamId: teamIdForApi,
               })

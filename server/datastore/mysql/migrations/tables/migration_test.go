@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +43,9 @@ const (
 )
 
 var testAddress = getTestAddress()
+
+// Test helpers for migrations added after the Fleet 5 baseline.
+var _ = []any{applyUpToPrev, indexColumns}
 
 func getTestAddress() string {
 	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {
@@ -177,7 +181,6 @@ WHERE
 		{"utf8mb4_bin", "mdm_apple_dep_enrollment_challenges", "challenge", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "previous_token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "token", "utf8mb4"},
-		{"utf8mb4_bin", "mdm_apple_installers", "url_token", "utf8mb4"},
 		{"utf8mb4_bin", "password_reset_requests", "token", "utf8mb4"},
 		{"utf8mb4_bin", "sessions", "key", "utf8mb4"},
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},

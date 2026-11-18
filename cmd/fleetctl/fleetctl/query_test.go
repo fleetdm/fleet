@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"sync"
@@ -53,7 +54,7 @@ func TestSavedLiveQuery(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -216,8 +217,8 @@ func TestAdHocLiveQuery(t *testing.T) {
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-		return map[string]uint{"label1": uint(1)}, nil
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+		return map[string][]uint{"label1": {1}}, nil
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -310,6 +311,14 @@ func TestAdHocLiveQuery(t *testing.T) {
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"report", "--hosts", "1234", "--query", "select 42, * from time"}))
+
+	// Server drops the websocket after select_campaign before the report completes.
+	lq.On("StopQuery", "321").Return(nil)
+	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (*fleet.HostTargets, error) {
+		return nil, errors.New("websocket closed early")
+	}
+	_, err = runAppNoChecks([]string{"report", "--hosts", "1234", "--query", "select 42, * from time"})
+	require.ErrorContains(t, err, "live query connection closed before report completed")
 }
 
 func TestLiveQueryLabelsWithoutHosts(t *testing.T) {
@@ -344,11 +353,11 @@ func TestLiveQueryLabelsWithoutHosts(t *testing.T) {
 		gotHostIdentifiers = hostIdentifiers
 		return nil, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		gotLabelNames = names
-		return map[string]uint{"label1": 1}, nil
+		return map[string][]uint{"label1": {1}}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil

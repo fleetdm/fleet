@@ -25,12 +25,15 @@ module.exports = {
 
     // Specify an order for the testimonials on this page using the names of quote authors.
     let testimonialOrderForThisPage = [
+      'Kenny Botelho',
+      'Mason Peressini',
+      'Fiona Skelton',
+      'Shayna Waldman',
       'Justin LaBo',
       'Wes Whetstone',
       'Erik Gomez',
       'Mike Meyer',
       'Nick Fohs',
-      'Kenny Botelho',
       'Thomas Lübker',
       'Chayce O\'Neal',
       'Luis Madrigal',

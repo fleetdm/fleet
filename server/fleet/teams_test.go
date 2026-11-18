@@ -38,6 +38,30 @@ func TestValidateUserRoles(t *testing.T) {
 			license: LicenseInfo{
 				Tier: TierFree,
 			},
+			checkErr: nil,
+		},
+		{
+			name:   "global-gitops-create-not-premium-not-api-only",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(RoleGitOps),
+				APIOnly:    new(false),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrAPIOnlyRole),
+		},
+		{
+			name:   "team-gitops-create-not-premium",
+			create: true,
+			payload: UserPayload{
+				Teams:   &[]UserTeam{{Role: RoleGitOps}},
+				APIOnly: new(true),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
 			checkErr: func(err error) bool {
 				return err == ErrMissingLicense
 			},
@@ -288,9 +312,8 @@ func TestTeamMDMCopy(t *testing.T) {
 				Deadline:       optjson.SetString("2020-01-01"),
 			},
 			MacOSSetup: MacOSSetup{
-				BootstrapPackage:            optjson.SetString("bootstrap"),
 				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("assistant"),
+				ManualAgentInstall:          optjson.SetBool(true),
 			},
 		}
 		clone := tm.Copy()
@@ -302,7 +325,6 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 				EnableDiskEncryption:          optjson.SetBool(false),
 				EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
 			},
@@ -310,10 +332,6 @@ func TestTeamMDMCopy(t *testing.T) {
 		clone := tm.Copy()
 		require.NotSame(t, tm, clone)
 		require.Equal(t, tm, clone)
-		require.NotEqual(t,
-			reflect.ValueOf(tm.MacOSSettings.CustomSettings).Pointer(),
-			reflect.ValueOf(clone.MacOSSettings.CustomSettings).Pointer(),
-		)
 	})
 
 	t.Run("copy HostNameTemplate", func(t *testing.T) {
@@ -379,10 +397,6 @@ func TestTeamConfigCopy(t *testing.T) {
 				EnableHostUsers:         true,
 				EnableSoftwareInventory: true,
 				AdditionalQueries:       ptr.RawMessage([]byte(`{"query": "test"}`)),
-				DetailQueryOverrides: map[string]*string{
-					"key1": ptr.String("value1"),
-					"key2": ptr.String("value2"),
-				},
 			},
 		}
 
@@ -394,18 +408,11 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.NotSame(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 		require.Equal(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 
-		// Verify deep copy of DetailQueryOverrides map
-		require.NotEqual(t,
-			reflect.ValueOf(tc.Features.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.Features.DetailQueryOverrides).Pointer(),
-		)
-		require.Equal(t, tc.Features.DetailQueryOverrides, clone.Features.DetailQueryOverrides)
-
 		// Modify original and verify clone is unaffected
 		tc.Features.EnableHostUsers = false
-		*tc.Features.DetailQueryOverrides["key1"] = "modified"
+		(*tc.Features.AdditionalQueries)[0] = 'X'
 		require.True(t, clone.Features.EnableHostUsers)
-		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
+		require.JSONEq(t, `{"query": "test"}`, string(*clone.Features.AdditionalQueries))
 	})
 }
 

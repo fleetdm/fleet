@@ -38,14 +38,20 @@ func (ds *Datastore) GetAppStoreAppVersionsByTeamAndTitleID(ctx context.Context,
 	return ds.getAppStoreAppVersionsByTeamAndTitleID(ctx, &teamID, titleID, false)
 }
 
-func (ds *Datastore) getAppStoreAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, onlyFirstAdded bool) ([]*fleet.VPPAppStoreApp, error) {
+func (ds *Datastore) getAppStoreAppVersionsForTitles(ctx context.Context, teamID *uint, titleIDs []uint) ([]*fleet.VPPAppStoreApp, error) {
+	if len(titleIDs) == 0 {
+		return nil, nil
+	}
+
 	query := `
 SELECT
+	vap.title_id,
 	vap.adam_id,
 	vap.platform,
 	vap.name,
 	vap.latest_version,
 	vat.self_service,
+	vat.install_during_setup,
 	vat.id vpp_apps_teams_id,
 	vat.vpp_token_id,
 	vat.name version_name,
@@ -60,31 +66,42 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
-	vap.title_id = ? %s
+	vap.title_id IN (?) %s
 ORDER BY vat.id`
 
-	tmID := ptr.ValOrZero(teamID)
-
 	// when team id is not nil, we need to filter by the global or team id given.
-	args := []any{titleID}
+	args := []any{titleIDs}
 	teamFilter := ""
 	if teamID != nil {
 		args = append(args, *teamID)
 		teamFilter = "AND vat.global_or_team_id = ?"
 	}
 
-	if onlyFirstAdded {
-		query += ` LIMIT 1`
+	query, args, err := sqlx.In(fmt.Sprintf(query, teamFilter), args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get VPP app metadata query")
 	}
-
 	var versions []*fleet.VPPAppStoreApp
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, fmt.Sprintf(query, teamFilter), args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+	}
+	return versions, nil
+}
+
+func (ds *Datastore) getAppStoreAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, onlyFirstAdded bool) ([]*fleet.VPPAppStoreApp, error) {
+	versions, err := ds.getAppStoreAppVersionsForTitles(ctx, teamID, []uint{titleID})
+	if err != nil {
+		return nil, err
 	}
 	if len(versions) == 0 {
 		return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata")
 	}
+	if onlyFirstAdded {
+		versions = versions[:1]
+	}
+
+	tmID := ptr.ValOrZero(teamID)
 
 	// Read the display name, automatic install policies, and icon once since they are set per title
 	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
@@ -93,11 +110,17 @@ ORDER BY vat.id`
 	}
 
 	var policies []fleet.AutomaticInstallPolicy
+	policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 	var iconURL *string
 	if teamID != nil {
 		policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		for _, p := range policies {
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
@@ -167,7 +190,7 @@ ORDER BY vat.id`
 			app.Configuration = configuration
 		}
 
-		app.AutomaticInstallPolicies = policies
+		app.AutomaticInstallPolicies = policiesByVersionID[app.VPPAppsTeamsID]
 		if iconURL != nil {
 			app.IconURL = iconURL
 		}
@@ -288,6 +311,20 @@ attempts AS (
 	JOIN hosts h ON h.id = li.host_id
 	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
 	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
+
+	UNION ALL
+
+	-- deleting a version sets its installs' vpp_app_team_id to NULL, select them so they still supersede older installs of the remaining versions
+	SELECT
+		hvsi.host_id,
+		NULL,
+		MAX(IF(hvsi.verification_at IS NOT NULL, hvsi.id, NULL)),
+		MAX(IF(hvsi.verification_at IS NULL AND hvsi.verification_failed_at IS NOT NULL, hvsi.id, NULL)),
+		NULL
+	FROM host_vpp_software_installs hvsi
+	JOIN (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
+	WHERE hvsi.vpp_app_team_id IS NULL AND hvsi.canceled = 0 AND hvsi.removed = 0
+	GROUP BY hvsi.host_id
 ),
 
 -- keep the version with the latest install of each status on each host
@@ -322,6 +359,7 @@ FROM latest l
 LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
 WHERE
 	l.rn = 1
+	AND l.vpp_app_team_id IS NOT NULL
 	AND (l.status != :software_status_failed OR i.host_id IS NULL OR l.install_id > i.install_id)`
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
@@ -1628,7 +1666,7 @@ WHERE
 		HostID:              res.HostID,
 		HostDisplayName:     res.HostDisplayName,
 		SoftwareTitle:       res.SoftwareTitle,
-		SoftwareDisplayName: res.SoftwareDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
 		AppStoreID:          res.AppStoreID,
 		CommandUUID:         res.CommandUUID,
 		SelfService:         res.SelfService,
@@ -2291,19 +2329,6 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "upsert vpp_client_users row")
 	}
 	return nil
-}
-
-func (ds *Datastore) ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error) {
-	const stmt = `
-SELECT id, vpp_token_id, managed_apple_id, client_user_id, apple_user_id, status, created_at, updated_at
-FROM vpp_client_users
-WHERE vpp_token_id = ?
-ORDER BY id`
-	var rows []*fleet.VPPClientUser
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, tokenID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list vpp_client_users rows")
-	}
-	return rows, nil
 }
 
 func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
@@ -3173,11 +3198,8 @@ ORDER BY vat.id
 
 type appStoreAppChanges struct {
 	Any                bool
-	Categories         bool
 	Labels             bool
 	InstallDuringSetup bool
-	DisplayName        bool
-	Configuration      bool
 }
 
 // hasAppStoreAppChanged reports what changed between incomingApp and existingApp.
@@ -3244,7 +3266,7 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 
 	if !isExistingApp || existingApp.VersionName != incomingApp.VersionName || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
 		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged || autoUpdateChanged {
-		return appStoreAppChanges{true, categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged}, nil
+		return appStoreAppChanges{Any: true, Labels: labelsChanged, InstallDuringSetup: installDuringSetupChanged}, nil
 	}
 
 	return appStoreAppChanges{}, nil
@@ -3654,26 +3676,6 @@ WHERE vat.id IN (?) AND vat.configuration IS NOT NULL
 		m[c.ID] = c.Configuration
 	}
 	return m, nil
-}
-
-func (ds *Datastore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {
-	const stmt = `UPDATE vpp_apps_teams SET configuration = NULL WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, adamID, teamID, platform)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete vpp app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete vpp app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
-	}
-
-	return nil
 }
 
 func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, config []byte) error {

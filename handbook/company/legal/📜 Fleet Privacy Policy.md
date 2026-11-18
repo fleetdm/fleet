@@ -152,7 +152,6 @@ Fleet uses cookies and other tracking technologies for:
 
 Users can manage or disable cookies via their browser settings and may opt out of interest-based advertising through our Cookie Policy. Please note that Fleet's website does not currently recognize or respond to browser-initiated Do Not Track (DNT) signals.
 
-When you visit or log in to our website, cookies and similar technologies may be used by our online data partners or vendors to associate these activities with other personal information they or others have about you, including by association with your email. We (or service providers on our behalf) may then send communications and marketing to these email addresses. You may opt out of receiving this advertising by visiting [https://app.retention.com/optout](https://app.retention.com/optout).
 
 ### **Third-Party Tools and Platforms**
 

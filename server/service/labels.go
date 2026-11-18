@@ -124,7 +124,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
 		manualHostIDs = p.HostIDs
 		if len(p.Hosts) > 0 {
-			manualHostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
+			manualHostIDs, err = svc.ds.HostIDsByLabelIdentifier(ctx, filter, p.Hosts)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -285,7 +285,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	hostIDs := payload.HostIDs
 	if len(payload.Hosts) > 0 {
 		// If hosts were provided, convert them to IDs.
-		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, payload.Hosts)
+		hostIDs, err = svc.ds.HostIDsByLabelIdentifier(ctx, filter, payload.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -549,67 +549,6 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Delete Label
-////////////////////////////////////////////////////////////////////////////////
-
-func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.DeleteLabelRequest)
-	err := svc.DeleteLabel(ctx, req.Name)
-	if err != nil {
-		return fleet.DeleteLabelResponse{Err: err}, nil
-	}
-	return fleet.DeleteLabelResponse{}, nil
-}
-
-func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		svc.SkipAuth(ctx)
-		return fleet.ErrNoContext
-	}
-
-	// check if the label is a built-in label
-	if reserved, ok := fleet.IsReservedLabelName(name); ok {
-		svc.SkipAuth(ctx)
-		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
-	}
-
-	filter := fleet.TeamFilter{User: vc.User}
-
-	// need to grab the label first to see if we have permission to delete it;
-	// if the label doesn't exist global users will see the true 404, other users will get a 403
-	label, err := svc.ds.LabelByName(ctx, name, filter)
-	if err != nil {
-		if authError := svc.authz.Authorize(ctx, fleet.Label{}, fleet.ActionWrite); authError != nil {
-			return authError
-		}
-		return err
-	}
-	if err := svc.authz.Authorize(ctx, label, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	teamName, err := svc.lookupTeamName(ctx, label.TeamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "lookup team name for deleted label")
-	}
-
-	if err := svc.ds.DeleteLabel(ctx, name, filter); err != nil {
-		return err
-	}
-
-	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedLabel{
-		ID:        label.ID,
-		Name:      label.Name,
-		FleetID:   label.TeamID,
-		FleetName: teamName,
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for label deletion")
-	}
-	return nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Label By ID
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -651,7 +590,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
-	if err := svc.ds.DeleteLabel(ctx, label.Name, filter); err != nil {
+	if err := svc.ds.DeleteLabel(ctx, label.ID); err != nil {
 		return err
 	}
 
@@ -672,14 +611,14 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ApplyLabelSpecsRequest)
-	err := svc.ApplyLabelSpecs(ctx, req.Specs, req.TeamID, req.NamesToMove)
+	err := svc.ApplyLabelSpecs(ctx, req.Specs, req.TeamID, req.LabelsToMove)
 	if err != nil {
 		return fleet.ApplyLabelSpecsResponse{Err: err}, nil
 	}
 	return fleet.ApplyLabelSpecsResponse{}, nil
 }
 
-func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
+func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -695,6 +634,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	var builtInSpecs []*fleet.LabelSpec
 	var builtInSpecNames []string
 
+	// A name moving from several fleets appears once per fleet.
+	var namesToMove []string
+	for _, l := range labelsToMove {
+		if !slices.Contains(namesToMove, l.Name) {
+			namesToMove = append(namesToMove, l.Name)
+		}
+	}
 	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
 
 	for _, spec := range specs {
@@ -854,7 +800,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		beforeHostIDs[spec.Name] = ids
 	}
 
-	if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
+	if err := svc.ds.SetAsideLabels(ctx, teamID, labelsToMove, *user.User); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
 	}
 
@@ -1056,24 +1002,25 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	labels, err := svc.ds.LabelIDsByName(ctx, uniqueNames, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, teamID, authz.UserFromContext(ctx))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+		return nil, err
 	}
 
-	if len(labels) != len(uniqueNames) {
-		return nil, fleet.NewMissingLabelError(uniqueNames, labels)
+	if len(found) != len(uniqueNames) {
+		return nil, fleet.NewMissingLabelError(uniqueNames, found)
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
+	scoped, err := loadLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
-	byName := make(map[string]fleet.LabelIdent, len(labels))
-	for labelName, labelID := range labels {
+	byName := make(map[string]fleet.LabelIdent, len(scoped))
+	for labelName, label := range scoped {
 		byName[labelName] = fleet.LabelIdent{
 			LabelName: labelName,
-			LabelID:   labelID,
+			LabelID:   label.ID,
 		}
 	}
 	return byName, nil

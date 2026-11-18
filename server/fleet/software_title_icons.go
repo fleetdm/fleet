@@ -21,12 +21,9 @@ type UploadSoftwareTitleIconPayload struct {
 }
 
 type SoftwareTitleIcon struct {
-	// TeamID is the team (or no team if 0) the icon is associated with. Note that
-	// it MUST have the JSON tag to serialize as `team_id` so that the rego policies
-	// can properly check team ownership (rego marshals the struct to JSON to pass it to
-	// the rego policies script). This struct is never marshalled directly to JSON in
-	// API responses at this time so it doesn't affect anything else.
-	TeamID          uint   `db:"team_id" json:"team_id"` //nolint:apiparamcheck // TODO -- rename when authz code switches to using `fleet_id` instead of `team_id`
+	// TeamID is the fleet (or no fleet if 0) the icon is associated with. It MUST have the JSON tag `fleet_id` so that the rego policies
+	// can check fleet ownership (rego reads the struct through its JSON). This struct is never marshalled directly in API responses.
+	TeamID          uint   `db:"team_id" json:"fleet_id"`
 	SoftwareTitleID uint   `db:"software_title_id"`
 	StorageID       string `db:"storage_id"`
 	Filename        string `db:"filename"`

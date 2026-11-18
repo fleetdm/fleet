@@ -70,7 +70,7 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, additional_queries, detail_query_overrides)
+// fields (enable_host_users, additional_queries)
 // remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
 	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
@@ -94,7 +94,7 @@ type HistoricalDataPayload struct {
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
 	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -108,16 +108,23 @@ type TeamPayloadMDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
-	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
-	HostNameTemplate optjson.String `json:"name_template"`
+	MacOSSetup       *TeamPayloadMacOSSetup `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
+	HostNameTemplate optjson.String         `json:"name_template"`
 
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
 	MacOSSettings *TeamPayloadMacOSSettings `json:"macos_settings" renameto:"apple_settings"`
-	// WindowsSettings exposes only the managed local account and disk encryption surfaces
+	// WindowsSettings exposes only the disk encryption surfaces
 	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
 	LinuxSettings   *TeamPayloadLinuxSettings   `json:"linux_settings"`
+}
+
+// TeamPayloadMacOSSetup is setup_experience on the team PATCH endpoint. EnableEndUserAuthentication shadows the plain
+// bool of MacOSSetup, so a PATCH that leaves it out keeps the stored value.
+type TeamPayloadMacOSSetup struct {
+	MacOSSetup
+	EnableEndUserAuthentication optjson.Bool `json:"enable_end_user_authentication"`
 }
 
 // TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields
@@ -129,7 +136,8 @@ type TeamPayloadMacOSSettings struct {
 
 // TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
 type TeamPayloadWindowsSettings struct {
-	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
+	// Fleet 5 moved the managed local account setting to setup_experience.
+	_ struct{} `json:"-" removedkey:"enable_managed_local_account" renamescope:"windows_settings"`
 	// RequireBitLockerPIN is the canonical home of the deprecated top-level
 	// windows_require_bitlocker_pin key.
 	RequireBitLockerPIN  optjson.Bool `json:"require_bitlocker_pin"`
@@ -234,6 +242,9 @@ func (t Team) MarshalJSON() ([]byte, error) {
 	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
+	}
 
 	return json.Marshal(x)
 }
@@ -286,9 +297,8 @@ type TeamConfig struct {
 	Integrations       TeamIntegrations    `json:"integrations"`
 	MDM                TeamMDM             `json:"mdm"`
 	// the below aren't serialized as-is into config JSON column in the teams table
-	Features Features              `json:"features"`
-	Scripts  optjson.Slice[string] `json:"scripts,omitempty"`
-	Software *SoftwareSpec         `json:"software,omitempty"`
+	Features Features      `json:"features"`
+	Software *SoftwareSpec `json:"software,omitempty"`
 }
 
 func (t TeamConfig) ToLite() TeamConfigLite {
@@ -503,14 +513,14 @@ func (spec TeamSpecAppStoreApp) ListVersions() []TeamSpecAppStoreAppVersion {
 
 type TeamMDM struct {
 	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword bool                  `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
 	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup                 MacOSSetup            `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -555,8 +565,8 @@ func (t TeamMDM) MarshalJSON() ([]byte, error) {
 	} else {
 		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
 	}
-	if !t.WindowsSettings.EnableManagedLocalAccount.Valid {
-		t.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	if !t.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		t.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 	// the alias type has no methods, so marshaling it avoids infinite recursion
 	type alias TeamMDM
@@ -623,26 +633,6 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 
-	if t.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(t.MacOSSettings.CustomSettings))
-		for i, mps := range t.MacOSSettings.CustomSettings {
-			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
-		}
-	}
-	if t.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
-		for i, mps := range t.WindowsSettings.CustomSettings.Value {
-			windowsSettings[i] = *mps.Copy()
-		}
-		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
-	}
-	if t.AndroidSettings.CustomSettings.Set {
-		androidSettings := make([]MDMProfileSpec, len(t.AndroidSettings.CustomSettings.Value))
-		for i, mps := range t.AndroidSettings.CustomSettings.Value {
-			androidSettings[i] = *mps.Copy()
-		}
-		clone.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
-	}
 	if t.MacOSSetup.Software.Set {
 		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
 		for i, s := range t.MacOSSetup.Software.Value {
@@ -656,7 +646,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 type TeamSpecMDM struct {
 	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -671,12 +661,10 @@ type TeamSpecMDM struct {
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	// A map is used for the macos settings so that we can easily detect if its
-	// sub-keys were provided or not in an "apply" call. E.g. if the
-	// custom_settings key is specified but empty, then we need to clear the
-	// value, but if it isn't provided, we need to leave the existing value
-	// unmodified.
+	// sub-keys were provided or not in an "apply" call, and leave the existing
+	// value unmodified when they aren't.
 	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup    MacOSSetupSpec `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -716,6 +704,9 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !t.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		t.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
@@ -754,11 +745,10 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	// Deep copy Features
 	clone.Features = *t.Features.Copy()
 
-	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
+	// Deep copy all MDM fields (includes setup software)
 	clone.MDM = *t.MDM.Copy()
 
-	// Do not copy script and software since they will not be stored/cached in the database.
-	clone.Scripts = optjson.Slice[string]{}
+	// Do not copy software since it will not be stored/cached in the database.
 	clone.Software = nil
 
 	return &clone
@@ -820,7 +810,6 @@ var globalRoles = map[string]struct{}{
 var premiumGlobalRoles = map[string]struct{}{
 	RoleTechnician:   {},
 	RoleObserverPlus: {},
-	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
@@ -962,7 +951,6 @@ type TeamSpec struct {
 	Secrets            *[]EnrollSecret         `json:"secrets,omitempty"`
 	Features           *json.RawMessage        `json:"features"`
 	MDM                TeamSpecMDM             `json:"mdm"`
-	Scripts            optjson.Slice[string]   `json:"scripts"`
 	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
 	Integrations       TeamSpecIntegrations    `json:"integrations"`
 	Software           *SoftwareSpec           `json:"software,omitempty"`
@@ -985,6 +973,7 @@ type TeamSpecIntegrations struct {
 
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
+	// Keeps the Fleet 4 name: only fleetctl's GitOps dry run sends it, and it is never stored or returned.
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
 	EnableProfileValidation     optjson.Bool `json:"enable_profile_validation,omitzero"`
@@ -1028,7 +1017,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	// assets are only present in ToMap for GitOps request validation; they are
 	// not stored on the team config, so keep them out of the generated spec.
 	delete(mdmSpec.MacOSSettings, "assets")
-	mdmSpec.MacOSSetup = mdm.MacOSSetup
+	mdmSpec.MacOSSetup = MacOSSetupSpec{MacOSSetup: mdm.MacOSSetup}
 	// emit the deprecated flat toggle only when it agrees with every
 	// per-platform setting: the flat toggle wins when provided, so emitting it
 	// for a mixed state would reset the per-platform values on re-apply.
@@ -1074,7 +1063,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
 		Integrations:       integrations,
-		Scripts:            t.Config.Scripts,
 		Software:           t.Config.Software,
 	}, nil
 }

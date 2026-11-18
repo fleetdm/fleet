@@ -600,7 +600,7 @@ const ActivityFeed = ({
           command={mdmCommandActivityDetails}
           contentBody={(cls, result) => {
             const isDeleted = result.status === "Deleted";
-            const isPending = getIconName(result.status) === "pending-outline";
+            const isPending = getIconName(result.status) === "pending";
             const cmdDisplayName = getMdmCommandDisplayName(
               isDeleted
                 ? mdmCommandActivityDetails.request_type
@@ -626,7 +626,7 @@ const ActivityFeed = ({
                 <>
                   <IconStatusMessage
                     className={`${cls}__status-message`}
-                    iconName="info-outline"
+                    iconName="info"
                     message={
                       <span>
                         {actorText && <b>{actorText}</b>}

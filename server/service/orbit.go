@@ -510,11 +510,13 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 		fleet.WithEnrollOrbitCreated(&hostCreated),
 		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
 		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
 			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
+			svc.maybeResendAndroidAgentEnrollSecret(ctx, appConfig, rejected)
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
 		recordErrorDetail(ctx, err)
@@ -893,7 +895,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the (active, ready to execute) pending script executions for that host
-	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}
@@ -958,6 +960,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if svc.config.WebSocket.OsqueryConfigEnabled && !onboarding {
 			wsTransport.OsqueryConfigPollInterval = new(int(svc.config.WebSocket.OsqueryConfigPollInterval.Seconds()))
 		}
+	}
+
+	entraDeviceTokenReq, err := svc.entraDeviceTokenRequest(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -1028,13 +1035,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-			Flags:              mergedFlags,
-			Extensions:         extensionsFiltered,
-			Notifications:      notifs,
-			UpdateChannels:     updateChannels,
-			DebugLogging:       debugLogging,
-			WebSocketTransport: wsTransport,
+			ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+			Flags:                   mergedFlags,
+			Extensions:              extensionsFiltered,
+			Notifications:           notifs,
+			UpdateChannels:          updateChannels,
+			DebugLogging:            debugLogging,
+			WebSocketTransport:      wsTransport,
+			EntraDeviceTokenRequest: entraDeviceTokenReq,
 		}, nil
 	}
 
@@ -1084,20 +1092,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-		Flags:              mergedFlags,
-		Extensions:         extensionsFiltered,
-		Notifications:      notifs,
-		UpdateChannels:     updateChannels,
-		DebugLogging:       debugLogging,
-		WebSocketTransport: wsTransport,
+		ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+		Flags:                   mergedFlags,
+		Extensions:              extensionsFiltered,
+		Notifications:           notifs,
+		UpdateChannels:          updateChannels,
+		DebugLogging:            debugLogging,
+		WebSocketTransport:      wsTransport,
+		EntraDeviceTokenRequest: entraDeviceTokenReq,
 	}, nil
 }
 
 // windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled for the host's team.
 func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (bool, error) {
 	if host.TeamID == nil {
-		return appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
+		return appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, nil
 	}
 	teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 	if err != nil {
@@ -1106,7 +1115,7 @@ func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host 
 	if teamMDM == nil {
 		return false, nil
 	}
-	return teamMDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
+	return teamMDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
@@ -1600,7 +1609,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       softwareTitleName,
-					SoftwareDisplayName: softwareDisplayName,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 					ExecutionID:         hsr.ExecutionID,
 					Status:              activityStatus,
 					SelfService:         selfService,
@@ -2494,7 +2503,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostID:               host.ID,
 				HostDisplayName:      host.DisplayName(),
 				SoftwareTitle:        hsi.SoftwareTitle,
-				SoftwareDisplayName:  softwareDisplayName,
+				SoftwareDisplayName:  ptr.ValOrZero(softwareDisplayName),
 				SoftwarePackage:      hsi.SoftwarePackage,
 				HashSHA256:           hsi.HashSHA256,
 				InstallUUID:          result.InstallUUID,

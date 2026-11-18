@@ -98,7 +98,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore = opts[0].KeyValueStore
 	}
 
-	task := async.NewTask(ds, nil, c, nil)
+	task := async.NewTask(ds, false)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
 			task = opts[0].Task

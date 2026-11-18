@@ -3,8 +3,8 @@
     {
       "version": "0.85.0.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham' AND version_compare(version, '0.85.0.0') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'PuTTY release % (64-bit)' AND publisher = 'Simon Tatham';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PuTTY release % (64-bit)' AND publisher = 'Simon Tatham' AND version_compare(version, '0.85.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'putty.exe');"
       },
       "installer_url": "https://the.earth.li/~sgtatham/putty/0.85/w64/putty-64bit-0.85-installer.msi",

@@ -73,14 +73,6 @@ type VPPAppTeam struct {
 	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
 }
 
-func (v VPPAppTeam) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPAppTeam) GetAppStoreID() string {
-	return v.AdamID
-}
-
 // VPPApp represents a VPP (Volume Purchase Program) application,
 // this is used by Apple MDM to manage applications via Apple
 // Business Manager.
@@ -104,7 +96,7 @@ type VPPApp struct {
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.
-	TeamID  *uint `db:"-" json:"team_id,omitempty" renameto:"fleet_id"`
+	TeamID  *uint `db:"-" json:"fleet_id,omitempty"`
 	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
@@ -120,21 +112,23 @@ func (v *VPPApp) AuthzType() string {
 // endpoint to represent an App Store app (VPP app).
 type VPPAppStoreApp struct {
 	VPPAppID
-	Name          string               `db:"name" json:"name"`
-	LatestVersion string               `db:"latest_version" json:"latest_version"`
+	Name          string               `db:"name" json:"-"`
+	LatestVersion string               `db:"latest_version" json:"version"`
 	IconURL       *string              `db:"icon_url" json:"-"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 	SelfService   bool                 `db:"self_service" json:"self_service"`
-	// only filled by GetVPPAppMetadataByTeamAndTitleID
-	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
+	// VPPAppsTeamsID is the id of this App Store app version on the fleet.
+	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"id"`
 	// VPPTokenID is the token the app was added from on this fleet. Nil for Google Play apps.
 	VPPTokenID *uint            `db:"vpp_token_id" json:"-"`
 	VPPToken   *VPPTokenSummary `db:"-" json:"vpp_token"`
 
-	VersionName         string  `db:"version_name" json:"-"`
-	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
-	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"-"`
-	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
+	VersionName         string  `db:"version_name" json:"name"`
+	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"auto_update_enabled"`
+	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"auto_update_window_start"`
+	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"auto_update_window_end"`
+	InstallDuringSetup  *bool   `db:"install_during_setup" json:"-"`
+	TitleID             uint    `db:"title_id" json:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -170,49 +164,15 @@ const (
 	MaxAppStoreAppVersionNameLength = 255
 )
 
-// AppStoreAppVersion is one version of an App Store app on a fleet, as returned in the app_store_apps list of a software title.
-type AppStoreAppVersion struct {
+type AppStoreAppListItem struct {
 	ID                       uint                      `json:"id"`
 	Name                     string                    `json:"name"`
 	AppStoreID               string                    `json:"app_store_id"`
 	Platform                 InstallableDevicePlatform `json:"platform"`
 	Version                  string                    `json:"version"`
-	Status                   *VPPAppStatusSummary      `json:"status"`
 	SelfService              bool                      `json:"self_service"`
 	AutomaticInstallPolicies []AutomaticInstallPolicy  `json:"automatic_install_policies"`
-	LabelsIncludeAny         []SoftwareScopeLabel      `json:"labels_include_any"`
-	LabelsExcludeAny         []SoftwareScopeLabel      `json:"labels_exclude_any"`
-	LabelsIncludeAll         []SoftwareScopeLabel      `json:"labels_include_all"`
-	AutoUpdateEnabled        *bool                     `json:"auto_update_enabled"`
-	AutoUpdateStartTime      *string                   `json:"auto_update_window_start"`
-	AutoUpdateEndTime        *string                   `json:"auto_update_window_end"`
-	AddedAt                  time.Time                 `json:"created_at"`
-	Categories               []string                  `json:"categories"`
-	DisplayName              string                    `json:"display_name"`
-	Configuration            json.RawMessage           `json:"configuration,omitempty"`
-}
-
-func (v *VPPAppStoreApp) AppStoreAppVersion() AppStoreAppVersion {
-	return AppStoreAppVersion{
-		ID:                       v.VPPAppsTeamsID,
-		Name:                     v.VersionName,
-		AppStoreID:               v.AdamID,
-		Platform:                 v.Platform,
-		Version:                  v.LatestVersion,
-		Status:                   v.Status,
-		SelfService:              v.SelfService,
-		AutomaticInstallPolicies: v.AutomaticInstallPolicies,
-		LabelsIncludeAny:         v.LabelsIncludeAny,
-		LabelsExcludeAny:         v.LabelsExcludeAny,
-		LabelsIncludeAll:         v.LabelsIncludeAll,
-		AutoUpdateEnabled:        v.AutoUpdateEnabled,
-		AutoUpdateStartTime:      v.AutoUpdateStartTime,
-		AutoUpdateEndTime:        v.AutoUpdateEndTime,
-		AddedAt:                  v.AddedAt,
-		Categories:               v.Categories,
-		DisplayName:              v.DisplayName,
-		Configuration:            v.Configuration,
-	}
+	InstallDuringSetup       *bool                     `json:"install_during_setup,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
@@ -296,8 +256,6 @@ const (
 )
 
 const (
-	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
-	DefaultVPPVerifyRequestDelay   = 5 * time.Second
 	// Time to wait between auto-update or configuration resend attempts (1 hour)
 	VPPAutomaticInstallWaitSeconds = 3600
 	MaxVPPAutomaticInstallRetries  = 2
@@ -356,7 +314,6 @@ var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostPlatform,
-	FleetVarHostEndUserEmailIDP,
 	FleetVarHostEndUserIDPUsername,
 	FleetVarHostEndUserIDPUsernameLocalPart,
 	FleetVarHostEndUserIDPGroups,
@@ -390,15 +347,26 @@ func ValidateAppleAppConfiguration(config []byte) error {
 	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
 	// siblings) invisible to the decoded tree. The decoded-tree walk below
 	// catches XML-entity-encoded tokens the regex won't match.
-	for _, name := range variables.Find(string(config)) {
+	rawVars := variables.Find(string(config))
+	if err := FindRemovedFleetVariable(rawVars...); err != nil {
+		return err
+	}
+	for _, name := range rawVars {
 		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
-			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+			return unsupportedAppleAppConfigVarError(name)
 		}
 	}
 	if name, ok := findUnsupportedFleetVar(root); ok {
-		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+		return unsupportedAppleAppConfigVarError(name)
 	}
 	return nil
+}
+
+func unsupportedAppleAppConfigVarError(name string) error {
+	if err := FindRemovedFleetVariable(name); err != nil {
+		return err
+	}
+	return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
 }
 
 // findUnsupportedFleetVar walks v's keys and string values and returns the

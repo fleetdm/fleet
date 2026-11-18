@@ -1,6 +1,15 @@
 [
   {
     "software": {
+      "bundle_identifier": ["com.linear"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["codex"],
       "source": ["homebrew_packages"]
     },

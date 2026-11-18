@@ -24,7 +24,6 @@ import (
 
 var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"profile_uuid": "profile_uuid",
-	"team_id":      "team_id",
 	"fleet_id":     "team_id",
 	"name":         "name",
 	"platform":     "platform",
@@ -148,7 +147,7 @@ WHERE TRUE
 }
 
 // mdmCommandsOrderAllowlist is the closed set of order_key values accepted
-// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands.
+// by GET /api/v1/fleet/commands.
 var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"host_uuid":    "host_uuid",
 	"command_uuid": "command_uuid",

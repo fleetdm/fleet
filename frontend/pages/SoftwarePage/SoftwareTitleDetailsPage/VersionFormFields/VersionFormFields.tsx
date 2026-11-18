@@ -1,4 +1,5 @@
 import React from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
@@ -248,6 +249,30 @@ const VersionFormFields = ({
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
 
+  const configFieldProps = getTextFieldProps("configuration");
+
+  // 3s pause after the last keystroke surfaces the configuration error
+  // without flashing mid-edit, matching the SQL editor's behavior. Blur and
+  // submit still validate immediately via useFormValidation.
+  const debounceValidateConfig = useDebouncedCallback(() => {
+    configFieldProps.onBlur();
+  }, 3000);
+
+  const onChangeConfiguration = (value: string) => {
+    configFieldProps.onChange(value);
+    // Clear any existing error immediately; the 3s debounce re-adds it if
+    // the content is still invalid once the user stops typing.
+    configFieldProps.onFocus();
+    debounceValidateConfig();
+  };
+
+  const onBlurConfiguration = () => {
+    // Blur-time validation runs now; drop the pending debounced copy so it
+    // can't fire after the user refocuses and clears the error.
+    debounceValidateConfig.cancel();
+    configFieldProps.onBlur();
+  };
+
   const onSelectCategory = ({
     name,
     value,
@@ -301,7 +326,9 @@ const VersionFormFields = ({
       />
 
       <Editor
-        {...getTextFieldProps("configuration")}
+        {...configFieldProps}
+        onChange={onChangeConfiguration}
+        onBlur={onBlurConfiguration}
         label="Configuration"
         mode={editorMode}
         helpText={configHelpText}
@@ -382,7 +409,7 @@ const VersionFormFields = ({
         error={getError("labelTargets")}
         disableOptions={disabled}
         labelInfoBanner={
-          <InfoBanner icon="info-outline">
+          <InfoBanner icon="info">
             If multiple versions target the same host, Fleet will deploy the one
             that was added first.
           </InfoBanner>

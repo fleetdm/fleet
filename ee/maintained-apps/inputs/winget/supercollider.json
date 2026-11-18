@@ -3,6 +3,8 @@
   "slug": "supercollider/windows",
   "package_identifier": "SuperCollider.SuperCollider",
   "unique_identifier": "SuperCollider",
+  "open_process_names": ["scide.exe", "sclang.exe", "scsynth.exe", "supernova.exe"],
+  "fuzzy_match_name": "SuperCollider Version %",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

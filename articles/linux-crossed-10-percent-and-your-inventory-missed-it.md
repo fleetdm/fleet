@@ -11,7 +11,7 @@
 - **Linux needs real management, not an inventory row.** Fleet managed Linux with the same breadth and depth as macOS and Windows including software installs, disk encryption with escrowed recovery keys, vulnerability detection against installed packages and kernels, remote script execution, and remote lock and wipe.
 - **Cross-platform means one workflow, not three consoles.** The same reports, the same policies, and the same Git-reviewed configuration covers Linux, macOS, and Windows, so Linux stops being the exception you handle by yet another tool.
 
-<a purpose="cta-button" href="https://fleetdm.com/linux-management">See Linux management in Fleet</a>
+<a purpose="cta-button" href="https://fleetdm.com/linux">See Linux management in Fleet</a>
 
 In July 2026, Statcounter recorded Linux at [10.65% of desktop traffic in North America](https://linuxiac.com/linux-desktop-market-share-surpasses-10-in-north-america/), the first time the region has shown double digits. Globally, Linux moved from 4.39% in June to 7.53% in July. Those are big numbers, and they arrived in a single month.
 

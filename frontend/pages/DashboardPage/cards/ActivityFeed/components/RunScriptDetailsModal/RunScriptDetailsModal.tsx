@@ -29,7 +29,7 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 const StatusMessageRunning = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="pending-outline"
+    iconName="pending"
     message="Script is running or will run when the host comes online."
   />
 );
@@ -37,7 +37,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="success-outline"
+    iconName="success"
     message="Exit code: 0 (Script ran successfully.)"
   />
 );
@@ -45,7 +45,7 @@ const StatusMessageSuccess = () => (
 const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="error-outline"
+    iconName="error"
     message={`Exit code: ${exitCode} (Script failed.)`}
   />
 );
@@ -53,7 +53,7 @@ const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
 const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="error-outline"
+    iconName="error"
     message={<>Error: {message}</>}
   />
 );

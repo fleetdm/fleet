@@ -740,6 +740,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if p.ScriptID.Set && p.ScriptID.Valid && p.ScriptID.Value != 0 && teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", errPolicyAllFleetsForScripts),
+		})
+	}
+
 	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -1060,8 +1066,8 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 		}
 		return nil, nil, ctxerr.Wrap(ctx, err, "software title by id")
 	}
-	if softwareTitle.AppStoreApp != nil {
-		if softwareTitle.AppStoreApp.Platform != fleet.MacOSPlatform {
+	if len(softwareTitle.AppStoreApps) > 0 {
+		if softwareTitle.AppStoreApps[0].Platform != fleet.MacOSPlatform {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf(
 					"Software title with ID %d on team ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
@@ -1071,15 +1077,15 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 			})
 		}
 
-		return nil, &softwareTitle.AppStoreApp.VPPAppsTeamsID, nil
+		return nil, &softwareTitle.AppStoreApps[0].VPPAppsTeamsID, nil
 	}
-	if softwareTitle.SoftwarePackage == nil {
+	if len(softwareTitle.Packages) == 0 {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Software title with ID %d on team ID %d does not have an associated package", *softwareTitleID, *teamID),
 		})
 	}
 
-	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
+	// At this point we assume *softwareTitle.Packages[0].TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
-	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil, nil
+	return new(softwareTitle.Packages[0].InstallerID), nil, nil
 }

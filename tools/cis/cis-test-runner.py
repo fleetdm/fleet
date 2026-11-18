@@ -658,14 +658,11 @@ def create_fleet_team(
     fleet_url: str, token: str, fleetctl: str, team_name: str, enroll_secret: str
 ) -> FleetTeam:
     """Create a Fleet team via fleetctl apply and return the team info."""
-    # Note: "kind: fleet" / "spec.fleet" is the new naming but silently
-    # fails to create teams as of fleetctl v4.x. Use the deprecated
-    # "kind: team" / "spec.team" which actually works.
     team_yaml = {
         "apiVersion": "v1",
-        "kind": "team",
+        "kind": "fleet",
         "spec": {
-            "team": {
+            "fleet": {
                 "name": team_name,
                 "secrets": [{"secret": enroll_secret}],
             }
@@ -688,8 +685,8 @@ def create_fleet_team(
     # Get team ID. Try --name filter first, fall back to scanning all.
     team_id = 0
     for get_cmd in [
-        [fleetctl, "get", "teams", "--json", "--name", team_name],
-        [fleetctl, "get", "teams", "--json"],
+        [fleetctl, "get", "fleets", "--json", "--name", team_name],
+        [fleetctl, "get", "fleets", "--json"],
     ]:
         result = run_cmd(get_cmd, check=False)
         if result.returncode != 0 or not result.stdout:
@@ -703,7 +700,7 @@ def create_fleet_team(
             except json.JSONDecodeError:
                 continue
             spec = team_data.get("spec", {})
-            team_obj = spec.get("fleet") or spec.get("team") or {}
+            team_obj = spec.get("fleet") or {}
             if team_obj.get("name") == team_name:
                 team_id = team_obj.get("id", 0)
                 break
@@ -747,9 +744,9 @@ def push_profiles_to_team(
 
     team_yaml = {
         "apiVersion": "v1",
-        "kind": "team",
+        "kind": "fleet",
         "spec": {
-            "team": {
+            "fleet": {
                 "name": team_name,
                 "mdm": {
                     "macos_settings": {
@@ -778,7 +775,7 @@ def delete_fleet_team(fleet_url: str, token: str, team_id: int) -> None:
     """Delete a Fleet team and all its associated data."""
     log(f"Deleting Fleet team ID {team_id}")
     try:
-        fleet_api(fleet_url, token, "DELETE", f"/api/v1/fleet/teams/{team_id}")
+        fleet_api(fleet_url, token, "DELETE", f"/api/v1/fleet/fleets/{team_id}")
     except HTTPError:
         log_error(f"Failed to delete team {team_id}")
 
@@ -801,7 +798,7 @@ def transfer_host_to_team(
         fleet_api(
             fleet_url, token, "POST",
             "/api/v1/fleet/hosts/transfer",
-            body={"team_id": team_id, "hosts": [host_id]},
+            body={"fleet_id": team_id, "hosts": [host_id]},
         )
     except HTTPError as e:
         log_error(f"Failed to transfer host {host_id} to team {team_id}: {e}")
@@ -831,8 +828,8 @@ def get_host_by_hostname(
 
 
 def build_fleet_pkg(fleet_url: str, enroll_secret: str, fleetctl: str) -> Path:
-    """Build a fleet-osquery.pkg using fleetctl."""
-    pkg_path = Path("fleet-osquery.pkg")
+    """Build a fleetd .pkg using fleetctl."""
+    pkg_path = Path("fleet-macos.pkg")
     if pkg_path.exists():
         pkg_path.unlink()
 
@@ -845,10 +842,11 @@ def build_fleet_pkg(fleet_url: str, enroll_secret: str, fleetctl: str) -> Path:
         "--disable-open-folder",
         f"--fleet-url={fleet_url}",
         f"--enroll-secret={enroll_secret}",
+        f"--outfile={pkg_path}",
     ], timeout=300)
 
     if not pkg_path.exists():
-        raise RuntimeError("fleetctl package did not produce fleet-osquery.pkg")
+        raise RuntimeError(f"fleetctl package did not produce {pkg_path}")
 
     log(f"Package built: {pkg_path}")
     return pkg_path
@@ -947,12 +945,12 @@ def delete_vm(name: str) -> None:
 def install_agent(ip: str, pkg_path: Path) -> None:
     """Copy and install the fleet agent on the VM."""
     log("Copying agent package to VM...")
-    scp_to_vm(ip, pkg_path, "fleet-osquery.pkg")
+    scp_to_vm(ip, pkg_path, "fleet-macos.pkg")
 
     log("Installing agent...")
     result = ssh(
         ip,
-        f"echo {VM_PASS} | sudo -S installer -pkg fleet-osquery.pkg -target /",
+        f"echo {VM_PASS} | sudo -S installer -pkg fleet-macos.pkg -target /",
         timeout=120,
     )
     if result.returncode != 0:
@@ -1696,7 +1694,7 @@ Examples:
         "--pkg-path",
         metavar="PATH",
         help=(
-            "Path to a pre-built fleet-osquery.pkg. If provided, "
+            "Path to a pre-built fleetd .pkg. If provided, "
             "skips building a new package. WARNING: the pre-built "
             "package contains a baked-in enroll secret that may not "
             "match the test team this tool creates. The VM may enroll "
@@ -2102,7 +2100,7 @@ def main() -> int:
         if team.host_id and team.team_id:
             host_info = get_host_by_hostname(fleet_url, fleet_token, hostname)
             if host_info:
-                host_team_id = host_info.get("team_id") or host_info.get("fleet_id")
+                host_team_id = host_info.get("fleet_id")
                 if host_team_id == team.team_id:
                     log(f"Host is in the correct team (ID: {team.team_id})")
                 else:

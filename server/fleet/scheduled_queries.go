@@ -1,9 +1,6 @@
 package fleet
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -52,71 +49,18 @@ type ScheduledQuery struct {
 	Denylist *bool `json:"denylist"`
 
 	AggregatedStats `json:"stats,omitempty"`
-
-	/////////////////////////////////////////////////////////////////
-	// WARNING: If you add to this struct make sure it's taken into
-	// account in the ScheduledQuery Clone implementation!
-	/////////////////////////////////////////////////////////////////
 }
 
-// Clone implements cloner for ScheduledQuery.
-func (q *ScheduledQuery) Clone() (Cloner, error) {
-	return q.Copy(), nil
-}
-
-// Copy returns a deep copy of the ScheduledQuery.
-func (q *ScheduledQuery) Copy() *ScheduledQuery {
-	if q == nil {
-		return nil
-	}
-
-	clone := *q
-
-	if q.Snapshot != nil {
-		clone.Snapshot = ptr.Bool(*q.Snapshot)
-	}
-	if q.Removed != nil {
-		clone.Removed = ptr.Bool(*q.Removed)
-	}
-	if q.Platform != nil {
-		clone.Platform = ptr.String(*q.Platform)
-	}
-	if q.Version != nil {
-		clone.Version = ptr.String(*q.Version)
-	}
-	if q.Shard != nil {
-		clone.Shard = ptr.Uint(*q.Shard)
-	}
-	if q.Denylist != nil {
-		clone.Denylist = ptr.Bool(*q.Denylist)
-	}
-
-	if q.AggregatedStats.SystemTimeP50 != nil {
-		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
-	}
-	if q.AggregatedStats.SystemTimeP95 != nil {
-		clone.AggregatedStats.SystemTimeP95 = ptr.Float64(*q.AggregatedStats.SystemTimeP95)
-	}
-	if q.AggregatedStats.UserTimeP50 != nil {
-		clone.AggregatedStats.UserTimeP50 = ptr.Float64(*q.AggregatedStats.UserTimeP50)
-	}
-	if q.AggregatedStats.UserTimeP95 != nil {
-		clone.AggregatedStats.UserTimeP95 = ptr.Float64(*q.AggregatedStats.UserTimeP95)
-	}
-	if q.AggregatedStats.TotalExecutions != nil {
-		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
-	}
-	return &clone
-}
-
-type ScheduledQueryList []*ScheduledQuery
-
-func (sql ScheduledQueryList) Clone() (Cloner, error) {
-	var cloned ScheduledQueryList
-	for _, sq := range sql {
-		cloned = append(cloned, sq.Copy())
-	}
-	return cloned, nil
+// PackStats holds a host's report performance stats, grouped by the osquery
+// pack name Fleet uses to deliver reports ("Global" or "team-$ID").
+type PackStats struct {
+	PackID   uint   `json:"pack_id"`
+	PackName string `json:"pack_name"`
+	// Type indicates the type of the pack:
+	//	- "global" is the type of the global pack.
+	//	- "team-$ID" is returned for team packs.
+	Type       string                `json:"type"`
+	QueryStats []ScheduledQueryStats `json:"query_stats" renameto:"report_stats"`
 }
 
 type AggregatedStats struct {
@@ -166,24 +110,6 @@ type ScheduledQueryStats struct {
 	WallTime uint64 `json:"wall_time" db:"wall_time"`
 	// WallTimeMs should always be hidden (0-value) in the Fleet API response since it does not map to a field in the DB.
 	WallTimeMs uint64 `json:"wall_time_ms,omitempty"`
-}
-
-// TeamID returns the team id if the stat is for a team query stat result
-func (sqs *ScheduledQueryStats) TeamID() (*int, error) {
-	if strings.HasPrefix(sqs.PackName, "team-") {
-		teamIDParts := strings.Split(sqs.PackName, "-")
-		if len(teamIDParts) != 2 {
-			return nil, fmt.Errorf("invalid pack name: %s", sqs.PackName)
-		}
-
-		teamID, err := strconv.Atoi(teamIDParts[1])
-		if err != nil {
-			return nil, err
-		}
-		return &teamID, nil
-	}
-
-	return nil, nil
 }
 
 func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {

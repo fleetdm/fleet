@@ -3,6 +3,7 @@
   "slug": "jetbrains-toolbox/windows",
   "package_identifier": "JetBrains.Toolbox",
   "unique_identifier": "JetBrains Toolbox",
+  "open_process_names": ["toolbox.exe", "jetbrains-toolbox.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/jetbrains_toolbox_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/jetbrains_toolbox_uninstall.ps1",
   "installer_arch": "x64",

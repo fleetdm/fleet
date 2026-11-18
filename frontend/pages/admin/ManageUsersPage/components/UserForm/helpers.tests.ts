@@ -15,7 +15,7 @@ const VALID: UserFormState = {
   sso_enabled: false,
   mfa_enabled: false,
   global_role: "observer",
-  teams: [],
+  fleets: [],
 };
 
 const NEW_USER_CONTEXT: IUserFormValidationContext = {
@@ -148,28 +148,28 @@ describe("validateUserForm", () => {
     it("requires at least one fleet for a non-global user", () => {
       expect(
         validateUserForm(
-          { ...VALID, global_role: null, teams: [] },
+          { ...VALID, global_role: null, fleets: [] },
           NEW_USER_CONTEXT
-        ).teams
+        ).fleets
       ).toBe("Select at least one fleet");
     });
 
     it("accepts a non-global user with a fleet", () => {
       const errors = validateUserForm(
-        { ...VALID, global_role: null, teams: [createMockTeam({ id: 1 })] },
+        { ...VALID, global_role: null, fleets: [createMockTeam({ id: 1 })] },
         NEW_USER_CONTEXT
       );
 
-      expect(errors.teams).toBeUndefined();
+      expect(errors.fleets).toBeUndefined();
     });
 
     it("does not apply on free tier, where the selector isn't rendered", () => {
       const errors = validateUserForm(
-        { ...VALID, global_role: null, teams: [] },
+        { ...VALID, global_role: null, fleets: [] },
         { ...NEW_USER_CONTEXT, isPremiumTier: false }
       );
 
-      expect(errors.teams).toBeUndefined();
+      expect(errors.fleets).toBeUndefined();
     });
   });
 });
