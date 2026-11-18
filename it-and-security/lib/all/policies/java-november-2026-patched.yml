@@ -1,12 +1,7 @@
-# Oracle November 2026 Java SE update (released 2026-11-17): 11 flaws, all exploitable over a network
-# without credentials, highest CVSS 3.1 score 8.1. Java4Shell (CVE-2026-114938), reported by Calif the same
-# day, is a pre-auth RCE reported in OpenJDK 17.0.6 and later plus Java 21, 25 and 27 (not standard Java 8 or 11).
-# Oracle hasn't tied it to any of its 11 fixes.
-# Oracle's patched builds: 8u513, 11.0.33.1, 17.0.21.1, 21.0.13.1, 25.0.5.1, 27.0.1.1.
-# Oracle lists 17.0.21.0.3, 21.0.13.0.3, etc. as AFFECTED, so a 4th version component of 0 is still vulnerable.
-# Every other Java version is end-of-life and always fails. Add Java 28 here when it ships (March 2027).
-# Advisories: https://www.oracle.com/security-alerts/cspunov2026.html
-#             https://www.endorlabs.com/learn/java4shell-unauthenticated-rce-reported-in-openjdk-17-cve-2026-114938
+# Oracle's November 17, 2026 Java SE update. The 17/21/25/27 builds also carry Java4Shell's fix (JDK-8393212,
+# x86-64 with AVX-512 only). OpenJDK's tags match Oracle's numbers except Java 8 (8u514), which passes 8u513.
+# A 4th version component of 0 (17.0.21.0.3) is still vulnerable. Add Java 28 when it ships (March 2027).
+# Advisory: https://www.oracle.com/security-alerts/cspunov2026.html
 - name: macOS - Java runtimes patched for November 2026 Java SE update (Java4Shell, CVE-2026-114938)
   query: |
     WITH jdks AS (
@@ -14,7 +9,6 @@
       WHERE path LIKE '/Library/Java/JavaVirtualMachines/%/Contents/Info.plist'
         AND key = 'JavaVM' AND subkey = 'JVMVersion'
       UNION ALL
-      -- JDKs downloaded per user, for example by IntelliJ IDEA
       SELECT value FROM plist
       WHERE path LIKE '/Users/%/Library/Java/JavaVirtualMachines/%/Contents/Info.plist'
         AND key = 'JavaVM' AND subkey = 'JVMVersion'
@@ -33,9 +27,9 @@
       FROM jdks WHERE raw <> ''
     ),
     normalized AS (
-      -- Java 8 reports 1.8.0_511 or 1.8.0_511-b33; rewrite it as 8.0.511 so it compares like the other lines
+      -- Java 8 reports 1.8.0_511, 1.8.0_511-b33 or 1.8.0-512 (Homebrew); compare it as 8.0.<update>
       SELECT CASE
-               WHEN s GLOB '1.8.0[._]*' THEN '8.0.' || CAST(substr(s, 7) AS INTEGER)
+               WHEN s GLOB '1.8.0[._-]*' THEN '8.0.' || CAST(substr(s, 7) AS INTEGER)
                WHEN instr(s, '-') > 0 THEN substr(s, 1, instr(s, '-') - 1)
                ELSE s
              END AS v
@@ -60,13 +54,14 @@
   description: |
     Passes when no Java runtime is found, or when every JDK/JRE is at or above Oracle's November 2026
     patched build for its line: 8u513, 11.0.33.1, 17.0.21.1, 21.0.13.1, 25.0.5.1 or 27.0.1.1. Fails when a
-    runtime is older than that, or is an end-of-life Java version (for example 23 or 24). Checks JDKs in
-    /Library/Java/JavaVirtualMachines and ~/Library/Java/JavaVirtualMachines (Oracle, Temurin, Zulu, Corretto
-    and IntelliJ-downloaded JDKs), the Java browser plugin, and Homebrew openjdk formulas. Java copies bundled
-    inside apps and SDKMAN installs aren't checked.
+    runtime is older than that, or is an end-of-life Java version (for example 23 or 24). Java4Shell only affects
+    Intel and AMD processors with AVX-512, but this update also fixes flaws that affect Apple silicon Macs. Checks
+    JDKs in /Library/Java/JavaVirtualMachines and ~/Library/Java/JavaVirtualMachines (Oracle, Temurin, Zulu,
+    Corretto and IntelliJ-downloaded JDKs), the Java browser plugin, and Homebrew openjdk formulas. Java copies
+    bundled inside apps and SDKMAN installs aren't checked.
   resolution: >-
     Update every Java on your Mac to the latest patched build. For Homebrew, run `brew update && brew upgrade
-    openjdk openjdk@21 openjdk@17` (only the formulas you have installed). For a JDK in
+    $(brew list --formula | grep '^openjdk')`. For a JDK in
     /Library/Java/JavaVirtualMachines, install the newest update from the same vendor (Oracle, Adoptium Temurin,
     Azul Zulu or Amazon Corretto), then delete the old JDK folder. If you're on an end-of-life Java version like
     23 or 24, move to Java 25 (LTS). If your vendor hasn't published a patched build yet, this policy keeps
@@ -79,7 +74,7 @@
     WITH pkgs AS (
       -- Every OpenJDK JRE/JDK package depends on the jre-headless package, so checking it covers them all
       SELECT version AS raw FROM deb_packages
-      WHERE status = 'install ok installed'
+      WHERE status IN ('install ok installed', 'hold ok installed')
         AND (name GLOB 'openjdk-[0-9]*-jre-headless'
              OR name GLOB 'temurin-[0-9]*-jdk' OR name GLOB 'temurin-[0-9]*-jre')
       UNION ALL
@@ -129,9 +124,9 @@
     Zulu packages aren't covered.
   resolution: >-
     Upgrade the Java packages with your package manager, for example `sudo apt update && sudo apt install
-    --only-upgrade 'openjdk-*' 'temurin-*'` or `sudo dnf upgrade 'java-*-openjdk*' 'temurin-*'`, then restart any
-    running Java services. Remove end-of-life Java versions or replace them with a supported LTS (17, 21 or 25).
-    If your distro hasn't published the patched build yet, this policy keeps failing until the update reaches
-    the repository.
+    --only-upgrade 'openjdk-*'` or `sudo dnf upgrade 'java-*-openjdk*'`. If you installed Temurin from Adoptium's
+    repository, run the same command with `'temurin-*'`. Then restart any running Java services. Remove
+    end-of-life Java versions or replace them with a supported LTS (17, 21 or 25). If your distro hasn't published
+    the patched build yet, this policy keeps failing until the update reaches the repository.
   platform: linux
   calendar_events_enabled: false
