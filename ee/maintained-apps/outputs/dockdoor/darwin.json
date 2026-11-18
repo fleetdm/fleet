@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.42.4",
+      "version": "1.42.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ethanbills.DockDoor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ethanbills.DockDoor' AND version_compare(bundle_short_version, '1.42.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ethanbills.DockDoor' AND version_compare(bundle_short_version, '1.42.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ethanbills.DockDoor' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/ejbills/DockDoor/releases/download/1.42.4/DockDoor.dmg",
+      "installer_url": "https://github.com/ejbills/DockDoor/releases/download/1.42.5/DockDoor.dmg",
       "install_script_ref": "6a2be39f",
       "uninstall_script_ref": "6f828f90",
-      "sha256": "3c48963f50e6aa854a9e6d5faf12ba38c2e082e4c6ab13a1438f76df0a7eec69",
+      "sha256": "dced8f338319ab22e49101b00d44cbac79c33ab96c16abc2414abcf1c0825021",
       "default_categories": [
         "Utilities"
       ]
