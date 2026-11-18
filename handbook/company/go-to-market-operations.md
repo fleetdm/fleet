@@ -418,7 +418,7 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 > Closed won requires a primary quote:
 >
 > An opportunity can't be marked **"Closed Won"** until it has a quote that is **"Approved"** and has **"Primary quote"** checked. The primary quote should be the one the customer or partner actually received. If the opportunity has several approved quotes, pick the one the customer signed or issued the PO against.
-> The only exception is a contraction (an Expansion opportunity with a negative amount).
+> There are two exceptions: a contraction (an Expansion opportunity with a negative amount), and an Expansion opportunity on an account that also has a renewal, which can close without a quote.
  
 
 ### Remove a contact from the "Top contacts" list in Salesforce

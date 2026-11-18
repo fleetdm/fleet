@@ -120,7 +120,7 @@ In order to be transparent, Fleet sends quotes within 30 days of opportunity cre
 
 2. Once the quote is approved, generate the PDF in Salesforce and send it to the prospect.
 3. Copy the quote URL to the "Order form URL" field on the Salesforce opportunity.
-4. Check **"Primary quote"** on the approved quote you sent. An opportunity can't be marked **"Closed Won"** without an approved primary quote (contractions are the only exception). See [Generate a quote](https://fleetdm.com/handbook/company/go-to-market-operations#generate-a-quote) for details.
+4. Check **"Primary quote"** on the approved quote you sent. An opportunity can't be marked **"Closed Won"** without an approved primary quote (exceptions: contractions, and expansions on an account that also has a renewal). See [Generate a quote](https://fleetdm.com/handbook/company/go-to-market-operations#generate-a-quote) for details.
 
 > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager. For exceptions of more than one week, escalate to the CEO.
 
