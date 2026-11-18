@@ -409,11 +409,11 @@ export interface IActivityDetails {
   profile_name?: string;
   profile_uuid?: string;
   public_ip?: string;
-  query_id?: number;
-  query_ids?: number[];
-  query_name?: string;
+  report_id?: number;
+  report_ids?: number[];
+  report_name?: string;
   reason?: EnrollmentRejectedReason | string;
-  query_sql?: string;
+  query?: string;
   request_type?: string;
   role?: UserRole;
   script_execution_id?: string;

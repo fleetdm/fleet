@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
@@ -2659,12 +2660,12 @@ func TestGetHostSummary(t *testing.T) {
 
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
-			OnlineCount:      1,
-			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
-			MIACount:         3,
-			NewCount:         4,
-			TotalsHostsCount: 5,
-			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
+			OnlineCount:        1,
+			OfflineCount:       5, // offline hosts also includes mia hosts as of Fleet 4.15
+			Missing30DaysCount: 3,
+			NewCount:           4,
+			TotalsHostsCount:   5,
+			Platforms:          []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
 	}
 	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
@@ -2676,7 +2677,7 @@ func TestGetHostSummary(t *testing.T) {
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
 	require.Equal(t, uint(5), summary.OfflineCount)
-	require.Equal(t, uint(3), summary.MIACount)
+	require.Equal(t, uint(3), summary.Missing30DaysCount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
 	require.Len(t, summary.Platforms, 4)
@@ -5881,9 +5882,10 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 	// from `fleet.HostListOptions` and iterate to test that only a limited subset of filter (i.e.
 	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
-		name      string
-		filters   *map[string]interface{}
-		has400Err bool
+		name       string
+		filters    *map[string]any
+		has400Err  bool
+		removedKey string
 	}{
 		{
 			name: "valid status filter",
@@ -5924,7 +5926,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 			filters: &map[string]any{
 				"team_id": float64(1),
 			},
-			has400Err: true,
+			removedKey: "team_id",
 		},
 		{
 			name: "valid label_id filter",
@@ -6012,20 +6014,25 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 	}
 
-	checkErr := func(t *testing.T, err error, has400Err bool) {
-		if has400Err {
+	checkErr := func(t *testing.T, err error, has400Err bool, removedKey string) {
+		switch {
+		case removedKey != "":
+			rke, ok := errors.AsType[*endpointer.RemovedKeyError](err)
+			require.True(t, ok, "got %v", err)
+			require.Equal(t, removedKey, rke.Key)
+		case has400Err:
 			require.Error(t, err)
 			var be *fleet.BadRequestError
 			require.ErrorAs(t, err, &be)
-		} else {
+		default:
 			require.NoError(t, err)
 		}
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err)
-			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err)
+			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err, tt.removedKey)
+			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err, tt.removedKey)
 		})
 	}
 }

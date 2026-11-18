@@ -1,6 +1,6 @@
 controls:
   enable_profile_validation: false
-  macos_settings:
+  apple_settings:
   windows_settings:
   scripts:
   enable_disk_encryption: false
@@ -44,9 +44,9 @@ org_settings:
   server_settings:
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_report_cap: 2000
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    report_cap: 2000
+    discard_reports_data: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true
   org_info:

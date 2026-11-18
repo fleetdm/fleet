@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +107,7 @@ type CreateScriptRequest struct {
 func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded CreateScriptRequest
 
-	err := multipartform.Parse(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
 	if err != nil {
 		return nil, &BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -116,7 +115,7 @@ func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	val := r.MultipartForm.Value["fleet_id"]
+	val := r.Form["fleet_id"]
 	if len(val) > 0 {
 		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {

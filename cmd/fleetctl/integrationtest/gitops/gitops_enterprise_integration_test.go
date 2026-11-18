@@ -5967,8 +5967,8 @@ org_settings:
     - secret: json_escape_test_secret
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 policies:
 reports:
@@ -6770,8 +6770,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitopsDDMUnsupportedFlee
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 org_settings:
   server_settings:

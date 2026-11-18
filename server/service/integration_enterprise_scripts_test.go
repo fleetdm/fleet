@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -849,20 +848,20 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run sync with both script contents and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'fleet_id' is allowed.`)
 
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'fleet_id' is allowed.`)
 
 	// attempt to run sync with both script id and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'fleet_id' is allowed.`)
 
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'fleet_id' is allowed.`)
 
 	// attempt to run sync without script contents, script id, or script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
@@ -1116,7 +1115,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// team id does not exist
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "The fleet does not exist.")
@@ -1127,7 +1126,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with existing name for this time for a team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -1138,7 +1137,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create a windows script
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
@@ -1168,7 +1167,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// script already exists with this name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
@@ -1176,7 +1175,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with a different name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
@@ -1826,140 +1825,6 @@ VALUES
 	})
 }
 
-func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {
-	t := s.T()
-
-	// set the script fields
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", "bar"] }`), http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
-
-	// check that they are returned by a GET /config
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
-
-	// patch without specifying the scripts fields, should not remove them
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
-
-	// patch with explicitly empty scripts fields, would remove
-	// them but this is a dry-run
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": null }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
-
-	// patch with explicitly empty scripts fields, removes them
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": null }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.Scripts.Value)
-
-	// set the script fields again
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", "bar"] }`), http.StatusOK, &acResp)
-	assert.ElementsMatch(t, []string{"foo", "bar"}, acResp.Scripts.Value)
-
-	// patch with an empty array sets the scripts to an empty array as well
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": [] }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.Scripts.Value)
-
-	// patch with an invalid array returns an error
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "scripts": ["foo", 1] }`), http.StatusBadRequest, &acResp)
-	assert.Empty(t, acResp.Scripts.Value)
-}
-
-func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
-	t := s.T()
-
-	// create a team through the service so it initializes the agent ops
-	teamName := t.Name() + "team1"
-	team := &fleet.Team{
-		Name:        teamName,
-		Description: "desc team1",
-	}
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
-	require.NotZero(t, createTeamResp.Team.ID)
-	team = createTeamResp.Team
-
-	// apply with scripts
-	// must not use applyTeamSpecsRequest and marshal it as JSON, as it will set
-	// all keys to their zerovalue, and some are only valid with mdm enabled.
-	teamSpecs := map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":    teamName,
-				"scripts": []string{"foo", "bar"},
-			},
-		},
-	}
-	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
-
-	// retrieving the team returns the scripts
-	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
-
-	// apply without custom scripts specified, should not replace existing scripts
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name": teamName,
-			},
-		},
-	}
-	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
-
-	// apply with explicitly empty custom scripts would clear the existing
-	// scripts, but dry-run
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":    teamName,
-				"scripts": nil,
-			},
-		},
-	}
-	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
-
-	// apply with explicitly empty scripts clears the existing scripts
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":    teamName,
-				"scripts": nil,
-			},
-		},
-	}
-	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Empty(t, teamResp.Team.Config.Scripts.Value)
-
-	// patch with an invalid array returns an error
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":    teamName,
-				"scripts": []any{"foo", 1},
-			},
-		},
-	}
-	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Empty(t, teamResp.Team.Config.Scripts.Value)
-}
-
 func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	t := s.T()
 	ctx := context.Background()
@@ -2109,7 +1974,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	// create a saved script execution request
 	var newScriptResp fleet.CreateScriptResponse
 	body, headers := generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)

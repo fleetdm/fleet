@@ -41,3 +41,12 @@ func TestRemovedKeyWithContextNotRejectedElsewhere(t *testing.T) {
 	appConfig := []byte(`{"agent_options":{"overrides":{"platforms":{"windows":{"options":{"distributed_interval":10}}}}}}`)
 	require.NoError(t, endpointer.CheckRemovedKeys(appConfig, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})))
 }
+
+func TestRemovedAppleSettingsKeysAreScoped(t *testing.T) {
+	for _, typ := range []any{fleet.AppConfig{}, fleet.TeamPayload{}, fleet.TeamSpec{}} {
+		rules := endpointer.ExtractRemovedKeyRules(typ)
+		var removed *endpointer.RemovedKeyError
+		require.ErrorAs(t, endpointer.CheckRemovedKeys([]byte(`{"mdm": {"macos_settings": {}}}`), rules), &removed, "%T", typ)
+		require.NoError(t, endpointer.CheckRemovedKeys([]byte(`{"macos_settings": {}}`), rules), "%T", typ)
+	}
+}

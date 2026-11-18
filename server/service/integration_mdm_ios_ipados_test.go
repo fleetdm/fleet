@@ -610,7 +610,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		t.Run("if idp uuid is required but not set", func(t *testing.T) {
 			var specResp applyTeamSpecsResponse
 			teamSecret := "team_secret"
-			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetupSpec{EnableEndUserAuthentication: true}}}}}
 			s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 
 			hwModel := "MacBookPro16,1"
@@ -771,7 +771,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			var specResp applyTeamSpecsResponse
 			teamSecret := "team_secret_used_session"
-			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetupSpec{EnableEndUserAuthentication: true}}}}}
 			s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(

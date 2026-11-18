@@ -1477,29 +1477,23 @@ func TestMDMConfig(t *testing.T) {
 			},
 			AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:                 optjson.String{Set: true},
-				MacOSSetupAssistant:              optjson.String{Set: true},
 				EnableReleaseDeviceManually:      optjson.SetBool(false),
 				EnableManagedLocalAccount:        optjson.SetBool(false),
 				EndUserLocalAccountType:          optjson.SetString("admin"),
 				LockEndUserInfo:                  optjson.SetBool(false),
 				Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-				Script:                           optjson.String{Set: true},
 				ManualAgentInstall:               optjson.Bool{Set: true},
 				EnableManagedLocalAccountWindows: optjson.SetBool(false),
 			},
-			MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-			IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
-			IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
-			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+			MacOSUpdates:   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+			IOSUpdates:     fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
+			IPadOSUpdates:  fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
+			WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:      optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				RequireBitLockerPIN: optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
-				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 			RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 			EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
@@ -2687,7 +2681,7 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 		// check that fires only when the flag changes) -> euaStrict fires.
 		incoming := fleet.SSOProviderSettings{MetadataURL: "https://idp.example.com/metadata"}
 		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, true), mkMDM(incoming, true), invalid, true)
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, true), mkMDM(incoming, true), optjson.String{}, invalid, true)
 		require.NoError(t, err)
 		require.True(t, invalid.HasErrors())
 		require.Contains(t, errFields(invalid), "entity_id")
@@ -2705,7 +2699,7 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 		}
 		degraded := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta"} // metadata/url blank
 		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), invalid, true)
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), optjson.String{}, invalid, true)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
 	})
@@ -2715,7 +2709,7 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 			return []uint{}, nil
 		}
 		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), invalid, true)
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), optjson.String{}, invalid, true)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
 	})
@@ -3748,50 +3742,6 @@ func TestDiffStringSlices(t *testing.T) {
 			assert.Equal(t, tc.wantRemoved, removed)
 		})
 	}
-}
-
-// TestModifyAppConfigClearBootstrapPackageAlreadyDeleted verifies that clearing
-// a bootstrap package via ModifyAppConfig succeeds even when the actual package
-// row has already been deleted (e.g. via the GUI), leaving a stale URL in
-// appconfig.
-func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
-	ds := new(mock.Store)
-	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-
-	dsAppConfig := &fleet.AppConfig{
-		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
-		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
-		MDM: fleet.MDM{
-			MacOSSetup: fleet.MacOSSetup{
-				// Stale URL: the DB row is gone but appconfig still has it.
-				BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
-			},
-		},
-	}
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return dsAppConfig, nil
-	}
-	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-		*dsAppConfig = *conf
-		return nil
-	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{}, nil
-	}
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{}, nil
-	}
-	// The bootstrap package row was already deleted via the GUI.
-	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-		return nil, newNotFoundError()
-	}
-
-	raw := []byte(`{"mdm":{"setup_experience":{"macos_bootstrap_package":""}}}`)
-	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-	require.NoError(t, err)
 }
 
 // TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path through PATCH /config for both managed
