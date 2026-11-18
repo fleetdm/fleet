@@ -767,7 +767,7 @@ func gitopsCommand() *cli.Command {
 			// mean that other teams are not present.
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
-				defaultNoTeamConfig.TeamName = ptr.String(fleet.DisplayNameNoTeam)
+				defaultNoTeamConfig.TeamName = new(fleet.DisplayNameNoTeam)
 				_, err := fleetClient.DoGitOps(
 					c.Context,
 					defaultNoTeamConfig,

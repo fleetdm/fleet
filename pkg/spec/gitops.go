@@ -631,7 +631,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam():
-			result.TeamName = ptr.String(unassignedTeamName)
+			result.TeamName = new(unassignedTeamName)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
 				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
