@@ -2222,6 +2222,8 @@ This activity contains the following fields:
 - [disabled_macos_setup_end_user_auth](#disabled-macos-setup-end-user-auth)
 - [enabled_apple_business_only_enrollment](#enabled-apple-business-only-enrollment)
 - [disabled_apple_business_only_enrollment](#disabled-apple-business-only-enrollment)
+- [enabled_android_zero_touch_only_enrollment](#enabled-android-zero-touch-only-enrollment)
+- [disabled_android_zero_touch_only_enrollment](#disabled-android-zero-touch-only-enrollment)
 - [edited_setup_experience_software](#edited-setup-experience-software)
 - [created_setup_experience_script](#created-setup-experience-script)
 - [deleted_setup_experience_script](#deleted-setup-experience-script)
@@ -2391,6 +2393,18 @@ This activity does not contain any detail fields.
 ### disabled_apple_business_only_enrollment
 
 Generated when a user disables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
+### enabled_android_zero_touch_only_enrollment
+
+Generated when a user enables the setting that allows only company-owned Android hosts to turn on MDM through zero-touch enrollment.
+
+This activity does not contain any detail fields.
+
+### disabled_android_zero_touch_only_enrollment
+
+Generated when a user disables the setting that allows only company-owned Android hosts to turn on MDM through zero-touch enrollment.
 
 This activity does not contain any detail fields.
 
