@@ -2398,13 +2398,13 @@ This activity does not contain any detail fields.
 
 ### enabled_android_zero_touch_only_enrollment
 
-Generated when a user enables the setting that allows only company-owned Android hosts to turn on MDM through zero-touch enrollment.
+Generated when a user enables the setting that only allows Android hosts to enroll through zero-touch enrollment.
 
 This activity does not contain any detail fields.
 
 ### disabled_android_zero_touch_only_enrollment
 
-Generated when a user disables the setting that allows only company-owned Android hosts to turn on MDM through zero-touch enrollment.
+Generated when a user disables the setting that only allows Android hosts to enroll through zero-touch enrollment.
 
 This activity does not contain any detail fields.
 
