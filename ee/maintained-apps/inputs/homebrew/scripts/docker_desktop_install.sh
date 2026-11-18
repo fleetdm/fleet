@@ -11,7 +11,7 @@ cleanup() {
   local mp="${MOUNT_POINT:-}"
   if [[ -n "$mp" ]]; then
     if mount | grep -q " on $mp "; then
-      hdiutil detach "$mp" >/dev/null 2>&1 || true
+      hdiutil detach "$mp" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$mp" >/dev/null 2>&1; } || hdiutil detach -force "$mp" >/dev/null 2>&1 || true
     fi
     rmdir "$mp" >/dev/null 2>&1 || true
   fi
@@ -158,7 +158,7 @@ if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INST
   exit 1
 fi
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT"
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 MOUNT_POINT=""
 # copy to the applications folder
 # Quitting Docker Desktop with a staged self-update triggers its install-on-quit

@@ -11,7 +11,7 @@
 - **Ad-hoc, scheduled, and continuous checks share one workflow.** Run a one-off report during an incident, schedule a monthly disk-space report, or continuously evaluate a compliance policy, all defined the same way.
 - **A failed check can trigger a fix.** Policies answer yes-or-no compliance questions and can run a script, install software, or fire a webhook when a host falls out of line, turning noncompliance into an action instead of a ticket.
 
-<a purpose="cta-button" href="/linux-management">See Linux management in Fleet</a>
+<a purpose="cta-button" href="/linux">See Linux management in Fleet</a>
 
 The first step in any desktop management strategy is understanding your infrastructure: what hosts you have, what operating systems and software versions they run, and how their real configuration compares to your organization's policies. Taking that inventory is hard, because modern environments are both heterogeneous and constantly changing, and nowhere more so than on the Linux desktop, where the range of choices creates a growing management burden.
 

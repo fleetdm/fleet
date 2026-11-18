@@ -2,7 +2,7 @@
   "name": "XnViewMP",
   "slug": "xnviewmp/windows",
   "package_identifier": "XnSoft.XnViewMP",
-  "unique_identifier": "XnView MP",
+  "unique_identifier": "XnView MP (x64)",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

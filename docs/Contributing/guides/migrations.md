@@ -31,9 +31,9 @@ make fleet
 
 The first migration, `20261103120000_Fleet5Baseline.go`, creates the whole Fleet 5 schema and its seed data (built-in labels, default app config, etc.) from `baseline_schema.sql`. It replaced every Fleet 4 table and data migration. Never edit the baseline: add a new migration instead, including for default data.
 
-Fleet 4 databases must be upgraded to the latest Fleet 4.95.x before upgrading to Fleet 5. A 4.95.x database already has the baseline schema, so on those the baseline only checks that every migration in `Fleet4Migrations` (`fleet4_migrations.go`) is applied, then records itself. It refuses any other Fleet 4 database. The Fleet 4 migration records are kept, and the migration status check treats them as known.
+Fleet 4 databases must be upgraded to Fleet 4.95.0 or later before upgrading to Fleet 5. A 4.95.0 or later database already has the baseline schema, so on those the baseline only checks that every migration in `Fleet4Migrations` (`fleet4_migrations.go`) is applied, then records itself. It refuses any other Fleet 4 database. The Fleet 4 migration records are kept, and the migration status check treats them as known.
 
-A migration added in a 4.95.x patch release must also be merged, unchanged, into Fleet 5. Its version is newer than the baseline, so goose runs it after the baseline on fresh installs and on databases upgraded from an earlier 4.95.x, and skips it on databases that already applied it. Don't add it to `Fleet4Migrations`.
+A migration added in a Fleet 4 release after 4.95.0 (4.95.x patches, 4.96, etc.) must also be merged, unchanged, into Fleet 5. Its version is newer than the baseline, so goose runs it after the baseline on fresh installs and on databases upgraded from an earlier Fleet 4 release, and skips it on databases that already applied it. Don't add it to `Fleet4Migrations`.
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn about creating and updating database migrations for Fleet.">

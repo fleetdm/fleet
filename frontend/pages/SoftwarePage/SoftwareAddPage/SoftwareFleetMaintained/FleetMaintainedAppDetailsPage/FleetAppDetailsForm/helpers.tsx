@@ -23,17 +23,9 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [
       {
         name: "invalidQuery",
-        isValid: (formData) => {
-          const query = formData.preInstallQuery ?? "";
-
-          if (query.trim() === "") {
-            // Empty is allowed
-            return true;
-          }
-
-          const { isValid } = validateQuery(query);
-          return isValid;
-        },
+        // Advisory only: a SQL syntax error surfaces the inline warning but
+        // does not block submission, matching PackageForm's pre-install query.
+        isValid: () => true,
         message: (formData) => {
           const query = formData.preInstallQuery ?? "";
 
@@ -42,7 +34,7 @@ const FORM_VALIDATION_CONFIG: Record<
           }
 
           const { error } = validateQuery(query);
-          return error ?? "Invalid query";
+          return error ?? "";
         },
       },
     ],
@@ -92,6 +84,14 @@ export const generateFormValidation = (
       if (!failedValidation) {
         formValidation[objKey] = {
           isValid: true,
+          // preInstallQuery is advisory — compute the message anyway so a
+          // SQL syntax error still shows inline without blocking submission.
+          ...(objKey === "preInstallQuery" && {
+            message: getErrorMessage(
+              formData,
+              FORM_VALIDATION_CONFIG.preInstallQuery.validations[0].message
+            ),
+          }),
         };
       } else {
         formValidation.isValid = false;

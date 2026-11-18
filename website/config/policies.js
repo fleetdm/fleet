@@ -58,7 +58,9 @@ module.exports.policies = {
   'view-customers': true,
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
-  'get-llm-generated-configuration-profile-name-and-description': true,
+  'profile-generator/register-one-fleet-instance': true,
+  'profile-generator/generate-one-name-and-description': true,
+  'profile-generator/generate-one-profile': true,
   'account/update-start-cta-visibility': true,
   'microsoft-proxy/receive-redirect-from-microsoft': true,
   'view-configuration-builder': true,
@@ -90,6 +92,7 @@ module.exports.policies = {
   'view-europe': true,
   'view-pharma': true,
   'view-aviation': true,
+  'view-cybersecurity': true,
   'view-windows': true,
   'view-apple': true,
 };

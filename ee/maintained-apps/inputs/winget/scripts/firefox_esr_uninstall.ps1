@@ -20,6 +20,10 @@ try {
     -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath }
 
+# Try x64 entries first, so an ARM64 or 32-bit Firefox ESR on the same host is
+# only removed when no x64 Firefox ESR is installed.
+$uninstallKeys = @($uninstallKeys | Sort-Object { $_.DisplayName -notlike "*(x64 *" })
+
 $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
     if ($key.DisplayName -like $softwareNameLike) {

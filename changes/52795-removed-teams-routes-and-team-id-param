@@ -1,0 +1,3 @@
+- **Breaking change:** Removed the redirects from the old `/settings/teams` pages to `/settings/fleets`, and the redirect from the `?team_id=` URL parameter to `?fleet_id=`. Bookmarks to the old `/settings/teams` pages now show a 404, and the `team_id` parameter no longer selects a fleet.
+- Fixed the fleet rename form, which showed a generic error instead of the reserved name error when the new name was "All fleets", "Unassigned", or the old "All teams" or "No team" in a different case.
+- Fixed the password reset page, which showed an error instead of the no access page for a user with no global or fleet role.

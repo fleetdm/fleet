@@ -3,7 +3,7 @@
 '''
 Create n new policies, where n is the integer first argument passed to the script.
 
-Optional second positional argument defines which fleet (formerly "team") to create policies on, global/all teams
+Optional second positional argument defines which fleet (formerly "team") to create policies on, global/all fleets
 policies if omitted.
 
 Assumes the script can see the `TOKEN` (API token) and `SERVER_URL` environment variables.
@@ -13,7 +13,7 @@ import subprocess, os, sys, string, random
 
 POLICIES_ENDPOINT="/api/latest/fleet/policies"
 
-def main(n: int, team_id: int):
+def main(n: int, fleet_id: int):
   token, server_url = os.environ.get("TOKEN"), os.environ.get("SERVER_URL")
   if not token or not server_url:
     raise Exception("Make sure you have set TOKEN and SERVER_URL as environment variables.")
@@ -21,7 +21,7 @@ def main(n: int, team_id: int):
       name='Policy ' + ''.join(random.choices(string.ascii_lowercase, k=5))
       critical=random.choice(["true", "false"])
       data = f'{{"name": "{name}", "query": "SELECT 1 FROM osquery_info;", "description": "Selects 1", "resolution": "Resolution steps", "platform": "{random.choice(["windows", "linux", "darwin"])}", "critical": {critical}}}'
-      path_suffix = POLICIES_ENDPOINT if team_id == None else f"/api/latest/fleet/teams/{team_id}/policies"
+      path_suffix = POLICIES_ENDPOINT if fleet_id is None else f"/api/latest/fleet/fleets/{fleet_id}/policies"
       process = subprocess.Popen(
         ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}{path_suffix}", "-d", f"{data}", "--insecure"], stdout=subprocess.PIPE
       )
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     except(IndexError):
       raise Exception("Enter the number of policies to create as a single integer argument.")
     try:
-        team_id = int(sys.argv[2])
+        fleet_id = int(sys.argv[2])
     except(IndexError):
-      team_id = None
+      fleet_id = None
 
-    main(n, team_id)
+    main(n, fleet_id)

@@ -7,11 +7,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import createMockConfig from "__mocks__/configMock";
 import { AppContext, IAppContext, initialState } from "context/app";
 import mockServer from "test/mock-server";
-import {
-  baseUrl,
-  createCustomRenderer,
-  createMockRouter,
-} from "test/test-utils";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import ConditionalAccess from "./ConditionalAccess";
 
@@ -57,8 +53,6 @@ const createEmptyConditionalAccessConfig = () =>
     },
   });
 
-const mockRouter = createMockRouter();
-
 describe("Conditional access", () => {
   describe("Not configured", () => {
     it("Renders both integration cards when nothing is configured", () => {
@@ -74,7 +68,7 @@ describe("Conditional access", () => {
         },
       });
 
-      render(<ConditionalAccess router={mockRouter} />);
+      render(<ConditionalAccess />);
 
       expect(screen.getByText("Okta")).toBeInTheDocument();
       expect(
@@ -101,7 +95,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       // Click the second Connect button (Microsoft Entra)
       const connectButtons = screen.getAllByText("Connect");
@@ -128,7 +122,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       // Open modal
       const connectButtons = screen.getAllByText("Connect");
@@ -162,7 +156,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       // Click the first Connect button (Okta)
       const connectButtons = screen.getAllByText("Connect");
@@ -174,7 +168,7 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
-      // Profiles live on the Okta page, not in the setup modal.
+      // Profiles live in their own modal, not in the setup modal.
       expect(screen.queryByText("User scope profile")).not.toBeInTheDocument();
       expect(screen.queryByText("Windows profile")).not.toBeInTheDocument();
       expect(
@@ -204,7 +198,7 @@ describe("Conditional access", () => {
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       // Open modal
       const connectButtons = screen.getAllByText("Connect");
@@ -270,7 +264,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         context: { app: { isPremiumTier: true, config: mockConfig } },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
       await user.click(screen.getAllByText("Connect")[0]);
       await waitFor(() => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
@@ -333,7 +327,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess router={mockRouter} />);
+      render(<ConditionalAccess />);
 
       // Spinner has a built-in anti-flash delay, so wait for it to appear.
       expect(await screen.findByTestId("spinner")).toBeVisible();
@@ -364,7 +358,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const entraCopy = screen.getByText(/Microsoft Entra/);
       expect(entraCopy).toBeInTheDocument();
@@ -405,7 +399,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const oktaCopy = screen.getByText(/Okta/);
       expect(oktaCopy).toBeInTheDocument();
@@ -419,7 +413,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       });
     });
 
-    it("Goes to the Okta page when clicking Edit on a configured Okta card", async () => {
+    it("Opens the Okta settings modal when clicking Edit on a configured Okta card", async () => {
       const mockConfig = createMockConfig({
         conditional_access: {
           microsoft_entra_tenant_id: "",
@@ -431,20 +425,58 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           bypass_disabled: false,
         },
       });
-      const router = createMockRouter();
 
       const render = createCustomRenderer({
         withBackendMock: true,
         context: { app: { isPremiumTier: true, config: mockConfig } },
       });
 
-      const { user } = render(<ConditionalAccess router={router} />);
+      const { user } = render(<ConditionalAccess />);
 
       await user.click(screen.getByRole("button", { name: "Edit" }));
 
-      expect(router.push).toHaveBeenCalledWith(
-        "/settings/integrations/conditional-access/okta"
+      expect(screen.getByLabelText("IdP ID")).toHaveValue(TEST_OKTA_IDP_ID);
+    });
+
+    it("Opens the Okta profiles modal when clicking Profiles on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+      mockServer.use(
+        http.get(baseUrl("/conditional_access/idp/apple/profile"), () =>
+          HttpResponse.text("<plist>apple</plist>")
+        )
       );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      await user.click(screen.getByRole("button", { name: "Profiles" }));
+
+      expect(
+        screen.getByText("Okta conditional access profiles")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("tab", { name: "macOS", selected: true })
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Close" }));
+
+      expect(
+        screen.queryByText("Okta conditional access profiles")
+      ).not.toBeInTheDocument();
     });
 
     it("Shows both providers as configured when both are set up", async () => {
@@ -470,7 +502,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const entraCopy = screen.getByText(/Microsoft Entra/);
       expect(entraCopy).toBeInTheDocument();
@@ -515,7 +547,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const oktaCopy = screen.getByText(/Okta/);
       expect(oktaCopy).toBeInTheDocument();
@@ -578,7 +610,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess router={mockRouter} />);
+      render(<ConditionalAccess />);
 
       // Checkbox exposes aria-label from `name`; disabled lives on aria-disabled.
       const bypassCheckbox = screen.getByRole("checkbox", {
@@ -632,7 +664,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const Harness = ({ app }: { app: Partial<IAppContext> }) => (
         <QueryClientProvider client={client}>
           <AppContext.Provider value={{ ...initialState, ...app }}>
-            <ConditionalAccess router={mockRouter} />
+            <ConditionalAccess />
           </AppContext.Provider>
         </QueryClientProvider>
       );
@@ -685,7 +717,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess router={mockRouter} />);
+      render(<ConditionalAccess />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
       expect(connectButtons).toHaveLength(2);
@@ -720,7 +752,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
       await user.click(connectButtons[0]);
@@ -760,7 +792,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
       await user.click(connectButtons[1]);
@@ -811,7 +843,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       const Harness = ({ app }: { app: Partial<IAppContext> }) => (
         <QueryClientProvider client={client}>
           <AppContext.Provider value={{ ...initialState, ...app }}>
-            <ConditionalAccess router={mockRouter} />
+            <ConditionalAccess />
           </AppContext.Provider>
         </QueryClientProvider>
       );
@@ -854,7 +886,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess router={mockRouter} />);
+      render(<ConditionalAccess />);
 
       expect(
         screen.getByText(/This feature is included in Fleet Premium/i)
@@ -871,7 +903,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess router={mockRouter} />);
+      render(<ConditionalAccess />);
 
       expect(
         screen.getByRole("heading", {
@@ -893,7 +925,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           },
         },
       });
-      const utils = render(<ConditionalAccess router={mockRouter} />);
+      const utils = render(<ConditionalAccess />);
       const connectButtons = screen.getAllByText("Connect");
       await utils.user.click(connectButtons[0]);
       await waitFor(() => {
@@ -977,7 +1009,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const connectButtons = screen.getAllByText("Connect");
       await user.click(connectButtons[1]);
@@ -1023,7 +1055,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      const { user } = render(<ConditionalAccess router={mockRouter} />);
+      const { user } = render(<ConditionalAccess />);
 
       const connectButtons = screen.getAllByText("Connect");
       await user.click(connectButtons[1]);

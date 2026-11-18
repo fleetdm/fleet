@@ -48,8 +48,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"org_info": {
-			"org_logo_url": "http://test-image.com",
-			"org_logo_url_light_background": "http://test-image-light.com"
+			"org_logo_url_dark_mode": "http://test-image.com",
+			"org_logo_url_light_mode": "http://test-image-light.com"
 		}
 	}`), http.StatusOK, &acResp)
 
@@ -64,8 +64,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+	require.Equal(t, "http://test-image.com", getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+	require.Equal(t, "http://test-image-light.com", getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 }
 
 func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
@@ -90,9 +90,20 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 	}
 
 	compareMacOSSetupValues := func(t *testing.T, got fleet.MacOSSetup, want fleet.MacOSSetup) {
-		require.Equal(t, want.BootstrapPackage.Value, got.BootstrapPackage.Value)
-		require.Equal(t, want.MacOSSetupAssistant.Value, got.MacOSSetupAssistant.Value)
 		require.Equal(t, want.EnableEndUserAuthentication, got.EnableEndUserAuthentication)
+	}
+
+	// patchWithBootstrapPackage sends ac with the bootstrap package URL, which the config only
+	// reads from the request.
+	patchWithBootstrapPackage := func(t *testing.T, ac *fleet.AppConfig, url string, wantStatus int) appConfigResponse {
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(b, &payload))
+		payload["mdm"].(map[string]any)["setup_experience"].(map[string]any)["macos_bootstrap_package"] = url
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", payload, wantStatus, &acResp)
+		return acResp
 	}
 
 	insertBootstrapPackageAndSetupAssistant := func(t *testing.T, teamID *uint) {
@@ -212,6 +223,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		t.Run("macos setup", func(t *testing.T) {
 			t.Cleanup(func() {
 				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+				// An empty value in the config doesn't delete these, so later tests would see them.
+				_ = s.ds.DeleteMDMAppleSetupAssistant(ctx, nil)
+				_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
 			})
 
 			acResp := checkAppConfig(t, true, true)
@@ -230,12 +244,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			insertBootstrapPackageAndSetupAssistant(t, nil)
 
 			// enable MacOSSetup options
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString("foo"),
-				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("bar"),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: true}
+			acResp = patchWithBootstrapPackage(t, ac, "foo", http.StatusOK)
 			acResp = checkAppConfig(t, true, true)                               // both mac and windows mdm enabled
 			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
 
@@ -253,26 +263,15 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// disabling doesn't cause validation error
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString(""),
-				EnableEndUserAuthentication: false,
-				MacOSSetupAssistant:         optjson.SetString(""),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: false}
+			acResp = patchWithBootstrapPackage(t, ac, "", http.StatusOK)
 			acResp = checkAppConfig(t, false, true)                              // only windows mdm enabled
 			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
-			// bootstrap package and setup assistant were removed so reinsert records for next test
-			insertBootstrapPackageAndSetupAssistant(t, nil)
-
 			// enable MacOSSetup options fails because only Windows is enabled.
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString("foo"),
-				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("bar"),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: true}
+			acResp = patchWithBootstrapPackage(t, ac, "foo", http.StatusUnprocessableEntity)
 			acResp = checkAppConfig(t, false, true) // only windows enabled
 
 			// directly set MDM.EnabledAndConfigured to true and windows to false
@@ -290,25 +289,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
 
 			// disabling doesn't cause validation error
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString(""),
-				EnableEndUserAuthentication: false,
-				MacOSSetupAssistant:         optjson.SetString(""),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: false}
+			acResp = patchWithBootstrapPackage(t, ac, "", http.StatusOK)
 			acResp = checkAppConfig(t, true, false)                              // only windows mdm enabled
 			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
 
-			// bootstrap package and setup assistant were removed so reinsert records for next test
-			insertBootstrapPackageAndSetupAssistant(t, nil)
-
 			// enable MacOSSetup options succeeds because only Windows is disabled
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString("foo"),
-				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("bar"),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: true}
+			acResp = patchWithBootstrapPackage(t, ac, "foo", http.StatusOK)
 			acResp = checkAppConfig(t, true, false)                              // only windows enabled
 			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
 
@@ -326,194 +314,15 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.Equal(t, "f1339", acResp.AppConfig.OrgInfo.OrgName)
 
 			// setting macos setup empty values doesn't cause validation error when mdm is disabled
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString(""),
-				EnableEndUserAuthentication: false,
-				MacOSSetupAssistant:         optjson.SetString(""),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: false}
+			acResp = patchWithBootstrapPackage(t, ac, "", http.StatusOK)
 			acResp = checkAppConfig(t, false, false)                             // both disabled
 			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
 
 			// setting macos setup to non-empty values fails because mdm disabled
-			ac.MDM.MacOSSetup = fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString("foo"),
-				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("bar"),
-			}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{EnableEndUserAuthentication: true}
+			acResp = patchWithBootstrapPackage(t, ac, "foo", http.StatusUnprocessableEntity)
 			acResp = checkAppConfig(t, false, false) // both disabled
-		})
-
-		t.Run("custom settings", func(t *testing.T) {
-			t.Cleanup(func() {
-				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
-			})
-
-			// initialize our test app config
-			ac := appConfig.Copy()
-			ac.AgentOptions = nil
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp := checkAppConfig(t, true, true)
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-			// add custom settings
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, true)                                                                                 // both mac and windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // applied
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // applied
-
-			// directly set MDM.EnabledAndConfigured to false
-			ac.MDM.EnabledAndConfigured = false
-			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp = checkAppConfig(t, false, true)                                                                                // only windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // still applied
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // still applied
-
-			// making an unrelated change should not cause validation error
-			ac.OrgInfo.OrgName = "f1337"
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, true)                                                                                // only windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // still applied
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // still applied
-			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
-
-			// remove custom settings
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, true) // only windows mdm enabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-			// add custom macOS settings fails because only windows is enabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
-			acResp = checkAppConfig(t, false, true) // only windows enabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-			// add custom Windows settings suceeds because only macOS is disabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, true)                                                                                // only windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // applied
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)                                                              // no change
-
-			// cleanup Windows settings
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, true) // only windows mdm enabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-			// directly set MDM.EnabledAndConfigured to true and windows to false
-			ac.MDM.EnabledAndConfigured = true
-			ac.MDM.WindowsEnabledAndConfigured = false
-			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // directly applied
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)                                      // still empty
-
-			// add custom windows settings fails because only mac is enabled
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
-			acResp = checkAppConfig(t, true, false) // only mac enabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-			// set this value to empty again so we can test other assertions assuming we're not setting it
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-
-			// changing unrelated config doesn't cause validation error
-			ac.OrgInfo.OrgName = "f1338"
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // no change
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)                                      // no change
-			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
-
-			// remove custom settings doesn't cause validation error
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, false) // only mac enabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-
-			// add custom macOS settings suceeds because only Windows is disabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)                                      // no change
-
-			// temporarily enable and add custom settings for both platforms
-			ac.MDM.EnabledAndConfigured = true
-			ac.MDM.WindowsEnabledAndConfigured = true
-			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp = checkAppConfig(t, true, true) // both mac and windows mdm enabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, true)                                                                                 // both mac and windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // applied
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // applied
-
-			// directly set both configs to false
-			ac.MDM.EnabledAndConfigured = false
-			ac.MDM.WindowsEnabledAndConfigured = false
-			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp = checkAppConfig(t, false, false)                                                                               // both mac and windows mdm disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
-
-			// changing unrelated config doesn't cause validation error
-			ac.OrgInfo.OrgName = "f1339"
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, false)                                                                               // both disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
-			require.Equal(t, "f1339", acResp.AppConfig.OrgInfo.OrgName)
-
-			// setting the same values is ok even if mdm is disabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, false)                                                                               // both disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
-
-			// setting different values fail even if mdm is disabled, and only some of the profiles have changed
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "oof"}, {Path: "bar"}}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
-			acResp = checkAppConfig(t, false, false) // both disabled
-			// set the values back so we can compare them
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
-			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
-
-			// setting empty values doesn't cause validation error when mdm is disabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, false) // both disabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-			// setting non-empty values fails because mdm disabled
-			ac.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}
-			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "zab"}})
-			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
-			acResp = checkAppConfig(t, false, false) // both disabled
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
 		})
 	})
 
@@ -532,11 +341,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			var wantMacOSSetup fleet.MacOSSetup
 			if checkMDM != nil {
 				if checkMDM.MacOSSetup != nil {
-					wantMacOSSetup = *checkMDM.MacOSSetup
-					// bootstrap package always ignored by modify team endpoint so expect original value
-					wantMacOSSetup.BootstrapPackage = team.Config.MDM.MacOSSetup.BootstrapPackage
-					// setup assistant always ignored by modify team endpoint so expect original value
-					wantMacOSSetup.MacOSSetupAssistant = team.Config.MDM.MacOSSetup.MacOSSetupAssistant
+					wantMacOSSetup = checkMDM.MacOSSetup.MacOSSetup
+					wantMacOSSetup.EnableEndUserAuthentication = checkMDM.MacOSSetup.EnableEndUserAuthentication.Value
 				}
 				wantDiskEncryption = checkMDM.EnableDiskEncryption.Value
 			}
@@ -545,8 +351,6 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &resp)
 			require.Equal(t, team.Name, resp.Team.Name)
 			require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
-			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.Equal(t, wantMacOSSetup.MacOSSetupAssistant.Value, resp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			require.Equal(t, wantMacOSSetup.EnableEndUserAuthentication, resp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 
 			return resp
@@ -588,32 +392,10 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				"mdm all zero values",
 				&fleet.TeamPayloadMDM{
 					EnableDiskEncryption: optjson.SetBool(false),
-					MacOSSetup: &fleet.MacOSSetup{
-						BootstrapPackage:            optjson.SetString(""),
-						EnableEndUserAuthentication: false,
-						MacOSSetupAssistant:         optjson.SetString(""),
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
+						EnableEndUserAuthentication: optjson.SetBool(false),
 					},
 				},
-				http.StatusOK,
-			},
-			{
-				"bootstrap package",
-				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
-						BootstrapPackage: optjson.SetString("some-package"),
-					},
-				},
-				// bootstrap package is always ignored by the modify team endpoint
-				http.StatusOK,
-			},
-			{
-				"setup assistant",
-				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
-						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
-					},
-				},
-				// setup assistant is always ignored by the modify team endpoint
 				http.StatusOK,
 			},
 			{
@@ -627,8 +409,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"enable end user auth",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
-						EnableEndUserAuthentication: true,
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
+						EnableEndUserAuthentication: optjson.SetBool(true),
 					},
 				},
 				// disk encryption requires mdm enabled and configured
@@ -672,7 +454,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			// var wantDiskEncryption bool
 			var wantMacOSSetup fleet.MacOSSetup
 			if checkMDM != nil {
-				wantMacOSSetup = checkMDM.MacOSSetup
+				wantMacOSSetup = checkMDM.MacOSSetup.MacOSSetup
 				// wantDiskEncryption = checkMDM.EnableDiskEncryption.Value
 			}
 
@@ -680,8 +462,6 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &resp)
 			require.Equal(t, team.Name, resp.Team.Name)
 			// require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
-			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.Equal(t, wantMacOSSetup.MacOSSetupAssistant.Value, resp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			require.Equal(t, wantMacOSSetup.EnableEndUserAuthentication, resp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 
 			return resp
@@ -724,10 +504,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				"mdm all zero values",
 				&fleet.TeamSpecMDM{
 					EnableDiskEncryption: optjson.SetBool(false),
-					MacOSSetup: fleet.MacOSSetup{
-						BootstrapPackage:            optjson.SetString(""),
+					MacOSSetup: fleet.MacOSSetupSpec{
 						EnableEndUserAuthentication: false,
-						MacOSSetupAssistant:         optjson.SetString(""),
+						BootstrapPackage:            optjson.SetString(""),
 					},
 				},
 				http.StatusOK,
@@ -735,21 +514,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"bootstrap package",
 				&fleet.TeamSpecMDM{
-					MacOSSetup: fleet.MacOSSetup{
-						BootstrapPackage: optjson.SetString("some-package"),
-					},
+					MacOSSetup: fleet.MacOSSetupSpec{BootstrapPackage: optjson.SetString("some-package")},
 				},
 				// bootstrap package requires mdm enabled and configured
-				http.StatusUnprocessableEntity,
-			},
-			{
-				"setup assistant",
-				&fleet.TeamSpecMDM{
-					MacOSSetup: fleet.MacOSSetup{
-						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
-					},
-				},
-				// setup assistant requires mdm enabled and configured
 				http.StatusUnprocessableEntity,
 			},
 			{
@@ -772,9 +539,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"enable end user auth",
 				&fleet.TeamSpecMDM{
-					MacOSSetup: fleet.MacOSSetup{
-						EnableEndUserAuthentication: true,
-					},
+					MacOSSetup: fleet.MacOSSetupSpec{EnableEndUserAuthentication: true},
 				},
 				// disk encryption requires mdm enabled and configured
 				http.StatusUnprocessableEntity,
@@ -878,7 +643,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -893,7 +658,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -923,7 +688,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -958,7 +723,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -970,7 +735,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -998,7 +763,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -1010,7 +775,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},
@@ -1038,7 +803,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -1073,7 +838,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},
@@ -1216,7 +981,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
 			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
 		},
-	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 	// Create in-house app in team t1 that references l1t1.
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -1388,12 +1153,12 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.1 Attempt to create a team policy that references l2t2 (should fail).
 		tpResp := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
@@ -1401,13 +1166,13 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.2 Attempt to create a team policy with a global label and same team label (should succeed).
 		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l1t1.Name},
 		}, http.StatusOK, &tpResp)
 		teamPolicyID := tpResp.Policy.ID
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
@@ -1415,34 +1180,34 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.3 Attempt to edit a team policy to reference l2t2 (should fail; label is outside team).
 		mtplr := fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a team label on the same team (should succeed).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 
 		// 1.C.1 Attempt to create a "No team" policy that references l1t1 (should fail).
 		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
@@ -1450,13 +1215,13 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.2 Attempt to create a "No team" policy with a global label (should succeed).
 		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &tpResp)
 		noTeamPolicyID := tpResp.Policy.ID
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name},
@@ -1464,22 +1229,22 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.3 Attempt to edit a "No team" policy with a team policy that references l2t2 (should fail).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a global label (should succeed).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
@@ -1503,7 +1268,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
-		globalQueryID := createQueryResp.Query.ID
+		globalQueryID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit global query with team label (should fail).
 		modifyQueryResp := fleet.ModifyQueryResponse{}
@@ -1538,7 +1303,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			TeamID: &t1.ID,
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
-		team1LabelID := createQueryResp.Query.ID
+		team1LabelID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
@@ -1558,14 +1323,16 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// because of time constraints (we haven't yet implemented test utilities for multipart uploads).
 
 		// Attempt to create a team profile with labels from another team (should fail).
-		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
 					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
+		require.Contains(t, extractServerErrorText(res.Body),
+			fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", l2t2.Name))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1573,7 +1340,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1581,7 +1348,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile with a label on the same team (should succeed).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1591,7 +1358,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l1t1.Name},
 				},
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile in "No team" with a label that belongs to a team (should fail).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1624,7 +1391,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{l2t2.Name},
 			Platform:         "linux",
 		}
-		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest, "")
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest,
+			fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", l2t2.Name))
 
 		// Attempt to create a software installer with a label on the same team (should succeed).
 		payloadRubyTm1 = &fleet.UploadSoftwareInstallerPayload{
@@ -1894,7 +1662,7 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	wantSha := sha256.Sum256(signedPkg)
 	require.Equal(t, wantSha[:], metaResp.MDMAppleBootstrapPackage.Sha256)
 	s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
-		`{"bootstrap_package_name": "staged.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"bootstrap_package_name": "staged.pkg", "fleet_id": null, "fleet_name": null}`, 0)
 	s.Do("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusOK)
 
 	// software package add and edit
@@ -1912,7 +1680,7 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
-	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.Packages[0].Name)
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", "0")
 

@@ -13,6 +13,58 @@ app_process_running() {
   return 1
 }
 
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids kill_cmd=(kill)
+  [[ $EUID -ne 0 ]] || kill_cmd=(sudo -u "$console_user" kill)
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    if ! app_process_running "$bundle_id" &&
+      [[ "$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)" == "false" ]]; then
+      echo "Application '$bundle_id' is no longer running."
+      return 0
+    fi
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  "${kill_cmd[@]}" -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    "${kill_cmd[@]}" -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
@@ -63,7 +115,8 @@ quit_and_track_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 
@@ -113,8 +166,11 @@ relaunch_application() {
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT" || true
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+	exit 1
+fi
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 # copy to the applications folder
 quit_and_track_application 'com.t3tools.t3code' || exit 1
 if [ -d "$APPDIR/T3 Code (Beta).app" ]; then

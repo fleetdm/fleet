@@ -73,8 +73,8 @@ export function ShutdownNow(targets: processes$0.ComposeTarget[]): $CancellableP
     return $Call.ByID(4274814133, targets);
 }
 
-export function StartProcess(id: string, label: string, cwd: string, program: string, args: string[], logChannel: string, env: processes$0.EnvPair[]): $CancellablePromise<void> {
-    return $Call.ByID(722034268, id, label, cwd, program, args, logChannel, env);
+export function StartProcess(id: string, label: string, cwd: string, program: string, args: string[], logChannel: string, env: processes$0.EnvPair[], meta: { [_ in string]?: string }): $CancellablePromise<void> {
+    return $Call.ByID(722034268, id, label, cwd, program, args, logChannel, env, meta);
 }
 
 export function StopProcess(id: string): $CancellablePromise<void> {

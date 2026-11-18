@@ -15,19 +15,33 @@
     .external-link-icon path {
       fill: $core-fleet-black;
     }
+
+    .external-link-icon--small {
+      stroke: $core-fleet-black;
+    }
   }
 
   // Non-multiline links lay out the icon next to the text on a single line.
   &:not(.custom-link--multiline) {
     display: inline-flex;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-xxsmall;
   }
 
   &__no-wrap {
     white-space: nowrap;
     display: inline-flex;
-    gap: $pad-xsmall;
+    gap: $pad-xxsmall;
+  }
+
+  // Offset each icon's built-in inset (2.5px at 16px, 1px at 12px) so the
+  // visible gap is 4px next to both regular and small text.
+  .external-link-icon {
+    margin-left: -0.5px;
+  }
+
+  .external-link-icon--small {
+    margin-left: 1px;
   }
 
   &__last-word {
@@ -76,6 +90,12 @@
       fill: $static-white;
     }
 
+    // The small icon is stroke-drawn with a themed color that turns dark in
+    // dark mode.
+    .external-link-icon--small {
+      stroke: $static-white;
+    }
+
     &:hover,
     &:focus-visible {
       // !important: same specificity as the `@include link` hover color above,
@@ -90,6 +110,10 @@
 
       .external-link-icon path {
         fill: $static-white;
+      }
+
+      .external-link-icon--small {
+        stroke: $static-white;
       }
     }
 

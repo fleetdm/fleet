@@ -1,0 +1,7 @@
+{
+    "Type": "com.apple.configuration.legacy",
+    "Identifier": "com.fleetdm.config.inter-font.legacy",
+    "Payload": {
+        "ProfileURL": "https://raw.githubusercontent.com/fleetdm/fleet/157a93c761077f35493a370cfc93e54ea5fb8877/it-and-security/lib/all/configuration-profiles/inter-font.mobileconfig"
+    }
+}

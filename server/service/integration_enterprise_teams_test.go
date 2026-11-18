@@ -146,28 +146,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), team.Config.MDM)
 
 	// an activity was created for team spec applied
-	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
 
 	// Create team policy
 	teamPolicy, err := s.ds.NewTeamPolicy(
@@ -208,7 +205,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamNameDecomposed,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"lock_end_user_info": true,
 					},
 				},
@@ -280,20 +277,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), team.Config.MDM)
 
@@ -324,20 +318,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), getTmResp.Team.Config.MDM)
 
@@ -370,20 +361,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), listTmResp.Teams[0].Config.MDM)
 
@@ -416,32 +404,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 
-	// dry-run with valid agent options and custom macos settings
-	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":          teamNameDecomposed,
-				"agent_options": agentOpts,
-				"mdm": map[string]any{
-					"macos_settings": map[string]any{
-						"custom_settings": []string{"foo", "bar"},
-					},
-				},
-			},
-		},
-	}
-	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
-
 	// dry-run with macos disk encryption set to false, no error
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": false,
 					},
 				},
@@ -459,7 +428,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": true,
 					},
 				},
@@ -476,8 +445,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
-						"enable_release_device_manually": false,
+					"setup_experience": map[string]any{
+						"apple_enable_release_device_manually": false,
 					},
 				},
 			},
@@ -493,8 +462,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
-						"enable_release_device_manually": true,
+					"setup_experience": map[string]any{
+						"apple_enable_release_device_manually": true,
 					},
 				},
 			},
@@ -503,6 +472,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update setup_experience because MDM features aren't turned on in Fleet.")
+
+	// dry-run with macos require all software set to true
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"setup_experience": map[string]any{
+						"macos_require_all_software": true,
+					},
+				},
+			},
+		},
+	}
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't update setup_experience.macos_require_all_software because MDM features aren't turned on in Fleet.")
 
 	// dry-run with invalid host_expiry_settings.host_expiry_window
 	teamSpecs = map[string]any{
@@ -541,7 +527,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
-	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
 	require.False(t, team.Config.MDM.EnableDiskEncryption)                 // unchanged
 
 	// apply without agent options specified
@@ -665,7 +650,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Equal(t, appConfig.Features, team.Config.Features)
 
 	// an activity was created for the newly created team via the applied spec
-	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
 
 	// updates
 	teamSpecs = map[string]any{
@@ -701,7 +686,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	require.NoError(t, err)
 
 	spec := func(macOSSettings map[string]any) map[string]any {
-		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"macos_settings": macOSSettings}}}}
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"apple_settings": macOSSettings}}}}
 	}
 
 	var applyResp applyTeamSpecsResponse
@@ -714,12 +699,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &getResp)
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
-
-	// custom profiles still need Apple MDM
-	res := s.Do("POST", "/api/latest/fleet/spec/fleets", spec(map[string]any{
-		"custom_settings": []string{"foo"},
-	}), http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 }
 
 // applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
@@ -853,7 +832,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 
 	seenActivitiesIDs := map[uint]struct{}{}
 	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
-	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name)
+	activityDetails := fmt.Sprintf(`{"fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name)
 
 	// Check that an activity was created for the new secrets
 	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
@@ -1154,14 +1133,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("POST", "/api/latest/fleet/fleets", team2, http.StatusConflict, &tmResp)
 
 	// create a team whose name only differs by case — must also 409 with the
-	// canonical "must differ" message.
+	// canonical conflict message.
 	teamCaseVariant := &fleet.Team{
 		Name:        strings.ToLower(name),
 		Description: "case variant",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
 	}
 	r := s.Do("POST", "/api/latest/fleet/fleets", teamCaseVariant, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.TeamNameConflictHint)
 
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
@@ -1208,7 +1187,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// renaming into another team's name (the original team created above)
 	// using only case differences must return 409 with the canonical message.
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", paddedTeamID), fleet.TeamPayload{Name: new(strings.ToUpper(name))}, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.TeamNameConflictHint)
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", paddedTeamID), nil, http.StatusOK)
@@ -1380,9 +1359,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// add a team user
 	tmResp.Team = nil
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Users, 1) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
 	assert.Equal(t, user.ID, tmResp.Team.Users[0].ID)
+	assert.Equal(t, user.Email, tmResp.Team.Users[0].Email)
+
+	fleetRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": %%q, "fleet_id": %d, "fleet_name": %q}`,
+		user.ID, user.Name, user.Email, tm1ID, tmResp.Team.Name)
+	lastActivityID := s.lastActivityMatches(fleet.ActivityTypeChangedUserTeamRole{}.ActivityName(), fmt.Sprintf(fleetRoleDetails, fleet.RoleObserver), 0)
+	activities := s.listActivities()
+	require.NotNil(t, activities[len(activities)-1].ActorID)
+	assert.Equal(t, s.users["admin1@example.com"].ID, *activities[len(activities)-1].ActorID)
+
+	// adding a team user with the role they already have logs nothing
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
+	s.lastActivityMatches("", "", lastActivityID)
+
+	// changing a team user's role logs the new role
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleMaintainer}}}, http.StatusOK, &tmResp)
+	lastActivityID = s.lastActivityMatches(fleet.ActivityTypeChangedUserTeamRole{}.ActivityName(), fmt.Sprintf(fleetRoleDetails, fleet.RoleMaintainer), 0)
 
 	// add a team user - non-existing team
 	tmResp.Team = nil
@@ -1391,6 +1386,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// add a team user - invalid user role
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: *user, Role: "foobar"}}}, http.StatusUnprocessableEntity, &tmResp)
+	s.lastActivityMatches("", "", lastActivityID)
 
 	// search for that user
 	usersResp.Users = nil
@@ -1407,11 +1403,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID}}}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Users) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
+	lastActivityID = s.lastActivityMatches(fleet.ActivityTypeDeletedUserTeamRole{}.ActivityName(), fmt.Sprintf(fleetRoleDetails, fleet.RoleMaintainer), 0)
 
 	// delete team user - unknown user
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID + 1}}}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Users) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
+	s.lastActivityMatches("", "", lastActivityID)
 
 	// delete team user - unknown team
 	tmResp.Team = nil
@@ -1504,7 +1502,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`) // nolint:nilaway // left unchanged; DoJSON fails the test unless the response decodes into tmResp
 
 	// list activities, it should have created one for edited_agent_options
-	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm1ID, team.Name, tm1ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "fleet_id": %d, "fleet_name": %q}`, tm1ID, team.Name), 0)
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
@@ -1528,6 +1526,172 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
+	t := s.T()
+
+	var created []uint
+	defer func() {
+		for _, id := range created {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", id), nil, http.StatusOK)
+		}
+	}()
+	createFleet := func(name string) uint {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusOK, &resp)
+		require.Equal(t, name, resp.Team.Name)
+		created = append(created, resp.Team.ID)
+		return resp.Team.ID
+	}
+	fleetNames := func() map[uint]string {
+		var resp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &resp)
+		names := make(map[uint]string, len(resp.Teams))
+		for _, tm := range resp.Teams {
+			names[tm.ID] = tm.Name
+		}
+		return names
+	}
+	applySpecs := func(expectedStatus int, dryRun bool, specs ...map[string]any) *http.Response {
+		return s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": specs}, expectedStatus,
+			"dry_run", fmt.Sprint(dryRun))
+	}
+	requireError := func(res *http.Response, wantName, wantReason string, msgAndArgs ...any) {
+		names, reasons := extractServerErrorNameReasons(res.Body)
+		require.Equal(t, []string{wantName}, names, msgAndArgs...)
+		require.Equal(t, []string{wantReason}, reasons, msgAndArgs...)
+	}
+	conflictReason := func(existing string) string {
+		return fmt.Sprintf("A fleet named %q already exists. Choose a fleet name distinct from other fleets.", existing)
+	}
+	specConflictReason := func(name, existing string) string {
+		return fmt.Sprintf("fleet name %q conflicts with existing fleet %q. Choose a fleet name distinct from other fleets.", name, existing)
+	}
+
+	workstations := createFleet("Workstations")
+	other := createFleet("Other fleet")
+	before := fleetNames()
+
+	// Rule 1: at least one letter or number.
+	const noLetterOrNumber = "must include at least one letter or number"
+	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・", "  ---  ", "\u093e"} {
+		res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
+		requireError(res, "name", noLetterOrNumber, name)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
+		requireError(res, "name", noLetterOrNumber, name)
+		for _, dryRun := range []bool{true, false} {
+			res = applySpecs(http.StatusUnprocessableEntity, dryRun, map[string]any{"name": name})
+			requireError(res, "name", noLetterOrNumber, name)
+			res = applySpecs(http.StatusUnprocessableEntity, dryRun, map[string]any{"name": name, "gitops_filename": "rule1.yml"})
+			requireError(res, "name", noLetterOrNumber, name)
+		}
+	}
+	require.Equal(t, before, fleetNames())
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀"} {
+		createFleet(name)
+	}
+
+	// Rule 2: distinct from other fleets by name key or under the collation.
+	conflicts := []struct {
+		existing string
+		names    []string
+	}{
+		{"Workstations", []string{"Work-stations", "Work stations", "workstations!", "WORK_STATIONS", "Workstations 💻", "workstations", "Wörkstations"}},
+		{"Laptops 💻", []string{"Laptops", "Laptops 🚀", "laptops"}},
+		{"ABC", []string{"abc", "ＡＢＣ", "a.b.c"}},
+		{"Renee", []string{"Reneé", "RENEE"}},
+		{"straße", []string{"strasse", "Strasse!"}},
+		{"Team 𝐀", []string{"Team 𝐁", "Team A"}},
+		{"開発チーム", []string{"開発・チーム", "開発チーム。"}},
+		{"はは", []string{"ハハ", "パパ"}},
+		{"राम", []string{"राम!", "रा-म"}},
+		{"กิน", []string{"กิน 🚀"}},
+		{"мой", []string{"МОЙ", "Мой!"}},
+	}
+	for _, c := range conflicts {
+		id := workstations
+		if c.existing != "Workstations" {
+			id = createFleet(c.existing)
+		}
+		before := fleetNames()
+		for _, name := range c.names {
+			res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusConflict)
+			requireError(res, "base", conflictReason(c.existing), name)
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusConflict)
+			requireError(res, "base", conflictReason(c.existing), name)
+
+			// A new GitOps file with a name that matches under the collation adopts the existing fleet, as before.
+			// A name that only matches by name key doesn't, and must not create a second fleet.
+			var byCollation *fleet.Team
+			if tm, err := s.ds.TeamByName(t.Context(), name); err == nil {
+				byCollation = tm
+			}
+			if byCollation == nil {
+				for _, dryRun := range []bool{true, false} {
+					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name, "gitops_filename": "new.yml"})
+					requireError(res, "base", specConflictReason(name, c.existing), name)
+					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name})
+					requireError(res, "base", specConflictReason(name, c.existing), name)
+				}
+			} else {
+				require.Equal(t, id, byCollation.ID, name)
+			}
+		}
+		require.Equal(t, before, fleetNames(), c.existing)
+	}
+	// The collation alone covers some of these and the name key alone covers others, so the loop above must have
+	// exercised the spec create path.
+	_, err := s.ds.TeamByName(t.Context(), "Work-stations")
+	require.True(t, fleet.IsNotFound(err))
+	_, err = s.ds.TeamByName(t.Context(), "Team 𝐁")
+	require.NoError(t, err)
+
+	// A fleet can be renamed to a variant of its own name.
+	var tmResp teamResponse
+	for _, name := range []string{"work-stations", "WORKSTATIONS!", "Workstations"} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", workstations), fleet.TeamPayload{Name: &name}, http.StatusOK, &tmResp)
+		require.Equal(t, name, tmResp.Team.Name)
+	}
+	// A number makes the name distinct.
+	createFleet("Workstations 2")
+	// Outside Latin script a combining mark can make a different word, so these don't conflict with "राम", "กิน",
+	// and "мой".
+	for _, name := range []string{"रम", "กัน", "мои"} {
+		createFleet(name)
+	}
+
+	// Two specs in one request.
+	res := applySpecs(http.StatusConflict, false, map[string]any{"name": "Work Stations"}, map[string]any{"name": "work-stations"})
+	requireError(res, "base", `duplicate fleet names in request: "Work Stations" (filename "") and "work-stations" (filename ""). `+
+		"Choose a fleet name distinct from other fleets.")
+	res = applySpecs(http.StatusConflict, true,
+		map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"},
+		map[string]any{"name": "kiosks!", "gitops_filename": "kiosks2.yml"})
+	requireError(res, "base", `duplicate fleet names in request: "Kiosks" (filename "kiosks.yml") and "kiosks!" (filename "kiosks2.yml"). `+
+		"Choose a fleet name distinct from other fleets.")
+
+	// A fleet matched by its GitOps filename.
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		map[string]any{"specs": []any{map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"}}}, http.StatusOK, &applyResp)
+	kiosks := applyResp.TeamIDsByName["Kiosks"]
+	require.NotZero(t, kiosks)
+	created = append(created, kiosks)
+	before = fleetNames()
+	for _, dryRun := range []bool{true, false} {
+		res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": "work stations", "gitops_filename": "kiosks.yml"})
+		requireError(res, "base", specConflictReason("work stations", "Workstations"))
+	}
+	require.Equal(t, before, fleetNames())
+	applySpecs(http.StatusOK, false, map[string]any{"name": "KIOSKS!", "gitops_filename": "kiosks.yml"})
+	require.Equal(t, "KIOSKS!", fleetNames()[kiosks])
+
+	// Without a filename, a spec whose name matches under the collation still applies to the existing fleet and
+	// keeps its name.
+	before = fleetNames()
+	applySpecs(http.StatusOK, false, map[string]any{"name": "workstations"})
+	require.Equal(t, before, fleetNames())
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
@@ -2485,7 +2649,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	// Test that we can configure webhooks for "No Team" (team ID 0)
 	// Use a generic response that will work with DefaultTeam
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 
 	// First clear any existing webhook configuration for "No Team"
@@ -2519,7 +2683,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Get the config again to verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -2564,7 +2728,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)
@@ -2620,40 +2784,25 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	}}, http.StatusOK, &defaultTeamResp)
 }
 
-func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() {
+func (s *integrationEnterpriseTestSuite) TestTeamConfigIgnoresStoredDetailQueryOverrides() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
-	teamName := t.Name() + "team1"
-	team := &fleet.Team{
-		Name:        teamName,
-		Description: "desc team1",
-	}
-	s.Do("POST", "/api/latest/fleet/fleets", team, http.StatusOK)
-
-	spec := []byte(fmt.Sprintf(`
-  name: %s
-  features:
-    additional_queries:
-      time: SELECT * FROM time
-    enable_host_users: true
-    detail_query_overrides:
-      users: null
-      software_linux: "select * from blah;"
-      disk_encryption_linux: null
-`, teamName))
-
-	s.applyTeamSpec(spec)
-	team, err := s.ds.TeamByName(ctx, teamName)
+	// Created through s.ds, not the API, so the server's cached team features never hold this fleet's pre-seed config.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:   t.Name(),
+		Config: fleet.TeamConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}},
+	})
 	require.NoError(t, err)
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides)
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["users"])
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["disk_encryption_linux"])
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides["software_linux"])
-	require.Equal(t, "select * from blah;", *team.Config.Features.DetailQueryOverrides["software_linux"])
 
-	// create a linux host
-	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+	// Configs saved by an older Fleet can still hold overrides, so seed them directly.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE teams SET config = JSON_SET(config, '$.features.detail_query_overrides',
+			JSON_OBJECT('users', NULL, 'disk_encryption_linux', NULL, 'software_linux', 'select * from blah;')) WHERE id = ?`, team.ID)
+		return err
+	})
+
+	linuxHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now().Add(-10 * time.Hour),
 		LabelUpdatedAt:  time.Now().Add(-10 * time.Hour),
 		PolicyUpdatedAt: time.Now().Add(-10 * time.Hour),
@@ -2663,50 +2812,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "linux",
+		TeamID:          &team.ID,
 	})
 	require.NoError(t, err)
 
-	// add the host to team1
-	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{linuxHost.ID}))
-	require.NoError(t, err)
-
-	// get distributed queries for the host
-	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{t.Name(): "select 1 from osquery;"}, nil)
-	req := getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
+	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{}, nil)
 	var dqResp getDistributedQueriesResponse
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
-	require.NotContains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
-
-	spec = []byte(fmt.Sprintf(`
-  name: %s
-  features:
-    additional_queries:
-      time: SELECT * FROM time
-    enable_host_users: true
-    detail_query_overrides:
-      software_linux: "select * from blah;"
-`, teamName))
-
-	s.applyTeamSpec(spec)
-	team, err = s.ds.TeamByName(ctx, teamName)
-	require.NoError(t, err)
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides)
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["users"])
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["disk_encryption_linux"])
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides["software_linux"])
-	require.Equal(t, "select * from blah;", *team.Config.Features.DetailQueryOverrides["software_linux"])
-
-	// get distributed queries for the host
-	req = getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
-	dqResp = getDistributedQueriesResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
+	require.NotEqual(t, "select * from blah;", dqResp.Queries["fleet_detail_query_software_linux"])
+
+	// Saves re-marshal the whole config from the struct, so the stale key disappears without a migration.
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{Description: new("saved")}, http.StatusOK)
+	var stillStored bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stillStored,
+			`SELECT JSON_CONTAINS_PATH(config, 'one', '$.features.detail_query_overrides') FROM teams WHERE id = ?`, team.ID)
+	})
+	require.False(t, stillStored)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {

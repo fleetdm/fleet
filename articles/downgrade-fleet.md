@@ -6,7 +6,7 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 
 ## Back up your users and update all fleet-level users to global users
 
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that you can restore user roles if you decide to upgrade later.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that you have a record of each user's roles if you decide to upgrade later. To restore them, edit each user in the Fleet UI or use the [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user) API endpoint.
 2. Head to the **Settings > Users** page in the Fleet UI.
 3. For each user that has any fleet listed under the **Fleets** column, select **Actions > Edit**, then select **Global user**, and then **Save**. Delete any users that shouldn't have global access.
 

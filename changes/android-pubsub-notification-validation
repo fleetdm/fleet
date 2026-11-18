@@ -1,0 +1,1 @@
+- Improved how Fleet validates Android MDM notifications from Google before it updates hosts and commands.
