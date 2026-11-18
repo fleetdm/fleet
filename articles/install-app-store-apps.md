@@ -147,18 +147,6 @@ If you leave out a key, Fleet uses its default. Fleet always sets the rest of th
 
 > **Note:** Fleet sends attributes even if the host's iOS or iPadOS version doesn't support them yet. If the host rejects the install, the error shows in the install details on **Host details > Activity**.
 
-#### Per-app VPN
-
-[Per-app VPN](https://support.apple.com/guide/deployment/depae3d361d0/web) sends only the selected apps' traffic through a VPN.
-
-1. Add a per-app VPN configuration profile (`com.apple.vpn.managed.applayer`) in **Controls > OS settings > Configuration profiles**. To start the VPN automatically when the app connects, set `OnDemandMatchAppEnabled` to `true` in the profile. For the profile's other settings, check your VPN provider's documentation.
-
-2. Copy the `VPNUUID` value from the profile.
-
-3. In the app's **Configuration**, add the `VPNUUID` under `Command` > `Attributes`, like in the example above, and save.
-
-> **Note:** Fleet doesn't check that the `VPNUUID` matches a profile. If it doesn't, the app installs without the VPN.
-
 ### Google Play (Android)
 
 All options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`, which Fleet sets for you.
