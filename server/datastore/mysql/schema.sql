@@ -241,7 +241,7 @@ CREATE TABLE `android_zero_touch_tokens` (
   UNIQUE KEY `idx_zt_global_or_team_id` (`global_or_team_id`),
   KEY `fk_zt_team_id` (`team_id`),
   CONSTRAINT `fk_zt_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
