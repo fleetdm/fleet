@@ -486,9 +486,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	// sending macos settings but no macos_updates does not change the macos updates
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"apple_settings": map[string]any{
-				"configuration_profiles": nil,
-			},
+			"apple_settings": map[string]any{},
 		},
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)

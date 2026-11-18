@@ -27,6 +27,9 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 		return fmt.Sprintf(`{"specs": [{"name": %q, "mdm": %s}]}`, team.Name, mdm)
 	}
 
+	before := appConfigResponse{}
+	s.DoJSON("GET", configPath, nil, http.StatusOK, &before)
+
 	for _, tc := range []struct {
 		name, method, path, body, removed string
 	}{
@@ -37,10 +40,6 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 			"config old and new together", "PATCH", configPath,
 			`{"mdm": {"apple_settings": {"enable_disk_encryption": true}, "macos_settings": {"enable_disk_encryption": true}}}`, "macos_settings",
 		},
-		{"config apple custom_settings", "PATCH", configPath, `{"mdm": {"apple_settings": {"custom_settings": []}}}`, "custom_settings"},
-		{"config windows custom_settings", "PATCH", configPath, `{"mdm": {"windows_settings": {"custom_settings": []}}}`, "custom_settings"},
-		{"config android custom_settings", "PATCH", configPath, `{"mdm": {"android_settings": {"custom_settings": []}}}`, "custom_settings"},
-		{"config differently cased", "PATCH", configPath, `{"mdm": {"Windows_Settings": {"Custom_Settings": []}}}`, "Custom_Settings"},
 		{
 			"config with another setting", "PATCH", configPath,
 			`{"org_info": {"org_name": "set by a rejected request"}, "mdm": {"macos_settings": {}}}`, "macos_settings",
@@ -58,12 +57,14 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 		res := s.DoRaw("GET", path+"?macos_settings=failed", nil, http.StatusUnprocessableEntity)
 		require.Contains(t, extractServerErrorText(res.Body), removedMsg("macos_settings"), path)
 		s.DoRaw("GET", path+"?apple_settings=failed", nil, http.StatusOK)
+		s.DoRaw("GET", path+"?apple_settings=bogus", nil, http.StatusBadRequest)
 	}
 
 	// nothing was saved by the rejected requests
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", configPath, nil, http.StatusOK, &acResp)
 	require.NotEqual(t, "set by a rejected request", acResp.OrgInfo.OrgName)
+	require.Equal(t, before.MDM.MacOSSettings.EnableDiskEncryption.Value, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	teamResp := getTeamResponse{}
 	s.DoJSON("GET", fleetPath, nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)

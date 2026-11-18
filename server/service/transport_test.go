@@ -610,6 +610,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		require.NoError(t, err)
 		_, err = hostListOptionsFromRequest(&http.Request{URL: u})
 		require.ErrorAs(t, err, &invalidArgumentErr, c.query)
+		require.Len(t, invalidArgumentErr.Invalid(), 1, c.query)
 		require.Equal(t, c.name, invalidArgumentErr.Invalid()[0]["name"], c.query)
 		require.Equal(t, `The "`+c.name+`" parameter is not available anymore. `+
 			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, invalidArgumentErr.Invalid()[0]["reason"], c.query)

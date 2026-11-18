@@ -4129,8 +4129,7 @@ spec:
         configuration_profiles:
           - path: 123
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
 		},
 		{
 			desc: "team configuration_profiles invalid labels",
@@ -4146,8 +4145,7 @@ spec:
           - path: a
             labels: Engineering
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
 		},
 		{
 			desc: "team configuration_profiles invalid label element",
@@ -4163,8 +4161,7 @@ spec:
           - path: a
             labels_include_any: [1, Engineering]
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
 		},
 		{
 			// macOS disk encryption doesn't require Apple MDM
@@ -4253,6 +4250,44 @@ spec:
     windows_enabled_and_configured: true
 `,
 			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config with the removed macos_settings key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption: true
+`,
+			wantErr: `The "macos_settings" parameter is not available anymore.`,
+		},
+		{
+			desc: "app config with the removed custom_settings key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_settings:
+      custom_settings: []
+`,
+			wantErr: `The "custom_settings" parameter is not available anymore.`,
+		},
+		{
+			desc: "fleet with the removed custom_settings key under apple_settings",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings: []
+`,
+			wantErr: `The "custom_settings" parameter is not available anymore.`,
 		},
 		{
 			desc: "app config with a removed server setting",

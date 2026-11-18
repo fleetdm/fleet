@@ -17,6 +17,7 @@ func init() {
 
 var appleSettingsEntries = []Entry{
 	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "macos_settings", New: "apple_settings"},
-	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "custom_settings", New: "configuration_profiles"},
+	// Config and fleet requests take profiles under neither name, so the API answers this key as unsupported.
+	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "custom_settings", New: "configuration_profiles"},
 	{Kind: KindQueryParam, Scope: ScopeRequest, Old: "macos_settings", New: "apple_settings"},
 }

@@ -2472,9 +2472,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", path, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 			assert.Empty(t, enrolledSecrets)
@@ -2490,9 +2487,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", path})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
@@ -4010,9 +4004,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 			}
 			assert.False(t, ds.SaveAppConfigFuncInvoked)
@@ -4025,9 +4016,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 			}
 			assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
@@ -7095,7 +7083,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7155,7 +7143,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7214,7 +7202,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7325,7 +7313,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7440,7 +7428,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:

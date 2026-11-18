@@ -168,17 +168,18 @@ spec:
 				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
-				mdm["macos_settings"] = fleet.GitOpsMacOSSettings{CustomSettings: c.want}
+				typed := []fleet.MDMProfileSpec{{Path: "typed"}}
+				mdm["apple_settings"] = fleet.GitOpsMacOSSettings{CustomSettings: typed}
 				got, err = extractAppCfgMacOSCustomSettings(specs.AppConfig)
 				require.NoError(t, err)
-				assert.Equal(t, c.want, got)
+				assert.Equal(t, typed, got)
 			}
 		})
 	}
 }
 
 func TestExtractMacOSAssetSpecs(t *testing.T) {
-	// GitOps decodes macos_settings into a fleet.GitOpsMacOSSettings struct. Whenever
+	// GitOps decodes apple_settings into a fleet.GitOpsMacOSSettings struct. Whenever
 	// the struct is present, assets must be reconciled (a nil/empty asset set
 	// clears existing assets), so the extractor returns a non-nil slice.
 	t.Run("gitops struct, no assets => non-nil empty (reconcile to empty)", func(t *testing.T) {
