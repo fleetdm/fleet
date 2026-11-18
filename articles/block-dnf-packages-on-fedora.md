@@ -109,7 +109,7 @@ exit $STATUS
 2. In Fleet, go to **Controls > Scripts** and upload the script.
 3. To run the script on a host, open the host's page and select **Actions > Run script**. To run it automatically on hosts that fail a policy, see [Run automatically with policies](#run-automatically-with-policies).
 
-Excluded packages are also hidden from `dnf remove`, so the script turns off excludes for its own dnf commands with `--setopt=disable_excludes='*'`. The block stays in place for everyone else.
+Excluded packages are also hidden from `dnf remove`, so the script turns off excludes for its own dnf commands with `--setopt=disable_excludes='*'`. The block stays in place for everyone else. dnf also removes dependencies that were installed only for the removed package, because dnf5 turns on `clean_requirements_on_remove` by default.
 
 If other installed packages need a blocked package, the script skips it and lists them, like `Skipped: oniguruma is required by: bat jq`. The script run then shows as failed in Fleet.
 
@@ -117,6 +117,8 @@ If other installed packages need a blocked package, the script skips it and list
 
 ## Run automatically with policies
 
+> **Note:** If your fleet has Linux hosts that don't use dnf5, create the `Hosts with dnf` label first. See [Fleets with other Linux distributions](#fleets-with-other-linux-distributions).
+> 
 Add two policies that run the scripts when a host fails them. The first puts the blocking files back if either is missing. The second removes blocked packages, including ones installed before you added the block. It reads the names from `/etc/dnf/blocked-packages.txt`, so you don't need to edit it when the list changes.
 
 1. In Fleet, go to **Policies**, select your fleet, and select **Add policy**.
@@ -146,10 +148,10 @@ To learn more, see [Automatically run scripts](https://fleetdm.com/guides/policy
 
 ### Fleets with other Linux distributions
 
-The Linux platform includes every Linux host in the fleet. On hosts that don't use dnf, like Ubuntu, the first policy fails and runs the dnf script. To limit both policies to hosts with dnf, create a dynamic [label](https://fleetdm.com/guides/managing-labels-in-fleet) named `Hosts with dnf` with this query, and target both policies to it:
+The Linux platform includes every Linux host in the fleet. On hosts that don't use dnf5, like Ubuntu or hosts with an older dnf, the first policy fails and runs the dnf script. To limit both policies to hosts with dnf5, create a dynamic [label](https://fleetdm.com/guides/managing-labels-in-fleet) named `Hosts with dnf`. Use this query, then target both policies to the label:
 
 ```sql
-SELECT 1 FROM file WHERE path IN ('/usr/bin/dnf', '/usr/bin/dnf5');
+SELECT 1 FROM file WHERE path = '/usr/bin/dnf5';
 ```
 
 ## Manage with GitOps
@@ -178,7 +180,7 @@ labels:
     description: Linux hosts that use dnf to install packages.
     label_membership_type: dynamic
     platform: linux
-    query: SELECT 1 FROM file WHERE path IN ('/usr/bin/dnf', '/usr/bin/dnf5');
+    query: SELECT 1 FROM file WHERE path = '/usr/bin/dnf5';
 
 controls:
   scripts:
@@ -249,8 +251,9 @@ Check these in order:
 
 1. Confirm the package name matches exactly.
 2. Confirm `/etc/dnf/libdnf5.conf.d/90-fleet-blocked.conf` exists and the host uses dnf5. Run `dnf --version` to check.
-3. Check whether another script or policy automation also writes to the file, which would overwrite your settings.
-4. Users with `sudo` rights can edit or delete the blocking files. The [blocklist policy](#run-automatically-with-policies) puts deleted files back the next time the host checks in. To restore edited files, run `dnf-blocked-packages.sh` again.
+3. Check `/etc/dnf/dnf.conf` for an empty `excludepkgs=` line. dnf combines `excludepkgs` values from all its settings files, but an empty value clears the ones read before it, including the Fleet file. Remove the line, or add packages after the `=`.
+4. Check whether another script or policy automation also writes to the file, which would overwrite your settings.
+5. Users with `sudo` rights can edit or delete the blocking files. The [blocklist policy](#run-automatically-with-policies) puts deleted files back the next time the host checks in. To restore edited files, run `dnf-blocked-packages.sh` again.
 
 **A host doesn't block a package you added**
 
