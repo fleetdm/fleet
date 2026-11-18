@@ -703,11 +703,12 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	{
 		reservedName := servermdm.FleetMacOSUpdatesProfileName
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-		rawJSON := `{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":"com.fleet.reserved","Payload":{}}`
+		reservedIdent := apple_mdm.MacOSDDMSoftwareUpdateIdentifier
+		rawJSON := fmt.Sprintf(`{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":%q,"Payload":{}}`, reservedIdent)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				"INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json, scope, uploaded_at, team_id) VALUES (?, ?, ?, ?, ?, NOW(6), 0)",
-				declUUID, "com.fleet.reserved", reservedName, rawJSON, fleet.PayloadScopeSystem)
+				declUUID, reservedIdent, reservedName, rawJSON, fleet.PayloadScopeSystem)
 			return err
 		})
 
