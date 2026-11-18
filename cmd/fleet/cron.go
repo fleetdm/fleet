@@ -1942,7 +1942,7 @@ func newChartDataCollectionSchedule(
 				fleet.ListOptions{},
 			)
 			if err != nil {
-				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				logger.ErrorContext(ctx, "list fleets for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
 			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
