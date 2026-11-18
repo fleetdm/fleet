@@ -16766,7 +16766,7 @@ To add more than one version of the same app, call this endpoint once per versio
   "platform": "ios",
   "name": "Test",
   "labels_include_any": ["Test"],
-  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+  "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
 }
 ```
 
