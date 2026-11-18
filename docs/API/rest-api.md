@@ -16762,7 +16762,7 @@ To add more than one version of the same app, call this endpoint once per versio
 ```json
 {
   "app_store_id": "546505307",
-  "team_id": 2,
+  "fleet_id": 2,
   "platform": "ios",
   "name": "Test",
   "labels_include_any": ["Test"],
