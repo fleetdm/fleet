@@ -110,10 +110,8 @@ export const HOSTS_QUERY_PARAMS = {
 export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   "apple_settings",
-  "macos_settings",
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "macos_bootstrap_package",
-  "bootstrap_package",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
 ];
 

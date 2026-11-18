@@ -169,10 +169,10 @@ export interface IConfigFeatures {
 
 export interface IConfigServerSettings {
   server_url: string;
-  live_query_disabled: boolean;
+  live_reporting_disabled: boolean;
   enable_analytics: boolean;
   deferred_save_host: boolean;
-  query_reports_disabled: boolean;
+  discard_reports_data: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
   ai_sessions_disabled: boolean;

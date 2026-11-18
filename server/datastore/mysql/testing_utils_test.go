@@ -458,7 +458,6 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"mdm_operation_types":              true,
 		"mdm_windows_enrollment_config":    true,
 		"migration_status_tables":          true,
-		"osquery_options":                  true,
 		"software_categories":              true,
 	}
 	_, err := ds.writer(context.Background()).ExecContext(context.Background(),

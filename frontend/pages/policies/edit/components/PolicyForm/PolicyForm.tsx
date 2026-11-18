@@ -230,7 +230,7 @@ const PolicyForm = ({
     isFreeTier,
   } = useContext(AppContext);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
   const aiFeaturesDisabled =
     config?.server_settings.ai_features_disabled || false;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;

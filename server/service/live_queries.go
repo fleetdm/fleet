@@ -18,7 +18,7 @@ import (
 )
 
 type runLiveQueryRequest struct {
-	QueryIDs []uint `json:"query_ids" renameto:"report_ids"`
+	QueryIDs []uint `json:"report_ids" removedkey:"query_ids"`
 	HostIDs  []uint `json:"host_ids"`
 }
 
@@ -46,13 +46,13 @@ type runLiveQueryResponse struct {
 	Summary summaryPayload `json:"summary"`
 	Err     error          `json:"error,omitempty"`
 
-	Results []fleet.QueryCampaignResult `json:"live_query_results" renameto:"live_report_results"`
+	Results []fleet.QueryCampaignResult `json:"live_report_results"`
 }
 
 func (r runLiveQueryResponse) Error() error { return r.Err }
 
 type runOneLiveQueryResponse struct {
-	QueryID            uint                `json:"query_id" renameto:"report_id"`
+	QueryID            uint                `json:"report_id"`
 	TargetedHostCount  int                 `json:"targeted_host_count"`
 	RespondedHostCount int                 `json:"responded_host_count"`
 	Results            []fleet.QueryResult `json:"results"`

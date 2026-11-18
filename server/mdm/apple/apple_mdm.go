@@ -335,7 +335,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	}
 
 	if len(orgNames) == 0 {
-		d.logger.InfoContext(ctx, "skipping defining profile for team with no relevant ABM token")
+		d.logger.InfoContext(ctx, "skipping defining profile for fleet with no relevant ABM token")
 		return "", time.Time{}, nil
 	}
 
@@ -3029,4 +3029,18 @@ func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
 	}
 
 	return subject
+}
+
+const (
+	MacOSDDMSoftwareUpdateIdentifier  = "macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IOSDDMSoftwareUpdateIdentifier    = "ios-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IpadOSDDMSoftwareUpdateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+)
+
+func FleetReservedDeclarationIdentifiers() map[string]struct{} {
+	return map[string]struct{}{
+		MacOSDDMSoftwareUpdateIdentifier:  {},
+		IOSDDMSoftwareUpdateIdentifier:    {},
+		IpadOSDDMSoftwareUpdateIdentifier: {},
+	}
 }

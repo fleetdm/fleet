@@ -1512,7 +1512,7 @@ func (ds *Datastore) applyHostFilters(
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
-					Message:     "team is invalid",
+					Message:     "fleet is invalid",
 					InternalErr: err,
 				},
 			)
@@ -2296,9 +2296,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	// One `now` per `?`: MIA, Missing, offline (mobile + desktop), online
+	// One `now` per `?`: Missing, offline (mobile + desktop), online
 	// (mobile + desktop), new.
-	args := []any{now, now, now, now, now, now, now}
+	args := []any{now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
@@ -2322,7 +2322,6 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
-				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE
 					WHEN h.platform IN ('ios','ipados','android')

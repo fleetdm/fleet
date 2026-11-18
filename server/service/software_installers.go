@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -96,7 +95,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded.TitleID = uint(titleID)
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err = parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err = parseMultipartForm(r)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -133,7 +132,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok {
 		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
@@ -376,7 +375,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded := uploadSoftwareInstallerRequest{}
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -420,7 +419,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok {
 		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
