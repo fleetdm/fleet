@@ -1737,6 +1737,10 @@ type Service interface {
 	// GetGoogleConditionalAccessDeviceStatus returns the Google sign-in state of the
 	// authenticated host, counting an attempt when it hands out a sign-in.
 	GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *Host) (*GoogleConditionalAccessDeviceStatus, error)
+	// GoogleConditionalAccessSignInRequired reports whether the Self-service web clip of
+	// the authenticated host should ask the status route for a sign-in. It only reads,
+	// so it counts no attempt.
+	GoogleConditionalAccessSignInRequired(ctx context.Context, host *Host) (bool, error)
 	// RegisterGoogleConditionalAccessDevice stores and marks the DeviceUsers fleetdm.com
 	// looked up for an iOS or iPadOS host. secret is the bearer token fleetdm.com sent.
 	RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg GoogleConditionalAccessRegistration) (GoogleConditionalAccessRegisterResult, error)
