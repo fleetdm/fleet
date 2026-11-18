@@ -3,11 +3,13 @@ package mysql
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -632,8 +634,12 @@ func testConditionalAccessGoogleDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET uuid = '' WHERE id = ?`, noUUID.ID)
 	require.NoError(t, err)
 	insertMigratedGoogleDeviceID(t, ds, "", "device-no-uuid")
+	// Another host row keeps this UUID, in another case, so the device is still in Fleet.
+	shared := newTestHostWithPlatform(t, ds, "shared", "ios", nil)
+	sharedName := register(shared)
+	test.NewHost(t, ds, "shared-dup", "", "shared-dup-"+shared.UUID, strings.ToUpper(shared.UUID), time.Now(), test.WithPlatform("ios"))
 	require.Equal(t, registered.UUID, googleDeviceID(t, ds, registered.UUID))
-	require.NoError(t, ds.DeleteHosts(ctx, []uint{registered.ID, unregistered.ID, stale.ID, migrated.ID, noUUID.ID}))
+	require.NoError(t, ds.DeleteHosts(ctx, []uint{registered.ID, unregistered.ID, stale.ID, migrated.ID, noUUID.ID, shared.ID}))
 	require.Equal(t, "device-no-uuid", googleDeviceID(t, ds, ""))
 
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
@@ -644,6 +650,18 @@ func testConditionalAccessGoogleDeleteHosts(t *testing.T, ds *Datastore) {
 	// The device ID is released at once, also when Fleet never stored names for it.
 	require.Empty(t, googleDeviceID(t, ds, registered.UUID))
 	require.False(t, googleDeviceRowExists(t, ds, migrated.UUID))
+
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		sharedName: fleet.GoogleConditionalAccessDeviceUserPending,
+	}, googleDeviceUserStates(t, ds, shared.UUID))
+	require.Equal(t, shared.UUID, googleDeviceID(t, ds, shared.UUID))
+	// The surviving row isn't MDM-enrolled, which is left to the sweep of unenrolled hosts.
+	queued, err := ds.QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts(ctx, customer, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, queued)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		sharedName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, shared.UUID))
 }
 
 func testConditionalAccessGoogleUnmarkUnenrolledHosts(t *testing.T, ds *Datastore) {
