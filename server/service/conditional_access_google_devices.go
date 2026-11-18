@@ -362,6 +362,37 @@ func (svc *Service) googleCloudIdentity(ctx context.Context, active *activeGoogl
 	return ci, nil
 }
 
+// checkHostGoogleDevice refuses a device an admin named for a host when Google ties the
+// host to other records. Only an Android host can be checked: its record carries the
+// Android Management device ID. An iOS or iPadOS record has nothing Fleet can compare.
+// Google mints its device ID, keeps no serial number at basic mobile management, and
+// shows the host UUID from Gmail's configuration to no admin API: only the end user's
+// lookup matches it, which is what the sign-in runs. For those hosts the caller is
+// trusted to name the host's device.
+func (svc *Service) checkHostGoogleDevice(
+	ctx context.Context, ci conditional_access_google.CloudIdentity, host *fleet.Host, googleDeviceID string,
+) error {
+	if !fleet.IsAndroidPlatform(host.Platform) {
+		return nil
+	}
+	androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get android host")
+	}
+	var deviceIDs []string
+	// Without the ID no record can be the host's, and Google isn't asked: an empty one
+	// would match every record that has none.
+	if androidHost != nil && androidHost.Device != nil && androidHost.Device.DeviceID != "" {
+		if deviceIDs, err = ci.FindDeviceIDs(ctx, androidHost.Device.DeviceID); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewBadGatewayError("Couldn't get the host's device from Google", err), "find google devices of android host")
+		}
+	}
+	if !slices.ContainsFunc(deviceIDs, func(id string) bool { return strings.EqualFold(id, googleDeviceID) }) {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID doesn't match this host's device in Google.")
+	}
+	return nil
+}
+
 // listGoogleDeviceUserNames returns the DeviceUser names of a device an admin named, with
 // the errors the Google device ID endpoint answers with.
 func listGoogleDeviceUserNames(ctx context.Context, ci conditional_access_google.CloudIdentity, googleDeviceID string) ([]string, error) {

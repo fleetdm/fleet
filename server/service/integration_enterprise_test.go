@@ -572,6 +572,10 @@ type googleDeviceMock struct {
 	goneDevices map[string]bool     // by device ID
 	listErr     error
 	signInErr   error
+	// androidRecords holds the Google device IDs of the records whose deviceId is the
+	// Android Management API device ID.
+	androidRecords map[string][]string
+	finds          []string // Android Management API device ID of each device search
 }
 
 // googleResourceError is Google's 404 on a device or DeviceUser it no longer has, or its
@@ -657,8 +661,14 @@ func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name strin
 	return nil
 }
 
-func (c *mockedGoogleCloudIdentity) FindDeviceIDs(context.Context, string) ([]string, error) {
-	return nil, errors.New("unexpected device search")
+func (c *mockedGoogleCloudIdentity) FindDeviceIDs(_ context.Context, androidDeviceID string) ([]string, error) {
+	c.m.mu.Lock()
+	defer c.m.mu.Unlock()
+	c.m.dev.finds = append(c.m.dev.finds, androidDeviceID)
+	if c.m.dev.listErr != nil {
+		return nil, c.m.dev.listErr
+	}
+	return slices.Clone(c.m.dev.androidRecords[androidDeviceID]), nil
 }
 
 func (c *mockedGoogleCloudIdentity) ListDeviceUserNames(_ context.Context, deviceID string) ([]string, error) {
@@ -683,6 +693,7 @@ func (m *mockedGoogleConditionalAccessClient) devCalls() googleDeviceMock {
 	defer m.mu.Unlock()
 	d := m.dev
 	d.managed = slices.Clone(d.managed)
+	d.finds = slices.Clone(d.finds)
 	return d
 }
 

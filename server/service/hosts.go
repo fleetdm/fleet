@@ -3057,6 +3057,9 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if ci == nil {
 		return notConnected
 	}
+	if err := svc.checkHostGoogleDevice(ctx, ci, host, googleDeviceID); err != nil {
+		return err
+	}
 	names, err := listGoogleDeviceUserNames(ctx, ci, googleDeviceID)
 	if err != nil {
 		return err

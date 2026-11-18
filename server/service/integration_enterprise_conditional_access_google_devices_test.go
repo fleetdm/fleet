@@ -82,6 +82,14 @@ func (g *googleDeviceTest) newAndroidHost(companyOwned bool) *fleet.Host {
 	return host
 }
 
+func (g *googleDeviceTest) androidDeviceID(host *fleet.Host) string {
+	var id string
+	mysqltest.ExecAdhocSQL(g.t, g.s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(g.t.Context(), q, &id, `SELECT device_id FROM android_devices WHERE host_id = ?`, host.ID)
+	})
+	return id
+}
+
 func (g *googleDeviceTest) iosStatus(host *fleet.Host) fleet.GoogleConditionalAccessDeviceStatus {
 	var resp fleet.GoogleConditionalAccessDeviceStatus
 	res := g.s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)

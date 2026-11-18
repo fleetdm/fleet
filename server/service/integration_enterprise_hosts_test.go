@@ -1285,6 +1285,35 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	requireErrorReason(res, "This host already has a different Google device ID.")
 	require.Equal(t, "device-a", storedID(iosHost))
 
+	// an Android host only takes a device Google has under its Android Management device ID,
+	// which no iOS or iPadOS record can be checked against
+	const notHostsDevice = "Google device ID doesn't match this host's device in Google."
+	androidID := g.androidDeviceID(androidHost)
+	require.Empty(t, g.client.devCalls().finds)
+	res = s.Do("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, notHostsDevice)
+	require.Equal(t, []string{androidID}, g.client.devCalls().finds)
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = errors.New("Google returned HTTP 500") })
+	s.Do("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusBadGateway)
+	require.Equal(t, []string{androidID, androidID}, g.client.devCalls().finds)
+	// a host Fleet has no Android Management device ID for has no record to match, not
+	// even one without an ID
+	noDeviceID := g.newAndroidHost(true)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `DELETE FROM android_devices WHERE host_id = ?`, noDeviceID.ID)
+		return err
+	})
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.listErr = nil
+		// device-a is the record the iPhone above was bound to
+		d.androidRecords = map[string][]string{androidID: {"device-a", "device-taken", "device-c"}, "": {"device-c"}}
+	})
+	res = s.Do("PUT", idPath(noDeviceID), map[string]any{"google_device_id": "device-c"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, notHostsDevice)
+	require.Empty(t, storedID(androidHost))
+	require.Empty(t, g.states(androidHost))
+	require.Empty(t, g.states(noDeviceID))
+
 	// an ID can only be bound to one host
 	res = s.Do("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-a"}, http.StatusConflict)
 	requireErrorReason(res, "This Google device ID is already used by another host.")
