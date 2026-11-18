@@ -896,7 +896,7 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 	assertTwoGeminis(fleet.MaintainedAppListOptions{Platform: "darwin", ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 
 	// list one app name per page, the first page should hold both Geminis because they share a name
-	assertTwoGeminis(fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, IncludeMetadata: true}})
+	assertTwoGeminis(fleet.MaintainedAppListOptions{PerPage: 1, IncludeMetadata: true})
 
 	slugs := func(apps []fleet.MaintainedApp) []string {
 		out := make([]string, 0, len(apps))
@@ -919,13 +919,13 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []string{"docker-desktop/darwin", "docker/windows"}, slugs(page0))
 
 	// list the third page, after Docker Desktop and Gemini, it should hold both Zen Browser entries
-	page2, meta2, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 2, IncludeMetadata: true}})
+	page2, meta2, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{PerPage: 1, Page: 2, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.False(t, meta2.HasNextResults)
 	require.ElementsMatch(t, []string{"zen/darwin", "zen-browser/windows"}, slugs(page2))
 
 	// list with the Windows platform filter, the page should still hold both Docker Desktop entries
-	windowsPage, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{Platform: "windows", ListOptions: fleet.ListOptions{PerPage: 1, IncludeMetadata: true}})
+	windowsPage, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{Platform: "windows", PerPage: 1, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"docker-desktop/darwin", "docker/windows"}, slugs(windowsPage))
 }
