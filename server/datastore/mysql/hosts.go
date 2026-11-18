@@ -4859,7 +4859,8 @@ type windowsResetAck struct {
 	AckedAt  time.Time `db:"acked_at"`
 }
 
-// windowsResetAckDB returns when the host acknowledged the reset in host_mdm_actions.wipe_ref, and whether there is one.
+// windowsResetAckDB returns when the host first acknowledged the reset in host_mdm_actions.wipe_ref, and whether there is one.
+// Only results from the host's own enrollments count.
 func windowsResetAckDB(ctx context.Context, q sqlx.QueryerContext, hostID uint) (windowsResetAck, bool, error) {
 	var ack windowsResetAck
 	err := sqlx.GetContext(ctx, q, &ack, `
@@ -4868,8 +4869,9 @@ func windowsResetAckDB(ctx context.Context, q sqlx.QueryerContext, hostID uint) 
 		JOIN host_mdm_actions hma ON hma.host_id = h.id
 		JOIN windows_mdm_commands wmc ON wmc.command_uuid = hma.wipe_ref
 		JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = hma.wipe_ref
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wmcr.enrollment_id AND mwe.host_uuid = h.uuid
 		WHERE h.id = ? AND wmc.target_loc_uri = ? AND wmcr.status_code LIKE '2%'
-		ORDER BY wmcr.created_at DESC
+		ORDER BY wmcr.created_at ASC
 		LIMIT 1`, hostID, fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData))
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -4887,9 +4889,11 @@ func clearEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, ho
 	if err != nil || !reset {
 		return false, err
 	}
+	// The acknowledgment time has whole seconds, and the next user can't sign in within the second the device acknowledged.
+	cutoff := ack.AckedAt.Add(time.Second)
 
 	stmt, args, err := sqlx.In(`DELETE FROM host_emails WHERE host_id = ? AND source IN (?) AND COALESCE(updated_at, created_at) < ?`,
-		hostID, []string{fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin}, ack.AckedAt)
+		hostID, []string{fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin}, cutoff)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "build delete end user emails")
 	}
@@ -4897,12 +4901,12 @@ func clearEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, ho
 		return false, ctxerr.Wrap(ctx, err, "delete end user emails")
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ? AND updated_at < ?`,
-		ack.HostUUID, ack.AckedAt); err != nil {
+		ack.HostUUID, cutoff); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "delete end user IdP account")
 	}
 	// The certificate resend that deleteHostSCIMUserMapping does is for Android certificate templates.
 	if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ? AND created_at < ?`,
-		hostID, ack.AckedAt); err != nil {
+		hostID, cutoff); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "delete end user SCIM mapping")
 	}
 	return true, nil

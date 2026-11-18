@@ -726,7 +726,7 @@ func (p *WindowsProfileForReconcile) HasBrokenLabel() bool {
 }
 
 // RemoteWipe CSP nodes Fleet sends. A power cycle can't interrupt doWipeProtected, so Wipe (lost or stolen hosts) uses
-// it. doWipePersistProvisionedData keeps provisioning packages, so Reset brings back a host that was set up with one.
+// it. doWipePersistProvisionedData keeps provisioning packages, so Reset can bring back a host that was set up with one.
 const (
 	WindowsRemoteWipeProtected              = "doWipeProtected"
 	WindowsRemoteWipePersistProvisionedData = "doWipePersistProvisionedData"

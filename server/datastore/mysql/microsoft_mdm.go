@@ -1698,6 +1698,16 @@ ON DUPLICATE KEY UPDATE
     status_code = COALESCE(VALUES(status_code), status_code),
     updated_at = CURRENT_TIMESTAMP
 `
+		// Only a reset's first result can track it again after a wipe replaced it; a repeated status changes nothing.
+		var resetFirstResult bool
+		if wipeCmdUUID != "" && wipeCmdReset {
+			if err := sqlx.GetContext(ctx, tx, &resetFirstResult, `
+				SELECT NOT EXISTS (SELECT 1 FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?)`,
+				enrolledDevice.ID, wipeCmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "check for an earlier reset result")
+			}
+		}
+
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting command results")
@@ -1712,6 +1722,12 @@ ON DUPLICATE KEY UPDATE
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
+			}
+			if rowsAffected == 0 && wipeCmdReset && wipeSucceeded && resetFirstResult && enrolledDevice.HostUUID != "" {
+				rowsAffected, err = retrackReplacedWindowsResetDB(ctx, tx, enrolledDevice.HostUUID, wipeCmdUUID)
+				if err != nil {
+					return err
+				}
 			}
 
 			if wipeCmdStatus != "" && rowsAffected > 0 {
@@ -4316,6 +4332,29 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 	})
 }
 
+// retrackReplacedWindowsResetDB handles a reset acknowledged for the first time after a wipe replaced it: the device had the
+// reset, so it is tracked again and the wipe, if it has no result yet, waits behind it as when it is requested after the
+// acknowledgment.
+func retrackReplacedWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, resetCmdUUID string) (int64, error) {
+	res, err := tx.ExecContext(ctx, `
+		UPDATE host_mdm_actions hma
+		JOIN hosts h ON h.id = hma.host_id
+		JOIN windows_mdm_commands wipe ON wipe.command_uuid = hma.wipe_ref
+		JOIN windows_mdm_commands reset ON reset.command_uuid = ?
+		SET hma.wipe_ref = reset.command_uuid
+		WHERE h.uuid = ? AND wipe.target_loc_uri = ? AND wipe.id > reset.id
+			AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results wmcr WHERE wmcr.command_uuid = wipe.command_uuid)`,
+		resetCmdUUID, hostUUID, fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipeProtected))
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "track acknowledged reset again")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "rows affected tracking acknowledged reset again")
+	}
+	return n, nil
+}
+
 // MDMWindowsFailInterruptedReset runs at the start of an MDM session. A completed reset removes the enrollment from the
 // device, so a session from the enrollment that acknowledged the reset means Windows rolled the reset back.
 func (ds *Datastore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
@@ -4327,7 +4366,7 @@ func (ds *Datastore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollm
 		JOIN windows_mdm_commands wmc ON wmc.command_uuid = hma.wipe_ref
 		JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = hma.wipe_ref AND wmcr.enrollment_id = ?
 		WHERE hma.host_id = ? AND wmc.target_loc_uri = ? AND wmcr.status_code LIKE '2%'
-			AND wmcr.updated_at <= NOW() - INTERVAL ? SECOND`,
+			AND wmcr.created_at <= NOW() - INTERVAL ? SECOND`,
 		enrollmentID, hostID, fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData),
 		int(fleet.WindowsResetRestartWindow.Seconds()))
 	switch {
@@ -4348,6 +4387,18 @@ func (ds *Datastore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollm
 			return ctxerr.Wrap(ctx, err, "lock host_mdm_actions for interrupted reset")
 		}
 		if wipeRef.String != resetCmdUUID {
+			return nil
+		}
+		// The replica decided the acknowledgment is older than the restart window; confirm it on the primary.
+		var interrupted bool
+		if err := sqlx.GetContext(ctx, tx, &interrupted, `
+			SELECT EXISTS (
+				SELECT 1 FROM windows_mdm_command_results
+				WHERE command_uuid = ? AND enrollment_id = ? AND status_code LIKE '2%' AND created_at <= NOW() - INTERVAL ? SECOND
+			)`, resetCmdUUID, enrollmentID, int(fleet.WindowsResetRestartWindow.Seconds())); err != nil {
+			return ctxerr.Wrap(ctx, err, "recheck acknowledged reset age")
+		}
+		if !interrupted {
 			return nil
 		}
 
@@ -4390,7 +4441,7 @@ func (ds *Datastore) MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollm
 			FROM windows_mdm_command_results wmcr
 			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcr.command_uuid
 			WHERE wmcr.enrollment_id = ? AND wmc.target_loc_uri LIKE ? AND wmcr.status_code LIKE '2%' AND (
-				wmcr.updated_at > NOW() - INTERVAL ? SECOND OR (
+				wmcr.created_at > NOW() - INTERVAL ? SECOND OR (
 					wmc.target_loc_uri = ? AND
 					EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.host_id = ? AND hma.wipe_ref = wmc.command_uuid)
 				)

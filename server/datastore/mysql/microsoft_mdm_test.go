@@ -6060,8 +6060,9 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 	// Moves the reset's acknowledgment past the restart window.
 	ageAck := func(t *testing.T, cmdUUID string) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
-				time.Now().Add(-fleet.WindowsResetRestartWindow-time.Minute), cmdUUID)
+			aged := time.Now().Add(-fleet.WindowsResetRestartWindow - time.Minute)
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET created_at = ?, updated_at = ? WHERE command_uuid = ?`,
+				aged, aged, cmdUUID)
 			return err
 		})
 	}
@@ -6101,6 +6102,7 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionReset)
 
 		result := ack(t, enrolled, resetUUID, "200")
+		require.NotNil(t, result)
 		require.NotNil(t, result.WipeSucceeded)
 		assert.True(t, result.WipeSucceeded.Reset)
 		requireStatus(t, host, fleet.DeviceStatusReset, fleet.PendingActionNone)
@@ -6112,9 +6114,29 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		result := ack(t, enrolled, resetUUID, "500")
+		require.NotNil(t, result)
 		require.NotNil(t, result.WipeFailed)
 		assert.True(t, result.WipeFailed.Reset)
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
+
+		// A later status for the failed reset doesn't take over the next one.
+		_, err = enqueue(t, host, resetLocURI)
+		require.NoError(t, err)
+		ack(t, enrolled, resetUUID, "200")
+		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionReset)
+
+		// Nor does a first status for a reset that left the queue before the next one was requested.
+		otherHost, otherEnrolled := newEnrolledHost(t)
+		earlierUUID, err := enqueue(t, otherHost, resetLocURI)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE command_uuid = ?`, earlierUUID)
+			return err
+		})
+		_, err = enqueue(t, otherHost, resetLocURI)
+		require.NoError(t, err)
+		ack(t, otherEnrolled, earlierUUID, "200")
+		requireStatus(t, otherHost, fleet.DeviceStatusUnlocked, fleet.PendingActionReset)
 	})
 
 	t.Run("wipe replaces a pending reset", func(t *testing.T) {
@@ -6132,12 +6154,30 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		assert.Equal(t, []string{wipeUUID}, pendingRemoteWipes(t, enrolled))
 		assert.False(t, remoteWipeInProgress(t, enrolled, host))
 
-		// The host picked the reset up before the wipe dropped it, and acknowledges it.
-		ack(t, enrolled, resetUUID, "200")
-		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
+		// The host picked the reset up before the wipe dropped it, and acknowledges it: the reset is tracked again, with the
+		// wipe waiting behind it.
+		result := ack(t, enrolled, resetUUID, "200")
+		require.NotNil(t, result)
+		require.NotNil(t, result.WipeSucceeded)
+		assert.True(t, result.WipeSucceeded.Reset)
+		requireStatus(t, host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
 		assert.True(t, remoteWipeInProgress(t, enrolled, host))
 		ageAck(t, resetUUID)
+		assert.True(t, remoteWipeInProgress(t, enrolled, host), "until the reset is found interrupted")
+		failed, err := ds.MDMWindowsFailInterruptedReset(ctx, enrolled.ID, host.ID)
+		require.NoError(t, err)
+		assert.True(t, failed)
+		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
 		assert.False(t, remoteWipeInProgress(t, enrolled, host))
+
+		// A replaced reset that the host reports as failed leaves the wipe as it is.
+		otherHost, otherEnrolled := newEnrolledHost(t)
+		otherResetUUID, err := enqueue(t, otherHost, resetLocURI)
+		require.NoError(t, err)
+		_, err = enqueue(t, otherHost, wipeLocURI)
+		require.NoError(t, err)
+		ack(t, otherEnrolled, otherResetUUID, "500")
+		requireStatus(t, otherHost, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
 	})
 
 	t.Run("no reset or wipe while another RemoteWipe is pending", func(t *testing.T) {
@@ -6208,7 +6248,13 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.False(t, failed, "reported once")
 
+		// The device repeats the reset's status: nothing moves, and the hold doesn't start again.
+		ack(t, enrolled, resetUUID, "200")
+		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
+		assert.False(t, remoteWipeInProgress(t, enrolled, host))
+
 		result := ack(t, enrolled, wipeUUID, "200")
+		require.NotNil(t, result)
 		require.NotNil(t, result.WipeSucceeded)
 		assert.False(t, result.WipeSucceeded.Reset)
 		requireStatus(t, host, fleet.DeviceStatusWiped, fleet.PendingActionNone)
@@ -6225,6 +6271,51 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.True(t, failed)
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
+	})
+
+	t.Run("only the host's own enrollments acknowledge its reset", func(t *testing.T) {
+		host, _ := newEnrolledHost(t)
+		_, otherEnrolled := newEnrolledHost(t)
+		resetUUID, err := enqueue(t, host, resetLocURI)
+		require.NoError(t, err)
+		ack(t, otherEnrolled, resetUUID, "200")
+
+		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionReset)
+		reset, err := ds.ClearEndUserAfterWindowsReset(ctx, fleet.WithEnrollOrbitMDMEnabled(true), fleet.WithEnrollOrbitHostInfo(
+			fleet.OrbitHostInfo{HardwareUUID: host.UUID, OsqueryIdentifier: *host.OsqueryHostID, Platform: "windows"}))
+		require.NoError(t, err)
+		assert.False(t, reset)
+	})
+
+	t.Run("an end user touched in the second the host acknowledged the reset is cleared too", func(t *testing.T) {
+		host, enrolled := newEnrolledHost(t)
+		acct := &fleet.MDMIdPAccount{Username: "previous", Email: "previous-" + host.UUID + "@example.com"}
+		require.NoError(t, ds.InsertMDMIdPAccount(ctx, acct))
+		acct, err := ds.GetMDMIdPAccountByEmail(ctx, acct.Email)
+		require.NoError(t, err)
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID)
+		require.NoError(t, err)
+		resetUUID, err := enqueue(t, host, resetLocURI)
+		require.NoError(t, err)
+		ack(t, enrolled, resetUUID, "200")
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			var ackedAt time.Time
+			if err := sqlx.GetContext(ctx, q, &ackedAt, `SELECT created_at FROM windows_mdm_command_results WHERE command_uuid = ?`,
+				resetUUID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_idp_accounts SET updated_at = ? WHERE host_uuid = ?`,
+				ackedAt.Add(500*time.Millisecond), host.UUID)
+			return err
+		})
+
+		reset, err := ds.ClearEndUserAfterWindowsReset(ctx, fleet.WithEnrollOrbitMDMEnabled(true), fleet.WithEnrollOrbitHostInfo(
+			fleet.OrbitHostInfo{HardwareUUID: host.UUID, OsqueryIdentifier: *host.OsqueryHostID, Platform: "windows"}))
+		require.NoError(t, err)
+		assert.True(t, reset)
+		got, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, got)
 	})
 
 	t.Run("end user is cleared when the host comes back from a reset", func(t *testing.T) {
@@ -6284,6 +6375,12 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		assert.Equal(t, []int{1, 1, 1}, []int{emails, idpAccounts, scim})
 
 		ack(t, enrolled, resetUUID, "200")
+		// The device acknowledged a while before the next user signs in.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET created_at = ? WHERE command_uuid = ?`,
+				time.Now().Add(-time.Minute), resetUUID)
+			return err
+		})
 
 		// Enrollments that EnrollOrbit refuses leave the end user alone.
 		otherHost, otherEnrolled := newEnrolledHost(t)

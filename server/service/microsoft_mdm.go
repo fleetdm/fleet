@@ -2262,8 +2262,8 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 // next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
 // fleetd wake the device again.
 //
-// A RemoteWipe is held back the same way while the device may still be acting on another one it acknowledged: Windows
-// restarts in a loop when it gets two.
+// A RemoteWipe is held back the same way while the device may still be acting on another one it acknowledged, and only one
+// goes out per response: Windows restarts in a loop when it gets two.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
@@ -2273,7 +2273,7 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	onlyPollCmdsPending := true
-	var remoteWipeInProgress *bool
+	var remoteWipeChecked, holdRemoteWipe bool
 	for _, pendingCmd := range pendingCmds {
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
 		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
@@ -2281,24 +2281,28 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 			onlyPollCmdsPending = false
 			continue
 		}
-		if fleet.LocURITargetsReservedNode(pendingCmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI) {
-			if remoteWipeInProgress == nil {
-				var hostID uint
-				if enrolledDevice.LinkedHostID != nil {
-					hostID = *enrolledDevice.LinkedHostID
-				}
-				inProgress, err := svc.ds.MDMWindowsRemoteWipeInProgress(ctx, enrolledDevice.ID, hostID)
-				if err != nil {
-					return nil, false, ctxerr.Wrap(ctx, err, "check for RemoteWipe in progress")
-				}
-				remoteWipeInProgress = &inProgress
+		isRemoteWipe := fleet.LocURITargetsReservedNode(pendingCmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI)
+		if isRemoteWipe && !remoteWipeChecked {
+			remoteWipeChecked = true
+			var hostID uint
+			if enrolledDevice.LinkedHostID != nil {
+				hostID = *enrolledDevice.LinkedHostID
 			}
-			if *remoteWipeInProgress {
-				svc.logger.DebugContext(ctx, "windows mdm: RemoteWipe held while the device may be acting on another one",
-					"enrollment_id", enrolledDevice.ID, "command_uuid", pendingCmd.CommandUUID)
-				onlyPollCmdsPending = false
-				continue
+			inProgress, err := svc.ds.MDMWindowsRemoteWipeInProgress(ctx, enrolledDevice.ID, hostID)
+			if err != nil {
+				// Only the RemoteWipe waits for the next session; the other commands still go out.
+				svc.logger.ErrorContext(ctx, "windows mdm: check for RemoteWipe in progress", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+				inProgress = true
 			}
+			holdRemoteWipe = inProgress
+		}
+		if isRemoteWipe && holdRemoteWipe {
+			svc.logger.DebugContext(ctx, "windows mdm: RemoteWipe held while the device may be acting on another one",
+				"enrollment_id", enrolledDevice.ID, "command_uuid", pendingCmd.CommandUUID)
+			onlyPollCmdsPending = false
+			continue
 		}
 		parsedCmds, err := svc.prepareWindowsPendingCommand(ctx, enrolledDevice.ID, pendingCmd)
 		if _, ok := errors.AsType[undeliverableWindowsCommandError](err); ok {
@@ -2316,6 +2320,9 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 		}
 		if !isPollCmd {
 			onlyPollCmdsPending = false
+		}
+		if isRemoteWipe {
+			holdRemoteWipe = true
 		}
 		for _, pcmd := range parsedCmds {
 			cmds = append(cmds, &pcmd)

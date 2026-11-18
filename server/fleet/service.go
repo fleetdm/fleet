@@ -1422,7 +1422,7 @@ type Service interface {
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
-	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one re-enrolls itself.
+	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one can re-enroll itself.
 	ResetHost(ctx context.Context, hostID uint) error
 
 	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.

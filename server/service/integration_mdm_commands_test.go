@@ -551,8 +551,9 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 	}
 	ageAck := func(cmdUUID string) {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
-				time.Now().Add(-fleet.WindowsResetRestartWindow-time.Minute), cmdUUID)
+			aged := time.Now().Add(-fleet.WindowsResetRestartWindow - time.Minute)
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET created_at = ?, updated_at = ? WHERE command_uuid = ?`,
+				aged, aged, cmdUUID)
 			return err
 		})
 	}
@@ -607,8 +608,9 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		}
 	})
 
-	t.Run("wipe over a reset the host just picked up waits for the restart window", func(t *testing.T) {
-		host, client := newMDMHost()
+	// pickUpResetThenWipe has the host pick up a reset, then has a wipe replace it before the host acknowledges it.
+	pickUpResetThenWipe := func(host *fleet.Host, client *mdmtest.TestWindowsMDMClient) string {
+		t.Helper()
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", host.ID), nil, http.StatusOK)
 		got := remoteWipesInSession(client)
 		require.Len(t, got, 1)
@@ -616,19 +618,69 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		for cmdUUID := range got {
 			resetUUID = cmdUUID
 		}
-
-		// The wipe drops the reset from the queue, but the host already has it and acknowledges it in the same session.
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK)
 		require.Empty(t, ackCmd(client, resetUUID, "200"))
+		return resetUUID
+	}
+
+	t.Run("a reset the host acknowledges after a wipe replaced it is tracked again", func(t *testing.T) {
+		host, client := newMDMHost()
+		resetUUID := pickUpResetThenWipe(host, client)
+		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
 		require.Empty(t, remoteWipesInSession(client))
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
 
 		ageAck(resetUUID)
-		got = remoteWipesInSession(client)
+		got := remoteWipesInSession(client)
 		require.Len(t, got, 1)
 		for _, locURI := range got {
 			require.Equal(t, wipeLocURI, locURI)
 		}
+		require.Equal(t, 1, s.countHostActivitiesOfType(host.ID, failedResetAct))
+		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
+	})
+
+	t.Run("the end user is cleared when a reset the host acknowledged after a wipe replaced it completes", func(t *testing.T) {
+		host, client := newMDMHost()
+		email := "previous-" + host.UUID + "@example.com"
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Username: "previous", Email: email}))
+		previous, err := s.ds.GetMDMIdPAccountByEmail(ctx, email)
+		require.NoError(t, err)
+		_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, previous.UUID)
+		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_idp_accounts SET updated_at = ? WHERE host_uuid = ?`,
+				time.Now().Add(-time.Hour), host.UUID)
+			return err
+		})
+
+		pickUpResetThenWipe(host, client)
+		reEnrollAfterReset(host, client)
+		require.Empty(t, remoteWipesInSession(client))
+		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
+		acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Nil(t, acct)
+	})
+
+	t.Run("one RemoteWipe goes out at a time", func(t *testing.T) {
+		host, client := newMDMHost()
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", host.ID), nil, http.StatusOK)
+		// Sent with POST /commands/run, which doesn't know about the pending reset.
+		raw := `<Exec><CmdID>` + uuid.NewString() + `</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI>` +
+			`</Target></Item></Exec>`
+		s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+			Command: base64.StdEncoding.EncodeToString([]byte(raw)), HostUUIDs: []string{host.UUID},
+		}, http.StatusOK)
+
+		got := remoteWipesInSession(client)
+		require.Len(t, got, 1)
+		var resetUUID string
+		for cmdUUID, locURI := range got {
+			require.Equal(t, resetLocURI, locURI)
+			resetUUID = cmdUUID
+		}
+		require.Empty(t, ackCmd(client, resetUUID, "200"))
+		require.Empty(t, remoteWipesInSession(client))
 	})
 
 	t.Run("wipe waits behind an acknowledged reset and goes out when the reset is interrupted", func(t *testing.T) {
@@ -737,7 +789,13 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 				return string(body)
 			}
 
-			resetAndAck(host, client, "200")
+			resetUUID := resetAndAck(host, client, "200")
+			// The device acknowledged a while before the next user signs in.
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET created_at = ? WHERE command_uuid = ?`,
+					time.Now().Add(-time.Minute), resetUUID)
+				return err
+			})
 			if mdmFirst {
 				reEnrollAfterReset(host, client)
 			}

@@ -339,6 +339,12 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 			status, err = s.ds.GetHostLockWipeStatus(t.Context(), host)
 			require.NoError(t, err)
 			require.False(t, status.IsWiped(), "re-enrolling in MDM clears the wiped status")
+			var wipeRefs int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(t.Context(), q, &wipeRefs,
+					`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ? AND wipe_ref IS NOT NULL`, host.ID)
+			})
+			require.Zero(t, wipeRefs, "re-enrolling in MDM clears the wipe reference")
 		}
 	}
 
