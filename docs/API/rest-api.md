@@ -16673,7 +16673,7 @@ For example:
         "🔐 Security"
       ],
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
+      "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Production config --></dict></dict></dict>"
     },
     {
       "id": 42,
@@ -16702,7 +16702,7 @@ For example:
       "created_at": "2026-02-03T10:14:22.882031Z",
       "categories": null,
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+      "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
     }
   ],
   "app_store_app": {
@@ -16730,7 +16730,7 @@ For example:
       "🔐 Security"
     ],
     "display_name": "Cloudflare One Agent",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
+    "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Production config --></dict></dict></dict>",
     "vpp_token": {
       "id": 1,
       "org_name": "Fleet Device Management Inc.",
@@ -17344,7 +17344,9 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 An Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token for all requests to Apple related to the app in that fleet, like assigning licenses. To add the app from a different VPP token, delete the app from the fleet and add it again.
 
-`configuration` supports all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) except `packageName` and `installType`. Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+For iOS and iPadOS apps, `configuration` is a `<dict>` whose only key is `Command`. `Command` supports `ManagementFlags`, `Configuration` (the app's managed configuration), and `Attributes` (e.g. `VPNUUID` for per-app VPN). Any other key is rejected. Learn more about [iOS and iPadOS managed configuration](https://fleetdm.com/learn-more-about/ios-software-managed-configuration).
+
+For Android, `configuration` supports all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) except `packageName` and `installType`. Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
 #### Example
 
@@ -17369,11 +17371,22 @@ To add more than one version of the same app, call this endpoint once per versio
 ```json
 {
   "app_store_id": "546505307",
-  "team_id": 2,
+  "fleet_id": 2,
   "platform": "ios",
   "name": "Test",
   "labels_include_any": ["Test"],
-  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+  "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict><key>example_key</key><string>example string value</string></dict></dict></dict>"
+}
+```
+
+##### Request body adding a version with per-app VPN
+
+```json
+{
+  "app_store_id": "6443476492",
+  "fleet_id": 2,
+  "platform": "ios",
+  "configuration": "<dict><key>Command</key><dict><key>Attributes</key><dict><key>VPNUUID</key><string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string></dict></dict></dict>"
 }
 ```
 
@@ -17462,7 +17475,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
   "team_id": 2,
   "name": "Test",
   "labels_include_any": ["Test"],
-  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+  "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
 }
 ```
 
@@ -17493,7 +17506,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
     "auto_update_window_start": null,
     "auto_update_window_end": null,
     "created_at": "2026-08-25T14:22:03Z",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->",
+    "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>",
     "automatic_install_policies": [
       {
         "id": 345,
