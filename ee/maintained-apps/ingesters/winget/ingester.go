@@ -100,6 +100,13 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 					"name", input.Name, "err", err)
 				continue
 			}
+			// winget prunes packages and release lines; keep the published manifest as-is
+			if errors.Is(err, errUpstreamNotFound) {
+				skippedApps++
+				logger.WarnContext(ctx, "skipping app: winget package or version not found upstream; its published manifest is unchanged",
+					"name", input.Name, "err", err)
+				continue
+			}
 			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
@@ -107,11 +114,13 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	}
 
 	if skippedApps > 0 {
-		logger.WarnContext(ctx, "some winget apps were skipped due to GitHub rate limiting", "count", skippedApps)
+		logger.WarnContext(ctx, "some winget apps were skipped due to GitHub rate limiting or missing upstream packages", "count", skippedApps)
 	}
 
 	return manifestApps, nil
 }
+
+var errUpstreamNotFound = errors.New("winget package or version not found upstream")
 
 // isTransientGitHubError reports whether err is GitHub load-shedding (rate limits, 429s, 5xx).
 func isTransientGitHubError(err error) bool {
@@ -192,12 +201,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		i.ghClientOpts,
 	)
 	if err != nil {
+		if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
+			ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("get data from winget repo: %w: %w", errUpstreamNotFound, err)
+		}
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
 	versionDirs := filterVersionPrefix(wingetVersionManifestDirs(repoContents), input.VersionPrefix)
 	if len(versionDirs) == 0 {
-		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+		return nil, ctxerr.WrapWithData(ctx, errUpstreamNotFound, "no version manifest directories found under package path", map[string]any{
 			"path":           dirPath,
 			"version_prefix": input.VersionPrefix,
 		})
@@ -275,7 +288,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	if !versionFound {
-		return nil, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
+		return nil, ctxerr.WrapWithData(ctx, errUpstreamNotFound, "no valid version manifest found for app", map[string]any{
 			"path": dirPath,
 		})
 	}
