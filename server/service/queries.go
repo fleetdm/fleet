@@ -26,7 +26,7 @@ func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err != nil {
 		return fleet.GetQueryResponse{Err: err}, nil
 	}
-	return fleet.GetQueryResponse{Query: query, Report: query}, nil
+	return fleet.GetQueryResponse{Report: query}, nil
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -275,7 +275,7 @@ func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return fleet.CreateQueryResponse{Err: err}, nil
 	}
-	return fleet.CreateQueryResponse{Query: query, Report: query}, nil
+	return fleet.CreateQueryResponse{Report: query}, nil
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -411,7 +411,7 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return fleet.ModifyQueryResponse{Err: err}, nil
 	}
-	return fleet.ModifyQueryResponse{Query: query, Report: query}, nil
+	return fleet.ModifyQueryResponse{Report: query}, nil
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {

@@ -14,6 +14,9 @@ Orbit is Fleet's lightweight agent that manages osquery, handles updates, and pr
 - **Packaging**: `orbit/pkg/packaging/` — builds installers for macOS (.pkg), Windows (.msi), and Linux (.deb/.rpm)
 - **Platform-specific code**: use build tags (`_darwin.go`, `_windows.go`, `_linux.go`) and `_stub.go` for unsupported platforms
 
+## Startup order in `orbit/cmd/orbit/orbit.go`
+Orbit runs an early update check (`updateRunner.UpdateAction()`) before starting any sub-system. Add new code, sub-systems, or startup logic **after** that check, not before it. If new code runs before the check and crashes, hangs, or errors out on startup, orbit can never reach the update step, so the fix can't ship through auto-update and every affected device needs a manual reinstall. Code before the check should be limited to what the update itself needs (flag parsing, paths, updater setup).
+
 ## Key patterns
 - **Keystore**: `orbit/pkg/keystore/` — platform-specific secure key storage (macOS Keychain, Windows DPAPI, Linux file-based). Always use the keystore abstraction, never raw file I/O for secrets.
 - **osquery management**: `orbit/pkg/osquery/` — launching, monitoring, and communicating with osquery. Orbit owns the osquery lifecycle.

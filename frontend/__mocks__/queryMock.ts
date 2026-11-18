@@ -37,9 +37,9 @@ const createMockQuery = (
 };
 
 const DEFAULT_QUERY_STATS_MOCK: IQueryStats = {
-  scheduled_query_name: "test-query",
-  scheduled_query_id: 1,
-  query_name: "Test Query",
+  scheduled_report_name: "test-query",
+  scheduled_report_id: 1,
+  report_name: "Test Query",
   discard_data: false,
   last_fetched: "2025-01-01T00:00:00Z",
   automations_enabled: false,

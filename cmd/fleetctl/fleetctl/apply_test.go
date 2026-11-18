@@ -141,6 +141,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 		},
 	}
 
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]
 		if !ok {
@@ -656,6 +659,9 @@ func TestApplyAppConfig(t *testing.T) {
 		}
 		return userRoleSpecList[1], nil
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 123}, nil
 	}
@@ -779,20 +785,6 @@ spec:
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
 
-	// Test deprecation warnings
-	expected := "[!] In config: `query_report_cap` is deprecated, please use `report_cap` instead.\n[+] applied fleet config\n"
-	name = writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-`)
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", name}))
-	require.NotNil(t, savedAppConfig)
-	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
-
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -846,20 +838,6 @@ spec:
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
-}
-
-func TestApplyAppConfigAliasConfict(t *testing.T) {
-	// Test conflict error
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-    report_cap: 200
-`)
-
-	runAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
@@ -1236,6 +1214,9 @@ func TestApplyPolicies(t *testing.T) {
 		appliedPolicySpecs = specs
 		return nil
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Team1" {
 			return &fleet.Team{ID: 123}, nil
@@ -1354,6 +1335,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 
 	savedTeam := &fleet.Team{ID: 123}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Team1" {
 			return savedTeam, nil
@@ -2100,6 +2084,9 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
 		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
@@ -3020,6 +3007,9 @@ func TestApplySpecs(t *testing.T) {
 			},
 		}
 
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {
@@ -4283,6 +4273,29 @@ spec:
 			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
+			desc: "app config with a removed server setting",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+`,
+			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config with a removed server setting and its new name",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    live_query_disabled: true
+    live_reporting_disabled: true
+`,
+			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
 			desc: "activities_webhook empty destination_url",
 			spec: `
 apiVersion: v1
@@ -4482,6 +4495,9 @@ func TestApplyWindowsUpdates(t *testing.T) {
 	// Common mock setup
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]

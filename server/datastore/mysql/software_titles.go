@@ -844,6 +844,11 @@ SELECT
 		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end
 	{{end}}
 FROM software_titles st
+	{{if and (hasTeamID .) (or .AvailableForInstall .SelfServiceOnly (and .PackagesOnly (not .ListOptions.MatchQuery)))}}
+		-- These filters only keep titles with an installer, VPP app or in-house app in the fleet.
+		-- A packages_only with a search query also keeps titles without a package, so it can't use the inner join
+		INNER JOIN ({{fleetInstallableTitleIDs (teamID .)}}) fleet_installable_titles ON fleet_installable_titles.title_id = st.id
+	{{end}}
 	{{if hasTeamID .}}
 		LEFT JOIN software_installers si ON si.id = (
 			SELECT MIN(si2.id) FROM software_installers si2
@@ -1045,6 +1050,7 @@ GROUP BY
 			}
 			return *q.TeamID
 		},
+		"fleetInstallableTitleIDs": fleetInstallableTitleIDsSQL,
 	}).Parse(stmt)
 	if err != nil {
 		return "", nil, err
@@ -1056,6 +1062,19 @@ GROUP BY
 	}
 
 	return buff.String(), args, nil
+}
+
+func fleetInstallableTitleIDsSQL(globalOrTeamID uint) string {
+	return fmt.Sprintf(`
+		SELECT si.title_id FROM software_installers si
+		WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
+		UNION
+		SELECT vap.title_id FROM vpp_apps vap
+		INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
+		WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
+		UNION
+		SELECT iha.title_id FROM in_house_apps iha
+		WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL`, globalOrTeamID)
 }
 
 // buildOptimizedListSoftwareTitlesSQL builds a two-phase query for listing software titles
@@ -1124,23 +1143,13 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (s
 				UNION ALL
 
 				(SELECT t.title_id AS software_title_id, 0 AS hosts_count
-				FROM (
-					SELECT si.title_id FROM software_installers si
-					WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
-					UNION
-					SELECT vap.title_id FROM vpp_apps vap
-					INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
-					WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
-					UNION
-					SELECT iha.title_id FROM in_house_apps iha
-					WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL
-				) AS t
+				FROM (%[6]s) AS t
 				LEFT JOIN software_titles_host_counts sthc
 					ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
 				WHERE sthc.software_title_id IS NULL%[5]s)
 			) AS combined
 			ORDER BY combined.hosts_count %[2]s, combined.software_title_id %[2]s
-			LIMIT %[3]d`, teamID, direction, perPage, hostCountsTypeFilter, installerOnlyTypeFilter)
+			LIMIT %[3]d`, teamID, direction, perPage, hostCountsTypeFilter, installerOnlyTypeFilter, fleetInstallableTitleIDsSQL(teamID))
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1291,21 +1300,11 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) (string, 
 		SELECT
 			(SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[2]s)
 			+
-			(SELECT COUNT(DISTINCT t.title_id) FROM (
-				SELECT si.title_id FROM software_installers si
-				WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
-				UNION
-				SELECT vap.title_id FROM vpp_apps vap
-				INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
-				WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
-				UNION
-				SELECT iha.title_id FROM in_house_apps iha
-				WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL
-			) AS t
+			(SELECT COUNT(DISTINCT t.title_id) FROM (%[4]s) AS t
 			LEFT JOIN software_titles_host_counts sthc
 				ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
 			WHERE sthc.software_title_id IS NULL%[3]s)
-		AS total_count`, teamID, hostCountsTypeFilter, installerOnlyTypeFilter), args
+		AS total_count`, teamID, hostCountsTypeFilter, installerOnlyTypeFilter, fleetInstallableTitleIDsSQL(teamID)), args
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app

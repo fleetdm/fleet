@@ -238,7 +238,7 @@ reports:
   - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   patch_deadline_settings:
-    days: [friday]
+    days: [thursday]
     time: "17:00"
   packages:
     # macOS apps

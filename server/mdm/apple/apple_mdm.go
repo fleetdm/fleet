@@ -3030,3 +3030,17 @@ func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
 
 	return subject
 }
+
+const (
+	MacOSDDMSoftwareUpdateIdentifier  = "macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IOSDDMSoftwareUpdateIdentifier    = "ios-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IpadOSDDMSoftwareUpdateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+)
+
+func FleetReservedDeclarationIdentifiers() map[string]struct{} {
+	return map[string]struct{}{
+		MacOSDDMSoftwareUpdateIdentifier:  {},
+		IOSDDMSoftwareUpdateIdentifier:    {},
+		IpadOSDDMSoftwareUpdateIdentifier: {},
+	}
+}

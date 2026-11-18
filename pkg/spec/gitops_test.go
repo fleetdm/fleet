@@ -855,6 +855,23 @@ func TestWhitespaceOnlyTeamName(t *testing.T) {
 	require.Contains(t, err.Error(), "fleet 'name' is required")
 }
 
+func TestTeamNameWithoutLetterOrNumber(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・"} {
+		config := getTeamConfig([]string{"name"})
+		config += fmt.Sprintf("name: %q", name)
+		_, err := gitOpsFromString(t, config)
+		require.ErrorContains(t, err, "fleet 'name' must include at least one letter or number", name)
+	}
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀"} {
+		config := getTeamConfig([]string{"name"})
+		config += fmt.Sprintf("name: %q", name)
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err, name)
+		require.Equal(t, name, *gitops.TeamName)
+	}
+}
+
 func TestMissingNameErrorMessages(t *testing.T) {
 	t.Parallel()
 
@@ -4471,6 +4488,20 @@ software:
 				name: "org_settings scripts_disabled in another letter case", file: "default.yml",
 				config: scriptsDisabledFile("    Scripts_Disabled: true\n"),
 				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings report server settings", file: "default.yml",
+				config: scriptsDisabledFile("    live_query_disabled: false\n    query_reports_disabled: true\n    Query_Report_Cap: 2000\n"),
+				want: []string{
+					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.server_settings.query_reports_disabled" key is not available anymore.`,
+					`The "org_settings.server_settings.query_report_cap" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings report server settings with the new names too", file: "default.yml",
+				config: scriptsDisabledFile("    query_report_cap: 2000\n    report_cap: 2000\n"),
+				want:   []string{`The "org_settings.server_settings.query_report_cap" key is not available anymore.`},
 			},
 			{
 				name: "org_settings file with scripts_disabled set to true", file: "default.yml",

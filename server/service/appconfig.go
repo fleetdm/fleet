@@ -655,8 +655,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	// Strict decoding misses the AB and VPP token entries, which optjson.Slice decodes without DisallowUnknownFields, so an old fleet
 	// key there would be dropped and unassign the token.
-	if err := endpointer.RejectRemovedJSONKeys(p, reflect.TypeFor[appConfigFields]()); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	for _, t := range []reflect.Type{reflect.TypeFor[appConfigFields](), reflect.TypeFor[fleet.AppConfigRequestOnly]()} {
+		if err := endpointer.RejectRemovedJSONKeys(p, t); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+		}
 	}
 
 	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before

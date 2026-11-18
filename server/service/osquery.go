@@ -4236,7 +4236,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without
+			// If discard_reports_data=true we write the logs to the logging destination without
 			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write

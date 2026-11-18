@@ -242,7 +242,7 @@ CREATE TABLE `app_config_json` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `app_config_json` VALUES (1,'{\"mdm\": {\"ios_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"macos_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": false}, \"name_template\": null, \"apple_business\": null, \"ipados_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"linux_settings\": {\"enable_escrow_disk_encryption_key\": false}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false, \"enable_escrow_disk_encryption_key\": false}, \"macos_migration\": {\"mode\": \"\", \"enable\": false, \"webhook_url\": \"\"}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"android_settings\": {\"certificates\": null, \"custom_settings\": null}, \"apple_server_url\": \"\", \"setup_experience\": {\"software\": null, \"macos_script\": null, \"lock_end_user_info\": false, \"apple_setup_assistant\": null, \"macos_bootstrap_package\": null, \"macos_manual_agent_install\": null, \"macos_require_all_software\": false, \"windows_require_all_software\": false, \"enable_end_user_authentication\": false, \"macos_end_user_local_account_type\": \"admin\", \"macos_managed_local_account_enabled\": false, \"apple_enable_release_device_manually\": false, \"windows_managed_local_account_enabled\": false, \"macos_enable_bootstrap_package_during_migration\": false, \"macos_enable_bootstrap_package_during_manual_enrollment\": false}, \"windows_settings\": {\"custom_settings\": null, \"require_bitlocker_pin\": false, \"enable_disk_encryption\": false}, \"windows_mdm_enabled\": false, \"enable_disk_encryption\": false, \"enabled_and_configured\": false, \"end_user_authentication\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"issuer_uri\": \"\", \"metadata_url\": \"\"}, \"windows_entra_client_ids\": [], \"windows_entra_tenant_ids\": [], \"enable_profile_validation\": true, \"volume_purchasing_program\": null, \"apple_account_provisioning\": {\"oauth_idp_client_id\": null, \"oauth_idp_token_url\": null, \"oauth_idp_client_secret\": null}, \"apple_business_terms_expired\": false, \"windows_automatic_enrollment\": null, \"windows_mdm_migration_enabled\": false, \"windows_require_bitlocker_pin\": false, \"android_enabled_and_configured\": false, \"apple_require_hardware_attestation\": false, \"microsoft_graph_credential_invalid\": false, \"enable_turn_on_windows_mdm_manually\": false, \"macos_recovery_lock_password_enabled\": false, \"only_allow_apple_business_enrollment\": false, \"apple_business_enabled_and_configured\": false}, \"gitops\": {\"exceptions\": {\"labels\": true, \"secrets\": true, \"software\": false}, \"repository_url\": \"\", \"gitops_mode_enabled\": false}, \"scripts\": null, \"features\": {\"historical_data\": {\"uptime\": true, \"vulnerabilities\": true}, \"enable_host_users\": true, \"enable_software_inventory\": false}, \"org_info\": {\"org_name\": \"\", \"contact_url\": \"\", \"org_logo_url_dark_mode\": \"\", \"org_logo_url_light_mode\": \"\"}, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null, \"conditional_access_enabled\": null, \"certificates_idp_client_ids\": null, \"certificates_idp_introspection_urls\": null, \"certificates_disable_host_end_user_binding\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"sso_server_url\": \"\", \"enable_jit_role_sync\": false, \"enable_sso_idp_login\": false, \"enable_jit_provisioning\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"fleet_desktop\": {\"sso_enabled\": false, \"transparency_url\": \"\", \"alternative_browser_host\": \"\"}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"mcp_disabled\": false, \"enable_analytics\": false, \"query_report_cap\": 0, \"scripts_disabled\": false, \"deferred_save_host\": false, \"live_query_disabled\": false, \"ai_features_disabled\": false, \"query_reports_disabled\": false}, \"webhook_settings\": {\"interval\": \"0s\", \"activities_webhook\": {\"destination_url\": \"\", \"enable_activities_webhook\": false}, \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}, \"activity_expiry_settings\": {\"activity_expiry_window\": 0, \"activity_expiry_enabled\": false, \"preserve_host_activities_on_reenrollment\": false}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
+INSERT INTO `app_config_json` VALUES (1,'{\"mdm\": {\"ios_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"macos_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": false}, \"name_template\": null, \"apple_business\": null, \"ipados_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"linux_settings\": {\"enable_escrow_disk_encryption_key\": false}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false, \"enable_escrow_disk_encryption_key\": false}, \"macos_migration\": {\"mode\": \"\", \"enable\": false, \"webhook_url\": \"\"}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"android_settings\": {\"certificates\": null, \"custom_settings\": null}, \"apple_server_url\": \"\", \"setup_experience\": {\"software\": null, \"macos_script\": null, \"lock_end_user_info\": false, \"apple_setup_assistant\": null, \"macos_bootstrap_package\": null, \"macos_manual_agent_install\": null, \"macos_require_all_software\": false, \"windows_require_all_software\": false, \"enable_end_user_authentication\": false, \"macos_end_user_local_account_type\": \"admin\", \"macos_managed_local_account_enabled\": false, \"apple_enable_release_device_manually\": false, \"windows_managed_local_account_enabled\": false, \"macos_enable_bootstrap_package_during_migration\": false, \"macos_enable_bootstrap_package_during_manual_enrollment\": false}, \"windows_settings\": {\"custom_settings\": null, \"require_bitlocker_pin\": false, \"enable_disk_encryption\": false}, \"windows_mdm_enabled\": false, \"enable_disk_encryption\": false, \"enabled_and_configured\": false, \"end_user_authentication\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"issuer_uri\": \"\", \"metadata_url\": \"\"}, \"windows_entra_client_ids\": [], \"windows_entra_tenant_ids\": [], \"enable_profile_validation\": true, \"volume_purchasing_program\": null, \"apple_account_provisioning\": {\"oauth_idp_client_id\": null, \"oauth_idp_token_url\": null, \"oauth_idp_client_secret\": null}, \"apple_business_terms_expired\": false, \"windows_automatic_enrollment\": null, \"windows_mdm_migration_enabled\": false, \"windows_require_bitlocker_pin\": false, \"android_enabled_and_configured\": false, \"apple_require_hardware_attestation\": false, \"microsoft_graph_credential_invalid\": false, \"enable_turn_on_windows_mdm_manually\": false, \"macos_recovery_lock_password_enabled\": false, \"only_allow_apple_business_enrollment\": false, \"apple_business_enabled_and_configured\": false}, \"gitops\": {\"exceptions\": {\"labels\": true, \"secrets\": true, \"software\": false}, \"repository_url\": \"\", \"gitops_mode_enabled\": false}, \"scripts\": null, \"features\": {\"historical_data\": {\"uptime\": true, \"vulnerabilities\": true}, \"enable_host_users\": true, \"enable_software_inventory\": false}, \"org_info\": {\"org_name\": \"\", \"contact_url\": \"\", \"org_logo_url_dark_mode\": \"\", \"org_logo_url_light_mode\": \"\"}, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null, \"conditional_access_enabled\": null, \"certificates_idp_client_ids\": null, \"certificates_idp_introspection_urls\": null, \"certificates_disable_host_end_user_binding\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"sso_server_url\": \"\", \"enable_jit_role_sync\": false, \"enable_sso_idp_login\": false, \"enable_jit_provisioning\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"fleet_desktop\": {\"sso_enabled\": false, \"transparency_url\": \"\", \"alternative_browser_host\": \"\"}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"report_cap\": 0, \"server_url\": \"\", \"mcp_disabled\": false, \"enable_analytics\": false, \"scripts_disabled\": false, \"deferred_save_host\": false, \"ai_features_disabled\": false, \"discard_reports_data\": false, \"live_reporting_disabled\": false}, \"webhook_settings\": {\"interval\": \"0s\", \"activities_webhook\": {\"destination_url\": \"\", \"enable_activities_webhook\": false}, \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}, \"activity_expiry_settings\": {\"activity_expiry_window\": 0, \"activity_expiry_enabled\": false, \"preserve_host_activities_on_reenrollment\": false}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `apple_software_update_assets` (
@@ -303,19 +303,6 @@ CREATE TABLE `batch_activity_host_results` (
   KEY `idx_batch_script_execution_host_result_execution_id` (`batch_execution_id`),
   KEY `idx_bahr_host_execution_id` (`host_execution_id`),
   CONSTRAINT `batch_script_batch_id` FOREIGN KEY (`batch_execution_id`) REFERENCES `batch_activities` (`execution_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `ca_config_assets` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `type` enum('digicert','custom_scep_proxy') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` blob NOT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_ca_config_assets_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1968,42 +1955,12 @@ CREATE TABLE `labels` (
 INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2025-10-09 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','',1,0,NULL,NULL,NULL),(2,'2024-06-28 00:00:00','2025-10-09 00:00:00','iOS','All iOS hosts','','',1,1,NULL,NULL,NULL),(3,'2024-06-28 00:00:00','2025-10-09 00:00:00','iPadOS','All iPadOS hosts','','',1,1,NULL,NULL,NULL),(4,'2024-09-27 00:00:00','2026-08-14 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name like \'%fedora%\';','',1,0,NULL,NULL,NULL),(5,'2025-02-25 00:00:00','2025-10-09 00:00:00','Android','All Android hosts','','',1,1,NULL,NULL,NULL);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `legacy_host_filevault_profiles` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
-  `created_at` timestamp(6) NOT NULL,
-  `updated_at` timestamp(6) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_enroll_refs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `enroll_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_legacy_enroll_refs_host_uuid` (`host_uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `legacy_host_mdm_idp_accounts` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `account_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `host_id` int unsigned DEFAULT NULL,
-  `email_id` int unsigned DEFAULT NULL,
-  `email_created_at` datetime DEFAULT NULL,
-  `email_updated_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2846,36 +2803,6 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `network_interfaces` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_id` int unsigned NOT NULL,
-  `mac` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ip_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `broadcast` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ibytes` bigint NOT NULL DEFAULT '0',
-  `interface` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ipackets` bigint NOT NULL DEFAULT '0',
-  `last_change` bigint NOT NULL DEFAULT '0',
-  `mask` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `metric` int NOT NULL DEFAULT '0',
-  `mtu` int NOT NULL DEFAULT '0',
-  `obytes` bigint NOT NULL DEFAULT '0',
-  `ierrors` bigint NOT NULL DEFAULT '0',
-  `oerrors` bigint NOT NULL DEFAULT '0',
-  `opackets` bigint NOT NULL DEFAULT '0',
-  `point_to_point` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `type` int NOT NULL DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_network_interfaces_unique_ip_host_intf` (`ip_address`,`host_id`,`interface`),
-  KEY `idx_network_interfaces_hosts_fk` (`host_id`),
-  FULLTEXT KEY `ip_address_search` (`ip_address`),
-  CONSTRAINT `network_interfaces_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `notifications_end_user` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -2958,17 +2885,6 @@ CREATE TABLE `org_logo` (
   PRIMARY KEY (`mode`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `osquery_options` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `override_type` int NOT NULL,
-  `override_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `options` json NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `osquery_options` VALUES (1,0,'','{\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_requests` (

@@ -1600,9 +1600,6 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice, updates fleet.AppleOSUpdateSettings) error {
-	const (
-		softwareUpdateIdentSuffix = `-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
-	)
 	var (
 		softwareUpdateIdentifier string
 		osUpdatesProfileName     string
@@ -1610,15 +1607,15 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	)
 	switch appleDevice {
 	case fleet.MacOS:
-		softwareUpdateIdentifier = "macos" + softwareUpdateIdentSuffix
+		softwareUpdateIdentifier = apple_mdm.MacOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetMacOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelMacOS14Plus // OS update DDMs are supported on macOS 14+ devices.
 	case fleet.IOS:
-		softwareUpdateIdentifier = "ios" + softwareUpdateIdentSuffix
+		softwareUpdateIdentifier = apple_mdm.IOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetIOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelIOS
 	case fleet.IPadOS:
-		softwareUpdateIdentifier = "ipados" + softwareUpdateIdentSuffix
+		softwareUpdateIdentifier = apple_mdm.IpadOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetIPadOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelIPadOS
 	default:

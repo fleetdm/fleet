@@ -15,11 +15,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
-// The fast path registers the stdlib mux with the per-version expansions of a gorilla template but hands WithRouteTag the
+// The router registers the stdlib mux with the per-version expansions of a route template but hands WithRouteTag the
 // unexpanded template, so these two spellings of one route disagree. That mismatch is what these tests pin down.
 const (
-	stdlibPattern   = "/api/latest/fleet/hosts/{id}"
-	gorillaTemplate = "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}"
+	stdlibPattern = "/api/latest/fleet/hosts/{id}"
+	routeTemplate = "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}"
 )
 
 // TestWithRouteTag serves the two production wrappings through a stdlib ServeMux, which is what populates r.Pattern. The span
@@ -41,11 +41,11 @@ func TestWithRouteTag(t *testing.T) {
 			stdlibPattern, stdlibPattern,
 		},
 		{
-			"fast path template overrides the matched pattern",
+			"route template overrides the matched pattern",
 			func(h http.Handler) http.Handler {
-				return WrapHandler(WithRouteTag(gorillaTemplate, h), gorillaTemplate, cfg)
+				return WrapHandler(WithRouteTag(routeTemplate, h), routeTemplate, cfg)
 			},
-			gorillaTemplate, stdlibPattern,
+			routeTemplate, stdlibPattern,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

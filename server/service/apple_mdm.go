@@ -850,11 +850,6 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
-	fleetNames := mdm_types.FleetReservedProfileNames()
-	if _, ok := fleetNames[name]; ok {
-		err := fleet.NewInvalidArgumentError("declaration", fmt.Sprintf("Profile name %q is not allowed.", name)).WithStatus(http.StatusBadRequest)
-		return nil, err
-	}
 	if err := fleet.ValidateMDMProfileName(name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1940,7 +1935,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 	// has been provided by the user and can be deleted. We don't need to validate that it is a Fleet declaration.
 	//
 	// Whether a declaration is Fleet-managed (and therefore protected from
-	// deletion through this endpoint) is determined solely by its reserved name.
+	// deletion through this endpoint) is determined solely by its reserved identifier.
 	// We deliberately do NOT run the upload-time validator (ValidateUserProvided)
 	// here: any declaration already stored was accepted at upload time, so
 	// re-validating it on delete would trap user-uploaded declarations whenever
@@ -1948,7 +1943,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 	// added to ForbiddenDeclTypes). See https://github.com/fleetdm/fleet/issues/47535.
 	hasSecretVariable := len(fleet.ContainsPrefixVars(string(decl.RawJSON), fleet.ServerSecretPrefix)) > 0
 	if !hasSecretVariable {
-		if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
+		if _, ok := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; ok {
 			return &fleet.BadRequestError{
 				Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
 				InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
