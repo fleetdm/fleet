@@ -433,7 +433,11 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 	checkGlobalPolicyAuth := false
 	teamIDsByName := make(map[string]uint)
 	for _, policy := range policies {
-		if policy.Team != "" && policy.Team != "No team" {
+		if reason, removed := removedFleetName(policy.Team); removed {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
+		}
+		if policy.Team != "" && !fleet.IsUnassignedFleetName(policy.Team) {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned

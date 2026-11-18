@@ -77,6 +77,21 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
+	// The old names of Unassigned and All fleets, used as fleet names, in any letter case.
+	for _, tc := range [][]string{
+		{"PATCH", "/config", `{"mdm": {"apple_business": [{"organization_name": "a", "macos_fleet": "No team"}]}}`, "mdm.apple_business", "No team", "Unassigned"},
+		{"PATCH", "/config", `{"mdm": {"volume_purchasing_program": [{"location": "a", "fleets": ["All teams"]}]}}`, "mdm.volume_purchasing_program", "All teams", "All fleets"},
+		{"POST", "/spec/policies", `{"specs": [{"name": "a", "query": "SELECT 1", "fleet": "no team"}]}`, "specs.fleet", "No team", "Unassigned"},
+	} {
+		t.Run(tc[0]+" "+tc[1]+" "+tc[4], func(t *testing.T) {
+			resp := s.DoRaw(tc[0], "/api/latest/fleet"+tc[1], []byte(tc[2]), http.StatusUnprocessableEntity)
+			var got struct {
+				Errors []map[string]string `json:"errors"`
+			}
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			require.Equal(t, []map[string]string{{"name": tc[3], "reason": removednames.Message(`"`+tc[4]+`"`, `"`+tc[5]+`"`)}}, got.Errors)
+		})
+	}
 	// Filters never took other old names, so those stay unknown keys.
 	s.DoRaw("POST", "/api/latest/fleet/hosts/delete", []byte(`{"filters": {"teams": 1}}`), http.StatusBadRequest)
 

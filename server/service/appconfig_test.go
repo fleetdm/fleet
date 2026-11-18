@@ -4516,8 +4516,8 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 	t.Run("a fleet under two tokens passes", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
-			{Location: "HQ", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
-			{Location: "EU", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+			{Location: "HQ", Teams: []string{"Workstations", fleet.DisplayNameNoTeam}},
+			{Location: "EU", Teams: []string{"Workstations", fleet.DisplayNameNoTeam}},
 		}, invalid, lic)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())

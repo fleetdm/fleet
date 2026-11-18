@@ -5622,12 +5622,12 @@ settings:
 		teamSettings string
 	}{
 		{
-			specialCase:  "All teams",
+			specialCase:  "All fleets",
 			teamName:     teamName,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 		},
 		{
-			specialCase: "No team",
+			specialCase: "Unassigned",
 			teamName:    "Unassigned",
 		},
 	}
@@ -5649,7 +5649,7 @@ settings:
 
 			teamFileName := teamFile.Name()
 
-			if tc.specialCase == "No team" {
+			if tc.specialCase == "Unassigned" {
 				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "unassigned.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)
@@ -5668,7 +5668,7 @@ settings:
 			require.Contains(t, realRunOutput, "gitops succeeded")
 
 			var teamID uint
-			if tc.specialCase != "No team" {
+			if tc.specialCase != "Unassigned" {
 				team, err := s.DS.TeamByName(ctx, teamName)
 				require.NoError(t, err)
 				teamID = team.ID
@@ -5777,7 +5777,7 @@ settings:
 	}{
 		{
 			testName:     "All VPP with setup experience",
-			VPPTeam:      "All teams",
+			VPPTeam:      "All fleets",
 			teamName:     teamName,
 			teamTemplate: testVPP,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
@@ -5785,7 +5785,7 @@ settings:
 		},
 		{
 			testName:     "Packages fail",
-			VPPTeam:      "All teams",
+			VPPTeam:      "All fleets",
 			teamName:     teamName,
 			teamTemplate: testPackages,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
@@ -5793,14 +5793,14 @@ settings:
 		},
 		{
 			testName:     "No team VPP",
-			VPPTeam:      "No team",
+			VPPTeam:      "Unassigned",
 			teamName:     "Unassigned",
 			teamTemplate: testVPP,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
 			testName:     "No team Installers",
-			VPPTeam:      "No team",
+			VPPTeam:      "Unassigned",
 			teamName:     "Unassigned",
 			teamTemplate: testPackages,
 			errContains:  new(`"setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`),
@@ -5825,7 +5825,7 @@ settings:
 
 			teamFileName := teamFile.Name()
 
-			if tc.VPPTeam == "No team" {
+			if tc.VPPTeam == "Unassigned" {
 				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "unassigned.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)

@@ -1187,7 +1187,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 	}{
 		{
 			name:    "creates entry when app config was never set",
-			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.DisplayNameNoTeam)},
 			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
 			wantSet: true,
 		},
@@ -1219,7 +1219,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
 				abmEntry("org1", true, "Workstations"),
 			}),
-			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.DisplayNameNoTeam)},
 			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
 			wantSet: true,
 		},
@@ -1241,7 +1241,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 			tokens: []*fleet.ABMToken{
 				abmToken("org1", false, "Workstations"),
 				abmToken("org2", true, "Servers"),
-				abmToken("org3", false, fleet.TeamNameNoTeam),
+				abmToken("org3", false, fleet.DisplayNameNoTeam),
 			},
 			want: []fleet.MDMAppleABMAssignmentInfo{
 				abmEntry("org1", false, "Workstations"),
@@ -1294,7 +1294,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 		appCfg := &fleet.AppConfig{}
 		tokens := []*fleet.ABMToken{
 			abmToken("org1", true, "Workstations"),
-			abmToken("org2", false, fleet.TeamNameNoTeam),
+			abmToken("org2", false, fleet.DisplayNameNoTeam),
 		}
 
 		syncABMTokensToAppConfig(appCfg, tokens)
@@ -1352,9 +1352,9 @@ func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
 			OrganizationName: "org2",
 			IsDefault:        true, // the datastore promoted it inside the delete tx
 			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations"},
-			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
-			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
-			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
 		}}
 		ds, svc, saved := setupDeleteTest(t, entries, remaining)
 

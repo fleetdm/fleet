@@ -1259,7 +1259,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		// Team ID 0 represents "No Team"
 		team := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 
@@ -1733,7 +1733,7 @@ func validateVulnExposureFilters(ctx context.Context, veFilters *fleet.VulnExpos
 		return nil
 	}
 	invalid := &fleet.InvalidArgumentError{}
-	veFilters.Validate("team.settings.features", invalid)
+	veFilters.Validate("features", invalid)
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -3096,7 +3096,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	// Return as a Team for API compatibility
 	team := &fleet.Team{
 		ID:     0,
-		Name:   fleet.ReservedNameNoTeam,
+		Name:   fleet.DisplayNameNoTeam,
 		Config: *config,
 	}
 

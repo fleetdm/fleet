@@ -1778,7 +1778,7 @@ func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken)
 	}
 
 	abmTeamName := func(name string) string {
-		if name == fleet.TeamNameNoTeam {
+		if name == fleet.DisplayNameNoTeam {
 			return ""
 		}
 		return name
@@ -1936,13 +1936,13 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	// validate the team IDs
-	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.MacOSDefaultTeamID = nil
-	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.IOSDefaultTeamID = nil
-	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.IPadOSDefaultTeamID = nil
-	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.BYODDefaultTeamID = nil
 
 	if macOSTeamID != nil && *macOSTeamID != 0 {

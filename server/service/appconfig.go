@@ -2755,7 +2755,7 @@ func (svc *Service) validateABMAssignments(
 		if err != nil {
 			return nil, nil, err
 		}
-		teamsByName := map[string]*uint{"": nil, "No team": nil}
+		teamsByName := map[string]*uint{"": nil, fleet.DisplayNameNoTeam: nil}
 		for _, tm := range teams {
 			teamsByName[tm.Name] = &tm.ID
 		}
@@ -2794,6 +2794,10 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
+				if reason, removed := removedFleetName(tmName); removed {
+					invalid.Append("mdm.apple_business", reason)
+					return nil, nil, nil
+				}
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "fleet %s doesn't exist", tmName)
 					return nil, nil, nil
@@ -2838,7 +2842,7 @@ func (svc *Service) validateVPPAssignments(
 	if err != nil {
 		return nil, err
 	}
-	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	teamsByName := map[string]uint{fleet.DisplayNameNoTeam: 0}
 	for _, tm := range teams {
 		teamsByName[tm.Name] = tm.ID
 	}
@@ -2860,10 +2864,11 @@ func (svc *Service) validateVPPAssignments(
 	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
-			if tmName == fleet.DisplayNameAllTeams {
-				tmName = fleet.TeamNameAllTeams
+			if reason, removed := removedFleetName(tmName); removed {
+				invalid.Append("mdm.volume_purchasing_program", reason)
+				return nil, nil
 			}
-			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
+			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.DisplayNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
 			}
@@ -2878,9 +2883,6 @@ func (svc *Service) validateVPPAssignments(
 		var tokenTeams []uint
 		for _, teamName := range vpp.Teams {
 			if teamName == fleet.DisplayNameAllTeams {
-				teamName = fleet.TeamNameAllTeams
-			}
-			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil

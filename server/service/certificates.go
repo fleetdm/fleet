@@ -436,6 +436,16 @@ func applyCertificateTemplateSpecsEndpoint(ctx context.Context, request interfac
 	return applyCertificateTemplateSpecsResponse{}, nil
 }
 
+// removedFleetName returns the error reason when name is "No team" or "All teams", the old names of Unassigned and All fleets.
+func removedFleetName(name string) (string, bool) {
+	for _, names := range [][2]string{{fleet.ReservedNameNoTeam, fleet.DisplayNameNoTeam}, {fleet.ReservedNameAllTeams, fleet.DisplayNameAllTeams}} {
+		if strings.EqualFold(name, names[0]) {
+			return removednames.Message(fmt.Sprintf("%q", names[0]), fmt.Sprintf("%q", names[1])), true
+		}
+	}
+	return "", false
+}
+
 func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) (map[string]uint, error) {
 	teamNameToID := make(map[string]uint)
 
@@ -444,9 +454,8 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 			continue
 		}
 
-		if strings.EqualFold(spec.Team, fleet.ReservedNameNoTeam) {
-			return nil, fleet.NewInvalidArgumentError("specs.fleet",
-				removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameNoTeam), fmt.Sprintf("%q", fleet.DisplayNameNoTeam)))
+		if reason, removed := removedFleetName(spec.Team); removed {
+			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
 		}
 		if spec.Team == "" || fleet.IsUnassignedFleetName(spec.Team) {
 			teamNameToID[spec.Team] = 0

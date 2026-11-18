@@ -1044,8 +1044,8 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 
-		// "No team" is not "All fleets", so it keeps its automations.
-		noTeam := spec("No team", new(uint(1)))
+		// Unassigned is not "All fleets", so it keeps its automations.
+		noTeam := spec(fleet.DisplayNameNoTeam, new(uint(1)))
 		noTeam.SoftwareTitleID = new(uint(1))
 		ds.ApplyPolicySpecsFuncInvoked = false
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))

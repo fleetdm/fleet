@@ -1552,7 +1552,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		return nil
 	}
 
-	// Server-side software for "Test Fleet" (teamID=1) and "No team" (teamID=0).
+	// Server-side software for "Test Fleet" (teamID=1) and Unassigned (teamID=0).
 	// This is what the pre-fetch will retrieve and inject as synthetic data into the parser.
 	// For team software, page 0 returns a full page of bogus results to exercise pagination,
 	// and page 1 returns the actual software that policies reference.
@@ -1694,7 +1694,7 @@ policies:
 		}
 	}
 	// Check that no-team policy also had the expected software title ID.
-	noTeamPolicySpecs := policySpecsByTeam["No team"]
+	noTeamPolicySpecs := policySpecsByTeam[fleet.DisplayNameNoTeam]
 	require.Len(t, noTeamPolicySpecs, 1, "expected 1 no-team policy")
 	assert.Equal(t, uint(30), *noTeamPolicySpecs[0].SoftwareTitleID, "expected server-side software ID to be injected into no-team policy spec")
 }
@@ -1870,7 +1870,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 			// Return a mock team 0 with the default config
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -3029,7 +3029,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			// Return a mock team 0 with the default config
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -3380,7 +3380,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 			// Return a mock team 0 with the default config
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -3694,7 +3694,7 @@ func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
 		return nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+		return &fleet.TeamLite{ID: 0, Name: fleet.DisplayNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
@@ -4606,15 +4606,15 @@ software:
 			},
 		},
 		{
-			name: "no team is supported",
+			name: "Unassigned is supported",
 			cfgs: []string{
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_fleet: "No team"
-                                      macos_fleet: "No team"
-                                      ios_fleet: "No team"
-                                      ipados_fleet: "No team"`),
+                                      byod_fleet: "Unassigned"
+                                      macos_fleet: "Unassigned"
+                                      ios_fleet: "Unassigned"
+                                      ipados_fleet: "Unassigned"`),
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -4629,10 +4629,10 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
-							BYODTeam:         "No team",
-							MacOSTeam:        "No team",
-							IOSTeam:          "No team",
-							IpadOSTeam:       "No team",
+							BYODTeam:         "Unassigned",
+							MacOSTeam:        "Unassigned",
+							IOSTeam:          "Unassigned",
+							IpadOSTeam:       "Unassigned",
 						},
 					},
 				)
@@ -4640,12 +4640,12 @@ software:
 			},
 		},
 		{
-			name: "not provided teams defaults to no team",
+			name: "not provided fleets default to Unassigned",
 			cfgs: []string{
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                       ios_fleet: ""`),
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4661,7 +4661,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
-							MacOSTeam:        "No team",
+							MacOSTeam:        "Unassigned",
 							IOSTeam:          "",
 							IpadOSTeam:       "",
 							BYODTeam:         "",
@@ -4677,7 +4677,7 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Does not exist
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4700,7 +4700,7 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: "Café Inc."
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{{ID: 1, OrganizationName: "Café Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4718,10 +4718,10 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                     - organization_name: Foo Inc.
                                       default: true
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -4752,10 +4752,10 @@ software:
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       default: true
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                     - organization_name: Foo Inc.
                                       default: true
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc."},
@@ -4780,9 +4780,9 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                     - organization_name: Foo Inc.
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -4810,7 +4810,7 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -7536,7 +7536,7 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		if tid == 0 {
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -8247,7 +8247,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		if tid == 0 {
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -8474,7 +8474,7 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 	defaultTeamConfig := &fleet.TeamConfig{}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
-			return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+			return &fleet.TeamLite{ID: 0, Name: fleet.DisplayNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
 		}
 		if tid == 1 && savedTeam != nil {
 			return savedTeam.ToTeamLite(), nil
@@ -8805,7 +8805,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 		if tid == 0 {
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}

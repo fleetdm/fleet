@@ -1166,15 +1166,15 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
 					require.ErrorContains(t, err, removedNoTeamNameMessage(t))
 
-					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
+					// 'Unassigned' team in unassigned.yml should work.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: Unassigned\n"
 					unassignedPath1, unassignedBasePath1 := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					gitops, err = GitOpsFromFile(unassignedPath1, unassignedBasePath1, nil, nopLogf)
 					assert.NoError(t, err)
 					assert.NotNil(t, gitops)
-					assert.True(t, gitops.IsNoTeam(), "unassigned.yml should be treated as no-team after coercion")
-					assert.Equal(t, "No team", *gitops.TeamName)
+					assert.True(t, gitops.IsNoTeam(), "unassigned.yml should be treated as no-team")
+					assert.Equal(t, "Unassigned", *gitops.TeamName)
 
 					// 'Unassigned' team with wrong filename should fail.
 					config = getConfig([]string{"name", "settings"})
