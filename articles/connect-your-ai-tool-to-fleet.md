@@ -1,6 +1,6 @@
 # Connect your AI tool to Fleet
 
-Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each guide has two parts:
+Fleet has a setup guide for Claude, Codex, Copilot, and Gemini. Each guide has two parts:
 
 - Fleet's MCP server: ask your AI tool questions about your hosts, policies, and software in plain English.
 - GitOps repository setup: connect the AI tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back.
@@ -10,7 +10,7 @@ Pick the guide for the AI tool your organization already uses.
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 32px 0px;">
 <a href="https://fleetdm.com/guides/claude-in-slack-and-teams" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Claude</a>
 <a href="https://fleetdm.com/guides/codex-in-slack-and-teams" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-open-ai-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Codex</a>
-<a href="https://fleetdm.com/guides/github-copilot-in-slack-and-teams" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-github-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">GitHub Copilot</a>
+<a href="https://fleetdm.com/guides/github-copilot-in-slack-and-teams" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-microsoft-copilot-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Copilot</a>
 <a href="https://fleetdm.com/guides/gemini-with-slack-and-teams" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/app-icon-google-gemini-60x60@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Gemini</a>
 </div>
 
@@ -26,14 +26,14 @@ Pick the guide for the AI tool your organization already uses.
 |:--|:--|:--|:--|
 | <span style="white-space: nowrap;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Claude](https://fleetdm.com/guides/claude-in-slack-and-teams)</span> | `@Claude` in Slack (public beta). No Teams app yet. The guide covers a workaround. | Slack, and Claude Code on the web | Claude Team or Enterprise |
 | <span style="white-space: nowrap;"><img src="../website/assets/images/icon-open-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Codex](https://fleetdm.com/guides/codex-in-slack-and-teams)</span> | `@ChatGPT` in Slack. OpenAI's docs don't yet confirm Codex tasks from Teams. | The ChatGPT desktop app, Codex CLI, and IDE extension. Not from chat yet. | ChatGPT Enterprise |
-| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-github-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[GitHub Copilot](https://fleetdm.com/guides/github-copilot-in-slack-and-teams)</span> | `@GitHub` in Slack and Teams | Slack and Teams | Copilot Business or Enterprise, plus cloud sandbox usage |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-microsoft-copilot-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Copilot](https://fleetdm.com/guides/github-copilot-in-slack-and-teams)</span> | `@GitHub` in Slack and Teams | Slack and Teams | Copilot Business or Enterprise, plus cloud sandbox usage |
 | <span style="white-space: nowrap;"><img src="../website/assets/images/app-icon-google-gemini-60x60@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Gemini](https://fleetdm.com/guides/gemini-with-slack-and-teams)</span> | No chat agent yet. Create a GitHub issue from Slack or Teams, then comment `@gemini-cli`. | GitHub issues, and Antigravity CLI | A Gemini API key with billing, or Vertex AI |
 
 Not sure which one fits? Start here:
 
 - If your organization already pays for one of these plans, use that tool.
-- If your team works in Microsoft Teams, choose GitHub Copilot. ChatGPT has a Teams app too, but OpenAI's docs don't yet confirm it can hand work to Codex. Claude and Gemini need a workaround.
-- If you want to ask Fleet questions without leaving chat, choose Claude in Slack, or GitHub Copilot in Slack or Teams.
+- If your team works in Microsoft Teams, choose Copilot. ChatGPT has a Teams app too, but OpenAI's docs don't yet confirm it can hand work to Codex. Claude and Gemini need a workaround.
+- If you want to ask Fleet questions without leaving chat, choose Claude in Slack, or Copilot in Slack or Teams.
 - If your admins mostly work in a terminal or code editor, Codex or Gemini is a good fit. Their Fleet MCP connections live there.
 - If your organization uses Google Cloud, choose Gemini. It runs in your own GitHub Actions and can bill through Vertex AI.
 
@@ -111,4 +111,4 @@ Fleet's MCP server works with other AI tools too, as long as they support remote
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-21">
-<meta name="description" value="Pick the setup guide for Claude, Codex, GitHub Copilot, or Gemini, then ask questions about your fleet with Fleet.">
+<meta name="description" value="Pick the setup guide for Claude, Codex, Copilot, or Gemini, then ask questions about your fleet with Fleet.">
