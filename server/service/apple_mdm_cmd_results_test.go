@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -464,6 +465,62 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		// Clearing is verified with an empty password, so no host secret placeholder.
 		assert.NotContains(t, string(verifyCmd.Raw), fleet.HostSecretPrefix)
 	})
+
+	for _, tc := range []struct {
+		name      string
+		op        fleet.MDMOperationType
+		lastKnown bool
+	}{
+		{name: "verify install", op: fleet.MDMOperationTypeInstall},
+		{name: "verify clear", op: fleet.MDMOperationTypeRemove},
+		{name: "verify last known password", op: fleet.MDMOperationTypeInstall, lastKnown: true},
+	} {
+		t.Run(tc.name+" enqueue failure retries verification", func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.GetPendingRecoveryLockFunc = func(ctx context.Context, hUUID string) (*fleet.HostRecoveryLockPending, error) {
+				pending, err := pendingFn(tc.op, 0)(ctx, hUUID)
+				pending.HasCurrentPassword = tc.lastKnown
+				return pending, err
+			}
+			var verifyUUID string
+			setVerifying := func(_ context.Context, hUUID, setUUID, pendingUUID string) error {
+				assert.Equal(t, hostUUID, hUUID)
+				assert.Equal(t, cmdUUID, setUUID)
+				verifyUUID = pendingUUID
+				return nil
+			}
+			ds.SetRecoveryLockVerifyingFunc = setVerifying
+			ds.SetRecoveryLockVerifyingLastKnownPasswordFunc = setVerifying
+			ds.RetryRecoveryLockFunc = func(context.Context, string, string) error {
+				t.Fatal("verify enqueue failure must not reset the row for SET")
+				return nil
+			}
+			retried := false
+			ds.RetryRecoveryLockVerifyFunc = func(_ context.Context, hUUID, oldUUID, newUUID string) error {
+				retried = true
+				assert.Equal(t, hostUUID, hUUID)
+				require.NotEmpty(t, verifyUUID)
+				assert.Equal(t, verifyUUID, oldUUID)
+				assert.Empty(t, newUUID, "cron must be able to claim the verify")
+				return nil
+			}
+			enqueueErr := errors.New("enqueue failed")
+			storage := &mdmmock.MDMAppleStore{}
+			storage.EnqueueCommandFunc = func(context.Context, []string, *mdm.CommandWithSubtype) (map[string]error, error) {
+				return nil, enqueueErr
+			}
+			commander := apple_mdm.NewMDMAppleCommander(storage, nil)
+			status := fleet.MDMAppleStatusAcknowledged
+			var chain []mdm.ErrorChain
+			if tc.lastKnown {
+				status = fleet.MDMAppleStatusError
+				chain = []mdm.ErrorChain{{ErrorCode: 8, ErrorDomain: "ROSLockoutServiceDaemonErrorDomain"}}
+			}
+			err := NewSetRecoveryLockResultsHandler(ds, logger, commander)(ctx, newResult(status, chain))
+			require.ErrorIs(t, err, enqueueErr)
+			assert.True(t, retried)
+		})
+	}
 
 	t.Run("error with retries exhausted sets failed", func(t *testing.T) {
 		ds := new(mock.DataStore)

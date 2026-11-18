@@ -481,8 +481,8 @@ func NewSetRecoveryLockResultsHandler(
 						return nil
 					}
 
-					// Reset to retry on actual cmd enqueue failures
-					if err := ds.RetryRecoveryLock(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+					// Keep verifying; let the cron claim a new verify command after enqueue failure.
+					if err := ds.RetryRecoveryLockVerify(ctx, hostUUID, pendingVerifyCmdUUID, ""); err != nil {
 						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
 					}
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: verify clear recovery lock")
@@ -498,8 +498,8 @@ func NewSetRecoveryLockResultsHandler(
 						)
 						return nil
 					}
-					// Reset to retry on actual cmd enqueue failures
-					if err := ds.RetryRecoveryLock(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+					// Keep verifying; let the cron claim a new verify command after enqueue failure.
+					if err := ds.RetryRecoveryLockVerify(ctx, hostUUID, pendingVerifyCmdUUID, ""); err != nil {
 						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
 					}
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: verify recovery lock")
@@ -536,8 +536,8 @@ func NewSetRecoveryLockResultsHandler(
 						)
 						return nil
 					}
-					// Reset to retry on actual cmd enqueue failures
-					if err := ds.RetryRecoveryLock(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+					// Keep verifying; let the cron claim a new verify command after enqueue failure.
+					if err := ds.RetryRecoveryLockVerify(ctx, hostUUID, pendingVerifyCmdUUID, ""); err != nil {
 						return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock with last known password handler: reset recovery lock for retry")
 					}
 					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock with last known password handler: verify recovery lock")

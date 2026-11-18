@@ -303,6 +303,19 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		assert.False(t, row.PendingSetCommandUUID.Valid)
 		assert.Equal(t, verifyCmdUUID, row.PendingVerifyCommandUUID.String)
 
+		// An enqueue failure keeps the active password and lets cron retry that password.
+		require.NoError(t, ds.RetryRecoveryLockVerify(ctx, host.UUID, verifyCmdUUID, ""))
+		claims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
+		require.NoError(t, err)
+		require.Len(t, claims, 1)
+		assert.Equal(t, host.UUID, claims[0].HostUUID)
+		assert.True(t, claims[0].UseLastKnownPassword)
+		verifyCmdUUID = claims[0].VerifyCommandUUID
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &row, selectStmt, host.UUID))
+		assert.Equal(t, string(fleet.MDMDeliveryVerifying), row.Status)
+		assert.Equal(t, activePassword, row.EncryptedPassword)
+		assert.Empty(t, row.PendingEncryptedPassword)
+
 		// The device confirms the active password; with nothing pending, it stays put.
 		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID, verifyCmdUUID))
 		require.NoError(t, ds.writer(ctx).GetContext(ctx, &row, selectStmt, host.UUID))
@@ -452,6 +465,23 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.writer(ctx).GetContext(ctx, &result, selectStmt, host.UUID))
 		assert.Equal(t, 1, result.Retry, "a stale verify UUID must not bump the counter")
 		assert.Equal(t, newVerifyCmdUUID, result.PendingVerifyCommandUUID.String)
+
+		password := append([]byte(nil), result.PendingEncryptedPassword...)
+		require.NoError(t, ds.RetryRecoveryLockVerify(ctx, host.UUID, newVerifyCmdUUID, ""))
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &result, selectStmt, host.UUID))
+		assert.Equal(t, string(fleet.MDMDeliveryVerifying), result.Status)
+		assert.Equal(t, 2, result.Retry)
+		assert.False(t, result.PendingVerifyCommandUUID.Valid)
+		assert.Equal(t, password, result.PendingEncryptedPassword)
+		hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+		require.NoError(t, err)
+		assert.False(t, hostNeedsRecoveryLockAction(hosts, host.UUID))
+		claims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
+		require.NoError(t, err)
+		require.Len(t, claims, 1)
+		assert.Equal(t, host.UUID, claims[0].HostUUID)
+		assert.NotEmpty(t, claims[0].VerifyCommandUUID)
+		assert.False(t, claims[0].UseLastKnownPassword)
 	})
 }
 

@@ -2052,9 +2052,11 @@ type Datastore interface {
 	RetryRecoveryLock(ctx context.Context, hostUUID, commandUUID string) error
 
 	// RetryRecoveryLockVerify re-arms the verify step under newVerifyCommandUUID, keeping the
-	// row in 'verifying' with its pending password. Used instead of RetryRecoveryLock when the
-	// SetRecoveryLock was already acknowledged: the device holds the pending password by then,
-	// so re-running the set would carry a stale CurrentPassword and always fail.
+	// row in 'verifying' with its pending password.
+	// An empty newVerifyCommandUUID releases the claim for the cron to retry a failed enqueue.
+	// Used instead of RetryRecoveryLock when SetRecoveryLock was already acknowledged:
+	// the device holds the pending password by then, so re-running the set would carry
+	// a stale CurrentPassword and always fail.
 	RetryRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID, newVerifyCommandUUID string) error
 
 	// ClearRecoveryLockPendingStatus resets the recovery lock status to NULL for hosts

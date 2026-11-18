@@ -532,11 +532,12 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 
 func (ds *Datastore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 	// Every result handler that moves a row to verifying also records its verify command, so
-	// only the upgrade repair (migration 20261029055700) leaves one without. Unlike the set and
-	// clear claims there are no enrollment checks: these rows already passed them, and the cron
+	// the upgrade repair (migration 20261029055700) and failed verify enqueues can leave one
+	// without. Unlike the set and clear claims there are no enrollment checks: these rows already passed them, and the cron
 	// soft-deletes rows of unenrolled hosts before this runs.
 	selectStmt := fmt.Sprintf(`
-		SELECT host_uuid, operation_type
+		SELECT host_uuid, operation_type,
+		       pending_encrypted_password IS NULL AND encrypted_password IS NOT NULL AS use_last_known_password
 		FROM host_recovery_key_passwords
 		WHERE deleted = 0
 		  AND status = '%s'
@@ -906,7 +907,7 @@ func (ds *Datastore) RetryRecoveryLockVerify(ctx context.Context, hostUUID, veri
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET retry = retry + 1,
-		    pending_verify_command_uuid = ?
+		    pending_verify_command_uuid = NULLIF(?, '')
 		WHERE host_uuid = ?
 		  AND pending_verify_command_uuid = ?
 		  AND status = '%s'

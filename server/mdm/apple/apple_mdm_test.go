@@ -1214,12 +1214,20 @@ type mockRecoveryLockCommander struct {
 	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	rotateRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	verifyRecoveryLockFn func(ctx context.Context, hostUUID, cmdUUID string) error
+	verifyLastKnownFn    func(ctx context.Context, hostUUID, cmdUUID string) error
 	verifyClearFn        func(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
 	if m.verifyRecoveryLockFn != nil {
 		return m.verifyRecoveryLockFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error {
+	if m.verifyLastKnownFn != nil {
+		return m.verifyLastKnownFn(ctx, hostUUID, cmdUUID)
 	}
 	return nil
 }
@@ -1282,6 +1290,31 @@ func TestSendRecoveryLockVerifyCommands(t *testing.T) {
 		require.Equal(t, []string{"install-host/verify-1"}, verified)
 		require.Equal(t, []string{"remove-host/verify-2"}, verifiedClear)
 		require.False(t, ds.UnclaimHostForRecoveryLockVerifyFuncInvoked)
+	})
+
+	t.Run("retries the last known password after a rejected set", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return []fleet.HostRecoveryLockVerifyClaim{{
+				HostUUID: "fallback-host", OperationType: fleet.MDMOperationTypeInstall,
+				VerifyCommandUUID: "fallback-verify", UseLastKnownPassword: true,
+			}}, nil
+		}
+		called := false
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(context.Context, string, string) error {
+				t.Fatal("the rejected pending password must not be used")
+				return nil
+			},
+			verifyLastKnownFn: func(_ context.Context, hostUUID, cmdUUID string) error {
+				called = true
+				assert.Equal(t, "fallback-host", hostUUID)
+				assert.Equal(t, "fallback-verify", cmdUUID)
+				return nil
+			},
+		}
+		require.NoError(t, sendRecoveryLockVerifyCommands(ctx, ds, commander, logger))
+		assert.True(t, called)
 	})
 
 	t.Run("a verify that wasn't enqueued is unclaimed, one whose push failed is kept", func(t *testing.T) {

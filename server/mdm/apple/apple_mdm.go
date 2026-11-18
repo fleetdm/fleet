@@ -2057,6 +2057,7 @@ type RecoveryLockCommander interface {
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
 	VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
+	VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -2145,6 +2146,8 @@ func sendRecoveryLockVerifyCommands(
 		send := commander.VerifyRecoveryLock
 		if c.OperationType == fleet.MDMOperationTypeRemove {
 			send = commander.VerifyClearRecoveryLock
+		} else if c.UseLastKnownPassword {
+			send = commander.VerifyRecoveryLockLastKnownPassword
 		}
 		err := send(ctx, c.HostUUID, c.VerifyCommandUUID)
 		if err == nil {
