@@ -1479,7 +1479,7 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://support.apple.com/en-gb/guide/security/secc46f3562c/web',
   'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
-  'GET /learn-more-about/target-users-with-labels': '/guides/managing-labels-in-fleet#label-types',
+  'GET /learn-more-about/deployment-rings': '/guides/roll-out-changes-with-deployment-rings',
   'GET /learn-more-about/roll-out-new-package-version': '/guides/roll-out-changes-with-deployment-rings#a-new-version-of-a-custom-package',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
