@@ -35,12 +35,10 @@ module.exports = {
     // Google's device APIs use the customer ID without the leading "C", so accept either form and match it with one.
     googleCustomerId = 'C' + googleCustomerId.replace(/^C/, '');
 
-    let informationAboutThisCustomer = await GoogleConditionalAccessServer.findOne({googleCustomerId, fleetServerSecret});
-    if(!informationAboutThisCustomer) {
+    let destroyResult = await GoogleConditionalAccessServer.destroyOne({googleCustomerId, fleetServerSecret});
+    if(!destroyResult) {
       throw 'customerNotFound';
     }
-
-    await GoogleConditionalAccessServer.destroyOne({id: informationAboutThisCustomer.id});
 
     // All done.
     return;
