@@ -1100,6 +1100,41 @@ describe("PolicyForm - component", () => {
         expect(onUpdate).toHaveBeenCalledTimes(1);
       });
 
+      it("keeps a manual patch policy's script before automation configuration loads", async () => {
+        jest
+          .spyOn(teamsAPI, "load")
+          .mockReturnValue(new Promise(() => undefined));
+        const updatePolicySpy = jest
+          .spyOn(policiesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          fleet_id: 1,
+          automation_type: "script" as const,
+          run_script: { id: 1, name: "Rotate keys" },
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            patch_when_closed: false,
+            notify_before_patching: false,
+            patch_deadline: false,
+          })
+        );
+      });
+
       it("saves Force patch with Deadline through the loaded automation configuration", async () => {
         jest.spyOn(teamsAPI, "load").mockResolvedValue({
           fleet: createMockTeam({ id: 1 }),

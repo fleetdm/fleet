@@ -2,7 +2,7 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 
 import { Ace } from "ace-builds";
-import { size } from "lodash";
+import { omit, size } from "lodash";
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -488,13 +488,21 @@ const PolicyForm = ({
     if (isEditMode) {
       automations = automationsRef.current?.getAutomationsPayload();
       if (!automations && isPremiumTier && isPatchPolicy) {
+        const patchFlags = getPatchPolicyFlags(patchOption, endUserExperience);
+        // Like the loaded fields: manual patching keeps another automation
+        // (e.g. a script) and its continuous setting.
+        const keepsOtherAutomation =
+          patchOption === "manual" &&
+          storedPolicy?.automation_type !== "software";
         automations = {
           isValid: true,
           isDirty: true,
-          policyUpdate: {
-            automation_type: patchOption === "manual" ? null : "software",
-            ...getPatchPolicyFlags(patchOption, endUserExperience),
-          },
+          policyUpdate: keepsOtherAutomation
+            ? omit(patchFlags, "continuous_automations_enabled")
+            : {
+                automation_type: patchOption === "manual" ? null : "software",
+                ...patchFlags,
+              },
         };
       }
       if (automations && !automations.isValid) {
