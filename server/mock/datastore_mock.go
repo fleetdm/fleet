@@ -250,6 +250,8 @@ type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion,
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
+type HostIDByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error)
+
 type HostByUUIDFunc func(ctx context.Context, uuid string) (*fleet.Host, error)
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
@@ -2931,6 +2933,9 @@ type DataStore struct {
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
+
+	HostIDByIdentifierFunc        HostIDByIdentifierFunc
+	HostIDByIdentifierFuncInvoked bool
 
 	HostByUUIDFunc        HostByUUIDFunc
 	HostByUUIDFuncInvoked bool
@@ -7237,6 +7242,13 @@ func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*f
 	s.HostByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostByIdentifierFunc(ctx, identifier)
+}
+
+func (s *DataStore) HostIDByIdentifier(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *DataStore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, error) {

@@ -1890,15 +1890,12 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
-	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
-		return &fleet.HostLite{ID: id}, nil
-	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-		assert.NotEqual(t, "1", identifier, "a matched id must not fall back to the other identifiers")
-		if identifier == "team-host" {
-			return &fleet.HostLite{ID: 1}, nil
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
+		assert.Equal(t, fleet.HostIDByIdentifierOptions{MatchID: true}, opts, "host endpoints match the host ID but not the agent keys")
+		if identifier == "1" || identifier == "team-host" {
+			return 1, nil
 		}
-		return &fleet.HostLite{ID: 2}, nil
+		return 2, nil
 	}
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
@@ -2233,18 +2230,6 @@ func TestHostAuth(t *testing.T) {
 	}
 
 	// List, GetHostSummary work for all
-}
-
-func TestGetHostByIDOrIdentifierIDLookupError(t *testing.T) {
-	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
-	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
-		return nil, errors.New("database unavailable")
-	}
-
-	// A failed lookup says nothing about whether the id exists, so it must not fall back to the other identifiers.
-	_, err := svc.GetHostByIDOrIdentifier(test.UserContext(ctx, test.UserAdmin), "1", fleet.HostDetailOptions{})
-	require.ErrorContains(t, err, "database unavailable")
 }
 
 func TestListHosts(t *testing.T) {

@@ -364,6 +364,10 @@ type Datastore interface {
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches are, in priority order,
 	// hardware_serial, UUID, hostname, osquery_host_id and node_key. The lowest host ID wins among hosts matching on the same column.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	// HostIDByIdentifier returns the ID of the host matching identifier. Possible matches are, in priority order, the host ID (with
+	// opts.MatchID and a numeric identifier), hardware_serial, UUID, hostname, then osquery_host_id and node_key (with
+	// opts.MatchAgentKeys). The newest host wins among hosts matching on the same column.
+	HostIDByIdentifier(ctx context.Context, identifier string, opts HostIDByIdentifierOptions) (uint, error)
 	// HostByUUID returns one host whose uuid column matches exactly. Unlike
 	// HostByIdentifier, it does not fall back to other identifier columns.
 	HostByUUID(ctx context.Context, uuid string) (*Host, error)

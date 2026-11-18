@@ -243,7 +243,7 @@ func (r UpdateScriptResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetHostScriptDetailsRequest struct {
-	HostID      uint        `url:"id"`
+	Identifier  string      `url:"id"`
 	ListOptions ListOptions `url:"list_options"`
 }
 

@@ -61,8 +61,8 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 
 	// ---- host queries → reports ----
 	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}",
-		DeprecatedPaths: []string{"/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{report_id:[0-9]+}"},
+		Method: "GET", PrimaryPath: "/api/_version_/fleet/hosts/{id}/reports/{report_id:[0-9]+}",
+		DeprecatedPaths: []string{"/api/_version_/fleet/hosts/{id}/queries/{report_id:[0-9]+}"},
 	},
 
 	// ---- live queries → reports ----

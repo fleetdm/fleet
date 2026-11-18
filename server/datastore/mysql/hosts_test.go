@@ -123,6 +123,7 @@ func TestHosts(t *testing.T) {
 		{"ByIdentifier", testHostsByIdentifier},
 		{"ByUUID", testHostsByUUID},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
+		{"HostIDByIdentifier", testHostIDByIdentifier},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
 		{"SaveHostUsers", testHostsSaveHostUsers},
@@ -4654,6 +4655,113 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 		assert.True(t, fleet.IsNotFound(err), "%q should not match: got %v", ident, err)
 		assert.Nil(t, h, "%q should not return a host", ident)
 	}
+}
+
+func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	var hostCount int
+	// newHost creates a host whose identifiers are all unique, then overrides the ones set changes.
+	newHost := func(set func(*fleet.Host)) uint {
+		hostCount++
+		h := &fleet.Host{
+			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+			OsqueryHostID:  new(fmt.Sprintf("unique_osquery_host_id_%d", hostCount)),
+			NodeKey:        new(fmt.Sprintf("unique_node_key_%d", hostCount)),
+			UUID:           fmt.Sprintf("unique_uuid_%d", hostCount),
+			Hostname:       fmt.Sprintf("unique_hostname_%d", hostCount),
+			HardwareSerial: fmt.Sprintf("unique_serial_%d", hostCount),
+		}
+		if set != nil {
+			set(h)
+		}
+		created, err := ds.NewHost(t.Context(), h)
+		require.NoError(t, err)
+		return created.ID
+	}
+	setSerial := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.HardwareSerial = value } }
+	setUUID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.UUID = value } }
+	setHostname := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.Hostname = value } }
+	setOsqueryHostID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.OsqueryHostID = &value } }
+	setNodeKey := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.NodeKey = &value } }
+	allColumns := fleet.HostIDByIdentifierOptions{MatchID: true, MatchAgentKeys: true}
+
+	t.Run("priority across and within columns", func(t *testing.T) {
+		// winnerIsLast creates the winner after the loser, so a case about column priority shows whether the newest host can override it.
+		testCases := []struct {
+			name         string
+			setLoser     func(string) func(*fleet.Host)
+			setWinner    func(string) func(*fleet.Host)
+			winnerIsLast bool
+		}{
+			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
+			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
+			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
+			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
+			{name: "serial beats a newer UUID", setLoser: setUUID, setWinner: setSerial},
+			{name: "newest host wins on a shared serial", setLoser: setSerial, setWinner: setSerial, winnerIsLast: true},
+			{name: "newest host wins on a shared UUID", setLoser: setUUID, setWinner: setUUID, winnerIsLast: true},
+			{name: "newest host wins on a shared hostname", setLoser: setHostname, setWinner: setHostname, winnerIsLast: true},
+		}
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				contested := fmt.Sprintf("contested_%d", i)
+				var wantID uint
+				if tc.winnerIsLast {
+					newHost(tc.setLoser(contested))
+					wantID = newHost(tc.setWinner(contested))
+				} else {
+					wantID = newHost(tc.setWinner(contested))
+					newHost(tc.setLoser(contested))
+				}
+
+				gotID, err := ds.HostIDByIdentifier(t.Context(), contested, allColumns)
+				require.NoError(t, err)
+				require.Equal(t, wantID, gotID)
+			})
+		}
+	})
+
+	t.Run("host ID beats a numeric identifier of another host", func(t *testing.T) {
+		idHost := newHost(nil)
+		serialHost := newHost(setSerial(fmt.Sprint(idHost)))
+
+		gotID, err := ds.HostIDByIdentifier(t.Context(), fmt.Sprint(idHost), allColumns)
+		require.NoError(t, err)
+		require.Equal(t, idHost, gotID)
+
+		gotID, err = ds.HostIDByIdentifier(t.Context(), fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{})
+		require.NoError(t, err)
+		require.Equal(t, serialHost, gotID)
+	})
+
+	t.Run("numeric identifier falls back when no host has that ID", func(t *testing.T) {
+		serialHost := newHost(setSerial("987654321"))
+
+		gotID, err := ds.HostIDByIdentifier(t.Context(), "987654321", allColumns)
+		require.NoError(t, err)
+		require.Equal(t, serialHost, gotID)
+	})
+
+	t.Run("options exclude columns", func(t *testing.T) {
+		idHost := newHost(setOsqueryHostID("excluded_osquery_host_id"))
+		newHost(setNodeKey("excluded_node_key"))
+
+		for _, identifier := range []string{fmt.Sprint(idHost), "excluded_osquery_host_id", "excluded_node_key"} {
+			_, err := ds.HostIDByIdentifier(t.Context(), identifier, fleet.HostIDByIdentifierOptions{})
+			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", identifier, err)
+		}
+	})
+
+	t.Run("blank identifiers match nothing", func(t *testing.T) {
+		newHost(func(h *fleet.Host) {
+			h.OsqueryHostID, h.NodeKey, h.UUID, h.Hostname, h.HardwareSerial = new(""), new(""), "", "", ""
+		})
+
+		for _, blank := range []string{"", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostIDByIdentifier(t.Context(), blank, allColumns)
+			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", blank, err)
+		}
+	})
 }
 
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {

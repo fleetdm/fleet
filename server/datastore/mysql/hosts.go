@@ -10,6 +10,7 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -7410,6 +7411,46 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 	}
 
 	return &hh, nil
+}
+
+// Each candidate excludes empty values for the reason given on hostByIdentifierWhere, and the identifier columns aren't unique, so each
+// takes the newest host on its own index.
+const (
+	hostIDCandidateByID        = `(SELECT id, 0 AS priority FROM hosts WHERE id = ?)`
+	hostIDCandidateBySerial    = `(SELECT id, 1 AS priority FROM hosts WHERE hardware_serial = ? AND hardware_serial <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByUUID      = `(SELECT id, 2 AS priority FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByHostname  = `(SELECT id, 3 AS priority FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByOsqueryID = `(SELECT id, 4 AS priority FROM hosts WHERE osquery_host_id = ? AND osquery_host_id <> '')`
+	hostIDCandidateByNodeKey   = `(SELECT id, 5 AS priority FROM hosts WHERE node_key = ? AND node_key <> '')`
+)
+
+func (ds *Datastore) HostIDByIdentifier(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
+	var (
+		candidates []string
+		args       []any
+	)
+	if opts.MatchID {
+		if id, err := strconv.ParseUint(identifier, 10, 0); err == nil {
+			candidates = append(candidates, hostIDCandidateByID)
+			args = append(args, id)
+		}
+	}
+	candidates = append(candidates, hostIDCandidateBySerial, hostIDCandidateByUUID, hostIDCandidateByHostname)
+	args = append(args, identifier, identifier, identifier)
+	if opts.MatchAgentKeys {
+		candidates = append(candidates, hostIDCandidateByOsqueryID, hostIDCandidateByNodeKey)
+		args = append(args, identifier, identifier)
+	}
+	stmt := `SELECT candidates.id FROM (` + strings.Join(candidates, " UNION ALL ") + `) candidates ORDER BY candidates.priority LIMIT 1`
+
+	var hostID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, stmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get host id by identifier")
+	}
+	return hostID, nil
 }
 
 func (ds *Datastore) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {

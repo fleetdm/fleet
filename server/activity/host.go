@@ -21,4 +21,7 @@ type HostProvider interface {
 	// GetHostLite returns minimal host information for authorization.
 	// If the host doesn't exist, returns a NotFoundError.
 	GetHostLite(ctx context.Context, hostID uint) (*Host, error)
+	// HostIDByIDOrIdentifier returns the ID of the host named by a host ID, hardware serial, UUID, or hostname.
+	// If no host matches, returns a NotFoundError.
+	HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error)
 }

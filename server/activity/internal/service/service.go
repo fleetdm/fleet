@@ -108,10 +108,17 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 }
 
 // ListHostPastActivities returns past activities for a specific host.
-func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+func (s *Service) ListHostPastActivities(ctx context.Context, hostIdentifier string, opt api.ListOptions) ([]*api.Activity,
+	*api.PaginationMetadata, error,
+) {
 	// First ensure the user has access to list hosts, then check the specific host once team_id is loaded.
 	if err := s.authz.Authorize(ctx, &activity.Host{}, platform_authz.ActionList); err != nil {
 		return nil, nil, err
+	}
+
+	hostID, err := s.providers.HostIDByIDOrIdentifier(ctx, hostIdentifier)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host id")
 	}
 
 	// Fetch host to get team_id for authorization

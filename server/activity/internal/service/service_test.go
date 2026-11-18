@@ -103,6 +103,13 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	return m.host, m.err
 }
 
+func (m *mockHostProvider) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	if m.err != nil || m.host == nil {
+		return 0, m.err
+	}
+	return m.host.ID, nil
+}
+
 // mockDataProviders combines all provider interfaces for testing.
 type mockDataProviders struct {
 	*mockUserProvider

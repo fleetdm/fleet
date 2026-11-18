@@ -28,13 +28,8 @@ type runOneLiveQueryRequest struct {
 }
 
 type runLiveQueryOnHostRequest struct {
-	Identifier string `url:"identifier"`
+	Identifier string `url:"id"`
 	Query      string `json:"query"`
-}
-
-type runLiveQueryOnHostByIDRequest struct {
-	HostID uint   `url:"id"`
-	Query  string `json:"query"`
 }
 
 type summaryPayload struct {
@@ -127,20 +122,13 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
-	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
+	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
 	}
-
-	return runLiveQueryOnHost(svc, ctx, host, req.Query)
-}
-
-func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*runLiveQueryOnHostByIDRequest)
-
-	host, err := svc.HostLiteByID(ctx, req.HostID)
+	host, err := svc.HostLiteByID(ctx, hostID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %d: %s", req.HostID, err.Error())))
+		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
 	}
 
 	return runLiveQueryOnHost(svc, ctx, host, req.Query)
