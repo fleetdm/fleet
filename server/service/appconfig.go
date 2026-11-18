@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	strconv "strconv"
 	"strings"
 
@@ -2839,9 +2840,15 @@ func (svc *Service) validateVPPAssignments(
 		return nil, err
 	}
 	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	// Fleets created before "Unassigned" was reserved can still have that name.
+	var fleetsNamedUnassigned []string
 	for _, tm := range teams {
 		teamsByName[tm.Name] = tm.ID
+		if fleet.IsUnassignedFleetName(tm.Name) {
+			fleetsNamedUnassigned = append(fleetsNamedUnassigned, fmt.Sprintf("%q", tm.Name))
+		}
 	}
+	slices.Sort(fleetsNamedUnassigned)
 	tokens, err := svc.ds.ListVPPTokens(ctx)
 	if err != nil {
 		return nil, err
@@ -2863,6 +2870,13 @@ func (svc *Service) validateVPPAssignments(
 			if tmName == fleet.DisplayNameAllTeams {
 				tmName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(tmName) {
+				if len(fleetsNamedUnassigned) > 0 {
+					invalid.Appendf("mdm.volume_purchasing_program", "fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
+					return nil, nil
+				}
+				tmName = fleet.TeamNameNoTeam
+			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
@@ -2880,6 +2894,9 @@ func (svc *Service) validateVPPAssignments(
 			if teamName == fleet.DisplayNameAllTeams {
 				teamName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(teamName) {
+				teamName = fleet.TeamNameNoTeam
+			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
@@ -2888,7 +2905,7 @@ func (svc *Service) validateVPPAssignments(
 				tokenTeams = []uint{}
 				break
 			}
-			teamID := teamsByName[teamName]
+			teamID := teamsByName[norm.NFC.String(teamName)]
 			tokenTeams = append(tokenTeams, teamID)
 		}
 

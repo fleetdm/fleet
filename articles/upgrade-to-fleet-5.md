@@ -364,6 +364,98 @@ Get the "All Linux" label's ID from `builtin_labels` in the Get hosts summary re
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
+### Report keys renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `query_id` in [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy), [Run live report (ad hoc)](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-ad-hoc), [Run live report by target name (ad hoc)](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-by-target-name-ad-hoc), [Search targets](https://fleetdm.com/docs/rest-api/rest-api#search-targets), [Get report data](https://fleetdm.com/docs/rest-api/rest-api#get-report-data), and [Get host's report data](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-data) | `report_id` |
+| `query_ids` in `GET /api/v1/fleet/reports/run` | `report_ids` |
+| `live_query_results` in `GET /api/v1/fleet/reports/run` | `live_report_results` |
+| `queries` and `inherited_query_count` in [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports) | `reports` and `inherited_report_count` |
+| `query` (the object that holds the report) in [Get report](https://fleetdm.com/docs/rest-api/rest-api#get-report), [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report), and [Update report](https://fleetdm.com/docs/rest-api/rest-api#update-report) | `report` |
+| `host_hostname` in each row of live report results | Removed. Read `host_display_name` from the row, or the result's `host` object. |
+| `query_stats`, `scheduled_query_name`, `scheduled_query_id`, and `query_name` under `pack_stats` in [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), and [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) | `report_stats`, `scheduled_report_name`, `scheduled_report_id`, and `report_name` |
+
+#### What to do
+
+Fleet 4 already supports the new names, so change them before you upgrade.
+
+1. In requests, rename `query_id` to `report_id` and `query_ids` to `report_ids`.
+   - Until you do, calls that use the old names fail in Fleet 5 with a `422` error like: `The "query_id" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+2. In responses, read the new names. Fleet 5 doesn't return the old ones.
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### mia_count removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `mia_count` in [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) | `missing_30_days_count` |
+
+#### What to do
+
+Fleet 4 already supports the new name, so change it before you upgrade.
+
+Read `missing_30_days_count` instead of `mia_count`.
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### Report settings renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `server_settings.live_query_disabled` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `server_settings.live_reporting_disabled` |
+| `server_settings.query_reports_disabled` in the same endpoints | `server_settings.discard_reports_data` |
+| `server_settings.query_report_cap` in the same endpoints | `server_settings.report_cap` |
+
+#### What to do
+
+Fleet 4 already supports the new names, so change them before you upgrade.
+
+Rename the three keys. Fleet moves your saved values to the new names when you upgrade.
+
+- Until you do, calls that use the old names fail in Fleet 5 with a `422` error like: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### mdm.macos_settings renamed to mdm.apple_settings
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `mdm.macos_settings` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `mdm.apple_settings` |
+| `mdm.macos_settings` (disk encryption status) in [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), and [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) | `mdm.apple_settings` |
+
+`macos_settings` in [Update disk encryption](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption) doesn't change.
+
+#### What to do
+
+Fleet 4 already supports `apple_settings`, so change it before you upgrade.
+
+Search for `macos_settings` under `mdm` and rename it to `apple_settings`. Fleet moves your saved settings to the new name when you upgrade.
+
+- Until you do, calls that use the old name fail in Fleet 5 with a `422` error like: `The "macos_settings" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### Host filters renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `macos_settings` query parameter in [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts), [Count hosts](https://fleetdm.com/docs/rest-api/rest-api#count-hosts), and the other endpoints that take host filters | `apple_settings` |
+| `bootstrap_package` query parameter in the same endpoints | `macos_bootstrap_package` |
+
+`macos_settings_disk_encryption` doesn't change.
+
+#### What to do
+
+Fleet 4 already supports the new names, so change them before you upgrade.
+
+Rename both query parameters.
+
+- Until you do, calls that use the old names fail in Fleet 5 with a `422` error like: `The "bootstrap_package" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
 ### os_name and os_version are separate
 
 | Fleet 4 | Fleet 5 |
@@ -869,6 +961,41 @@ Rename both keys in your YAML files.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
+### Report settings renamed in YAML
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `server_settings.live_query_disabled` | [`server_settings.live_reporting_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) |
+| `server_settings.query_reports_disabled` | [`server_settings.discard_reports_data`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) |
+| `server_settings.query_report_cap` | [`server_settings.report_cap`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) |
+
+#### What to do
+
+Fleet 4 already supports the new names, so change them before you upgrade.
+
+Rename the three keys in your YAML files.
+
+- Until you do, your GitOps run fails in Fleet 5 with an error like: `The "org_settings.server_settings.query_report_cap" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### controls.macos_settings renamed to controls.apple_settings
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `controls.macos_settings` | [`controls.apple_settings`](https://fleetdm.com/docs/configuration/yaml-files#apple-settings) |
+| `custom_settings` under `controls.apple_settings`, `controls.windows_settings`, and `controls.android_settings` | `configuration_profiles` |
+
+#### What to do
+
+Fleet 4 already supports the new names, so change them before you upgrade.
+
+1. Rename `macos_settings` to `apple_settings`.
+2. Under `apple_settings`, `windows_settings`, and `android_settings`, rename `custom_settings` to `configuration_profiles`.
+   - Until you do, your GitOps run fails in Fleet 5 with an error like: `The "controls.macos_settings" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
 ### Failing policies webhook moved to each policy
 
 | Fleet 4 | Fleet 5 |
@@ -1095,6 +1222,19 @@ Update scripts that read these keys from `fleetctl get config` or `fleetctl get 
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
+### get config prints renamed report and MDM settings
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get config` prints `live_query_disabled`, `query_reports_disabled`, and `query_report_cap` under `server_settings` | `fleetctl get config` prints `live_reporting_disabled`, `discard_reports_data`, and `report_cap` |
+| `fleetctl get config` prints `macos_settings` under `mdm` | `fleetctl get config` prints `apple_settings` |
+
+#### What to do
+
+Update scripts that parse the output of `fleetctl get config` to read the new names. Files you pass to `fleetctl apply` need the new names too.
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
 ### get software output changed
 
 | Fleet 4 | Fleet 5 |
@@ -1307,6 +1447,23 @@ Update anything that filters or parses activities, like SIEM rules and log pipel
 
 GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#57745](https://github.com/fleetdm/fleet/issues/57745), [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
+
+### Report activity details renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `query_id`, `query_ids`, and `query_name` in the `details` of report activities, like `created_saved_query` and `live_query` | `report_id`, `report_ids`, and `report_name` |
+| `query_sql` in the `details` of the `live_query` activity | `query` |
+
+Fleet 5 returns activities created before the upgrade with the new names.
+
+#### What to do
+
+Fleet 4 already includes the new names in activity details, so change them before you upgrade.
+
+Update anything that parses report activities, like SIEM rules and log pipelines, to read the new names.
+
+GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
 
 ## fleetd
 
