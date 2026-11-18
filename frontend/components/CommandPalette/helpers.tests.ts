@@ -279,7 +279,7 @@ describe("CommandPalette helpers", () => {
       const configNoAbm = createMockConfig();
       configNoAbm.mdm = {
         ...configNoAbm.mdm,
-        apple_bm_enabled_and_configured: false,
+        apple_business_enabled_and_configured: false,
       };
 
       const items = buildPaletteItems({
@@ -1149,10 +1149,8 @@ describe("CommandPalette helpers", () => {
       it.each([
         "os_settings=pending",
         "apple_settings=failing",
-        "macos_settings=latest",
         "os_settings_disk_encryption=verified",
         "macos_bootstrap_package=failed",
-        "bootstrap_package=pending",
       ])("strips %s when switching to All fleets", (filter) => {
         const [name] = filter.split("=");
         const url = parse(

@@ -436,7 +436,7 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles()
 		"OktaBrowsers.xml": profiles.BrowserProfile,
 	} {
 		body, headers := generateNewProfileMultipartRequest(t, fileName, []byte(contents), s.token,
-			map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+			map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	}
 

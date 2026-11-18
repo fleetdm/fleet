@@ -146,7 +146,7 @@
         align-items: center;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-green;
+        border: 1px solid @core-fleet-black;
       }
       .form-control {
         border-radius: 6px;
@@ -399,17 +399,14 @@
       }
     }
     [purpose='cta-button'] {
+      .primary-button();
       display: flex;
       width: 140px;
-      height: 36px;
-      padding: 16px 32px;
       justify-content: center;
       align-items: center;
       color: #FFF;
       text-align: center;
-      font-size: 14px;
       font-weight: 700;
-      line-height: 150%;
       margin-bottom: 16px;
     }
     [purpose='cta-platform-icons'] {
@@ -518,13 +515,10 @@
       margin-bottom: 32px;
     }
     p a[purpose='cta-button'] { // Green Fleet CTA button authored inline in article markdown (e.g. under "Key takeaways")
-      .cta-button(); // Reuse the homepage's brand button styling
-      display: inline-flex; // Override the mixin's full-width `display: flex` so the button hugs its label
+      .primary-button(large);
+      display: inline-flex; // Hugs its label instead of filling the line
       width: fit-content;
-      height: auto;
-      padding: 12px 24px;
       margin: 8px 0 32px; // Space it from the content above and the next heading below
-      font-size: 16px;
       font-weight: 700;
       text-decoration: none;
       &:hover {
@@ -857,13 +851,11 @@
       flex-direction: row;
       gap: 24px;
       [purpose='cta-button'] {
-        .cta-button();
-        padding: 8px 16px;
+        .primary-button();
+        display: flex;
         color: #FFF;
         text-align: center;
-        font-size: 14px;
         font-weight: 700;
-        line-height: 21px;
       }
     }
   }

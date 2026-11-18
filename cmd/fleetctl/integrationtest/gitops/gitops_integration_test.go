@@ -209,8 +209,8 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsDDMFleetVarsRequiresPremium(
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 org_settings:
   server_settings:
@@ -384,7 +384,7 @@ software:
 
 	out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", unassignedFile})
 	require.NoError(t, err)
-	require.Contains(t, out.String(), "skipping team config")
+	require.Contains(t, out.String(), "skipping fleet config")
 	require.NotContains(t, out.String(), "patch deadline settings")
 	got, err := s.DS.GetPatchDeadlineSettings(ctx, 0)
 	require.NoError(t, err)

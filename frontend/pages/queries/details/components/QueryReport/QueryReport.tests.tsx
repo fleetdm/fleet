@@ -21,7 +21,7 @@ describe("QueryReport", () => {
     const [isClipped, queryReport] = [
       false,
       {
-        query_id: 1,
+        report_id: 1,
         results: [
           {
             host_id: 1,
@@ -57,7 +57,7 @@ describe("QueryReport", () => {
     const [isClipped, queryReport] = [
       false,
       {
-        query_id: 1,
+        report_id: 1,
         results: [
           {
             host_id: 1,
@@ -96,7 +96,7 @@ describe("QueryReport", () => {
     const [isClipped, queryReport] = [
       true,
       {
-        query_id: 1,
+        report_id: 1,
         results: [
           {
             host_id: 1,
@@ -141,7 +141,7 @@ describe("QueryReport", () => {
         {...tableProps}
         searchQuery="nomatch"
         queryReport={{
-          query_id: 1,
+          report_id: 1,
           results: [],
           report_clipped: false,
           count: 0,
@@ -156,7 +156,7 @@ describe("QueryReport", () => {
   it("Maps the Host table column to the host_name API order key", async () => {
     const onQueryChange = jest.fn();
     const queryReport = {
-      query_id: 1,
+      report_id: 1,
       results: [
         {
           host_id: 1,
@@ -215,7 +215,7 @@ describe("QueryReport", () => {
       },
     ]);
     const queryReport = {
-      query_id: 1,
+      report_id: 1,
       results: [
         {
           host_id: 1,

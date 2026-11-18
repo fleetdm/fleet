@@ -128,19 +128,9 @@
       font-size: 15px;
     }
     [purpose='cta-button'] {
-      display: inline-block;
+      .primary-button(large);
+      display: inline-flex;
       margin-top: 8px;
-      padding: 12px 24px;
-      background: @primary;
-      color: #FFFFFF;
-      font-weight: 600;
-      font-size: 15px;
-      border-radius: 7px;
-      text-decoration: none;
-      transition: background 0.15s ease;
-      &:hover {
-        background: @primary-dark;
-      }
     }
   }
 
@@ -155,13 +145,10 @@
       margin-bottom: 6px;
     }
     .form-control {
-      height: 42px;
-      font-size: 14px;
-      border-radius: 7px;
       border-color: @border;
       &:focus {
-        border-color: @primary;
-        box-shadow: 0 0 0 3px rgba(106, 103, 254, 0.12);
+        border-color: @core-fleet-black;
+        box-shadow: none;
       }
     }
   }
@@ -171,13 +158,9 @@
   }
 
   [purpose='submit-button'] {
-    display: block;
+    display: flex;
     width: 100%;
     margin-top: 8px;
-    padding: 13px 24px;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: 7px;
   }
 
   [purpose='fine-print'] {
@@ -543,8 +526,8 @@
   }
 
   [purpose='closing-cta'] [purpose='cta-button'] {
-    .cta-button();
-    padding: 13px 32px;
+    .primary-button(large);
+    display: flex;
   }
 
   // ─── RESPONSIVE: 1199px ────────────────────────────────────────

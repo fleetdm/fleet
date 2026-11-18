@@ -264,6 +264,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
 		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOsqueryRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
@@ -1437,8 +1438,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, nil
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
@@ -1464,11 +1464,6 @@ const dueHostsChunkSize = 1000
 // a campaign whose one-shot wake-up was lost anywhere along the way is
 // recovered within one interval check tick, and hosts stop being re-notified
 // once they answer (answering clears their targeting in the store).
-//
-// Known limitation: with async task processing enabled, the label/policy
-// reported-at timestamps may be fresher in Redis than the hosts table columns
-// used here. This can only over-notify (one cheap empty read per tick until
-// the async timestamps are flushed), never miss due work.
 func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
 	// skipauth: internal caller (the per-instance interval check job), not a
 	// user-facing endpoint.
@@ -1656,8 +1651,7 @@ func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host 
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
-	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
-	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
 	}
 	// This must come after the check above to avoid unnecessary queries to the database. Most
@@ -1972,7 +1966,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if len(labelResults) > 0 {
-			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			now := svc.clock.Now()
+			host.LabelUpdatedAt = now
+			if err := svc.ds.RecordLabelQueryExecutions(ctx, host, labelResults, now, ac.ServerSettings.DeferredSaveHost); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -1986,7 +1982,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ctx, "received policy results",
 			"host_id", host.ID,
 			"host_platform", host.Platform,
-			"team_id", ptr.ValOrZero(host.TeamID),
+			"fleet_id", ptr.ValOrZero(host.TeamID),
 			"failing", failing,
 			"passing", passing,
 			"not_executed", notExecuted,
@@ -2097,14 +2093,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 
-		// NOTE(mna): currently, failing policies webhook wouldn't see the new
-		// flipped policies on the next run if async processing is enabled and the
-		// collection has not been done yet (not persisted in mysql). Should
-		// FlippingPoliciesForHost take pending redis data into consideration, or
-		// maybe we should impose restrictions between async collection interval
-		// and policy update interval?
-
-		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing)
+		now := svc.clock.Now()
+		host.PolicyUpdatedAt = now
+		stalePolicyIDs, err := svc.ds.RecordPolicyQueryExecutions(ctx, host, policyResults, now, ac.ServerSettings.DeferredSaveHost, newPassing)
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -2113,7 +2104,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
 		// The host was sent the "no policies" wildcard query, so no policies are in scope
 		// for it and all of its stored policy_membership rows are stale.
-		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{})
+		now := svc.clock.Now()
+		host.PolicyUpdatedAt = now
+		stalePolicyIDs, err := svc.ds.RecordPolicyQueryExecutions(ctx, host, nil, now, ac.ServerSettings.DeferredSaveHost, []uint{})
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -2665,12 +2658,6 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 	}
 	if query.DirectIngestFunc != nil {
 		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
-		if err != nil {
-			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
-		}
-		return true, nil
-	} else if query.DirectTaskIngestFunc != nil {
-		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows)
 		if err != nil {
 			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
@@ -3367,7 +3354,7 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 	svc.logger.DebugContext(
 		ctx, "looked up profiles to resend for newly failing policies",
 		"host_id", host.ID,
-		"team_id", policyTeamID,
+		"fleet_id", policyTeamID,
 		"newly_failing", newlyFailingPolicyIDs,
 		"with_profile", len(policiesWithProfile),
 	)
@@ -3524,7 +3511,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			scriptTeamID = *scriptMetadata.TeamID
 		}
 		if policyTeamID != scriptTeamID { // this should not happen
-			logger.ErrorContext(ctx, "script team does not match host team")
+			logger.ErrorContext(ctx, "script fleet does not match host fleet")
 			continue
 		}
 
@@ -4084,7 +4071,7 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		if err != nil {
-			svc.logger.DebugContext(ctx, "querying name and team ID from result", "err", err)
+			svc.logger.DebugContext(ctx, "querying name and fleet ID from result", "err", err)
 			parsedByRaw[queryResult.QueryName] = parsedName{}
 			continue
 		}
@@ -4249,7 +4236,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without
+			// If discard_reports_data=true we write the logs to the logging destination without
 			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write

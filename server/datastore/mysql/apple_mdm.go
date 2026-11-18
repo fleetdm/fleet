@@ -178,7 +178,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflictDB(ctx context.C
 					errorMessage = fmt.Sprintf(`Couldn't edit configuration profile (%s) because the profile's "PayloadScope" has changed. To change the “PayloadScope” of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile. Learn more: %s`, cp.Identifier, learnMoreSameScope)
 				}
 			} else {
-				errorMessage = fmt.Sprintf(`Couldn't add configuration profile. This profile has the same "PayloadIdentifier" but a different "PayloadScope" as another profile in a separate team. Learn more: %s`, learnMoreSameScope)
+				errorMessage = fmt.Sprintf(`Couldn't add configuration profile. This profile has the same "PayloadIdentifier" but a different "PayloadScope" as another profile in a separate fleet. Learn more: %s`, learnMoreSameScope)
 			}
 			return &fleet.BadRequestError{Message: errorMessage}
 		}
@@ -991,7 +991,7 @@ WHERE
 	var res fleet.MDMAppleConfigProfile
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, tmID, profileIdentifier); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, tmID)))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(fmt.Sprintf("identifier: %s, fleet_id: %d", profileIdentifier, tmID)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
 	}
@@ -1009,7 +1009,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	}
 
 	if deleted, _ := res.RowsAffected(); deleted == 0 {
-		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, *teamID)
+		message := fmt.Sprintf("identifier: %s, fleet_id: %d", profileIdentifier, *teamID)
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
 	}
 
@@ -1506,96 +1506,6 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
 	return results, nil
-}
-
-func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
-	res, err := ds.writer(ctx).ExecContext(
-		ctx,
-		`INSERT INTO mdm_apple_installers (name, size, manifest, installer, url_token) VALUES (?, ?, ?, ?, ?)`,
-		name, size, manifest, installer, urlToken,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	id, _ := res.LastInsertId()
-	return &fleet.MDMAppleInstaller{
-		ID:        uint(id), //nolint:gosec // dismiss G115
-		Size:      size,
-		Name:      name,
-		Manifest:  manifest,
-		Installer: installer,
-		URLToken:  urlToken,
-	}, nil
-}
-
-func (ds *Datastore) MDMAppleInstaller(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	var installer fleet.MDMAppleInstaller
-	if err := sqlx.GetContext(
-		ctx,
-		ds.writer(ctx),
-		&installer,
-		`SELECT id, name, size, manifest, installer, url_token FROM mdm_apple_installers WHERE url_token = ?`,
-		token,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("AppleInstaller").WithName(token))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get installer by token")
-	}
-	return &installer, nil
-}
-
-func (ds *Datastore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-	var installer fleet.MDMAppleInstaller
-	if err := sqlx.GetContext(
-		ctx,
-		ds.writer(ctx),
-		&installer,
-		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers WHERE id = ?`,
-		id,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("AppleInstaller").WithID(id))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get installer details by id")
-	}
-	return &installer, nil
-}
-
-func (ds *Datastore) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
-	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_apple_installers WHERE id = ?`, id); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-	return nil
-}
-
-func (ds *Datastore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	var installer fleet.MDMAppleInstaller
-	if err := sqlx.GetContext(
-		ctx,
-		ds.writer(ctx),
-		&installer,
-		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers WHERE url_token = ?`,
-		token,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("AppleInstaller").WithName(token))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get installer details by id")
-	}
-	return &installer, nil
-}
-
-func (ds *Datastore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-	var installers []fleet.MDMAppleInstaller
-	if err := sqlx.SelectContext(
-		ctx, ds.writer(ctx),
-		&installers,
-		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list installers")
-	}
-	return installers, nil
 }
 
 func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
@@ -2211,7 +2121,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 
 		// If the team doesn't exist, we still ingest the device, but it won't
 		// belong to any team.
-		ds.logger.DebugContext(ctx, "ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team", "team_id", team)
+		ds.logger.DebugContext(ctx, "ingesting devices from ABM: unable to find default fleet assigned in config, the devices won't be assigned to a fleet", "fleet_id", team)
 		teamIDs = append(teamIDs, nil)
 	}
 
@@ -8882,7 +8792,7 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 					a.Data, a.Name, secretsUpdatedAt[i],
 					a.Name, a.Data, secretsUpdatedAt[i], e.AssetUUID); err != nil {
 					if IsDuplicate(err) {
-						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this team", a.Name)})
+						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this fleet", a.Name)})
 					}
 					return ctxerr.Wrap(ctx, err, "updating apple ddm asset")
 				}
@@ -8891,7 +8801,7 @@ func (ds *Datastore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, a
 				if _, err := tx.ExecContext(ctx, insertStmt,
 					uuid.NewString(), tid, a.Identifier, a.Name, a.Data, secretsUpdatedAt[i]); err != nil {
 					if IsDuplicate(err) {
-						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this team", a.Name)})
+						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf("An asset with the name %q already exists for this fleet", a.Name)})
 					}
 					return ctxerr.Wrap(ctx, err, "inserting apple ddm asset")
 				}

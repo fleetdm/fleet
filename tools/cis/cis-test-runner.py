@@ -749,8 +749,8 @@ def push_profiles_to_team(
             "fleet": {
                 "name": team_name,
                 "mdm": {
-                    "macos_settings": {
-                        "custom_settings": custom_settings,
+                    "apple_settings": {
+                        "configuration_profiles": custom_settings,
                     }
                 },
             }

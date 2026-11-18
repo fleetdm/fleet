@@ -262,7 +262,7 @@ describe("EndUserMigrationSection", () => {
     const render = createCustomRenderer(
       createTestMockData({
         mdm: createMockMdmConfig({
-          apple_bm_enabled_and_configured: false,
+          apple_business_enabled_and_configured: false,
         }),
       })
     );

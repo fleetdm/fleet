@@ -182,7 +182,8 @@ func TestEntriesWellFormed(t *testing.T) {
 		default:
 			assert.Fail(t, "unknown format", e.Old)
 		}
-		if e.Kind == KindPath {
+		// The device download of the removed installer store sat outside the Fleet API.
+		if e.Kind == KindPath && e.Old != "/api/mdm/apple/installer" {
 			assert.True(t, strings.HasPrefix(e.Old, pathPrefix), "path should start with %s: %s", pathPrefix, e.Old)
 		}
 
@@ -236,10 +237,14 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 					"json": KindJSONKey, "query": KindQueryParam, "url": KindQueryParam, "form": KindFormField, "csv": KindCSVColumn,
 				} {
 					oldName, _, _ := strings.Cut(tag.Get(key), ",")
-					if renameTo == "" || !isTeamRelated(oldName) {
+					if renameTo == "" || oldName == "" {
 						continue
 					}
+					// Count every renamed tag, since group C left no team ones and the scan must still prove it parsed something.
 					found++
+					if !isTeamRelated(oldName) {
+						continue
+					}
 					scope := ScopeRequest | ScopeResponse
 					if filepath.ToSlash(rel) == "server/fleet/activities.go" {
 						scope = ScopeActivityDetails

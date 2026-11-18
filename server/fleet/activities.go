@@ -208,8 +208,8 @@ func (a ActivityTypeAppliedSpecPolicy) ActivityName() string {
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -219,8 +219,8 @@ func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -230,7 +230,7 @@ func (a ActivityTypeEditedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name     string  `json:"query_name" renameto:"report_name"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -240,7 +240,7 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs      []uint  `json:"query_ids" renameto:"report_ids"`
+	IDs      []uint  `json:"report_ids"`
 	Teamid   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -311,8 +311,8 @@ func (a ActivityTypeEditedAgentOptions) ActivityName() string {
 
 type ActivityTypeLiveQuery struct {
 	TargetsCount uint             `json:"targets_count"`
-	QuerySQL     string           `json:"query_sql" renameto:"query"`
-	QueryName    *string          `json:"query_name,omitempty" renameto:"report_name"`
+	QuerySQL     string           `json:"query"`
+	QueryName    *string          `json:"report_name,omitempty"`
 	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
