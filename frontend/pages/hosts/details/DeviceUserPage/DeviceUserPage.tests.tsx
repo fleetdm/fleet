@@ -1506,11 +1506,7 @@ describe("Mobile UI gating", () => {
 describe("Device User Page - Google conditional access sign-in", () => {
   const SIGN_IN_URL =
     "https://fleetdm.com/api/v1/google-conditional-access/sign-in?token=abc";
-  const SIGN_IN_STATUS = {
-    enabled: true,
-    eligible: true,
-    sign_in_url: SIGN_IN_URL,
-  };
+  const SIGN_IN_STATUS = { sign_in_url: SIGN_IN_URL };
 
   const renderPage = (platform: HostPlatform, isSignInRequired = true) => {
     const host = createMockHost() as IHostDevice;
@@ -1564,14 +1560,9 @@ describe("Device User Page - Google conditional access sign-in", () => {
     }
   );
 
-  it.each([
-    [
-      "registered in the meantime",
-      { enabled: true, eligible: true, registered: true },
-    ],
-    ["retry blocked", { enabled: true, eligible: true, retry_blocked: true }],
-  ])("renders Self-service for an iOS host that is %s", async (_, status) => {
-    mockServer.use(googleConditionalAccessHandler(status));
+  it("renders Self-service for an iOS host that gets no sign-in URL", async () => {
+    // Registered in the meantime, or too many sign-ins started.
+    mockServer.use(googleConditionalAccessHandler());
 
     const { container } = renderPage("ios");
 
@@ -1581,7 +1572,13 @@ describe("Device User Page - Google conditional access sign-in", () => {
   });
 
   it("renders Self-service when the page is shown again after the redirect", async () => {
-    mockServer.use(googleConditionalAccessHandler(SIGN_IN_STATUS));
+    const signInStarted = jest.fn();
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () => {
+        signInStarted();
+        return HttpResponse.json(SIGN_IN_STATUS);
+      })
+    );
 
     const { container } = renderPage("ios");
 
@@ -1597,11 +1594,13 @@ describe("Device User Page - Google conditional access sign-in", () => {
     await expectSelfService(container);
     expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(replaceLocation).toHaveBeenCalledTimes(1);
+    // Each start mints a token and counts an attempt.
+    expect(signInStarted).toHaveBeenCalledTimes(1);
   });
 
   it("renders Self-service when the status request fails", async () => {
     mockServer.use(
-      http.get(baseUrl("/device/:token/conditional_access/google"), () =>
+      http.post(baseUrl("/device/:token/conditional_access/google"), () =>
         HttpResponse.json({ message: "nope" }, { status: 500 })
       )
     );
@@ -1615,7 +1614,7 @@ describe("Device User Page - Google conditional access sign-in", () => {
   it("never calls the status route when the device details don't ask for a sign-in", async () => {
     const statusCalled = jest.fn();
     mockServer.use(
-      http.get(baseUrl("/device/:token/conditional_access/google"), () => {
+      http.post(baseUrl("/device/:token/conditional_access/google"), () => {
         statusCalled();
         return HttpResponse.json(SIGN_IN_STATUS);
       })

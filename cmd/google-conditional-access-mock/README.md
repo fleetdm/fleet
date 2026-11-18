@@ -50,7 +50,7 @@ Then, for a company-owned (`On (automatic)`) iOS or iPadOS host:
   must reach both Fleet and the mock: run the mock with `--public-url
   http://<your LAN IP>:9090` (and the proxy URI to match), or behind a tunnel.
 - **Browser**: get the sign-in URL from the status route and open it:
-  `curl $FLEET_URL/api/latest/fleet/device/<host UUID>/conditional_access/google`.
+  `curl -X POST $FLEET_URL/api/latest/fleet/device/<host UUID>/conditional_access/google`.
 
 For a company-owned Android host there is no sign-in: Fleet's sync cron looks for the Google
 record whose `deviceId` is the host's Android Management API device ID

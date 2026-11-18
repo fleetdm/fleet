@@ -680,7 +680,7 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 	t.Cleanup(func() { _ = s.ds.DeleteHost(cleanupCtx, host.ID) })
 	// The device flows are off: nothing is enabled and no sign-in starts.
 	var st fleet.GoogleConditionalAccessDeviceStatus
-	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&st))
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
 
