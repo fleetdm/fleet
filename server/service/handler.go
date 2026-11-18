@@ -352,7 +352,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.DELETE("/api/_version_/fleet/logo", deleteOrgLogoEndpoint, deleteOrgLogoRequest{})
 	ue.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
 	ue.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)
-	ue.GET("/api/_version_/fleet/version", versionEndpoint, nil)
+	ue.WithHTTPPreAuth(fleetctl4PreAuth(logger)).GET("/api/_version_/fleet/version", versionEndpoint, nil)
 
 	ue.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
 	ue.WithRequestBodySizeLimit(5*units.MiB).POST("/api/_version_/fleet/spec/fleets", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
@@ -1654,4 +1654,34 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+const fleetctl4NotSupportedMessage = "Fleet 5.x isn't compatible with fleetctl 4.x. Upgrade fleetctl."
+
+// fleetctl4PreAuth refuses the version check that fleetctl 4 makes before anything else, so that it stops with an upgrade error. It
+// runs before auth so that an expired token gets this error too.
+func fleetctl4PreAuth(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !isFleetctl4Request(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			logger.WarnContext(r.Context(), "refused fleetctl 4 request", "uri", r.URL.Path, "user_agent", r.UserAgent(),
+				"ip_addr", r.RemoteAddr, "x_for_ip_addr", r.Header.Get("X-Forwarded-For"))
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusUpgradeRequired)
+			// No errors list: fleetctl 4 prints the message followed by the first error's reason, which would repeat it.
+			_ = json.NewEncoder(w).Encode(endpointer.JsonError{Message: fleetctl4NotSupportedMessage})
+		})
+	}
+}
+
+// isFleetctl4Request reports whether r looks like it comes from fleetctl 4, which doesn't send its version. It sends Go's default
+// User-Agent and JSON Content-Type and Accept headers even on a GET, which other Go clients rarely do. fleetctl 5 sends its own
+// User-Agent.
+func isFleetctl4Request(r *http.Request) bool {
+	return strings.HasPrefix(r.UserAgent(), "Go-http-client/") &&
+		r.Header.Get("Content-Type") == "application/json" &&
+		r.Header.Get("Accept") == "application/json"
 }

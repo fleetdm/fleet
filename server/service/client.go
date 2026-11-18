@@ -33,10 +33,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/version"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 const batchSize = 100
+
+// clientUserAgent tells Fleet that the client is fleetctl 5 or later. Fleet refuses the version check of fleetctl 4, which sends Go's
+// default User-Agent.
+var clientUserAgent = "fleetctl/" + version.Version().Version
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -130,6 +135,8 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 		return nil, ctxerr.Wrap(ctx, err, "creating request object")
 	}
 
+	// Set before the custom headers, so that a User-Agent among them wins.
+	request.Header.Set("User-Agent", clientUserAgent)
 	// set the custom headers first, they should not override the actual headers
 	// we set explicitly.
 	for k, v := range c.customHeaders {

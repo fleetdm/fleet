@@ -1812,6 +1812,19 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)
 
+	// fleetctl 4's version check gets 426 even with a valid token, and fleetctl 5's still gets the version.
+	versionHeaders := func(userAgent string) map[string]string {
+		return map[string]string{
+			"Authorization": "Bearer " + s.token, "User-Agent": userAgent, "Content-Type": "application/json", "Accept": "application/json",
+		}
+	}
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/version", nil, http.StatusUpgradeRequired, versionHeaders("Go-http-client/1.1")).Body.Close()
+	verRes := s.DoRawWithHeaders("GET", "/api/latest/fleet/version", nil, http.StatusOK, versionHeaders("fleetctl/unknown"))
+	verResp = versionResponse{}
+	require.NoError(t, json.NewDecoder(verRes.Body).Decode(&verResp))
+	verRes.Body.Close()
+	assert.NotEmpty(t, verResp.Branch)
+
 	// get enroll secrets, none yet
 	var specResp getEnrollSecretSpecResponse
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)

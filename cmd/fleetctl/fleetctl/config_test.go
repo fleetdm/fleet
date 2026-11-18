@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -199,8 +200,10 @@ func TestCustomHeadersConfig(t *testing.T) {
 
 	// start a server that will receive requests
 	var called bool
+	var userAgent string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
+		userAgent = r.UserAgent()
 		require.Equal(t, "custom", r.Header.Get("X-Fleet-Test"))
 		require.Equal(t, "another", r.Header.Get("X-Fleet-MoreTest"))
 		w.WriteHeader(http.StatusOK)
@@ -218,6 +221,18 @@ func TestCustomHeadersConfig(t *testing.T) {
 	})
 	runAppNoChecks([]string{"get", "labels", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
+	require.True(t, strings.HasPrefix(userAgent, "fleetctl/"), userAgent)
+
+	// A User-Agent among the custom headers replaces fleetctl's.
+	runAppForTest(t, []string{
+		"config", "set",
+		"--config", configFile,
+		"--custom-header", "X-Fleet-Test:custom",
+		"--custom-header", "X-Fleet-MoreTest:another",
+		"--custom-header", "User-Agent:custom-agent",
+	})
+	runAppNoChecks([]string{"get", "labels", "--config", configFile}) //nolint:errcheck
+	require.Equal(t, "custom-agent", userAgent)
 }
 
 func TestConfigGetShowsHelp(t *testing.T) {
