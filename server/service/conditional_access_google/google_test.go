@@ -561,7 +561,7 @@ func TestDeviceIDThatCannotNameADevice(t *testing.T) {
 	client, fake := newTestCloudIdentity(t)
 
 	// "-" stands for every device, and the others would change the request path.
-	for _, id := range []string{"", "-", "dev1/deviceUsers/u", "dev1?x", "dev1#x"} {
+	for _, id := range []string{"", "-", ".", "..", "dev1/deviceUsers/u", "dev1?x", "dev1#x", "dev1%2Fx", `dev1\x`, "dev 1"} {
 		_, err := client.ListDeviceUserNames(t.Context(), id)
 		require.True(t, fleet.IsNotFound(err), id)
 		require.True(t, IsStale(err), id)

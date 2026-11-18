@@ -194,10 +194,10 @@ func (c *cloudIdentityClient) DeviceExists(ctx context.Context, deviceID string)
 	return true, nil
 }
 
-// validDeviceID rejects what would reach something other than the one device: "-"
-// stands for every device, and "/", "?" and "#" change the request path.
+// validDeviceID accepts only a single path segment that names one device: "-" stands for
+// every device, and a dot segment or anything that needs escaping would change the path.
 func validDeviceID(id string) bool {
-	return id != "" && id != "-" && !strings.ContainsAny(id, "/?#")
+	return id != "" && id != "-" && id != "." && id != ".." && url.PathEscape(id) == id
 }
 
 // invalidDeviceIDError reads like Google's 404 for a device, without the call.
