@@ -113,4 +113,3 @@ export const createMockLinuxOSVersion = (
 ): IOperatingSystemVersion => {
   return { ...DEFAULT_LINUX_OS_VERSION, ...overrides };
 };
-

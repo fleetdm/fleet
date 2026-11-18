@@ -1,5 +1,9 @@
 import { IHostMdmData } from "interfaces/host";
-import { IMdmProfile, IMdmVppToken, IMdmSummaryMdmSolution } from "interfaces/mdm";
+import {
+  IMdmProfile,
+  IMdmVppToken,
+  IMdmSummaryMdmSolution,
+} from "interfaces/mdm";
 
 const DEFAULT_HOST_SUMMARY_MDM_SOLUTION_MOCK: IMdmSummaryMdmSolution = {
   id: 1,

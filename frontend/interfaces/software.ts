@@ -1,7 +1,6 @@
 import { uniq } from "lodash";
 import PropTypes from "prop-types";
 
-
 import { ILabelSoftwareTitle } from "./label";
 import { IVppTokenSummary } from "./mdm";
 import { HOST_APPLE_PLATFORMS, isLinuxLike, Platform } from "./platform";

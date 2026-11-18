@@ -24,4 +24,3 @@ const DEFAULT_LABEL_MOCK: ILabel = {
 export const createMockLabel = (overrides?: Partial<ILabel>): ILabel => {
   return { ...DEFAULT_LABEL_MOCK, ...overrides };
 };
-

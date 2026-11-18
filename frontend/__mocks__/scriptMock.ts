@@ -1,5 +1,8 @@
 import { IScript, IHostScript, ScriptBatchStatus } from "interfaces/script";
-import { IScriptBatchSummaryV2, IScriptResultResponse } from "services/entities/scripts";
+import {
+  IScriptBatchSummaryV2,
+  IScriptResultResponse,
+} from "services/entities/scripts";
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,
@@ -73,4 +76,3 @@ export const createMockBatchScriptSummary = (
 ): IScriptBatchSummaryV2 => {
   return { ...DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK, ...overrides };
 };
-

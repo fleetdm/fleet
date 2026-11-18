@@ -152,4 +152,3 @@ export interface ILabel extends ILabelSummary {
   // manual-specific
   host_ids: number[] | null;
 }
-

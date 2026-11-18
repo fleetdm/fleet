@@ -1,9 +1,23 @@
-import { ISoftware, ISoftwareVersion, ISoftwareVulnerability, ISoftwareTitleVersion, ISoftwarePackage, ISoftwareTitle, ISoftwareTitleDetails, IAppStoreApp, IAppStoreAppVersion, IFleetMaintainedAppDetails, ISoftwareInstallResult } from "interfaces/software";
-import { ISoftwareTitlesResponse, ISoftwareVersionsResponse } from "services/entities/software";
+import {
+  ISoftware,
+  ISoftwareVersion,
+  ISoftwareVulnerability,
+  ISoftwareTitleVersion,
+  ISoftwarePackage,
+  ISoftwareTitle,
+  ISoftwareTitleDetails,
+  IAppStoreApp,
+  IAppStoreAppVersion,
+  IFleetMaintainedAppDetails,
+  ISoftwareInstallResult,
+} from "interfaces/software";
+import {
+  ISoftwareTitlesResponse,
+  ISoftwareVersionsResponse,
+} from "services/entities/software";
 
 import { IOperatingSystemVersion } from "../interfaces/operating_system";
 import { IOSVersionsResponse } from "../services/entities/operating_systems";
-
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -440,4 +454,3 @@ export const createMockSoftwareInstallResult = (
     ...overrides,
   };
 };
-
