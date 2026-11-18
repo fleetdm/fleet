@@ -1,3 +1,4 @@
+import { AxiosResponse } from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 
@@ -44,7 +45,10 @@ const DeviceNotificationPage = ({
     notification_uuid,
   ];
 
-  const { data, isSuccess, isError } = useQuery<INotificationView, Error>(
+  const { data, isSuccess, isError, error } = useQuery<
+    INotificationView,
+    AxiosResponse | string
+  >(
     queryKey,
     () =>
       deviceNotificationsAPI.getNotification(
@@ -126,9 +130,16 @@ const DeviceNotificationPage = ({
 
   useEffect(() => {
     if (isError) {
-      postBridgeMessage("error");
+      // Fleet Desktop records this message as the notification script's output,
+      // so name the status or a failure there can't be told apart from another.
+      const status = typeof error === "object" ? error?.status : undefined;
+      postBridgeMessage("error", {
+        message: status
+          ? `Fleet couldn't load the notification (HTTP ${status}).`
+          : "Fleet couldn't load the notification.",
+      });
     }
-  }, [isError]);
+  }, [isError, error]);
 
   useEffect(() => {
     const node = cardRef.current;

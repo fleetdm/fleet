@@ -821,6 +821,12 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantPolicyIDs: []uint{30, 31},
 		},
 		{
+			name:           "a failure on a notification with no apps left is not recorded",
+			outcome:        notifications_api.NotificationOutcome{Displayed: false, ExitCode: -2, ExecutionID: "exec-8"},
+			apps:           nil,
+			wantNoActivity: true,
+		},
+		{
 			// a policy deleted after the notification was created leaves
 			// patch_notification_apps.policy_id null, but its app is still named
 			name:    "an app whose policy was deleted is still listed, without a policy id",
@@ -1792,6 +1798,48 @@ func TestSetPatchNotificationPayloadForDisplayPrunesUpdatedApps(t *testing.T) {
 		require.False(t, ds.ListPatchNotificationAppsForNotificationsFuncInvoked)
 		require.Empty(t, *deleted)
 		require.JSONEq(t, `{"reminder":true}`, string(*payload))
+	})
+
+	t.Run("the 1 hour notice fails the notification instead of running the script when every app was updated", func(t *testing.T) {
+		svc, ds, notificationsSvc, deleted, _ := newService(&fleet.PatchNotification{})
+		ds.ListSoftwareTitleVersionsForHostsFunc = func(context.Context, []uint, []uint) ([]fleet.HostSoftwareTitleVersion, error) {
+			return []fleet.HostSoftwareTitleVersion{
+				{HostID: hostID, SoftwareTitleID: updatedTitleID, Version: "2.0"},
+				{HostID: hostID, SoftwareTitleID: staleTitleID, Version: "2.0"},
+			}, nil
+		}
+		var gotStatus string
+		var gotReason *string
+		notificationsSvc.SetNotificationStatusFunc = func(_ context.Context, uuid, status string, reason *string, whereStatusIn []string) error {
+			require.Equal(t, notificationUUID, uuid)
+			require.ElementsMatch(t, []string{notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched}, whereStatusIn)
+			gotStatus, gotReason = status, reason
+			return nil
+		}
+
+		require.NotEmpty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+
+		require.ElementsMatch(t, []uint{updatedTitleID, staleTitleID}, *deleted)
+		require.Equal(t, notifications_api.EndUserNotificationFailed, gotStatus)
+		require.NotNil(t, gotReason)
+		require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, *gotReason)
+		require.False(t, notificationsSvc.SetNotificationPayloadFuncInvoked)
+	})
+
+	t.Run("the 1 hour notice fails a notification that already had no apps", func(t *testing.T) {
+		svc, ds, notificationsSvc, _, _ := newService(&fleet.PatchNotification{})
+		ds.ListPatchNotificationAppsForNotificationsFunc = func(context.Context, []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
+			return nil, nil
+		}
+		notificationsSvc.SetNotificationStatusFunc = func(context.Context, string, string, *string, []string) error {
+			return nil
+		}
+
+		require.NotEmpty(t, svc.setPatchNotificationPayloadForDisplay(t.Context(), hostID, notificationUUID))
+
+		require.True(t, notificationsSvc.SetNotificationStatusFuncInvoked)
+		require.False(t, ds.DeletePatchNotificationAppsFuncInvoked)
+		require.False(t, notificationsSvc.SetNotificationPayloadFuncInvoked)
 	})
 
 	t.Run("a failed prune fails the script instead of showing a stale notice", func(t *testing.T) {
