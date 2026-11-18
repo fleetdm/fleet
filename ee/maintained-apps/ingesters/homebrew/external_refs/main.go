@@ -48,6 +48,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"raspberry-pi-imager/darwin":        {RaspberryPiImagerVersionTransformer},
 	"sonos/darwin":                      {SonosVersionTransformer},
 	"harmony-sase/darwin":               {HarmonySASEVersionShortener},
+	"munki/darwin":                      {MunkiAppVersionFromPkg},
 	"visual-studio-code/darwin":         {VSCodeUniversalInstaller},
 	"shottr/darwin":                     {ShottrVersionTransformer},
 	"outset/darwin":                     {OutsetVersionShortener},
