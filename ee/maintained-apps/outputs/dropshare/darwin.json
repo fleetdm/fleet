@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.16",
+      "version": "6.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.mkswap.Dropshare5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.mkswap.Dropshare5' AND version_compare(bundle_short_version, '6.16') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.mkswap.Dropshare5' AND version_compare(bundle_short_version, '6.17') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.mkswap.Dropshare5' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d2wvuuix8c9e48.cloudfront.net/Dropshare6-6286.app.zip",
+      "installer_url": "https://d2wvuuix8c9e48.cloudfront.net/Dropshare6-6292.app.zip",
       "install_script_ref": "5422c9e2",
       "uninstall_script_ref": "6732125a",
-      "sha256": "d408c5ddc1015355725121fdaf4e9e0368188ec2eaccb1329cd568c453a689bd",
+      "sha256": "dd1f6656ae9a2ed541eee8efa9a02b33c65afe706a3255ed64ba7645ff0a30cc",
       "default_categories": [
         "Productivity"
       ]

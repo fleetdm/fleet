@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.0.3",
+      "version": "26.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.filemaker.client.pro12';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.filemaker.client.pro12' AND version_compare(bundle_short_version, '26.0.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.filemaker.client.pro12' AND version_compare(bundle_short_version, '26.1.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.filemaker.client.pro12' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.claris.com/esd/fmp_26.0.3.307.dmg",
+      "installer_url": "https://downloads.claris.com/esd/fmp_26.1.1.54.dmg",
       "install_script_ref": "808e54db",
       "uninstall_script_ref": "f6fa1b92",
-      "sha256": "bcb1d2087458192db8957da6e7d08e15ef77d73674cbe5a30e470b6cd6b18b9d",
+      "sha256": "8254f67bc7bf081294877107ff4aa4c5c7adb6c5d157116f12db185ea03a7fed",
       "default_categories": [
         "Developer tools"
       ]
