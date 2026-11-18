@@ -1066,7 +1066,6 @@ spec:
   icon_url: null
   id: 0
   name: foo
-  software_package: null
   packages: null
   source: chrome_extensions
   extension_for: chrome
@@ -1091,7 +1090,6 @@ spec:
   icon_url: null
   id: 0
   name: bar
-  software_package: null
   packages: null
   source: deb_packages
   extension_for: ""
@@ -1141,7 +1139,6 @@ spec:
           ]
         }
       ],
-      "software_package": null,
       "packages": null,
       "app_store_apps": null
     },
@@ -1161,7 +1158,6 @@ spec:
       "vulnerabilities": null
         }
       ],
-      "software_package": null,
       "packages": null,
       "app_store_apps": null
     }
@@ -2253,7 +2249,7 @@ func TestEnrichedAppConfig(t *testing.T) {
         },
         "server_settings": {
           "server_url": "https://localhost:8412",
-          "live_query_disabled": false,
+          "live_reporting_disabled": false,
           "enable_analytics": false,
           "deferred_save_host": false
         },
@@ -2653,6 +2649,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "team1" {

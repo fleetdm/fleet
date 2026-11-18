@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -25,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +35,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
-	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
+	req.SetPathValue("some-id", "999")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -63,7 +60,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
+	req.SetPathValue("some-id", "999")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -86,7 +83,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
+	req.SetPathValue("some-id", "999")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -107,7 +104,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -133,7 +130,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -154,7 +151,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -269,7 +266,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	// Body larger than the limit should return PayloadTooLargeError.
 	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	_, err := decoder(context.Background(), req)
 	require.Error(t, err)
@@ -278,7 +275,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	// Body within the limit but with broken JSON
 	incompleteBody := `{"key": "` + strings.Repeat("A", 100) // missing closing "}
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(incompleteBody))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	_, err = decoder(context.Background(), req)
 	require.Error(t, err)
@@ -290,7 +287,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 
 	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	_, err = decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -587,83 +584,6 @@ func TestBrowserSecurityHeadersHandlerCSPNonce(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "disabled", nonce)
 		require.Empty(t, rec.Header().Get("Content-Security-Policy"))
-	})
-}
-
-// newMultipartRequest creates an *http.Request with multipart/form-data body
-// containing the given field key/value pairs.
-func newMultipartRequest(t *testing.T, fields map[string]string) *http.Request {
-	t.Helper()
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
-	for k, v := range fields {
-		require.NoError(t, w.WriteField(k, v))
-	}
-	require.NoError(t, w.Close())
-	req := httptest.NewRequest("POST", "/target", &buf)
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	return req
-}
-
-func TestParseMultipartForm(t *testing.T) {
-	t.Run("passes through fleet_id unchanged", func(t *testing.T) {
-		req := newMultipartRequest(t, map[string]string{"fleet_id": "42"})
-		logCtx := &logging.LoggingContext{}
-		ctx := logging.NewContext(context.Background(), logCtx)
-
-		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
-		require.NoError(t, err)
-
-		assert.Equal(t, []string{"42"}, req.MultipartForm.Value["fleet_id"])
-		assert.Empty(t, req.MultipartForm.Value["team_id"])
-		assert.Nil(t, logCtx.ForceLevel)
-		assert.Empty(t, logCtx.Extras)
-	})
-
-	t.Run("rewrites team_id to fleet_id and logs deprecation", func(t *testing.T) {
-		req := newMultipartRequest(t, map[string]string{"team_id": "7"})
-		logCtx := &logging.LoggingContext{}
-		ctx := logging.NewContext(context.Background(), logCtx)
-
-		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
-		require.NoError(t, err)
-
-		// team_id should be removed, fleet_id should be set
-		assert.Equal(t, []string{"7"}, req.MultipartForm.Value["fleet_id"])
-		assert.Empty(t, req.MultipartForm.Value["team_id"])
-
-		// r.Form should also be updated
-		assert.Equal(t, "7", req.Form.Get("fleet_id"))
-		assert.Empty(t, req.Form.Get("team_id"))
-
-		// deprecation should be logged
-		require.NotNil(t, logCtx.ForceLevel)
-		assert.Equal(t, slog.LevelWarn, *logCtx.ForceLevel)
-		assert.Contains(t, logCtx.Extras, "deprecated_param")
-		assert.Contains(t, logCtx.Extras, "team_id")
-	})
-
-	t.Run("no team_id or fleet_id", func(t *testing.T) {
-		req := newMultipartRequest(t, map[string]string{"other_field": "hello"})
-		logCtx := &logging.LoggingContext{}
-		ctx := logging.NewContext(context.Background(), logCtx)
-
-		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
-		require.NoError(t, err)
-
-		assert.Empty(t, req.MultipartForm.Value["fleet_id"])
-		assert.Empty(t, req.MultipartForm.Value["team_id"])
-		assert.Equal(t, []string{"hello"}, req.MultipartForm.Value["other_field"])
-		assert.Nil(t, logCtx.ForceLevel)
-		assert.Empty(t, logCtx.Extras)
-	})
-
-	t.Run("invalid body returns error", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/target", strings.NewReader("not multipart"))
-		req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
-
-		err := parseMultipartForm(context.Background(), req, platform_http.MaxMultipartFormSize)
-		require.Error(t, err)
 	})
 }
 

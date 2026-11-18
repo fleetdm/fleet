@@ -248,7 +248,7 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({ name: "browser" }),
           ui_status: "uninstalled",
-          software_package: browserPackage,
+          package: browserPackage,
         },
       ],
     });
@@ -284,7 +284,7 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({ name: "browser" }),
           ui_status: "uninstalled",
-          software_package: browserPackage,
+          package: browserPackage,
         },
       ],
     });
@@ -332,21 +332,21 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({
             name: "installed-app",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "installed",
         },
         {
           ...createMockDeviceSoftware({
             name: "uninstalled-app",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "uninstalled",
         },
         {
           ...createMockDeviceSoftware({
             name: "another-uninstalled-app",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "uninstalled",
         },
@@ -380,14 +380,14 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({
             name: "uninstalled-app",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "uninstalled",
         },
         {
           ...createMockDeviceSoftware({
             name: "in-progress-app",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "installing",
         },
@@ -430,7 +430,7 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({
             name: "Firefox",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "uninstalled",
         },
@@ -491,7 +491,7 @@ describe("SelfServiceCard", () => {
           {
             ...createMockDeviceSoftware({
               name: "Firefox",
-              software_package: browserPackage,
+              package: browserPackage,
             }),
             ui_status: "uninstalled",
           },
@@ -548,7 +548,7 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({
             name: "uninstalled-app",
-            software_package: browserPackage,
+            package: browserPackage,
           }),
           ui_status: "uninstalled",
         },
@@ -625,7 +625,7 @@ describe("SelfServiceCard", () => {
         {
           ...createMockDeviceSoftware({ name: "browser" }),
           ui_status: "installed",
-          software_package: browserPackage,
+          package: browserPackage,
         },
       ],
     });

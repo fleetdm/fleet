@@ -79,13 +79,13 @@ export default PropTypes.shape({
 // Get a query by id
 /** GET /api/v1/fleet/queries/{id}` */
 export interface IGetQueryResponse {
-  query: ISchedulableQuery;
+  report: ISchedulableQuery;
 }
 
 // List global or team queries
 /**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&fleet_id={fleet_id} */
 export interface IListQueriesResponse {
-  queries: ISchedulableQuery[];
+  reports: ISchedulableQuery[];
 }
 
 export interface IQueryKeyQueriesLoadAll {
@@ -136,12 +136,6 @@ export interface IEditQueryFormData
 }
 
 // response is ISchedulableQuery // better way to indicate this?
-
-// Delete a query by name
-/** DELETE /api/v1/fleet/queries/{name} */
-export interface IDeleteQueryFormData {
-  fleet_id?: number; // searches for a global query if omitted
-}
 
 // Delete a query by id
 // DELETE /api/v1/fleet/queries/id/{id}

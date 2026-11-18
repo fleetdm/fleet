@@ -122,11 +122,12 @@ const Advanced = ({
       appConfig.activity_expiry_settings.activity_expiry_enabled || false,
     activityExpiryWindow:
       appConfig.activity_expiry_settings.activity_expiry_window || 30,
-    disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
+    disableLiveQuery:
+      appConfig.server_settings.live_reporting_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableMCP: appConfig.server_settings.mcp_disabled || false,
     disableQueryReports:
-      appConfig.server_settings.query_reports_disabled || false,
+      appConfig.server_settings.discard_reports_data || false,
     requireHardwareAttestation:
       appConfig.mdm?.apple_require_hardware_attestation || false,
     onlyAllowAppleBusinessEnrollment:

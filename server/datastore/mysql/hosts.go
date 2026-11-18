@@ -2292,9 +2292,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	// One `now` per `?`: MIA, Missing, offline (mobile + desktop), online
+	// One `now` per `?`: Missing, offline (mobile + desktop), online
 	// (mobile + desktop), new.
-	args := []any{now, now, now, now, now, now, now}
+	args := []any{now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
@@ -2318,7 +2318,6 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
-				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE
 					WHEN h.platform IN ('ios','ipados','android')
@@ -2619,14 +2618,32 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		overwrittenHostID = 0
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
 		osqueryIdentifier := hostInfo.OsqueryIdentifier
 		if osqueryIdentifier == "" {
 			osqueryIdentifier = hostInfo.HardwareUUID
+		}
+
+		var (
+			enrolledHostInfo *enrolledHostInfo
+			androidSecret    bool
+			err              error
+		)
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			enrolledHostInfo, androidSecret, err = ds.androidOneTimeSecretHost(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, osqueryIdentifier)
+			if err != nil {
+				return err
+			}
+		}
+		if enrolledHostInfo == nil {
+			enrolledHostInfo, err = matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
+				hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
+		}
+		androidDeviceIDReason := fleet.EnrollmentRejectedSharedSecretForMDMManagedHost
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			androidDeviceIDReason = fleet.EnrollmentRejectedUUIDOfAnotherMDMHost
 		}
 
 		switch {
@@ -2654,6 +2671,16 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOrbit); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -2723,6 +2750,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -2888,6 +2920,15 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
+		var androidSecret bool
+		androidDeviceIDReason := fleet.EnrollmentRejectedSharedSecretForMDMManagedHost
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			androidDeviceIDReason = fleet.EnrollmentRejectedUUIDOfAnotherMDMHost
+			var err error
+			if androidSecret, err = isAndroidOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID); err != nil {
+				return err
+			}
+		}
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "", "")
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
@@ -2900,6 +2941,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}
@@ -2974,6 +3020,16 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOsquery); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}

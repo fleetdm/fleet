@@ -265,13 +265,26 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.setup_experience` |
+| `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `mdm.setup_experience` |
+| `bootstrap_package` under `mdm.setup_experience` in the same endpoints | `macos_bootstrap_package` |
+| `macos_setup_assistant` under `mdm.setup_experience` in the same endpoints | `apple_setup_assistant` |
+| `enable_release_device_manually` under `mdm.setup_experience` in the same endpoints, and in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `apple_enable_release_device_manually` |
+| `manual_agent_install` under `mdm.setup_experience` in the same endpoints, and in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `macos_manual_agent_install` |
+| `script` under `mdm.setup_experience` in the same endpoints | `macos_script`. Deprecated, and removed in Fleet 6. See [Setup experience script deprecated](#setup-experience-script-deprecated). |
+| `mdm.macos_setup` (bootstrap package status) in [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), and [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) | Removed. Read `mdm.setup_experience`, which has the same keys. |
 
 #### What to do
 
-Fleet 4 already supports `setup_experience`, so change it before you upgrade.
+Fleet 4.95 already supports `setup_experience` and the new key names in Get configuration, Update configuration, Get fleet, Update setup experience, and host responses, so change them before you upgrade.
 
-Search for `macos_setup` and rename it to `setup_experience`.
+1. Search for `macos_setup` and rename it to `setup_experience`.
+2. Under `setup_experience`, rename the keys in the table above.
+3. In host responses, read the bootstrap package status from `mdm.setup_experience` instead of `mdm.macos_setup`.
+
+Fleet 4.95 doesn't read `setup_experience` in Update fleet (`PATCH /fleets/:id`). It only reads `mdm.macos_setup` and ignores `mdm.setup_experience` without an error. So keep using `macos_setup` and the old key names in Update fleet until you upgrade:
+
+1. Right after you upgrade, rename them in your Update fleet calls.
+   - Until you do, calls that use the old names fail with a `422` error like: `The "macos_setup" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -712,6 +725,19 @@ Follow the steps in [Static SCEP challenge off by default](#static-scep-challeng
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
+### HEAD requests run the GET endpoint
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `HEAD` on an endpoint that supports `GET` returns a `405` | Fleet runs the `GET` endpoint and returns its status code and headers without the body |
+
+The `HEAD` request has the same effects as the `GET` request. An [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with permission for a `GET` endpoint can also send `HEAD` to it.
+
+#### What to do
+
+After you upgrade, check that your scripts, monitoring, and proxies don't send `HEAD` to endpoints with side effects, like downloads. Nothing in Fleet 4 relied on HEAD requests.
+
+GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
 
 ## YAML (GitOps)
 
@@ -751,12 +777,18 @@ GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795]
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `controls.macos_setup` | [`controls.setup_experience`](https://fleetdm.com/docs/configuration/yaml-files#setup-experience) |
+| `bootstrap_package` under `controls.setup_experience` | `macos_bootstrap_package` |
+| `macos_setup_assistant` under `controls.setup_experience` | `apple_setup_assistant` |
+| `enable_release_device_manually` under `controls.setup_experience` | `apple_enable_release_device_manually` |
+| `manual_agent_install` under `controls.setup_experience` | `macos_manual_agent_install` |
 
 #### What to do
 
-Fleet 4 already supports `setup_experience`, so change it before you upgrade.
+Fleet 4.95 already supports `setup_experience` and the new key names, so change them before you upgrade.
 
-Rename `macos_setup` to `setup_experience` in your YAML files.
+1. Rename `macos_setup` to `setup_experience` in your YAML files.
+2. Under `setup_experience`, rename the keys in the table above. To replace `script`, see [Setup experience script key removed](#setup-experience-script-key-removed).
+   - Until you do, your GitOps run fails in Fleet 5 with an error like: `The "controls.setup_experience.bootstrap_package" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -1043,11 +1075,11 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl get config` prints `macos_setup` | `fleetctl get config` prints `setup_experience` |
+| `fleetctl get config` prints `macos_setup` | `fleetctl get config` prints `setup_experience`, with `macos_bootstrap_package`, `apple_setup_assistant`, `apple_enable_release_device_manually`, `macos_manual_agent_install`, and `macos_script` in place of `bootstrap_package`, `macos_setup_assistant`, `enable_release_device_manually`, `manual_agent_install`, and `script` |
 
 #### What to do
 
-Update scripts that read `macos_setup` from `fleetctl get config` output.
+Update scripts that read `macos_setup` or these keys from `fleetctl get config` output.
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -1185,10 +1217,11 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 #### What to do
 
+By default, manual enrollment profiles you downloaded before the upgrade stop working for new enrollments. Hosts that already turned on MDM with one of those profiles aren't affected.
+
 1. If you use the [manual enrollment profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile), set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`.
    - That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host.
-   - Previously downloaded profiles stop working.
-   - Hosts that already have MDM on aren't affected.
+   - Manual enrollment profiles you downloaded before the upgrade work again.
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 

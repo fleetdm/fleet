@@ -837,7 +837,7 @@ type searchHostsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID *uint `json:"query_id" renameto:"report_id"`
+	QueryID *uint `json:"report_id" removedkey:"query_id"`
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
@@ -2383,7 +2383,7 @@ type getHostQueryReportRequest struct {
 }
 
 type getHostQueryReportResponse struct {
-	QueryID       uint                          `json:"query_id" renameto:"report_id"`
+	QueryID       uint                          `json:"report_id"`
 	HostID        uint                          `json:"host_id"`
 	HostName      string                        `json:"host_name"`
 	LastFetched   *time.Time                    `json:"last_fetched"`
@@ -4726,6 +4726,10 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			opt.MatchQuery = query
 
 		default:
+			// team_id is the only old name filters took.
+			if k == "team_id" {
+				return nil, nil, &endpointer.RemovedKeyError{Key: k}
+			}
 			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
 		}
 	}

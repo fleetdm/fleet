@@ -149,14 +149,13 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	lastTotals := targetTotals{}
 
 	// to improve performance of the frontend rendering the results table, we
-	// add the "host_hostname" field to every row and clean null rows.
+	// add the "host_display_name" field to every row and clean null rows.
 	mapHostnameRows := func(res *fleet.DistributedQueryResult) {
 		filteredRows := []map[string]string{}
 		for _, row := range res.Rows {
 			if row == nil {
 				continue
 			}
-			row["host_hostname"] = res.Host.Hostname
 			row["host_display_name"] = res.Host.DisplayName
 			filteredRows = append(filteredRows, row)
 		}

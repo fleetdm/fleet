@@ -158,7 +158,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_version_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
-				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
+				"&macos_bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&populate_end_users=true&profile_uuid=123-abc&profile_status=verified" +
 				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
 				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
@@ -207,7 +207,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_version_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
-				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
+				"&macos_bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
 				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
 				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
@@ -374,10 +374,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?os_settings_disk_encryption=foo",
 			errorMessage: "Invalid os_settings_disk_encryption",
 		},
-		"error in bootstrap_package (invalid option)": {
-			url:          "/foo?bootstrap_package=foo",
-			errorMessage: "Invalid macos_bootstrap_package",
-		},
 		"error in munki_issue_id": {
 			url:          "/foo?munki_issue_id=foo",
 			errorMessage: "Invalid munki_issue_id",
@@ -515,7 +511,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				MacOSSettingsFilter: fleet.OSSettingsPending,
 			},
 		},
-		"macos_bootstrap_package (new name for bootstrap_package)": {
+		"macos_bootstrap_package": {
 			url: "/foo?macos_bootstrap_package=installed",
 			hostListOptions: fleet.HostListOptions{
 				MDMBootstrapPackageFilter: (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
@@ -537,10 +533,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error when both macos_settings and apple_settings specified": {
 			url:          "/foo?macos_settings=pending&apple_settings=verified",
 			errorMessage: "Cannot specify both macos_settings and apple_settings",
-		},
-		"error when both bootstrap_package and macos_bootstrap_package specified": {
-			url:          "/foo?bootstrap_package=installed&macos_bootstrap_package=pending",
-			errorMessage: "Cannot specify both bootstrap_package and macos_bootstrap_package",
 		},
 		"good software_installer_id with required software_title_id": {
 			url: "/foo?software_title_id=1&software_installer_id=5",
@@ -616,6 +608,17 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 	_, err = hostListOptionsFromRequest(&http.Request{URL: emptySoftwareIDURL})
 	require.ErrorAs(t, err, &invalidArgumentErr)
 	require.Equal(t, removedSoftwareIDMessage, invalidArgumentErr.Invalid()[0]["reason"])
+
+	removedBootstrapPackageMessage := `The "bootstrap_package" parameter is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	for _, query := range []string{"bootstrap_package=installed", "bootstrap_package=installed&macos_bootstrap_package=pending"} {
+		u, err := url.Parse("/foo?" + query)
+		require.NoError(t, err)
+		_, err = hostListOptionsFromRequest(&http.Request{URL: u})
+		require.ErrorAs(t, err, &invalidArgumentErr, query)
+		require.Equal(t, "bootstrap_package", invalidArgumentErr.Invalid()[0]["name"], query)
+		require.Equal(t, removedBootstrapPackageMessage, invalidArgumentErr.Invalid()[0]["reason"], query)
+	}
 }
 
 func TestCarveListOptionsFromRequest(t *testing.T) {

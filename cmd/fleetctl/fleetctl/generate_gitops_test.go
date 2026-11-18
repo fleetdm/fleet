@@ -4199,3 +4199,32 @@ func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateSMTPSettingsPassword(t *testing.T) {
+	cmd := &GenerateGitopsCommand{}
+
+	settings := cmd.generateSMTPSettings(&fleet.SMTPSettings{SMTPServer: "smtp.example.com", SMTPPassword: fleet.MaskedPassword})
+	require.Len(t, cmd.Comments, 1)
+	require.Equal(t, cmd.Comments[0].Token, settings["password"])
+	require.Equal(t, []SecretWarning{{Filename: "default.yml", Key: "smtp_settings.password"}}, cmd.Messages.SecretWarnings)
+	require.NotContains(t, settings, "configured")
+
+	cmd = &GenerateGitopsCommand{}
+	settings = cmd.generateSMTPSettings(&fleet.SMTPSettings{SMTPServer: "smtp.example.com"})
+	require.Empty(t, settings["password"])
+	require.Empty(t, cmd.Comments)
+	require.Empty(t, cmd.Messages.SecretWarnings)
+}
+
+func TestGenerateGitopsKeyResolvesComments(t *testing.T) {
+	configureFMAManifestServer(t)
+	action := createGenerateGitopsAction(&MockClient{})
+	buf := new(bytes.Buffer)
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("key", "org_settings.certificate_authorities.custom_est_proxy", "")
+
+	err := action(cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil))
+	require.NoError(t, err, buf.String())
+	require.Contains(t, buf.String(), "password: # TODO: Add your EST password here")
+	require.NotContains(t, buf.String(), "GITOPS_COMMENT")
+}

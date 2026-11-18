@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
 // enrollmentRejectedActivityTTL bounds how often a host_enrollment_rejected
@@ -25,6 +26,10 @@ const enrollmentRejectedActivityTTL = 12 * time.Hour
 // rate limit. The braces keep all keys in one Redis Cluster slot, like the
 // other Fleet key prefixes.
 const enrollmentRejectedKeyPrefix = "{enrollment_rejected}"
+
+// androidAgentEnrollSecretResendTTL bounds how often a refused enrollment resends an Android host's agent configuration. It is
+// shorter than the activity limit because a resend that fails at Android management is not retried.
+const androidAgentEnrollSecretResendTTL = time.Hour
 
 // enrollmentAttempt carries the identifiers an enrolling agent or device
 // presented, for logging and the rejection activity.
@@ -151,6 +156,77 @@ func deliversOneTimeEnrollSecret(mdmConfig config.MDMConfig, profileUUID, profil
 // rejectSharedSecretForWindowsMDMHosts reports whether a shared enroll secret must be refused for a Windows host enrolled in Fleet MDM.
 func rejectSharedSecretForWindowsMDMHosts(mdmConfig config.MDMConfig, appConfig *fleet.AppConfig) bool {
 	return mdmConfig.WindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
+}
+
+// rejectSharedSecretForAndroidMDMHosts reports whether a shared enroll secret must be refused for an Android host.
+func rejectSharedSecretForAndroidMDMHosts(mdmConfig config.MDMConfig, appConfig *fleet.AppConfig) bool {
+	return mdmConfig.AndroidOneTimeEnrollSecrets && appConfig.MDM.AndroidEnabledAndConfigured
+}
+
+// maybeResendAndroidAgentEnrollSecret queues a resend of the Fleet agent's managed configuration, with a fresh one-time enroll
+// secret, after a shared or spent secret was refused for an Android host. A device that enrolled before the setting was turned on, or
+// whose secret is spent, still has an unusable secret in its configuration and would otherwise keep being refused. The resend
+// goes only to the real device through Android management, so a refused impersonator gains nothing from triggering it. It is
+// rate limited per host, whether or not queueing succeeds, is skipped when the rate limit can't be checked, and never fails
+// the caller.
+func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, appConfig *fleet.AppConfig, rejected *fleet.EnrollmentRejectedError) {
+	if !rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig) || rejected.HostID == nil {
+		return
+	}
+	switch rejected.Reason {
+	case fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, fleet.EnrollmentRejectedOneTimeSecretSpent:
+	default:
+		return
+	}
+	host, err := svc.ds.HostLite(ctx, *rejected.HostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load host to resend android agent enroll secret", "err", err, "host_id", *rejected.HostID)
+		return
+	}
+	if host.Platform != "android" {
+		return
+	}
+
+	if svc.keyValueStore == nil {
+		return
+	}
+	// Reserved before queueing, so a failure is logged at most once per window rather than on every refused attempt.
+	rateLimitKey := fmt.Sprintf("%s:host:%d:android_agent_config", enrollmentRejectedKeyPrefix, host.ID)
+	reserved, err := reserveKey(ctx, svc.keyValueStore, rateLimitKey, androidAgentEnrollSecretResendTTL)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "reserving android agent enroll secret resend rate limit", "err", err)
+		return
+	}
+	if !reserved {
+		return
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load android enterprise to resend agent enroll secret", "err", err, "host_id", host.ID)
+		return
+	}
+	if err := worker.QueueSendAndroidFleetAgentConfig(ctx, svc.ds, svc.logger, host.UUID, enterprise.Name()); err != nil {
+		svc.logger.ErrorContext(ctx, "queue android agent enroll secret resend", "err", err, "host_id", host.ID)
+	}
+}
+
+// setIfNotExistsStore is a key-value store that can set a key only if it doesn't exist, atomically across Fleet servers.
+type setIfNotExistsStore interface {
+	SetIfNotExists(ctx context.Context, key string, value string, expireTime time.Duration) (bool, error)
+}
+
+// reserveKey sets the key for the given time and reports whether this call set it, so that concurrent callers, on this
+// server or another, reserve it only once. A store without an atomic set falls back to get then set.
+func reserveKey(ctx context.Context, kv fleet.KeyValueStore, key string, ttl time.Duration) (bool, error) {
+	if atomic, ok := kv.(setIfNotExistsStore); ok {
+		return atomic.SetIfNotExists(ctx, key, "1", ttl)
+	}
+	existing, err := kv.Get(ctx, key)
+	if err != nil || existing != nil {
+		return false, err
+	}
+	return true, kv.Set(ctx, key, "1", ttl)
 }
 
 // errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while mdm.windows_one_time_enroll_secrets is off.

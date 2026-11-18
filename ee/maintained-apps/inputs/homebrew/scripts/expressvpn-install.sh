@@ -14,6 +14,52 @@ app_process_running() {
   return 1
 }
 
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  kill -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    kill -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
@@ -54,7 +100,8 @@ quit_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 
