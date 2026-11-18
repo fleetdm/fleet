@@ -6077,6 +6077,11 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 			assert.Equal(t, pending, status.PendingAction())
 		}
 	}
+	remoteWipeInProgress := func(t *testing.T, enrolled *fleet.MDMWindowsEnrolledDevice, host *fleet.Host) bool {
+		inProgress, err := ds.MDMWindowsRemoteWipeInProgress(ctx, enrolled.ID, host.ID)
+		require.NoError(t, err)
+		return inProgress
+	}
 	pendingRemoteWipes := func(t *testing.T, enrolled *fleet.MDMWindowsEnrolledDevice) []string {
 		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, enrolled.ID)
 		require.NoError(t, err)
@@ -6114,7 +6119,7 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 
 	t.Run("wipe replaces a pending reset", func(t *testing.T) {
 		host, enrolled := newEnrolledHost(t)
-		_, err := enqueue(t, host, resetLocURI)
+		resetUUID, err := enqueue(t, host, resetLocURI)
 		require.NoError(t, err)
 
 		wipeUUID, err := enqueue(t, host, wipeLocURI)
@@ -6125,19 +6130,29 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		_, err = enqueue(t, host, wipeLocURI)
 		require.ErrorContains(t, err, "Host has pending wipe request")
 		assert.Equal(t, []string{wipeUUID}, pendingRemoteWipes(t, enrolled))
+		assert.False(t, remoteWipeInProgress(t, enrolled, host))
+
+		// The host picked the reset up before the wipe dropped it, and acknowledges it.
+		ack(t, enrolled, resetUUID, "200")
+		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
+		assert.True(t, remoteWipeInProgress(t, enrolled, host))
+		ageAck(t, resetUUID)
+		assert.False(t, remoteWipeInProgress(t, enrolled, host))
 	})
 
 	t.Run("no reset or wipe while another RemoteWipe is pending", func(t *testing.T) {
-		host, enrolled := newEnrolledHost(t)
-		// Sent with POST /commands/run, so not tracked in host_mdm_actions.
-		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{host.UUID}, &fleet.MDMWindowsCommand{
-			CommandUUID: uuid.NewString(), RawCommand: []byte(`<Exec></Exec>`), TargetLocURI: "./Vendor/MSFT/RemoteWipe/doWipe",
-		}))
-		for _, locURI := range []string{resetLocURI, wipeLocURI} {
-			_, err := enqueue(t, host, locURI)
-			require.ErrorContains(t, err, "Host has pending wipe request")
+		// Sent with POST /commands/run, so not tracked in host_mdm_actions. It takes the LocURI with or without "./".
+		for _, otherLocURI := range []string{"./Vendor/MSFT/RemoteWipe/doWipe", "Vendor/MSFT/RemoteWipe/doWipe"} {
+			host, enrolled := newEnrolledHost(t)
+			require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.writer(ctx), []string{host.UUID}, &fleet.MDMWindowsCommand{
+				CommandUUID: uuid.NewString(), RawCommand: []byte(`<Exec></Exec>`), TargetLocURI: otherLocURI,
+			}))
+			for _, locURI := range []string{resetLocURI, wipeLocURI} {
+				_, err := enqueue(t, host, locURI)
+				require.ErrorContains(t, err, "Host has pending wipe request", otherLocURI)
+			}
+			assert.Len(t, pendingRemoteWipes(t, enrolled), 1)
 		}
-		assert.Len(t, pendingRemoteWipes(t, enrolled), 1)
 	})
 
 	t.Run("wipe replaces a reset that is no longer queued", func(t *testing.T) {
@@ -6157,10 +6172,12 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 
 	t.Run("wipe waits behind an acknowledged reset and goes out if the reset is interrupted", func(t *testing.T) {
 		host, enrolled := newEnrolledHost(t)
-		_, otherEnrolled := newEnrolledHost(t)
+		otherHost, otherEnrolled := newEnrolledHost(t)
 		resetUUID, err := enqueue(t, host, resetLocURI)
 		require.NoError(t, err)
 		ack(t, enrolled, resetUUID, "200")
+		assert.True(t, remoteWipeInProgress(t, enrolled, host))
+		assert.False(t, remoteWipeInProgress(t, otherEnrolled, otherHost))
 
 		wipeUUID, err := enqueue(t, host, wipeLocURI)
 		require.NoError(t, err)
@@ -6175,6 +6192,8 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		assert.False(t, failed)
 
 		ageAck(t, resetUUID)
+		assert.True(t, remoteWipeInProgress(t, enrolled, host), "until the reset is found interrupted")
+		assert.False(t, remoteWipeInProgress(t, enrolled, otherHost))
 		failed, err = ds.MDMWindowsFailInterruptedReset(ctx, otherEnrolled.ID, host.ID)
 		require.NoError(t, err)
 		assert.False(t, failed, "only the enrollment that acknowledged the reset")
@@ -6183,6 +6202,7 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.True(t, failed)
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
+		assert.False(t, remoteWipeInProgress(t, enrolled, host))
 
 		failed, err = ds.MDMWindowsFailInterruptedReset(ctx, enrolled.ID, host.ID)
 		require.NoError(t, err)

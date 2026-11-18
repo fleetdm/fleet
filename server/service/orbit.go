@@ -440,10 +440,9 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}, secretOpts...)
 
 	// A Windows host back from a reset belongs to its next end user, so the previous one is forgotten and the host doesn't
-	// count as already enrolled for end user authentication.
+	// count as already enrolled for end user authentication. The matched host's stored platform decides, not the reported one.
 	var windowsResetDone bool
-	enrollingHost := fleet.Host{Platform: hostInfo.Platform, PlatformLike: hostInfo.PlatformLike}
-	if enrollingHost.FleetPlatform() == "windows" && hostInfo.HardwareUUID != "" {
+	if hostInfo.HardwareUUID != "" {
 		windowsResetDone, err = svc.ds.ClearEndUserAfterWindowsReset(ctx, enrollOpts...)
 		if err != nil {
 			recordErrorDetail(ctx, err)

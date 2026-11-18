@@ -33,3 +33,11 @@ func TestRemovedKeyTagsRegistered(t *testing.T) {
 		}
 	}
 }
+
+// An entry with a Context, like Wipe host's windows key, is rejected by its endpoint only: agent options keep their Windows
+// overrides.
+func TestRemovedKeyWithContextNotRejectedElsewhere(t *testing.T) {
+	require.NotContains(t, requestNames(removednames.KindJSONKey), removednames.WipeHostWindowsParam.Old)
+	appConfig := []byte(`{"agent_options":{"overrides":{"platforms":{"windows":{"options":{"distributed_interval":10}}}}}}`)
+	require.NoError(t, endpointer.CheckRemovedKeys(appConfig, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})))
+}

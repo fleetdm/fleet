@@ -2461,6 +2461,7 @@ const HostDetailsPage = ({
           )}
           {showResetModal && (
             <ResetModal
+              key={host.id}
               id={host.id}
               hostName={host.display_name}
               onSuccess={() => setHostMdmDeviceState("resetting")}

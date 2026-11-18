@@ -2261,6 +2261,9 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 // A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
 // next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
 // fleetd wake the device again.
+//
+// A RemoteWipe is held back the same way while the device may still be acting on another one it acknowledged: Windows
+// restarts in a loop when it gets two.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
@@ -2270,12 +2273,32 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	onlyPollCmdsPending := true
+	var remoteWipeInProgress *bool
 	for _, pendingCmd := range pendingCmds {
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
 		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
 			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
 			onlyPollCmdsPending = false
 			continue
+		}
+		if fleet.LocURITargetsReservedNode(pendingCmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI) {
+			if remoteWipeInProgress == nil {
+				var hostID uint
+				if enrolledDevice.LinkedHostID != nil {
+					hostID = *enrolledDevice.LinkedHostID
+				}
+				inProgress, err := svc.ds.MDMWindowsRemoteWipeInProgress(ctx, enrolledDevice.ID, hostID)
+				if err != nil {
+					return nil, false, ctxerr.Wrap(ctx, err, "check for RemoteWipe in progress")
+				}
+				remoteWipeInProgress = &inProgress
+			}
+			if *remoteWipeInProgress {
+				svc.logger.DebugContext(ctx, "windows mdm: RemoteWipe held while the device may be acting on another one",
+					"enrollment_id", enrolledDevice.ID, "command_uuid", pendingCmd.CommandUUID)
+				onlyPollCmdsPending = false
+				continue
+			}
 		}
 		parsedCmds, err := svc.prepareWindowsPendingCommand(ctx, enrolledDevice.ID, pendingCmd)
 		if _, ok := errors.AsType[undeliverableWindowsCommandError](err); ok {

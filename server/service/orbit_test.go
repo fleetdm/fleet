@@ -2875,6 +2875,9 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	newHost := true
 	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 		enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
@@ -2905,6 +2908,22 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, nodeKey)
 	require.Equal(t, []int{1}, hostCountIncrs)
+}
+
+// The datastore decides from the matched host's stored platform whether a host is back from a Windows reset, so the end user
+// clear runs whatever platform fleetd reports.
+func TestEnrollOrbitChecksResetWhateverPlatformReported(t *testing.T) {
+	f := newOneTimeEnrollFixture(t, false)
+	var checked []string
+	f.ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		checked = append(checked, orbitEnrollConfig(opts).HostInfo.HardwareUUID)
+		return false, nil
+	}
+	info := f.orbitInfo()
+	require.Equal(t, "darwin", info.Platform)
+	_, err := f.svc.EnrollOrbit(f.ctx, info, "shared-secret", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{info.HardwareUUID}, checked)
 }
 
 func TestRecordOrbitConfigFallbackChanges(t *testing.T) {

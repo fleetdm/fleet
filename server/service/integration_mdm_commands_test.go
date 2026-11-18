@@ -516,11 +516,8 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/%s", host.ID, action), nil, status)
 		require.Contains(t, extractServerErrorText(res.Body), wantMsg)
 	}
-	// remoteWipesInSession starts an MDM session and returns the RemoteWipe LocURIs the host gets, by command UUID.
-	remoteWipesInSession := func(client *mdmtest.TestWindowsMDMClient) map[string]string {
-		t.Helper()
-		cmds, err := client.StartManagementSession()
-		require.NoError(t, err)
+	// remoteWipes returns the RemoteWipe LocURIs among the commands the host gets, by command UUID.
+	remoteWipes := func(cmds map[string]fleet.ProtoCmdOperation) map[string]string {
 		got := make(map[string]string)
 		for cmdUUID, cmd := range cmds {
 			if cmd.Verb == fleet.CmdExec && len(cmd.Cmd.Items) == 1 && strings.Contains(*cmd.Cmd.Items[0].Target, "/RemoteWipe/") {
@@ -529,7 +526,14 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		}
 		return got
 	}
-	ackCmd := func(client *mdmtest.TestWindowsMDMClient, cmdUUID, statusCode string) {
+	remoteWipesInSession := func(client *mdmtest.TestWindowsMDMClient) map[string]string {
+		t.Helper()
+		cmds, err := client.StartManagementSession()
+		require.NoError(t, err)
+		return remoteWipes(cmds)
+	}
+	// ackCmd answers a command in the current session and returns the RemoteWipe LocURIs in the server's reply.
+	ackCmd := func(client *mdmtest.TestWindowsMDMClient, cmdUUID, statusCode string) map[string]string {
 		t.Helper()
 		msgID, err := client.GetCurrentMsgID()
 		require.NoError(t, err)
@@ -541,8 +545,21 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 			Data:    new(statusCode),
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
-		_, err = client.SendResponse()
+		cmds, err := client.SendResponse()
 		require.NoError(t, err)
+		return remoteWipes(cmds)
+	}
+	ageAck := func(cmdUUID string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
+				time.Now().Add(-fleet.WindowsResetRestartWindow-time.Minute), cmdUUID)
+			return err
+		})
+	}
+	// The reset completes: fleetd reports the host un-enrolled, and it turns MDM on again with the same hardware ID.
+	reEnrollAfterReset := func(host *fleet.Host, client *mdmtest.TestWindowsMDMClient) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
+		require.NoError(t, client.Enroll())
 	}
 	resetAndAck := func(host *fleet.Host, client *mdmtest.TestWindowsMDMClient, statusCode string) string {
 		t.Helper()
@@ -550,13 +567,14 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", host.ID), nil, http.StatusOK, &resetResp)
 		require.Equal(t, fleet.DeviceStatusUnlocked, resetResp.DeviceStatus)
 		require.Equal(t, fleet.PendingActionReset, resetResp.PendingAction)
+		got := remoteWipesInSession(client)
+		require.Len(t, got, 1)
 		var resetUUID string
-		for cmdUUID, locURI := range remoteWipesInSession(client) {
+		for cmdUUID, locURI := range got {
 			require.Equal(t, resetLocURI, locURI)
 			resetUUID = cmdUUID
 		}
-		require.NotEmpty(t, resetUUID)
-		ackCmd(client, resetUUID, statusCode)
+		require.Empty(t, ackCmd(client, resetUUID, statusCode))
 		return resetUUID
 	}
 
@@ -589,6 +607,30 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		}
 	})
 
+	t.Run("wipe over a reset the host just picked up waits for the restart window", func(t *testing.T) {
+		host, client := newMDMHost()
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", host.ID), nil, http.StatusOK)
+		got := remoteWipesInSession(client)
+		require.Len(t, got, 1)
+		var resetUUID string
+		for cmdUUID := range got {
+			resetUUID = cmdUUID
+		}
+
+		// The wipe drops the reset from the queue, but the host already has it and acknowledges it in the same session.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK)
+		require.Empty(t, ackCmd(client, resetUUID, "200"))
+		require.Empty(t, remoteWipesInSession(client))
+		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
+
+		ageAck(resetUUID)
+		got = remoteWipesInSession(client)
+		require.Len(t, got, 1)
+		for _, locURI := range got {
+			require.Equal(t, wipeLocURI, locURI)
+		}
+	})
+
 	t.Run("wipe waits behind an acknowledged reset and goes out when the reset is interrupted", func(t *testing.T) {
 		host, client := newMDMHost()
 		resetUUID := resetAndAck(host, client, "200")
@@ -600,12 +642,14 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
 		requireRefused(host, "wipe", http.StatusUnprocessableEntity, "Host has pending wipe request. The host will be wiped if the reset doesn't complete.")
 
+		// Inside the restart window the host may be resetting. A session that runs past the window doesn't get it either:
+		// the wipe waits for the interrupted-reset check, which runs when a session starts.
+		require.Empty(t, remoteWipesInSession(client))
+		ageAck(resetUUID)
+		require.Empty(t, ackCmd(client, uuid.NewString(), "200"))
+		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
+
 		// The host checks in again after the restart window: Windows rolled the reset back.
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
-				time.Now().Add(-fleet.WindowsResetRestartWindow-time.Minute), resetUUID)
-			return err
-		})
 		got := remoteWipesInSession(client)
 		require.Len(t, got, 1)
 		var wipeUUID string
@@ -626,12 +670,7 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		resetAndAck(host, client, "200")
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK)
 
-		// The reset completes: fleetd reports the host un-enrolled, and it turns MDM on again with the same hardware ID.
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled = 0, server_url = '' WHERE host_id = ?`, host.ID)
-			return err
-		})
-		require.NoError(t, client.Enroll())
+		reEnrollAfterReset(host, client)
 		require.Empty(t, remoteWipesInSession(client))
 		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
 		require.Zero(t, s.countHostActivitiesOfType(host.ID, failedResetAct))
@@ -700,11 +739,7 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 
 			resetAndAck(host, client, "200")
 			if mdmFirst {
-				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled = 0, server_url = '' WHERE host_id = ?`, host.ID)
-					return err
-				})
-				require.NoError(t, client.Enroll())
+				reEnrollAfterReset(host, client)
 			}
 			// fleetd, from the provisioning package or installed over MDM without a sign-in token, enrolls as the previously
 			// enrolled host.

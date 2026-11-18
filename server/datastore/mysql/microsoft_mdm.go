@@ -824,7 +824,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 
 // forgetEndUserAfterWindowsResetDB clears the previous end user of a host coming back from a reset, before the reset status goes.
 // It also clears the host's orbit node key, so that if fleetd enrolls after MDM, end user authentication treats the host as new.
-// The host cache isn't invalidated: only a fleetd that survived the reset holds the old key, until the cache entry expires.
+// The mysqlredis wrapper of MDMWindowsDeleteEnrolledDeviceOnReenrollment invalidates the host cache.
 func forgetEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	var hostID uint
 	err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
@@ -4209,8 +4209,9 @@ hmwp.host_uuid = ? AND hmwp.profile_name NOT IN(?) AND NOT (hmwp.operation_type 
 	return profiles, nil
 }
 
-// windowsRemoteWipeLocURIPattern matches any RemoteWipe CSP command, including one sent with POST /commands/run.
-const windowsRemoteWipeLocURIPattern = "%" + syncml.FleetRemoteWipeTargetLocURI + "/%"
+// windowsRemoteWipeLocURIPattern matches any RemoteWipe CSP command, including one sent with POST /commands/run, which also
+// accepts the LocURI without a leading "./" (see fleet.LocURITargetsReservedNode).
+var windowsRemoteWipeLocURIPattern = "%" + strings.TrimPrefix(syncml.FleetRemoteWipeTargetLocURI, "/") + "/%"
 
 // windowsHostsWithPendingRemoteWipeDB returns which of the hosts have a RemoteWipe command their device hasn't acknowledged.
 func windowsHostsWithPendingRemoteWipeDB(ctx context.Context, q sqlx.QueryerContext, hostUUIDs []string) (map[string]struct{}, error) {
@@ -4338,9 +4339,21 @@ func (ds *Datastore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollm
 
 	var failed bool
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		failed = false
+		// Locked first, as WipeHostViaWindowsMDM does, so a wipe queued at the same time is either seen below or queued after
+		// the update.
+		var wipeRef sql.NullString
+		err := sqlx.GetContext(ctx, tx, &wipeRef, `SELECT wipe_ref FROM host_mdm_actions WHERE host_id = ? FOR UPDATE`, hostID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "lock host_mdm_actions for interrupted reset")
+		}
+		if wipeRef.String != resetCmdUUID {
+			return nil
+		}
+
 		// Delivered or not: the device may have picked the wipe up in a session inside the restart window.
 		var queuedWipe sql.NullString
-		err := sqlx.GetContext(ctx, tx, &queuedWipe, `
+		err = sqlx.GetContext(ctx, tx, &queuedWipe, `
 			SELECT wmc.command_uuid
 			FROM windows_mdm_command_queue wmcq
 			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
@@ -4364,6 +4377,31 @@ func (ds *Datastore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollm
 		return nil
 	})
 	return failed, err
+}
+
+// MDMWindowsRemoteWipeInProgress reports whether the enrollment's device acknowledged a RemoteWipe it may still be acting on:
+// within the restart window, or a reset that the session-start check hasn't found interrupted yet.
+func (ds *Datastore) MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
+	// On the primary: the device can acknowledge the RemoteWipe earlier in the same request.
+	var inProgress bool
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &inProgress, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM windows_mdm_command_results wmcr
+			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcr.command_uuid
+			WHERE wmcr.enrollment_id = ? AND wmc.target_loc_uri LIKE ? AND wmcr.status_code LIKE '2%' AND (
+				wmcr.updated_at > NOW() - INTERVAL ? SECOND OR (
+					wmc.target_loc_uri = ? AND
+					EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.host_id = ? AND hma.wipe_ref = wmc.command_uuid)
+				)
+			)
+		)`,
+		enrollmentID, windowsRemoteWipeLocURIPattern, int(fleet.WindowsResetRestartWindow.Seconds()),
+		fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData), hostID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check for RemoteWipe in progress")
+	}
+	return inProgress, nil
 }
 
 // GetWindowsHostMDMCertificateProfile returns the certificate profile backing a SCEP proxy identifier. Only profiles being
