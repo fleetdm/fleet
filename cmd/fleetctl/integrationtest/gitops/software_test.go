@@ -1770,27 +1770,17 @@ software:
 				workstations,
 				iosTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams: []string{
-								"💻 Workstations",
-								"📱🏢 Company-owned iPhones",
-								"Unassigned",
-							},
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", fleet.TeamNameNoTeam},
+					"Acme Inc.":                    nil,
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
