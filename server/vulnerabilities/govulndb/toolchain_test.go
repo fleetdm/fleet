@@ -1,6 +1,7 @@
 package govulndb
 
 import (
+	"bytes"
 	"log/slog"
 	"testing"
 
@@ -93,31 +94,43 @@ func TestNewToolchainRulesRejects(t *testing.T) {
 }
 
 func TestToolchainRulesFrom(t *testing.T) {
-	logger := slog.New(slog.DiscardHandler)
 	homebrewGo := &fleet.Software{Name: "go", Source: "homebrew_packages", Version: "1.22.4"}
 	chocolateyGo := &fleet.Software{Name: "golang", Source: "chocolatey_packages", Version: "1.22.4"}
 
-	requireNone := func(t *testing.T, rules *ToolchainRules) {
+	newLogger := func() (*slog.Logger, *bytes.Buffer) {
+		var buf bytes.Buffer
+		return slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})), &buf
+	}
+
+	// Without rules NVD matches Go toolchain installs by name again, which brings back its false
+	// positives, so operators need to be told.
+	requireNVDFallback := func(t *testing.T, artifact *Artifact) {
 		t.Helper()
+		logger, logs := newLogger()
+		rules := ToolchainRulesFrom(t.Context(), artifact, logger)
 		require.False(t, rules.IsToolchainInstall(homebrewGo))
 		require.False(t, rules.IsToolchainInstall(chocolateyGo))
+		require.Contains(t, logs.String(), "level=WARN")
+		require.Contains(t, logs.String(), "Go toolchain installs fall back to NVD")
 	}
 
 	t.Run("no artifact", func(t *testing.T) {
-		requireNone(t, ToolchainRulesFrom(t.Context(), nil, logger))
+		requireNVDFallback(t, nil)
 	})
 
 	t.Run("artifact published before the rules were", func(t *testing.T) {
-		requireNone(t, ToolchainRulesFrom(t.Context(), testArtifact(), logger))
+		requireNVDFallback(t, testArtifact())
 	})
 
 	t.Run("published rules", func(t *testing.T) {
 		artifact := testArtifact()
 		artifact.ToolchainInstalls = chocolateyRules()
 
+		logger, logs := newLogger()
 		rules := ToolchainRulesFrom(t.Context(), artifact, logger)
 		require.True(t, rules.IsToolchainInstall(chocolateyGo))
 		require.False(t, rules.IsToolchainInstall(homebrewGo))
+		require.Empty(t, logs.String())
 	})
 
 	// A newer rule format may mean something this server cannot apply.
@@ -126,6 +139,6 @@ func TestToolchainRulesFrom(t *testing.T) {
 		artifact.ToolchainInstalls = chocolateyRules()
 		artifact.ToolchainInstalls.Version = "2"
 
-		requireNone(t, ToolchainRulesFrom(t.Context(), artifact, logger))
+		requireNVDFallback(t, artifact)
 	})
 }

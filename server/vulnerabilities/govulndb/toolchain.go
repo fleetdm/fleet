@@ -120,14 +120,21 @@ func compileToolchainRule(r ToolchainInstallRule) (toolchainRule, error) {
 }
 
 // ToolchainRulesFrom returns the rules published in artifact, or nil when there is no artifact,
-// it predates the rules, or this server cannot apply them.
+// it predates the rules, or this server cannot apply them. Without rules NVD matches Go toolchain
+// installs by name again, false positives included, so every nil return is logged.
 func ToolchainRulesFrom(ctx context.Context, artifact *Artifact, logger *slog.Logger) *ToolchainRules {
-	if artifact == nil || artifact.ToolchainInstalls == nil {
+	const fallback = "no Go toolchain install rules: Go toolchain installs fall back to NVD"
+	switch {
+	case artifact == nil:
+		logger.WarnContext(ctx, fallback, "reason", "Go vulnerability database not loaded")
+		return nil
+	case artifact.ToolchainInstalls == nil:
+		logger.WarnContext(ctx, fallback, "reason", "Go vulnerability database has no published rules")
 		return nil
 	}
 	rules, err := NewToolchainRules(artifact.ToolchainInstalls)
 	if err != nil {
-		logger.WarnContext(ctx, "no Go toolchain install rules: published rules cannot be applied", "err", err)
+		logger.WarnContext(ctx, fallback, "reason", "published rules cannot be applied", "err", err)
 		return nil
 	}
 	return rules
