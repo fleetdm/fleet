@@ -197,7 +197,7 @@ This profile implements the workstation ring described above.
 3. Select the fleet you want to target.
 4. Select **Add profile** and upload `windows-updates.xml`.
 
-To manage the profile as code instead, commit it to your GitOps repo and reference it under `controls.windows_settings.custom_settings` for the fleet.
+To manage the profile as code instead, commit it to your GitOps repo and reference it under `controls.windows_settings.configuration_profiles` for the fleet.
 
 ## Verify with osquery
 
