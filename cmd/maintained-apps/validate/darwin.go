@@ -340,6 +340,18 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				continue
 			}
 
+			// Munki's manifest version is the overall munkitools release (what's
+			// actually installed, and what the patched query - which compares the
+			// munkitools_core pkg receipt via package_receipts, not this apps-table
+			// check - uses). Managed Software Center.app's own bundle version lags
+			// that release whenever the GUI component isn't rebuilt (see
+			// fleetdm/fleet#59183), so the two are expected to differ.
+			if uniqueAppIdentifier == "com.googlecode.munki.ManagedSoftwareCenter" {
+				logger.InfoContext(ctx, "Munki detected - skipping version check; the app bundle's version doesn't track every release, patch status is verified via package_receipts instead")
+				found = true
+				continue
+			}
+
 			// WezTerm's bundle reports a placeholder version ("0.1.0" / "1") in every
 			// release, which never matches the cask's date-based version.
 			if uniqueAppIdentifier == "com.github.wez.wezterm" && result.Path == "/Applications/WezTerm.app" {

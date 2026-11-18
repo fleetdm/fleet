@@ -101,6 +101,13 @@ func TestAppExistsLogsEveryRow(t *testing.T) {
 			wantExists: true,
 		},
 		{
+			name:       "munki skips the version check",
+			bundleID:   "com.googlecode.munki.ManagedSoftwareCenter",
+			version:    "7.4.1.5894",
+			rows:       []string{row("/Applications/Managed Software Center.app", "7.4.0.5891", "5891")},
+			wantExists: true,
+		},
+		{
 			name:       "version matches after sanitizing",
 			bundleID:   "com.raspberrypi.rpi-imager",
 			version:    "6.7.0.3",
