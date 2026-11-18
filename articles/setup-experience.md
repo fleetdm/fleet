@@ -8,7 +8,6 @@ This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and 
 
 macOS setup features require [connecting Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
-You can also configure the setup experience with [GitOps](https://fleetdm.com/docs/configuration/yaml-files#setup-experience) or the [REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
 > For macOS, Fleet only installs setup experience software and run scripts on newly enrolling, or re-enrolling, Macs (not during migration).
 
