@@ -100,7 +100,7 @@ For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure F
 
 To enable for a team:
 
-1. Select the team you're configuring (or **No team**) from the team dropdown.
+1. Select the fleet you're configuring (or **Unassigned**) from the fleet dropdown.
 
 2. Go to **Controls** > **Setup experience** > **Install software**.
 

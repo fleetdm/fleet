@@ -222,7 +222,7 @@ No, currently, there’s no way to retrieve the name of the enroll secret with a
 
 Typically, folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries.
 
-There is, however, a way to accomplish this even though the answer to the question remains "no": Teams. As of Fleet v4.0.0, you can group hosts in Teams either by enrolling them with a team-specific secret or by transferring hosts to a team. One the hosts you want to target are part of a team, you can create a query and target the team in question.
+There is, however, a way to accomplish this even though the answer to the question remains "no": fleets. You can group hosts in fleets either by enrolling them with a fleet-specific enroll secret or by transferring hosts to a fleet. Once the hosts you want to target are in a fleet, you can create a query and target that fleet.
 
 ### How often do labels refresh? Is the refresh frequency configurable?
 
@@ -301,7 +301,7 @@ Fleet and osquery work together by communicating with heartbeats. Depending on h
 
 When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown as soon as Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an `ORDER BY` clause selection criteria in a query, the results may not initially appear with your desired order. However, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
 
-### What happens if I have a query on a team policy and I also have it scheduled to run separately?
+### What happens if I have a query on a fleet policy and I also have it scheduled to run separately?
 
 Both queries will run as scheduled on applicable hosts. If there are any hosts that both the scheduled run and the policy apply to, they will be queried twice.
 
@@ -359,7 +359,7 @@ For the settings themselves, see [`host_expiry_settings`](https://fleetdm.com/do
 
 ### How does Fleet deal with IP duplication?
 
-Fleet relies on UUIDs, so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations, as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
+Fleet relies on UUIDs, so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations, as it might return multiple results - [fleets](https://fleetdm.com/guides/fleets) can be used to restrict queries to specific hosts.
 
 ### Can fleetd run alongside osquery?
 
@@ -427,7 +427,7 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 
 ### Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
+The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on queries, policies, and fleets (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
 
 ### How often is the software inventory updated?
 
@@ -454,29 +454,29 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 > If you'd like to renew your Fleet Premium license key, please [contact us](https://fleetdm.com/company/contact).
 
-**Back up your users and update all team-level users to global users**
+**Back up your users and update all fleet-level users to global users**
 
 1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you have a record of each user's roles. To restore them, edit each user in the Fleet UI or use the [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user) API endpoint.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+3. For each user that has any fleet listed under the **Fleets** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
-**Move all team-level scheduled queries to the global level**
+**Move all fleet-level scheduled queries to the global level**
 
 1. Head to the **Schedule** page in the Fleet UI.
-2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select query** field, choose the frequency, and select **Schedule**.
-3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts following the downgrade process.
+2. For each scheduled query that belongs to a fleet, copy the name in the **Query** column, select **All fleets** in the top dropdown, select **Schedule a query**, past the name in the **Select query** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled query that belongs to a fleet because they will no longer run on any hosts following the downgrade process.
 
-**Move all team-level policies to the global level**
+**Move all fleet-level policies to the global level**
 
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
-3. Delete each policy that belongs to a team because they will no longer run on any hosts following the downgrade process.
+2. For each policy that belongs to a fleet, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All fleets** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a fleet because they will no longer run on any hosts following the downgrade process.
 
-**Back up your teams**
+**Back up your fleets**
 
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so that, if you choose to upgrade later, you can restore teams.
-2. Head to the **Settings > Teams** page in the Fleet UI.
-3. Delete all teams. This will move all hosts to the global level.
+1. Run the `fleetctl get fleets > fleets.yml` command. Save the `fleets.yml` file so that, if you choose to upgrade later, you can restore fleets.
+2. Head to the **Settings > Fleets** page in the Fleet UI.
+3. Delete all fleets. This moves all hosts to Unassigned.
 
 **Remove your Fleet Premium license key**
 
@@ -496,7 +496,7 @@ No. The agent options set using your software orchestration tool will override t
 For hosts running fleetd, a host is online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
 The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts
-and in the **Settings > Teams > TEAM NAME > Agent options** page for hosts that belong to a team.
+and in the **Settings > Fleets > FLEET NAME > Agent options** page for hosts that belong to a fleet.
 
 For example:
 
@@ -513,9 +513,9 @@ For mobile hosts (iOS, iPadOS, Android), online status reflects the device's MDM
 **Offline** hosts haven't recently checked into Fleet. These hosts may be shut down, asleep, or not connected to the internet.
 A fleetd host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
 
-### Why aren't "additional queries" being applied to hosts enrolled in a team?
+### Why aren't "additional queries" being applied to hosts enrolled in a fleet?
 
-Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to include these queries under `features.additional_queries` in each team's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
+Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a fleet. If you would like those queries to be applied to hosts assigned to a fleet, you will need to include these queries under `features.additional_queries` in each fleet's [settings](https://fleetdm.com/docs/configuration/yaml-files#features).
 
 ### Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?
 
@@ -529,7 +529,7 @@ There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validati
 
 Depending on your infrastructure capabilities and the number of hosts enrolled in your Fleet instance, Fleet might be slow or unresponsive after globally enabling a feature like [software inventory](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
-In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
+In those cases, we recommend a slow rollout by partially enabling the feature by fleet using the `features` key in each fleet's [settings](https://fleetdm.com/docs/configuration/yaml-files#features).
 
 ### Why am I getting errors when generating a .msi package on my M1 Mac?
 
@@ -539,7 +539,7 @@ There are many challenges to generating .msi packages on any OS but Windows. Err
 
 Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet.
 
-Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via teams.
+Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via fleets.
 
 The "Packs" section of the UI has been removed, but [access to query packs via the API and CLI is still available](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs). The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
 
@@ -762,21 +762,21 @@ Fleet requires at least MySQL version 8.0.44, and is tested using the InnoDB sto
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in [Fleet's config file](https://fleetdm.com/docs/deploying/configuration#license). You don't need to redeploy Fleet after the migration.
 
 ## What happened to the "Schedule" page?
-Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query that every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
+Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a fleet, or it can be a global query that every fleet inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
 
 To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept:
 - Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
-- Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
+- Any fleet-specific scheduled query will be converted into a query on that fleet with the relevant schedule characteristics.
 - Any query that is referenced by a 2017 pack will be converted into a global query, and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
 
-Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
+Important: To avoid naming conflicts, a query must have a unique name within its fleet. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
 
 For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under the hood:
 - The POST endpoints will create a new query with the specified attributes
 - The PATCH endpoint will modify the specified query with the specified attributes
 - The DELETE endpoint will delete the specified query.
 
-Finally, "shard" has been retired as an option for queries. In its place, we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly.
+Finally, "shard" has been retired as an option for queries. In its place, we recommend using a canary fleet or a live query to test the impact of a query before deploying it more broadly.
 -->
 
 
