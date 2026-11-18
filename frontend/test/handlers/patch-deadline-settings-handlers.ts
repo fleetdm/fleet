@@ -72,15 +72,19 @@ export const getPatchDeadlineSettingsServerErrorHandler = http.get(
 // Each entry becomes a patch-type policy with the given software under
 // `patch_software`, matching the real BE response shape. `patch_deadline`
 // defaults to true; pass false to mimic another patch option, which
-// `type=patch` also returns.
+// `type=patch` also returns. Only requests for `fleetId` get the apps.
 export const getPatchDeadlineAppsHandler = (
   apps: (Partial<IPolicySoftwareToInstall> & {
     patch_deadline?: boolean;
-  })[] = []
+  })[] = [],
+  fleetId = 1
 ) =>
   http.get(patchPoliciesUrl, ({ request }) => {
     const params = new URL(request.url).searchParams;
-    if (params.get("type") !== "patch" || !params.has("fleet_id")) {
+    if (
+      params.get("type") !== "patch" ||
+      params.get("fleet_id") !== String(fleetId)
+    ) {
       return HttpResponse.json({ policies: [] });
     }
     const policies = apps.map((a, i) => {
