@@ -3,8 +3,7 @@ import { Command } from "cmdk";
 import React from "react";
 
 import { IPolicyStats } from "interfaces/policy";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import { createCustomRenderer } from "test/test-utils";
 
 import PolicyPicker from "./PolicyPicker";
@@ -12,17 +11,12 @@ import PolicyPicker from "./PolicyPicker";
 // cmdk uses scrollIntoView which JSDOM doesn't implement.
 Element.prototype.scrollIntoView = jest.fn();
 
-jest.mock("services/entities/global_policies", () => ({
+jest.mock("services/entities/policies", () => ({
   __esModule: true,
-  default: { loadAllNew: jest.fn() },
-}));
-jest.mock("services/entities/team_policies", () => ({
-  __esModule: true,
-  default: { loadAllNew: jest.fn() },
+  default: { loadAll: jest.fn() },
 }));
 
-const mockedGlobal = globalPoliciesAPI as jest.Mocked<typeof globalPoliciesAPI>;
-const mockedTeam = teamPoliciesAPI as jest.Mocked<typeof teamPoliciesAPI>;
+const mockedPolicies = policiesAPI as jest.Mocked<typeof policiesAPI>;
 
 const renderInClient = createCustomRenderer({ withBackendMock: true });
 const renderPicker: typeof renderInClient = (ui, options) =>
@@ -46,14 +40,12 @@ const policyWith = (
   } as unknown) as IPolicyStats);
 
 beforeEach(() => {
-  mockedGlobal.loadAllNew.mockReset();
-  mockedTeam.loadAllNew.mockReset();
-  mockedGlobal.loadAllNew.mockResolvedValue({ policies: [] });
-  mockedTeam.loadAllNew.mockResolvedValue({ policies: [] });
+  mockedPolicies.loadAll.mockReset();
+  mockedPolicies.loadAll.mockResolvedValue({ policies: [] });
 });
 
 describe("PolicyPicker", () => {
-  it("calls globalPoliciesAPI when currentTeam is All fleets", async () => {
+  it("lists All fleets policies without fleet_id when currentTeam is All fleets", async () => {
     renderPicker(
       <PolicyPicker
         search=""
@@ -63,12 +55,13 @@ describe("PolicyPicker", () => {
     );
 
     await waitFor(() => {
-      expect(mockedGlobal.loadAllNew).toHaveBeenCalled();
+      expect(mockedPolicies.loadAll).toHaveBeenCalledWith(
+        expect.objectContaining({ fleetId: undefined, mergeInherited: false })
+      );
     });
-    expect(mockedTeam.loadAllNew).not.toHaveBeenCalled();
   });
 
-  it("calls teamPoliciesAPI with mergeInherited when a real team is selected", async () => {
+  it("lists the fleet's policies with mergeInherited when a real team is selected", async () => {
     renderPicker(
       <PolicyPicker
         search=""
@@ -78,14 +71,13 @@ describe("PolicyPicker", () => {
     );
 
     await waitFor(() => {
-      expect(mockedTeam.loadAllNew).toHaveBeenCalledWith(
-        expect.objectContaining({ teamId: 5, mergeInherited: true })
+      expect(mockedPolicies.loadAll).toHaveBeenCalledWith(
+        expect.objectContaining({ fleetId: 5, mergeInherited: true })
       );
     });
-    expect(mockedGlobal.loadAllNew).not.toHaveBeenCalled();
   });
 
-  it("calls teamPoliciesAPI with teamId 0 for Unassigned", async () => {
+  it("lists with fleetId 0 for Unassigned", async () => {
     renderPicker(
       <PolicyPicker
         search=""
@@ -95,14 +87,14 @@ describe("PolicyPicker", () => {
     );
 
     await waitFor(() => {
-      expect(mockedTeam.loadAllNew).toHaveBeenCalledWith(
-        expect.objectContaining({ teamId: 0 })
+      expect(mockedPolicies.loadAll).toHaveBeenCalledWith(
+        expect.objectContaining({ fleetId: 0 })
       );
     });
   });
 
   it("renders the team-scoped empty state when no team matches", async () => {
-    mockedTeam.loadAllNew.mockResolvedValue({ policies: [] });
+    mockedPolicies.loadAll.mockResolvedValue({ policies: [] });
 
     const { findByText } = renderPicker(
       <PolicyPicker
@@ -162,7 +154,7 @@ describe("PolicyPicker", () => {
     // from earlier empty-state tests, which registered an empty result
     // under queryKey ["commandPalettePolicies", ..., "<search>"].
     it("renders the Patch badge when policy.type === 'patch'", async () => {
-      mockedGlobal.loadAllNew.mockResolvedValue({
+      mockedPolicies.loadAll.mockResolvedValue({
         policies: [
           policyWith({ id: 1, name: "Outdated Chrome", type: "patch" }),
         ],
@@ -181,7 +173,7 @@ describe("PolicyPicker", () => {
     });
 
     it("omits the Patch badge for non-patch policies", async () => {
-      mockedGlobal.loadAllNew.mockResolvedValue({
+      mockedPolicies.loadAll.mockResolvedValue({
         policies: [policyWith({ id: 2, name: "Disk encryption", type: "" })],
       });
 

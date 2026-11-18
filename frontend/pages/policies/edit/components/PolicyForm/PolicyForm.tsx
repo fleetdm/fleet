@@ -57,7 +57,7 @@ import {
   PatchOptionSelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import PATHS from "router/paths";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -453,8 +453,7 @@ const PolicyForm = ({
     }
     setIsAddingAutomation(true);
     try {
-      await teamPoliciesAPI.update(policyIdForEdit as number, {
-        fleet_id: storedPolicy.fleet_id,
+      await policiesAPI.update(policyIdForEdit as number, {
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);

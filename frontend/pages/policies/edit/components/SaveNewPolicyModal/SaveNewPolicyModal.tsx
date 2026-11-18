@@ -33,7 +33,7 @@ import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants"
 import { usePolicyLabelTargets } from "pages/policies/hooks";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI from "services/entities/teams";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
@@ -231,7 +231,7 @@ const SaveNewPolicyModal = ({
     }
 
     // The create endpoint deliberately ignores automation fields (see the
-    // pick in team_policies.ts:create) — they have to be PATCHed after the
+    // pick in policies.ts:create) — they have to be PATCHed after the
     // policy exists. Build a saveAutomations closure to run after create.
     const saveAutomations = automations?.isDirty
       ? async (newPolicy: IPolicy) => {
@@ -239,10 +239,7 @@ const SaveNewPolicyModal = ({
 
           if (automations.policyUpdate && !isGlobalPolicy) {
             requests.push(
-              teamPoliciesAPI.update(newPolicy.id, {
-                fleet_id: policyTeamId,
-                ...automations.policyUpdate,
-              })
+              policiesAPI.update(newPolicy.id, automations.policyUpdate)
             );
           }
 

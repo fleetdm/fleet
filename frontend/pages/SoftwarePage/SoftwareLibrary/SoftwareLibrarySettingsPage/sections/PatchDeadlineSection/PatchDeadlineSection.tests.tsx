@@ -416,7 +416,7 @@ describe("PatchDeadlineSection", () => {
       const onPoliciesRequest = jest.fn();
       mockServer.use(
         getPatchDeadlineSettingsHandler(),
-        http.get(baseUrl("/fleets/:teamId/policies"), () => {
+        http.get(baseUrl("/policies"), () => {
           onPoliciesRequest();
           return HttpResponse.json({ policies: [] });
         })

@@ -31,9 +31,17 @@ const getFleetHandler = () =>
     return HttpResponse.json({ team: fleet, fleet });
   });
 
+const getFleetId = (request: Request) => {
+  const fleetId = new URL(request.url).searchParams.get("fleet_id");
+  return fleetId === null ? undefined : Number(fleetId);
+};
+
 const getFleetPoliciesHandler = () =>
-  http.get(baseUrl("/fleets/:fleetId/policies"), ({ params }) => {
-    const fleetId = Number(params.fleetId);
+  http.get(baseUrl("/policies"), ({ request }) => {
+    const fleetId = getFleetId(request);
+    if (fleetId === undefined) {
+      return HttpResponse.json({ policies: [] });
+    }
     const policies =
       fleetId === FLEET_WITH_POLICIES_ID
         ? [
@@ -49,18 +57,12 @@ const getFleetPoliciesHandler = () =>
   });
 
 const getFleetPoliciesCountHandler = () =>
-  http.get(baseUrl("/fleets/:fleetId/policies/count"), ({ params }) => {
-    const fleetId = Number(params.fleetId);
+  http.get(baseUrl("/policies/count"), ({ request }) => {
+    const fleetId = getFleetId(request);
     return HttpResponse.json({
       count: fleetId === FLEET_WITH_POLICIES_ID ? 1 : 0,
     });
   });
-
-const getGlobalPoliciesHandler = () =>
-  http.get(baseUrl("/policies"), () => HttpResponse.json({ policies: [] }));
-
-const getGlobalPoliciesCountHandler = () =>
-  http.get(baseUrl("/policies/count"), () => HttpResponse.json({ count: 0 }));
 
 const getAutomationFilterControl = (): HTMLElement => {
   const control = document.querySelector(
@@ -77,9 +79,7 @@ const setupHandlers = () => {
     getConfigHandler(),
     getFleetHandler(),
     getFleetPoliciesHandler(),
-    getFleetPoliciesCountHandler(),
-    getGlobalPoliciesHandler(),
-    getGlobalPoliciesCountHandler()
+    getFleetPoliciesCountHandler()
   );
 };
 

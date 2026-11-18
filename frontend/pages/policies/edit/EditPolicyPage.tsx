@@ -22,10 +22,8 @@ import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_POLICY } from "pages/policies/constants";
 import QueryEditor from "pages/policies/edit/screens/QueryEditor";
 import PATHS from "router/paths";
-import globalPoliciesAPI from "services/entities/global_policies";
 import policiesAPI from "services/entities/policies";
 import statusAPI from "services/entities/status";
-import teamPoliciesAPI from "services/entities/team_policies";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -214,11 +212,7 @@ const PolicyPage = ({
 
   // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
   const { mutateAsync: createPolicy } = useMutation(
-    (formData: IPolicyFormData) => {
-      return formData.fleet_id !== undefined
-        ? teamPoliciesAPI.create(formData)
-        : globalPoliciesAPI.create(formData);
-    }
+    (formData: IPolicyFormData) => policiesAPI.create(formData)
   );
 
   const detectIsFleetQueryRunnable = () => {

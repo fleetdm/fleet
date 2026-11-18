@@ -1,4 +1,23 @@
-import { getAutomationsForPolicy } from "./helpers";
+import { getAutomationsForPolicy, getPoliciesFilterParams } from "./helpers";
+
+describe("getPoliciesFilterParams", () => {
+  it("sends no filter when none is selected", () => {
+    expect(getPoliciesFilterParams(null)).toEqual({});
+  });
+
+  it("filters patch policies by type", () => {
+    expect(getPoliciesFilterParams("patch")).toEqual({ type: "patch" });
+  });
+
+  it("filters the other options by automation type", () => {
+    expect(getPoliciesFilterParams("webhook_or_ticket")).toEqual({
+      automationType: "webhook_or_ticket",
+    });
+    expect(getPoliciesFilterParams("configuration_profile")).toEqual({
+      automationType: "configuration_profile",
+    });
+  });
+});
 
 describe("getAutomationsForPolicy", () => {
   const basePolicy = {
