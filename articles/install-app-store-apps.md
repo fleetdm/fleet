@@ -147,6 +147,52 @@ This example keeps Zoom on the host after it unenrolls, sends Zoom's traffic thr
 
 If you leave out a key, Fleet uses its default. Fleet always sets the rest of the install command itself, like the app's ID and `ChangeManagementState`.
 
+<details>
+<summary>Fleet's default install command</summary>
+
+This is the `InstallApplication` command Fleet sends for the Zoom example above. Keys you set in `Command` replace or add to these. Fleet fills in the rest:
+
+- For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), Fleet sends `ManifestURL` instead of `iTunesStoreID`.
+- On personal (BYOD) hosts, Fleet leaves out `ChangeManagementState`, because Apple rejects it there.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Command</key>
+  <dict>
+    <key>InstallAsManaged</key>
+    <true/>
+    <key>ManagementFlags</key>
+    <integer>1</integer>
+    <key>ChangeManagementState</key>
+    <string>Managed</string>
+    <key>Options</key>
+    <dict>
+      <key>PurchaseMethod</key>
+      <integer>1</integer>
+    </dict>
+    <key>Configuration</key>
+    <dict>
+      <key>ForceLoginWithSSO</key>
+      <true />
+      <key>SetSSOURL</key>
+      <string>example</string>
+    </dict>
+    <key>RequestType</key>
+    <string>InstallApplication</string>
+    <key>iTunesStoreID</key>
+    <integer>546505307</integer>
+  </dict>
+  <key>CommandUUID</key>
+  <string>0C3F6B1E-8A2D-4E57-9B6C-2D1F4A7E9C30</string>
+</dict>
+</plist>
+```
+
+</details>
+
 > **Note:** On personal (BYOD) hosts, Apple always removes managed apps when the host unenrolls, even if `ManagementFlags` is `0`.
 
 > **Note:** Fleet sends attributes even if the host's iOS or iPadOS version doesn't support them yet. If the host rejects the install, the error shows in the install details on **Host details > Activity**.
