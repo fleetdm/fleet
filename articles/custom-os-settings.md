@@ -119,6 +119,8 @@ When you combine an include mode with **Exclude any**, the profile applies to ho
 
 If you don't select any labels, the profile applies to all hosts that support its platform.
 
+On Android, passcode profiles (`passwordPolicies` or `passwordRequirements`) are applied during setup, so the end user sets a passcode before they reach the home screen. Passcode profiles scoped with labels are applied after setup instead, because a host doesn't have labels until it enrolls.
+
 Fleet UI: on the **Add profile** or **Edit profile** page, select **Edit targets**, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
 
 GitOps: on the profile, set `labels_include_all` or `labels_include_any`, and/or `labels_exclude_any`. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
