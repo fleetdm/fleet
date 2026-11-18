@@ -952,6 +952,14 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
 	require.NoError(t, err)
 	require.Equal(t, 2, title.SoftwareInstallersCount)
+
+	// list available for install, the title with two active packages should appear once
+	titles, count, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, AvailableForInstall: true}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	require.Equal(t, "Multi App", titles[0].Name)
+	require.Len(t, titles[0].Packages, 2)
 }
 
 // Regression guard for the per-installer policy dispatch loop in
