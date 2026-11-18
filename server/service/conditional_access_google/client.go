@@ -15,6 +15,9 @@ type Relay interface {
 	Register(ctx context.Context, serverURL, customerID string) (*Registration, error)
 	// Deregister returns a fleet.IsNotFound error when there's no matching registration.
 	Deregister(ctx context.Context, serverURL, customerID, secret string) error
+	// SignInURL is fleetdm.com's sign-in page for an iOS or iPadOS host, which carries
+	// the host's single-use registration token back to this server.
+	SignInURL(customerID, hostUUID, token string) (string, error)
 }
 
 // CloudIdentity calls the Cloud Identity API for one customer as the delegated admin.
@@ -24,6 +27,18 @@ type CloudIdentity interface {
 	// SetClientState writes the set fields of state on Fleet's client state of a
 	// DeviceUser. It returns a fleet.IsNotFound error when Google has no such DeviceUser.
 	SetClientState(ctx context.Context, deviceUserName string, state fleet.GoogleConditionalAccessClientState) error
+	// ListDeviceUserNames lists the DeviceUser names of a device, by its device ID. It
+	// returns an IsStale error when Google has no such device, which is a fleet.IsNotFound
+	// error too, or when the device left the customer's Workspace.
+	ListDeviceUserNames(ctx context.Context, deviceID string) ([]string, error)
+	// FindDeviceIDs returns the device IDs of the customer's records whose deviceId field
+	// is androidDeviceID, the Android Management API device ID. Google doesn't keep the
+	// field unique, so a re-enrolled device can have more than one record.
+	FindDeviceIDs(ctx context.Context, androidDeviceID string) ([]string, error)
+	// DeviceExists reports whether Google still has the device, by its device ID. A
+	// device that left the customer's Workspace is a 403, returned as an IsStale error
+	// for the caller to decide on.
+	DeviceExists(ctx context.Context, deviceID string) (bool, error)
 }
 
 // CloudIdentityFactory builds a CloudIdentity without calling Google. Build one per

@@ -197,3 +197,13 @@ func TestRelayRequiresHTTPS(t *testing.T) {
 	// Nothing listens there, so the send fails.
 	require.ErrorContains(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"), "send request")
 }
+
+func TestSignInURL(t *testing.T) {
+	r := NewRelay("https://fleetdm.example.com/")
+	u, err := r.SignInURL("C02cajzvg", "host uuid/1", "tok+en")
+	require.NoError(t, err)
+	require.Equal(t, "https://fleetdm.example.com/api/v1/google-conditional-access/sign-in?googleCustomerId=C02cajzvg&hostUuid=host+uuid%2F1&token=tok%2Ben", u)
+
+	_, err = NewRelay("http://insecure.example.com").SignInURL("C02cajzvg", "h", "t")
+	require.Error(t, err)
+}
