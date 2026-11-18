@@ -1314,20 +1314,33 @@ func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]ui
 
 // deletePolicies deletes the policies with the given ids, limited to those of the fleet when teamID is set.
 func (ds *Datastore) deletePolicies(ctx context.Context, ids []uint, teamID *uint) ([]uint, error) {
+	// Cancelling activates each affected host's next activity, which can take minutes when many automations are
+	// pending. Doing it before the cleanup keeps that out of the window in which hosts add back the membership rows the
+	// final DELETE then cascades through.
+	if err := ds.cancelPendingAutomationsForPolicies(ctx, ids, teamID); err != nil {
+		return nil, err
+	}
 	if err := ds.cleanupPoliciesBeforeDelete(ctx, ids, teamID); err != nil {
 		return nil, err
 	}
-	// Cancel pending automations only now, so the ones hosts queued while the cleanup ran are cancelled too.
-	for _, id := range ids {
-		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, teamID, id); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
-		}
-		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, teamID, id); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
-		}
+	// Again, for the automations hosts queued while the cleanup ran.
+	if err := ds.cancelPendingAutomationsForPolicies(ctx, ids, teamID); err != nil {
+		return nil, err
 	}
 
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, teamID)
+}
+
+func (ds *Datastore) cancelPendingAutomationsForPolicies(ctx context.Context, ids []uint, teamID *uint) error {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, teamID, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, teamID, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+	return nil
 }
 
 // cleanupPoliciesBeforeDelete removes the per-host rows that reference the policies in small batches, each in its own
