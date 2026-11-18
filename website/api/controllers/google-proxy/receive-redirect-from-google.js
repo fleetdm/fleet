@@ -101,6 +101,12 @@ module.exports = {
       return {redirect: errorPageUrl};
     });
 
+    // Google returns the customer as a resource name (e.g. "customers/01234abc"), and the Fleet server expects the ID with the leading "C".
+    let customer;
+    if(_.isString(lookupResponse.customer)) {
+      customer = 'C' + lookupResponse.customer.replace(/^customers\//, '').replace(/^C/, '');
+    }
+
     // Google returns no names until the user signs in to Gmail on this device. An empty list is sent as-is, and the
     // Fleet server answers with `not_found`.
     let registerResponse = await sails.helpers.http.sendHttpRequest.with({
@@ -112,7 +118,7 @@ module.exports = {
       body: {
         token: valuesFromSignIn.token,
         names: lookupResponse.names || [],
-        customer: lookupResponse.customer,
+        customer: customer,
         email: email,
       }
     }).intercept((err)=>{
