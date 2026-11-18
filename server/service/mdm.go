@@ -1424,6 +1424,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
 
+		if _, match := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", cp.Name)}}, nil
+		}
+
 		if downloadRequested {
 			return fleet.DownloadFileResponse{
 				Content:     cp.Mobileconfig,
@@ -1441,6 +1445,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		decl, err := svc.GetMDMAppleDeclaration(ctx, req.ProfileUUID)
 		if err != nil {
 			return &getMDMConfigProfileResponse{Err: err}, nil
+		}
+
+		if _, match := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", decl.Name)}}, nil
 		}
 
 		if downloadRequested {
@@ -1462,6 +1470,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
 
+		if _, match := mdm.FleetReservedProfileNames()[prof.Name]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", prof.Name)}}, nil
+		}
+
 		if downloadRequested {
 			return fleet.DownloadFileResponse{
 				Content:     prof.RawJSON,
@@ -1478,6 +1490,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	if err != nil {
 		return &getMDMConfigProfileResponse{Err: err}, nil
+	}
+
+	if _, match := mdm.FleetReservedProfileNames()[cp.Name]; match {
+		return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", cp.Name)}}, nil
 	}
 
 	if downloadRequested {
@@ -4786,7 +4802,7 @@ func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID s
 		if err != nil {
 			return fleet.MDMConfigProfileStatus{}, err
 		}
-		if ok := slices.Contains(mdm.ListFleetReservedMacOSDeclarationNames(), decl.Name); ok {
+		if _, ok := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; ok {
 			// this endpoint is for custom settings, not fleet-controlled profiles,
 			// return not found if such a profile is requested here (status of e.g.
 			// FileVault is considerably different than just checking the status of
