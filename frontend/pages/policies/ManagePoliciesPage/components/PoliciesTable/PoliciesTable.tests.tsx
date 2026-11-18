@@ -629,4 +629,54 @@ describe("Policies table", () => {
     expect(screen.getAllByText("Zoom")[0]).toBeInTheDocument();
     expect(screen.getByText("---")).toBeInTheDocument();
   });
+
+  it("Labels each webhook or ticket automation from the scope that owns the policy", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[
+          createMockPolicy({
+            id: 10,
+            name: "Fleet policy",
+            fleet_id: 2,
+            automation_type: "webhook_or_ticket",
+          }),
+          createMockPolicy({
+            id: 11,
+            name: "Inherited policy",
+            fleet_id: null,
+            automation_type: "webhook_or_ticket",
+          }),
+        ]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Fleet 2" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={2}
+        otherAutomationType="ticket"
+        inheritedOtherAutomationType="webhook"
+      />
+    );
+
+    const automationIn = (name: string) =>
+      (screen.getAllByText(name)[0].closest("tr") as HTMLElement).textContent;
+    expect(automationIn("Fleet policy")).toContain("Ticket");
+    expect(automationIn("Inherited policy")).toContain("Webhook");
+    expect(automationIn("Inherited policy")).not.toContain("Ticket");
+  });
 });

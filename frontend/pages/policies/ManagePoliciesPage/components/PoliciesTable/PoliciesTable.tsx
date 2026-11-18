@@ -90,6 +90,8 @@ interface IPoliciesTableProps {
   };
   platform?: SelectedPlatform;
   otherAutomationType?: OtherAutomationType;
+  /** For "All fleets" policies listed in a fleet. */
+  inheritedOtherAutomationType?: OtherAutomationType;
   onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
@@ -115,6 +117,7 @@ const PoliciesTable = ({
   queryParams,
   platform = "all",
   otherAutomationType,
+  inheritedOtherAutomationType,
   onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
@@ -219,6 +222,7 @@ const PoliciesTable = ({
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
             otherAutomationType,
+            inheritedOtherAutomationType,
             onOpenManageAutomationsModal,
           },
           isPremiumTier,

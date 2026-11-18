@@ -42,6 +42,7 @@ import {
   API_ALL_TEAMS_ID,
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
 } from "interfaces/team";
 import { getTicketOrWebhookState } from "pages/policies/helpers";
 import PATHS from "router/paths";
@@ -684,15 +685,15 @@ const ManagePolicyPage = ({
     isErrorTeamOwnPoliciesCount,
   ]);
 
-  // Inherited policies take the "All fleets" destination when the fleet has
-  // none.
-  const fleetTicketOrWebhookState = getTicketOrWebhookState(automationsConfig);
-  const ticketOrWebhookState =
-    fleetTicketOrWebhookState !== "disabled" || isAllTeamsSelected
-      ? fleetTicketOrWebhookState
-      : getTicketOrWebhookState(globalConfig);
-  const otherAutomationType: OtherAutomationType | undefined =
-    ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
+  const toOtherAutomationType = (
+    config: IConfig | ITeamConfig | undefined
+  ): OtherAutomationType | undefined => {
+    const state = getTicketOrWebhookState(config);
+    return state === "disabled" ? undefined : state;
+  };
+  const otherAutomationType = toOtherAutomationType(automationsConfig);
+  // Inherited policies use the "All fleets" webhook or ticket destination.
+  const inheritedOtherAutomationType = toOtherAutomationType(globalConfig);
 
   const renderPoliciesCountAndLastUpdated = (
     count?: number,
@@ -867,6 +868,7 @@ const ManagePolicyPage = ({
           queryParams={queryParams}
           platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
@@ -913,6 +915,7 @@ const ManagePolicyPage = ({
           queryParams={queryParams}
           platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
