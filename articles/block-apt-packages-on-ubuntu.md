@@ -119,6 +119,8 @@ apt leaves behind dependencies that were installed only for the removed package.
 
 ## Run automatically with policies
 
+> **Note:** If your fleet has Linux hosts that don't use apt, create the `Hosts with apt` label first. See [Fleets with other Linux distributions](#fleets-with-other-linux-distributions).
+
 Add two policies that run the scripts when a host fails them. The first puts the blocking files back if either is missing. The second removes blocked packages, including ones installed before you added the block. It reads the names from `/etc/apt/blocked-packages.txt`, so you don't need to edit it when the list changes.
 
 1. In Fleet, go to **Policies**, select your fleet, and select **Add policy**.
@@ -149,7 +151,7 @@ To learn more, see [Automatically run scripts](https://fleetdm.com/guides/policy
 
 ### Fleets with other Linux distributions
 
-The Linux platform includes every Linux host in the fleet. On hosts that don't use apt, like Fedora, the first policy fails and runs the apt script. To limit both policies to hosts with apt, create a dynamic [label](https://fleetdm.com/guides/managing-labels-in-fleet) named `Hosts with apt` with this query, and target both policies to it:
+The Linux platform includes every Linux host in the fleet. On hosts that don't use apt, like Fedora, the first policy fails and runs the apt script. To limit both policies to hosts with apt, create a dynamic [label](https://fleetdm.com/guides/managing-labels-in-fleet) named `Hosts with apt`. Use this query, then target both policies to the label:
 
 ```sql
 SELECT 1 FROM file WHERE path = '/usr/bin/apt-get';
