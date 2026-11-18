@@ -215,7 +215,8 @@ OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
 ) GROUP BY device)) AS gigs_all_disk_space
-		FROM mounts WHERE path = '/' LIMIT 1;
+		FROM mounts WHERE path IN ('/', '/sysroot')
+		ORDER BY CASE WHEN path = '/' AND type != 'overlay' THEN 0 WHEN path = '/sysroot' THEN 1 ELSE 2 END LIMIT 1;
 ```
 
 ## disk_space_windows
