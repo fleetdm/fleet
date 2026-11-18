@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,49 +73,102 @@ func serveRangedPkg(t *testing.T, pkg []byte) string {
 	return server.URL
 }
 
-func TestMunkiAppVersionFromPkg(t *testing.T) {
-	const distributionXML = `<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+func TestMunkiCorePackageVersion(t *testing.T) {
+	t.Run("real-shaped Distribution file", func(t *testing.T) {
+		// Mirrors a real Distribution: the core id appears three times (an
+		// unversioned <choices-outline> reference, the versioned declaration,
+		// and an unversioned <bundle-version> wrapper), and other pkg-refs
+		// (including the app, whose own version lags - the whole reason this
+		// function exists instead of reading the app bundle) are present too.
+		const distributionXML = `<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <installer-script minSpecVersion="2">
+    <choices-outline>
+        <line choice="core"/>
+    </choices-outline>
+    <choice id="core" title="Munki core tools">
+        <pkg-ref id="com.googlecode.munki.core"/>
+    </choice>
+    <pkg-ref id="com.googlecode.munki.core" auth="Root" version="7.4.1.5894" installKBytes="21302">#munkitools_core.pkg</pkg-ref>
+    <pkg-ref id="com.googlecode.munki.app" auth="Root" version="7.4.0.5891" installKBytes="9037">#munkitools_app.pkg</pkg-ref>
+    <pkg-ref id="com.googlecode.munki.core">
+        <bundle-version/>
+    </pkg-ref>
     <pkg-ref id="com.googlecode.munki.app">
         <bundle-version>
-            <bundle CFBundleShortVersionString="1.2.0.4567" CFBundleVersion="4567" id="com.googlecode.munki.MunkiStatus" path="Applications/Managed Software Center.app/Contents/Helpers/MunkiStatus.app"/>
-            <bundle CFBundleShortVersionString="1.0.0.4321" CFBundleVersion="4321" id="com.googlecode.munki.ManagedSoftwareCenter" path="Applications/Managed Software Center.app"/>
+            <bundle CFBundleShortVersionString="7.4.0.5891" CFBundleVersion="5891" id="com.googlecode.munki.ManagedSoftwareCenter" path="Applications/Managed Software Center.app"/>
         </bundle-version>
     </pkg-ref>
 </installer-script>`
 
-	pkg := buildFlatPkgWithDistribution(t, distributionXML)
-	url := serveRangedPkg(t, pkg)
+		pkg := buildFlatPkgWithDistribution(t, distributionXML)
+		url := serveRangedPkg(t, pkg)
 
-	app := &maintained_apps.FMAManifestApp{
-		Version:      "1.3.0.9999",
-		InstallerURL: url,
-	}
+		got, err := MunkiCorePackageVersion(url)
+		require.NoError(t, err)
+		require.Equal(t, "7.4.1.5894", got)
+	})
 
-	got, err := MunkiAppVersionFromPkg(app)
-	require.NoError(t, err)
-	require.Equal(t, "1.0.0.4321", got.Version)
+	t.Run("attribute order doesn't matter", func(t *testing.T) {
+		// version before id, unlike every other fixture in this file - a
+		// regression test for parsing by XML attribute rather than a
+		// position- or order-dependent pattern.
+		const distributionXML = `<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-script minSpecVersion="2">
+    <pkg-ref auth="Root" version="7.4.1.5894" id="com.googlecode.munki.core">#munkitools_core.pkg</pkg-ref>
+</installer-script>`
+
+		pkg := buildFlatPkgWithDistribution(t, distributionXML)
+		url := serveRangedPkg(t, pkg)
+
+		got, err := MunkiCorePackageVersion(url)
+		require.NoError(t, err)
+		require.Equal(t, "7.4.1.5894", got)
+	})
+
+	t.Run("no versioned core pkg-ref", func(t *testing.T) {
+		// Shouldn't happen for a real munkitools pkg, but the function must
+		// fail clearly rather than panic or silently return a wrong version.
+		const distributionXML = `<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-script minSpecVersion="2">
+    <pkg-ref id="com.googlecode.munki.core"/>
+</installer-script>`
+
+		pkg := buildFlatPkgWithDistribution(t, distributionXML)
+		url := serveRangedPkg(t, pkg)
+
+		_, err := MunkiCorePackageVersion(url)
+		require.Error(t, err)
+	})
+
+	t.Run("no Distribution file", func(t *testing.T) {
+		tocCompressed := zlibCompress(t, []byte(`<xar><toc></toc></xar>`))
+
+		header := make([]byte, xarHeaderSize)
+		copy(header[0:4], "xar!")
+		binary.BigEndian.PutUint16(header[4:6], xarHeaderSize)
+		binary.BigEndian.PutUint64(header[8:16], uint64(len(tocCompressed)))
+
+		pkg := append(header, tocCompressed...)
+		url := serveRangedPkg(t, pkg)
+
+		_, err := MunkiCorePackageVersion(url)
+		require.Error(t, err)
+	})
 }
 
-func TestMunkiAppVersionFromPkg_NoDistributionFile(t *testing.T) {
-	// A TOC with no Distribution entry at all shouldn't happen for a real
-	// munkitools pkg, but the function must fail clearly rather than panic
-	// or silently keep a wrong version.
-	tocCompressed := zlibCompress(t, []byte(`<xar><toc></toc></xar>`))
+func TestZlibInflate_CapsDecompressedSize(t *testing.T) {
+	huge := bytes.Repeat([]byte("a"), maxDecompressedLen+1)
+	compressed := zlibCompress(t, huge)
 
-	header := make([]byte, xarHeaderSize)
-	copy(header[0:4], "xar!")
-	binary.BigEndian.PutUint16(header[4:6], xarHeaderSize)
-	binary.BigEndian.PutUint64(header[8:16], uint64(len(tocCompressed)))
-
-	pkg := append(header, tocCompressed...)
-	url := serveRangedPkg(t, pkg)
-
-	app := &maintained_apps.FMAManifestApp{
-		Version:      "1.3.0.9999",
-		InstallerURL: url,
-	}
-
-	_, err := MunkiAppVersionFromPkg(app)
+	_, err := zlibInflate(compressed)
 	require.Error(t, err)
+}
+
+func TestZlibInflate_AllowsNormalSize(t *testing.T) {
+	small := []byte("<xar><toc></toc></xar>")
+	compressed := zlibCompress(t, small)
+
+	out, err := zlibInflate(compressed)
+	require.NoError(t, err)
+	require.Equal(t, small, out)
 }

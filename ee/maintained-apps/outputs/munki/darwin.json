@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "7.4.0.5891",
+      "version": "7.4.1.5894",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.munki.ManagedSoftwareCenter';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.munki.ManagedSoftwareCenter' AND version_compare(bundle_short_version, '7.4.0.5891') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core' AND version_compare(version, '7.4.1.5894') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.googlecode.munki.ManagedSoftwareCenter' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/munki/munki/releases/download/v7.4.1/munkitools-7.4.1.5894.pkg",

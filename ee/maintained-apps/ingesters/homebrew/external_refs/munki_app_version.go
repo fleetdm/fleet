@@ -8,21 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"time"
 
-	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-)
-
-// munkiRangeClient has a short timeout and a response cap: every request it
-// makes asks for a specific, small byte range, so a response any larger than
-// this means something (a redirect target that ignored Range, a bad proxy)
-// went wrong rather than Munki's installer growing an enormous Distribution
-// file.
-var munkiRangeClient = fleethttp.NewClient(
-	fleethttp.WithTimeout(30*time.Second),
-	fleethttp.WithMaxResponseSize(10<<20),
 )
 
 // xarHeaderSize is the fixed size, in bytes, of a XAR archive's header:
@@ -35,9 +23,18 @@ const xarHeaderSize = 28
 // turn into a request for gigabytes of range data.
 const maxTOCLen = 10 << 20 // 10MiB
 
-var munkiManagedSoftwareCenterVersionPattern = regexp.MustCompile(
-	`CFBundleShortVersionString="([^"]+)"[^>]*\bid="com\.googlecode\.munki\.ManagedSoftwareCenter"`,
-)
+// maxDecompressedLen caps how much any single zlib stream in the pkg (the
+// table of contents or the Distribution file) is allowed to inflate to. Both
+// are small XML documents in every real munkitools release; this exists so a
+// corrupt or adversarial stream can't be used as a decompression bomb.
+const maxDecompressedLen = 10 << 20 // 10MiB
+
+// munkiCorePackageID is the pkg receipt that carries Munki's actual release
+// version on every release. Unlike Managed Software Center.app's own bundle
+// version (which isn't always rebuilt when the overall version bumps - see
+// fleetdm/fleet#59183), this component's declared version tracks the release
+// exactly, so it's what the patched query should compare against.
+const munkiCorePackageID = "com.googlecode.munki.core"
 
 type xarTOC struct {
 	Files []xarTOCFile `xml:"toc>file"`
@@ -54,31 +51,30 @@ type xarTOCFileData struct {
 	Length int64 `xml:"length"`
 }
 
-// MunkiAppVersionFromPkg overrides the manifest version with the version
-// Managed Software Center.app actually ships, read from the real installer.
-// Munki's release process doesn't always rebuild the GUI app when the
-// overall munkitools version bumps (see fleetdm/fleet#59183 for version
-// drift measured across several releases), so the cask-reported version
-// regularly doesn't match what osquery sees post-install, which makes the
-// generated patched query fail forever. The installer is a flat (xar)
-// package; this reads only the header, table of contents, and Distribution
-// file via HTTP range requests rather than downloading the ~20MB installer.
-func MunkiAppVersionFromPkg(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	version, err := munkiManagedSoftwareCenterVersion(func(start, end int64) ([]byte, error) {
-		return rangeGet(app.InstallerURL, start, end)
-	})
-	if err != nil {
-		return app, fmt.Errorf("reading Managed Software Center.app version from %s: %w", app.InstallerURL, err)
-	}
-
-	app.Version = version
-	return app, nil
+// distributionPkgRefs is a minimal parse of a flat pkg's Distribution file,
+// picking out each <pkg-ref id="..." version="...">. The same id appears
+// multiple times in a real Distribution (an unversioned reference in
+// <choices-outline>, the versioned declaration, and a <bundle-version>
+// wrapper), so callers must select by id AND a non-empty version rather than
+// assuming position or order.
+type distributionPkgRefs struct {
+	PkgRefs []struct {
+		ID      string `xml:"id,attr"`
+		Version string `xml:"version,attr"`
+	} `xml:"pkg-ref"`
 }
 
-// munkiManagedSoftwareCenterVersion walks a flat pkg's xar structure via fetch
-// (a byte-range reader over the installer) to find the CFBundleShortVersionString
-// Apple's installer tooling recorded for Managed Software Center.app.
-func munkiManagedSoftwareCenterVersion(fetch func(start, end int64) ([]byte, error)) (string, error) {
+// MunkiCorePackageVersion reads the real version of the munkitools_core
+// receipt straight from the installer at installerURL, via small HTTP range
+// requests against the pkg's xar structure (header, table of contents, and
+// the Distribution file) rather than downloading the ~20MB installer.
+func MunkiCorePackageVersion(installerURL string) (string, error) {
+	return munkiCorePackageVersion(func(start, end int64) ([]byte, error) {
+		return rangeGet(installerURL, start, end)
+	})
+}
+
+func munkiCorePackageVersion(fetch func(start, end int64) ([]byte, error)) (string, error) {
 	header, err := fetch(0, xarHeaderSize-1)
 	if err != nil {
 		return "", fmt.Errorf("fetching xar header: %w", err)
@@ -127,13 +123,28 @@ func munkiManagedSoftwareCenterVersion(fetch func(start, end int64) ([]byte, err
 		return "", fmt.Errorf("inflating Distribution file: %w", err)
 	}
 
-	m := munkiManagedSoftwareCenterVersionPattern.FindSubmatch(distXML)
-	if m == nil {
-		return "", fmt.Errorf("Managed Software Center.app version not found in Distribution file")
+	var dpr distributionPkgRefs
+	if err := xml.Unmarshal(distXML, &dpr); err != nil {
+		return "", fmt.Errorf("parsing Distribution file: %w", err)
+	}
+	for _, ref := range dpr.PkgRefs {
+		if ref.ID == munkiCorePackageID && ref.Version != "" {
+			return ref.Version, nil
+		}
 	}
 
-	return string(m[1]), nil
+	return "", fmt.Errorf("no versioned pkg-ref %q in Distribution file", munkiCorePackageID)
 }
+
+// munkiRangeClient has a short timeout and a response cap: every request it
+// makes asks for a specific, small byte range, so a response any larger than
+// this means something (a redirect target that ignored Range, a bad proxy)
+// went wrong rather than Munki's installer growing an enormous Distribution
+// file.
+var munkiRangeClient = fleethttp.NewClient(
+	fleethttp.WithTimeout(30*time.Second),
+	fleethttp.WithMaxResponseSize(10<<20),
+)
 
 func rangeGet(url string, start, end int64) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -162,5 +173,14 @@ func zlibInflate(b []byte) ([]byte, error) {
 	}
 	defer r.Close()
 
-	return io.ReadAll(r)
+	limited := io.LimitReader(r, maxDecompressedLen+1)
+	out, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if len(out) > maxDecompressedLen {
+		return nil, fmt.Errorf("decompressed data exceeds %d bytes", maxDecompressedLen)
+	}
+
+	return out, nil
 }

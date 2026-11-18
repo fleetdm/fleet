@@ -1803,6 +1803,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   magicquit: Magicquit,
   mailspring: Mailspring,
   "malwarebytes for mac": Malwarebytes,
+  "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
   markedit: Markedit,
   marsedit: Marsedit,
