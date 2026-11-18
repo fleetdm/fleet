@@ -2234,23 +2234,31 @@ func programFilesScanDirs(exePath string) []string {
 }
 
 // programFolderName reduces a program or folder name to the form both share: lowercase letters and
-// digits, without a trailing version or edition ("7-Zip 26.06 (x64 edition)" and "7-Zip" give "7zip").
+// digits, without parenthesized parts or a trailing version ("7-Zip 26.06 (x64 edition)" and "7-Zip"
+// give "7zip"). Only dotted versions and years count as versions, so "Autodesk 3ds Max 2026" keeps
+// "3ds" and "Microsoft 365 Apps" keeps "365".
 func programFolderName(name string) string {
-	words := strings.Fields(name)
-	for i, word := range words {
-		if i > 0 && (word[0] == '(' || unicode.IsDigit(rune(word[0]))) {
-			words = words[:i]
+	name = strings.TrimSpace(programNameParenthesized.ReplaceAllString(name, " "))
+	for {
+		trimmed := strings.TrimSpace(programNameTrailingVersion.ReplaceAllString(name, ""))
+		if trimmed == name {
 			break
 		}
+		name = trimmed
 	}
 	var b strings.Builder
-	for _, r := range strings.ToLower(strings.Join(words, "")) {
+	for _, r := range strings.ToLower(name) {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			b.WriteRune(r)
 		}
 	}
 	return b.String()
 }
+
+var (
+	programNameParenthesized   = regexp.MustCompile(`\([^)]*\)`)
+	programNameTrailingVersion = regexp.MustCompile(`(?i)[\s._-]+v?(\d+(\.\d+)+|(19|20)\d{2})$`)
+)
 
 // windowsDirname returns the directory portion of a Windows path (everything before the last backslash).
 func windowsDirname(path string) string {
