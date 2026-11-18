@@ -68,7 +68,6 @@ interface IPoliciesTableProps {
   canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
-  currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   renderPoliciesCount: () => JSX.Element | null;
   onQueryChange: (newTableQuery: ITableQueryData) => void;
@@ -102,7 +101,6 @@ const PoliciesTable = ({
   canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
-  currentAutomatedPolicies,
   isPremiumTier,
   onQueryChange,
   renderPoliciesCount,
@@ -228,7 +226,6 @@ const PoliciesTable = ({
         )}
         data={generateDataSet(
           policiesList,
-          currentAutomatedPolicies,
           config?.update_interval?.osquery_policy
         )}
         isLoading={isLoading}

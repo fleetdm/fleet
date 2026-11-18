@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
-
 import React, {
   forwardRef,
   useCallback,
@@ -17,21 +15,19 @@ import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig } from "interfaces/config";
 import { ProfilePlatform } from "interfaces/mdm";
 import { QueryablePlatform } from "interfaces/platform";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, PolicyAutomationType } from "interfaces/policy";
 import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
 import {
   findFirstAddedPackage,
   generateSoftwareOptionHelpText,
   generateSoftwarePackageOptionHelpText,
-  getTicketOrWebhookInfo,
   getTicketOrWebhookLabel,
+  getTicketOrWebhookState,
 } from "pages/policies/helpers";
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 import {
@@ -39,7 +35,6 @@ import {
   PatchOption,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import permissions from "utilities/permissions";
 
 import {
@@ -48,43 +43,42 @@ import {
   VALID_PROFILE_PLATFORMS,
 } from "./helpers";
 import { useProfiles, useScripts, useSoftwareTitles } from "./hooks";
-import { IAutomationCheckboxRow } from "./types";
 
 const baseClass = "policy-automations-fields";
 
-/** Result returned to the parent on save, describing what (if anything)
- *  changed. Field-level validation errors are displayed within the component
- *  itself; the parent only needs `isValid` to decide whether to stop the
- *  submit, then persists the update parts. */
+const NONE = "none";
+
+const WEBHOOK_OR_TICKET_ADMIN_ONLY =
+  "Only admins can turn the webhook or ticket automation on or off.";
+
+/** Result returned to the parent on save. Field-level validation errors are
+ *  displayed within the component itself; the parent only needs `isValid` to
+ *  decide whether to stop the submit. */
 export interface IPolicyAutomationsPayload {
-  /** false when a checked automation is missing its required selection. The
-   *  component surfaces the specific error(s) above the table; the parent just
-   *  stops the submit. */
+  /** false when the automation is missing its required selection. */
   isValid: boolean;
-  /** false when nothing changed from the policy's stored automations. */
+  /** false when nothing changed from the policy's stored automation. */
   isDirty: boolean;
   policyUpdate?: IPolicyAutomationUpdate;
-  webhookOrTicketUpdate?: { enabled: boolean };
 }
 
 export interface IPolicyAutomationsFieldsHandle {
   /** Validates the current selection (surfacing any field errors in-place) and
-   *  returns whether it's valid plus the changed automation parts for the
-   *  parent to persist. */
+   *  returns whether it's valid plus the update for the parent to persist. */
   getAutomationsPayload: () => IPolicyAutomationsPayload;
 }
 
 /** Validation errors keyed by the automation that requires a selection. */
 interface IAutomationsErrors {
-  install_software?: string;
-  run_script?: string;
-  resend_configuration_profile?: string;
+  software?: string;
+  script?: string;
+  configuration_profile?: string;
 }
 
 interface IPolicyAutomationsFieldsProps {
   policy: IPolicy;
-  /** When true, only the webhook/ticket row is shown and the continuous-retry
-   *  option is hidden (global / "All fleets" policies). */
+  /** When true, only the webhook or ticket automation is offered (global /
+   *  "All fleets" policies, and every policy on Fleet Free). */
   isGlobalPolicy: boolean;
   /** undefined for "All fleets", 0 for "Unassigned", positive for a fleet. */
   teamIdForApi: number | undefined;
@@ -102,13 +96,13 @@ interface IPolicyAutomationsFieldsProps {
    *  experience choice. Controls whether continuous automations is locked on
    *  (same rule as `patchOption === "closed"`). */
   endUserExperience?: EndUserExperience;
-  /** Rendered between the automation types and the continuous-automation
-   *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
+  /** Rendered between the automation and the continuous-automation checkbox —
+   *  the edit-policy Patch radios (owned by PolicyForm). */
   patchSlot?: React.ReactNode;
   /** The platforms of the updated policy, used to filter automation fields by platform */
   selectedPlatforms: QueryablePlatform[];
-  /** Fired with the raw toggle value (not ANDed with the team's setting), because the
-   *  backend rejects hidden + conditional_access_enabled on the stored policy either way. */
+  /** Fired when conditional access becomes, or stops being, the selected
+   *  automation, because the backend rejects hidden + conditional access. */
   onConditionalAccessChange?: (enabled: boolean) => void;
 }
 
@@ -132,14 +126,9 @@ const PolicyAutomationsFields = forwardRef<
     },
     ref
   ) => {
-    const { gitOpsModeEnabled } = useGitOpsMode();
     const { currentUser, isGlobalAdmin } = useContext(AppContext);
 
-    const {
-      state: ticketOrWebhookState,
-      policyIds: webhookOrTicketPolicyIds,
-    } = getTicketOrWebhookInfo(automationsConfig);
-    const isTicketWebhookEnabled = ticketOrWebhookState !== "disabled";
+    const ticketOrWebhookState = getTicketOrWebhookState(automationsConfig);
 
     // Only admins (global, or fleet-level admin of this policy's fleet) may
     // manage the webhook/ticket automation. For "All fleets" and "Unassigned"
@@ -151,17 +140,18 @@ const PolicyAutomationsFields = forwardRef<
         !!currentUser &&
         permissions.isTeamAdmin(currentUser, teamIdForApi));
 
-    // Calendar events are a team/fleet-only feature: they're never available for
-    // global ("All fleets") or "No team"/"Unassigned" policies.
+    // Calendar events are a fleet-only feature: they're never available for
+    // "All fleets" or "Unassigned" policies.
+    const isUnassigned = teamIdForApi === API_NO_TEAM_ID;
     const isCalendarEnabledForTeam =
-      !isGlobalPolicy && teamIdForApi !== API_NO_TEAM_ID
+      !isGlobalPolicy && !isUnassigned
         ? (automationsConfig as ITeamConfig | undefined)?.integrations
             ?.google_calendar?.enable_calendar_events ?? false
         : false;
 
     const getIsConditionalAccessEnabledForTeam = () => {
       if (isGlobalPolicy) return false;
-      if (teamIdForApi === API_NO_TEAM_ID) {
+      if (isUnassigned) {
         return globalConfig?.integrations?.conditional_access_enabled ?? false;
       }
       return (
@@ -171,31 +161,24 @@ const PolicyAutomationsFields = forwardRef<
     };
     const isConditionalAccessEnabledForTeam = getIsConditionalAccessEnabledForTeam();
 
-    const initialWebhookOrTicket = webhookOrTicketPolicyIds.includes(policy.id);
-    const initialInstallSoftware = !!policy.install_software;
-    const initialRunScript = !!policy.run_script;
-    const initialResendConfigProfile = !!policy.resend_configuration_profile;
-    const initialCalendar = policy.calendar_events_enabled;
-    const initialConditionalAccess = policy.conditional_access_enabled;
+    const initialAutomation = policy.automation_type ?? null;
     const initialContinuous = policy.continuous_automations_enabled ?? false;
     const initialPatchWhenClosed = policy.patch_when_closed ?? false;
     const initialNotifyBeforePatching = policy.notify_before_patching ?? false;
     const initialPatchDeadline = policy.patch_deadline ?? false;
 
-    const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
-      initialWebhookOrTicket
+    const [automation, setAutomation] = useState<PolicyAutomationType | null>(
+      initialAutomation
     );
-    const [installSoftware, setInstallSoftware] = useState(
-      initialInstallSoftware
-    );
-    const [runScript, setRunScript] = useState(initialRunScript);
-    const [resendConfigProfile, setResendConfigProfile] = useState(
-      initialResendConfigProfile
-    );
-    const [calendarEvent, setCalendarEvent] = useState(initialCalendar);
-    const [conditionalAccess, setConditionalAccess] = useState(
-      initialConditionalAccess
-    );
+    // On a patch policy, the Patch radios decide whether it patches: any option
+    // but manual makes software its automation.
+    const getEffectiveAutomation = (): PolicyAutomationType | null => {
+      if (patchOption === undefined) return automation;
+      if (patchOption !== "manual") return "software";
+      return automation === "software" ? null : automation;
+    };
+    const effectiveAutomation = getEffectiveAutomation();
+
     const [continuousEnabled, setContinuousEnabled] = useState(
       initialPatchWhenClosed ||
         initialNotifyBeforePatching ||
@@ -251,22 +234,6 @@ const PolicyAutomationsFields = forwardRef<
     const [softwarePackageId, setSoftwarePackageId] = useState<number | null>(
       policy.install_software?.software_package_id ?? null
     );
-    const patchSoftwareTitleId =
-      policy.patch_software?.software_title_id ?? null;
-    const effectiveInstallSoftware =
-      patchOption === undefined ? installSoftware : patchOption !== "manual";
-    let effectiveSoftwareTitleId = softwareTitleId;
-    let effectiveSoftwarePackageId = softwarePackageId;
-    if (patchOption !== undefined) {
-      effectiveSoftwareTitleId = effectiveInstallSoftware
-        ? patchSoftwareTitleId
-        : null;
-      effectiveSoftwarePackageId =
-        effectiveInstallSoftware &&
-        policy.install_software?.software_title_id === patchSoftwareTitleId
-          ? softwarePackageId
-          : null;
-    }
     const [scriptId, setScriptId] = useState<number | null>(
       policy.run_script?.id ?? null
     );
@@ -276,7 +243,6 @@ const PolicyAutomationsFields = forwardRef<
     const hasProfilePlatform = selectedPlatforms.some((p) =>
       VALID_PROFILE_PLATFORMS.includes(p as ProfilePlatform)
     );
-    const resendProfileDisabled = !hasProfilePlatform;
 
     const [errors, setErrors] = useState<IAutomationsErrors>({});
 
@@ -298,90 +264,31 @@ const PolicyAutomationsFields = forwardRef<
     useEffect(() => {
       if (hasPlatformSelection && !hasProfilePlatform) {
         setProfileUUID(null);
-        setResendConfigProfile(false);
-        clearError("resend_configuration_profile");
+        setAutomation((prev) =>
+          prev === "configuration_profile" ? null : prev
+        );
+        clearError("configuration_profile");
       }
     }, [hasPlatformSelection, hasProfilePlatform, clearError]);
 
-    const validate = (): IAutomationsErrors => {
-      const newErrors: IAutomationsErrors = {};
-      if (effectiveInstallSoftware && effectiveSoftwareTitleId === null) {
-        newErrors.install_software = "Please select software to install.";
-      } else if (
-        patchOption === undefined &&
-        effectiveInstallSoftware &&
-        effectiveSoftwareTitleId !== null &&
-        (selectedTitlePackages?.length ?? 0) > 0 &&
-        effectiveSoftwarePackageId === null
-      ) {
-        // Only reachable when a custom title (with packages[]) is selected
-        // but its packages haven't hydrated yet — the auto-select effect
-        // resolves this as soon as the softwareTitlesData query returns.
-        // VPP / App Store titles carry no packages[] and legitimately have
-        // no installer id, so the gate above excludes them.
-        newErrors.install_software = "Please select a package to install.";
-      }
-      if (runScript && scriptId === null) {
-        newErrors.run_script = "Please select a script to run.";
-      }
-      if (resendConfigProfile && profileUUID === null) {
-        newErrors.resend_configuration_profile =
-          "Please select a configuration profile to resend.";
-      }
-      return newErrors;
-    };
-
-    const handleToggleInstallSoftware = (next: boolean) => {
-      setInstallSoftware(next);
-      if (!next) clearError("install_software");
-    };
-    const handleToggleRunScript = (next: boolean) => {
-      setRunScript(next);
-      if (!next) clearError("run_script");
-    };
-    const handleToggleResendConfigProfile = (next: boolean) => {
-      setResendConfigProfile(next);
-      if (!next) clearError("resend_configuration_profile");
-    };
-    const handleSelectSoftware = (id: number | null) => {
-      setSoftwareTitleId(id);
-      // A title change invalidates the pinned installer — reset so the
-      // auto-select effect can pick first-added on the new title's packages.
-      setSoftwarePackageId(null);
-      if (id !== null) clearError("install_software");
-    };
-    const handleSelectPackage = (id: number | null) => {
-      setSoftwarePackageId(id);
-      if (id !== null) clearError("install_software");
-    };
-    const handleSelectScript = (id: number | null) => {
-      setScriptId(id);
-      if (id !== null) clearError("run_script");
-    };
-    const handleSelectProfile = (uuid: string | null) => {
-      setProfileUUID(uuid);
-      if (uuid !== null) clearError("resend_configuration_profile");
-    };
-    const handleToggleContinuous = (next: boolean) => {
-      setContinuousEnabled(next);
-    };
+    const showSoftwarePicker =
+      effectiveAutomation === "software" && patchOption === undefined;
 
     const canFetchTeamScopedLists =
       !isGlobalPolicy && teamIdForApi !== undefined;
     const { data: softwareTitlesData } = useSoftwareTitles({
       fleetId: teamIdForApi ?? 0,
-      enabled:
-        canFetchTeamScopedLists &&
-        effectiveInstallSoftware &&
-        patchOption === undefined,
+      enabled: canFetchTeamScopedLists && showSoftwarePicker,
     });
     const { data: scriptsData } = useScripts({
       fleetId: teamIdForApi ?? 0,
-      enabled: canFetchTeamScopedLists && runScript,
+      enabled: canFetchTeamScopedLists && effectiveAutomation === "script",
     });
     const { data: profilesData } = useProfiles({
       fleetId: teamIdForApi ?? 0,
-      enabled: canFetchTeamScopedLists && resendConfigProfile,
+      enabled:
+        canFetchTeamScopedLists &&
+        effectiveAutomation === "configuration_profile",
     });
 
     const softwareOptions: CustomOptionType[] = useMemo(
@@ -457,6 +364,63 @@ const PolicyAutomationsFields = forwardRef<
       [profilesData]
     );
 
+    const validate = (): IAutomationsErrors => {
+      const newErrors: IAutomationsErrors = {};
+      if (showSoftwarePicker) {
+        if (softwareTitleId === null) {
+          newErrors.software = "Please select software to install.";
+        } else if (
+          (selectedTitlePackages?.length ?? 0) > 0 &&
+          softwarePackageId === null
+        ) {
+          // Only reachable when a custom title (with packages[]) is selected
+          // but its packages haven't hydrated yet — the auto-select effect
+          // resolves this as soon as the softwareTitlesData query returns.
+          // VPP / App Store titles carry no packages[] and legitimately have
+          // no installer id, so the gate above excludes them.
+          newErrors.software = "Please select a package to install.";
+        }
+      }
+      if (effectiveAutomation === "script" && scriptId === null) {
+        newErrors.script = "Please select a script to run.";
+      }
+      if (
+        effectiveAutomation === "configuration_profile" &&
+        profileUUID === null
+      ) {
+        newErrors.configuration_profile =
+          "Please select a configuration profile to resend.";
+      }
+      return newErrors;
+    };
+
+    const handleSelectAutomation = (opt: SingleValue<CustomOptionType>) => {
+      const next =
+        !opt || opt.value === NONE ? null : (opt.value as PolicyAutomationType);
+      setAutomation(next);
+      setErrors({});
+      onConditionalAccessChange?.(next === "conditional_access");
+    };
+    const handleSelectSoftware = (id: number | null) => {
+      setSoftwareTitleId(id);
+      // A title change invalidates the pinned installer — reset so the
+      // auto-select effect can pick first-added on the new title's packages.
+      setSoftwarePackageId(null);
+      if (id !== null) clearError("software");
+    };
+    const handleSelectPackage = (id: number | null) => {
+      setSoftwarePackageId(id);
+      if (id !== null) clearError("software");
+    };
+    const handleSelectScript = (id: number | null) => {
+      setScriptId(id);
+      if (id !== null) clearError("script");
+    };
+    const handleSelectProfile = (uuid: string | null) => {
+      setProfileUUID(uuid);
+      if (uuid !== null) clearError("configuration_profile");
+    };
+
     useImperativeHandle(ref, () => ({
       getAutomationsPayload: () => {
         const newErrors = validate();
@@ -465,111 +429,132 @@ const PolicyAutomationsFields = forwardRef<
           return { isValid: false, isDirty: false };
         }
 
-        const perPolicyDirty =
-          !isGlobalPolicy &&
-          (effectiveInstallSoftware !== initialInstallSoftware ||
-            effectiveSoftwareTitleId !==
+        const isSoftware = showSoftwarePicker;
+        const isScript = effectiveAutomation === "script";
+        const isProfile = effectiveAutomation === "configuration_profile";
+        const patchFlagsChanged =
+          patchOption !== undefined &&
+          (patchWhenClosed !== initialPatchWhenClosed ||
+            notifyBeforePatching !== initialNotifyBeforePatching ||
+            patchDeadline !== initialPatchDeadline);
+        const isDirty =
+          effectiveAutomation !== initialAutomation ||
+          (isSoftware &&
+            (softwareTitleId !==
               (policy.install_software?.software_title_id ?? null) ||
-            effectiveSoftwarePackageId !==
-              (policy.install_software?.software_package_id ?? null) ||
-            runScript !== initialRunScript ||
-            scriptId !== (policy.run_script?.id ?? null) ||
-            resendConfigProfile !== initialResendConfigProfile ||
+              softwarePackageId !==
+                (policy.install_software?.software_package_id ?? null))) ||
+          (isScript && scriptId !== (policy.run_script?.id ?? null)) ||
+          (isProfile &&
             profileUUID !==
-              (policy.resend_configuration_profile?.profile_uuid ?? null) ||
-            calendarEvent !== initialCalendar ||
-            conditionalAccess !== initialConditionalAccess ||
-            effectiveContinuousEnabled !== initialContinuous ||
-            (patchOption !== undefined &&
-              (patchWhenClosed !== initialPatchWhenClosed ||
-                notifyBeforePatching !== initialNotifyBeforePatching ||
-                patchDeadline !== initialPatchDeadline)));
-        const webhookDirty = webhookOrTicketEnabled !== initialWebhookOrTicket;
+              (policy.resend_configuration_profile?.profile_uuid ?? null)) ||
+          (!isGlobalPolicy &&
+            effectiveContinuousEnabled !== initialContinuous) ||
+          patchFlagsChanged;
+
+        if (!isDirty) {
+          return { isValid: true, isDirty: false };
+        }
 
         return {
           isValid: true,
-          isDirty: perPolicyDirty || webhookDirty,
-          policyUpdate: perPolicyDirty
-            ? {
-                software_title_id: effectiveInstallSoftware
-                  ? effectiveSoftwareTitleId
-                  : null,
-                // Send the pinned package id when install-software is on.
-                // Null clears the automation or lets the backend select the
-                // Fleet-maintained app's package when a Patch radio owns it.
-                software_package_id: effectiveInstallSoftware
-                  ? effectiveSoftwarePackageId
-                  : null,
-                script_id: runScript ? scriptId : null,
-                profile_uuid: resendConfigProfile ? profileUUID : null,
-                // When the team has the feature disabled, the row is locked
-                // and the user can't toggle it — so we omit the field instead
-                // of carrying the stale state through to the PATCH. That
-                // preserves the policy's stored intent for if/when the team
-                // admin re-enables the feature.
-                ...(isCalendarEnabledForTeam && {
-                  calendar_events_enabled: calendarEvent,
-                }),
-                ...(isConditionalAccessEnabledForTeam && {
-                  conditional_access_enabled: conditionalAccess,
-                }),
-                continuous_automations_enabled: effectiveContinuousEnabled,
-                ...(patchOption !== undefined &&
-                  patchWhenClosed !== initialPatchWhenClosed && {
-                    patch_when_closed: patchWhenClosed,
-                  }),
-                ...(patchOption !== undefined &&
-                  notifyBeforePatching !== initialNotifyBeforePatching && {
-                    notify_before_patching: notifyBeforePatching,
-                  }),
-                ...(patchOption !== undefined &&
-                  patchDeadline !== initialPatchDeadline && {
-                    patch_deadline: patchDeadline,
-                  }),
-              }
-            : undefined,
-          webhookOrTicketUpdate: webhookDirty
-            ? { enabled: webhookOrTicketEnabled }
-            : undefined,
+          isDirty: true,
+          policyUpdate: {
+            automation_type: effectiveAutomation,
+            // A patch policy's app is fixed, so automation_type alone turns
+            // patching on.
+            ...(isSoftware && {
+              software_title_id: softwareTitleId,
+              software_package_id: softwarePackageId,
+            }),
+            ...(isScript && { script_id: scriptId }),
+            ...(isProfile && { profile_uuid: profileUUID }),
+            ...(!isGlobalPolicy && {
+              continuous_automations_enabled: effectiveContinuousEnabled,
+            }),
+            ...(patchOption !== undefined &&
+              patchWhenClosed !== initialPatchWhenClosed && {
+                patch_when_closed: patchWhenClosed,
+              }),
+            ...(patchOption !== undefined &&
+              notifyBeforePatching !== initialNotifyBeforePatching && {
+                notify_before_patching: notifyBeforePatching,
+              }),
+            ...(patchOption !== undefined &&
+              patchDeadline !== initialPatchDeadline && {
+                patch_deadline: patchDeadline,
+              }),
+          },
         };
       },
     }));
 
-    const rows: IAutomationCheckboxRow[] = [
+    const notEnabledTooltip = `Not enabled for ${fleetName}.`;
+    const isWebhookOrTicketLocked =
+      !canEditWebhookOrTicket && effectiveAutomation === "webhook_or_ticket";
+
+    const getWebhookOrTicketTooltip = () => {
+      if (ticketOrWebhookState === "disabled") return notEnabledTooltip;
+      if (!canEditWebhookOrTicket) return WEBHOOK_OR_TICKET_ADMIN_ONLY;
+      return undefined;
+    };
+    const automationOptions: CustomOptionType[] = [
+      { label: "None", value: NONE },
       {
-        key: "ticket_webhook",
         label: getTicketOrWebhookLabel(ticketOrWebhookState),
-        checked: webhookOrTicketEnabled && isTicketWebhookEnabled,
-        onToggle: setWebhookOrTicketEnabled,
-        isDisabled: !isTicketWebhookEnabled,
-        // Webhook/ticket config requires admin (it writes app/team config, not
-        // the policy itself). Lock for non-admins with no explanation.
-        isLocked: !canEditWebhookOrTicket,
+        value: "webhook_or_ticket",
+        isDisabled:
+          ticketOrWebhookState === "disabled" || !canEditWebhookOrTicket,
+        tooltipContent: getWebhookOrTicketTooltip(),
       },
     ];
     if (!isGlobalPolicy) {
-      rows.push(
+      automationOptions.push(
+        { label: "Install software", value: "software" },
+        { label: "Run script", value: "script" },
         {
-          key: "install_software",
-          label: "Install software",
-          tooltip: (
-            <AutomationRowTooltip
-              text="The selected software will be installed when hosts fail the policy. Host counts will reset when new software is selected."
-              learnMoreUrl="https://fleetdm.com/learn-more-about/policy-automation-install-software"
-            />
-          ),
-          checked: effectiveInstallSoftware,
-          onToggle: handleToggleInstallSoftware,
-          isDisabled: false,
-          isLocked: patchOption !== undefined,
-          picker:
-            effectiveInstallSoftware && patchOption === undefined ? (
-              <div className={`${baseClass}__software-pickers`}>
+          label: "Resend configuration profile",
+          value: "configuration_profile",
+          isDisabled: !hasProfilePlatform,
+        }
+      );
+      if (!isUnassigned) {
+        automationOptions.push({
+          label: "Calendar event",
+          value: "calendar",
+          isDisabled: !isCalendarEnabledForTeam,
+          tooltipContent: isCalendarEnabledForTeam
+            ? undefined
+            : notEnabledTooltip,
+        });
+      }
+      automationOptions.push({
+        label: "Conditional access",
+        value: "conditional_access",
+        isDisabled: !isConditionalAccessEnabledForTeam,
+        tooltipContent: isConditionalAccessEnabledForTeam
+          ? undefined
+          : notEnabledTooltip,
+      });
+    }
+
+    const selectedAutomationOption =
+      automationOptions.find(
+        (o) => o.value === (effectiveAutomation ?? NONE)
+      ) ?? automationOptions[0];
+
+    const renderItemPicker = () => {
+      if (showSoftwarePicker) {
+        return (
+          <>
+            <GitOpsModeTooltipWrapper
+              isInputField
+              renderChildren={(disableChildren) => (
                 <DropdownWrapper
                   name="software-title"
+                  label="Software"
                   isSearchable
-                  className={`${baseClass}__row-picker`}
-                  isDisabled={gitOpsModeEnabled}
+                  isDisabled={disableChildren}
                   value={
                     softwareOptions.find(
                       (o) => o.value === String(softwareTitleId ?? "")
@@ -577,17 +562,23 @@ const PolicyAutomationsFields = forwardRef<
                   }
                   options={softwareOptions}
                   placeholder="Select software"
+                  error={errors.software}
                   onChange={(opt: SingleValue<CustomOptionType>) =>
                     handleSelectSoftware(opt ? Number(opt.value) : null)
                   }
                 />
-                {/* Only surfaces for multi-package titles; first-added is
-                  auto-selected above, so this is pin-adjustment. */}
-                {packageOptions.length > 1 && (
+              )}
+            />
+            {/* Only surfaces for multi-package titles; first-added is
+              auto-selected above, so this is pin-adjustment. */}
+            {packageOptions.length > 1 && (
+              <GitOpsModeTooltipWrapper
+                isInputField
+                renderChildren={(disableChildren) => (
                   <DropdownWrapper
                     name="software-package"
-                    className={`${baseClass}__row-picker`}
-                    isDisabled={gitOpsModeEnabled}
+                    label="Package"
+                    isDisabled={disableChildren}
                     value={
                       packageOptions.find(
                         (o) => o.value === String(softwarePackageId ?? "")
@@ -600,204 +591,122 @@ const PolicyAutomationsFields = forwardRef<
                     }
                   />
                 )}
-              </div>
-            ) : undefined,
-        },
-        {
-          key: "run_script",
-          label: "Run script",
-          tooltip: (
-            <AutomationRowTooltip
-              text="The selected script will run when hosts fail the policy. Host counts will reset when new scripts are selected."
-              learnMoreUrl="https://fleetdm.com/learn-more-about/policy-automation-run-script"
-            />
-          ),
-          checked: runScript,
-          onToggle: handleToggleRunScript,
-          isDisabled: false,
-          picker: runScript ? (
-            <DropdownWrapper
-              name="script"
-              isSearchable
-              className={`${baseClass}__row-picker`}
-              isDisabled={gitOpsModeEnabled}
-              value={
-                scriptOptions.find((o) => o.value === String(scriptId ?? "")) ??
-                null
-              }
-              options={scriptOptions}
-              placeholder="Select script"
-              onChange={(opt: SingleValue<CustomOptionType>) =>
-                handleSelectScript(opt ? Number(opt.value) : null)
-              }
-            />
-          ) : undefined,
-        },
-        {
-          key: "resend_configuration_profile",
-          label: "Resend configuration profile",
-          tooltip: (
-            <AutomationRowTooltip
-              text="The selected configuration profile will be resent when hosts fail the policy. Host counts will reset when new configuration profile is selected."
-              learnMoreUrl={`${LEARN_MORE_ABOUT_BASE_LINK}/policy-automation-resend-configuration-profile`}
-            />
-          ),
-          checked: resendConfigProfile,
-          onToggle: handleToggleResendConfigProfile,
-          isDisabled: false,
-          isLocked: resendProfileDisabled,
-          picker: resendConfigProfile ? (
-            <DropdownWrapper
-              name="profile"
-              isSearchable
-              className={`${baseClass}__row-picker`}
-              isDisabled={gitOpsModeEnabled}
-              value={
-                profileOptions.find((o) => o.value === (profileUUID ?? "")) ??
-                null
-              }
-              options={profileOptions}
-              placeholder="Select profile"
-              onChange={(opt: SingleValue<CustomOptionType>) =>
-                handleSelectProfile(opt ? String(opt.value) : null)
-              }
-            />
-          ) : undefined,
-        },
-        {
-          key: "calendar_event",
-          label: "Calendar event",
-          tooltip: (
-            <AutomationRowTooltip
-              text="A calendar event will be created for end users if one of their hosts fail the policy."
-              learnMoreUrl="https://www.fleetdm.com/learn-more-about/calendar-events"
-            />
-          ),
-          checked: calendarEvent && isCalendarEnabledForTeam,
-          onToggle: setCalendarEvent,
-          isDisabled: !isCalendarEnabledForTeam,
-        },
-        {
-          key: "conditional_access",
-          label: "Conditional access",
-          tooltip: (
-            <AutomationRowTooltip
-              text="Single sign-on will be blocked for end users whose hosts fail the policy."
-              learnMoreUrl="https://fleetdm.com/learn-more-about/conditional-access"
-            />
-          ),
-          checked: conditionalAccess && isConditionalAccessEnabledForTeam,
-          onToggle: (enabled: boolean) => {
-            setConditionalAccess(enabled);
-            onConditionalAccessChange?.(enabled);
-          },
-          isDisabled: !isConditionalAccessEnabledForTeam,
-        }
-      );
-    }
+              />
+            )}
+          </>
+        );
+      }
+      if (effectiveAutomation === "script") {
+        return (
+          <GitOpsModeTooltipWrapper
+            isInputField
+            renderChildren={(disableChildren) => (
+              <DropdownWrapper
+                name="script"
+                label="Script"
+                isSearchable
+                isDisabled={disableChildren}
+                value={
+                  scriptOptions.find(
+                    (o) => o.value === String(scriptId ?? "")
+                  ) ?? null
+                }
+                options={scriptOptions}
+                placeholder="Select script"
+                error={errors.script}
+                onChange={(opt: SingleValue<CustomOptionType>) =>
+                  handleSelectScript(opt ? Number(opt.value) : null)
+                }
+              />
+            )}
+          />
+        );
+      }
+      if (effectiveAutomation === "configuration_profile") {
+        return (
+          <GitOpsModeTooltipWrapper
+            isInputField
+            renderChildren={(disableChildren) => (
+              <DropdownWrapper
+                name="profile"
+                label="Configuration profile"
+                isSearchable
+                isDisabled={disableChildren}
+                value={
+                  profileOptions.find((o) => o.value === (profileUUID ?? "")) ??
+                  null
+                }
+                options={profileOptions}
+                placeholder="Select profile"
+                error={errors.configuration_profile}
+                onChange={(opt: SingleValue<CustomOptionType>) =>
+                  handleSelectProfile(opt ? String(opt.value) : null)
+                }
+              />
+            )}
+          />
+        );
+      }
+      return null;
+    };
 
-    const errorMessages = Object.values(errors).filter(
-      (msg): msg is string => !!msg
-    );
+    const showContinuous =
+      !isGlobalPolicy &&
+      patchOption !== "manual" &&
+      (effectiveAutomation === "software" || effectiveAutomation === "script");
 
     return (
       <div className={baseClass}>
-        <div className={`${baseClass}__section`}>
-          {errorMessages.length > 0 && (
-            <div className={`${baseClass}__errors`} role="alert">
-              {errorMessages.map((msg) => (
-                <span key={msg} className={`${baseClass}__error`}>
-                  {msg}
-                </span>
-              ))}
-            </div>
+        <GitOpsModeTooltipWrapper
+          isInputField
+          renderChildren={(disableChildren) => (
+            <DropdownWrapper
+              name="automation-type"
+              label="Automation"
+              ariaLabel="Automation"
+              isDisabled={
+                disableChildren ||
+                isWebhookOrTicketLocked ||
+                // A patching patch policy's automation follows the Patch radios.
+                (patchOption !== undefined && patchOption !== "manual")
+              }
+              disabledTooltipContent={
+                isWebhookOrTicketLocked
+                  ? WEBHOOK_OR_TICKET_ADMIN_ONLY
+                  : undefined
+              }
+              value={selectedAutomationOption}
+              options={automationOptions}
+              onChange={handleSelectAutomation}
+              helpText={
+                <>
+                  <CustomLink
+                    url="https://fleetdm.com/learn-more-about/policy-automations"
+                    text="Learn more"
+                    newTab
+                  />{" "}
+                  about automation types and their supported platforms.
+                </>
+              }
+            />
           )}
-          <table className={`${baseClass}__table`}>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.key}
-                  className={`${baseClass}__row${
-                    row.isDisabled || row.isLocked
-                      ? ` ${baseClass}__row--disabled`
-                      : ""
-                  }`}
-                >
-                  <td
-                    id={
-                      row.key === "install_software"
-                        ? "install-software-row-label"
-                        : undefined
-                    }
-                    className={`${baseClass}__row-label`}
-                  >
-                    <GitOpsModeTooltipWrapper
-                      renderChildren={(disableChildren) => (
-                        <Checkbox
-                          name={row.key}
-                          value={row.checked}
-                          disabled={
-                            row.isDisabled || row.isLocked || disableChildren
-                          }
-                          onChange={row.onToggle}
-                        >
-                          {row.tooltip ? (
-                            <TooltipWrapper tipContent={row.tooltip} clickable>
-                              {row.label}
-                            </TooltipWrapper>
-                          ) : (
-                            row.label
-                          )}
-                        </Checkbox>
-                      )}
-                    />
-                  </td>
-                  <td className={`${baseClass}__row-trailing`}>
-                    {row.isDisabled ? (
-                      <span className={`${baseClass}__row-disabled-hint`}>
-                        Not enabled for{" "}
-                        <TooltipTruncatedText value={fleetName} />
-                      </span>
-                    ) : (
-                      row.picker
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className={`${baseClass}__learn-more`}>
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/policy-automations"
-              text="Learn more"
-              newTab
-            />{" "}
-            about automation types and their supported platforms.
-          </div>
-        </div>
+        />
+
+        {renderItemPicker()}
 
         {patchSlot}
 
-        {!isGlobalPolicy && patchOption !== "manual" && (
-          <div className={`${baseClass}__section`}>
+        {showContinuous && (
+          <div className={`${baseClass}__continuous`}>
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <Checkbox
                   name="continuous-automations-enabled"
                   value={effectiveContinuousEnabled}
                   disabled={disableChildren || isContinuousAutomationsRequired}
-                  onChange={handleToggleContinuous}
+                  onChange={setContinuousEnabled}
                   iconTooltipContent={continuousAutomationsRequiredTooltip}
-                  helpText={
-                    <>
-                      If the install software automation does not resolve the
-                      policy after{" "}
-                      <TooltipWrapper tipContent="Count does not include skipped installs and failed pre-install queries.">
-                        10 attempts
-                      </TooltipWrapper>
-                      , Fleet will wait 24 hours before retrying.
-                    </>
-                  }
+                  helpText="If the automations do not resolve the policy, this could cause a retry loop."
                 >
                   <TooltipWrapper
                     tipContent="Automations run on a host's first failure, and when a host's response changes from pass to fail. If enabled, script & software automations will also run on every subsequent failure."
@@ -815,27 +724,5 @@ const PolicyAutomationsFields = forwardRef<
     );
   }
 );
-
-interface IAutomationRowTooltipProps {
-  text: string;
-  learnMoreUrl: string;
-}
-
-function AutomationRowTooltip({
-  text,
-  learnMoreUrl,
-}: IAutomationRowTooltipProps): JSX.Element {
-  return (
-    <>
-      {text}{" "}
-      <CustomLink
-        url={learnMoreUrl}
-        text="Learn more"
-        newTab
-        variant="tooltip-link"
-      />
-    </>
-  );
-}
 
 export default PolicyAutomationsFields;

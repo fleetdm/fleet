@@ -43,7 +43,7 @@ import {
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
 } from "interfaces/team";
-import { getTicketOrWebhookInfo } from "pages/policies/helpers";
+import { getTicketOrWebhookState } from "pages/policies/helpers";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import policiesAPI, {
@@ -684,24 +684,13 @@ const ManagePolicyPage = ({
     isErrorTeamOwnPoliciesCount,
   ]);
 
-  const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
-  // Inherited (global) policies are listed in team views, but their webhook
-  // membership lives on the *global* config — not the team's. Union both
-  // so an inherited policy with a global-config webhook/ticket still shows
-  // the correct data.
-  const inheritedAutomationInfo = !isAllTeamsSelected
-    ? getTicketOrWebhookInfo(globalConfig)
-    : { state: "disabled" as const, policyIds: [] };
-  const currentAutomatedPolicies: number[] = Array.from(
-    new Set([
-      ...fleetAutomationInfo.policyIds,
-      ...inheritedAutomationInfo.policyIds,
-    ])
-  );
+  // Inherited policies take the "All fleets" destination when the fleet has
+  // none.
+  const fleetTicketOrWebhookState = getTicketOrWebhookState(automationsConfig);
   const ticketOrWebhookState =
-    fleetAutomationInfo.state !== "disabled"
-      ? fleetAutomationInfo.state
-      : inheritedAutomationInfo.state;
+    fleetTicketOrWebhookState !== "disabled" || isAllTeamsSelected
+      ? fleetTicketOrWebhookState
+      : getTicketOrWebhookState(globalConfig);
   const otherAutomationType: OtherAutomationType | undefined =
     ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
 
@@ -859,7 +848,6 @@ const ManagePolicyPage = ({
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
@@ -906,7 +894,6 @@ const ManagePolicyPage = ({
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
               teamPoliciesCountMergeInherited,

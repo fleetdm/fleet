@@ -183,7 +183,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: true,
         patch_deadline: false,
@@ -339,7 +339,7 @@ describe("DeployModal", () => {
     // hits Save gets patch_deadline: true + continuous automations locked on.
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: true,
@@ -371,7 +371,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: null,
+        automation_type: null,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,
@@ -405,7 +405,7 @@ describe("DeployModal", () => {
     // because the user never re-clicks the radio.
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,

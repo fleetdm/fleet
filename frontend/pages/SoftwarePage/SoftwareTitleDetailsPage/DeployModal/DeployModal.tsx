@@ -162,7 +162,7 @@ const DeployModal = ({
             patchFlags.continuous_automations_enabled)
       ) {
         await policiesAPI.update(patchPolicy.id, {
-          software_title_id: patchOption === "manual" ? null : softwareTitle.id,
+          automation_type: patchOption === "manual" ? null : "software",
           ...patchFlags,
         });
         savedAnyChange = true;

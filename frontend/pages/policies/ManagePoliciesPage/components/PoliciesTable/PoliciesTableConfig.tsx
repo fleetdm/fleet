@@ -335,8 +335,8 @@ const generateTableHeaders = (
       },
     },
     {
-      title: "Automations",
-      Header: "Automations",
+      title: "Automation",
+      Header: "Automation",
       accessor: "automations",
       disableSortBy: true,
       Cell: (cellProps: ICellProps): JSX.Element => (
@@ -536,7 +536,6 @@ const nextPolicyUpdateMs = (
 
 const generateDataSet = (
   policiesList: IPolicyStats[] = [],
-  currentAutomatedPolicies?: number[],
   osquery_policy?: number
 ): IPolicyStats[] => {
   policiesList = policiesList.sort((a, b) =>
@@ -578,12 +577,6 @@ const generateDataSet = (
       : 0);
 
   policiesList.forEach((policyItem) => {
-    policyItem.webhook =
-      currentAutomatedPolicies &&
-      currentAutomatedPolicies.includes(policyItem.id)
-        ? "On"
-        : "Off";
-
     // Define policy has_run based on updated_at compared against last time policies ran.
     const policyItemUpdatedAt = new Date(policyItem.updated_at);
     // TODO: restore and update setting of policyItem.has_run based on upcoming custom

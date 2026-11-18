@@ -583,8 +583,9 @@ describe("Policies table", () => {
     expect(screen.getByText("All platforms")).toBeInTheDocument();
   });
 
-  it("Renders the Automations column with correct values", () => {
+  it("Renders the Automation column with correct values", () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isGlobalAdmin: true,
@@ -596,16 +597,15 @@ describe("Policies table", () => {
     const policyWithAutomations = createMockPolicy({
       id: 10,
       name: "Policy with automations",
+      automation_type: "software",
       install_software: { name: "Zoom", software_title_id: 1 },
-      calendar_events_enabled: true,
     });
 
     const policyWithoutAutomations = createMockPolicy({
       id: 11,
       name: "Policy without automations",
       install_software: undefined,
-      calendar_events_enabled: false,
-      conditional_access_enabled: false,
+      automation_type: null,
     });
 
     render(
@@ -625,8 +625,8 @@ describe("Policies table", () => {
       />
     );
 
-    expect(screen.getByText("Automations")).toBeInTheDocument();
-    expect(screen.getByText("2 automations")).toBeInTheDocument();
+    expect(screen.getByText("Automation")).toBeInTheDocument();
+    expect(screen.getAllByText("Zoom")[0]).toBeInTheDocument();
     expect(screen.getByText("---")).toBeInTheDocument();
   });
 });
