@@ -17,7 +17,6 @@ import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 
 import { PoliciesAutomationFilter } from "../../helpers";
-
 import {
   DEFAULT_SORT_COLUMN,
   DEFAULT_SORT_DIRECTION,

@@ -211,9 +211,9 @@ const PolicyPage = ({
   }
 
   // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
-  const { mutateAsync: createPolicy } = useMutation(
-    (formData: IPolicyFormData) => policiesAPI.create(formData)
-  );
+  const {
+    mutateAsync: createPolicy,
+  } = useMutation((formData: IPolicyFormData) => policiesAPI.create(formData));
 
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {

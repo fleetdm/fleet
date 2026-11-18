@@ -21,8 +21,8 @@ import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
-import softwareAPI from "services/entities/software";
 import policiesAPI from "services/entities/policies";
+import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 

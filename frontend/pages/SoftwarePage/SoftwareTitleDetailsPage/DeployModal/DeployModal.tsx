@@ -21,8 +21,8 @@ import {
   getFleetAppPolicyDescription,
   getFleetAppPolicyName,
 } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/helpers";
-import softwareAPI from "services/entities/software";
 import policiesAPI from "services/entities/policies";
+import softwareAPI from "services/entities/software";
 
 const baseClass = "deploy-modal";
 

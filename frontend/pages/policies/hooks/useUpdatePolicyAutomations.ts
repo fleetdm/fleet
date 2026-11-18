@@ -99,9 +99,7 @@ const useUpdatePolicyAutomations = ({
 
       const requests: Promise<unknown>[] = [];
       if (policyUpdate) {
-        requests.push(
-          policiesAPI.update(policyId, policyUpdate)
-        );
+        requests.push(policiesAPI.update(policyId, policyUpdate));
       }
       if (webhookOrTicketUpdate) {
         requests.push(

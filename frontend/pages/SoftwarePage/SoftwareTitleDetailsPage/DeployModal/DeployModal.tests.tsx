@@ -8,8 +8,8 @@ import {
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
-import softwareAPI from "services/entities/software";
 import policiesAPI from "services/entities/policies";
+import softwareAPI from "services/entities/software";
 import { createCustomRenderer } from "test/test-utils";
 
 import DeployModal from "./DeployModal";

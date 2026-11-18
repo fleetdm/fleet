@@ -2,8 +2,8 @@ import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import { createMockFleetMaintainedAppDetails } from "__mocks__/softwareMock";
-import softwareAPI from "services/entities/software";
 import policiesAPI from "services/entities/policies";
+import softwareAPI from "services/entities/software";
 import { getPatchDeadlineSettingsHandler } from "test/handlers/patch-deadline-settings-handlers";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
