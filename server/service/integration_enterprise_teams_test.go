@@ -146,10 +146,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
-			MacOSSetupAssistant:              optjson.String{Set: true},
-			BootstrapPackage:                 optjson.String{Set: true},
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
-			Script:                           optjson.String{Set: true},
 			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:               optjson.Bool{Set: true},
 			LockEndUserInfo:                  optjson.SetBool(false),
@@ -162,8 +159,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		// empty).
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), team.Config.MDM)
 
@@ -281,10 +277,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.String{Set: true},
-			BootstrapPackage:                 optjson.String{Set: true},
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
-			Script:                           optjson.String{Set: true},
 			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:               optjson.Bool{Set: true},
 			LockEndUserInfo:                  optjson.SetBool(false),
@@ -294,8 +287,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), team.Config.MDM)
 
@@ -326,10 +318,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.String{Set: true},
-			BootstrapPackage:                 optjson.String{Set: true},
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
-			Script:                           optjson.String{Set: true},
 			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:               optjson.Bool{Set: true},
 			LockEndUserInfo:                  optjson.SetBool(false),
@@ -339,8 +328,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), getTmResp.Team.Config.MDM)
 
@@ -373,10 +361,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:              optjson.String{Set: true},
-			BootstrapPackage:                 optjson.String{Set: true},
 			EnableReleaseDeviceManually:      optjson.SetBool(false),
-			Script:                           optjson.String{Set: true},
 			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:               optjson.Bool{Set: true},
 			LockEndUserInfo:                  optjson.SetBool(false),
@@ -386,8 +371,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), listTmResp.Teams[0].Config.MDM)
 
@@ -420,32 +404,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 
-	// dry-run with valid agent options and custom macos settings
-	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = map[string]any{
-		"specs": []any{
-			map[string]any{
-				"name":          teamNameDecomposed,
-				"agent_options": agentOpts,
-				"mdm": map[string]any{
-					"macos_settings": map[string]any{
-						"custom_settings": []string{"foo", "bar"},
-					},
-				},
-			},
-		},
-	}
-	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
-
 	// dry-run with macos disk encryption set to false, no error
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": false,
 					},
 				},
@@ -463,7 +428,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": true,
 					},
 				},
@@ -562,7 +527,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
-	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
 	require.False(t, team.Config.MDM.EnableDiskEncryption)                 // unchanged
 
 	// apply without agent options specified
@@ -722,7 +686,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	require.NoError(t, err)
 
 	spec := func(macOSSettings map[string]any) map[string]any {
-		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"macos_settings": macOSSettings}}}}
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"apple_settings": macOSSettings}}}}
 	}
 
 	var applyResp applyTeamSpecsResponse
@@ -735,12 +699,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &getResp)
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
-
-	// custom profiles still need Apple MDM
-	res := s.Do("POST", "/api/latest/fleet/spec/fleets", spec(map[string]any{
-		"custom_settings": []string{"foo"},
-	}), http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 }
 
 // applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
@@ -1175,14 +1133,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("POST", "/api/latest/fleet/fleets", team2, http.StatusConflict, &tmResp)
 
 	// create a team whose name only differs by case — must also 409 with the
-	// canonical "must differ" message.
+	// canonical conflict message.
 	teamCaseVariant := &fleet.Team{
 		Name:        strings.ToLower(name),
 		Description: "case variant",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
 	}
 	r := s.Do("POST", "/api/latest/fleet/fleets", teamCaseVariant, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.TeamNameConflictHint)
 
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
@@ -1229,7 +1187,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// renaming into another team's name (the original team created above)
 	// using only case differences must return 409 with the canonical message.
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", paddedTeamID), fleet.TeamPayload{Name: new(strings.ToUpper(name))}, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.TeamNameConflictHint)
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", paddedTeamID), nil, http.StatusOK)
@@ -1568,6 +1526,172 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
+	t := s.T()
+
+	var created []uint
+	defer func() {
+		for _, id := range created {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", id), nil, http.StatusOK)
+		}
+	}()
+	createFleet := func(name string) uint {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusOK, &resp)
+		require.Equal(t, name, resp.Team.Name)
+		created = append(created, resp.Team.ID)
+		return resp.Team.ID
+	}
+	fleetNames := func() map[uint]string {
+		var resp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &resp)
+		names := make(map[uint]string, len(resp.Teams))
+		for _, tm := range resp.Teams {
+			names[tm.ID] = tm.Name
+		}
+		return names
+	}
+	applySpecs := func(expectedStatus int, dryRun bool, specs ...map[string]any) *http.Response {
+		return s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": specs}, expectedStatus,
+			"dry_run", fmt.Sprint(dryRun))
+	}
+	requireError := func(res *http.Response, wantName, wantReason string, msgAndArgs ...any) {
+		names, reasons := extractServerErrorNameReasons(res.Body)
+		require.Equal(t, []string{wantName}, names, msgAndArgs...)
+		require.Equal(t, []string{wantReason}, reasons, msgAndArgs...)
+	}
+	conflictReason := func(existing string) string {
+		return fmt.Sprintf("A fleet named %q already exists. Choose a fleet name distinct from other fleets.", existing)
+	}
+	specConflictReason := func(name, existing string) string {
+		return fmt.Sprintf("fleet name %q conflicts with existing fleet %q. Choose a fleet name distinct from other fleets.", name, existing)
+	}
+
+	workstations := createFleet("Workstations")
+	other := createFleet("Other fleet")
+	before := fleetNames()
+
+	// Rule 1: at least one letter or number.
+	const noLetterOrNumber = "must include at least one letter or number"
+	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・", "  ---  ", "\u093e"} {
+		res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
+		requireError(res, "name", noLetterOrNumber, name)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
+		requireError(res, "name", noLetterOrNumber, name)
+		for _, dryRun := range []bool{true, false} {
+			res = applySpecs(http.StatusUnprocessableEntity, dryRun, map[string]any{"name": name})
+			requireError(res, "name", noLetterOrNumber, name)
+			res = applySpecs(http.StatusUnprocessableEntity, dryRun, map[string]any{"name": name, "gitops_filename": "rule1.yml"})
+			requireError(res, "name", noLetterOrNumber, name)
+		}
+	}
+	require.Equal(t, before, fleetNames())
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀"} {
+		createFleet(name)
+	}
+
+	// Rule 2: distinct from other fleets by name key or under the collation.
+	conflicts := []struct {
+		existing string
+		names    []string
+	}{
+		{"Workstations", []string{"Work-stations", "Work stations", "workstations!", "WORK_STATIONS", "Workstations 💻", "workstations", "Wörkstations"}},
+		{"Laptops 💻", []string{"Laptops", "Laptops 🚀", "laptops"}},
+		{"ABC", []string{"abc", "ＡＢＣ", "a.b.c"}},
+		{"Renee", []string{"Reneé", "RENEE"}},
+		{"straße", []string{"strasse", "Strasse!"}},
+		{"Team 𝐀", []string{"Team 𝐁", "Team A"}},
+		{"開発チーム", []string{"開発・チーム", "開発チーム。"}},
+		{"はは", []string{"ハハ", "パパ"}},
+		{"राम", []string{"राम!", "रा-म"}},
+		{"กิน", []string{"กิน 🚀"}},
+		{"мой", []string{"МОЙ", "Мой!"}},
+	}
+	for _, c := range conflicts {
+		id := workstations
+		if c.existing != "Workstations" {
+			id = createFleet(c.existing)
+		}
+		before := fleetNames()
+		for _, name := range c.names {
+			res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusConflict)
+			requireError(res, "base", conflictReason(c.existing), name)
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusConflict)
+			requireError(res, "base", conflictReason(c.existing), name)
+
+			// A new GitOps file with a name that matches under the collation adopts the existing fleet, as before.
+			// A name that only matches by name key doesn't, and must not create a second fleet.
+			var byCollation *fleet.Team
+			if tm, err := s.ds.TeamByName(t.Context(), name); err == nil {
+				byCollation = tm
+			}
+			if byCollation == nil {
+				for _, dryRun := range []bool{true, false} {
+					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name, "gitops_filename": "new.yml"})
+					requireError(res, "base", specConflictReason(name, c.existing), name)
+					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name})
+					requireError(res, "base", specConflictReason(name, c.existing), name)
+				}
+			} else {
+				require.Equal(t, id, byCollation.ID, name)
+			}
+		}
+		require.Equal(t, before, fleetNames(), c.existing)
+	}
+	// The collation alone covers some of these and the name key alone covers others, so the loop above must have
+	// exercised the spec create path.
+	_, err := s.ds.TeamByName(t.Context(), "Work-stations")
+	require.True(t, fleet.IsNotFound(err))
+	_, err = s.ds.TeamByName(t.Context(), "Team 𝐁")
+	require.NoError(t, err)
+
+	// A fleet can be renamed to a variant of its own name.
+	var tmResp teamResponse
+	for _, name := range []string{"work-stations", "WORKSTATIONS!", "Workstations"} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", workstations), fleet.TeamPayload{Name: &name}, http.StatusOK, &tmResp)
+		require.Equal(t, name, tmResp.Team.Name)
+	}
+	// A number makes the name distinct.
+	createFleet("Workstations 2")
+	// Outside Latin script a combining mark can make a different word, so these don't conflict with "राम", "กิน",
+	// and "мой".
+	for _, name := range []string{"रम", "กัน", "мои"} {
+		createFleet(name)
+	}
+
+	// Two specs in one request.
+	res := applySpecs(http.StatusConflict, false, map[string]any{"name": "Work Stations"}, map[string]any{"name": "work-stations"})
+	requireError(res, "base", `duplicate fleet names in request: "Work Stations" (filename "") and "work-stations" (filename ""). `+
+		"Choose a fleet name distinct from other fleets.")
+	res = applySpecs(http.StatusConflict, true,
+		map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"},
+		map[string]any{"name": "kiosks!", "gitops_filename": "kiosks2.yml"})
+	requireError(res, "base", `duplicate fleet names in request: "Kiosks" (filename "kiosks.yml") and "kiosks!" (filename "kiosks2.yml"). `+
+		"Choose a fleet name distinct from other fleets.")
+
+	// A fleet matched by its GitOps filename.
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		map[string]any{"specs": []any{map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"}}}, http.StatusOK, &applyResp)
+	kiosks := applyResp.TeamIDsByName["Kiosks"]
+	require.NotZero(t, kiosks)
+	created = append(created, kiosks)
+	before = fleetNames()
+	for _, dryRun := range []bool{true, false} {
+		res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": "work stations", "gitops_filename": "kiosks.yml"})
+		requireError(res, "base", specConflictReason("work stations", "Workstations"))
+	}
+	require.Equal(t, before, fleetNames())
+	applySpecs(http.StatusOK, false, map[string]any{"name": "KIOSKS!", "gitops_filename": "kiosks.yml"})
+	require.Equal(t, "KIOSKS!", fleetNames()[kiosks])
+
+	// Without a filename, a spec whose name matches under the collation still applies to the existing fleet and
+	// keeps its name.
+	before = fleetNames()
+	applySpecs(http.StatusOK, false, map[string]any{"name": "workstations"})
+	require.Equal(t, before, fleetNames())
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {

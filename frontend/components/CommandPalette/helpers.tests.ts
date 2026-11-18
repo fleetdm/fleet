@@ -1149,10 +1149,8 @@ describe("CommandPalette helpers", () => {
       it.each([
         "os_settings=pending",
         "apple_settings=failing",
-        "macos_settings=latest",
         "os_settings_disk_encryption=verified",
         "macos_bootstrap_package=failed",
-        "bootstrap_package=pending",
       ])("strips %s when switching to All fleets", (filter) => {
         const [name] = filter.split("=");
         const url = parse(

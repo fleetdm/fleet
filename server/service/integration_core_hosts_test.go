@@ -374,7 +374,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
 	require.Equal(t, "https://fleetdm.com", *hostResp.Host.MDM.ServerURL)
 
-	// no macos_settings is returned when MDM is not configured
+	// no apple_settings is returned when MDM is not configured
 	require.Nil(t, hostResp.Host.MDM.MacOSSettings)
 }
 

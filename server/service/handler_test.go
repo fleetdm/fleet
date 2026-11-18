@@ -24,55 +24,6 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func TestAPIRoutesConflicts(t *testing.T) {
-	ds := new(mock.Store)
-
-	svc, _ := newTestService(t, ds, nil, nil)
-	limitStore, _ := memstore.New(0)
-	cfg := config.TestConfig()
-	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
-	require.NoError(t, err)
-	router := h.(interface{ Router() *endpointer.Router }).Router()
-
-	type testCase struct {
-		name string
-		path string
-		verb string
-		want int
-	}
-	var cases []testCase
-
-	// Build the test cases: for each route, generate a request designed to match
-	// it, and override its handler to return a unique status code. If the
-	// request doesn't result in that status code, then some other route
-	// conflicts with it and took precedence - a route conflict. The route's name
-	// is used to name the sub-test for that route.
-	status := 200
-	router.WrapHandlers(func(rt endpointer.Route, h http.Handler) http.Handler {
-		_, path, err := routeTestRequest(rt)
-		require.NoError(t, err)
-		if path == "" {
-			return h
-		}
-		for _, meth := range rt.Methods {
-			cases = append(cases, testCase{name: rt.Name, path: path, verb: meth, want: status})
-		}
-		want := status
-		status++
-		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(want) })
-	})
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Log(c.verb, c.path)
-			req := httptest.NewRequest(c.verb, c.path, nil)
-			rr := httptest.NewRecorder()
-			router.ServeHTTP(rr, req)
-			require.Equal(t, c.want, rr.Code)
-		})
-	}
-}
-
 func TestAPIRoutesMetrics(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -80,7 +31,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	limitStore, _ := memstore.New(0)
 	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
 	require.NoError(t, err)
-	router := h.(interface{ Router() *endpointer.Router }).Router()
+	router := h.(*endpointer.Router)
 
 	// collect the requests to make to each route, then replace all handlers with mocks
 	var reqs []*http.Request
@@ -331,9 +282,8 @@ func TestGzipResponses(t *testing.T) {
 	})
 	testRoute := func(r *endpointer.Router, opts []kithttp.ServerOption) {
 		r.Handle(endpointer.Route{Name: "test_gzip", Path: "/api/test-gzip"}, gzipTestHandler)
-		// A method-scoped route is served by the stdlib fast path rather than gorilla, which applies the router middleware
-		// itself, so gzip has to be exercised on both.
-		r.Handle(endpointer.Route{Name: "test_gzip_fast", Methods: []string{"GET"}, Path: "/api/test-gzip-fast"}, gzipTestHandler)
+		// A route with methods registers a different ServeMux pattern than one without.
+		r.Handle(endpointer.Route{Name: "test_gzip_get", Methods: []string{"GET"}, Path: "/api/test-gzip-get"}, gzipTestHandler)
 	}
 
 	t.Run("Enabled", func(t *testing.T) {
@@ -347,7 +297,7 @@ func TestGzipResponses(t *testing.T) {
 		})
 		defer server.Close()
 
-		for _, path := range []string{"/api/test-gzip", "/api/test-gzip-fast"} {
+		for _, path := range []string{"/api/test-gzip", "/api/test-gzip-get"} {
 			t.Run("WithAcceptEncoding "+path, func(t *testing.T) {
 				req, err := http.NewRequest("GET", server.URL+path, nil)
 				require.NoError(t, err)

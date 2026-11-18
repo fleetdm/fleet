@@ -5776,7 +5776,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		default:
 			ds.logger.WarnContext(
 				ctx, "software title record should have an associated VPP application or software package",
-				"team_id", teamID,
+				"fleet_id", teamID,
 				"host_id", host.ID,
 				"software_title_id", softwareTitleRecord.ID,
 			)
@@ -6486,6 +6486,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				NULL as status
 			FROM
 				software_titles st
+			-- The WHERE below only keeps titles with an installer, VPP app or in-house app in the fleet
+			INNER JOIN (` + fleetInstallableTitleIDsSQL(globalOrTeamID) + `) fleet_installable_titles
+				ON fleet_installable_titles.title_id = st.id
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
 				-- .sh and .py packages are available for both linux and darwin hosts

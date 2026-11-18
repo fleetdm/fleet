@@ -61,12 +61,6 @@ func (t *CAConfigAssetType) Scan(value any) error {
 	return nil
 }
 
-type CAConfigAsset struct {
-	Name  string            `db:"name"`
-	Value []byte            `db:"value"`
-	Type  CAConfigAssetType `db:"type"`
-}
-
 type CAType string
 
 const (
