@@ -1214,7 +1214,7 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `fleetctl get config` prints `live_query_disabled`, `query_reports_disabled`, and `query_report_cap` under `server_settings` | `fleetctl get config` prints `live_reporting_disabled`, `discard_reports_data`, and `report_cap` |
-| `fleetctl get config` prints `macos_settings` and `custom_settings` under `mdm` | `fleetctl get config` prints `apple_settings` and `configuration_profiles` |
+| `fleetctl get config` prints `macos_settings` under `mdm` | `fleetctl get config` prints `apple_settings` |
 
 #### What to do
 
