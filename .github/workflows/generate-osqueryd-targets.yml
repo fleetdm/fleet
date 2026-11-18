@@ -220,7 +220,8 @@ jobs:
         run: |
           unzip osquery-${{ env.OSQUERY_VERSION }}.windows_arm64.zip
           cp osquery-${{ env.OSQUERY_VERSION }}.windows_arm64/Program\ Files/osquery/osqueryd/osqueryd.exe .
-          file ./osqueryd.exe | grep "PE32+ executable (console) Aarch64"
+          # Newer file versions (e.g. on ubuntu-26.04) print "ARM64" instead of "Aarch64".
+          file ./osqueryd.exe | tee /dev/stderr | grep -E 'PE32\+ executable.*\(console\).*(Aarch64|ARM64)'
 
       - name: Attest binary
         continue-on-error: true
