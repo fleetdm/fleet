@@ -1820,6 +1820,7 @@ None.
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
+    "only_allow_android_zero_touch_enrollment": false,
     "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2225,6 +2226,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
+    "only_allow_android_zero_touch_enrollment": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2914,6 +2916,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
+| only_allow_android_zero_touch_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only company-owned Android hosts to turn on MDM through [zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment). When enabled, fully managed enrollment with a QR code and work profile (BYOD) enrollment are blocked. QR codes and work profile links created before the setting was enabled keep working until they expire (after 1 hour). Hosts that are already enrolled aren't affected. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -2934,6 +2937,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 > Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
 
 > Note: If `only_allow_apple_business_enrollment` is enabled, the [Get manual enrollment profile](#get-manual-enrollment-profile) and [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) endpoints return an error.
+
+> Note: If `only_allow_android_zero_touch_enrollment` is enabled, the enroll page doesn't create QR codes or work profile links for Android hosts. Instead, it shows an error: "Only company-owned hosts enrolled through zero-touch can enroll. Please contact your IT administrator."
 
 <br/>
 
@@ -3100,6 +3105,7 @@ _Available in Fleet Premium._
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
+    "only_allow_android_zero_touch_enrollment": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
