@@ -152,12 +152,12 @@ const SaveAsNewQueryModal = ({
       fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     try {
-      const { report: newQuery } = await queryAPI.create(createBody);
+      const { report: newReport } = await queryAPI.create(createBody);
       setIsSaving(false);
-      notify.success(`Successfully added report ${newQuery.name}.`);
+      notify.success(`Successfully added report ${newReport.name}.`);
       router.push(
-        getPathWithQueryParams(PATHS.REPORT_DETAILS(newQuery.id), {
-          fleet_id: newQuery.fleet_id,
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(newReport.id), {
+          fleet_id: newReport.fleet_id,
           host_id: hostId,
         })
       );
