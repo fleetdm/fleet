@@ -132,16 +132,30 @@ func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName
 }
 
 // operationError turns the error Google reports inside a finished operation, with HTTP 200
-// and a google.rpc.Code, into the API error the classifiers read.
+// and a google.rpc.Code, into the API error the classifiers read. Each code gets the HTTP
+// status google.rpc.Code maps it to, except CANCELLED: its 499 would read as a rejection,
+// so it stays a 500 with the rest.
 func operationError(s *cloudidentity.Status) *googleapi.Error {
 	code := http.StatusInternalServerError
 	switch codes.Code(s.Code) { //nolint:gosec // google.rpc.Code values fit in a uint32
-	case codes.NotFound:
-		code = http.StatusNotFound
-	case codes.PermissionDenied:
-		code = http.StatusForbidden
+	case codes.InvalidArgument, codes.FailedPrecondition, codes.OutOfRange:
+		code = http.StatusBadRequest
 	case codes.Unauthenticated:
 		code = http.StatusUnauthorized
+	case codes.PermissionDenied:
+		code = http.StatusForbidden
+	case codes.NotFound:
+		code = http.StatusNotFound
+	case codes.AlreadyExists, codes.Aborted:
+		code = http.StatusConflict
+	case codes.ResourceExhausted:
+		code = http.StatusTooManyRequests
+	case codes.Unimplemented:
+		code = http.StatusNotImplemented
+	case codes.Unavailable:
+		code = http.StatusServiceUnavailable
+	case codes.DeadlineExceeded:
+		code = http.StatusGatewayTimeout
 	}
 	msg := s.Message
 	if msg == "" {

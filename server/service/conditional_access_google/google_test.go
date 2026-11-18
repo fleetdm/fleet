@@ -405,10 +405,10 @@ func TestSetClientStateForbiddenIsStale(t *testing.T) {
 func TestSetClientStateOperationResult(t *testing.T) {
 	state := fleet.GoogleConditionalAccessClientState{Managed: new(true)}
 	cases := []struct {
-		name                     string
-		body                     string
-		wantErr                  string
-		notFound, stale, authErr bool
+		name                                  string
+		body                                  string
+		wantErr                               string
+		notFound, stale, authErr, unavailable bool
 	}{
 		{name: "done", body: `{"done":true,"response":{"managed":"MANAGED"}}`},
 		// Without an operations service there's nothing to poll, so an unfinished write isn't an error.
@@ -419,8 +419,19 @@ func TestSetClientStateOperationResult(t *testing.T) {
 			wantErr: "Device user not found", notFound: true, stale: true},
 		{name: "done with unauthenticated", body: `{"done":true,"error":{"code":16,"message":"Bad credentials"}}`,
 			wantErr: "Bad credentials", authErr: true},
+		// A write Google rejects isn't an outage, which would end the cron's run.
+		{name: "done with failed precondition", body: `{"done":true,"error":{"code":9,"message":"Device user is not approved"}}`,
+			wantErr: "Device user is not approved"},
+		{name: "done with aborted", body: `{"done":true,"error":{"code":10,"message":"Concurrent update"}}`,
+			wantErr: "Concurrent update"},
+		{name: "done with resource exhausted", body: `{"done":true,"error":{"code":8,"message":"Quota exceeded"}}`,
+			wantErr: "Quota exceeded", unavailable: true},
+		{name: "done with unavailable", body: `{"done":true,"error":{"code":14,"message":"Backend unavailable"}}`,
+			wantErr: "Backend unavailable", unavailable: true},
+		{name: "done with cancelled", body: `{"done":true,"error":{"code":1,"message":"Operation cancelled"}}`,
+			wantErr: "Operation cancelled", unavailable: true},
 		{name: "done with an error and no message", body: `{"done":true,"error":{"code":13}}`,
-			wantErr: "Google operation failed with code 13"},
+			wantErr: "Google operation failed with code 13", unavailable: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -436,6 +447,7 @@ func TestSetClientStateOperationResult(t *testing.T) {
 			require.Equal(t, c.notFound, fleet.IsNotFound(err))
 			require.Equal(t, c.stale, IsStale(err))
 			require.Equal(t, c.authErr, IsAuthError(err))
+			require.Equal(t, c.unavailable, IsUnavailable(err))
 		})
 	}
 }

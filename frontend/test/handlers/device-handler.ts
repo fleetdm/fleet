@@ -151,7 +151,7 @@ export const getDeviceVppCommandResultHandler = http.get(
 export const googleConditionalAccessHandler = (
   overrides?: Partial<IGetDeviceGoogleConditionalAccessResponse>
 ) =>
-  http.get(baseUrl("/device/:token/conditional_access/google"), () =>
+  http.post(baseUrl("/device/:token/conditional_access/google"), () =>
     HttpResponse.json<IGetDeviceGoogleConditionalAccessResponse>({
       ...overrides,
     })

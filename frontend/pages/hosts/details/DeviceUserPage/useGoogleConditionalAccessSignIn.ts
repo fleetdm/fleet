@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "react-query";
+import { useMutation } from "react-query";
 
 import deviceUserAPI, {
   IGetDeviceGoogleConditionalAccessResponse,
@@ -22,22 +22,22 @@ const useGoogleConditionalAccessSignIn = ({
   deviceAuthToken,
   isSignInRequired,
 }: IUseGoogleConditionalAccessSignInOptions): IUseGoogleConditionalAccessSignInResult => {
+  const { mutate: startSignIn, data, isIdle, isLoading } = useMutation<
+    IGetDeviceGoogleConditionalAccessResponse,
+    Error,
+    string
+  >(deviceUserAPI.getGoogleConditionalAccessStatus);
+
+  const shouldStart = !!deviceAuthToken && isSignInRequired;
+
   // Every call on an unregistered host counts toward the server's retry cap
-  // and mints a new single-use token, so it runs once per page load.
-  const {
-    data,
-    isLoading,
-  } = useQuery<IGetDeviceGoogleConditionalAccessResponse>(
-    ["google_conditional_access", deviceAuthToken],
-    () => deviceUserAPI.getGoogleConditionalAccessStatus(deviceAuthToken),
-    {
-      enabled: !!deviceAuthToken && isSignInRequired,
-      retry: false,
-      staleTime: Infinity,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
+  // and mints a new single-use token, so it runs once per page load: the
+  // mutation is never idle again.
+  useEffect(() => {
+    if (shouldStart && isIdle) {
+      startSignIn(deviceAuthToken);
     }
-  );
+  }, [shouldStart, isIdle, deviceAuthToken, startSignIn]);
 
   const [hasReturned, setHasReturned] = useState(false);
 
@@ -73,7 +73,7 @@ const useGoogleConditionalAccessSignIn = ({
   }, [signInURL]);
 
   return {
-    isChecking: isLoading,
+    isChecking: shouldStart && (isIdle || isLoading),
     isRedirecting: !!signInURL && !hasReturned,
   };
 };

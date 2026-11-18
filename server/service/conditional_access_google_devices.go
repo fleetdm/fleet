@@ -74,7 +74,7 @@ func (svc *Service) googleConditionalAccessEligible(ctx context.Context, host *f
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /api/_version_/fleet/device/{token}/conditional_access/google
+// POST /api/_version_/fleet/device/{token}/conditional_access/google
 ////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceGoogleConditionalAccessRequest struct {

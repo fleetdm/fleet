@@ -111,7 +111,7 @@ func (g *googleDeviceTest) androidDeviceID(host *fleet.Host) string {
 
 func (g *googleDeviceTest) iosStatus(host *fleet.Host) fleet.GoogleConditionalAccessDeviceStatus {
 	var resp fleet.GoogleConditionalAccessDeviceStatus
-	res := g.s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
+	res := g.s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
 	require.NoError(g.t, json.NewDecoder(res.Body).Decode(&resp))
 	return resp
 }
@@ -283,12 +283,17 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	require.False(t, g.hasDevice(ade))
 	require.False(t, g.signInRequired(byod))
 
+	// Starting a sign-in mints a token and counts an attempt, so a GET, which a browser or
+	// a proxy may repeat, doesn't start one.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+ade.UUID+"/conditional_access/google", nil, http.StatusMethodNotAllowed)
+	require.False(t, g.hasDevice(ade))
+
 	// A company-owned iPhone is handed a sign-in URL; a personal one and a Mac aren't.
 	token := g.signIn(ade)
 	st := g.iosStatus(byod)
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
 	var macStatus fleet.GoogleConditionalAccessDeviceStatus
-	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/google-ca-mac-token/conditional_access/google", nil, http.StatusOK)
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/google-ca-mac-token/conditional_access/google", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&macStatus))
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, macStatus)
 	require.Empty(t, g.googleDeviceID(ade))
@@ -494,7 +499,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRetryC
 	// A sign-in URL that can't be built counts no attempt.
 	broken := g.newIOSHost("ios", true)
 	g.client.setDev(func(d *googleDeviceMock) { d.signInErr = errors.New("invalid relay uri") })
-	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+broken.UUID+"/conditional_access/google", nil, http.StatusInternalServerError)
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+broken.UUID+"/conditional_access/google", nil, http.StatusInternalServerError)
 	g.client.setDev(func(d *googleDeviceMock) { d.signInErr = nil })
 	require.False(t, g.hasDevice(broken))
 }

@@ -128,7 +128,7 @@ export default {
   ): Promise<IGetDeviceGoogleConditionalAccessResponse> => {
     const { DEVICE_GOOGLE_CONDITIONAL_ACCESS } = endpoints;
     return sendRequest(
-      "GET",
+      "POST",
       DEVICE_GOOGLE_CONDITIONAL_ACCESS(deviceAuthToken)
     );
   },
