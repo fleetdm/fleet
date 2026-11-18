@@ -708,7 +708,7 @@ const SoftwareTitleDetailsPage = ({
       if (canActivateMultiplePackages && canEditSoftware) {
         return "Add versions for a staged rollout or to support multiple architectures.";
       }
-      if (canActivateMultipleVersions && canEditSoftware && !isWebApp) {
+      if (canActivateMultipleVersions && canEditSoftware) {
         return "Add versions to scope different configurations to hosts.";
       }
       return "Software available to be installed";
@@ -724,10 +724,12 @@ const SoftwareTitleDetailsPage = ({
     return (
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
-        <div className={`${baseClass}__library-description-row`}>
-          <PageDescription content={descriptionContent} />
-          {headerAction}
-        </div>
+        {!isWebApp && (
+          <div className={`${baseClass}__library-description-row`}>
+            <PageDescription content={descriptionContent} />
+            {headerAction}
+          </div>
+        )}
         <div className={`${baseClass}__library-list`}>
           {useVersionsLayout && renderAppStoreVersionsHeader()}
           <LibraryItemAccordionList>
