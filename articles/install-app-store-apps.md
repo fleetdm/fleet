@@ -90,44 +90,29 @@ New or updated configuration isn't applied until the end user fully quits and re
 
 For App Store apps, Fleet sends the updated configuration to hosts in scope when you save it. For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), the field works the same way, but changes apply only the next time the app is installed or updated on each host.
 
-#### Managed configuration only
+Write the configuration as a `<dict>` whose only key is `Command`. Put the app's managed configuration under `Configuration`, and add install options next to it.
 
-Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+Fleet supports any managed configuration option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
-This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
-
-```xml
-<dict>
-  <key>ForceLoginWithSSO</key>
-  <true />
-  <key>SetSSOURL</key>
-  <string>example</string>
-</dict>
-```
-
-#### Managed configuration and install options
-
-To set install options, wrap everything in a `<dict>` whose only key is `Command`. Put the app's managed configuration under `Configuration`.
-
-This example keeps Zoom on the host after it unenrolls, sends Zoom's traffic through a per-app VPN, and sets the same managed configuration as above:
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102). It also keeps Zoom on the host after it unenrolls, and sends Zoom's traffic through a per-app VPN.
 
 ```xml
 <dict>
   <key>Command</key>
   <dict>
-    <key>ManagementFlags</key>
-    <integer>0</integer>
-    <key>Attributes</key>
-    <dict>
-      <key>VPNUUID</key>
-      <string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string>
-    </dict>
     <key>Configuration</key>
     <dict>
       <key>ForceLoginWithSSO</key>
       <true />
       <key>SetSSOURL</key>
       <string>example</string>
+    </dict>
+    <key>ManagementFlags</key>
+    <integer>0</integer>
+    <key>Attributes</key>
+    <dict>
+      <key>VPNUUID</key>
+      <string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string>
     </dict>
   </dict>
 </dict>
