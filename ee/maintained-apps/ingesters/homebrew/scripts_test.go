@@ -342,8 +342,10 @@ func TestQuitHelpersForceQuitWhenAppWontQuit(t *testing.T) {
 		t.Skip("bash not found")
 	}
 
-	// mode is what ends the app: "term", "kill", "nothing", "other-user" (it
-	// runs in another user's session, so nothing is signalled) or "ps-fails".
+	// mode is what ends the app: "term", "kill", "nothing", "exited" (it quits
+	// just after the polite window, before its processes are listed), "unseen"
+	// (ps doesn't list it, but it still 'is running'), "other-user" (it runs in
+	// another user's session, so nothing is signalled) or "ps-fails".
 	run := func(t *testing.T, helper, call, mode string) (string, error) {
 		stubs := `mode=` + mode + `
 signal_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "signals")) + `
@@ -351,7 +353,10 @@ stat() { echo alice; }
 id() { echo 501; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 kill() { echo "kill $*"; echo "$1" >> "$signal_file"; }
+sudo() { echo "sudo $*"; shift 2; "$@"; }
 ps() {
+  [[ "$mode" == exited ]] && touch "$signal_file.exited"
+  [[ "$mode" == exited || "$mode" == unseen ]] && return 0
   [[ "$mode" == ps-fails && "$*" == *pid=* ]] && return 1
   [[ "$mode" == term ]] && grep -qs -- -TERM "$signal_file" && return 0
   [[ "$mode" == kill ]] && grep -qs -- -KILL "$signal_file" && return 0
@@ -376,7 +381,7 @@ defaults() {
 osascript() {
   case "$4" in
     *" to quit") echo "execution error: Foo got an error: User canceled. (-128)" >&2; return 1 ;;
-    *" is running") echo true ;;
+    *" is running") [[ -e "$signal_file.exited" ]] && echo false || echo true ;;
   esac
 }
 `
@@ -396,6 +401,9 @@ osascript() {
 			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
 			require.Contains(t, out, "Last quit error: execution error: Foo got an error: User canceled. (-128)")
 			require.Contains(t, out, "kill -TERM 321\n")
+			if os.Geteuid() == 0 {
+				require.Contains(t, out, "sudo -u alice kill -TERM 321\n")
+			}
 			require.NotContains(t, out, "-KILL")
 			require.Contains(t, out, "Application 'com.example.Foo' stopped.")
 			require.Contains(t, out, "carried-on")
@@ -406,8 +414,16 @@ osascript() {
 			require.Contains(t, out, "kill -KILL 321\n")
 			require.Contains(t, out, "carried-on")
 
+			out, err = run(t, helper, call, "exited")
+			require.NoError(t, err, out)
+			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+			require.Contains(t, out, "Application 'com.example.Foo' is no longer running.")
+			require.NotContains(t, out, "kill ")
+			require.Contains(t, out, "carried-on")
+
 			for mode, msg := range map[string]string{
 				"nothing":    "Application 'com.example.Foo' did not stop.",
+				"unseen":     "Found no process to stop for application 'com.example.Foo'.",
 				"other-user": "Found no process to stop for application 'com.example.Foo'.",
 				"ps-fails":   "Couldn't check whether application 'com.example.Foo' is running.",
 			} {
