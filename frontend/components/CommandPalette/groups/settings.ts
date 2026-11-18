@@ -225,7 +225,14 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                 id: "settings-int-conditional-access",
                 label: "Conditional access",
                 path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
-                keywords: ["okta", "entra", "intune", "zero trust"],
+                keywords: [
+                  "okta",
+                  "entra",
+                  "intune",
+                  "google",
+                  "context-aware access",
+                  "zero trust",
+                ],
               },
               // The Okta page redirects back to conditional access until
               // Okta is configured.
