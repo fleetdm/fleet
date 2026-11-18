@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.1.3",
+      "version": "8.1.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.' AND version_compare(version, '8.1.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.' AND version_compare(version, '8.1.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'druva insync.exe');"
       },
-      "installer_url": "https://downloads.druva.com/downloads/inSync/Windows/8.1.3/inSync8.1.3r111021.msi",
+      "installer_url": "https://downloads.druva.com/downloads/inSync/Windows/8.1.6/inSync8.1.6r111032.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "3c11d43f",
-      "sha256": "f4ec7f458762a76b758de4daa68b5f697c1dab0a38d64d20297ec4826f985ac4",
+      "sha256": "70c4ba0753837419c670822d7725dfba3b164feee19142240364261b15869e60",
       "default_categories": [
         "Productivity"
       ],

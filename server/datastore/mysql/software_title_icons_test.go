@@ -256,7 +256,7 @@ func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var teamID, titleID, installerID, installer2ID uint
+	var teamID, titleID, installerID, installer2ID, vppTokenID uint
 	var err error
 	testCases := []struct {
 		name     string
@@ -330,6 +330,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, installerID, *activity.SoftwareInstallerID)
 			require.Nil(t, activity.AdamID)
 			require.Nil(t, activity.VPPAppTeamID)
+			require.Nil(t, activity.VPPTokenID)
 			require.Nil(t, activity.VPPIconUrl)
 			require.Equal(t, "foo", activity.SoftwareTitle)
 			require.Equal(t, "foo.pkg", *activity.Filename)
@@ -355,6 +356,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 			require.NoError(t, err)
+			vppTokenID = tok1.ID
 
 			vppApp := &fleet.VPPApp{
 				Name:    "foo",
@@ -417,6 +419,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Nil(t, activity.SoftwareInstallerID)
 			require.Equal(t, "1", *activity.AdamID)
 			require.NotEmpty(t, *activity.VPPAppTeamID)
+			require.Equal(t, &vppTokenID, activity.VPPTokenID)
 			require.Equal(t, "fleetdm.com/icon.png", *activity.VPPIconUrl)
 			require.Equal(t, "foo", activity.SoftwareTitle)
 			require.Nil(t, activity.Filename)

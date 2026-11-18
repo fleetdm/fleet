@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.2.2",
+      "version": "4.2.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%' AND version_compare(version, '4.2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%' AND version_compare(version, '4.2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'qgis-bin.exe');"
       },
-      "installer_url": "https://qgis.org/downloads/QGIS-OSGeo4W-4.2.2-1.msi",
+      "installer_url": "https://qgis.org/downloads/QGIS-OSGeo4W-4.2.3-2.msi",
       "install_script_ref": "b661d065",
       "uninstall_script_ref": "37b1cac3",
-      "sha256": "dda0db34626053027844f8f90a0acee614fe06fc56eb07d00e9da7f1447472b3",
+      "sha256": "c9b4b837350d00eecb77ae5c965219b3f74776e1921f7460b3859c898f38b1cf",
       "default_categories": [
         "Productivity"
       ]

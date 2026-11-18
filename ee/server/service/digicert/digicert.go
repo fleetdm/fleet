@@ -174,7 +174,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sending DigiCert POST request")
+		return nil, ctxerr.Wrap(ctx, certissue.Transient(ctx, err), "sending DigiCert POST request")
 	}
 	defer resp.Body.Close()
 
@@ -195,7 +195,8 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 			case http.StatusForbidden:
 				return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile, config.Name, resp.StatusCode)
 			}
-			return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
+			return nil, certissue.TransientStatus(
+				ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode), resp.StatusCode)
 		}
 
 		combinedErrorMessages := make([]string, len(errResp.Errors))
@@ -210,8 +211,8 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 			return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile+", errors: %s", config.Name, resp.StatusCode,
 				strings.Join(combinedErrorMessages, "; "))
 		}
-		return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s", resp.StatusCode,
-			strings.Join(combinedErrorMessages, "; "))
+		return nil, certissue.TransientStatus(ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s",
+			resp.StatusCode, strings.Join(combinedErrorMessages, "; ")), resp.StatusCode)
 	}
 
 	type certificateResponse struct {

@@ -12,6 +12,7 @@
 //
 //	android-amapi-mock --listen :9999
 //	android-amapi-mock --listen :9999 --google-credentials "$(cat service-account.json)"
+//	android-amapi-mock --listen 127.0.0.1:9999 --require-policies --latency 0 --error-rate 0
 package main
 
 import (
@@ -26,6 +27,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 // fakeDevice holds the in-memory state for a single fake Android device.
@@ -38,6 +41,9 @@ type fakeDevice struct {
 	PolicyName           string   `json:"policy_name"`
 	PendingCommands      []string `json:"pending_commands"`
 	PendingCertificates  []uint   `json:"pending_certificates"`
+	// AgentEnrollSecret is the enroll secret in the Fleet agent's last managed configuration, which the simulated agent
+	// enrolls orbit with.
+	AgentEnrollSecret string `json:"agent_enroll_secret"`
 }
 
 // maxRestorablePolicyVersion bounds the policy version a device may report when it
@@ -80,7 +86,21 @@ type deviceStore struct {
 	policyMu       sync.RWMutex
 	policyVersions map[string]int64
 	policyVersion  int64
+	// restoredPolicies holds policies a device reported when it registered again after this
+	// process lost its state. They exist in AMAPI even though this process never patched them.
+	restoredPolicies map[string]struct{}
+
+	// requirePolicies makes policy actions fail with 404 on a policy that was never created,
+	// as AMAPI does. Off by default: after a restart every policy would look missing until its
+	// device registers again or Fleet patches it.
+	requirePolicies bool
+
+	// agentPackage is the Fleet agent's package name, whose managed configuration carries the enroll secret.
+	agentPackage string
 }
+
+// defaultAgentPackage is Fleet's default mdm.android_agent.package.
+const defaultAgentPackage = "com.fleetdm.agent"
 
 func newDeviceStore() *deviceStore {
 	return &deviceStore{
@@ -91,6 +111,9 @@ func newDeviceStore() *deviceStore {
 		enterprises:    make(map[string]struct{}),
 		policyVersions: make(map[string]int64),
 		policyVersion:  1,
+
+		restoredPolicies: make(map[string]struct{}),
+		agentPackage:     defaultAgentPackage,
 	}
 }
 
@@ -160,6 +183,25 @@ func (ds *deviceStore) getPolicyVersion(policyName string) int64 {
 	return ds.policyVersions[policyName]
 }
 
+// notePolicyRestored records that a policy exists without issuing it a version.
+func (ds *deviceStore) notePolicyRestored(policyName string) {
+	ds.policyMu.Lock()
+	defer ds.policyMu.Unlock()
+	ds.restoredPolicies[policyName] = struct{}{}
+}
+
+// policyExists reports whether policyName would be found in AMAPI: a policy this process
+// issued a version for (a patch creates a policy), or one a device restored.
+func (ds *deviceStore) policyExists(policyName string) bool {
+	ds.policyMu.RLock()
+	defer ds.policyMu.RUnlock()
+	if _, ok := ds.policyVersions[policyName]; ok {
+		return true
+	}
+	_, ok := ds.restoredPolicies[policyName]
+	return ok
+}
+
 // raisePolicyVersionCounter pulls the counter up to a version a device reports when it
 // registers again after this process lost its state, so versions issued from here on stay
 // above the version the device already told Fleet about.
@@ -224,7 +266,10 @@ func (ds *deviceStore) register(d *fakeDevice) bool {
 	}
 
 	if d.PolicyName == "" && d.EnterpriseID != "" {
-		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
+		// A real device enrolls on the policy Fleet's enrollment token names, its default
+		// policy. Fleet only moves devices off that policy by ID, so any other name strands
+		// them there.
+		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/%d", d.EnterpriseID, android.DefaultAndroidPolicyID)
 		d.PolicyVersion = 0
 	}
 	ds.byESID[d.EnterpriseSpecificID] = d
@@ -288,6 +333,10 @@ func main() {
 	googleCredentials := flag.String("google-credentials", "", "Google service account JSON credentials (enables forwarding for real devices). Pass via: --google-credentials \"$(cat credentials.json)\" or set GOOGLE_CREDENTIALS env var")
 	latencyMean := flag.Duration("latency", 200*time.Millisecond, "Mean latency added to AMAPI responses (simulates Google API latency)")
 	errorRate := flag.Float64("error-rate", 0.01, "Fraction of AMAPI requests that return 429/5xx errors [0, 1]")
+	requirePolicies := flag.Bool("require-policies", false, "Fail policy actions (e.g. modifyPolicyApplications) with 404 on a policy that was never created, as AMAPI does")
+	var policyOpts policyOptions
+	flag.BoolVar(&policyOpts.rejectDefaultPolicyApps, "reject-default-policy-apps", false, "Fail any change to the app list of the default policy (policies/1) with 400. Fleet only manages apps in host-specific policies, so such a request is a Fleet bug")
+	agentPackage := flag.String("agent-package", defaultAgentPackage, "Package name of the Fleet Android agent (Fleet's mdm.android_agent.package), whose enroll secret simulated devices enroll with")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)
@@ -297,6 +346,8 @@ func main() {
 	}
 
 	store := newDeviceStore()
+	store.requirePolicies = *requirePolicies
+	store.agentPackage = *agentPackage
 
 	// Set up authenticated Google API client for real device forwarding
 	var google *googleForwarder
@@ -309,7 +360,7 @@ func main() {
 		log.Printf("Google credentials loaded — forwarding real device requests to Google AMAPI")
 	}
 
-	mux := newMux(store, google, *latencyMean, *errorRate)
+	mux := newMux(store, google, *latencyMean, *errorRate, policyOpts)
 
 	srv := &http.Server{
 		Addr:         *listen,
@@ -323,7 +374,7 @@ func main() {
 
 // newMux registers every mock route. Route patterns matter to the handlers (they read path
 // values), so this is shared between main and the tests rather than duplicated.
-func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Duration, errorRate float64) *http.ServeMux {
+func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Duration, errorRate float64, policyOpts policyOptions) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// ---- Health check ----
@@ -357,10 +408,16 @@ func newMux(store *deviceStore, google *googleForwarder, latencyMean time.Durati
 	mux.HandleFunc("DELETE /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleDevicesDelete(store)))))
 	mux.HandleFunc("POST /v1/enterprises/{eid}/devices/{did}", noteEnt(fwd(sim(handleIssueCommand(store)))))
 	mux.HandleFunc("GET /v1/enterprises/{eid}/devices", noteEnt(sim(handleDevicesList(store, google))))
+	mux.HandleFunc("GET /v1/enterprises/{eid}/devices/{did}/operations/{oid}", noteEnt(sim(handleOperationsGet(store, google))))
 
 	// ---- AMAPI: Policies ----
-	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePoliciesPatch(store, google))))
-	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(handlePolicyAction(store))))
+	guard := func(h http.HandlerFunc) http.HandlerFunc {
+		return guardPolicyRequest(policyOpts, h)
+	}
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(guard(handlePoliciesPatch(store, google)))))
+	mux.HandleFunc("POST /v1/enterprises/{eid}/policies/{pid}", noteEnt(sim(guard(handlePolicyAction(store)))))
+	// An empty policy ID doesn't match {pid}; the guard rejects it like any other invalid name.
+	mux.HandleFunc("PATCH /v1/enterprises/{eid}/policies/{$}", noteEnt(guard(handlePoliciesPatch(store, google))))
 
 	// ---- AMAPI: Other ----
 	mux.HandleFunc("POST /v1/enterprises/{eid}/enrollmentTokens", noteEnt(sim(forwardOrMock(google, handleEnrollmentTokenCreate()))))

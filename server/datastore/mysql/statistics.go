@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -224,6 +226,13 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumMDMWindowsProfiles = numMDMWindowsProfiles
 		stats.NumMDMAppleDeclarations = numMDMAppleDeclarations
 		stats.NumMDMAndroidProfiles = numMDMAndroidProfiles
+
+		aiGeneratedProfiles, err := aiGeneratedProfileCountsDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "AI generated profile counts")
+		}
+		stats.NumAppleAiGeneratedProfiles = aiGeneratedProfiles.Apple
+		stats.NumWindowsAiGeneratedProfiles = aiGeneratedProfiles.Windows
 
 		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
 		if err != nil {
@@ -465,4 +474,47 @@ func (ds *Datastore) conditionalAccessEnabledOnATeam(ctx context.Context, teams 
 		}
 	}
 	return false, nil
+}
+
+// aiGeneratedProfileCounts is the json_value of the aggregated_stats row that counts generated profiles.
+type aiGeneratedProfileCounts struct {
+	Apple   int `json:"apple"`
+	Windows int `json:"windows"`
+}
+
+func (ds *Datastore) IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error {
+	if platform != fleet.AutofillConfigProfilePlatformApple && platform != fleet.AutofillConfigProfilePlatformWindows {
+		return ctxerr.Errorf(ctx, "unsupported platform for AI generated profile count: %q", platform)
+	}
+
+	// One statement, so concurrent generations each add one instead of overwriting each other's read.  The CAST
+	// keeps the count an integer: JSON arithmetic would store 2.0.
+	const stmt = `
+		INSERT INTO aggregated_stats (id, global_stats, type, json_value)
+		VALUES (0, 1, ?, JSON_OBJECT(?, 1))
+		ON DUPLICATE KEY UPDATE
+			json_value = JSON_SET(json_value, ?, COALESCE(CAST(JSON_EXTRACT(json_value, ?) AS UNSIGNED), 0) + 1)`
+	path := "$." + platform
+	// Every generation updates this one row, so retry the lock errors the retry helper covers rather than lose a count.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, aggregatedStatsTypeAIGeneratedProfiles, platform, path, path)
+		return ctxerr.Wrap(ctx, err, "increment AI generated profile count")
+	})
+}
+
+func aiGeneratedProfileCountsDB(ctx context.Context, db sqlx.QueryerContext) (aiGeneratedProfileCounts, error) {
+	var counts aiGeneratedProfileCounts
+	var raw json.RawMessage
+	err := sqlx.GetContext(ctx, db, &raw, `SELECT json_value FROM aggregated_stats WHERE id = 0 AND global_stats = 1 AND type = ?`,
+		aggregatedStatsTypeAIGeneratedProfiles)
+	if errors.Is(err, sql.ErrNoRows) {
+		return counts, nil
+	}
+	if err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "get AI generated profile counts")
+	}
+	if err := json.Unmarshal(raw, &counts); err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "unmarshal AI generated profile counts")
+	}
+	return counts, nil
 }

@@ -103,6 +103,23 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     expect(screen.getByTestId("success-icon")).toBeInTheDocument();
   });
 
+  it("on activity feed, renders installed message with the activity's timestamp instead of the command's", async () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    renderModal({
+      details: {
+        commandUuid: "uuid-installed",
+        fleetInstallStatus: "installed",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+        activityCreatedAt: fiveMinutesAgo,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+    });
+  });
+
   it("renders manual install message when installed not through Fleet", async () => {
     renderModal({
       details: {

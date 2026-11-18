@@ -188,23 +188,14 @@ describe("Host Actions Dropdown", () => {
     });
 
     it.each<[HostMdmDeviceStatusUIState, string]>([
-      ["locked", "You can't run a live report on a locked host."],
-      ["wiped", "You can't run a live report on a wiped host."],
-      [
-        "locking",
-        "You can't run a live report while the host's device status is updating.",
-      ],
-      [
-        "unlocking",
-        "You can't run a live report while the host's device status is updating.",
-      ],
-      [
-        "wiping",
-        "You can't run a live report while the host's device status is updating.",
-      ],
+      ["locked", "Live report is unavailable while host is locked."],
+      ["wiped", "Live report is unavailable while host is wiped."],
+      ["locking", "Live report is unavailable while host is locking."],
+      ["unlocking", "Live report is unavailable while host is unlocking."],
+      ["wiping", "Live report is unavailable while host is wiping."],
       [
         "clearing_passcode",
-        "You can't run a live report while the host's device status is updating.",
+        "Live report is unavailable while host is clearing passcode.",
       ],
     ])(
       "explains why Live report is disabled on an online %s host",
@@ -415,7 +406,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "admin" })],
+              fleets: [createMockTeam({ id: 1, role: "admin" })],
             }),
           },
         },
@@ -445,7 +436,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+              fleets: [createMockTeam({ id: 1, role: "maintainer" })],
             }),
           },
         },
@@ -556,6 +547,51 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
+
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locked", "locked"],
+      ["locking", "locking"],
+      ["unlocking", "unlocking"],
+      ["wiped", "wiped"],
+      ["wiping", "wiping"],
+    ])(
+      "renders as disabled with a tooltip when the host is %s",
+      async (status, stateText) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isMacMdmEnabledAndConfigured: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            onSelect={noop}
+            hostTeamId={null}
+            hostStatus="online"
+            hostMdmEnrollmentStatus="On (automatic)"
+            isConnectedToFleetMdm
+            hostPlatform="darwin"
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Turn off MDM");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(
+          await screen.findByText(
+            `Turn off MDM is unavailable while host is ${stateText}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
   });
 
   describe("Delete action", () => {
@@ -616,7 +652,7 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "admin" })],
+              fleets: [createMockTeam({ id: 1, role: "admin" })],
             }),
           },
         },
@@ -643,7 +679,7 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+              fleets: [createMockTeam({ id: 1, role: "maintainer" })],
             }),
           },
         },
@@ -698,7 +734,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "technician" })],
+              fleets: [createMockTeam({ id: 1, role: "technician" })],
             }),
           },
         },
@@ -726,7 +762,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "technician" })],
+              fleets: [createMockTeam({ id: 1, role: "technician" })],
             }),
           },
         },
@@ -781,7 +817,7 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: false,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "technician" })],
+              fleets: [createMockTeam({ id: 1, role: "technician" })],
             }),
           },
         },
@@ -960,6 +996,74 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
+
+    it("renders as disabled with a tooltip when the host is locking", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locking"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Lock");
+      expect(option).toHaveAttribute("aria-disabled", "true");
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      await user.hover(option);
+      expect(
+        await screen.findByText("Lock is unavailable while host is locking.")
+      ).toBeInTheDocument();
+    });
+
+    it("is replaced by Unlock when the host is locked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          hostPlatform="windows"
+          hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Unlock")).not.toHaveAttribute(
+        "aria-disabled",
+        "true"
+      );
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });
@@ -1160,7 +1264,7 @@ describe("Host Actions Dropdown", () => {
   });
 
   describe("Wipe action", () => {
-    it("renders only when the host is unlocked", async () => {
+    it("renders as enabled when the host is unlocked", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1187,8 +1291,51 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Wipe")).toBeInTheDocument();
+      expect(screen.getByText("Wipe")).not.toHaveAttribute(
+        "aria-disabled",
+        "true"
+      );
     });
+
+    it.each<HostMdmDeviceStatusUIState>(["locked", "wiping", "wiped"])(
+      "renders as disabled with a tooltip when the host is %s",
+      async (status) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostMdmEnrollmentStatus="On (automatic)"
+            isConnectedToFleetMdm
+            hostPlatform="darwin"
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Wipe");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(
+          await screen.findByText(
+            `Wipe is unavailable while host is ${status}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
 
     it("does not renders when a windows host but does not have Fleet windows mdm enabled and configured", async () => {
       const render = createCustomRenderer({
@@ -1302,11 +1449,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false, // scriptsGloballyDisabled = false
-              },
-            },
           },
         },
       });
@@ -1334,11 +1476,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1366,11 +1503,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1398,11 +1530,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1449,11 +1576,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1482,49 +1604,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.getByText(/fleetd agent with --enable-scripts/i)
       ).toBeInTheDocument();
-    });
-
-    it("renders the Run script action as disabled when scripts are disabled globally", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: true, // scriptsGloballyDisabled = true
-              },
-            },
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          isConnectedToFleetMdm
-          hostPlatform="darwin"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      await waitFor(() => {
-        waitFor(() => {
-          user.hover(screen.getByText("Run script"));
-        });
-
-        expect(
-          screen.getByText(
-            /Running scripts is disabled in organization settings./i
-          )
-        ).toBeInTheDocument();
-      });
     });
 
     it("does not render the Run script action for ChromeOS", async () => {
@@ -1875,34 +1954,45 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
     });
 
-    // hide Lock / Unenroll / Wipe / Clear passcode whenever any of those four is pending. The four canX helpers all gate on hostMdmDeviceStatus !== "unlocked",
-    // so one table covers the matrix:
-    //   - which COBO/BYO arm of the helpers we exercise (enrollment status)
-    //   - which pending state surfaces the gate (device status)
-    // For COBO, "Unenroll" is always hidden (COBO doesn't have it); the assertion list only
-    // includes options that would otherwise be visible for that enrollment.
     it.each([
       {
         case: "COBO + locking",
         enrollment: "On (automatic)" as const,
         deviceStatus: "locking" as const,
-        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "locking",
+      },
+      {
+        case: "COBO + locked",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "locked" as const,
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "locked",
       },
       {
         case: "COBO + wiping",
         enrollment: "On (automatic)" as const,
         deviceStatus: "wiping" as const,
-        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "wiping",
       },
       {
         case: "COBO + clearing_passcode",
         enrollment: "On (automatic)" as const,
         deviceStatus: "clearing_passcode" as const,
-        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "clearing passcode",
+      },
+      {
+        case: "BYO + unenrolling",
+        enrollment: "On (personal)" as const,
+        deviceStatus: "unenrolling" as const,
+        expectDisabled: ["Lock", "Unenroll", "Clear passcode"],
+        stateText: "unenrolling",
       },
     ])(
-      "hides pending-gated actions for Android when $case (#41683)",
-      async ({ enrollment, deviceStatus, expectHidden }) => {
+      "disables MDM actions with a tooltip for Android when $case",
+      async ({ enrollment, deviceStatus, expectDisabled, stateText }) => {
         const render = createCustomRenderer({
           context: {
             app: {
@@ -1929,9 +2019,22 @@ describe("Host Actions Dropdown", () => {
 
         await user.click(screen.getByText("Actions"));
 
-        expectHidden.forEach((label) => {
-          expect(screen.queryByText(label)).not.toBeInTheDocument();
-        });
+        expect(screen.getByText("Transfer")).toBeInTheDocument();
+        expect(screen.getByText("Delete")).toBeInTheDocument();
+
+        // eslint-disable-next-line no-restricted-syntax
+        for (const label of expectDisabled) {
+          const option = screen.getByText(label);
+          expect(option).toHaveAttribute("aria-disabled", "true");
+          // eslint-disable-next-line no-await-in-loop
+          await user.hover(option);
+          expect(
+            // eslint-disable-next-line no-await-in-loop
+            await screen.findByText(
+              `${label} is unavailable while host is ${stateText}.`
+            )
+          ).toBeInTheDocument();
+        }
       }
     );
   });
@@ -2822,7 +2925,7 @@ describe("Host Actions Dropdown", () => {
         case: "renders for a team technician on an iOS host of their fleet",
         currentUser: createMockUser({
           global_role: null,
-          teams: [createMockTeam({ id: 1, role: "technician" })],
+          fleets: [createMockTeam({ id: 1, role: "technician" })],
         }),
         isGlobalTechnician: false,
         hostTeamId: 1,
@@ -2987,56 +3090,17 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
     });
 
-    it.each<HostMdmDeviceStatusUIState>([
-      "locked",
-      "locking",
-      "unlocking",
-      "locating",
-    ])("is disabled with tooltip when host status is %s", async (status) => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            isPremiumTier: true,
-            isMacMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="ios"
-          hostMdmEnrollmentStatus="On (company-owned)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus={status}
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      const option = screen.getByText("Clear passcode");
-      expect(option).toBeInTheDocument();
-      expect(option).toHaveAttribute("aria-disabled", "true");
-
-      await user.hover(option);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            /Clear passcode is unavailable while host is in Lost Mode./i
-          )
-        ).toBeInTheDocument();
-      });
-    });
-
-    it.each<HostMdmDeviceStatusUIState>(["wiping", "wiped"])(
-      "is disabled with tooltip when pending wipe",
-      async (status) => {
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locked", "locked"],
+      ["locking", "locking"],
+      ["unlocking", "unlocking"],
+      ["locating", "locked"],
+      ["wiping", "wiping"],
+      ["wiped", "wiped"],
+      ["clearing_passcode", "clearing passcode"],
+    ])(
+      "is disabled with tooltip when host status is %s",
+      async (status, stateText) => {
         const render = createCustomRenderer({
           context: {
             app: {
@@ -3064,18 +3128,15 @@ describe("Host Actions Dropdown", () => {
         await user.click(screen.getByText("Actions"));
 
         const option = screen.getByText("Clear passcode");
-        expect(option).toBeInTheDocument();
         expect(option).toHaveAttribute("aria-disabled", "true");
 
         await user.hover(option);
 
-        await waitFor(() => {
-          expect(
-            screen.getByText(
-              /Clear passcode is unavailable while host is pending wipe./i
-            )
-          ).toBeInTheDocument();
-        });
+        expect(
+          await screen.findByText(
+            `Clear passcode is unavailable while host is ${stateText}.`
+          )
+        ).toBeInTheDocument();
       }
     );
   });
@@ -3087,7 +3148,7 @@ describe("Host Actions Dropdown", () => {
           isGlobalAdmin: true,
           isPremiumTier: true,
           currentUser: createMockUser(),
-          config: { mdm: { apple_bm_enabled_and_configured: true } },
+          config: { mdm: { apple_business_enabled_and_configured: true } },
         },
       },
     });
@@ -3127,7 +3188,7 @@ describe("Host Actions Dropdown", () => {
             isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
-            config: { mdm: { apple_bm_enabled_and_configured: true } },
+            config: { mdm: { apple_business_enabled_and_configured: true } },
           },
         },
       });
@@ -3161,9 +3222,9 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: teamID, role: "admin" })],
+              fleets: [createMockTeam({ id: teamID, role: "admin" })],
             }),
-            config: { mdm: { apple_bm_enabled_and_configured: true } },
+            config: { mdm: { apple_business_enabled_and_configured: true } },
           },
         },
       });
@@ -3198,9 +3259,9 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             currentUser: createMockUser({
-              teams: [createMockTeam({ id: 2, role: "admin" })],
+              fleets: [createMockTeam({ id: 2, role: "admin" })],
             }),
-            config: { mdm: { apple_bm_enabled_and_configured: true } },
+            config: { mdm: { apple_business_enabled_and_configured: true } },
           },
         },
       });
@@ -3235,7 +3296,7 @@ describe("Host Actions Dropdown", () => {
             isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
-            config: { mdm: { apple_bm_enabled_and_configured: false } },
+            config: { mdm: { apple_business_enabled_and_configured: false } },
           },
         },
       });

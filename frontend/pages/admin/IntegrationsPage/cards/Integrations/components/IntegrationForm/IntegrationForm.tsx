@@ -37,7 +37,7 @@ interface IIntegrationFormProps {
   gitOpsModeEnabled?: boolean;
 }
 
-const validateForm = (
+export const validateForm = (
   data: IIntegrationFormData,
   destination: string
 ): IFormErrors => {
@@ -45,7 +45,7 @@ const validateForm = (
 
   if (!data.url) {
     errors.url = "Enter a URL";
-  } else if (!isValidURL({ url: data.url, protocols: ["https"] })) {
+  } else if (!isValidURL({ url: data.url.trim(), protocols: ["https"] })) {
     errors.url = "Enter a valid HTTPS URL";
   }
 
@@ -63,7 +63,7 @@ const validateForm = (
   } else {
     if (!data.email) {
       errors.email = "Enter an email";
-    } else if (!isValidEmail(data.email)) {
+    } else if (!isValidEmail(data.email.trim())) {
       errors.email = "Enter a valid email";
     }
     if (!data.groupId) {

@@ -66,20 +66,19 @@ export const getTicketOrWebhookLabel = (
 export const generateSoftwareOptionHelpText = (
   title: ISoftwareTitle
 ): string => {
-  const isVppApp = title.source === "apps" && !!title.app_store_app;
+  const firstAppStoreApp = title.app_store_apps?.[0];
+  const isVppApp = title.source === "apps" && !!firstAppStoreApp;
 
   if (isVppApp) {
-    const version = title.app_store_app?.version
-      ? ` • ${title.app_store_app.version}`
+    const version = firstAppStoreApp?.version
+      ? ` • ${firstAppStoreApp.version}`
       : "";
     return `macOS (App Store)${version}`;
   }
 
   const platform: Platform | null =
     INSTALLABLE_SOURCE_PLATFORM_CONVERSION[title.source] || null;
-  const extension = getExtensionFromFileName(
-    title.software_package?.name ?? ""
-  );
+  const extension = getExtensionFromFileName(title.packages?.[0]?.name ?? "");
   const platformString =
     platform && extension
       ? `${PLATFORM_DISPLAY_NAMES[platform]} (.${extension})`
@@ -93,7 +92,7 @@ export const generateSoftwareOptionHelpText = (
   const versionOrCount =
     packageCount > 1
       ? `${packageCount} ${pluralize(packageCount, "version")}`
-      : title.software_package?.version ?? "";
+      : title.packages?.[0]?.version ?? "";
   const separator = platformString && versionOrCount ? " • " : "";
 
   return `${platformString}${separator}${versionOrCount}`;

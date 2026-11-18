@@ -14,6 +14,11 @@ loosen:
     reason: >-
       Apple's schema says string, but it-and-security's fleet-okta-conditional-access profile sends
       a list of URIs and is deployed.
+  - kind: apple_profile
+    payload_type: com.apple.vpn.managed
+    key_path: VendorConfig
+    action: open
+    reason: VPN vendors define their own VendorConfig keys; used in docs/solutions globalprotect-vpn-settings profile.
 
 
 # add: keys Apple's schema doesn't list but devices accept.
@@ -35,6 +40,11 @@ add:
     name: allowCloudBTMM
     key: {type: boolean}
     reason: Legacy Back to My Mac restriction; used in it-and-security misc profile.
+  - kind: apple_profile
+    payload_type: com.apple.applicationaccess
+    name: allowMediaSharing
+    key: {type: boolean}
+    reason: Key used to disable media sharing; used in CIS benchmark profiles.
   - kind: apple_profile
     payload_type: com.apple.applicationaccess
     name: allowCloudFMM

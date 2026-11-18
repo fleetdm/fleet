@@ -11,6 +11,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Tag from "components/Tag";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
@@ -37,13 +38,20 @@ export interface ILabelConfig {
 interface INoLabelsEmptyStateProps {
   description: ReactNode;
   onAddLabel: () => void;
+  /** Validation error for the Custom-labels selection. Rendered above "No
+   * labels" so the user knows why Save was blocked when zero labels exist. */
+  labelsError?: ReactNode | null;
 }
 
 const NoLabelsEmptyState = ({
   description,
   onAddLabel,
+  labelsError,
 }: INoLabelsEmptyStateProps) => (
   <div className={`${baseClass}__empty-state`}>
+    {!!labelsError && (
+      <span className={`${baseClass}__empty-state--error`}>{labelsError}</span>
+    )}
     <span className={`${baseClass}__empty-state--title`}>No labels</span>
     <span className={`${baseClass}__empty-state--description`}>
       {description}
@@ -84,7 +92,12 @@ const SelectedLabelBadges = ({
           dismissLabel={`Remove ${name}`}
           onDismiss={() => onSelectLabel({ name, value: false })}
         >
-          {name}
+          {/* The tag's GitOps tooltip owns hover, so suppress the name tooltip. */}
+          <TooltipTruncatedText
+            value={name}
+            disableTooltip={!!gitOpsTip}
+            fixedPositionStrategy
+          />
         </Tag>
       ))}
     </div>
@@ -97,6 +110,7 @@ interface ILabelCheckboxListProps {
   disabledLabels: Record<string, boolean>;
   onSelectLabel: (arg: { name: string; value: boolean }) => void;
   disableOptions: boolean;
+  isError?: boolean;
 }
 
 const LabelCheckboxList = ({
@@ -105,8 +119,13 @@ const LabelCheckboxList = ({
   disabledLabels,
   onSelectLabel,
   disableOptions,
+  isError = false,
 }: ILabelCheckboxListProps) => (
-  <div className={`${baseClass}__checkboxes`}>
+  <div
+    className={classnames(`${baseClass}__checkboxes`, {
+      [`${baseClass}__checkboxes--error`]: isError,
+    })}
+  >
     {labels.map((label) => (
       <div className={`${baseClass}__label`} key={label.name}>
         <Checkbox
@@ -182,6 +201,9 @@ interface ILabelTabContentProps {
   onChangeSearch: (val: string) => void;
   tabKey: LabelTabKey;
   disableOptions: boolean;
+  /** Validation error shown in red, replacing the "Labels" label text and
+   * turning the list outline red. */
+  labelsError?: ReactNode | null;
 }
 
 const LabelTabContent = ({
@@ -191,6 +213,7 @@ const LabelTabContent = ({
   onChangeSearch,
   tabKey,
   disableOptions,
+  labelsError,
 }: ILabelTabContentProps) => (
   <>
     {tab.showModeToggle && (
@@ -209,12 +232,20 @@ const LabelTabContent = ({
       onSelectLabel={tab.onSelectLabel}
       disableOptions={disableOptions}
     />
+    <div
+      className={classnames("form-field__label", {
+        "form-field__label--error": !!labelsError,
+      })}
+    >
+      {labelsError || "Labels"}
+    </div>
     <LabelCheckboxList
       labels={filteredLabels}
       selectedLabels={tab.selectedLabels}
       disabledLabels={disabledLabels}
       onSelectLabel={tab.onSelectLabel}
       disableOptions={disableOptions}
+      isError={!!labelsError}
     />
   </>
 );
@@ -228,6 +259,7 @@ interface ICustomTargetTabsProps {
   isLoadingLabels: boolean;
   isErrorLabels: boolean;
   disableOptions: boolean;
+  labelsError?: ReactNode | null;
 }
 
 const CustomTargetTabs = ({
@@ -239,15 +271,32 @@ const CustomTargetTabs = ({
   isLoadingLabels,
   isErrorLabels,
   disableOptions,
+  labelsError,
 }: ICustomTargetTabsProps) => {
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [labelSearchQuery, setLabelSearchQuery] = useState("");
 
+  const errorBanner = !!labelsError && (
+    <div className={`form-field__label form-field__label--error`}>
+      {labelsError}
+    </div>
+  );
+
   if (isLoadingLabels) {
-    return <Spinner centered={false} />;
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
   }
   if (isErrorLabels) {
-    return <DataError />;
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
   }
 
   const hasLabels = !!labels.length;
@@ -294,11 +343,13 @@ const CustomTargetTabs = ({
               onChangeSearch={setLabelSearchQuery}
               tabKey="include"
               disableOptions={disableOptions}
+              labelsError={labelsError}
             />
           ) : (
             <NoLabelsEmptyState
               description={emptyStateDescription}
               onAddLabel={onAddLabel}
+              labelsError={labelsError}
             />
           )}
         </TabPanel>
@@ -311,11 +362,13 @@ const CustomTargetTabs = ({
               onChangeSearch={setLabelSearchQuery}
               tabKey="exclude"
               disableOptions={disableOptions}
+              labelsError={labelsError}
             />
           ) : (
             <NoLabelsEmptyState
               description={emptyStateDescription}
               onAddLabel={onAddLabel}
+              labelsError={labelsError}
             />
           )}
         </TabPanel>
@@ -371,6 +424,9 @@ export interface ITargetLabelSelectorProps {
   isErrorLabels?: boolean;
   className?: string;
   disableOptions?: boolean;
+  /** Validation error rendered in red in the "Labels" label slot above the
+   * labels list, with the list outline turning red to match. */
+  labelsError?: ReactNode | null;
 }
 
 /**
@@ -390,6 +446,7 @@ const TargetLabelSelector = ({
   isErrorLabels = false,
   className,
   disableOptions = false,
+  labelsError,
 }: ITargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
 
@@ -410,6 +467,7 @@ const TargetLabelSelector = ({
           isLoadingLabels={isLoadingLabels}
           isErrorLabels={isErrorLabels}
           disableOptions={disableOptions}
+          labelsError={labelsError}
         />
       )}
     </div>

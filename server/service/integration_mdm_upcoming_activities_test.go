@@ -64,7 +64,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "fleet_id", "0")
 	require.NoError(t, appResp.Err)
 	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
@@ -79,9 +79,9 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	// Get software title ID of the added VPP app
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
+		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	// make the VPP app install pending on both hosts
@@ -187,7 +187,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "fleet_id", "0")
 	require.NoError(t, appResp.Err)
 	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
@@ -202,9 +202,9 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// Get software title ID of the added VPP app
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
+		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	// create a software installer
@@ -315,7 +315,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// cancel the uninstall, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[1].UUID), nil, http.StatusNoContent)
 	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledUninstallSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_title_id": %d}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_display_name": "", "software_title_id": %d}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
 
 	// record an uninstall result post-cancelation
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
@@ -338,7 +338,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// cancel the VPP app install, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[0].UUID), nil, http.StatusNoContent)
 	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "App 1", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), vppAppTitleID), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "App 1", "software_display_name": "", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), vppAppTitleID), 0)
 
 	// to be able to simulate the host sending a MDM result post-cancelation,
 	// we need to re-activate the MDM command.
@@ -372,7 +372,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// cancel the software install, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[1].UUID), nil, http.StatusNoContent)
 	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_display_name": "", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
 
 	// record a software install result post-cancelation
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
@@ -384,21 +384,21 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// the VPP install count only sees the successful VPP app install
 	titleResponse := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.Equal(t, uint(1), titleResponse.SoftwareTitle.AppStoreApp.Status.Installed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApp.Status.Failed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApp.Status.Pending)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
+	require.Equal(t, uint(1), titleResponse.SoftwareTitle.AppStoreApps[0].Status.Installed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApps[0].Status.Failed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApps[0].Status.Pending)
 
 	// the SW install count only sees the failed install
 	titleResponse = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", swTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
-	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.FailedInstall)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.FailedUninstall)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingUninstall)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", swTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
+	require.NotEmpty(t, titleResponse.SoftwareTitle.Packages)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.Installed)
+	require.Equal(t, uint(1), titleResponse.SoftwareTitle.Packages[0].Status.FailedInstall)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.FailedUninstall)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingUninstall)
 
 	// status of software is the one before cancellation
 	getHostSoftwareResp := getHostSoftwareResponse{}

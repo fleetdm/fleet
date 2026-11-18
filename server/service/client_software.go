@@ -16,15 +16,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// ListSoftwareVersions retrieves the software versions installed on hosts.
-func (c *Client) ListSoftwareVersions(query string) ([]fleet.Software, error) {
+// ListSoftwareVersions returns the software versions in one page of results, and the total number
+// of versions matching the query.
+func (c *Client) ListSoftwareVersions(query string) ([]fleet.Software, int, error) {
 	verb, path := "GET", "/api/latest/fleet/software/versions"
 	var responseBody listSoftwareVersionsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return responseBody.Software, nil
+	return responseBody.Software, responseBody.Count, nil
 }
 
 // ListSoftwareTitles retrieves the software titles installed on hosts.
@@ -189,6 +190,23 @@ func (c *Client) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategor
 		return nil, err
 	}
 	return responseBody.SelfServiceCategories, nil
+}
+
+func (c *Client) GetPatchDeadlineSettings(fleetID uint) (*fleet.PatchDeadlineSettings, error) {
+	verb, path := "GET", "/api/latest/fleet/software/patch_deadline_settings"
+	query := fmt.Sprintf("fleet_id=%d", fleetID)
+	var responseBody patchDeadlineSettingsResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		return nil, err
+	}
+	return responseBody.PatchDeadlineSettings, nil
+}
+
+func (c *Client) UpdatePatchDeadlineSettings(fleetID uint, s fleet.PatchDeadlineSettings) error {
+	verb, path := "PATCH", "/api/latest/fleet/software/patch_deadline_settings"
+	params := updatePatchDeadlineSettingsRequest{FleetID: &fleetID, Days: s.Days, Time: s.Time}
+	var responseBody patchDeadlineSettingsResponse
+	return c.authenticatedRequest(params, verb, path, &responseBody)
 }
 
 func (c *Client) DeleteSelfServiceCategory(id uint) error {

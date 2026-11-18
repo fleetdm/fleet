@@ -97,7 +97,7 @@ const PolicyPicker = ({
   }
 
   // "Inherited" applies only when viewing a specific team and the policy
-  // is a global one (team_id === null), matching PoliciesTableConfig.
+  // is a global one (fleet_id === null), matching PoliciesTableConfig.
   const isViewingSpecificTeam =
     !!currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID;
 
@@ -107,7 +107,7 @@ const PolicyPicker = ({
         const showCriticalBadge = isPremiumTier && policy.critical;
         const showPatchBadge = policy.type === "patch";
         const showInheritedBadge =
-          isViewingSpecificTeam && policy.team_id === null;
+          isViewingSpecificTeam && policy.fleet_id === null;
 
         return (
           <Command.Item

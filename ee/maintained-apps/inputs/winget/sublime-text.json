@@ -3,6 +3,8 @@
   "slug": "sublime-text/windows",
   "package_identifier": "SublimeHQ.SublimeText.4",
   "unique_identifier": "Sublime Text",
+  "open_process_names": ["sublime_text.exe"],
+  "exists_query": "SELECT 1 FROM file WHERE path IN (SELECT rtrim(install_location, '\\') || '\\sublime_text.exe' FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd');",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/sublime_text_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/sublime_text_uninstall.ps1",
   "installer_arch": "x64",

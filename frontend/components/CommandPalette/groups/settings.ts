@@ -172,6 +172,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                   "scep",
                   "est",
                   "digicert",
+                  "ejbca",
                   "ndes",
                   "smallstep",
                   "ca",
@@ -186,6 +187,7 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                   "scep",
                   "est",
                   "digicert",
+                  "ejbca",
                   "ndes",
                   "smallstep",
                   "pki",
@@ -247,7 +249,6 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
             group: "Settings" as const,
             path: paths.ADMIN_FLEETS,
             keywords: [
-              "teams",
               "groups",
               "add fleet",
               "create fleet",

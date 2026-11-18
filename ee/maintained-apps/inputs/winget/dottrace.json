@@ -3,6 +3,7 @@
   "slug": "dottrace/windows",
   "package_identifier": "JetBrains.dotTrace",
   "unique_identifier": "JetBrains dotTrace",
+  "open_process_names": ["dottrace32.exe", "dottrace64.exe", "dottrace64a.exe", "dottraceviewer32.exe", "dottraceviewer64.exe", "dottraceviewer64a.exe", "jetbrains.dottrace.home.shell.exe"],
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotTrace%' AND publisher = 'JetBrains s.r.o.';",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dottrace_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dottrace_uninstall.ps1",

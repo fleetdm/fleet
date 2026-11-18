@@ -12,14 +12,21 @@ import { ensurePeriod } from "pages/SoftwarePage/SoftwareAddPage/helpers";
 export const EDIT_SOFTWARE_ERROR_PREFIX = "Couldn't edit software.";
 const DEFAULT_ERROR_MESSAGE = `${EDIT_SOFTWARE_ERROR_PREFIX} Please try again.`;
 
-// eslint-disable-next-line import/prefer-default-export
+// Mirrors backend fieldsShouldSideEffect in ee/server/service/software_installers.go.
+const SIDE_EFFECT_SAFE_KEYS = new Set(["selfService", "categories"]);
+
+export const hasChangeSideEffects = (updates: Record<string, unknown>) =>
+  Object.keys(updates).some((k) => !SIDE_EFFECT_SAFE_KEYS.has(k));
+
 export const getErrorMessage = (
   err: unknown,
   software: ISoftwarePackage | IAppStoreApp
 ) => {
   const isTimeout =
     isAxiosError(err) &&
-    (err.response?.status === 504 || err.response?.status === 408);
+    (err.response?.status === 504 ||
+      err.response?.status === 408 ||
+      err.response?.status === 524); // Cloudflare origin timeout
   const reason = getErrorReason(err);
 
   if (isTimeout) {

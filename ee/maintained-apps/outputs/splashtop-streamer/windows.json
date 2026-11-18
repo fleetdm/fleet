@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.8.6.1",
+      "version": "3.8.6.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Splashtop Streamer' AND publisher = 'Splashtop Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Splashtop Streamer' AND publisher = 'Splashtop Inc.' AND version_compare(version, '3.8.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Splashtop Streamer' AND publisher = 'Splashtop Inc.' AND version_compare(version, '3.8.6.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'splashtop streamer.exe');"
       },
-      "installer_url": "https://download.splashtop.com/win/Splashtop_Streamer_Win_INSTALLER_v3.8.6.1.exe",
+      "installer_url": "https://download.splashtop.com/win/Splashtop_Streamer_Win_INSTALLER_v3.8.6.3.exe",
       "install_script_ref": "574847c1",
       "uninstall_script_ref": "b4da9e5f",
-      "sha256": "e68e462d1e27851c4f393aa8c43fd30e72d192d4e8b4c044dc3b41b2bb7ddbb4",
+      "sha256": "8a1e503ab9b8fd0519fd88246f7f2981cdacb3b06dff5a00b0724e32b8c34a0d",
       "default_categories": [
         "Productivity"
       ]

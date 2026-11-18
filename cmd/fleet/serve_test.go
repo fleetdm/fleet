@@ -175,7 +175,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numPoliciesAutomationEnabledSoftware":7,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmAndroidEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"idpGoogleWorkspaceConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetDesktopSSOEnabled":true,"fleetMaintainedAppsMacOS":[{"name":"1password/darwin","patchPolicy":true,"softwareAutomation":false}],"fleetMaintainedAppsWindows":[{"name":"google-chrome/windows","patchPolicy":true,"softwareAutomation":true}],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":true,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":true,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34,"numMDMAppleProfiles":0,"numMDMWindowsProfiles":0,"numMDMAppleDeclarations":0,"numMDMAndroidProfiles":0,"resultLogDestination":"firehose","statusLogDestination":"filesystem","auditLogDestination":"kinesis","anyVulnerabilitiesWebhookEnabled":true,"anyFailingPoliciesWebhookEnabled":true,"anyHostActivitiesWebhookEnabled":true,"globalActivityWebhookEnabled":true,"ticketDestinationConfigured":true,"ssoConfiguredFleetUsers":true,"ssoConfiguredEndUsers":true,"accountProvisioningConfigured":true,"idpSCIMConfigured":true,"certificateAuthorityConfigured":true}`, requestBody)
+	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numPoliciesAutomationEnabledSoftware":7,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmAndroidEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"idpGoogleWorkspaceConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetDesktopSSOEnabled":true,"fleetMaintainedAppsMacOS":[{"name":"1password/darwin","patchPolicy":true,"softwareAutomation":false}],"fleetMaintainedAppsWindows":[{"name":"google-chrome/windows","patchPolicy":true,"softwareAutomation":true}],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":true,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":true,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34,"numMDMAppleProfiles":0,"numMDMWindowsProfiles":0,"numMDMAppleDeclarations":0,"numMDMAndroidProfiles":0,"numAppleAiGeneratedProfiles":0,"numWindowsAiGeneratedProfiles":0,"numAndroidAiGeneratedProfiles":0,"resultLogDestination":"firehose","statusLogDestination":"filesystem","auditLogDestination":"kinesis","anyVulnerabilitiesWebhookEnabled":true,"anyFailingPoliciesWebhookEnabled":true,"anyHostActivitiesWebhookEnabled":true,"globalActivityWebhookEnabled":true,"ticketDestinationConfigured":true,"ssoConfiguredFleetUsers":true,"ssoConfiguredEndUsers":true,"accountProvisioningConfigured":true,"idpSCIMConfigured":true,"certificateAuthorityConfigured":true}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -1590,24 +1590,12 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
 		tables         []int64
-		data           []int64
 		wantSubstrings []string
 	}{
 		{
-			name:           "tables only",
+			name:           "tables",
 			tables:         []int64{1, 2, 3},
 			wantSubstrings: []string{"tables=[1 2 3]", "missing required migrations"},
-		},
-		{
-			name:           "data only",
-			data:           []int64{4, 5},
-			wantSubstrings: []string{"data=[4 5]"},
-		},
-		{
-			name:           "tables and data",
-			tables:         []int64{1},
-			data:           []int64{2},
-			wantSubstrings: []string{"tables=[1], data=[2]"},
 		},
 		{
 			name:           "neither",
@@ -1616,7 +1604,7 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			printMissingMigrationsWarning(&buf, tc.tables, tc.data)
+			printMissingMigrationsWarning(&buf, tc.tables)
 			out := buf.String()
 			for _, sub := range tc.wantSubstrings {
 				assert.Contains(t, out, sub)

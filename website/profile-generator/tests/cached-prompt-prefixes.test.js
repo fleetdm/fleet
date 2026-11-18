@@ -100,4 +100,16 @@ describe('cached prompt prefixes', function() {
     }
   }
 
+  it('caches the Apple router\'s system prompt, the same for every request', async function() {
+    let routerSystemPrompts = [];
+    for (let instruction of INSTRUCTIONS) {
+      promptCalls = [];
+      await sails.helpers.routeAppleConfigurationProfileRequest.with({ naturalLanguageInstructions: instruction, forFleet: true });
+      let routerCall = _.find(promptCalls, (call)=>{ return /declarative device management/.test(call.systemPrompt || ''); });
+      assert.ok(routerCall && routerCall.systemPromptCacheTtl, 'the router\'s system prompt should be cached');
+      routerSystemPrompts.push(routerCall.systemPrompt);
+    }
+    assert.strictEqual(_.uniq(routerSystemPrompts).length, 1, 'the router\'s cached system prompt differs between requests');
+  });
+
 });

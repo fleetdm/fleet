@@ -38,6 +38,11 @@ type hostCacheEnvelope struct {
 	BitLockerProtectionStatus *int    `json:"bitlocker_protection_status,omitempty"`
 	TPMPINSet                 *bool   `json:"tpm_pin_set,omitempty"`
 	BitLockerBootProtectorSet *bool   `json:"bitlocker_boot_protector_set,omitempty"`
+
+	// OSVersion keeps the os_version key fleet.Host used before it moved the combined string out of API responses,
+	// so entries cached by an older server still decode. It shadows the embedded OSVersionOnly, hence the extra field.
+	OSVersion     string `json:"os_version,omitempty"`
+	OSVersionOnly string `json:"os_version_only,omitempty"`
 }
 
 // envelopeFromHost builds an envelope suitable for JSON marshaling by copying
@@ -53,6 +58,8 @@ func envelopeFromHost(h *fleet.Host) *hostCacheEnvelope {
 		BitLockerProtectionStatus: h.BitLockerProtectionStatus,
 		TPMPINSet:                 &h.TPMPINSet,
 		BitLockerBootProtectorSet: h.BitLockerBootProtectorSet,
+		OSVersion:                 h.OSVersion,
+		OSVersionOnly:             h.OSVersionOnly,
 	}
 }
 
@@ -67,6 +74,8 @@ func (e *hostCacheEnvelope) toHost() *fleet.Host {
 	h.HasHostIdentityCert = e.HasHostIdentityCert
 	h.BitLockerProtectionStatus = e.BitLockerProtectionStatus
 	h.BitLockerBootProtectorSet = e.BitLockerBootProtectorSet
+	h.OSVersion = e.OSVersion
+	h.OSVersionOnly = e.OSVersionOnly
 	if e.TPMPINSet != nil {
 		h.TPMPINSet = *e.TPMPINSet
 	}

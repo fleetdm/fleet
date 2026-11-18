@@ -6,12 +6,16 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/google/uuid"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 // ---- Coordination API handlers ----
@@ -62,6 +66,7 @@ func handleRegister(store *deviceStore) http.HandlerFunc {
 			d.PolicyVersion = 0
 		} else if d.PolicyName != "" {
 			store.raisePolicyVersionCounter(d.PolicyVersion)
+			store.notePolicyRestored(d.PolicyName)
 		}
 
 		// A device Fleet deleted through AMAPI was genuinely unenrolled; letting it register
@@ -109,11 +114,14 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 			PolicyName          string   `json:"policy_name"`
 			PendingCommands     []string `json:"pending_commands"`
 			PendingCertificates []uint   `json:"pending_certificates"`
+			// Always present, so a simulated agent can tell this proxy reports the secret even before it has one.
+			AgentEnrollSecret string `json:"agent_enroll_secret"`
 		}{
 			PolicyVersion:       policyVersion,
 			PolicyName:          d.PolicyName,
 			PendingCommands:     d.PendingCommands,
 			PendingCertificates: d.PendingCertificates,
+			AgentEnrollSecret:   d.AgentEnrollSecret,
 		}
 		d.PendingCommands = nil
 		d.mu.Unlock()
@@ -141,11 +149,37 @@ func handleDevicesGet(store *deviceStore) http.HandlerFunc {
 			"name":                 name,
 			"appliedPolicyVersion": fmt.Sprintf("%d", d.PolicyVersion),
 			"appliedPolicyName":    d.PolicyName,
+			// Fleet checks a re-enrollment's hardware identity against this before resetting the host.
+			"hardwareInfo": map[string]any{"enterpriseSpecificId": d.EnterpriseSpecificID},
 		}
 		d.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// handleOperationsGet reports every operation on a fake device as done, since simulated
+// devices ack commands as soon as they see them. Fleet looks the operation up when it
+// handles a COMMAND notification.
+// Operations on devices the mock doesn't know are forwarded to Google when it is configured.
+func handleOperationsGet(store *deviceStore, google *googleForwarder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := deviceName(r)
+		if store.getByName(name) == nil && google != nil {
+			google.ForwardOperationsGet(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if store.getByName(name) == nil {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, `{"error":{"code":404,"message":"Operation not found","status":"NOT_FOUND"}}`)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name": name + "/operations/" + r.PathValue("oid"),
+			"done": true,
+		})
 	}
 }
 
@@ -293,6 +327,51 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 
 // ---- Policy handlers ----
 
+// policyOptions turns on checks for policy requests that real AMAPI accepts but that show a bug
+// in Fleet, or that AMAPI rejects but the mock accepts by default.
+type policyOptions struct {
+	rejectDefaultPolicyApps bool
+}
+
+// guardPolicyRequest rejects policy requests before they reach the handler. An empty policy ID
+// is always rejected, as AMAPI does for an invalid policy name.
+func guardPolicyRequest(opts policyOptions, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := policyID(r)
+		if id == "" {
+			writeAMAPIError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "Invalid policy name: "+policyName(r))
+			return
+		}
+
+		// Every POST on a policy is an app action. A PATCH changes the apps unless its update
+		// mask leaves them out.
+		changesApps := r.Method == http.MethodPost
+		if r.Method == http.MethodPatch {
+			mask := r.URL.Query().Get("updateMask")
+			changesApps = mask == "" || slices.Contains(strings.Split(mask, ","), "applications")
+		}
+		if opts.rejectDefaultPolicyApps && changesApps && id == strconv.Itoa(android.DefaultAndroidPolicyID) {
+			writeAMAPIError(w, http.StatusBadRequest, "FAILED_PRECONDITION",
+				"mock: Fleet must not change the apps of the default policy "+policyName(r))
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func writeAMAPIError(w http.ResponseWriter, code int, status, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error": map[string]any{
+			"code":    code,
+			"message": message,
+			"status":  status,
+		},
+	})
+}
+
 func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := policyName(r)
@@ -305,6 +384,18 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 			log.Printf("Forwarding policy patch to Google AMAPI: %q", name) // #nosec G706 -- load testing tool
 			google.ForwardPoliciesPatch(w, r)
 			return
+		}
+
+		// The app list Fleet patches includes the Fleet agent with its managed configuration.
+		if isFakeDevice && r.Body != nil {
+			if bodyBytes, err := io.ReadAll(r.Body); err == nil {
+				var policy struct {
+					Applications []managedApp `json:"applications"`
+				}
+				if json.Unmarshal(bodyBytes, &policy) == nil {
+					storeAgentEnrollSecret(store, hostUUID, policy.Applications)
+				}
+			}
 		}
 
 		version := store.nextPolicyVersion(name)
@@ -324,6 +415,16 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 		// policyID strips the action suffix, without which the device lookup in
 		// extractAndStoreCertTemplateIDs never matches.
 		hostUUID := policyID(r)
+
+		// Only a simulated device's policy is checked: a real device's policy can be created
+		// through Google, which this process doesn't track.
+		if store.requirePolicies && store.getByESID(hostUUID) != nil && !store.policyExists(name) {
+			// The body Fleet sees from AMAPI, through the fleetdm.com proxy, for a policy that
+			// doesn't exist.
+			log.Printf("Policy action on missing policy %q", name) // #nosec G706 -- load testing tool
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
 
 		// Try to extract cert template IDs from the request body
 		var bodyBytes []byte
@@ -345,16 +446,59 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 
 // ---- Other AMAPI handlers ----
 
+// defaultEnrollmentTokenSeconds is how long AMAPI makes a token valid for when
+// the request does not say.
+const defaultEnrollmentTokenSeconds = int64(3600)
+
 func handleEnrollmentTokenCreate() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var requested androidmanagement.EnrollmentToken
+		if err := readBody(r, &requested); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		token := uuid.New().String()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"name":   "enterprises/mock/enrollmentTokens/" + token,
-			"value":  token,
-			"qrCode": fmt.Sprintf(`{"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME":"com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver","android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM":"I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg","android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION":"https://play.google.com/managed/downloadManagingApp?identifier=setup","android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE":{"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN":"%s"}}`, token),
+			// The enterprise the token was asked for, not a literal "mock":
+			// Fleet stores this name against the token it created.
+			"name":  "enterprises/" + r.PathValue("eid") + "/enrollmentTokens/" + token,
+			"value": token,
+			// AMAPI always sets this, and Fleet's zero-touch configuration
+			// parses it rather than treating it as optional. Leaving it out
+			// failed that request with a time-parsing error that said nothing
+			// about which side was at fault.
+			"expirationTimestamp": enrollmentTokenExpiry(time.Now(), requested.Duration).Format(time.RFC3339),
+			"qrCode":              fmt.Sprintf(`{"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME":"com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver","android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM":"I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg","android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION":"https://play.google.com/managed/downloadManagingApp?identifier=setup","android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE":{"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN":"%s"}}`, token),
 		})
 	}
+}
+
+// enrollmentTokenExpiry resolves the expiry of a token from the duration asked
+// for, which AMAPI writes as a count of seconds with a trailing "s". A missing
+// or unreadable duration gets AMAPI's own default of one hour.
+//
+// The arithmetic is in Unix seconds rather than a time.Duration on purpose:
+// Fleet asks for 31536000000s for a zero-touch token, which is a thousand
+// years and does not fit in a time.Duration at all, so time.ParseDuration
+// rejects the one value this handler most needs to answer.
+func enrollmentTokenExpiry(now time.Time, duration string) time.Time {
+	seconds := defaultEnrollmentTokenSeconds
+	if trimmed, isSeconds := strings.CutSuffix(duration, "s"); isSeconds {
+		// A fractional duration is legal; whole seconds are enough for an
+		// expiry.
+		whole, _, _ := strings.Cut(trimmed, ".")
+		if parsed, err := strconv.ParseInt(whole, 10, 64); err == nil && parsed > 0 {
+			seconds = parsed
+		}
+	}
+	// RFC 3339 has no year past 9999, so a longer duration is clamped rather
+	// than formatted into something no caller can read back.
+	latest := time.Date(9999, time.December, 31, 23, 59, 59, 0, time.UTC)
+	if seconds > latest.Unix()-now.Unix() {
+		return latest
+	}
+	return time.Unix(now.Unix()+seconds, 0).UTC()
 }
 
 func handleApplicationsGet() http.HandlerFunc {
@@ -404,14 +548,18 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []byte) {
 	var req struct {
 		Changes []struct {
-			Application struct {
-				ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-			} `json:"application"`
+			Application managedApp `json:"application"`
 		} `json:"changes"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		return
 	}
+
+	apps := make([]managedApp, 0, len(req.Changes))
+	for _, change := range req.Changes {
+		apps = append(apps, change.Application)
+	}
+	storeAgentEnrollSecret(store, hostUUID, apps)
 
 	// Keep looking after a change that carries no install operation: returning early here
 	// dropped certificates that were listed in a later change.
@@ -446,6 +594,34 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 	d.mu.Lock()
 	d.PendingCertificates = certIDs
 	d.mu.Unlock()
+}
+
+// managedApp is the part of an AMAPI application policy the mock reads.
+type managedApp struct {
+	PackageName          string          `json:"packageName"`
+	ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+}
+
+// storeAgentEnrollSecret records the enroll secret in the Fleet agent's managed configuration, so the simulated agent can
+// enroll orbit with it. Only the agent's package counts, since other apps' configurations are free-form.
+func storeAgentEnrollSecret(store *deviceStore, hostUUID string, apps []managedApp) {
+	d := store.getByESID(hostUUID)
+	if d == nil {
+		return
+	}
+	for _, app := range apps {
+		if app.PackageName != store.agentPackage || len(app.ManagedConfiguration) == 0 {
+			continue
+		}
+		var config android.AgentManagedConfiguration
+		if err := json.Unmarshal(app.ManagedConfiguration, &config); err != nil || config.EnrollSecret == "" || config.HostUUID != hostUUID {
+			continue
+		}
+		d.mu.Lock()
+		d.AgentEnrollSecret = config.EnrollSecret
+		d.mu.Unlock()
+		return
+	}
 }
 
 func handleCatchAll(_ *googleForwarder) http.HandlerFunc {

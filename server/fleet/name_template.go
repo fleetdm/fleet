@@ -69,11 +69,6 @@ func varAlternationRegexp(vars []FleetVarName) *regexp.Regexp {
 	return regexp.MustCompile(fmt.Sprintf(`\$FLEET_VAR_(%[1]s)\b|\$\{FLEET_VAR_(%[1]s)\}`, alt))
 }
 
-// nameTemplateSecretRegexp matches a $FLEET_SECRET_NAME / ${FLEET_SECRET_NAME}
-// custom (secret) variable token. Secret values are only known at resolve time
-// so this is used to strip secret tokens out of a template when computing its fixed-text byte floor.
-var nameTemplateSecretRegexp = regexp.MustCompile(`\$` + ServerSecretPrefix + `\w+|\$\{` + ServerSecretPrefix + `\w+\}`)
-
 // nameTemplateVitalRegexp matches a $FLEET_HOST_VITAL_<id> / ${FLEET_HOST_VITAL_<id>}
 // custom host vital token. Vital values, like secrets, are only known at
 // resolve time, so this is used to strip vital tokens out of a template when
@@ -118,7 +113,7 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 	// host at resolve time. Per-host overflow from variable/secret expansion is
 	// still caught by the cron when it resolves against a host's actual values.
 	literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, "")
-	literal = nameTemplateSecretRegexp.ReplaceAllString(literal, "")
+	literal = variables.SecretRegex.ReplaceAllString(literal, "")
 	literal = nameTemplateVitalRegexp.ReplaceAllString(literal, "")
 	if len(literal) > MaxResolvedHostNameBytes {
 		return "", NewInvalidArgumentError("name_template",

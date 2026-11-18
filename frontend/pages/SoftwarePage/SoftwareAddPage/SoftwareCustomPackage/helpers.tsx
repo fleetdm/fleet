@@ -19,7 +19,9 @@ import {
 export const getErrorMessage = (err: unknown, softwareTitle?: string) => {
   const isTimeout =
     isAxiosError(err) &&
-    (err.response?.status === 504 || err.response?.status === 408);
+    (err.response?.status === 504 ||
+      err.response?.status === 408 ||
+      err.response?.status === 524); // Cloudflare origin timeout
   const reason = getErrorReason(err);
   if (isTimeout) {
     return REQUEST_TIMEOUT_ERROR_MESSAGE;

@@ -69,7 +69,7 @@ const HostMdmStatusCell = ({
           showArrow
           tipOffset={8}
         >
-          <Icon name="error-outline" color="status-error" size="medium" />
+          <Icon name="error" color="status-error" size="medium" />
         </TooltipWrapper>
       )}
     </span>

@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -46,6 +47,7 @@ func TestRecoveryLockPassword(t *testing.T) {
 		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
 		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
 		{"RecoveryLockPasswordArchive", testRecoveryLockPasswordArchive},
+		{"ClaimHostsForRecoveryLockVerify", testClaimHostsForRecoveryLockVerify},
 	}
 
 	for _, c := range cases {
@@ -2575,4 +2577,66 @@ func testRecoveryLockPasswordArchive(t *testing.T, ds *Datastore) {
 		assert.Equal(t, []string{sent}, archivedPasswords(t, host.UUID),
 			"a deleted host can still be holding a lock Fleet handed it")
 	})
+}
+
+func testClaimHostsForRecoveryLockVerify(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setRow := func(hostUUID, status, operationType string, pendingVerify *string, deleted bool) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, status, operation_type, pending_verify_command_uuid, deleted)
+				VALUES (?, 'pw', ?, ?, ?, ?)`, hostUUID, status, operationType, pendingVerify, deleted)
+			return err
+		})
+	}
+	// left by the upgrade repair: acknowledged, verify not sent
+	setRow("install-awaiting", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeInstall), nil, false)
+	setRow("remove-awaiting", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeRemove), nil, false)
+	// not for the cron: verify already sent, still waiting on the set, deleted
+	setRow("verify-sent", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeInstall), new("verify-1"), false)
+	setRow("set-pending", string(fleet.MDMDeliveryPending), string(fleet.MDMOperationTypeInstall), nil, false)
+	setRow("deleted", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeInstall), nil, true)
+
+	pendingVerify := func(hostUUID string) *string {
+		var v *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &v, `SELECT pending_verify_command_uuid FROM host_recovery_key_passwords WHERE host_uuid = ?`, hostUUID)
+		})
+		return v
+	}
+
+	claims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
+	require.NoError(t, err)
+	require.Len(t, claims, 2)
+	byHost := map[string]fleet.HostRecoveryLockVerifyClaim{}
+	for _, c := range claims {
+		require.NotEmpty(t, c.VerifyCommandUUID)
+		require.Equal(t, c.VerifyCommandUUID, ptr.ValOrZero(pendingVerify(c.HostUUID)), "the claim records the command it hands out")
+		byHost[c.HostUUID] = c
+	}
+	require.Equal(t, fleet.MDMOperationTypeInstall, byHost["install-awaiting"].OperationType)
+	require.Equal(t, fleet.MDMOperationTypeRemove, byHost["remove-awaiting"].OperationType)
+	require.NotEqual(t, byHost["install-awaiting"].VerifyCommandUUID, byHost["remove-awaiting"].VerifyCommandUUID)
+	require.Equal(t, "verify-1", ptr.ValOrZero(pendingVerify("verify-sent")))
+	require.Nil(t, pendingVerify("set-pending"))
+	require.Nil(t, pendingVerify("deleted"))
+
+	// claimed hosts aren't claimed again
+	claims, err = ds.ClaimHostsForRecoveryLockVerify(ctx)
+	require.NoError(t, err)
+	require.Empty(t, claims)
+
+	// unclaiming needs the command the claim handed out
+	claimed := byHost["install-awaiting"].VerifyCommandUUID
+	require.NoError(t, ds.UnclaimHostForRecoveryLockVerify(ctx, "install-awaiting", "other"))
+	require.Equal(t, claimed, ptr.ValOrZero(pendingVerify("install-awaiting")))
+	require.NoError(t, ds.UnclaimHostForRecoveryLockVerify(ctx, "install-awaiting", claimed))
+	require.Nil(t, pendingVerify("install-awaiting"))
+
+	claims, err = ds.ClaimHostsForRecoveryLockVerify(ctx)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	require.Equal(t, "install-awaiting", claims[0].HostUUID)
+	require.NotEqual(t, claimed, claims[0].VerifyCommandUUID)
 }

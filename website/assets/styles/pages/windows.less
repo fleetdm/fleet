@@ -1,4 +1,4 @@
-#windows {
+#windows-page {
   background: linear-gradient(180deg, #E8F1F6 0%, #FFF 2.51%);
 
   h1 {
@@ -11,7 +11,12 @@
     color: @core-fleet-black;
     margin-bottom: 0px;
   }
-  h5 {
+  [purpose='feature-heading'] h3, [purpose='feature-text'] > h3 {
+    .title-m();
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+  }
+  [purpose='feature'] h3 {
     .title-s();
     font-weight: @bold;
     color: @core-fleet-black;
@@ -46,12 +51,9 @@
     gap: 24px;
   }
   [purpose='cta-button'] {
-    .cta-button();
-    height: 36px;
+    .primary-button();
+    display: flex;
     min-width: 140px;
-    padding: 8px 16px;
-    font-size: 14px;
-    line-height: 150%;
   }
 
   [purpose='checklist'] {
@@ -85,14 +87,7 @@
   }
   [purpose='hero-image'] {
     width: 100%;
-    img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 1072 / 480;
-      object-fit: cover;
-      border-radius: 16px;
-      background-color: @core-fleet-black-5;
-    }
+    container-type: inline-size;
   }
 
   // Section headings
@@ -107,7 +102,7 @@
     text-align: center;
     &.left-aligned {
       align-items: flex-start;
-      max-width: 780px;
+      max-width: 688px;
       margin-left: 0;
       text-align: left;
     }
@@ -122,9 +117,24 @@
       flex-direction: column;
       gap: @inner-padding;
     }
+    [purpose='feature-graphic'] {
+      width: 100%;
+      max-width: 504px;
+      height: auto;
+      margin-bottom: @section-gap;
+    }
   }
 
   // Feature rows
+  [purpose='feature-group'] {
+    display: flex;
+    flex-direction: column;
+    gap: 96px;
+  }
+  // Adds to the section's 48px gap so the heading sits 96px above the first row, like the rows themselves.
+  [purpose='page-section'] > [purpose='feature-group'] {
+    margin-top: @section-48;
+  }
   [purpose='feature-with-image'] {
     .feature-with-image();
     [purpose='feature-image'], [purpose='photo-collage'] {
@@ -151,16 +161,24 @@
     flex-direction: column;
     gap: @section-gap;
   }
-  [purpose='feature-items'] {
+  // Matches the video link on /aviation, but navigates to the guide instead of opening a modal.
+  [purpose='video-button'] {
     display: flex;
-    flex-direction: column;
-    gap: @section-gap-sm;
-  }
-  [purpose='feature-item'] {
-    display: flex;
-    flex-direction: column;
-    gap: @inner-padding;
-    max-width: 360px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: @bold;
+    line-height: 150%;
+    color: @core-fleet-black;
+    text-decoration: none;
+    &:hover {
+      color: @core-fleet-black;
+      text-decoration: none;
+    }
+    img {
+      height: 32px;
+    }
   }
   [purpose='photo-collage'] {
     max-width: calc(~'50% - 32px');
@@ -171,7 +189,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: 12px;
     }
     [purpose='photo-celebration'] {
       grid-column: 1;
@@ -189,66 +207,35 @@
     }
   }
 
-  // Quote and logos
-  [purpose='quote-and-logos'] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: @section-64;
-  }
-  [purpose='section-quote'] {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 24px;
-    flex: 1 1 50%;
-    [purpose='quote-content'] {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    [purpose='quote-text'] {
-      font-size: 18px;
-      font-style: italic;
-    }
-  }
-  [purpose='quote-author-image'] {
-    img {
-      height: 48px;
-      width: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-  }
-  [purpose='name-and-title'] {
+  // Logo strip
+  [purpose='logo-strip'] {
     display: flex;
     flex-direction: column;
-    gap: @inner-padding-xxs;
+    align-items: center;
+    gap: @section-gap;
+    width: 100%;
   }
-  [purpose='author-name'] {
+  [purpose='logo-strip-label'] {
     font-size: 14px;
     font-weight: @bold;
     color: @core-fleet-black;
   }
-  [purpose='author-title'] {
-    .body-m();
-  }
-  // The grid's background shows through the 1px gaps as divider lines between logos.
-  [purpose='logo-grid'] {
+  [purpose='logo-tiles'] {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    flex: 1 1 50%;
-    background-color: @core-fleet-black-10;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+    width: 100%;
     [purpose='logo'] {
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 76px;
+      height: 80px;
+      border: 1px solid @core-fleet-black-10;
+      border-radius: 8px;
       background-color: @accent-white;
-      // object-fit keeps wide logos (e.g. ConductorOne) from stretching when max-width caps them.
+      // Each logo's height comes from its height attribute so differently shaped logos look balanced.
+      // object-fit keeps wide logos from stretching when max-width caps them.
       img {
-        height: 24px;
         width: auto;
         max-width: 80%;
         object-fit: contain;
@@ -281,7 +268,7 @@
       align-items: flex-start;
       gap: @inner-padding-xs;
       padding: @section-gap @page-padding;
-      h3 {
+      h2 {
         font-size: 20px;
         line-height: 150%;
         font-weight: @bold;
@@ -330,55 +317,6 @@
       background-size: 16px 16px;
     }
   }
-  [purpose='pills'] + [purpose='two-column-features'] {
-    margin-top: @section-48;
-    [purpose='feature-card-image'] {
-      margin-bottom: @section-gap;
-      img {
-        display: block;
-        width: 100%;
-        height: auto;
-        border-radius: 16px;
-      }
-    }
-  }
-
-  // Enrollment options
-  [purpose='enrollment-options'] {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: @section-48;
-    margin-top: @inner-padding;
-  }
-  [purpose='enrollment-option'] {
-    display: flex;
-    flex-direction: column;
-    gap: @inner-padding;
-    [purpose='enrollment-icon'] {
-      display: flex;
-      align-items: center;
-      height: 66px;
-      margin-bottom: @inner-padding-xs;
-    }
-    [purpose='windows-icon'] {
-      height: 56px;
-      width: 56px;
-    }
-    [purpose='entra-icon'] {
-      height: 64px;
-      width: 64px;
-    }
-    [purpose='provisioning-package-icon'] {
-      height: 66px;
-      width: 66px;
-    }
-    [purpose='checklist'] {
-      margin-top: @inner-padding-xs;
-      p {
-        margin-bottom: @inner-padding;
-      }
-    }
-  }
 
   // Customer quote
   [purpose='quote-section'] {
@@ -394,14 +332,25 @@
       font-size: 22px;
       font-style: italic;
     }
-    [purpose='quote-author-info'] {
+    [purpose='quote-author-image'] img {
+      height: 64px;
+      width: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    [purpose='name-and-title'] {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: @inner-padding-xs;
+      gap: @inner-padding-xxs;
     }
-    [purpose='name-and-title'] {
-      align-items: center;
+    [purpose='author-name'] {
+      font-size: 14px;
+      font-weight: @bold;
+      color: @core-fleet-black;
+    }
+    [purpose='author-title'] {
+      .body-m();
     }
   }
 
@@ -462,6 +411,9 @@
     align-items: center;
     gap: @section-48;
     text-align: center;
+    h2 {
+      .page-heading();
+    }
   }
 
   @media (max-width: 1199px) {
@@ -480,27 +432,11 @@
     [purpose='photo-collage'] {
       max-width: calc(~'50% - 24px');
     }
-    [purpose='quote-and-logos'] {
-      flex-direction: column;
-      gap: @section-64-md;
-      [purpose='section-quote'] {
-        flex-direction: column;
-        align-items: center;
-        max-width: 560px;
-        text-align: center;
-      }
-      [purpose='name-and-title'] {
-        align-items: center;
-      }
-      [purpose='logo-grid'] {
-        width: 100%;
-      }
+    [purpose='logo-tiles'] {
+      grid-template-columns: repeat(3, 1fr);
     }
     [purpose='migration-banner'] [purpose='banner-image'] {
       flex-basis: 280px;
-    }
-    [purpose='enrollment-options'] {
-      gap: @section-gap;
     }
   }
 
@@ -511,26 +447,13 @@
     [purpose='photo-collage'] {
       max-width: 100%;
     }
-    [purpose='feature-item'] {
-      max-width: none;
+    [purpose='feature-group'] {
+      gap: @section-160-xs;
     }
     [purpose='two-column-features'] {
       grid-template-columns: 1fr;
-    }
-    [purpose='enrollment-options'] {
-      grid-template-columns: 1fr;
-      gap: @section-48;
-    }
-    [purpose='enrollment-option'] {
-      align-items: center;
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
-      text-align: center;
-      [purpose='checklist'] {
+      [purpose='feature-graphic'] {
         max-width: 100%;
-        width: fit-content;
-        text-align: left;
       }
     }
     [purpose='migration-banner'] {
@@ -555,7 +478,7 @@
     [purpose='page-hero'] {
       padding-top: 0;
     }
-    [purpose='logo-grid'] {
+    [purpose='logo-tiles'] {
       grid-template-columns: repeat(2, 1fr);
     }
     [purpose='quote-section'] [purpose='quote-text'] {

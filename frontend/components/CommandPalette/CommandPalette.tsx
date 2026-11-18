@@ -641,20 +641,12 @@ const CommandPalette = (): JSX.Element | null => {
                 }}
                 onPointerDown={(e) => e.preventDefault()}
               >
-                <Icon
-                  name="chevron-down"
-                  size="small"
-                  color="ui-fleet-black-50"
-                />
+                <Icon name="chevron-down" color="ui-fleet-black-50" />
               </button>
             )}
             {item.opensPickerPage && (
               <span aria-hidden className={`${baseClass}__item-more`}>
-                <Icon
-                  name="chevron-right"
-                  size="small"
-                  color="ui-fleet-black-50"
-                />
+                <Icon name="chevron-right" color="ui-fleet-black-50" />
               </span>
             )}
           </div>
@@ -736,11 +728,7 @@ const CommandPalette = (): JSX.Element | null => {
                         navigate directly. */}
                     {!sub && item.opensPickerPage && (
                       <span aria-hidden className={`${baseClass}__item-more`}>
-                        <Icon
-                          name="chevron-right"
-                          size="small"
-                          color="ui-fleet-black-50"
-                        />
+                        <Icon name="chevron-right" color="ui-fleet-black-50" />
                       </span>
                     )}
                   </div>

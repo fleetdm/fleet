@@ -150,6 +150,19 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			errMsg: fleet.NDESSCEPVariablesMissingErrMsg,
 		},
 		{
+			name: "Conditional access url shows up an extra time",
+			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL is already present in configuration profile",
+		},
+		{
+			name: "Conditional access renewal ID missing",
+			profile: strings.Replace(customSCEPForValidation("challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"), "$FLEET_VAR_SCEP_RENEWAL_ID", "", 1),
+			errMsg: fleet.ConditionalAccessSCEPVariablesMissingErrMsg,
+		},
+		{
 			name: "Smallstep badCA",
 			profile: customSCEPForValidation("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_bad", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_bad", "Name",
 				"com.apple.security.scep"),
@@ -192,7 +205,7 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Pass a premium license for testing (we're not testing license validation here)
 			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-			err := validateProfileCertificateAuthorityVariables(tc.profile, premiumLic, groupedCAs, nil, nil, nil, nil)
+			err := validateProfileCertificateAuthorityVariables(tc.profile, premiumLic, groupedCAs, caVarValidators{})
 			if tc.errMsg != "" {
 				require.ErrorContains(t, err, tc.errMsg)
 			} else {

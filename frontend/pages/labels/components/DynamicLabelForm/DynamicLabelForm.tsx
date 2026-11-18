@@ -51,24 +51,45 @@ const DynamicLabelForm = ({
   const [platform, setPlatform] = useState(defaultPlatform);
   const [queryError, setQueryError] = useState<string | null>(null);
 
-  const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
-    const { error } = validateQuery(queryString);
-    if (query === "" || error === "") {
-      setQueryError(null);
-    } else {
-      setQueryError(error);
-    }
-  }, 500);
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax error without flashing mid-token. Blur / submit still fire
+  // immediately. Skipped when editing: the query is read-only.
+  const debounceValidateSql = useDebouncedCallback((q: string) => {
+    if (isEditing) return;
+    const { error } = validateQuery(q);
+    setQueryError(q === "" || error === "" ? null : error);
+  }, 3000);
 
   const onQueryChange = (newQuery: string) => {
     setQuery(newQuery);
-    debounceValidateSQL(newQuery);
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (queryError) {
+      setQueryError(null);
+    }
+    debounceValidateSql(newQuery);
+  };
+
+  // Validate SQL on blur so incomplete queries don't flash a syntax error
+  // mid-type. Skipped when editing: the query is read-only, so the user
+  // can't change it to resolve any error we'd surface.
+  const onQueryBlur = () => {
+    if (isEditing) return;
+    const { error } = validateQuery(query);
+    setQueryError(query === "" || error === "" ? null : error);
   };
 
   const onSaveForm = (
     labelFormData: ILabelFormData,
     labelFormDataValid: boolean
   ) => {
+    // Query is read-only when editing, so skip SQL validation on save too.
+    if (isEditing) {
+      if (labelFormDataValid) {
+        onSave({ ...labelFormData, query, platform });
+      }
+      return;
+    }
     const { error } = validateQuery(query);
     if (error) {
       setQueryError(error);
@@ -133,9 +154,10 @@ const DynamicLabelForm = ({
         additionalFields={
           <>
             <SQLEditor
-              error={queryError}
+              error={isEditing ? null : queryError}
               name="query"
               onChange={onQueryChange}
+              onBlur={onQueryBlur}
               value={query}
               label="Query"
               labelActionComponent={renderLabelComponent()}

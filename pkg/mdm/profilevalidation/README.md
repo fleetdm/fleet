@@ -128,9 +128,108 @@ Release-v27.0 has 119 payload types and 48 configuration declarations. DDFv2Feb2
 - **At startup:** `fleet serve` calls `ParseProfileValidationSchema()`, which parses the embedded copy. It refuses to start if that fails.
 - **Reading it:** callers use `Current()`, then the lookups, which return nil for anything unknown:
   - `AppleProfile(payloadType)` and `AppleDeclaration(declarationType)`.
-  - `WindowsNode(locURI)` returns the exact node, or else the node whose `*` segments match, preferring the fewest `*`. Paths are compared as written.
+  - `WindowsNode(locURI)` returns the exact node, or else the node whose `*` segments match, preferring the fewest `*`. Segments compare case-insensitively; roots are compared as written.
 - **Swapping it:** `Replace(schema)` swaps in a newer schema from `Parse`, for example a downloaded copy. New `Current()` calls see it, and a schema a caller already holds never changes. Don't modify a schema you get from `Current()`.
-- **Dependencies:** the package doesn't import `server/fleet`.
+**Dependencies:** 
+- It imports `server/variables`, which only uses the standard library.
+
+## Validating Apple profiles
+
+```go
+s := profilevalidation.Current()
+findings, err := s.ValidateAppleProfile(data, profilevalidation.ModeLenient)   // .mobileconfig
+findings, err := s.ValidateAppleDeclaration(data, profilevalidation.ModeStrict) // DDM declaration JSON
+```
+
+- **Errors** mean the bytes can't be read: invalid plist or JSON, a signed profile, or a profile whose `PayloadType` isn't `Configuration`. Everything else is a finding.
+- **A finding** has:
+  - a `code`;
+  - a `payload_type`: the payload's `PayloadType`, the declaration's `Type`, or `TopLevel` for the profile root;
+  - a `key_path`, dotted from the payload or from the declaration's `Payload` with `[n]` for array positions, e.g. `Services.Camera[0].Allowed`;
+  - `expected`, every accepted type;
+  - `actual`.
+
+  Callers build messages from these fields; the validator doesn't format sentences.
+
+**Both modes:**
+
+- **Wrong types:** a value whose type doesn't match a documented key is reported as `TYPE_MISMATCH`.
+  - Integer and real are interchangeable.
+  - A key whose type is a list accepts any type in it.
+  - A plist `<date>` passes where the key is `string` with a `timestamp` or `localtime` valuetype.
+  - In declarations, a JSON string passes `data` and `date` keys.
+- **Envelope keys:** `TopLevel` keys are checked at the profile root, and `CommonPayloadKeys` in every payload. The declaration envelope is checked on every declaration.
+- **Where the walk goes:**
+  - It follows dictionaries that have `keys` or `values`, arrays that have `items`, and `ref`s back to their definition.
+  - It stops at `any` and at any type it doesn't recognize.
+  - An open dictionary never reports unknown key names, but its values are checked against `values` when it has one.
+- **Fleet variables** are strings like any other, so `$FLEET_VAR_…` passes a string key and fails an integer one.
+  - DigiCert `<data>` placeholders are blanked before parsing.
+  - A string that contains `$FLEET_SECRET_…` passes any key, because a secret can hold any value.
+- **Never checked:** platforms, required keys, allowed values, formats, and removed keys. The schema carries them for later.
+
+**Strict mode also reports:**
+
+- **`UNKNOWN_TYPE`:** a payload or declaration type the schema doesn't have. `com.apple.ManagedClient.preferences` also counts as unknown unless an `allow` override vouches for it.
+- **`UNKNOWN_KEY`:** a key that isn't documented, outside open dictionaries.
+- **`MISSING_PAYLOAD_VERSION`:** on the profile root or any payload.
+- **`MALFORMED_UUID`:** a `PayloadUUID` that isn't in 8-4-4-4-12 hex form. Values containing Fleet variables or secrets aren't checked.
+- **`MALFORMED_IDENTIFIER`:** a `PayloadIdentifier` that isn't reverse-DNS. Values containing Fleet variables or secrets aren't checked.
+
+Lenient mode is for profiles admins upload. Strict mode is for profiles the AI profile generator writes.
+
+## Validating Windows profiles
+
+```go
+findings, err := s.ValidateWindowsProfile(data, profilevalidation.ModeLenient) // SyncML
+```
+
+It runs after the structural validator in `server/fleet` (well-formed XML, allowed top-level elements, LocURI format, Fleet-reserved LocURIs) and checks every `<Item>` with a `Target/LocURI`, wherever it's nested.
+
+- **Errors** mean the XML is malformed. A body that's only a secret placeholder has no items and no findings.
+- **A finding** has the same fields as Apple's:
+  - `key_path` is the LocURI as written;
+  - `payload_type` is the Policy area (`DeviceLock`, `GoogleChrome~Policy~googlechrome~Startup`), or else the CSP (`Firewall`, `DMAcc`);
+  - `expected` is the node's formats, or its scope for `WRONG_SCOPE`;
+  - `actual` is never the Data, which can hold secrets like SCEP challenges.
+
+**Matching a LocURI to a node:**
+
+- The leading `./` is optional, as on devices; `key_path` keeps the LocURI as written.
+- Segments compare case-insensitively. A `*` segment in the schema matches any one non-empty segment, including a Fleet variable.
+- A bare `./Vendor/MSFT/X` and `./Device/Vendor/MSFT/X` are the same setting; each is tried for the other. A bare path counts as device scope.
+- If neither spelling matches, the other scope (`./User/` ↔ `./Device/`) is tried and the match is flagged as the wrong scope.
+- Policies under `Policy/Config/{Area}/{Policy}` must match exactly. The DDF's `Policy/Config/*` and `Policy/Config/*/*` placeholders (declared for ADMX ingestion, format `null`) never match; otherwise every policy LocURI, typos included, would be known.
+- An ingested ADMX area, `{App}~Policy~{Category}`, matches a template policy whatever the `{App}`, because the admin picks it in `ADMXInstall/{App}/…`. Fleet's docs install Chrome as `chrome`, the template calls it `GoogleChrome`. A policy in another category (an older or newer ADMX release) or from an ADMX without a template is unknown.
+- `Policy/ConfigOperations/ADMXInstall/{App}/Policy/{File}` matches the DDF's dynamic nodes.
+
+**Both modes:**
+
+- **`TYPE_MISMATCH`:** a matched node's `<Data>` doesn't parse as its format. A node with several formats accepts Data that parses as any of them.
+  - `int`: a base-10 integer. `bool`: `true`, `false`, `0`, or `1`. `b64`: base64, whitespace ignored. `xml`: one root element, escaped, in CDATA, or as raw child elements of `<Data>`.
+  - An empty `<Data>` fails these four, as on devices, and so does a scalar with child elements, e.g. `<Data>5<x/></Data>`.
+  - Every other format passes, empty or not: `chr` (including ADMX-backed `<enabled/>` markup), `node`, `null`, `bin`, `time`, `float`, and any format the validator doesn't know. An item without `<Data>` isn't checked.
+- **Fleet variables** expand to text, so `$FLEET_VAR_…` passes `chr` and `xml` and fails `int`, `bool`, and `b64`. Data containing `$FLEET_SECRET_…` passes any format.
+- **Unknown LocURIs pass.** Allowed values (`enum`, `range`, `regex`, `flag`, `xsd`) aren't checked; the schema carries them for later.
+
+**Strict mode also reports:**
+
+- **`UNKNOWN_KEY`:** a LocURI that matches no node.
+- **`WRONG_SCOPE`:** a `./User/` path for a node declared only under `./Device/`, or the reverse. Lenient mode still checks its Data against that node.
+- **`FORMAT_MISMATCH`:** a `<Meta><Format>` that isn't one of the node's formats. Data is always checked against the DDF, never against Meta, because Meta is optional.
+
+## Checking the repo's profiles
+
+To check the repo's profiles by hand, run from the repository root:
+
+```sh
+go run ./tools/profile-validate [-strict] [paths…]   # defaults to it-and-security, docs/solutions, ee/cis
+```
+
+- `.mobileconfig` files are Apple profiles, `.json` files with a `com.apple.*` `Type` are declarations, and `.xml` files with a `<LocURI>` are Windows profiles. Anything else is ignored.
+- It prints one line per finding and exits 1 if there are any.
+- Files it can't parse are logged and skipped. For example, a profile with a GitOps environment variable that fleetctl expands before upload.
+- Every profile in those directories passes lenient mode. Strict mode reports fixture problems, which is expected: mostly missing `PayloadVersion` in CIS profiles, and a Chrome policy in the Windows ADMX example whose bundled ADMX puts it in an older category.
 
 ## Overrides
 
@@ -168,7 +267,7 @@ loosen:
   - kind: apple_profile
     payload_type: com.apple.security.scep
     key_path: PayloadContent.SubjectAltName.uniformResourceIdentifier
-    action: types        # or: any
+    action: types        # or: any, open
     types: [array]
     reason: Apple's schema says string, but devices accept a list of URIs.
 ```
@@ -188,6 +287,7 @@ loosen:
   - Apple: `string`, `integer`, `real`, `boolean`, `date`, `data`, `array`, `dictionary`.
   - Windows: `int`, `chr`, `bool`, `b64`, `xml`, `null`, `bin`, `time`, `date`, `float`.
 - `action: any` makes the target accept any value and clears its value constraints. A Windows node keeps its `scope`, `min_build`, `deprecated`, and `source: windows`.
+- `action: open` (Apple only) makes a dictionary accept keys it doesn't list. Its listed keys stay checked, so use it where vendors add their own keys, e.g. a VPN payload's `VendorConfig`. The target must be a dictionary.
 
 ### `add`: a key Apple's schema doesn't list
 
@@ -234,14 +334,8 @@ allow:
 
 ## Notes for validators
 
-Things the schema records but doesn't decide; the validator (#55792) owns them.
+Things the schema records that the validators don't use yet.
 
-- **Fleet variables:** substitute or skip `$FLEET_VAR_*` and `${FLEET_SECRET_*}` before checking a value. Otherwise `${FLEET_SECRET_LENGTH}` fails an `int` range.
-- **Root equivalence:** the DDF roots some CSPs at bare `./Vendor/MSFT` and others at `./Device/Vendor/MSFT`; decide which spellings are equivalent.
 - **Interior `*` nodes:** a `regex` on a `node` entry constrains the instance's name, not a value. For example, `FirewallRules/*` names can't contain `|` or `/`.
-- **ADMX policies** under `./{Device|User}/Vendor/MSFT/Policy/Config/{area}/{policy}`:
-  - **An area without `~`** is a built-in Policy CSP area (none of the 262 contain `~`). It must match a DDF node exactly. Don't fall back to `Policy/Config/*/*`, a generic placeholder Microsoft declares as `null`, or a typo in a built-in setting would pass.
-  - **An area with `~`** is an ingested ADMX: `{AppName}~{SettingType}~{Category…}`, created on the device by installing an ADMX through `Policy/ConfigOperations/ADMXInstall/{AppName}/…`. Its policies are always `chr`.
-    - **Strict mode** (AI-generated profiles) matches template policies exactly, AppName included.
-    - **Lenient mode** ignores the AppName and matches on `{SettingType}~{Category…}/{policy}`, because admins pick their own AppName (Fleet's docs install Chrome as `Chrome`, not `GoogleChrome`). An unknown policy or app isn't an error: it may be a custom ADMX, or a newer vendor release than the template data.
 - **Future:** the template file also lists each policy's ADMX elements (`admxElements`: element ids, types, and enum values) for 642 of its 1,575 policies. The schema doesn't carry them yet; they could validate the `<data id="…" value="…"/>` payload of known policies.
+- **Future (Apple):** strict mode rejects `com.apple.ManagedClient.preferences` as a whole unless `allow` replaces it. Per-domain strictness is possible: list known preference domains under `PayloadContent` (as `add` entries), and report unknown domains as `UNKNOWN_KEY` instead of the whole type as `UNKNOWN_TYPE`. That needs `mcx_preference_settings` to be typed per domain, since it's `any` today.

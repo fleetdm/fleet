@@ -2,8 +2,8 @@
   "format_version": 1,
   "version": {
     "apple": {
-      "release": "Release-v27.0",
-      "commit": "09f249a06e7e3289930bf6d05f38fb562f748ebf"
+      "release": "Release-v27.2",
+      "commit": "9e7fdbe23990b2551c4b29b39bc8b0de956805eb"
     },
     "windows": {
       "release": "DDFv2Feb2026",
@@ -14,7 +14,7 @@
       "sha256": "c834b85a777dcbbcf66943daa97012c0d6da9780fd8f71176c81071e711f5559",
       "generated_at": "2026-10-07T14:08:30.957Z"
     },
-    "generated_at": "2026-10-21T06:59:04Z"
+    "generated_at": "2026-10-27T06:32:54Z"
   },
   "apple_envelope": {
     "TopLevel": {
@@ -5996,6 +5996,10 @@
             }
           }
         },
+        "allowMediaSharing": {
+          "type": "boolean",
+          "override": "Key used to disable media sharing; used in CIS benchmark profiles."
+        },
         "allowMediaSharingModification": {
           "type": "boolean",
           "platforms": {
@@ -11246,6 +11250,18 @@
                 "type": "string"
               }
             },
+            "AdditionalHTTPHeaders": {
+              "type": "dictionary",
+              "open": true,
+              "values": {
+                "type": "string"
+              },
+              "platforms": {
+                "macOS": {
+                  "introduced": "27.2"
+                }
+              }
+            },
             "AdministratorGroups": {
               "type": "array",
               "items": {
@@ -11273,6 +11289,14 @@
               "platforms": {
                 "macOS": {
                   "introduced": "27.0"
+                }
+              }
+            },
+            "AlwaysUseLoginUI": {
+              "type": "boolean",
+              "platforms": {
+                "macOS": {
+                  "introduced": "27.2"
                 }
               }
             },
@@ -18402,6 +18426,7 @@
         },
         "VendorConfig": {
           "type": "dictionary",
+          "open": true,
           "keys": {
             "Group": {
               "type": "string"
@@ -18415,7 +18440,8 @@
             "Role": {
               "type": "string"
             }
-          }
+          },
+          "override": "VPN vendors define their own VendorConfig keys; used in docs/solutions globalprotect-vpn-settings profile."
         }
       }
     },
@@ -20728,6 +20754,36 @@
         }
       }
     },
+    "com.apple.configuration.account.settings": {
+      "platforms": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "27.2"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
+      "source": "apple",
+      "keys": {
+        "Exchange": {
+          "type": "dictionary",
+          "keys": {
+            "AllowEWSRetirementAlerts": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
     "com.apple.configuration.account.subscribed-calendar": {
       "platforms": {
         "iOS": {
@@ -21755,6 +21811,18 @@
                 }
               }
             },
+            "AdditionalHTTPHeaders": {
+              "type": "dictionary",
+              "open": true,
+              "values": {
+                "type": "string"
+              },
+              "platforms": {
+                "macOS": {
+                  "introduced": "27.2"
+                }
+              }
+            },
             "AllowDeviceIdentifiersInAttestation": {
               "type": "boolean"
             },
@@ -21811,6 +21879,14 @@
             "Policies": {
               "type": "dictionary",
               "keys": {
+                "AlwaysUseLoginUI": {
+                  "type": "boolean",
+                  "platforms": {
+                    "macOS": {
+                      "introduced": "27.2"
+                    }
+                  }
+                },
                 "AuthenticationGracePeriod": {
                   "type": "integer"
                 },

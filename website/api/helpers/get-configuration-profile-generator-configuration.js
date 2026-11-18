@@ -38,12 +38,25 @@ module.exports = {
       extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
     },
 
+    applePayloadTypes: {
+      type: ['string'],
+      description: 'The payload types to narrow the .mobileconfig schema to, when they are already known, in place of the lookup.',
+      extendedDescription: 'An empty array provides the full schema, as a lookup that found nothing does.',
+    },
+
     writeProfilesFromSettings: {
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether to ask for a .mobileconfig\'s payloads, or a Windows profile\'s commands, and their values, rather than the document itself.',
       extendedDescription: 'Only .mobileconfig and Windows profiles are written from settings; every other profile type ignores this.',
     },
+
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether the profile is for Fleet, which adds the rules and limits of Fleet\'s own profile checks.'
+    },
+
   },
 
 
@@ -56,7 +69,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, writeProfilesFromSettings}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, applePayloadTypes, writeProfilesFromSettings, forFleet}) {
 
     let path = require('path');
     let isWrittenFromSettings = writeProfilesFromSettings && (profileType === 'mobileconfig' || profileType === 'csp');
@@ -73,6 +86,14 @@ module.exports = {
     // under com.apple.appstore, a `position` key read off position-immutable -- because nothing next to a
     // name said what the key does.  Narrowed to the few payload types a request needs, every key can carry
     // Apple's description of it.
+    // How the Apple schemas mark availability, for the description of each.
+    let availabilityLegend = (whatIsListed)=>{
+      return `A ${whatIsListed}'s \`[...]\` gives the platforms it applies to and the OS version each introduced it in,
+with the versions Apple deprecated or removed it in where it has.  A key's \`[...]\` says only how the key
+differs from what it sits in: \`[only iOS]\` means the key does nothing on any other platform, and
+\`[macOS removed 27.0]\` means it does nothing on macOS 27 or later.`;
+    };
+
     let appleSchema;
     let appleSchemaDescription;
     let applePayloadTypesProvided = [];
@@ -90,6 +111,27 @@ module.exports = {
         );
       }
 
+      // Fleet rejects these declaration types on upload, and cannot deliver the asset declarations the others require.
+      // Filtered in a copy, since `require` hands every caller the same cached object.
+      if(profileType === 'ddm' && forFleet) {
+        const DECLARATION_TYPES_FLEET_REJECTS = [
+          'com.apple.configuration.watch.enrollment',
+          'com.apple.configuration.account.google',
+          'com.apple.management.server-capabilities',
+          'com.apple.configuration.management.status-subscriptions',
+          'com.apple.configuration.package',
+        ];
+        schemaFile = Object.assign({}, schemaFile, {
+          entries: _.compact(_.map(schemaFile.entries, (entry)=>{
+            if(_.contains(DECLARATION_TYPES_FLEET_REJECTS, entry.name)) {
+              return undefined;
+            }
+            let pruned = withoutAssetReferences(entry.keys);
+            return pruned.lostARequiredKey ? undefined : Object.assign({}, entry, { keys: pruned.keys });
+          })),
+        });
+      }
+
       // A nested key renders inside its parent's braces, so no parent can be rendered until every one of
       // its children has been, which is what the recursion below is for: a key's subkeys are rendered on
       // the way to rendering the key that has to quote them.
@@ -98,12 +140,62 @@ module.exports = {
       // `Parent{}`, but their contents do not: past three levels the braces describe the shape of Apple's
       // YAML rather than anything the model has to get right.
       const MAX_DEPTH = 3;
-      let renderKey = (key, depth)=>{
 
-        // The name, with the suffixes that mark its shape.
+      // Where a payload type or declaration applies, and when Apple introduced, deprecated, or removed it
+      // there, e.g. "iOS 17.0+, macOS 14.0+ deprecated 26.0 removed 27.0".
+      let availabilityText = (supportedOS)=>{
+        return _.map(_.filter(Object.keys(supportedOS || {}), (platformName)=>{
+          return supportedOS[platformName].introduced && supportedOS[platformName].introduced !== 'n/a';
+        }), (platformName)=>{
+          let versions = supportedOS[platformName];
+          return _.compact([
+            `${platformName} ${versions.introduced}+`,
+            versions.deprecated ? `deprecated ${versions.deprecated}` : undefined,
+            versions.removed ? `removed ${versions.removed}` : undefined,
+          ]).join(' ');
+        }).join(', ');
+      };
+
+      // How a key's availability differs from the payload type, declaration, or key it sits in, e.g.
+      // "[only iOS]" or "[macOS removed 27.0]".  Empty for most keys, which have nothing of their own: a
+      // key with no supportedOS has its nearest ancestor's.
+      let lifecycleMarker = (supportedOS, inheritedSupportedOS)=>{
+        if(!supportedOS) {
+          return '';
+        }
+        let platformsAvailableOn = (lifecycle)=>{
+          return _.filter(Object.keys(lifecycle || {}), (platformName)=>{
+            return lifecycle[platformName].introduced && lifecycle[platformName].introduced !== 'n/a';
+          });
+        };
+        let platformNames = platformsAvailableOn(supportedOS);
+        let parts = [];
+        if(platformNames.length > 0 && platformNames.length < platformsAvailableOn(inheritedSupportedOS).length) {
+          parts.push(`only ${platformNames.join(', ')}`);
+        }
+        for (let platformName of platformNames) {
+          let versions = supportedOS[platformName];
+          let inheritedVersions = (inheritedSupportedOS || {})[platformName] || {};
+          let changes = _.compact([
+            versions.deprecated && versions.deprecated !== inheritedVersions.deprecated ? `deprecated ${versions.deprecated}` : undefined,
+            versions.removed && versions.removed !== inheritedVersions.removed ? `removed ${versions.removed}` : undefined,
+          ]);
+          if(changes.length > 0) {
+            parts.push(`${platformName} ${changes.join(', ')}`);
+          }
+        }
+        return parts.length > 0 ? `[${parts.join('; ')}]` : '';
+      };
+
+      let renderKey = (key, depth, inheritedSupportedOS)=>{
+
+        let supportedOS = key.supportedOS || inheritedSupportedOS;
+        let marker = lifecycleMarker(key.supportedOS, inheritedSupportedOS);
+
+        // The name, with the suffixes that mark its shape and where it differs from what it sits in.
         let type = String(key.type || '');
         let shape = /array/.test(type) ? '[]' : (/dictionary/.test(type) ? '{}' : '');
-        let labelText = `${key.key}${shape}${key.required ? '*' : ''}`;
+        let labelText = `${key.key}${shape}${key.required ? '*' : ''}${marker}`;
 
         // Whatever constrains the key's value, or nothing when its name is the whole story.  The default
         // rides along with an allowed-value list or a numeric range but not with a gloss, because a gloss
@@ -142,22 +234,22 @@ module.exports = {
           let renderedElementKeys = [];
           if(depth < MAX_DEPTH) {
             for (let elementKey of arrayElement.subkeys) {
-              renderedElementKeys.push(renderKey(elementKey, depth + 1).inlineText);
+              renderedElementKeys.push(renderKey(elementKey, depth + 1, supportedOS).inlineText);
             }
           }
           inlineText = `${labelText}{${renderedElementKeys.join(', ')}}`;
         } else if(arrayElement) {
-          let elementConstraint = renderKey(arrayElement, depth).constraint;
+          let elementConstraint = renderKey(arrayElement, depth, supportedOS).constraint;
           inlineText = `${labelText}${elementConstraint ? `:${elementConstraint}` : ''}`;
         } else if(key.subkeys && key.subkeys.length > 0) {
           // A dictionary: the bare name rather than the label, since its braces already give its shape.
           let renderedSubkeys = [];
           if(depth < MAX_DEPTH) {
             for (let subkey of key.subkeys) {
-              renderedSubkeys.push(renderKey(subkey, depth + 1).inlineText);
+              renderedSubkeys.push(renderKey(subkey, depth + 1, supportedOS).inlineText);
             }
           }
-          inlineText = `${key.key}${key.required ? '*' : ''}{${renderedSubkeys.join(', ')}}`;
+          inlineText = `${key.key}${key.required ? '*' : ''}${marker}{${renderedSubkeys.join(', ')}}`;
         } else {
           inlineText = `${labelText}${constraint ? `:${constraint}` : ''}`;
         }
@@ -174,15 +266,17 @@ module.exports = {
       // With describeKeys, which is only affordable once the payload types have been narrowed, every key
       // gets a line and Apple's description of it.  A gloss wins over the description where there is one,
       // since glosses are kept longer precisely because the constraint is in their second sentence.
-      let renderEntries = (entries, {describeKeys})=>{
+      let renderEntries = (entries, {describeKeys, markUserChannelOnly})=>{
         let lines = [];
         for (let entry of entries) {
-          lines.push(entry.name);
+          let availability = availabilityText(entry.supportedOS);
+          let userChannelOnly = markUserChannelOnly && entry.userChannelOnly ? `  (on ${entry.userChannelOnly.join(', ')}: user channel only)` : '';
+          lines.push((availability ? `${entry.name}  [${availability}]` : entry.name) + userChannelOnly);
 
           let plainKeys = [];
           let keysWithTheirOwnLine = [];
           for (let key of entry.keys) {
-            let renderedKey = renderKey(key, 0);
+            let renderedKey = renderKey(key, 0, entry.supportedOS);
             let hasSubkeys = key.subkeys && key.subkeys.length > 0;
             if(describeKeys) {
               let valueConstraint = renderedKey.constraint !== key.gloss ? renderedKey.constraint : undefined;
@@ -209,7 +303,11 @@ module.exports = {
       };
 
       let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
-      if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
+      if(profileType === 'mobileconfig' && applePayloadTypes !== undefined) {
+        applePayloadTypesProvided = _.filter(_.uniq(applePayloadTypes), (name)=>{
+          return _.any(schemaFile.entries, {name}) && !_.contains(ALWAYS_PROVIDED_ENTRY_NAMES, name);
+        });
+      } else if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
 
         // Key names are in the index, not just titles and descriptions, for the reason the Windows lookup
         // gives: picking from names and descriptions alone means recalling Apple's taxonomy, which is the
@@ -313,6 +411,8 @@ elements are dictionaries with those keys.  CommonPayloadKeys and TopLevel are n
 first gives the keys every dict inside PayloadContent may carry, and the second the keys that belong on
 the root dict and nowhere else${isWrittenFromSettings ? ', which go in "profileSettings"' : ''}.
 
+${availabilityLegend('payload type')}
+
 Choose keys by their descriptions, not their names.  Apple's description decides what a key does and what
 its values mean -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the
 opposite -- and a key whose name resembles the setting you want can describe something else entirely.
@@ -324,7 +424,7 @@ domain in neither list is an Apple preference domain with no MDM manifest, or a 
 the ProfileManifests reference.  Fall back to one of those only when nothing listed covers the setting,
 and if you cannot recall its keys, return the "couldNotGenerateProfile" shape rather than guessing.`;
       } else {
-        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false});
+        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false, markUserChannelOnly: profileType === 'ddm' && forFleet});
         appleSchemaDescription =
 `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
 from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
@@ -333,6 +433,8 @@ array whose elements are dictionaries with those keys.  An array of plain values
 constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
 TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
 the keys that belong on the root dict and nowhere else${isWrittenFromSettings ? ', which go in "profileSettings"' : ''}.
+
+${availabilityLegend('payload type')}
 
 Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
 carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
@@ -588,6 +690,8 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           ]),
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
+          'Never write to the DMClient, DMAcc, or EnrollmentStatusTracking CSPs.  The MDM uses them to manage the device, and a profile that changes them can cut the device off from it.  If the request needs one of them, such as changing how often the device checks in, return the "couldNotGenerateProfile" shape.',
+          'Microsoft Edge has no CSP nodes of its own.  The Policy CSP\'s Browser area configures Edge Legacy, which current Windows no longer has, so a profile that uses it does nothing.  For any request about Microsoft Edge, return the "couldNotGenerateProfile" shape.',
           'Percent-encode any character in a LocURI path segment that is not URI-legal.  An SSID named "Cool Network" is Cool%20Network in the LocURI, while the value inside the payload keeps its literal spaces.',
           // Type integrity.  The largest source of silent failure.
           ...(isWrittenFromSettings ? [
@@ -655,7 +759,8 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
           'Choose the payload type by finding the key, not by the payload type\'s name.  Locate the key that does what was asked in the provided list, then use the payload type it is listed under -- even when another payload type\'s name sounds closer to the request.  App Store app updates are AutomaticallyInstallAppUpdates in com.apple.SoftwareUpdate, not anything in com.apple.appstore.  Before returning, confirm every key in each PayloadContent dict is listed under that dict\'s PayloadType.',
-          'When more than one key in a payload could plausibly satisfy the request, choose by documented meaning, say what the chosen value actually does in valueMeaning, and return couldNotGenerateProfile rather than guessing between them.',
+          'When more than one key in a payload could plausibly satisfy the request, use the one whose description says it does what was asked, and say what the chosen value actually does in valueMeaning.  Return couldNotGenerateProfile only when no key\'s description says it does what was asked.',
+          'A request for a whole group of settings -- every iCloud feature, all sharing services -- asks for each key in the provided list that belongs to the group.  Set each of them, rather than looking for one key that does them all.',
           'When the payload type you need appears in the provided list, copy it and its keys character for character, casing included, and use no key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
           'Where the provided list describes what a key\'s values mean, that description decides the value and your own reading of the key name does not.  Several of these keys are named in a way that implies the opposite of what they do.',
           'The provided list does not cover preference domains that have no payload manifest.  If you cannot recall the keys of an unlisted preference domain, do not guess and do not adapt a key from a DDM declaration -- return the "couldNotGenerateProfile" shape and name the payload type you were unsure about.',
@@ -679,13 +784,16 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           isWrittenFromSettings ?
             'Put every key for one payload domain in a single entry of "payloads".  Do not return several entries with the same payloadType.' :
             'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
+          // Availability.
+          'A key marked `[only <platforms>]` does nothing on any other platform.  When the request names a platform the key does not list, do not use the key.  When the request names no platform, use it as you would any other key: a device it does nothing on ignores it.',
+          'A payload type or key marked deprecated still works, and one marked removed does nothing on that OS version and later.  Prefer a key that is neither.  When the only key for a setting is deprecated or removed, use it anyway and never decline because of it: a note about it is added to "deliveryNotes" for you, so do not write one.',
 
 
         ],
       },
 
       'ddm': {
-        description: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
+        description: 'Apple DDM declaration in JSON format that enforces OS settings on Apple devices',
         providedSchema: appleSchema,
         providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts, taken from Apple's
 own declaration definitions.  Format is a declaration type followed by its keys, where \`*\` marks a required key,
@@ -698,6 +806,8 @@ carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(m
 and a sentence is Apple's own description of what the value must look like.  Where such a sentence is given, it
 decides the value -- ExcludedPaths reads as though it takes any path, and Apple's text says entries are relative to
 the home directory and directories need a trailing slash.
+
+${availabilityLegend('declaration type')}
 
 This is the complete set.  A declaration type or key that does not appear here does not exist.`,
         references: [
@@ -715,6 +825,8 @@ This is the complete set.  A declaration type or key that does not appear here d
           'Derive Identifier from the full declaration type rather than its last component, or passcode.settings and softwareupdate.settings collapse into one identifier and silently overwrite each other.',
           'Keep Identifier to 64 bytes or fewer.  Apple\'s DeclarationBase caps it, and a longer identifier is accepted by an MDM and then rejected by the device at delivery.',
           'A declaration file holds exactly one declaration: one JSON object with Type, Identifier, and Payload.  Never return an array or several objects.  Settings that share a declaration type go in that one Payload.  When the request needs more than one declaration type, return the "couldNotGenerateProfile" shape, name each declaration type the request needs, and say that each one must be generated and uploaded as its own file.',
+          // Availability.
+          'A key marked `[only <platforms>]` does nothing on any other platform.  When the request names a platform the key does not list, do not use the key.  When the request names no platform, use it as you would any other key: a device it does nothing on ignores it.',
         ],
       },
 
@@ -818,8 +930,17 @@ a field that does not appear here does not exist.`,
       // can change.  Offered both, the lookup named the recommended twin for "make Chrome reopen the last
       // session", so it is only offered when the request asks for a default.
       let requestAsksForADefault = /\b(recommend\w*|default|suggest\w*|user can change|users can change)\b/.test(lowercaseInstructions);
+      // The MDM uses these CSPs to manage the device itself, so a profile that writes to them can cut the device off from its MDM.
+      const MANAGEMENT_PLANE_CSPS = ['DMClient', 'DMAcc', 'EnrollmentStatusTracking'];
       // Keep the nodes a profile can set: a template's policies only when the request names its app (leaving out its _recommended policies unless the request asks for a default), and every other node a profile can write to.
       let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{
+        if(_.contains(MANAGEMENT_PLANE_CSPS, node.csp)) {
+          return false;
+        }
+        // Fleet accepts <Exec> only for its own certificate commands, so a node that can only be executed is unusable there.
+        if(forFleet && /Exec/.test(node.accessType || '') && !/Add|Replace/.test(node.accessType || '')) {
+          return false;
+        }
         if(node.admxTemplate) {
           return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
         }
@@ -1222,7 +1343,28 @@ to the profile automatically after you return it.`;
     }
 
 
-    let numberedRules = sharedRules.concat(promptConfig.rules, deliveryNotesRules)
+    // Kept off the public page, which generates for any MDM.  Placed after the type's own rules so they win where the two
+    // disagree, e.g. the CSP rules list <Exec> as a valid command.
+    let fleetRules = [];
+    if(forFleet) {
+      fleetRules = [
+        'This profile is for Fleet.  The rules from here on are Fleet\'s, and they override any rule above that they contradict.',
+        'Return the "couldNotGenerateProfile" shape for any request to enroll or install a certificate identity: SCEP, ACME, PKCS12, or a Wi-Fi or VPN network that authenticates with a client certificate (EAP-TLS).  Fleet configures those with its own certificate authority integrations.',
+        'Return the "couldNotGenerateProfile" shape for any Platform SSO request.  Other single sign-on extensions, such as the Kerberos SSO extension, still generate.',
+        'Fleet has its own features for two kinds of settings.  FileVault and BitLocker settings belong to its Disk encryption feature.  OS update settings -- the Policy CSP Update area on Windows, and software update payloads, keys and declarations on Apple -- belong to its OS updates feature.  Still generate the profile as asked, and name the feature in "deliveryNotes", e.g. "Fleet\'s OS updates feature can manage this instead."  For these settings "deliveryNotes" is never empty.',
+        'Write credentials the admin supplied as literals, and say in "deliveryNotes" to replace them with a Fleet secret variable ($FLEET_SECRET_<NAME>) so the credential is not stored in the profile.',
+      ].concat({
+        csp: [
+          'Never use <Exec>.  Fleet only accepts <Replace>, <Add>, and <Atomic>, so a request to run something on the device -- reboot it, wipe it, install an app -- returns the "couldNotGenerateProfile" shape.',
+        ],
+        ddm: [
+          'Never write a key that ends in AssetReference, since Fleet cannot deliver the asset declaration it points to.  If the setting needs one, return the "couldNotGenerateProfile" shape rather than describing the asset in "deliveryNotes".',
+          'A declaration type marked "(on macOS: user channel only)" does nothing on a Mac unless Fleet delivers it to the user, so add a top-level "PayloadScope": "User" key beside Type, Identifier and Payload.  Say in "deliveryNotes" that the declaration needs the Mac\'s user channel, which Fleet creates for Macs that enroll automatically, and fails on iPhones and iPads, so it should be scoped to those Macs with a label.  When the instructions name only iPhones or iPads, leave "PayloadScope" out.',
+        ],
+      }[profileType] || []);
+    }
+
+    let numberedRules = sharedRules.concat(promptConfig.rules, fleetRules, deliveryNotesRules)
       .map((rule, idx)=>`${idx + 1}. ${rule}`)
       .join('\n    ');
 
@@ -1307,3 +1449,32 @@ ${uuidsToUse}${hexEncodingsToUse}
 
 };
 
+
+/**
+ * A declaration's keys without its asset references, at any depth.
+ *
+ * Fleet cannot deliver the asset declarations these point to.  A dictionary or array item that requires one goes
+ * with it, and so on up, so an optional part such as an app's password items is dropped while the rest of the
+ * declaration stays usable.
+ *
+ * @param  {Array} keys
+ * @returns {Dictionary}  {keys, lostARequiredKey}: whether a required key at this level had to go
+ */
+function withoutAssetReferences(keys) {
+  let lostARequiredKey = false;
+  let kept = _.compact(_.map(keys || [], (key)=>{
+    let goes = /AssetReferences?$/.test(key.key);
+    let subkeys;
+    if(!goes && key.subkeys) {
+      let pruned = withoutAssetReferences(key.subkeys);
+      goes = pruned.lostARequiredKey;
+      subkeys = pruned.keys;
+    }
+    if(goes) {
+      lostARequiredKey = lostARequiredKey || !!key.required;
+      return undefined;
+    }
+    return subkeys ? Object.assign({}, key, { subkeys }) : key;
+  }));
+  return { keys: kept, lostARequiredKey };
+}

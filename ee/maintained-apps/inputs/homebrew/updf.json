@@ -1,0 +1,10 @@
+{
+  "name": "UPDF",
+  "unique_identifier": "com.superace.updf.mac",
+  "token": "updf",
+  "installer_format": "dmg",
+  "slug": "updf/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

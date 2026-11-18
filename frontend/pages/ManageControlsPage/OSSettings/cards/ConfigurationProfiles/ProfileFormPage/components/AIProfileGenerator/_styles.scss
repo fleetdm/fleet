@@ -1,0 +1,155 @@
+.ai-profile-generator {
+  @include vertical-form-layout;
+  // Fills the page column so the bottom bar sits at the bottom.
+  flex: 1;
+
+  h1 {
+    margin: 0;
+  }
+
+  &__fleet {
+    margin: 0;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  // Sized to its options, per the design, not the page width.
+  &__platform {
+    width: 240px;
+  }
+
+  // A plain text box with its button in the bottom-right corner: the text
+  // keeps room for the button, and the button moves left of the text's scroll
+  // bar when one shows (widths measured in PromptBox).
+  &__prompt {
+    position: relative;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    background-color: $core-fleet-white;
+    transition: border-color 100ms;
+
+    &:focus-within {
+      border-color: $ui-fleet-black-50;
+    }
+  }
+
+  &__prompt-input {
+    display: block;
+    width: 100%;
+    // 100px with the box's border, per the design
+    min-height: 98px;
+    box-sizing: border-box;
+    padding: $pad-medium;
+    padding-right: calc(
+      #{$pad-medium} + var(--prompt-action-width, 0px) + #{$pad-small}
+    );
+    font-family: inherit;
+    font-size: $x-small;
+    line-height: $line-height;
+    color: $core-fleet-black;
+    border: none;
+    border-radius: $border-radius;
+    background: transparent;
+    resize: vertical;
+
+    &::placeholder {
+      color: $ui-fleet-black-50;
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &[readonly] {
+      color: $ui-fleet-black-75;
+    }
+  }
+
+  &__prompt-action {
+    position: absolute;
+    right: calc(#{$pad-medium} + var(--prompt-scrollbar-width, 0px));
+    bottom: $pad-medium;
+  }
+
+  // Sizes per the design: Send is smaller than the standard 36px icon
+  // button that Retry already is.
+  &__send {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+  &__stop {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  // The design's Status/Error red, not the alert button's brighter one.
+  &__stop.button--alert:not(:hover):not(:active) {
+    background-color: $ui-error;
+    border-color: $ui-error;
+  }
+
+  // Solid gray whatever the reason, not the faded variant color.
+  &__action-button.button--disabled {
+    opacity: 1;
+    filter: none;
+    background-color: $ui-fleet-black-25;
+    border-color: $ui-fleet-black-25;
+
+    svg path {
+      fill: $core-fleet-white;
+    }
+  }
+
+  // An up arrow, from the right-pointing one.
+  &__send svg {
+    transform: rotate(-90deg);
+  }
+
+  &__stop-square {
+    display: block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid $core-fleet-white;
+    border-radius: 2px;
+  }
+
+  &__progress {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__editor-placeholder {
+    height: 168px;
+    border-radius: $border-radius;
+    background-color: $ui-off-white;
+  }
+
+  &__error {
+    display: flex;
+    align-items: flex-start;
+    gap: $pad-small;
+    padding: $pad-medium;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    background-color: $ui-error-flash-bg;
+    border: 1px solid $ui-error;
+    border-radius: $border-radius;
+  }
+
+  &__create-manually {
+    align-self: flex-start;
+  }
+}
+
+// Narrow and centered over the button, per the design; doubled up to win over
+// the tooltip's own width.
+.component__tooltip-wrapper__tip-text.ai-profile-generator__action-tip {
+  max-width: 160px;
+  text-align: center;
+}

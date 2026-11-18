@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -184,6 +183,7 @@ func (ts *WithServer) CreateCommonDSMocks() {
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 	ts.AndroidAPIClient.InitCommonMocks()
+	ts.AndroidAPIClient.InitDeviceLookupMocks()
 	ts.AndroidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
 		ts.ProxyCallbackURL = callbackURL
 		return &android.SignupDetails{
@@ -247,7 +247,7 @@ func runServerForTests(t *testing.T, logger *slog.Logger, fleetSvc fleet.Service
 		),
 	}
 
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	service.GetRoutes(fleetSvc, androidSvc)(r, fleetAPIOptions)
 	rootMux := http.NewServeMux()
 	rootMux.HandleFunc("/api/", r.ServeHTTP)

@@ -41,11 +41,16 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
 /ee/server/ @fleetdm/go
+# « FMA ingesters and validator aren't compiled into the server or fleetctl, so these entries intentionally have no
+#   owners (overriding *.go and /cmd/ above). Maintainer is set in website/config/custom.js.
+/ee/maintained-apps/ingesters/
+/cmd/maintained-apps/validate/
 /orbit/ @sharon-fdm @lucasmrod @lukeheath
+/pkg/mdm/profilevalidation/outputs/ @fleetdm/go
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
 /orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor
-/orbit/pkg/luks/               @sharon-fdm @lucasmrod @ksykulev @georgekarrv
+/orbit/pkg/luks/               @sharon-fdm @lucasmrod @georgekarrv
 /orbit/pkg/profiles/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
 /orbit/pkg/setup_experience/   @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
 /orbit/pkg/useraction/         @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
@@ -96,12 +101,15 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @ddribeiro
+# « docs/solutions: DRI (ddribeiro) is configured in website/config/custom.js (githubRepoDRIByPath), not here.
+#   This entry intentionally has no owners, so no one is a required reviewer and /docs above doesn't apply.
+/docs/solutions
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
-/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
+/docs/API/rest-api.md                                   @rachaelshaw # « REST API reference documentation
+/docs/API/global-audit-logs.md                          @rachaelshaw
+/docs/API/host-audit-logs.md                            @rachaelshaw
 /docs/Contributing/reference/api-for-contributors.md    @rachaelshaw
-/docs/Contributing/reference/audit-logs.md              @rachaelshaw
 /docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
 /render.yaml                                            @rfairburn @fsahinler

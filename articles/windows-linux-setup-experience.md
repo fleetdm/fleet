@@ -48,7 +48,13 @@ If end users authenticate before Fleet's agent (fleetd) is installed, for exampl
 fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
 ```
 
-This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to `true` (the default). If it's set to `false`, Fleet blocks these installers from enrolling.
+On Windows, you can instead pass the `BYPASS_END_USER_AUTH` property to the installer at install time. This works with the prebuilt [fleetd-base.msi](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#for-windows) and with packaging tools that set MSI properties. Use `true` or `false`:
+
+```bash
+msiexec /i fleetd-base.msi FLEET_URL="<your_fleet_url>" FLEET_SECRET="<your_enroll_secret>" BYPASS_END_USER_AUTH=true
+```
+
+The flag and the property only work if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to `true` (the default). If it's set to `false`, Fleet blocks these installers from enrolling.
 
 On Windows hosts joined to Microsoft Entra ID and not enrolled in Fleet MDM, Fleet populates the IdP host vitals without end user authentication. Learn more in the [IdP host vitals guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#entra-joined-windows-hosts).
 

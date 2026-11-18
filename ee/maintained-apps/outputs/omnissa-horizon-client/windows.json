@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.19.0",
+      "version": "8.20.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Omnissa Horizon Client' AND publisher = 'Omnissa, LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Omnissa Horizon Client' AND publisher = 'Omnissa, LLC' AND version_compare(version, '8.19.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Omnissa Horizon Client' AND publisher = 'Omnissa, LLC' AND version_compare(version, '8.20.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'omnissa horizon client.exe');"
       },
-      "installer_url": "https://download3.omnissa.com/software/CART27FQ2_WIN_2606/Omnissa-Horizon-Client-2606-8.19.0-32215845441.exe",
+      "installer_url": "https://download3.omnissa.com/software/CART27FQ3_WIN_2609/Omnissa-Horizon-Client-2609-8.20.0-39382986705.exe",
       "install_script_ref": "8bdcbfb2",
       "uninstall_script_ref": "c624ea6f",
-      "sha256": "4e8e54385cd066da229e1f5ae15aad826e90088a351fc34e0bad048fa5b4aa00",
+      "sha256": "20f67cb7d1878a7a4d35afb19be082d839975b1ca5506da3792dd03fe4174f4e",
       "default_categories": [
         "Productivity"
       ]

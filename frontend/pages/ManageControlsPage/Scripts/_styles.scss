@@ -37,6 +37,10 @@
       &:hover {
         cursor: pointer;
       }
+      // Keyboard focus ring for the role="button" row variant.
+      &:focus {
+        outline: 1px solid $core-fleet-black;
+      }
     }
   }
 }

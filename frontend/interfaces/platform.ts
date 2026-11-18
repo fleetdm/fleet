@@ -202,6 +202,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
 export const LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin",
+  "omarchy", // Omarchy 4+; earlier versions report "arch"
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -85,6 +86,18 @@ func TestCPEFromSoftware(t *testing.T) {
 	}, nil, reCache)
 	require.NoError(t, err)
 	require.Empty(t, cpe)
+
+	// fleetd's renamed Installed apps entry gets no CPE; another app called "Fleet" still does.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Fleet", Version: "1.64.0", Vendor: constant.AgentPublisher, Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Empty(t, cpe)
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Fleet", Version: "1.64.0", Vendor: "JetBrains s.r.o.", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:jetbrains:fleet:1.64.0:*:*:*:*:windows:*:*", cpe)
 
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
@@ -1194,6 +1207,13 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:    "brotli",
+				Source:  "homebrew_packages",
+				Version: "1.2.1",
+			}, cpe: "cpe:2.3:a:google:brotli:1.2.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "click",
 				Source:           "python_packages",
 				Version:          "8.0.3",
@@ -2152,6 +2172,29 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "2.4.9",
 			},
 			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
+		},
+		{
+			// The Linear desktop app has no CPE of its own. Without a translation it matched
+			// linear:linear, the "Linear" WordPress plugin, and inherited its CVEs
+			// (CVE-2024-12496, CVE-2024-13709).
+			software: fleet.Software{
+				Name:             "Linear.app",
+				BundleIdentifier: "com.linear",
+				Source:           "apps",
+				Version:          "1.32.7",
+			},
+			cpe: "",
+		},
+		{
+			// The Homebrew "codex" formula is the OpenAI Codex CLI, which has no CPE of its own.
+			// Without a translation it matched codexnotes:codex, a notes app, and inherited its
+			// CVEs (CVE-2021-43635).
+			software: fleet.Software{
+				Name:    "codex",
+				Source:  "homebrew_packages",
+				Version: "0.165.0",
+			},
+			cpe: "",
 		},
 		{
 			// teamcity-cli installs as "teamcity" via the JetBrains Homebrew tap, but it is a
