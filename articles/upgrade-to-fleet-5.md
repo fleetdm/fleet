@@ -102,11 +102,14 @@ When you upgrade, Fleet turns on the webhook or ticket automation for the polici
 
 #### What to do
 
-1. Search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
-2. After you upgrade, use `/policies`. To work with a fleet's policies, pass `fleet_id` (`0` for "Unassigned"). Without it, you get global policies.
-3. If you show a fleet's policies and its inherited policies as separate lists, make two calls after you upgrade: one with `fleet_id` and one without.
-4. After you upgrade, set `automation_type` to `"webhook_or_ticket"` on a policy instead of adding its ID to `policy_ids`.
-5. After you upgrade, send `software_title_id` instead of `patch_software_title_id` when you create a patch policy.
+Fleet 4 doesn't support `fleet_id` on `/policies` or the new parameter names, so you can't change these before you upgrade.
+
+1. Right after you upgrade, search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
+2. Use `/policies`. To work with a fleet's policies, pass `fleet_id` (`0` for "Unassigned"). Without it, you get global policies.
+3. If you show a fleet's policies and its inherited policies as separate lists, make two calls: one with `fleet_id` and one without.
+4. Where you filter policies by `automation_type`, change `scripts`, `profiles`, and `other` to `script`, `configuration_profile`, and `webhook_or_ticket`. To list patch policies, use `type=patch` instead of `automation_type=patch`.
+5. Set `automation_type` to `"webhook_or_ticket"` on a policy instead of adding its ID to `policy_ids`.
+6. Send `software_title_id` instead of `patch_software_title_id` when you create a patch policy.
 
 GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
