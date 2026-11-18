@@ -134,9 +134,9 @@ Fleet also supports using the Fleet Desktop app's built-in PSSO extension to ach
 
 ## Bootstrap package
 
-- [Step 1: Download or generate a package](#step-1-download-or-generate-a-package)
-- [Step 2: Sign the package](#step-2-sign-the-package)
-- [Step 3: Upload the package to Fleet](#step-3-upload-the-package-to-fleet)
+- [Download or generate a package](#download-or-generate-a-package)
+- [Sign the package](#sign-the-package)
+- [Upload the package to Fleet](#upload-the-package-to-fleet)
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. You can also install the bootstrap package on macOS hosts that turn on MDM manually by checking **Install during manual enrollment** in **Controls > Setup experience > Bootstrap package**.
 
@@ -171,13 +171,13 @@ To add a bootstrap package to Fleet, we will do the following steps:
 
 4. Confirm package is uploaded
 
-### Step 1: Download or generate a package
+### Download or generate a package
 
 Whether you have to download or generate a package depends on what you want to deploy using your bootstrap package:
 
 * A single client or agent, like Munki or Puppet, can usually be downloaded from the tool's GitHub repository or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases).
 
-  > Packages deployed via bootstrap need to be signed. The packages on the official Munki release page above are not signed. You will either need to sign the   package yourself (see Step 2 below) or use an already signed release from [MacAdmins Open Source](https://github.com/macadmins/munki-builds/releases).
+  > Packages deployed via bootstrap need to be signed. The packages on the official Munki release page above are not signed. You will either need to sign the   package yourself (see [Sign the package](#sign-the-package)) or use an already signed release from [MacAdmins Open Source](https://github.com/macadmins/munki-builds/releases).
 
 * To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 
@@ -200,7 +200,7 @@ Verify that the package is a distribution package:
 
   Make sure your package is a `.pkg` file.
 
-### Step 2: Sign the package
+### Sign the package
 
 To sign the package we need a valid Developer ID Installer certificate:
 
@@ -228,7 +228,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
   In the output you should see that your package has a "signed" status.
 
-### Step 3: Upload the package to Fleet
+### Upload the package to Fleet
 
 1. Head to the **Controls > Setup experience > Bootstrap package** page.
 
@@ -296,9 +296,9 @@ To learn when the setup experience ends, see [Exiting the setup experience](#exi
 
 ## Setup Assistant
 
-- [Step 1: Create an automatic enrollment profile](#step-1-create-an-automatic-enrollment-profile)
-- [Step 2: Upload the profile to Fleet](#step-2-upload-the-profile-to-fleet)
-- [Step 3: Test the custom Setup Assistant](#step-3-test-the-custom-setup-assistant)
+- [Create an automatic enrollment profile](#create-an-automatic-enrollment-profile)
+- [Upload the profile to Fleet](#upload-the-profile-to-fleet)
+- [Test the custom Setup Assistant](#test-the-custom-setup-assistant)
 
 When an end user unboxes their new Apple device, or starts up a freshly wiped device, they're presented with the Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
 
@@ -314,7 +314,7 @@ To customize the Setup Assistant, we will do the following steps:
 
 > [Automatic enrollment profile delivery can take up to ten minutes](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
 
-### Step 1: Create an automatic enrollment profile
+### Create an automatic enrollment profile
 
 1. Download Fleet's example automatic enrollment profile by navigating to [the example](https://fleetdm.com/example-dep-profile) and clicking the **Download** icon.
 
@@ -328,7 +328,7 @@ To customize the Setup Assistant, we will do the following steps:
     The `await_device_configured` option is always set to `true` to allow Fleet to take actions like running scripts and installing software packages during the enrollment process.
     If you'd like to release devices manually, you can check the "Release device manually" option in Setup experience > Setup Assistant > Show advanced options.
 
-### Step 2: Upload the profile to Fleet
+### Upload the profile to Fleet
 
 1. Head to the **Controls > Setup experience > Setup Assistant** page.
 
@@ -336,7 +336,7 @@ To customize the Setup Assistant, we will do the following steps:
 
 3. Select **Add profile** and choose your profile package.
 
-### Step 3: Test the custom Setup Assistant
+### Test the custom Setup Assistant
 
 Testing requires a test Mac that is present in your Apple Business (AB) account. We will wipe this Mac and use it to test the custom Setup Assistant.
 
