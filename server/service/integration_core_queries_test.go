@@ -1822,6 +1822,8 @@ func (s *integrationTestSuite) TestRemovedQueryKeys() {
 	res.Body.Close()
 	assert.Contains(t, scheduled.Scheduled, "report_id")
 	assert.NotContains(t, scheduled.Scheduled, "query_id")
+	assert.Contains(t, scheduled.Scheduled, "report_name")
+	assert.NotContains(t, scheduled.Scheduled, "query_name")
 
 	for _, c := range []struct {
 		method, path, key string

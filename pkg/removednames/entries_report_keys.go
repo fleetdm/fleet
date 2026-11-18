@@ -10,6 +10,10 @@ var reportKeyEntries = []Entry{
 	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "inherited_query_count", New: "inherited_report_count"},
 	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "live_query_results", New: "live_report_results"},
 	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "mia_count", New: "missing_30_days_count"},
+	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "query_name", New: "report_name"},
+	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "query_stats", New: "report_stats"},
+	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "scheduled_query_name", New: "scheduled_report_name"},
+	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "scheduled_query_id", New: "scheduled_report_id"},
 	// Live report result rows repeated the host object's hostname under this key.
 	{Kind: KindJSONKey, Scope: ScopeResponse, Old: "host_hostname"},
 
