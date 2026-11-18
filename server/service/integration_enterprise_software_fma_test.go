@@ -2742,7 +2742,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		dummyBytes, err := os.ReadFile("testdata/software-installers/dummy_installer.pkg")
 		require.NoError(t, err)
-		body, headers := generateMultipartRequest(t, "software", "dummy_installer.pkg", dummyBytes, s.token, map[string][]string{"team_id": {strconv.Itoa(int(teamID))}}) //nolint:gosec // dismiss G115
+		body, headers := generateMultipartRequest(t, "software", "dummy_installer.pkg", dummyBytes, s.token, map[string][]string{"fleet_id": {strconv.Itoa(int(teamID))}}) //nolint:gosec // dismiss G115
 		res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusBadRequest, headers)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn't update. The package can't be changed for Fleet-maintained apps.`)
@@ -3549,8 +3549,8 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	patchVersion := func(version string) {
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id": {fmt.Sprint(team.ID)},
-			"version": {version},
+			"fleet_id": {fmt.Sprint(team.ID)},
+			"version":  {version},
 		})
 		resp := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		var patchResp getSoftwareInstallerResponse
@@ -3724,7 +3724,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// "version" can't be changed in the same PATCH as another field.
 	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-		"team_id":        {fmt.Sprint(team.ID)},
+		"fleet_id":       {fmt.Sprint(team.ID)},
 		"version":        {"2.0"},
 		"install_script": {"echo changed"},
 	})
@@ -3738,8 +3738,8 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	}, http.StatusOK, "")
 	customTitleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-		"team_id": {fmt.Sprint(team.ID)},
-		"version": {"1.0"},
+		"fleet_id": {fmt.Sprint(team.ID)},
+		"version":  {"1.0"},
 	})
 	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", customTitleID), body.Bytes(), http.StatusBadRequest, headers)
 

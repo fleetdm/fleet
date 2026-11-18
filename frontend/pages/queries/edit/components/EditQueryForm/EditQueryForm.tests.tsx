@@ -418,7 +418,7 @@ describe("EditQueryForm - component", () => {
           config: createMockConfig({
             server_settings: {
               ...createMockConfig().server_settings,
-              live_query_disabled: true, // Live query disabled
+              live_reporting_disabled: true, // Live reports disabled
             },
           }),
         },

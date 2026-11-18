@@ -14,6 +14,53 @@ app_process_running() {
 }
 
 
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  kill -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    kill -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
+
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
@@ -64,55 +111,11 @@ quit_and_track_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 
-
-prism_pids() {
-  local uid out pid puid exe
-  uid=$(id -u "$1") || return 1
-  out=$(ps -axo pid=,uid=,comm=) || return 1
-  while read -r pid puid exe; do
-    [[ "$puid" == "$uid" && ( "$exe" == */Contents/MacOS/Prism || "$exe" == */Contents/MacOS/Logger ) ]] || continue
-    if [[ "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)" == "com.GraphPad.Prism" ]]; then
-      echo "$pid"
-    fi
-  done <<< "$out"
-}
-
-# Prism doesn't always answer the AppleScript quit. It has no SIGTERM handler,
-# so SIGTERM ends it right away, along with its Logger helper. Changes made
-# since Prism last autosaved are lost.
-stop_prism() {
-  local console_user pids
-  console_user=$(stat -f "%Su" /dev/console)
-  if ! pids=$(prism_pids "$console_user"); then
-    echo "Couldn't check whether Prism is running."
-    return 1
-  fi
-  [[ -n "$pids" ]] || return 0
-  echo "Stopping Prism..."
-  kill -TERM $pids 2>/dev/null
-  for _ in {1..10}; do
-    sleep 1
-    if pids=$(prism_pids "$console_user") && [[ -z "$pids" ]]; then
-      echo "Prism stopped."
-      return 0
-    fi
-  done
-  if [[ -n "$pids" ]]; then
-    echo "Prism didn't stop; forcing it to quit."
-    kill -KILL $pids 2>/dev/null
-    sleep 1
-    if pids=$(prism_pids "$console_user") && [[ -z "$pids" ]]; then
-      echo "Prism stopped."
-      return 0
-    fi
-  fi
-  echo "Prism did not stop."
-  return 1
-}
 
 relaunch_application() {
   local bundle_id="$1"
@@ -164,18 +167,8 @@ if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
 	exit 1
 fi
 hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
-# copy to the applications folder
-quit_and_track_application 'com.GraphPad.Prism' || stop_prism || exit 1
-if [ -d "$APPDIR/Prism 11.app" ]; then
-	sudo mv "$APPDIR/Prism 11.app" "$TMPDIR/Prism 11.app.bkp" || exit $?
-fi
-if ! sudo cp -R "$TMPDIR/Prism 11.app" "$APPDIR"; then
-	# remove the partial copy so a failed install isn't inventoried as the new
-	# version, then restore the previous version if there was one
-	sudo rm -rf "$APPDIR/Prism 11.app"
-	if [ -d "$TMPDIR/Prism 11.app.bkp" ]; then
-		sudo mv "$TMPDIR/Prism 11.app.bkp" "$APPDIR/Prism 11.app"
-	fi
-	exit 1
-fi
-relaunch_application 'com.GraphPad.Prism'
+# install pkg files
+# Quit the inSync client window. The installer stops inSync's background agent itself.
+quit_and_track_application 'com.druva.inSyncClient' || exit 1
+sudo installer -pkg "$TMPDIR/Install inSync.pkg" -target / || exit $?
+relaunch_application 'com.druva.inSyncClient'

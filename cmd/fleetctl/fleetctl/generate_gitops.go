@@ -693,6 +693,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling value: %s\n", err)
 			return ErrGeneric
 		}
+		for _, comment := range cmd.Comments {
+			if comment.Filename == fileName {
+				b = bytes.ReplaceAll(b, []byte(comment.Token), []byte("# "+comment.Comment))
+			}
+		}
 		fmt.Fprintf(cmd.CLI.App.Writer, "%s", string(b))
 		return nil
 	}
@@ -961,7 +966,45 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		return nil, err
 	}
 
+	gitOpsT := reflect.TypeFor[fleet.GitOpsConfig]()
+	orgSettings[jsonFieldName(t, "GitOpsConfig")] = map[string]any{
+		jsonFieldName(gitOpsT, "GitopsModeEnabled"): cmd.AppConfig.GitOpsConfig.GitopsModeEnabled,
+		jsonFieldName(gitOpsT, "RepositoryURL"):     cmd.AppConfig.GitOpsConfig.RepositoryURL,
+	}
+
+	// Not returned to every role; left out then rather than exported as empty.
+	if cmd.AppConfig.SMTPSettings != nil {
+		orgSettings[jsonFieldName(t, "SMTPSettings")] = cmd.generateSMTPSettings(cmd.AppConfig.SMTPSettings)
+	}
+
 	return orgSettings, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateSMTPSettings(smtpSettings *fleet.SMTPSettings) map[string]any {
+	t := reflect.TypeFor[fleet.SMTPSettings]()
+	result := map[string]any{
+		jsonFieldName(t, "SMTPEnabled"):              smtpSettings.SMTPEnabled,
+		jsonFieldName(t, "SMTPSenderAddress"):        smtpSettings.SMTPSenderAddress,
+		jsonFieldName(t, "SMTPServer"):               smtpSettings.SMTPServer,
+		jsonFieldName(t, "SMTPPort"):                 smtpSettings.SMTPPort,
+		jsonFieldName(t, "SMTPAuthenticationType"):   smtpSettings.SMTPAuthenticationType,
+		jsonFieldName(t, "SMTPUserName"):             smtpSettings.SMTPUserName,
+		jsonFieldName(t, "SMTPPassword"):             "",
+		jsonFieldName(t, "SMTPEnableTLS"):            smtpSettings.SMTPEnableTLS,
+		jsonFieldName(t, "SMTPAuthenticationMethod"): smtpSettings.SMTPAuthenticationMethod,
+		jsonFieldName(t, "SMTPDomain"):               smtpSettings.SMTPDomain,
+		jsonFieldName(t, "SMTPVerifySSLCerts"):       smtpSettings.SMTPVerifySSLCerts,
+		jsonFieldName(t, "SMTPEnableStartTLS"):       smtpSettings.SMTPEnableStartTLS,
+	}
+	// The API only ever returns the password masked, so it can't be exported.
+	if smtpSettings.SMTPPassword != "" {
+		result[jsonFieldName(t, "SMTPPassword")] = cmd.AddComment("default.yml", "TODO: Add your SMTP password here")
+		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+			Filename: "default.yml",
+			Key:      "smtp_settings.password",
+		})
+	}
+	return result
 }
 
 func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSettings) (map[string]interface{}, error) {
@@ -1540,9 +1583,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
+	macosSettingsT := reflect.TypeFor[fleet.GitOpsMacOSSettings]()
 	macosSettings := map[string]any{}
-	windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
+	windowsSettingsT := reflect.TypeFor[fleet.GitOpsWindowsSettings]()
 	windowsSettings := map[string]any{}
 	linuxSettingsT := reflect.TypeFor[fleet.LinuxSettings]()
 	linuxSettings := map[string]any{}
@@ -1557,7 +1600,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
-		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
+		androidSettingsT := reflect.TypeFor[fleet.GitOpsAndroidSettings]()
 
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
 			if profiles != nil {
@@ -1609,7 +1652,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	mdmT := reflect.TypeFor[fleet.TeamMDM]()
 
 	if len(certSummaries) > 0 {
-		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
+		androidSettingsType := reflect.TypeFor[fleet.GitOpsAndroidSettings]()
 		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
 		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {

@@ -850,11 +850,6 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
-	fleetNames := mdm_types.FleetReservedProfileNames()
-	if _, ok := fleetNames[name]; ok {
-		err := fleet.NewInvalidArgumentError("declaration", fmt.Sprintf("Profile name %q is not allowed.", name)).WithStatus(http.StatusBadRequest)
-		return nil, err
-	}
 	if err := fleet.ValidateMDMProfileName(name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1940,7 +1935,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 	// has been provided by the user and can be deleted. We don't need to validate that it is a Fleet declaration.
 	//
 	// Whether a declaration is Fleet-managed (and therefore protected from
-	// deletion through this endpoint) is determined solely by its reserved name.
+	// deletion through this endpoint) is determined solely by its reserved identifier.
 	// We deliberately do NOT run the upload-time validator (ValidateUserProvided)
 	// here: any declaration already stored was accepted at upload time, so
 	// re-validating it on delete would trap user-uploaded declarations whenever
@@ -1948,7 +1943,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 	// added to ForbiddenDeclTypes). See https://github.com/fleetdm/fleet/issues/47535.
 	hasSecretVariable := len(fleet.ContainsPrefixVars(string(decl.RawJSON), fleet.ServerSecretPrefix)) > 0
 	if !hasSecretVariable {
-		if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
+		if _, ok := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; ok {
 			return &fleet.BadRequestError{
 				Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
 				InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
@@ -3196,7 +3191,7 @@ type uploadBootstrapPackageResponse struct {
 // TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadBootstrapPackageRequest{}
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -3227,7 +3222,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 	// default is no team
 	decoded.TeamID = 0
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok && len(val) > 0 {
 		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
@@ -3949,7 +3944,7 @@ type createAppleDDMAssetRequest struct {
 func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := new(createAppleDDMAssetRequest)
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -3957,7 +3952,7 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 		}
 	}
 
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = new(uint(0))

@@ -54,7 +54,7 @@ const renderPage = createCustomRenderer({
 beforeEach(() => {
   mockServer.use(
     http.get(baseUrl("/reports/1"), () =>
-      HttpResponse.json({ query: createMockQuery({ id: 1 }) })
+      HttpResponse.json({ report: createMockQuery({ id: 1 }) })
     ),
     http.get(baseUrl("/policies/1"), () =>
       HttpResponse.json({ policy: createMockPolicy({ id: 1 }) })

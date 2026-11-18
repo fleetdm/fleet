@@ -498,10 +498,12 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
-	mdmBootstrapPackageStatus, err := handleDeprecatedParams(r, "bootstrap_package", "macos_bootstrap_package")
-	if err != nil {
-		return hopt, err
+	if r.URL.Query().Has("bootstrap_package") {
+		if removedEntry, ok := removednames.Find(removednames.KindQueryParam, "bootstrap_package", ""); ok {
+			return hopt, ctxerr.Wrap(r.Context(), fleet.NewInvalidArgumentError("bootstrap_package", removedEntry.Message()))
+		}
 	}
+	mdmBootstrapPackageStatus := r.URL.Query().Get("macos_bootstrap_package")
 	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
 	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
 		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)

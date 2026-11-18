@@ -250,10 +250,6 @@ func (m *mockDataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fle
 	return nil
 }
 
-func (m *mockDataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-	return nil, nil
-}
-
 func TestConfig(t *testing.T) {
 	// Clear any dev env vars that might interfere
 	t.Run("uses bearer token when set, and forward to Apple", func(t *testing.T) {

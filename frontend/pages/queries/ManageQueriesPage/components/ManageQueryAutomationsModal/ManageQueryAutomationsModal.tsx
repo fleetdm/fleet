@@ -78,7 +78,7 @@ const ManageQueryAutomationsModal = ({
     }
   );
 
-  const availableQueries = useMemo(() => queriesResponse?.queries ?? [], [
+  const availableQueries = useMemo(() => queriesResponse?.reports ?? [], [
     queriesResponse,
   ]);
 

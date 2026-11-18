@@ -916,6 +916,9 @@ func orbitAction(c *cli.Context) error {
 		// Perform early check for updates before starting any sub-system.
 		// This is to prevent bugs in other sub-systems to mess up with
 		// the download of available updates.
+		//
+		// New code/sub-systems must go after this check: if they crash or
+		// hang before it, devices can't auto-update to a fix.
 		didUpdate, err := updateRunner.UpdateAction()
 		if err != nil {
 			log.Info().Err(err).Msg("early update check failed")
@@ -976,6 +979,12 @@ func orbitAction(c *cli.Context) error {
 				}
 			}
 		}
+	}
+
+	// After the early update check, so an update can fix a problem here, and before orbit waits for the Fleet server, so
+	// the Linux process shows its name while the server is unreachable.
+	if runtime.GOOS == "linux" {
+		update.ApplyRememberedAgentNames(c.String("root-dir"))
 	}
 
 	// Clear leftover files from updates
@@ -1551,6 +1560,10 @@ func orbitAction(c *cli.Context) error {
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+		orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
+	}
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
