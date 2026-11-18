@@ -340,8 +340,8 @@ spec:
   fleet:
     name: team1
     mdm:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - %s
 `, mobileCfgPath))
 
@@ -486,8 +486,8 @@ spec:
       windows_updates:
         deadline_days:
         grace_period_days:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
 `)
 
 	newMDMSettings = fleet.TeamMDM{
@@ -1604,8 +1604,8 @@ spec:
       windows_updates:
         deadline_days: 0
         grace_period_days: 1
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - %s
     secrets:
       - secret: BBB
@@ -4055,7 +4055,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption without a value",
+			desc: "app config apple_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4067,7 +4067,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption with invalid value type",
+			desc: "app config apple_settings.enable_disk_encryption with invalid value type",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4079,7 +4079,7 @@ spec:
 			wantErr: `400 Bad request: failed to decode app config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption true",
+			desc: "app config apple_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4093,7 +4093,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption false",
+			desc: "app config apple_settings.enable_disk_encryption false",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4107,7 +4107,7 @@ spec:
 		{
 			// an explicit null means "not provided", matching the app config
 			// path (the per-platform optjson fields serialize unset as null)
-			desc: "team config macos_settings.enable_disk_encryption without a value",
+			desc: "team config apple_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4121,7 +4121,7 @@ spec:
 			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
-			desc: "team config macos_settings.enable_disk_encryption with invalid value type",
+			desc: "team config apple_settings.enable_disk_encryption with invalid value type",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4132,10 +4132,10 @@ spec:
       apple_settings:
         enable_disk_encryption: 123
 `,
-			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
+			wantErr: `400 Bad Request: invalid value type at 'apple_settings.enable_disk_encryption': expected bool but got float64`,
 		},
 		{
-			desc: "team custom_settings invalid path",
+			desc: "team configuration_profiles invalid path",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4144,14 +4144,13 @@ spec:
     name: team1
     mdm:
       apple_settings:
-        custom_settings:
+        configuration_profiles:
           - path: 123
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
 		},
 		{
-			desc: "team custom_settings invalid labels",
+			desc: "team configuration_profiles invalid labels",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4160,15 +4159,14 @@ spec:
     name: team1
     mdm:
       apple_settings:
-        custom_settings:
+        configuration_profiles:
           - path: a
             labels: Engineering
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
 		},
 		{
-			desc: "team custom_settings invalid label element",
+			desc: "team configuration_profiles invalid label element",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4177,16 +4175,15 @@ spec:
     name: team1
     mdm:
       apple_settings:
-        custom_settings:
+        configuration_profiles:
           - path: a
             labels_include_any: [1, Engineering]
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
 		},
 		{
 			// macOS disk encryption doesn't require Apple MDM
-			desc: "team config macos_settings.enable_disk_encryption true",
+			desc: "team config apple_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4200,7 +4197,7 @@ spec:
 			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
-			desc: "team config macos_settings.enable_disk_encryption false",
+			desc: "team config apple_settings.enable_disk_encryption false",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4271,6 +4268,44 @@ spec:
     windows_enabled_and_configured: true
 `,
 			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config with the removed macos_settings key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption: true
+`,
+			wantErr: `The "macos_settings" parameter is not available anymore.`,
+		},
+		{
+			desc: "app config with the removed custom_settings key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_settings:
+      custom_settings: []
+`,
+			wantErr: `The "custom_settings" parameter is not available anymore.`,
+		},
+		{
+			desc: "fleet with the removed custom_settings key under apple_settings",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings: []
+`,
+			wantErr: `The "custom_settings" parameter is not available anymore.`,
 		},
 		{
 			desc: "app config with a removed server setting",

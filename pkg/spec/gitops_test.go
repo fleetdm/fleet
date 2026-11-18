@@ -4542,6 +4542,40 @@ software:
 					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
 				},
 			},
+			{
+				name: "fleet controls settings containers", file: "workstations.yml",
+				config: fleetFile("  macos_settings:\n    enable_disk_encryption: true\n"+
+					"  windows_settings:\n    custom_settings:\n      - path: ./a.xml\n"+
+					"  android_settings:\n    Custom_Settings:\n      - path: ./a.json\n", ""),
+				want: []string{
+					`The "controls.macos_settings" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "controls.windows_settings.custom_settings" key is not available anymore.`,
+					`The "controls.android_settings.custom_settings" key is not available anymore.`,
+				},
+			},
+			{
+				name: "fleet controls apple_settings profiles", file: "workstations.yml",
+				config: fleetFile("  apple_settings:\n    custom_settings:\n      - path: ./a.mobileconfig\n", ""),
+				want:   []string{`The "controls.apple_settings.custom_settings" key is not available anymore.`},
+			},
+			{
+				name: "controls file", file: "workstations.yml",
+				config: fleetFile("  path: ./controls.yml\n", ""),
+				extra: map[string]string{
+					"controls.yml": "macos_settings:\n  custom_settings:\n",
+				},
+				want: []string{`The "controls.macos_settings" key is not available anymore.`},
+			},
+			{
+				name: "fleet settings", file: "workstations.yml",
+				config: fleetFile("", "  mdm:\n    macos_settings:\n      enable_disk_encryption: true\n"),
+				want:   []string{`The "settings.mdm.macos_settings" key is not available anymore.`},
+			},
+			{
+				name: "org_settings", file: "default.yml",
+				config: globalFile("    macos_settings:\n      enable_disk_encryption: true\n"),
+				want:   []string{`The "org_settings.mdm.macos_settings" key is not available anymore.`},
+			},
 		} {
 			for _, allowUnknown := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s allow unknown keys %t", tc.name, allowUnknown), func(t *testing.T) {
@@ -5015,153 +5049,6 @@ org_settings:
 	})
 
 	// Test that duplicate settings with old and new key names produce an error
-	t.Run("duplicate_old_and_new_keys_error_apple_settings", func(t *testing.T) {
-		dir := t.TempDir()
-		profileDir := filepath.Join(dir, "lib")
-		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  apple_settings:
-    configuration_profiles:
-      - path: ./lib/macos-password.mobileconfig
-  macos_settings:
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "apple_settings")
-		require.Contains(t, err.Error(), "'controls.macos_settings' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
-		dir := t.TempDir()
-		profileDir := filepath.Join(dir, "lib")
-		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  apple_settings:
-    configuration_profiles:
-      - path: ./lib/macos-password.mobileconfig
-    custom_settings:
-      - path: ./lib/macos-password.mobileconfig
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "'controls.apple_settings.custom_settings' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
-		dir := t.TempDir()
-		profileDir := filepath.Join(dir, "lib")
-		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  windows_settings:
-    configuration_profiles:
-      - path: ./lib/foo
-    custom_settings:
-      - path: ./lib/bar
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "'controls.windows_settings.custom_settings' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
-		dir := t.TempDir()
-		profileDir := filepath.Join(dir, "lib")
-		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  android_settings:
-    configuration_profiles:
-      - path: ./lib/foo
-    custom_settings:
-      - path: ./lib/bar
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "'controls.android_settings.custom_settings' (deprecated)")
-	})
-
-	t.Run("duplicate_keys_external_file", func(t *testing.T) {
-		t.Parallel()
-
-		dir := t.TempDir()
-		profileDir := filepath.Join(dir, "lib")
-		require.NoError(t, os.Mkdir(profileDir, 0o755))
-
-		controlsYAML := `
-apple_settings:
-macos_settings:
-`
-		controlsPath := filepath.Join(dir, "controls.yml")
-		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
-
-		config := `
-controls:
-  path: ./controls.yml
-reports:
-policies:
-agent_options:
-org_settings:
-  secrets:
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "apple_settings")
-		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
-	})
 }
 
 // TestAppleBusinessKeyRename verifies that the new mdm.apple_business key is
@@ -6855,12 +6742,12 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 		}
 		config += `
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/password.MOBILECoNFIG
       - path: ./lib/cert.mobileconfig
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/screenlock.XmL
 ` + policies
 

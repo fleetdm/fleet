@@ -2196,8 +2196,8 @@ policies:
 agent_options:
 software:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
         labels_include_any:
           - new-team-label
@@ -2472,9 +2472,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", path, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 			assert.Empty(t, enrolledSecrets)
@@ -2490,9 +2487,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", path})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
@@ -2809,9 +2803,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Nil(t, savedTeam)
 			assert.Empty(t, enrolledSecrets)
@@ -2830,9 +2821,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			require.NotNil(t, savedTeam)
 			assert.Equal(t, teamName, savedTeam.Name)
@@ -3728,7 +3716,7 @@ func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
 		orgName        = "GitOps Test"
 	)
 
-	// A global config that manages macos_settings and declares a DDM asset. A
+	// A global config that manages apple_settings and declares a DDM asset. A
 	// non-empty asset set forces the client down the (premium-gated) apply path.
 	dir := t.TempDir()
 	assetPath := filepath.Join(dir, "asset.json")
@@ -3741,7 +3729,7 @@ func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
 	globalFilePath := filepath.Join(dir, "global.yml")
 	require.NoError(t, os.WriteFile(globalFilePath, fmt.Appendf(nil, `
 controls:
-  macos_settings:
+  apple_settings:
     assets:
       - path: ./asset.json
 queries:
@@ -4016,13 +4004,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.False(t, ds.SaveAppConfigFuncInvoked)
 			assert.Empty(t, enrolledSecrets)
@@ -4034,13 +4016,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
@@ -4070,14 +4046,14 @@ controls:
     - path: ./script.sh
   windows_mdm_enabled: true
   android_enabled_and_configured: true
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
     - path: ./config.json
   windows_settings:
-    custom_settings:
+    configuration_profiles:
     - path: ./config2.xml
   android_settings:
-    custom_settings:
+    configuration_profiles:
     - path: ./config3.json
 policies:
 name: Unassigned
@@ -7107,7 +7083,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7167,7 +7143,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7226,7 +7202,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7337,7 +7313,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -7452,7 +7428,7 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
+    apple_settings:
     setup_experience:
       enable_end_user_authentication: false
     windows_updates:
@@ -10297,8 +10273,8 @@ queries:
 agent_options:
 software:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 policies:
   - name: Resend policy

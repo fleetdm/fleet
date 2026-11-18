@@ -63,9 +63,6 @@ spec:
       enable: false
       mode: ""
       webhook_url: ""
-    macos_settings:
-      enable_disk_encryption: false
-      enable_escrow_disk_encryption_key: false
     apple_settings:
       enable_disk_encryption: false
       enable_escrow_disk_encryption_key: false

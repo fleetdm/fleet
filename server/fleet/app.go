@@ -253,7 +253,7 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings                  MacOSSettings            `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup                     MacOSSetup               `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
 	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
@@ -871,7 +871,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_disk_encryption",
+				Field: "apple_settings.enable_disk_encryption",
 			}
 		}
 		s.EnableDiskEncryption = optjson.SetBool(b)
@@ -885,7 +885,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_escrow_disk_encryption_key",
+				Field: "apple_settings.enable_escrow_disk_encryption_key",
 			}
 		}
 		s.EnableEscrowDiskEncryptionKey = optjson.SetBool(b)
