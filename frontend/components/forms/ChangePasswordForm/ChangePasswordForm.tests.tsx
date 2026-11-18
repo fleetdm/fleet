@@ -81,6 +81,19 @@ describe("ChangePasswordForm - component", () => {
     ).toBeInTheDocument();
   });
 
+  it("flags a 12-char all-digits-plus-symbol password as missing a letter", async () => {
+    const { user } = renderWithSetup(<ChangePasswordForm {...props} />);
+
+    await user.type(screen.getByLabelText("New password"), "12345678901!");
+    await user.tab();
+
+    expect(
+      await screen.findByText(
+        "Enter a password with at least 1 letter, 1 number, and 1 symbol"
+      )
+    ).toBeInTheDocument();
+  });
+
   it("flags mismatched confirmation on submit", async () => {
     const { user } = renderWithSetup(<ChangePasswordForm {...props} />);
 

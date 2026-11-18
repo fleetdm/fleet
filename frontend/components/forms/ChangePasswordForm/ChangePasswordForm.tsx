@@ -25,7 +25,8 @@ interface IChangePasswordFormProps {
 const PASSWORD_ERRORS: Record<string, string> = {
   too_short: "Enter a password with at least 12 characters",
   too_long: "Enter a password with 48 characters or fewer",
-  invalid_format: "Enter a password with at least 1 number and 1 symbol",
+  invalid_format:
+    "Enter a password with at least 1 letter, 1 number, and 1 symbol",
 };
 
 const validate = (formData: IChangePasswordFormData): IFormErrors => {
@@ -90,7 +91,7 @@ const ChangePasswordForm = ({
         {...getTextFieldProps("new_password")}
         label="New password"
         type="password"
-        helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+        helpText="12-48 characters, with at least 1 letter, 1 number (e.g. 0 - 9), and 1 symbol (e.g. &*#)."
         ignore1password={false}
         disabled={isSubmitting}
       />

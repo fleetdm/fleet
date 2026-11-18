@@ -7,6 +7,9 @@ import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "manage-user";
 
+// `users.name`, `users.email`, and `users.position` are all varchar(255).
+const USER_TEXT_MAX_LENGTH = 255;
+
 export interface IUserSettingsFormData {
   email: string;
   name: string;
@@ -84,6 +87,7 @@ const UserSettingsForm = ({
         readOnly={isEmailReadOnly}
         disabled={isSubmitting}
         ignore1password={false}
+        inputOptions={{ maxLength: USER_TEXT_MAX_LENGTH }}
         tooltip={
           <>
             Editing your email address requires that SMTP or SES is configured
@@ -99,12 +103,13 @@ const UserSettingsForm = ({
         {...getTextFieldProps("name")}
         label="Full name"
         disabled={isSubmitting}
-        inputOptions={{ maxLength: 80 }}
+        inputOptions={{ maxLength: USER_TEXT_MAX_LENGTH }}
       />
       <InputField
         {...getTextFieldProps("position")}
         label="Position"
         disabled={isSubmitting}
+        inputOptions={{ maxLength: USER_TEXT_MAX_LENGTH }}
       />
       <div className="button-wrap">
         <Button onClick={onCancel} variant="secondary">

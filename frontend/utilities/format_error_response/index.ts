@@ -12,10 +12,14 @@ const formatServerErrors = (errors: IFleetApiError[]) => {
   errors.forEach((error) => {
     const { name, reason } = error;
 
-    if (result[name]) {
-      result[name] = join([result[name], reason], ", ");
-    } else {
-      result.base = reason; // Ensure a base error is always returned
+    // `base` is the global error (fed to toasts and callers that only read
+    // `.base`); field-keyed entries let forms render the same message inline on
+    // the offending field.
+    if (!result.base) {
+      result.base = reason;
+    }
+    if (name && name !== "base") {
+      result[name] = result[name] ? join([result[name], reason], ", ") : reason;
     }
   });
 
