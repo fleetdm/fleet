@@ -1,5 +1,4 @@
 import { Meta, StoryObj } from "@storybook/react";
-import React from "react";
 
 import { PLATFORM_NAME_TO_ICON_MAP } from "..";
 
