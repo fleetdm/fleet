@@ -211,3 +211,22 @@ func ShottrVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_
 	}
 	return app, nil
 }
+
+// utmRebuildSuffixPattern matches a UTM cask version with a rebuild suffix
+// (e.g. "5.0.9-2", from the "v5.0.9-2" release tag).
+var utmRebuildSuffixPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)-\d+$`)
+
+// UTMVersionTransformer strips the rebuild suffix UTM release tags sometimes
+// carry (e.g. "5.0.9-2" → "5.0.9"). Rebuilt releases keep the same
+// CFBundleShortVersionString, so without this the validator can't find the
+// installed version and osquery's version_compare treats the installed "5.0.9"
+// as older than "5.0.9-2", breaking patch policy detection.
+func UTMVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for UTM")
+	}
+	if m := utmRebuildSuffixPattern.FindStringSubmatch(app.Version); m != nil {
+		app.Version = m[1]
+	}
+	return app, nil
+}
