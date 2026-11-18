@@ -212,7 +212,7 @@ export const DEFAULT_CAMPAIGN = {
   },
 
   id: 0,
-  query_id: 0,
+  report_id: 0,
   updated_at: "",
   user_id: 0,
 } as ICampaign;

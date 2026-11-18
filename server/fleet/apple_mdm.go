@@ -151,32 +151,6 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// MDMAppleInstaller holds installer packages for Apple devices.
-type MDMAppleInstaller struct {
-	// ID is the unique identifier of the installer in Fleet.
-	ID uint `json:"id" db:"id"`
-	// Name is the name of the installer (usually the package file name).
-	Name string `json:"name" db:"name"`
-	// Size is the size of the installer package.
-	Size int64 `json:"size" db:"size"`
-	// Manifest is the manifest of the installer. Generated from the installer
-	// contents and ready to use in `InstallEnterpriseApplication` commands.
-	Manifest string `json:"manifest" db:"manifest"`
-	// Installer is the actual installer contents.
-	Installer []byte `json:"-" db:"installer"`
-	// URLToken is a random token used for authentication to protect access to installers.
-	// Applications deployede via InstallEnterpriseApplication must be publicly accessible,
-	// this hard to guess token provides some protection.
-	URLToken string `json:"url_token" db:"url_token"`
-	// URL is the full URL where the installer is served.
-	URL string `json:"url"`
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleInstaller) AuthzType() string {
-	return "mdm_apple_installer"
-}
-
 // MDMAppleDevice represents an MDM enrolled Apple device.
 type MDMAppleDevice struct {
 	// ID is the device hardware UUID.
@@ -779,8 +753,8 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 type MDMAppleSetupPayload struct {
 	TeamID                                            *uint   `json:"fleet_id"`
 	EnableEndUserAuthentication                       *bool   `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually                       *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall                                *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	EnableReleaseDeviceManually                       *bool   `json:"apple_enable_release_device_manually" removedkey:"enable_release_device_manually"`
+	ManualAgentInstall                                *bool   `json:"macos_manual_agent_install" removedkey:"manual_agent_install"`
 	RequireAllSoftware                                *bool   `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
 	RequireAllSoftwareWindows                         *bool   `json:"windows_require_all_software" removedkey:"require_all_software_windows"`
 	MacOSEnableBootstrapPackageDuringManualEnrollment *bool   `json:"macos_enable_bootstrap_package_during_manual_enrollment"`

@@ -109,6 +109,7 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		{"/api/latest/fleet/packs/schedule/7", "/packs/schedule/{id}"},
 		{"/api/v1/fleet/packs/id/7", "/packs/id/{id}"},
 		{"/api/v1/fleet/packs/my-pack", "/packs/{id}"},
+		{"/api/mdm/apple/installer", "/api/mdm/apple/installer"}, // outside the Fleet API
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {
 			t.Run(method+" "+c.path, func(t *testing.T) {
@@ -131,6 +132,10 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 	t.Run("HEAD gets 405", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/v1/fleet/teams/1/policies/count", nil))
+		require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+
+		rec = httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/mdm/apple/installer", nil))
 		require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 	})
 }

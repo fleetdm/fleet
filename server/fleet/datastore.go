@@ -1617,6 +1617,9 @@ type Datastore interface {
 	// superseded by a newer secret for the same host, and secrets whose host no
 	// longer exists. It returns the number of rows deleted.
 	CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error)
+	// MintAndroidOneTimeEnrollSecret returns the one-time enroll secret for the given Android host's Fleet agent, reusing the
+	// host's unconsumed secret if there is one and minting a new one otherwise.
+	MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error)
 
 	// EnrollOsquery will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
@@ -1816,26 +1819,6 @@ type Datastore interface {
 	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
-
-	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
-	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
-
-	// MDMAppleInstaller returns the installer with its contents included (MDMAppleInstaller.Installer) from its token.
-	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// MDMAppleInstallerDetailsByID returns the installer details of an installer, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil).
-	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
-
-	// DeleteMDMAppleInstaller deletes an installer.
-	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
-
-	// MDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil) from its secret token.
-	MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// ListMDMAppleInstallers list all the uploaded installers.
-	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
@@ -2491,9 +2474,6 @@ type Datastore interface {
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
 	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
 	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *AppleOSUpdateSettings, error)
-	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
-	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
-	DeleteCAConfigAssets(ctx context.Context, names []string) error
 
 	// GetABMTokenByOrgName retrieves the Apple Business token identified by
 	// its unique name (the organization name).
@@ -4946,8 +4926,6 @@ type AccessesMDMConfigAssets interface {
 	// generated ones.
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
-	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 }
 type GetsAppConfig interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)

@@ -264,6 +264,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
 		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOsqueryRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
@@ -4235,7 +4236,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without
+			// If discard_reports_data=true we write the logs to the logging destination without
 			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write
