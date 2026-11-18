@@ -19,6 +19,12 @@ Below is the end user experience for macOS. Check out the separate videos for [i
 
 ## Users
 
+- [End user authentication](#end-user-authentication)
+- [End user license agreement (EULA)](#end-user-license-agreement-eula)
+- [End user account](#end-user-account)
+- [Managed account](#managed-account)
+- [Platform SSO](#platform-sso)
+
 In **Controls > Setup experience > Users**, you can require end users to authenticate with your identity provider (IdP), choose the end user's account type, and create a managed account.
 
 ### End user authentication
@@ -133,6 +139,10 @@ Fleet also supports using the Fleet Desktop app's built-in PSSO extension to ach
 
 ## Bootstrap package
 
+- [Step 1: Download or generate a package](#step-1-download-or-generate-a-package)
+- [Step 2: Sign the package](#step-2-sign-the-package)
+- [Step 3: Upload the package to Fleet](#step-3-upload-the-package-to-fleet)
+
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. You can also install the bootstrap package on macOS hosts that turn on MDM manually by checking **Install during manual enrollment** in **Controls > Setup experience > Bootstrap package**.
 
 Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
@@ -237,6 +247,8 @@ To deploy your own fleetd instead of the one Fleet installs, see [Manually insta
 
 ## Install software
 
+- [Stop setup on failed software installs](#stop-setup-on-failed-software-installs)
+
 You can install software during first time macOS, iOS, iPadOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB).
@@ -284,6 +296,10 @@ To configure a script to run during setup experience:
 To learn when the setup experience ends, see [Exiting the setup experience](#exiting-the-setup-experience). For software and scripts that run automatically during setup, see [Automatic installs and scripts during setup](#automatic-installs-and-scripts-during-setup).
 
 ## Setup Assistant
+
+- [Step 1: Create an automatic enrollment profile](#step-1-create-an-automatic-enrollment-profile)
+- [Step 2: Upload the profile to Fleet](#step-2-upload-the-profile-to-fleet)
+- [Step 3: Test the custom Setup Assistant](#step-3-test-the-custom-setup-assistant)
 
 When an end user unboxes their new Apple device, or starts up a freshly wiped device, they're presented with the Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
 
@@ -348,6 +364,18 @@ To replace the Fleet logo in the setup experience window with your organization'
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
 ## Advanced
+
+- [Okta FastPass during end user authentication](#okta-fastpass-during-end-user-authentication)
+- [Rejected automatic enrollments](#rejected-automatic-enrollments)
+- [Managed account details](#managed-account-details)
+- [Manually install fleetd](#manually-install-fleetd)
+- [Software install retries](#software-install-retries)
+- [App Store (VPP) apps in setup experience](#app-store-vpp-apps-in-setup-experience)
+- [Python (.py) packages on macOS](#python-py-packages-on-macos)
+- [Host stuck during setup experience](#host-stuck-during-setup-experience)
+- [Exiting the setup experience](#exiting-the-setup-experience)
+- [Automatic installs and scripts during setup](#automatic-installs-and-scripts-during-setup)
+- [swiftDialog](#swiftdialog)
 
 ### Okta FastPass during end user authentication
 
