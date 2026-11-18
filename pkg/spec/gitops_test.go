@@ -855,6 +855,23 @@ func TestWhitespaceOnlyTeamName(t *testing.T) {
 	require.Contains(t, err.Error(), "team 'name' is required")
 }
 
+func TestTeamNameWithoutLetterOrNumber(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・"} {
+		config := getTeamConfig([]string{"name"})
+		config += fmt.Sprintf("name: %q", name)
+		_, err := gitOpsFromString(t, config)
+		require.ErrorContains(t, err, "fleet 'name' must include at least one letter or number", name)
+	}
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀"} {
+		config := getTeamConfig([]string{"name"})
+		config += fmt.Sprintf("name: %q", name)
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err, name)
+		require.Equal(t, name, *gitops.TeamName)
+	}
+}
+
 func TestMissingNameErrorMessages(t *testing.T) {
 	t.Parallel()
 
