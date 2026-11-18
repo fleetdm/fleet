@@ -209,8 +209,8 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsDDMFleetVarsRequiresPremium(
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 org_settings:
   server_settings:

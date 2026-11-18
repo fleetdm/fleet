@@ -1902,7 +1902,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// legacy config
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": true } }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")

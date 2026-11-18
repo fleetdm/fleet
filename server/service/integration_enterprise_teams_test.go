@@ -410,7 +410,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": false,
 					},
 				},
@@ -428,7 +428,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": true,
 					},
 				},
@@ -686,7 +686,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	require.NoError(t, err)
 
 	spec := func(macOSSettings map[string]any) map[string]any {
-		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"macos_settings": macOSSettings}}}}
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"apple_settings": macOSSettings}}}}
 	}
 
 	var applyResp applyTeamSpecsResponse

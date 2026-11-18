@@ -44,7 +44,7 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
+    apple_settings:
 `,
 			nil,
 		},
@@ -57,8 +57,8 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
 `,
 			[]fleet.MDMProfileSpec{},
 		},
@@ -71,8 +71,8 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
         - path: "a"
           labels:
             - "foo"
@@ -90,8 +90,8 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
         - path: "a"
           labels:
         - path: ""
@@ -112,8 +112,8 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
         - "a"
         - "b"
 `,
@@ -128,8 +128,8 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
         - path: "a"
           name: "Wi-Fi"
           description: "Joins the office network"
@@ -146,8 +146,8 @@ spec:
   org_info:
     org_name: "Fleet"
   mdm:
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
         - "a"
         - ""
         - "c"
@@ -168,17 +168,18 @@ spec:
 				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
-				mdm["macos_settings"] = fleet.GitOpsMacOSSettings{CustomSettings: c.want}
+				typed := []fleet.MDMProfileSpec{{Path: "typed"}}
+				mdm["apple_settings"] = fleet.GitOpsMacOSSettings{CustomSettings: typed}
 				got, err = extractAppCfgMacOSCustomSettings(specs.AppConfig)
 				require.NoError(t, err)
-				assert.Equal(t, c.want, got)
+				assert.Equal(t, typed, got)
 			}
 		})
 	}
 }
 
 func TestExtractMacOSAssetSpecs(t *testing.T) {
-	// GitOps decodes macos_settings into a fleet.GitOpsMacOSSettings struct. Whenever
+	// GitOps decodes apple_settings into a fleet.GitOpsMacOSSettings struct. Whenever
 	// the struct is present, assets must be reconciled (a nil/empty asset set
 	// clears existing assets), so the extractor returns a non-nil slice.
 	t.Run("gitops struct, no assets => non-nil empty (reconcile to empty)", func(t *testing.T) {
@@ -197,7 +198,7 @@ func TestExtractMacOSAssetSpecs(t *testing.T) {
 	// Legacy fleetctl apply passes a raw map; there the assets key drives
 	// behavior: absent means "leave untouched" (nil), present means reconcile.
 	t.Run("legacy map, no assets key => nil (leave untouched)", func(t *testing.T) {
-		got := extractMacOSAssetSpecs(map[string]any{"custom_settings": []any{}})
+		got := extractMacOSAssetSpecs(map[string]any{"configuration_profiles": []any{}})
 		assert.Nil(t, got)
 	})
 	t.Run("legacy map, empty assets => non-nil empty", func(t *testing.T) {
@@ -223,28 +224,28 @@ func TestExtractTmSpecsMDMAssets(t *testing.T) {
 		want map[string][]fleet.MDMProfileSpec
 	}{
 		{
-			"macos_settings absent => untouched",
+			"apple_settings absent => untouched",
 			`{"name":"T1","mdm":{}}`,
 			nil,
 		},
 		{
-			"macos_settings present, no assets => reconcile to empty (clear)",
-			`{"name":"T1","mdm":{"macos_settings":{"custom_settings":[]}}}`,
+			"apple_settings present, no assets => reconcile to empty (clear)",
+			`{"name":"T1","mdm":{"apple_settings":{"configuration_profiles":[]}}}`,
 			map[string][]fleet.MDMProfileSpec{"T1": {}},
 		},
 		{
-			"macos_settings present, empty assets => reconcile to empty (clear)",
-			`{"name":"T1","mdm":{"macos_settings":{"assets":[]}}}`,
+			"apple_settings present, empty assets => reconcile to empty (clear)",
+			`{"name":"T1","mdm":{"apple_settings":{"assets":[]}}}`,
 			map[string][]fleet.MDMProfileSpec{"T1": {}},
 		},
 		{
-			"macos_settings present with assets",
-			`{"name":"T1","mdm":{"macos_settings":{"assets":[{"path":"x"}]}}}`,
+			"apple_settings present with assets",
+			`{"name":"T1","mdm":{"apple_settings":{"assets":[{"path":"x"}]}}}`,
 			map[string][]fleet.MDMProfileSpec{"T1": {{Path: "x"}}},
 		},
 		{
 			"empty team name => skipped",
-			`{"name":"","mdm":{"macos_settings":{"assets":[]}}}`,
+			`{"name":"","mdm":{"apple_settings":{"assets":[]}}}`,
 			nil,
 		},
 	}
@@ -294,7 +295,7 @@ spec:
     org_name: "Fleet"
   mdm:
     windows_settings:
-      custom_settings:
+      configuration_profiles:
 `,
 			[]fleet.MDMProfileSpec{},
 		},
@@ -308,7 +309,7 @@ spec:
     org_name: "Fleet"
   mdm:
     windows_settings:
-      custom_settings:
+      configuration_profiles:
         - path: "a"
           labels:
             - "foo"
@@ -327,7 +328,7 @@ spec:
     org_name: "Fleet"
   mdm:
     windows_settings:
-      custom_settings:
+      configuration_profiles:
         - path: "a"
           labels:
         - path: ""
@@ -349,7 +350,7 @@ spec:
     org_name: "Fleet"
   mdm:
     windows_settings:
-      custom_settings:
+      configuration_profiles:
         - "a"
         - "b"
 `,
@@ -365,7 +366,7 @@ spec:
     org_name: "Fleet"
   mdm:
     windows_settings:
-      custom_settings:
+      configuration_profiles:
         - "a"
         - ""
         - "c"
@@ -424,7 +425,7 @@ spec:
   fleet:
     name: Fleet
     mdm:
-      macos_settings:
+      apple_settings:
       windows_settings:
 ---
 apiVersion: v1
@@ -433,7 +434,7 @@ spec:
   fleet:
     name: Fleet2
     mdm:
-      macos_settings:
+      apple_settings:
       windows_settings:
 `,
 			nil,
@@ -448,12 +449,12 @@ spec:
   fleet:
     name: "Fleet"
     mdm:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
       windows_settings:
-        custom_settings:
+        configuration_profiles:
       android_settings:
-        custom_settings:
+        configuration_profiles:
 ---
 apiVersion: v1
 kind: fleet
@@ -461,12 +462,12 @@ spec:
   fleet:
     name: "Fleet2"
     mdm:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
       windows_settings:
-        custom_settings:
+        configuration_profiles:
       android_settings:
-        custom_settings:
+        configuration_profiles:
 `,
 			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}},
 			"",
@@ -481,20 +482,20 @@ spec:
     name: "Fleet"
     mdm:
       android_settings:
-        custom_settings:
+        configuration_profiles:
           - path: "e"
             labels:
               - "foo"
           - path: "f"
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - path: "a"
             labels:
               - "foo"
               - bar
           - path: "b"
       windows_settings:
-        custom_settings:
+        configuration_profiles:
            - path: "c"
            - path: "d"
              labels:
@@ -526,12 +527,12 @@ spec:
   fleet:
     name: "Fleet"
     mdm:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - "a"
           - "b"
       windows_settings:
-        custom_settings:
+        configuration_profiles:
           - "c"
           - "d"
 `,
@@ -554,13 +555,13 @@ spec:
     name: "Fleet"
     mdm:
       android_settings:
-        custom_settings:
+        configuration_profiles:
           - path: "e"
             labels:
               - "y"
           - path: ""
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - path: "a"
             labels:
               - "y"
@@ -570,7 +571,7 @@ spec:
               - "x"
           - path: "c"
       windows_settings:
-        custom_settings:
+        configuration_profiles:
           - path: "x"
           - path: ""
             labels:
@@ -590,14 +591,14 @@ spec:
   fleet:
     name: "Fleet"
     mdm:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - "a"
           - ""
           - 42
           - "c"
       windows_settings:
-        custom_settings:
+        configuration_profiles:
           - "x"
           - ""
           - 24
@@ -862,7 +863,7 @@ func TestGetProfilesContents(t *testing.T) {
 				{"bar.json", string(windowsProfile)},
 			},
 			expectError: true,
-			wantErr:     "Couldn't edit macos_settings.custom_settings (bar.json): Declaration profiles should include valid JSON",
+			wantErr:     "Couldn't edit apple_settings.configuration_profiles (bar.json): Declaration profiles should include valid JSON",
 		},
 		{
 			name:    "with unprocessable xml",
@@ -871,7 +872,7 @@ func TestGetProfilesContents(t *testing.T) {
 				{"bar.xml", string(darwinProfile)},
 			},
 			expectError: true,
-			wantErr:     "Couldn't edit windows_settings.custom_settings (bar.xml): Windows configuration profiles can only have <Replace> or <Add> top level elements",
+			wantErr:     "Couldn't edit windows_settings.configuration_profiles (bar.xml): Windows configuration profiles can only have <Replace> or <Add> top level elements",
 		},
 		{
 			name:    "with unsupported extension",
@@ -880,7 +881,7 @@ func TestGetProfilesContents(t *testing.T) {
 				{"bar.cfg", string(darwinProfile)},
 			},
 			expectError: true,
-			wantErr:     "Couldn't edit macos_settings.custom_settings (bar.cfg): macOS configuration profiles must be .mobileconfig or .json files",
+			wantErr:     "Couldn't edit apple_settings.configuration_profiles (bar.cfg): macOS configuration profiles must be .mobileconfig or .json files",
 		},
 		{
 			name:    "with FLEET_SECRET in data tag",

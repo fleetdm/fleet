@@ -20,7 +20,7 @@ import (
 var formerlySavedKeyPaths = []string{
 	"$.scripts",
 	"$.mdm.volume_purchasing_program",
-	"$.mdm.macos_settings.custom_settings",
+	"$.mdm.apple_settings.custom_settings",
 	"$.mdm.windows_settings.custom_settings",
 	"$.mdm.android_settings.custom_settings",
 	"$.mdm.setup_experience.macos_bootstrap_package",
@@ -96,7 +96,7 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetSettingsLeaveOutFormerlySave
 			_, err := q.ExecContext(ctx, fmt.Sprintf(`UPDATE %s SET %s = JSON_SET(%s,
 				'$.scripts', JSON_ARRAY('old-script.sh'),
 				'$.mdm.volume_purchasing_program', JSON_ARRAY(),
-				'$.mdm.macos_settings.custom_settings', JSON_ARRAY(JSON_OBJECT('path', 'old-apple.mobileconfig')),
+				'$.mdm.apple_settings.custom_settings', JSON_ARRAY(JSON_OBJECT('path', 'old-apple.mobileconfig')),
 				'$.mdm.windows_settings.custom_settings', JSON_ARRAY(JSON_OBJECT('path', 'old-windows.xml')),
 				'$.mdm.android_settings.custom_settings', JSON_ARRAY(JSON_OBJECT('path', 'old-android.json')),
 				'$.mdm.setup_experience.macos_bootstrap_package', 'https://example.com/old-bootstrap.pkg',
@@ -151,7 +151,7 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetSettingsLeaveOutFormerlySave
 
 	for _, c := range []struct{ body, key string }{
 		{`{"scripts": ["script.sh"]}`, "scripts"},
-		{`{"mdm": {"macos_settings": {"custom_settings": [{"path": "apple.mobileconfig"}]}}}`, "custom_settings"},
+		{`{"mdm": {"apple_settings": {"custom_settings": [{"path": "apple.mobileconfig"}]}}}`, "custom_settings"},
 		{`{"mdm": {"windows_settings": {"custom_settings": [{"path": "windows.xml"}]}}}`, "custom_settings"},
 		{`{"mdm": {"android_settings": {"custom_settings": [{"path": "android.json"}]}}}`, "custom_settings"},
 		{`{"mdm": {"setup_experience": {"apple_setup_assistant": "assistant.json"}}}`, "apple_setup_assistant"},
@@ -184,7 +184,7 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetSettingsLeaveOutFormerlySave
 
 	for _, c := range []struct{ spec, key string }{
 		{`"scripts": ["script.sh"]`, "scripts"},
-		{`"mdm": {"macos_settings": {"custom_settings": [{"path": "apple.mobileconfig"}]}}`, "custom_settings"},
+		{`"mdm": {"apple_settings": {"custom_settings": [{"path": "apple.mobileconfig"}]}}`, "custom_settings"},
 		{`"mdm": {"windows_settings": {"custom_settings": [{"path": "windows.xml"}]}}`, "custom_settings"},
 		{`"mdm": {"android_settings": {"custom_settings": [{"path": "android.json"}]}}`, "custom_settings"},
 		{`"mdm": {"setup_experience": {"apple_setup_assistant": "assistant.json"}}`, "apple_setup_assistant"},

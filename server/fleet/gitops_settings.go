@@ -49,7 +49,7 @@ func NewGitOpsMacOSSetupWithDefaults() *GitOpsMacOSSetup {
 // GitOpsMacOSSettings is apple_settings in GitOps and fleetctl apply files.
 type GitOpsMacOSSettings struct {
 	MacOSSettings
-	CustomSettings []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings []MDMProfileSpec `json:"configuration_profiles" removedkey:"custom_settings" renamescope:"apple_settings,windows_settings,android_settings"`
 }
 
 func (s GitOpsMacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -59,7 +59,7 @@ func (s GitOpsMacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 // GitOpsWindowsSettings is windows_settings in GitOps and fleetctl apply files.
 type GitOpsWindowsSettings struct {
 	WindowsSettings
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"configuration_profiles" removedkey:"custom_settings" renamescope:"apple_settings,windows_settings,android_settings"`
 }
 
 func (s GitOpsWindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -69,7 +69,7 @@ func (s GitOpsWindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 // GitOpsAndroidSettings is android_settings in GitOps and fleetctl apply files.
 type GitOpsAndroidSettings struct {
 	AndroidSettings
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"configuration_profiles" removedkey:"custom_settings" renamescope:"apple_settings,windows_settings,android_settings"`
 }
 
 func (s GitOpsAndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {

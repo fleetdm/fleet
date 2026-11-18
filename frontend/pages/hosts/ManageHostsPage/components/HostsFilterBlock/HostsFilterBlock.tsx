@@ -350,9 +350,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label={label}
-          onClear={() =>
-            handleClearFilter(["macos_settings", "apple_settings"])
-          }
+          onClear={() => handleClearFilter(["apple_settings"])}
         />
       </>
     );

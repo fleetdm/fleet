@@ -1,12 +1,12 @@
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
         labels_include_all:
           - A
           - B
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/windows-screenlock.xml
         labels_exclude_any:
           - C

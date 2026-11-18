@@ -673,7 +673,7 @@ func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byt
 			if recoveryLockEnabled {
 				err := fleet.NewInvalidArgumentError(
 					"command",
-					"Could not run command. Recovery Lock password is already set for one or more hosts. To set a custom password, disable Recovery Lock passwords for those hosts' teams. To rotate the password, learn how: https://fleetdm.com/learn-more-about/recovery-lock-passwords",
+					"Could not run command. Recovery Lock password is already set for one or more hosts. To set a custom password, disable Recovery Lock passwords for those hosts' fleets. To rotate the password, learn how: https://fleetdm.com/learn-more-about/recovery-lock-passwords",
 				).WithStatus(http.StatusConflict)
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock blocked by team config")
 			}
@@ -1224,7 +1224,7 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 	}
 
 	if authzErr != nil {
-		svc.logger.ErrorContext(ctx, "unauthorized to view some team commands", "details", authzErr)
+		svc.logger.ErrorContext(ctx, "unauthorized to view some fleet commands", "details", authzErr)
 
 		// filter-out the teams that the user is not allowed to view
 		allowedResults := make([]*fleet.MDMCommand, 0, len(results))
@@ -2492,7 +2492,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	if _, ok := fleetNames[existing.Name]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing profile %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+			InternalErr: fmt.Errorf("editing profile %s for fleet %s not allowed because it's managed by Fleet", existing.Name, teamName),
 		}
 	}
 
@@ -3545,7 +3545,7 @@ func getAppleProfiles(
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 && len(decls) == 0 {
 			return nil, nil, nil
@@ -3625,7 +3625,7 @@ func getWindowsProfiles(
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil
@@ -3698,7 +3698,7 @@ func getAndroidProfiles(ctx context.Context,
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil
@@ -3752,7 +3752,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		if platform != "darwin" && platform != "windows" && platform != "android" {
 			// We can only display a generic error message here because at this point
 			// we don't know the file extension or whether the profile is intended
-			// for macos_settings, windows_settings or android_settings. We should expect to never see this
+			// for apple_settings, windows_settings or android_settings. We should expect to never see this
 			// in practice because the client should be validating the profiles
 			// before sending them to the server so the client can surface  more helpful
 			// error messages to the user. However, we're validating again here just

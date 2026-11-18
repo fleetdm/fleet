@@ -128,7 +128,7 @@ func (e *ParseTypeError) Unwrap() error {
 // ParseUnknownKeyError represents an unknown/misspelled key found in a GitOps YAML file.
 type ParseUnknownKeyError struct {
 	Filename   string
-	Path       string // dot-separated path context, e.g. "controls.macos_settings"
+	Path       string // dot-separated path context, e.g. "controls.apple_settings"
 	Field      string // the unknown field name
 	Suggestion string // suggested correct key, if a close match exists
 }
@@ -203,7 +203,7 @@ type GitOpsControls struct {
 	MacOSUpdates   any                     `json:"macos_updates"`
 	IOSUpdates     any                     `json:"ios_updates"`
 	IPadOSUpdates  any                     `json:"ipados_updates"`
-	MacOSSettings  any                     `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings  any                     `json:"apple_settings" removedkey:"macos_settings"`
 	MacOSSetup     *fleet.GitOpsMacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
 	MacOSMigration any                     `json:"macos_migration"`
 
@@ -333,15 +333,15 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	if spec.InstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" ||
 		(!isScript && (spec.UninstallScript.Path != "" || spec.PostInstallScript.Path != "" || spec.PreInstallQuery.Path != "")) {
 		if isScript {
-			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the team level", *spec.Path)
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the fleet level", *spec.Path)
 		}
-		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 	}
 
 	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
 	if spec.Icon.Path != "" {
 		if !fleet.IsScriptPackage(ext) {
-			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 		}
 	}
 
@@ -722,7 +722,7 @@ func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError 
 		*result.TeamName = strings.TrimSpace(*result.TeamName)
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
-		return multierror.Append(multiError, errors.New("team 'name' is required"))
+		return multierror.Append(multiError, errors.New("fleet 'name' is required"))
 	}
 	if fleet.TeamNameKey(*result.TeamName) == "" {
 		return multierror.Append(multiError, fmt.Errorf("fleet 'name' %s", fleet.TeamNameNoLetterOrNumberReason))
@@ -878,7 +878,7 @@ func absPathFrom(baseDir, p string) string {
 // the no-team file (e.g. ../lib/...) keep working.
 //
 // Only fields resolved at apply time are touched. Deliberately excluded:
-//   - controls.scripts and macos_settings/windows_settings profiles are already
+//   - controls.scripts and apple_settings/windows_settings profiles are already
 //     resolved at parse time against the file's own dir (see parseControls), so
 //     re-resolving here would double-anchor them.
 func (c *GitOpsControls) ResolveFilePathsAbs(baseDir string) {
@@ -1066,7 +1066,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
 		if err != nil {
 			noError = false
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read fleet settings file %s: %v", *teamSettingsTop.Path, err))
 		} else {
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
@@ -1312,7 +1312,7 @@ func parseCustomHostVitals(top map[string]json.RawMessage, result *GitOps, fileP
 	raw := top["custom_host_vitals"]
 
 	if !result.global() {
-		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a team file"))
+		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a fleet file"))
 	}
 
 	result.CustomHostVitals = []fleet.CustomHostVital{}
@@ -1422,12 +1422,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	if !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
 		if result.Controls.AppleAccountProvisioning != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf(
-				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific fleet", yamlFilename,
 			))
 		}
 		if result.Controls.EnableProfileValidation != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf(
-				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
+				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific fleet", yamlFilename,
 			))
 		}
 	}
@@ -1502,7 +1502,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		macOSSettings, err := reparseSettings[fleet.GitOpsMacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
+		macOSSettings, err := reparseSettings[fleet.GitOpsMacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "apple_settings")
 		if err != nil {
 			return multierror.Append(multiError, err)
 		}
@@ -2173,7 +2173,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		for _, item := range macOSSettings.CustomSettings {
 			// each entry has already been expanded so we can expect a single path
 			if item.Path == "" {
-				multiError = multierror.Append(multiError, errors.New("controls.macos_settings.configuration_profiles[]: path is required for each profile"))
+				multiError = multierror.Append(multiError, errors.New("controls.apple_settings.configuration_profiles[]: path is required for each profile"))
 				continue
 			}
 

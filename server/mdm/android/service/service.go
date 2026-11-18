@@ -1658,7 +1658,7 @@ func (svc *Service) agentEnrollSecret(
 		return "", ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
 	}
 	if len(enrollSecrets) == 0 {
-		return "", ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		return "", ctxerr.Errorf(ctx, "no enroll secrets found for fleet %v", androidHost.Host.TeamID)
 	}
 	return enrollSecrets[0].Secret, nil
 }
