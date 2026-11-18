@@ -7250,17 +7250,6 @@ Fleet collects a session's tool calls on the refresh after it collects the sessi
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Default is `50`. Maximum is 10,000.|
 
-`categories` is `["command"]` for a tool call that runs a shell command, and `["file_access"]` for one that reads, writes, or searches files. Other tool calls, such as network requests and calls to MCP servers, have an empty array. No event is in both categories.
-
-`target` is what the tool call was asked to do: the command's first line, the file read or written, the search pattern, or `<server>: <tool>` for a call to an MCP server. It's up to 256 bytes.
-
-`decision` is the tool call's outcome: `"allowed"`, `"denied"` (the user, a permission rule, or a hook refused it), `"error"` (it failed or was interrupted), or `""` if the agent didn't record a result. Cursor doesn't record results, so its tool calls always have an empty `decision`.
-
-`executed_at` is when the agent recorded the tool call. For Cursor, it's when the prompt was sent, to the minute, and it's `null` only when that's unknown.
-
-`payload` is the tool call's `name`, `id`, and arguments (`input`). The tools and their arguments depend on the agent. `input` is a JSON object or array when the agent recorded the arguments as JSON, and a string otherwise. Cursor doesn't record tool call IDs, so `id` is empty.
-
-`truncated` is `true` when the arguments were larger than 8 KB and were cut to fit. Fleet shortens the longest string values in `input`, so JSON arguments stay valid JSON.
 
 #### Example
 
@@ -7313,6 +7302,18 @@ Fleet collects a session's tool calls on the refresh after it collects the sessi
   }
 }
 ```
+
+`categories` is `["command"]` for a tool call that runs a shell command, and `["file_access"]` for one that reads, writes, or searches files. Other tool calls, such as network requests and calls to MCP servers, have an empty array. No event is in both categories.
+
+`target` is what the tool call was asked to do: the command's first line, the file read or written, the search pattern, or `<server>: <tool>` for a call to an MCP server. It's up to 256 bytes.
+
+`decision` is the tool call's outcome: `"allowed"`, `"denied"` (the user, a permission rule, or a hook refused it), `"error"` (it failed or was interrupted), or `""` if the agent didn't record a result. Cursor doesn't record results, so its tool calls always have an empty `decision`.
+
+`executed_at` is when the agent recorded the tool call. For Cursor, it's when the prompt was sent, to the minute, and it's `null` only when that's unknown.
+
+`payload` is the tool call's `name`, `id`, and arguments (`input`). The tools and their arguments depend on the agent. `input` is a JSON object or array when the agent recorded the arguments as JSON, and a string otherwise. Cursor doesn't record tool call IDs, so `id` is empty.
+
+`truncated` is `true` when the arguments were larger than 8 KB and were cut to fit. Fleet shortens the longest string values in `input`, so JSON arguments stay valid JSON.
 
 ### Add labels to host
 
