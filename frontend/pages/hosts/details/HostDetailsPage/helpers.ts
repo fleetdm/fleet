@@ -3,19 +3,7 @@ import { IHost } from "interfaces/host";
 import { isAndroid, isChrome, isIPadOrIPhone } from "interfaces/platform";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
 
-import {
-  getHostDeviceStatusUIState,
-  HostMdmDeviceStatusUIState,
-} from "../helpers";
-
-// The end user's data is being, or has been, erased.
-const ERASE_STATES: HostMdmDeviceStatusUIState[] = [
-  "wiped",
-  "wiping",
-  "reset",
-  "resetting",
-  "reset_wipe_pending",
-];
+import { getHostDeviceStatusUIState } from "../helpers";
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
@@ -77,7 +65,7 @@ export const canShowMyDeviceButton = (
     host.mdm.device_status,
     host.mdm.pending_action
   );
-  return !ERASE_STATES.includes(uiState);
+  return uiState !== "wiped" && uiState !== "wiping";
 };
 
 // Hosts created in a pending state (Apple Business Manager, Windows Autopilot) are inserted with

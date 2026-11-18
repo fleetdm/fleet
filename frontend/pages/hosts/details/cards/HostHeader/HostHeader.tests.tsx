@@ -200,27 +200,6 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wiped")).toBeInTheDocument();
   });
 
-  it.each([
-    { status: "resetting", badge: "Reset pending" },
-    { status: "reset", badge: "Reset" },
-    { status: "reset_wipe_pending", badge: "Reset" },
-  ] as const)(
-    "renders the '$badge' badge for a Windows host",
-    ({ status, badge }) => {
-      render(
-        <HostHeader
-          summaryData={{ ...defaultSummaryData, platform: "windows" }}
-          showRefetchSpinner={false}
-          onRefetchHost={jest.fn()}
-          renderActionsDropdown={renderActionDropdown}
-          hostMdmDeviceStatus={status}
-          hostMdmEnrollmentStatus="On (manual)"
-        />
-      );
-      expect(screen.getByText(badge)).toBeInTheDocument();
-    }
-  );
-
   it("renders 'Lock pending' and 'Wiped' badges for Android hosts", () => {
     const { rerender } = renderWithSetup(
       <HostHeader

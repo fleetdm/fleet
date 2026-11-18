@@ -62,39 +62,31 @@ const WipeModal = ({
   return (
     <Modal className={baseClass} title="Wipe" onExit={onClose}>
       <div className={`${baseClass}__modal-content`}>
+        {!isLinuxHost && <p>All content will be erased on this host.</p>}
+        {(isWindowsHost || isAppleHost) && (
+          <p>
+            Deleting the host before the wipe executes may hide the Wipe Pending
+            status, but it will still be wiped on MDM check-in.
+          </p>
+        )}
         {isWindowsHost && (
-          <>
-            <p>
-              Wipe lost or stolen hosts. To use the host again, you will need to
-              reinstall the OS.
-            </p>
-            <p>
-              To repurpose the host for another user, use{" "}
-              <b>Actions &gt; Reset</b>.
-            </p>
-          </>
+          <p>
+            To use the host again, you will have to do a Windows reinstall from
+            a USB drive.
+          </p>
         )}
         {isLinuxHost && (
           <>
             <p>
-              Wipe lost or stolen hosts. To repurpose the host for another end
-              user, you will need to reinstall the OS.
-            </p>
-            <p>
-              This will run a script to erase all data from this host.{" "}
+              This will run a script to erase content from this host.{" "}
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/linux-wipe"
                 text="Learn more"
                 newTab
-              />
+              />{" "}
             </p>
+            <p>To use the host again, you will have to do an OS reinstall.</p>
           </>
-        )}
-        {(isAppleHost || isAndroidHost) && (
-          <p>
-            Repurpose the host for another end user, or wipe lost or stolen
-            hosts.
-          </p>
         )}
         <div className={`${baseClass}__confirm-message`}>
           <span>
