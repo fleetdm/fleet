@@ -186,3 +186,120 @@ describe("ManagePoliciesPage - automations filter", () => {
     expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
   });
 });
+
+describe("ManagePoliciesPage - fleet's own policies", () => {
+  const INHERITED_ONLY_FLEET_ID = 3;
+  const MIXED_FLEET_ID = 4;
+
+  const inheritedPolicies = [
+    createMockPolicy({ id: 10, name: "Inherited one", fleet_id: null }),
+    createMockPolicy({ id: 11, name: "Inherited two", fleet_id: null }),
+  ];
+  const ownPolicies: Record<number, ReturnType<typeof createMockPolicy>[]> = {
+    [INHERITED_ONLY_FLEET_ID]: [],
+    [MIXED_FLEET_ID]: [
+      createMockPolicy({
+        id: 20,
+        name: "Own policy",
+        fleet_id: MIXED_FLEET_ID,
+      }),
+    ],
+  };
+
+  // The count has to differ with merge_inherited, or a page that used the
+  // merged count wouldn't be caught.
+  const policiesFor = (request: Request) => {
+    const params = new URL(request.url).searchParams;
+    const own = ownPolicies[Number(params.get("fleet_id"))] ?? [];
+    return params.get("merge_inherited") === "true"
+      ? [...own, ...inheritedPolicies]
+      : own;
+  };
+
+  const renderPage = (fleetId: number, isPrimo = false) => {
+    const config = createMockConfig({
+      partnerships: { enable_primo: isPrimo },
+    });
+    mockServer.use(
+      http.get(baseUrl("/config"), () => HttpResponse.json(config)),
+      getFleetHandler(),
+      http.get(baseUrl("/policies"), ({ request }) =>
+        HttpResponse.json({ policies: policiesFor(request) })
+      ),
+      http.get(baseUrl("/policies/count"), ({ request }) =>
+        HttpResponse.json({ count: policiesFor(request).length })
+      )
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser({ global_role: "admin" }),
+          isGlobalAdmin: true,
+          isOnGlobalTeam: true,
+          isPremiumTier: true,
+          availableTeams: [
+            { id: -1, name: "All fleets" },
+            { id: 0, name: "Unassigned" },
+            { id: INHERITED_ONLY_FLEET_ID, name: "Inherited only" },
+            { id: MIXED_FLEET_ID, name: "Mixed" },
+          ],
+          config,
+          setCurrentTeam: jest.fn(),
+          setFilteredPoliciesPath: jest.fn(),
+          setConfig: jest.fn(),
+        },
+      },
+    });
+
+    const query = { fleet_id: fleetId.toString() };
+    return render(
+      <ManagePoliciesPage
+        router={createMockRouter()}
+        location={{
+          action: "PUSH",
+          hash: "",
+          key: "",
+          pathname: "/policies/manage",
+          query,
+          search: `?${new URLSearchParams(query).toString()}`,
+        }}
+      />
+    );
+  };
+
+  it("disables Manage automations and delete for a fleet with only inherited policies", async () => {
+    renderPage(INHERITED_ONLY_FLEET_ID);
+
+    await screen.findAllByText("Inherited one");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Manage automations/i })
+      ).toBeDisabled()
+    );
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  });
+
+  it("enables Manage automations and delete for a fleet with its own policies", async () => {
+    renderPage(MIXED_FLEET_ID);
+
+    await screen.findAllByText("Own policy");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /Manage automations/i })
+      ).toBeEnabled()
+    );
+    expect(screen.queryAllByRole("checkbox").length).toBeGreaterThan(0);
+  });
+
+  it("still lets Primo mode delete inherited policies", async () => {
+    // Primo mode has no fleets; its policies view is "Unassigned".
+    renderPage(0, true);
+
+    await screen.findAllByText("Inherited one");
+    await waitFor(() =>
+      expect(screen.queryAllByRole("checkbox").length).toBeGreaterThan(0)
+    );
+  });
+});
