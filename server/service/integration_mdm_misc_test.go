@@ -1268,7 +1268,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
-		globalQueryID := createQueryResp.Query.ID
+		globalQueryID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit global query with team label (should fail).
 		modifyQueryResp := fleet.ModifyQueryResponse{}
@@ -1303,7 +1303,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			TeamID: &t1.ID,
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
-		team1LabelID := createQueryResp.Query.ID
+		team1LabelID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
 		modifyQueryResp = fleet.ModifyQueryResponse{}

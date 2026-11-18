@@ -144,7 +144,7 @@ const QueryDetailsPage = ({
     () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
-      select: (data) => data.query,
+      select: (data) => data.report,
       onError: (error) => handlePageError(error),
     }
   );

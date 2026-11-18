@@ -102,7 +102,7 @@ const RunQueryPage = ({
   >(["query", queryId], () => queryAPI.load(queryId as number), {
     enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
-    select: (data) => data.query,
+    select: (data) => data.report,
     onSuccess: (returnedQuery) => {
       setLastEditedQueryId(returnedQuery.id);
       setLastEditedQueryName(returnedQuery.name);
