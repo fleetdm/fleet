@@ -450,21 +450,21 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &cqr4)
 
 	// Attempt to edit queries, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Report.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to view a query, should work.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Report.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
 
 	// Attempt to list all queries, should work.
 	s.DoJSON("GET", "/api/latest/fleet/queries", fleet.ListQueriesRequest{}, http.StatusOK, &fleet.ListQueriesResponse{})
 
 	// Attempt to delete queries, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
-	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr3.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Report.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr3.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
@@ -653,25 +653,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &tcqr)
 
 	// Attempt to edit own query, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Query.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Report.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete own query, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to edit query created by somebody else, should fail. A team
 	// GitOps user can't read global queries either (unlike every other team
 	// role), so this reports not-found rather than forbidden: a forbidden
 	// would confirm the global query exists to a caller with no view of it.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Report.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})

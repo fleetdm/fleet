@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
@@ -304,16 +303,13 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 	return u, nil
 }
 
+// StringFromRequest returns the named path variable, which the router has already decoded.
 func StringFromRequest(r *http.Request, name string) (string, error) {
 	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
+	return s, nil
 }
 
 func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string, optional bool) error {
@@ -652,6 +648,14 @@ func MakeDecoder(
 					ContentLength:  r.Header.Get("Content-Length"),
 					MaxRequestSize: maxRequestBodySize,
 					Gzipped:        gzipped,
+				}
+			}
+
+			// Checked even when decoding failed, since an upload that sends team_id instead of fleet_id can fail there first. r.Form
+			// also holds the query string, where uploads used to accept team_id too.
+			if r.MultipartForm != nil && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedFormFields(r.Form); err != nil {
+					return nil, err
 				}
 			}
 			return ret, err

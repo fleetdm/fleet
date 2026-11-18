@@ -3,9 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
-	"net/url"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -24,11 +22,7 @@ func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) 
 	if !ok {
 		return nil, endpointer.ErrBadRoute
 	}
-	unescaped, err := url.PathUnescape(eventUUID)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	req.eventUUID = unescaped
+	req.eventUUID = eventUUID
 
 	req.googleChannelID = r.Header.Get("X-Goog-Channel-Id")
 	req.googleResourceState = r.Header.Get("X-Goog-Resource-State")

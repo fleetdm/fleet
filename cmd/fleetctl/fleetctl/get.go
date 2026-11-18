@@ -551,7 +551,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 	teamNameOut := teamName
 	if teamName == "" {
-		teamNameOut = "All teams"
+		teamNameOut = "All fleets"
 	}
 
 	return []string{
@@ -627,10 +627,10 @@ func getReportsCommand() *cli.Command {
 					var notFoundErr service.NotFoundErr
 					if errors.As(err, &notFoundErr) {
 						// Do not error out, just inform the user and 'gracefully' exit.
-						fmt.Println("Team not found.")
+						fmt.Println("Fleet not found.")
 						return nil
 					}
-					return fmt.Errorf("get team: %w", err)
+					return fmt.Errorf("get fleet: %w", err)
 				}
 				teamName = team.Name
 			}
@@ -699,7 +699,7 @@ func getReportsCommand() *cli.Command {
 					// Default to printing as a table
 					rows := [][]string{}
 
-					columns := []string{"name", "description", "query", "team", "schedule"}
+					columns := []string{"name", "description", "query", "fleet", "schedule"}
 					for _, query := range queries {
 						rows = append(rows, queryToTableRow(query, teamName))
 					}
@@ -1167,7 +1167,7 @@ func getUserRolesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "user_roles",
 		Aliases: []string{"user_role", "ur"},
-		Usage:   "List global and team roles for users",
+		Usage:   "List global and fleet roles for users",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -1241,14 +1241,14 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 func getTeamsJSONFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  jsonFlagName,
-		Usage: "Output all team information in JSON format",
+		Usage: "Output all fleet information in JSON format",
 	}
 }
 
 func getTeamsYAMLFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  yamlFlagName,
-		Usage: "Output team configuration in yaml format. Intended for use with \"fleetctl apply -f\"",
+		Usage: "Output fleet configuration in yaml format. Intended for use with \"fleetctl apply -f\"",
 	}
 }
 
@@ -1283,11 +1283,11 @@ func getFleetsCommand() *cli.Command {
 
 			teams, err := client.ListTeams(queryStr)
 			if err != nil {
-				return fmt.Errorf("could not list teams: %w", err)
+				return fmt.Errorf("could not list fleets: %w", err)
 			}
 
 			if len(teams) == 0 {
-				log(c, "No teams found")
+				log(c, "No fleets found")
 				return nil
 			}
 

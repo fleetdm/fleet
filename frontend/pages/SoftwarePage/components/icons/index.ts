@@ -572,6 +572,7 @@ import Kitty from "./png/Kitty.png";
 import Klokki from "./png/Klokki.png";
 import Knime from "./png/Knime.png";
 import Knockknock from "./png/Knockknock.png";
+import KopiaUI from "./png/KopiaUI.png";
 import Krisp from "./png/Krisp.png";
 import Krita from "./png/Krita.png";
 import Lapce from "./png/Lapce.png";
@@ -1747,6 +1748,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   klokki: Klokki,
   "knime analytics platform": Knime,
   knockknock: Knockknock,
+  kopiaui: KopiaUI,
   krisp: Krisp,
   krita: Krita,
   lapce: Lapce,

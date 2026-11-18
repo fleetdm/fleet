@@ -6,5 +6,6 @@
   "slug": "steermouse/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

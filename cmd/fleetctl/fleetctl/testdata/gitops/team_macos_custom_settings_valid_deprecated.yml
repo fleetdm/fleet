@@ -10,8 +10,8 @@ settings:
     host_expiry_window: 30
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
         labels:
           - A

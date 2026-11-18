@@ -215,7 +215,7 @@ const PolicyDetailsPage = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,

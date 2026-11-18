@@ -5379,7 +5379,7 @@ func testTeamPoliciesWithResendProfile(t *testing.T, ds *Datastore) {
 		{
 			name:        "profile belonging to another team is rejected",
 			profileUUID: &otherTeamProf.ProfileUUID,
-			wantErrMsg:  "does not belong to team ID",
+			wantErrMsg:  "does not belong to fleet ID",
 		},
 	}
 
@@ -5742,7 +5742,7 @@ func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {
 		{
 			name:       "profile belonging to another team is rejected",
 			spec:       spec("cross team resend", team1.Name, &team2Prof.ProfileUUID),
-			wantErrMsg: "does not belong to team ID",
+			wantErrMsg: "does not belong to fleet ID",
 		},
 		{
 			name:       "nonexistent profile is rejected",
@@ -5841,7 +5841,7 @@ func testApplyPolicySpecsWithScript(t *testing.T, ds *Datastore) {
 		{
 			name:       "script belonging to another team is rejected",
 			spec:       spec("cross team script", team1.Name, &team2Script.ID),
-			wantErrMsg: "does not belong to team ID",
+			wantErrMsg: "does not belong to fleet ID",
 		},
 		{
 			name:       "nonexistent script is rejected",
@@ -6029,7 +6029,7 @@ func testSavePolicyResendProfile(t *testing.T, ds *Datastore) {
 		require.Error(t, err)
 		var bre *fleet.BadRequestError
 		require.ErrorAs(t, err, &bre)
-		require.Contains(t, bre.Message, "does not belong to team ID")
+		require.Contains(t, bre.Message, "does not belong to fleet ID")
 	})
 
 	t.Run("both columns at once is rejected", func(t *testing.T) {

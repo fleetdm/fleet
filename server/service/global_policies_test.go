@@ -903,25 +903,25 @@ func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
 		wantErr         bool
 	}{
 		{
-			name:            "global admin from query_id loads and authorizes the query",
+			name:            "global admin from report_id loads and authorizes the query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
 			wantQueryLoaded: true,
 		},
 		{
-			name:            "global maintainer from query_id loads and authorizes the query",
+			name:            "global maintainer from report_id loads and authorizes the query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleMaintainer)},
 			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
 			wantQueryLoaded: true,
 		},
 		{
-			name:            "global gitops from query_id loads and authorizes the query",
+			name:            "global gitops from report_id loads and authorizes the query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)},
 			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
 			wantQueryLoaded: true,
 		},
 		{
-			name:            "no query_id does not load any query",
+			name:            "no report_id does not load any query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 			payload:         fleet.PolicyPayload{Name: "inline", Query: "SELECT 1;"},
 			wantQueryLoaded: false,
