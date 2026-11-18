@@ -17,17 +17,17 @@ func init() {
 // in case the key renames have not run yet.
 func Up_20261118163029(tx *sql.Tx) error {
 	var raw []byte
-	switch err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1`).Scan(&raw); {
+	switch err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1 FOR UPDATE`).Scan(&raw); {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
 	case err != nil:
-		return fmt.Errorf("select app config: %w", err)
+		return fmt.Errorf("select app_config_json: %w", err)
 	}
 	var appConfig struct {
 		MDM map[string]any `json:"mdm"`
 	}
 	if err := json.Unmarshal(raw, &appConfig); err != nil {
-		return fmt.Errorf("unmarshal app config: %w", err)
+		return fmt.Errorf("unmarshal app_config_json: %w", err)
 	}
 
 	for _, listKey := range []string{"apple_business_manager", "apple_business"} {
@@ -40,7 +40,7 @@ func Up_20261118163029(tx *sql.Tx) error {
 				}
 				path := fmt.Sprintf("$.mdm.%s[%d].%s", listKey, i, nameKey)
 				if _, err := tx.Exec(`UPDATE app_config_json SET json_value = JSON_SET(json_value, ?, '') WHERE id = 1`, path); err != nil {
-					return fmt.Errorf("update %s in app config: %w", path, err)
+					return fmt.Errorf("update %s in app_config_json: %w", path, err)
 				}
 			}
 		}
