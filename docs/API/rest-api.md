@@ -2938,8 +2938,6 @@ When updating conditional access config, all `conditional_access` fields must ei
 
 > Note: If `only_allow_apple_business_enrollment` is enabled, the [Get manual enrollment profile](#get-manual-enrollment-profile) and [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) endpoints return an error.
 
-> Note: If `only_allow_android_zero_touch_enrollment` is enabled, the enroll page doesn't create QR codes or work profile links for Android hosts. Instead, it shows an error: "Only company-owned hosts enrolled through zero-touch can enroll. Please contact your IT administrator."
-
 <br/>
 
 ##### mdm.macos_updates
