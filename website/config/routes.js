@@ -1515,7 +1515,7 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
-  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
