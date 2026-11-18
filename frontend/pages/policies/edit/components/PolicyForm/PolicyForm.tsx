@@ -410,6 +410,11 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
+    // Surface a syntax error in the stored policy as soon as it loads.
+    if (lastEditedQueryBody?.trim()) {
+      const { errors: loadErrors } = validateQuerySQL(lastEditedQueryBody);
+      setErrors((prev) => ({ ...prev, query: loadErrors.query ?? undefined }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [policyIdForEdit, lastEditedQueryId, isNewTemplatePolicy]);
 
