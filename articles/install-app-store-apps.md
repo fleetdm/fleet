@@ -131,7 +131,7 @@ If you leave out a key, Fleet uses its default. Fleet always sets the rest of th
 <details>
 <summary>Fleet's default install command</summary>
 
-This is the `InstallApplication` command Fleet sends for the Zoom example above. Keys you set in `Command` replace or add to these. Fleet fills in the rest:
+This is the `InstallApplication` command Fleet sends when `Command` has only the Zoom `Configuration` from the example above. `ManagementFlags` and `Attributes` you set in `Command` replace or add to these keys. Fleet fills in the rest:
 
 - For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), Fleet sends `ManifestURL` instead of `iTunesStoreID`.
 - On personal (BYOD) hosts, Fleet leaves out `ChangeManagementState`, because Apple rejects it there.
