@@ -1713,7 +1713,7 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 
 type ActivityDeletedAppStoreApp struct {
 	SoftwareTitle       string                    `json:"software_title"`
-	SoftwareDisplayName *string                   `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string                    `json:"software_display_name"`
 	AppStoreID          string                    `json:"app_store_id"`
 	TeamName            *string                   `json:"fleet_name"`
 	TeamID              *uint                     `json:"fleet_id"`

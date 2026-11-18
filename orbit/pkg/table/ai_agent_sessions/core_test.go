@@ -84,11 +84,12 @@ func TestSessionsNewestFirst(t *testing.T) {
 
 func TestDefaultAgeCutoff(t *testing.T) {
 	home := setup(t)
-	old := writeClaudePrompts(t, home, "old", "old prompt")
-	touch(t, old, time.Now().AddDate(0, 0, -40))
-	writeClaudePrompts(t, home, "new", "new prompt")
+	ago := func(d int) time.Time { return time.Now().AddDate(0, 0, -d) }
+	old := writeClaudeTranscript(t, home, "old", claudePromptAt(ago(40), "old prompt"))
+	touch(t, old, ago(40))
+	writeClaudeTranscript(t, home, "new", claudePromptAt(ago(0), "new prompt"))
 
-	since := func(d int) string { return strconv.FormatInt(time.Now().AddDate(0, 0, -d).Unix(), 10) }
+	since := func(d int) string { return strconv.FormatInt(ago(d).Unix(), 10) }
 
 	t.Run("default is 30 days", func(t *testing.T) {
 		require.Equal(t, []string{"new"}, column(sessionRows(t), "session_id"))
@@ -228,6 +229,18 @@ func TestFiltersReturnASubsetOfAllRows(t *testing.T) {
 				check(func(r map[string]string) bool { i, ok := call(r); return ok && i >= k }, cons{"tool_call_index", table.OperatorGreaterThanOrEquals, v})
 				check(func(r map[string]string) bool { i, ok := call(r); return ok && i <= k }, cons{"tool_call_index", table.OperatorLessThanOrEquals, v})
 				check(func(r map[string]string) bool { i, ok := call(r); return ok && i == k }, eq("tool_call_index", v))
+			}
+			// A timestamp bound keeps positions and outcomes too: a result
+			// outside it still decides a call inside it.
+			stamp := func(r map[string]string) int { return intCol(t, r, "timestamp") }
+			stamps := column(all, "timestamp")
+			slices.Sort(stamps)
+			for _, v := range slices.Compact(stamps) {
+				k, err := strconv.Atoi(v)
+				require.NoError(t, err)
+				check(func(r map[string]string) bool { return stamp(r) >= k }, cons{"timestamp", table.OperatorGreaterThanOrEquals, v})
+				check(func(r map[string]string) bool { return stamp(r) <= k }, cons{"timestamp", table.OperatorLessThanOrEquals, v})
+				check(func(r map[string]string) bool { return stamp(r) == k }, eq("timestamp", v))
 			}
 		})
 	}

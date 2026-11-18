@@ -251,7 +251,7 @@ Set `self_service: true` on the profile:
 
 ```yaml
 controls:
-  macos_settings:
+  apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
         self_service: true

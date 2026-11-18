@@ -157,6 +157,20 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			errMsg: "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL is already present in configuration profile",
 		},
 		{
+			name: "Conditional access challenge shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE is already present in configuration profile",
+		},
+		{
+			// A one-time challenge must never be sent to another SCEP server.
+			name: "Conditional access challenge without the url",
+			profile: customSCEPForValidation("$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "https://bozo.com", "Name",
+				"com.apple.security.scep"),
+			errMsg: fleet.ConditionalAccessSCEPVariablesMissingErrMsg,
+		},
+		{
 			name: "Conditional access renewal ID missing",
 			profile: strings.Replace(customSCEPForValidation("challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
 				"Name", "com.apple.security.scep"), "$FLEET_VAR_SCEP_RENEWAL_ID", "", 1),
