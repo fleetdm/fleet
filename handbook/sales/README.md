@@ -130,7 +130,7 @@ Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the com
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home). If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
 3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-operations#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
-4. If the customer agrees to our template with no changes, notify the CEO the customer is using our NDA with no changes.
+4. If the customer agrees to our standard NDA with no changes, notify the CFO in the [#help-finance Slack channel](https://fleetdm.slack.com/archives/C047N5L6EGH) that the customer is using our standard NDA "as-is".
 
 
 ### Close a new customer deal
