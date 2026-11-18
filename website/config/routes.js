@@ -1386,7 +1386,9 @@ module.exports.routes = {
   'GET /hardware/apple/ipad-pro': '/articles/ipad-mdm-a-complete-guide',
   'GET /deutschland': '/europe',
   'GET /germany': '/europe',
-  'GET /britain': '/europe',
+  'GET /uk': '/europe',
+  'GET /britain': '/uk',// « Aliases point at /uk so only one line changes when /uk gets its own page.
+  'GET /united-kingdom': '/uk',
   'GET /nederland': '/europe',
   'GET /netherlands': '/europe',
   'GET /sverige': '/europe',
