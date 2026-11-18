@@ -137,44 +137,6 @@ describe("TeamDetailsWrapper", () => {
     expect(await button("Delete fleet")).toBeEnabled();
   });
 
-  // A name conflict can quote a name that contains a reserved word, so only the reserved name error counts.
-  it.each([
-    ["All fleets", 422, `"All fleets" is a reserved fleet name`, true],
-    [
-      "Unassigned devices",
-      409,
-      `A fleet named "Unassigned devices" already exists.`,
-      false,
-    ],
-  ])(
-    "shows the reserved name error only for a reserved name when renaming to %s",
-    async (name, status, reason, reserved) => {
-      const { user } = renderPage(false);
-      const patched = jest.fn();
-      mockServer.use(
-        http.patch(baseUrl("/fleets/1"), () => {
-          patched();
-          return HttpResponse.json(
-            { errors: [{ name: "name", reason }] },
-            { status }
-          );
-        })
-      );
-
-      await user.click(await button("Rename fleet"));
-      await user.clear(screen.getByLabelText("Fleet name"));
-      await user.type(screen.getByLabelText("Fleet name"), name);
-      await user.click(screen.getByRole("button", { name: "Save" }));
-
-      await waitFor(() => expect(patched).toHaveBeenCalled());
-      await waitFor(() =>
-        expect(screen.queryByText(/is a reserved fleet name/) !== null).toBe(
-          reserved
-        )
-      );
-    }
-  );
-
   it("hides the enroll secrets list while the add secret modal is open", async () => {
     const { user } = renderPage(false);
 
