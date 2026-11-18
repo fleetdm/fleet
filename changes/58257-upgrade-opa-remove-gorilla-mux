@@ -1,1 +1,0 @@
-- Upgraded the Open Policy Agent (OPA) library to v1.9.0, which removes the last `gorilla/mux` dependency from the Fleet server.
