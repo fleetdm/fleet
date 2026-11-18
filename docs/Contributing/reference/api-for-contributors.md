@@ -2966,9 +2966,9 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
 - [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
 - [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/{software_title_id}/install` — *exempt during setup experience*
 - [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
-- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/{software_title_id}/uninstall`) — *exempt during setup experience*
 - [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
 - [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
 - `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
@@ -3408,7 +3408,7 @@ Queues an install for every self-service software title available to the device 
 
 Uninstalls software from a host via the My device page.
 
-`POST /api/v1/fleet/device/{token}/software/uninstall/:software_title_id`
+`POST /api/v1/fleet/device/{token}/software/:software_title_id/uninstall`
 
 #### Parameters
 
@@ -3419,7 +3419,7 @@ Uninstalls software from a host via the My device page.
 
 #### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/123/uninstall`
 
 ##### Default response
 
