@@ -8,7 +8,10 @@ import {
 } from "interfaces/webhook";
 
 import { IVulnExposureFilterDefaults } from "./charts";
-import { IGlobalIntegrations } from "./integration";
+import {
+  IGlobalGoogleConditionalAccessIntegration,
+  IGlobalIntegrations,
+} from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
@@ -418,6 +421,36 @@ export const isGoogleConditionalAccessConfigured = (
   config: IConfig | null | undefined
 ): boolean => {
   return !!config?.integrations?.google_conditional_access?.customer_id;
+};
+
+/** `saved` is the connect or edit response, or null after a delete. Spares
+ * reading the config back, which a replica that hasn't caught up can answer. */
+export const withGoogleConditionalAccess = (
+  config: IConfig,
+  saved:
+    | (IGlobalGoogleConditionalAccessIntegration &
+        IConditionalAccessGoogleStatus)
+    | null
+): IConfig => {
+  return {
+    ...config,
+    integrations: {
+      ...config.integrations,
+      google_conditional_access: saved && {
+        customer_id: saved.customer_id,
+        admin_email: saved.admin_email,
+      },
+    },
+    conditional_access: config.conditional_access && {
+      ...config.conditional_access,
+      google: {
+        service_account_key_configured:
+          saved?.service_account_key_configured ?? false,
+        state: saved?.state ?? "",
+        error_message: saved?.error_message ?? null,
+      },
+    },
+  };
 };
 
 /** Check if any conditional access provider is configured (Okta or Entra) */

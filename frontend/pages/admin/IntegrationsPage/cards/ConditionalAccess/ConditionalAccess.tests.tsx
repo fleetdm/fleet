@@ -86,6 +86,13 @@ const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   delegation_failed: "Google rejected the service account key.",
   registration_failed: REGISTRATION_ERROR,
 };
+const GOOGLE_CONNECTED_RESPONSE = {
+  customer_id: GOOGLE_CUSTOMER_ID,
+  admin_email: GOOGLE_ADMIN_EMAIL,
+  service_account_key_configured: true,
+  state: "connected",
+  error_message: null,
+};
 const GITOPS_ON = {
   gitops_mode_enabled: true,
   repository_url: "https://github.com/example/fleet-gitops",
@@ -120,6 +127,9 @@ const createGoogleConfig = (
     ...overrides,
   });
 };
+
+const staleConfigRead = (config: IConfig) =>
+  http.get(baseUrl("/config"), () => HttpResponse.json(config));
 
 // Keeps the config in state so the card re-renders after setConfig.
 const StatefulHarness = ({ initialConfig }: { initialConfig: IConfig }) => {
@@ -1253,18 +1263,10 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           baseUrl("/conditional_access/google"),
           async ({ request }) => {
             bodies.push(await request.json());
-            return HttpResponse.json({
-              customer_id: GOOGLE_CUSTOMER_ID,
-              admin_email: GOOGLE_ADMIN_EMAIL,
-              service_account_key_configured: true,
-              state: "connected",
-              error_message: null,
-            });
+            return HttpResponse.json(GOOGLE_CONNECTED_RESPONSE);
           }
         ),
-        http.get(baseUrl("/config"), () =>
-          HttpResponse.json(createGoogleConfig("connected"))
-        )
+        staleConfigRead(createGoogleConfig(null))
       );
       const { user } = renderGoogle(createGoogleConfig(null));
       await openGoogleModal(user);
@@ -1348,17 +1350,19 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           http.patch(
             baseUrl("/conditional_access/google"),
             async ({ request }) => {
-              patches.push((await request.json()) as Record<string, unknown>);
-              return HttpResponse.json({});
+              const patch = (await request.json()) as Record<string, unknown>;
+              patches.push(patch);
+              return HttpResponse.json({
+                ...GOOGLE_CONNECTED_RESPONSE,
+                customer_id: patch.customer_id ?? GOOGLE_CUSTOMER_ID,
+                admin_email: patch.admin_email ?? GOOGLE_ADMIN_EMAIL,
+              });
             }
           ),
           http.post(baseUrl("/conditional_access/google"), () => {
             posted = true;
             return HttpResponse.json({});
-          }),
-          http.get(baseUrl("/config"), () =>
-            HttpResponse.json(createGoogleConfig("connected"))
-          )
+          })
         );
         return { patches, wasPosted: () => posted };
       };
@@ -1410,6 +1414,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 
       it("Allows saving with no changes to retry the connection", async () => {
         const { patches } = useEditHandlers();
+        mockServer.use(
+          staleConfigRead(createGoogleConfig("registration_failed"))
+        );
         const { user } = renderGoogle(
           createGoogleConfig("registration_failed")
         );
@@ -1417,8 +1424,10 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         await user.click(screen.getByRole("button", { name: "Edit" }));
         await user.click(screen.getByRole("button", { name: "Save" }));
 
-        await waitFor(() => expect(patches).toHaveLength(1));
-        expect(patches[0]).toEqual({});
+        expect(
+          await screen.findByText(/conditional access connected/)
+        ).toBeInTheDocument();
+        expect(patches).toEqual([{}]);
       });
 
       it("Toasts a failed delegation check instead of showing it on a key field left empty", async () => {
@@ -1520,7 +1529,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 
       await waitFor(() =>
         expect(notify.error).toHaveBeenCalledWith(
-          `Couldn't connect to Google: ${reason}`,
+          `Couldn't connect. ${reason}`,
           expect.anything()
         )
       );
@@ -1538,9 +1547,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           deleted = true;
           return HttpResponse.json({});
         }),
-        http.get(baseUrl("/config"), () =>
-          HttpResponse.json(createGoogleConfig(null))
-        )
+        staleConfigRead(createGoogleConfig("connected"))
       );
       const { user } = renderGoogle(createGoogleConfig("connected"));
 

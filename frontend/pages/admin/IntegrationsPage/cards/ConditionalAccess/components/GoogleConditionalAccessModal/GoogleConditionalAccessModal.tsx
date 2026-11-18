@@ -10,7 +10,7 @@ import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { IConfig } from "interfaces/config";
+import { IConfig, withGoogleConditionalAccess } from "interfaces/config";
 import { splitServerErrors } from "interfaces/errors";
 import conditionalAccessAPI, {
   IGoogleConditionalAccessFormData,
@@ -167,8 +167,11 @@ const GoogleConditionalAccessModal = ({
       : null;
     setServerErrors(null);
     try {
-      await saveSettings(data, key);
-      const updatedConfig = await configAPI.loadAll();
+      const saved = await saveSettings(data, key);
+      if (!config) {
+        return;
+      }
+      const updatedConfig = withGoogleConditionalAccess(config, saved);
       if (!isMountedRef.current) {
         setConfig(updatedConfig);
         return;
@@ -191,9 +194,9 @@ const GoogleConditionalAccessModal = ({
         delete fieldErrors[SERVICE_ACCOUNT_KEY];
         toast = keyError;
       } else if (otherReasons.length > 0) {
-        toast = `Couldn't connect to Google: ${otherReasons.join(" ")}`;
+        toast = `Couldn't connect. ${otherReasons.join(" ")}`;
       } else if (!failedValidation) {
-        toast = "Couldn't connect to Google. Please try again.";
+        toast = "Couldn't connect. Please try again.";
       }
       if (isMountedRef.current) {
         setServerErrors(fieldErrors);

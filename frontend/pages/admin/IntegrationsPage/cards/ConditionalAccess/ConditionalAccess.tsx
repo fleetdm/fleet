@@ -20,6 +20,7 @@ import {
   IConfig,
   isGoogleConditionalAccessConfigured,
   isOktaConditionalAccessConfigured,
+  withGoogleConditionalAccess,
 } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -102,7 +103,7 @@ const DeleteConditionalAccessModal = ({
         updatedConfig = await configAPI.loadAll();
       } else if (provider === "google") {
         await conditionalAccessAPI.deleteGoogleConditionalAccess();
-        updatedConfig = await configAPI.loadAll();
+        updatedConfig = config && withGoogleConditionalAccess(config, null);
       } else {
         // For Okta, clear all fields via config API
         updatedConfig = await configAPI.update({
@@ -122,7 +123,9 @@ const DeleteConditionalAccessModal = ({
       }
       notify.success(`Successfully disconnected from ${providerName}.`);
       toggleDeleteConditionalAccessModal();
-      onDelete(updatedConfig);
+      if (updatedConfig) {
+        onDelete(updatedConfig);
+      }
     } catch (e) {
       notify.error(
         `Could not disconnect from ${providerName}, please try again.`,
