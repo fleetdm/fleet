@@ -78,5 +78,8 @@
 
   critical: true
   description: "Failing this policy indicates that the Windows Defender service is not running, or one or more of the following features are disabled: anti-spyware protection, real-time protection, behavior monitoring, cloud protection (MAPS), or script scanning. This could leave your device vulnerable to malware, spyware, and other security threats."
-  resolution: "Corrective actions include ensuring the Windows Defender service is running and that anti-spyware protection, real-time protection, behavior monitoring, cloud protection, and script scanning are all enabled. Check that the MDM configuration profile has been applied successfully. If these actions are not successful, try rebooting before sending a message to #help-dogfooding in Slack."
+  resolution: >-
+    No action needed from you. Fleet turns on Microsoft Defender's protection features with a configuration profile.
+    If it keeps failing, IT checks the host's OS settings in Fleet and that the Windows Defender service is running.
+  hidden: true
   platform: windows

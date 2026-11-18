@@ -105,9 +105,9 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
 		&getSoftwareTitleRequest{ID: addResp.TitleID, TeamID: &team.ID},
 		http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(team.ID))
-	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 1)
 	var gotPlist string
-	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApp.Configuration, &gotPlist))
+	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApps[0].Configuration, &gotPlist))
 	require.Equal(t, validPlist2, gotPlist)
 
 	// 3. Update iOS app omitting `configuration` field → no change.
@@ -165,6 +165,20 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 			Configuration: asJSONString(`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`),
 		}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "$FLEET_VAR_NDES_SCEP_CHALLENGE")
+
+	// Add and update with the variable Fleet 5 removed → 422 with its migration message.
+	removedVarConfig := asJSONString(`<dict><key>K</key><string>${FLEET_VAR_HOST_END_USER_EMAIL_IDP}</string></dict>`)
+	const removedVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: `
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    ipadOSAdamID,
+		Platform:      fleet.IPadOSPlatform,
+		Configuration: removedVarConfig,
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: removedVarConfig}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
 
 	// macOS adam ID — pre-registered as a macOS-only app in the mock VPP server.
 	const macosAdamID = "1"
@@ -316,7 +330,8 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
-		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
+		// The standard encoder HTML-escapes angle brackets as \u003c and \u003e.
+		require.Contains(t, body, `"configuration":"\u003cdict\u003e\u003ckey\u003eK\u003c/key\u003e\u003cstring\u003ev\u003c/string\u003e\u003c/dict\u003e"`)
 	})
 
 	t.Run("android wire format", func(t *testing.T) {
@@ -597,7 +612,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 			&updateAppStoreAppRequest{
 				TeamID:        &team.ID,
-				Configuration: asJSONString(`<dict><key>Email</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`),
+				Configuration: asJSONString(`<dict><key>User</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`),
 			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
@@ -644,7 +659,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			if act.Type == (fleet.ActivityInstalledAppStoreApp{}).ActivityName() {
 				require.NotNil(t, act.Details)
 				require.Contains(t, string(*act.Details), string(fleet.SoftwareInstallFailed))
-				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_EMAIL_IDP")
+				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 				found = true
 				break
 			}
@@ -665,9 +680,9 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
 			&getSoftwareTitleRequest{ID: titleID, TeamID: &team.ID},
 			http.StatusOK, &titleSummary, "fleet_id", fmt.Sprint(team.ID))
-		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp)
-		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp.Status)
-		require.GreaterOrEqual(t, titleSummary.SoftwareTitle.AppStoreApp.Status.Failed, uint(1),
+		require.Len(t, titleSummary.SoftwareTitle.AppStoreApps, 1)
+		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApps[0].Status)
+		require.GreaterOrEqual(t, titleSummary.SoftwareTitle.AppStoreApps[0].Status.Failed, uint(1),
 			"per-team/per-app failed-install summary must count the pre-flight failure")
 
 		var hostSw getHostSoftwareResponse
@@ -1046,28 +1061,60 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 		Name:       "Second",
 	}, http.StatusConflict)
 
-	// get the title, both versions should be listed and app_store_app should match the first-added version
+	// get the title, both versions should be listed in the order they were added
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"fleet_id", fmt.Sprint(team.ID))
 	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
-	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
-	require.Equal(t, fleet.DefaultAppStoreAppVersionName, titleResp.SoftwareTitle.AppStoreApps[0].Name)
-	require.Equal(t, addTestResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
-	require.Equal(t, "Test", titleResp.SoftwareTitle.AppStoreApps[1].Name)
+	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].VPPAppsTeamsID)
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, titleResp.SoftwareTitle.AppStoreApps[0].VersionName)
+	require.Equal(t, addTestResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].VPPAppsTeamsID)
+	require.Equal(t, "Test", titleResp.SoftwareTitle.AppStoreApps[1].VersionName)
 	var gotTestPlist string
 	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApps[1].Configuration, &gotTestPlist))
 	require.Equal(t, testPlist, gotTestPlist)
-	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
-	require.Equal(t, iosAdamID, titleResp.SoftwareTitle.AppStoreApp.AdamID)
+	require.Equal(t, iosAdamID, titleResp.SoftwareTitle.AppStoreApps[0].AdamID)
 	var gotFirstPlist string
-	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApp.Configuration, &gotFirstPlist))
+	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApps[0].Configuration, &gotFirstPlist))
 	require.Equal(t, productionPlist, gotFirstPlist)
 
 	// read the vpp_token of both versions, each should have the token the app was added from
 	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken)
 	require.Equal(t, validToken.Token.ID, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken.ID)
 	require.Equal(t, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken, titleResp.SoftwareTitle.AppStoreApps[1].VPPToken)
+
+	// read the raw title, app_store_app should not be returned next to app_store_apps
+	rawRes := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
+	rawBody, err := io.ReadAll(rawRes.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(rawBody), `"app_store_apps"`)
+	require.NotContains(t, string(rawBody), `"app_store_app"`)
+
+	// read the raw titles list for the fleet, app_store_app should not be returned
+	rawRes = s.DoRaw("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
+	rawBody, err = io.ReadAll(rawRes.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(rawBody), `"app_store_apps"`)
+	require.NotContains(t, string(rawBody), `"app_store_app"`)
+
+	// read the raw titles list without a fleet, app_store_app should not be returned
+	rawRes = s.DoRaw("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK)
+	rawBody, err = io.ReadAll(rawRes.Body)
+	require.NoError(t, err)
+	require.NotContains(t, string(rawBody), `"app_store_app"`)
+
+	// read the raw hosts list filtered by the title, its software_title should have app_store_apps without app_store_app
+	rawRes = s.DoRaw("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "software_title_id", fmt.Sprint(titleID), "fleet_id", fmt.Sprint(team.ID))
+	rawBody, err = io.ReadAll(rawRes.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(rawBody), `"app_store_apps"`)
+	require.NotContains(t, string(rawBody), `"app_store_app"`)
+
+	// read the raw iOS setup experience software, app_store_app should be returned for the title
+	rawRes = s.DoRaw("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, "platform", string(fleet.IOSPlatform), "fleet_id", fmt.Sprint(team.ID))
+	rawBody, err = io.ReadAll(rawRes.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(rawBody), `"app_store_app"`)
 
 	// edit the title without a version id, the request should be rejected since the title has two versions
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
@@ -1131,8 +1178,8 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 			AutoUpdateEndTime:   new("03:00"),
 		}, http.StatusOK, &updResp)
 	require.NotNil(t, updResp.AppStoreApp)
-	require.Equal(t, addTestResp.VersionID, updResp.AppStoreApp.ID)
-	require.Equal(t, "Staging", updResp.AppStoreApp.Name)
+	require.Equal(t, addTestResp.VersionID, updResp.AppStoreApp.VPPAppsTeamsID)
+	require.Equal(t, "Staging", updResp.AppStoreApp.VersionName)
 	require.NotNil(t, updResp.AppStoreApp.VPPToken)
 	require.Equal(t, validToken.Token.ID, updResp.AppStoreApp.VPPToken.ID)
 	require.NotNil(t, updResp.AppStoreApp.AutoUpdateEnabled)
@@ -1145,11 +1192,11 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
 	firstVersion := titleResp.SoftwareTitle.AppStoreApps[0]
 	secondVersion := titleResp.SoftwareTitle.AppStoreApps[1]
-	require.Equal(t, fleet.DefaultAppStoreAppVersionName, firstVersion.Name)
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, firstVersion.VersionName)
 	require.Nil(t, firstVersion.AutoUpdateEnabled)
 	require.NoError(t, json.Unmarshal(firstVersion.Configuration, &gotFirstPlist))
 	require.Equal(t, productionPlist, gotFirstPlist)
-	require.Equal(t, "Staging", secondVersion.Name)
+	require.Equal(t, "Staging", secondVersion.VersionName)
 	require.NotNil(t, secondVersion.AutoUpdateEnabled)
 	require.True(t, *secondVersion.AutoUpdateEnabled)
 	require.Equal(t, "01:00", *secondVersion.AutoUpdateStartTime)
@@ -1161,7 +1208,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp)
 	require.Nil(t, titleResp.SoftwareTitle.AppStoreApps)
-	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
 
 	// rename the other fleet's only version, then apply GitOps with the app without versions, the renamed version should be replaced by a new Default version
 	otherVersions, err := s.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, otherTeam.ID, titleID)
@@ -1202,7 +1248,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"fleet_id", fmt.Sprint(team.ID))
 	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 1)
-	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
+	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].VPPAppsTeamsID)
 	require.Equal(t, "Renamed app", titleResp.SoftwareTitle.AppStoreApps[0].DisplayName)
 	_, err = s.ds.GetSoftwareTitleIcon(ctx, team.ID, titleID)
 	require.NoError(t, err)
@@ -1650,10 +1696,10 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersionHostPrecedence() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"fleet_id", fmt.Sprint(team.ID))
 	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
-	require.Equal(t, addAResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].ID)
+	require.Equal(t, addAResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].VPPAppsTeamsID)
 	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[0].Status)
 	require.Equal(t, uint(2), titleResp.SoftwareTitle.AppStoreApps[0].Status.Pending)
-	require.Equal(t, addBResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].ID)
+	require.Equal(t, addBResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].VPPAppsTeamsID)
 	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[1].Status)
 	require.Equal(t, uint(1), titleResp.SoftwareTitle.AppStoreApps[1].Status.Pending)
 }
@@ -1955,6 +2001,6 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
 		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
-	}, http.StatusBadRequest, "team_name", team.Name)
+	}, http.StatusBadRequest, "fleet_name", team.Name)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
 }

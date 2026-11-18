@@ -284,7 +284,7 @@ const ActivityFeed = ({
   }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
-        queryShown.current = details?.query_sql ?? "";
+        queryShown.current = details?.query ?? "";
         queryImpact.current = details?.stats
           ? getPerformanceImpactDescription(details.stats)
           : undefined;

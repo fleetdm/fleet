@@ -113,12 +113,12 @@ Update `TargetOSVersion` to the minimum patch you want to enforce and `TargetLoc
 
 ### Using GitOps
 
-Add the declarations to your fleet YAML under `controls.macos_settings.custom_settings`, with label scoping:
+Add the declarations to your fleet YAML under `controls.apple_settings.configuration_profiles`, with label scoping:
 
 ```yaml
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./declarations/macos-15-update-enforcement.json
         labels_include_any:
           - macOS 15 update

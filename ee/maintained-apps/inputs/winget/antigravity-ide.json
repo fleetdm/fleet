@@ -3,7 +3,7 @@
   "slug": "antigravity-ide/windows",
   "package_identifier": "Google.AntigravityIDE",
   "unique_identifier": "Antigravity IDE",
-  "open_process_names": ["antigravity.exe"],
+  "open_process_names": ["Antigravity IDE.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/antigravity_ide_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/antigravity_ide_uninstall.ps1",

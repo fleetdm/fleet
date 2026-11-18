@@ -14,7 +14,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
+	"slices"
 	strconv "strconv"
 	"strings"
 
@@ -185,11 +187,18 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 
 	// Only admins should see SMTP and SSO settings
+	isGlobalGitOps := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleGitOps
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
 	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
+	}
+	// Global GitOps users can already write the SMTP settings. They get to
+	// read them too so that fleetctl can warn when a run is about to clear
+	// them, including the password.
+	if isGlobalGitOps {
+		smtpSettings = appConfig.SMTPSettings
 	}
 
 	// Only global admins should see osquery agent settings.
@@ -240,7 +249,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings:   appConfig.WebhookSettings,
 			Integrations:      appConfig.Integrations,
 			MDM:               appConfig.MDM,
-			Scripts:           appConfig.Scripts,
 			GitOpsConfig:      appConfig.GitOpsConfig,
 			ConditionalAccess: appConfig.ConditionalAccess,
 		},
@@ -277,22 +285,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
-	// Mirror deprecated logo URL fields to the new mode-aware fields (and
-	// vice versa) so every read returns a consistent view to clients.
-	// NormalizeLogoFields only errors when both forms are set with
-	// conflicting values — that shouldn't happen via the normal write path
-	// (which 422s on conflict), so reaching this branch implies the row
-	// was edited out-of-band. Log it so the inconsistency is visible, then
-	// canonicalize by preferring the mode-aware fields.
-	if invalid := ac.OrgInfo.NormalizeLogoFields(); invalid != nil {
-		svc.logger.WarnContext(ctx, "persisted org logo URL fields are inconsistent; canonicalizing to mode-aware values for response", "err", invalid.Error())
-		if ac.OrgInfo.OrgLogoURLDarkMode != "" {
-			ac.OrgInfo.OrgLogoURL = ac.OrgInfo.OrgLogoURLDarkMode
-		}
-		if ac.OrgInfo.OrgLogoURLLightMode != "" {
-			ac.OrgInfo.OrgLogoURLLightBackground = ac.OrgInfo.OrgLogoURLLightMode
-		}
-	}
 	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
 	// current ServerURL. Persisted form stays relative; this is purely a
 	// read-time view. Safe to do here because no SaveAppConfig caller
@@ -599,6 +591,9 @@ func (svc *Service) verifyChangedAppleAccountProvisioning(ctx context.Context, o
 	return nil
 }
 
+// appConfigFields has the fields of fleet.AppConfig without its UnmarshalJSON, so the removed-names scan looks inside it.
+type appConfigFields fleet.AppConfig
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -659,6 +654,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
+	// Strict decoding misses the AB and VPP token entries, which optjson.Slice decodes without DisallowUnknownFields, so an old fleet
+	// key there would be dropped and unassign the token.
+	for _, t := range []reflect.Type{reflect.TypeFor[appConfigFields](), reflect.TypeFor[fleet.AppConfigRequestOnly]()} {
+		if err := endpointer.RejectRemovedJSONKeys(p, t); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+		}
+	}
 
 	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
 	// unmarshaling into AppConfig, since the request body was captured as
@@ -683,6 +685,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				svc.logger.WarnContext(ctx, fmt.Sprintf("App config: `%s` is deprecated, please use `%s` instead", oldKey, newKey), "log_topic", logging.DeprecatedFieldTopic)
 			}
 		}
+	}
+
+	requestOnly, p, err := splitRequestOnlyConfigKeys(p)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(err, http.StatusBadRequest))
 	}
 
 	invalid := &fleet.InvalidArgumentError{}
@@ -722,13 +729,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
-	}
-
-	// Reject conflicting deprecated/new logo URL pairs and mirror them so
-	// both forms are persisted with identical values. Done on the incoming
-	// payload before merge so we surface the conflict at the source field.
-	if normErr := newAppConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.SSOSettings != nil {
@@ -781,6 +781,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
+
+	validateSMTPPasswordForNewDestination(newAppConfig.SMTPSettings, oldSMTPSettings, appConfig.SMTPSettings, invalid)
 
 	// Appends rather than returning early; errors surface at the validation gate below.
 	validateCertificateRequestIdentityControlsLicense(newAppConfig.Integrations, lic, invalid)
@@ -1031,15 +1033,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
-	// windows_settings.enable_managed_local_account: like EnableDiskEncryption above, an explicit JSON null
-	// means "not provided": keep the old value rather than persisting an invalid optjson state.
-	if !oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	// Like EnableDiskEncryption above, an explicit JSON null means "not provided": keep the old value rather than
+	// persisting an invalid optjson state.
+	if !oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
-	if newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
+	if newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows
 	} else {
-		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows = oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -1110,13 +1112,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
 
-	// Validate logo fields immediately after the merge
-	// A persisted-row conflict the patch didn't touch surfaces here as a 422,
-	// instead of letting the request silently complete its side effects.
-	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
-	}
-
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
@@ -1158,7 +1153,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 	}
 
-	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, invalid, applyOpts.Overwrite); err != nil {
+	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, requestOnly.MDM.MacOSSetup.BootstrapPackage, invalid, applyOpts.Overwrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
@@ -1183,9 +1178,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	var vppAssignments map[uint][]uint
-	vppAssignmentsDefined := newAppConfig.MDM.VolumePurchasingProgram.Set && newAppConfig.MDM.VolumePurchasingProgram.Valid
+	vpp := requestOnly.MDM.VolumePurchasingProgram
+	vppAssignmentsDefined := vpp.Set && vpp.Valid
 	if vppAssignmentsDefined {
-		vppAssignments, err = svc.validateVPPAssignments(ctx, newAppConfig.MDM.VolumePurchasingProgram.Value, invalid, lic)
+		vppAssignments, err = svc.validateVPPAssignments(ctx, vpp.Value, invalid, lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
 		}
@@ -1555,38 +1551,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
-		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
-		// clear macos setup assistant for no team - note that we cannot call
-		// svc.DeleteMDMAppleSetupAssistant here as it would call the (non-premium)
-		// current service implementation. We have to go through the Enterprise
-		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete macos setup assistant")
-		}
-	}
-
-	if oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value != appConfig.MDM.MacOSSetup.BootstrapPackage.Value &&
-		appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
-		// clear bootstrap package for no team - note that we cannot call
-		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
-		// current service implementation. We have to go through the Enterprise
-		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
-			// The package may have already been deleted via the GUI while the
-			// appconfig JSON still had the stale URL; ignore not-found.
-			if !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
-			}
-		}
-	}
-
 	if err := svc.applyABMTokenAssignments(ctx, newAppConfig, appConfig, abmAssignments, defaultABMTokenID); err != nil {
 		return nil, err
 	}
 
 	if vppAssignmentsDefined {
-		if err := svc.applyVPPTokenAssignments(ctx, newAppConfig, vppAssignments); err != nil {
+		if err := svc.applyVPPTokenAssignments(ctx, vpp.Value, vppAssignments); err != nil {
 			return nil, err
 		}
 	}
@@ -1653,7 +1623,7 @@ func (svc *Service) applyABMTokenAssignments(
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+	if appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid {
 		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
@@ -1679,16 +1649,32 @@ func (svc *Service) applyABMTokenAssignments(
 	return nil
 }
 
+// Since Fleet 5 the config doesn't save the bootstrap package URL or the VPP token assignments, but
+// requests still send them: GitOps sends the URL so settings that need a package are validated before
+// it uploads the package, and the VPP assignments are applied to the tokens. They're split out of p
+// because the strict decode into fleet.AppConfig rejects keys it doesn't have.
+func splitRequestOnlyConfigKeys(p []byte) (fleet.AppConfigRequestOnly, []byte, error) {
+	var requestOnly fleet.AppConfigRequestOnly
+	if err := json.Unmarshal(p, &requestOnly); err != nil {
+		return requestOnly, nil, err
+	}
+	p, err := endpointer.RemoveJSONKeys(p,
+		[]string{"mdm", "volume_purchasing_program"},
+		[]string{"mdm", "setup_experience", "macos_bootstrap_package"},
+	)
+	return requestOnly, p, err
+}
+
 // applyVPPTokenAssignments persists the VPP token fleet assignments computed while validating an
 // app config change. Like applyABMTokenAssignments, it runs after SaveAppConfig has committed.
 func (svc *Service) applyVPPTokenAssignments(
 	ctx context.Context,
-	newAppConfig fleet.AppConfig,
+	vpp []fleet.MDMAppleVolumePurchasingProgramInfo,
 	vppAssignments map[uint][]uint,
 ) error {
 	// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
 	tokensInCfg := make(map[string]struct{})
-	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+	for _, t := range vpp {
 		tokensInCfg[t.Location] = struct{}{}
 	}
 	vppToks, err := svc.ds.ListVPPTokens(ctx)
@@ -1706,7 +1692,7 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			return ctxerr.Wrap(ctx, err, "saving VPP token assignments")
 		}
 	}
 	return nil
@@ -1899,9 +1885,9 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value != appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value {
 		var act fleet.ActivityDetails
-		if appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value {
 			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
 		} else {
 			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
@@ -2103,6 +2089,23 @@ func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesk
 		return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 	}
 	return nil
+}
+
+// A request that leaves out the SMTP password keeps the stored one. If the same
+// request also changes where Fleet authenticates, the stored password would be
+// sent to a destination picked by someone who doesn't know it.
+func validateSMTPPasswordForNewDestination(incoming *fleet.SMTPSettings, old fleet.SMTPSettings, merged *fleet.SMTPSettings, invalid *fleet.InvalidArgumentError) {
+	if incoming == nil || merged == nil || incoming.SMTPPassword != "" {
+		return
+	}
+	passwordKept := old.SMTPPassword != "" && merged.SMTPPassword == old.SMTPPassword
+	if !passwordKept || merged.SMTPAuthenticationType != fleet.AuthTypeNameUserNamePassword {
+		return
+	}
+	if merged.SMTPServer != old.SMTPServer || merged.SMTPPort != old.SMTPPort ||
+		merged.SMTPUserName != old.SMTPUserName || merged.SMTPAuthenticationType != old.SMTPAuthenticationType {
+		invalid.Append("smtp_settings.password", "must be provided when changing server, port, user_name, or authentication_type")
+	}
 }
 
 // validateCertificateRequestIdentityControlsLicense premium-gates the request_certificate IdP
@@ -2315,6 +2318,7 @@ func (svc *Service) validateMDM(
 	lic *fleet.LicenseInfo,
 	oldMdm *fleet.MDM,
 	mdm *fleet.MDM,
+	bootstrapPackage optjson.String,
 	invalid *fleet.InvalidArgumentError,
 	overwrite bool,
 ) error {
@@ -2335,13 +2339,10 @@ func (svc *Service) validateMDM(
 			invalid.Append("linux_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
 		}
 	}
-	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
-		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())
-	}
 	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.apple_enable_release_device_manually", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !lic.IsPremium() {
+	if bootstrapPackage.Value != "" && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_bootstrap_package", ErrMissingLicense.Error())
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !lic.IsPremium() {
@@ -2356,9 +2357,13 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_enable_bootstrap_package_during_migration", ErrMissingLicense.Error())
 	}
-	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
-		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
-		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
+	if mdm.MacOSSetup.EnableManagedLocalAccount.Value &&
+		mdm.MacOSSetup.EnableManagedLocalAccount.Value != oldMdm.MacOSSetup.EnableManagedLocalAccount.Value && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_managed_local_account_enabled", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value &&
+		mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value != oldMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value && !lic.IsPremium() {
+		invalid.Append("setup_experience.windows_managed_local_account_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("mdm.windows_mdm_migration_enabled", ErrMissingLicense.Error())
@@ -2397,22 +2402,12 @@ func (svc *Service) validateMDM(
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
-		if len(mdm.MacOSSettings.CustomSettings) > 0 && !fleet.MDMProfileSpecsMatch(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings) {
-			invalid.Append("apple_settings.configuration_profiles",
-				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
-
-		if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
-			invalid.Append("setup_experience.apple_setup_assistant",
-				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
-
 		if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value {
 			invalid.Append("setup_experience.apple_enable_release_device_manually",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
+		if bootstrapPackage.Value != "" {
 			invalid.Append("setup_experience.macos_bootstrap_package",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
@@ -2428,38 +2423,16 @@ func (svc *Service) validateMDM(
 		}
 
 		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
-			invalid.Append("setup_experience.enable_managed_local_account",
+			invalid.Append("setup_experience.macos_managed_local_account_enabled",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
-	fleet.ValidateMDMProfileSpecs(invalid, "macos", mdm.MacOSSettings.CustomSettings)
-
-	if !mdm.WindowsEnabledAndConfigured {
-		if mdm.WindowsSettings.CustomSettings.Set &&
-			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
-			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
-			invalid.Append("windows_settings.configuration_profiles",
-				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
-		}
-
-		if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
-			!oldMdm.WindowsSettings.EnableManagedLocalAccount.Value {
-			invalid.Append("windows_settings.enable_managed_local_account",
-				"Couldn’t enable windows_settings.enable_managed_local_account. "+fleet.WindowsMDMNotTurnedOnMessage)
-		}
+	if !mdm.WindowsEnabledAndConfigured &&
+		mdm.MacOSSetup.EnableManagedLocalAccountWindows.Value &&
+		!oldMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value {
+		invalid.Append("setup_experience.windows_managed_local_account_enabled",
+			"Couldn’t enable setup_experience.windows_managed_local_account_enabled. "+fleet.WindowsMDMNotTurnedOnMessage)
 	}
-	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
-
-	// Check oldMdm as we bypass the patching of this value, as it's enabled and disabled elsewhere.
-	if !oldMdm.AndroidEnabledAndConfigured {
-		if mdm.AndroidSettings.CustomSettings.Set &&
-			len(mdm.AndroidSettings.CustomSettings.Value) > 0 &&
-			!fleet.MDMProfileSpecsMatch(mdm.AndroidSettings.CustomSettings.Value, oldMdm.AndroidSettings.CustomSettings.Value) {
-			invalid.Append("android_settings.configuration_profiles",
-				`Couldn’t edit android_settings.configuration_profiles. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
-		}
-	}
-	fleet.ValidateMDMProfileSpecs(invalid, "android", mdm.AndroidSettings.CustomSettings.Value)
 
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
@@ -2538,27 +2511,31 @@ func (svc *Service) validateMDM(
 		invalid.Append("ipados_updates.minimum_version", v)
 	}
 
-	// The bootstrap package can come from the payload's URL (GitOps uploads it before applying the
-	// config, and dry runs don't upload it at all) or from a package already uploaded via the UI/API.
-	if keys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup); len(keys) > 0 && mdm.MacOSSetup.BootstrapPackage.Value == "" {
+	// A request that has the URL is checked against it: GitOps sends the URL before it uploads the
+	// package (dry runs never do), and an empty one when it's deleting the package. Without the key,
+	// the package already uploaded counts.
+	newlyEnabledKeys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup)
+	hasBootstrapPackage := bootstrapPackage.Value != ""
+	if !bootstrapPackage.Set && (len(newlyEnabledKeys) > 0 || mdm.MacOSSetup.ManualAgentInstall.Value) {
 		_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
-		switch {
-		case fleet.IsNotFound(err):
-			for _, arg := range fleet.BootstrapPackageRequiredError(keys).Errors {
-				invalid.AppendInvalidArgument(arg)
-			}
-		case err != nil:
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+		}
+		hasBootstrapPackage = err == nil
+	}
+	if len(newlyEnabledKeys) > 0 && !hasBootstrapPackage {
+		for _, arg := range fleet.BootstrapPackageRequiredError(newlyEnabledKeys).Errors {
+			invalid.AppendInvalidArgument(arg)
 		}
 	}
 
-	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
+	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup, hasBootstrapPackage); err != nil {
 		var invalidArgErr *fleet.InvalidArgumentError
 		if errors.As(err, &invalidArgErr) {
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
 			invalid.AppendInvalidArgument(firstInvalidErr)
 		} else {
-			invalid.Append("macos_setup", err.Error())
+			invalid.Append("setup_experience", err.Error())
 		}
 	}
 
@@ -2769,44 +2746,6 @@ func (svc *Service) validateABMAssignments(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (tokensToSave []*fleet.ABMToken, defaultTokenID *uint, err error) {
-	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
-		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-		return nil, nil, nil
-	}
-
-	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
-		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil, nil, nil
-		}
-		team, err := svc.ds.TeamByName(ctx, name)
-		if err != nil {
-			invalid.Append("mdm.apple_bm_default_team", "team name not found")
-			return nil, nil, nil
-		}
-		tokens, err := svc.ds.ListABMTokens(ctx)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if len(tokens) > 1 {
-			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-			return nil, nil, nil
-		}
-
-		if len(tokens) == 0 {
-			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
-			return nil, nil, nil
-		}
-
-		tok := tokens[0]
-		tok.MacOSDefaultTeamID = &team.ID
-		tok.IOSDefaultTeamID = &team.ID
-		tok.IPadOSDefaultTeamID = &team.ID
-		tok.BYODDefaultTeamID = &team.ID
-		return []*fleet.ABMToken{tok}, nil, nil
-	}
-
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())
@@ -2857,7 +2796,7 @@ func (svc *Service) validateABMAssignments(
 
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
-					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
+					invalid.Appendf("mdm.apple_business", "fleet %s doesn't exist", tmName)
 					return nil, nil, nil
 				}
 			}
@@ -2901,9 +2840,15 @@ func (svc *Service) validateVPPAssignments(
 		return nil, err
 	}
 	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	// Fleets created before "Unassigned" was reserved can still have that name.
+	var fleetsNamedUnassigned []string
 	for _, tm := range teams {
 		teamsByName[tm.Name] = tm.ID
+		if fleet.IsUnassignedFleetName(tm.Name) {
+			fleetsNamedUnassigned = append(fleetsNamedUnassigned, fmt.Sprintf("%q", tm.Name))
+		}
 	}
+	slices.Sort(fleetsNamedUnassigned)
 	tokens, err := svc.ds.ListVPPTokens(ctx)
 	if err != nil {
 		return nil, err
@@ -2926,8 +2871,15 @@ func (svc *Service) validateVPPAssignments(
 			if tmName == fleet.DisplayNameAllTeams {
 				tmName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(tmName) {
+				if len(fleetsNamedUnassigned) > 0 {
+					invalid.Appendf("mdm.volume_purchasing_program", "fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
+					return nil, nil
+				}
+				tmName = fleet.TeamNameNoTeam
+			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
-				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
 			}
 		}
@@ -2943,6 +2895,9 @@ func (svc *Service) validateVPPAssignments(
 			if teamName == fleet.DisplayNameAllTeams {
 				teamName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(teamName) {
+				teamName = fleet.TeamNameNoTeam
+			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
@@ -2951,7 +2906,7 @@ func (svc *Service) validateVPPAssignments(
 				tokenTeams = []uint{}
 				break
 			}
-			teamID := teamsByName[teamName]
+			teamID := teamsByName[norm.NFC.String(teamName)]
 			tokenTeams = append(tokenTeams, teamID)
 		}
 

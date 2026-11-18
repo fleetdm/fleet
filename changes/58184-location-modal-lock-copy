@@ -1,0 +1,1 @@
+- Updated the Location modal for unlocked iOS/iPadOS hosts to explain how to lock the host from **Actions > Lock**, and replaced the modal's Lock and Cancel buttons with a single Close button.

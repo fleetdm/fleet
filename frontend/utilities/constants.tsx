@@ -188,7 +188,6 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   created_at: "",
   saved: false,
   author_id: 0,
-  packs: [],
   fleet_id: 0,
   author_email: "",
   stats: {},
@@ -221,7 +220,7 @@ export const DEFAULT_CAMPAIGN = {
   },
 
   id: 0,
-  query_id: 0,
+  report_id: 0,
   updated_at: "",
   user_id: 0,
 } as ICampaign;
@@ -471,6 +470,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "fleet_name",
   "display_name",
   "maintenance_window",
+  "os_name",
   "os_version",
   "mdm",
   "last_mdm_checked_in_at",
@@ -503,6 +503,7 @@ export const HOST_VITALS_DATA = [
   "fleet_desktop_version",
   "memory",
   "cpu_type",
+  "os_name",
   "os_version",
   "timezone",
   "mdm_enrollment_hardware_attested",

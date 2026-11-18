@@ -371,6 +371,9 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		var sce kithttp.StatusCoder
 		if errors.As(err, &sce) {
 			if sce.StatusCode() == http.StatusForbidden {
+				if me, meErr := client.Me(); meErr == nil && isGitOpsUser(me) {
+					return nil, nil, errors.New(fleet.GitOpsMDMCommandErrorMessage)
+				}
 				return nil, nil, fmt.Errorf("Permission denied. You don't have permission to %s this host.", actionType)
 			}
 		}

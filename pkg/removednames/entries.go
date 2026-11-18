@@ -16,3 +16,7 @@ func pathEntry(oldSuffix, newSuffix string) Entry {
 func yamlEntry(oldPath, newPath string) Entry {
 	return Entry{Kind: KindYAMLKey, Scope: ScopeRequest, Old: oldPath, New: newPath}
 }
+
+func serverConfigEntry(oldKey, newKey string) Entry {
+	return Entry{Kind: KindConfigKey, Scope: ScopeRequest, Old: oldKey, New: newKey}
+}

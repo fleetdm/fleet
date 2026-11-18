@@ -499,34 +499,26 @@ spec:
 			removedMessage(removednames.KindSpecKind, "team"),
 		},
 		{
-			"kind: user_roles with teams: key",
+			"kind: user_roles",
 			[]byte(`
 apiVersion: v1
 kind: user_roles
 spec:
   roles:
-    user@example.com:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: macOS
+    admin@example.com:
+      global_role: admin
 `),
-			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.teams"),
+			removedMessage(removednames.KindSpecKind, "user_roles"),
 		},
 		{
-			"kind: user_roles with team: key in a fleets entry",
+			"kind: pack",
 			[]byte(`
 apiVersion: v1
-kind: user_roles
+kind: pack
 spec:
-  roles:
-    user@example.com:
-      global_role: null
-      fleets:
-      - role: maintainer
-        team: macOS
+  name: pack1
 `),
-			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team"),
+			removedMessage(removednames.KindSpecKind, "pack"),
 		},
 	}
 

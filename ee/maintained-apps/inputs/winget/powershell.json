@@ -5,7 +5,10 @@
   "unique_identifier": "PowerShell 7-x64",
   "open_process_names": ["pwsh.exe"],
   "installer_arch": "x64",
-  "installer_type": "msi",
-  "installer_scope": "machine",
-  "default_categories": ["Developer tools"]
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "install_script_path": "pkg/file/scripts/install_msi.ps1",
+  "uninstall_script_path": "pkg/file/scripts/uninstall_msi.ps1",
+  "default_categories": ["Developer tools"],
+  "frozen": true
 }

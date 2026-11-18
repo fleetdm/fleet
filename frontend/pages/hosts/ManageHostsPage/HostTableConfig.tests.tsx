@@ -384,6 +384,47 @@ describe("HostTableConfig - Serial number column", () => {
   });
 });
 
+describe("HostTableConfig - Operating system column", () => {
+  const renderOSCell = (osName: string, osVersion: string) => {
+    const osColumn = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).find((h) => (h as Column<IHost>).id === "os_version") as IColumnWithCell;
+    const Cell = osColumn.Cell as React.ElementType;
+    return render(
+      <Cell
+        cell={{ value: osVersion }}
+        row={{ original: { os_name: osName, os_version: osVersion } }}
+      />
+    );
+  };
+
+  it.each([
+    ["macOS", "15.2", "macOS 15.2"],
+    ["Omarchy", "4.0.0", "Omarchy 4.0.0"],
+    ["", "", "---"],
+  ])("renders %p %p as %p", (osName, osVersion, expected) => {
+    renderOSCell(osName, osVersion);
+    expect(
+      screen.getByText(expected, {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("adds the rolling release tooltip to Arch-based hosts", async () => {
+    renderOSCell("CachyOS Linux", "rolling");
+
+    const osText = screen.getByText("CachyOS Linux", {
+      selector: ".data-table__tooltip-truncated-text",
+    });
+    await userEvent.hover(within(osText).getByText("rolling"));
+    expect(
+      await screen.findByText(/Version follows a rolling release model/)
+    ).toBeInTheDocument();
+  });
+});
+
 describe("HostTableConfig - Status column", () => {
   it("renders '---' with the Windows Autopilot tooltip for a pending Windows host", async () => {
     const statusColumn = generateAvailableTableHeaders({

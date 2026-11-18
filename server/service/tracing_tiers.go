@@ -13,7 +13,7 @@ import (
 // should expose a RegisterTracingTiers function the serve command calls during startup. The platform/tracing package itself
 // stays free of route knowledge.
 //
-// Paths use "_version_" as the placeholder for the gorilla/mux fleetversion segment. The sampler normalizes incoming span
+// Paths use "_version_" as the placeholder for the route template's fleetversion segment. The sampler normalizes incoming span
 // names back to that form before lookup. Alternate path forms (e.g. /api/v1/osquery/...) are registered separately.
 //
 // Unregistered routes (including all cron jobs, enroll, SCEP, MDM checkin, command ack/result, GitOps batch, etc.) fall to
@@ -50,7 +50,6 @@ func RegisterTracingTiers(registry *tracing.Registry) {
 	registry.Register(http.MethodGet, "/api/_version_/fleet/me", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/policies", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/reports", tracing.TierStandard)
-	registry.Register(http.MethodGet, "/api/_version_/fleet/software", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/software/titles", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/software/versions", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/spec/enroll_secret", tracing.TierStandard)

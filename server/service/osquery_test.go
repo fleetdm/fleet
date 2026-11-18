@@ -248,27 +248,6 @@ func TestGetClientConfig(t *testing.T) {
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{}, nil
-	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-		tru := true
-		fals := false
-		fortytwo := uint(42)
-		switch pid {
-		case 1:
-			return []*fleet.ScheduledQuery{
-				{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals},
-			}, nil
-		case 4:
-			return []*fleet.ScheduledQuery{
-				{Name: "foobar", Query: "select 3", Interval: 20, Shard: &fortytwo},
-				{Name: "froobing", Query: "select 'guacamole'", Interval: 60, Snapshot: &tru},
-			}, nil
-		default:
-			return []*fleet.ScheduledQuery{}, nil
-		}
-	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
@@ -309,90 +288,17 @@ func TestGetClientConfig(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ctx1 := hostctx.NewContext(ctx, &fleet.Host{ID: 1})
-	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2})
-	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1)})
+	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2, TeamID: new(uint(1))})
 
-	expectedOptions := map[string]interface{}{
-		"baz": "bar",
-	}
-
-	expectedConfig := map[string]interface{}{
-		"options": expectedOptions,
-	}
-
-	// No packs loaded yet
+	// No reports in scope: no packs key at all.
 	conf, err := svc.GetClientConfig(ctx1)
 	require.NoError(t, err)
-	assert.Equal(t, expectedConfig, conf)
+	assert.Equal(t, map[string]any{"options": map[string]any{"baz": "bar"}}, conf)
 
+	// Only the team-N report entry is served.
 	conf, err = svc.GetClientConfig(ctx2)
 	require.NoError(t, err)
-	assert.Equal(t, expectedConfig, conf)
-
-	// Now add packs
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		switch hid {
-		case 1:
-			return []*fleet.Pack{
-				{ID: 1, Name: "pack_by_label"},
-				{ID: 4, Name: "pack_by_other_label"},
-			}, nil
-
-		case 2:
-			return []*fleet.Pack{
-				{ID: 1, Name: "pack_by_label"},
-			}, nil
-		}
-		return []*fleet.Pack{}, nil
-	}
-
-	conf, err = svc.GetClientConfig(ctx1)
-	require.NoError(t, err)
-	assert.Equal(t, expectedOptions, conf["options"])
 	assert.JSONEq(t, `{
-		"pack_by_other_label": {
-			"queries": {
-				"foobar":{"query":"select 3","interval":20,"shard":42},
-				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
-			}
-		},
-		"pack_by_label": {
-			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
-			}
-		}
-	}`,
-		string(conf["packs"].(json.RawMessage)),
-	)
-
-	conf, err = svc.GetClientConfig(ctx2)
-	require.NoError(t, err)
-	assert.Equal(t, expectedOptions, conf["options"])
-	assert.JSONEq(t, `{
-		"pack_by_label": {
-			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
-			}
-		}
-	}`,
-		string(conf["packs"].(json.RawMessage)),
-	)
-
-	// Check scheduled queries are loaded properly
-	conf, err = svc.GetClientConfig(ctx3)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-		"pack_by_label": {
-			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
-			}
-		},
-		"pack_by_other_label": {
-			"queries": {
-				"foobar":{"query":"select 3","interval":20,"shard":42},
-				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
-			}
-		},
 		"team-1": {
 			"queries": {
 				"Some strings carry more weight than others": {
@@ -418,24 +324,17 @@ func TestGetClientConfig(t *testing.T) {
 
 // TestGetClientConfigNullConfig is a regression test for a panic
 // ("assignment to entry in nil map") that occurred when a host's agent options
-// had a null "config" and the host also had packs/scheduled queries. See
-// https://github.com/fleetdm/fleet/issues/47388.
+// had a null "config" and the host also had scheduled reports.
 func TestGetClientConfigNullConfig(t *testing.T) {
 	ds := new(mock.Store)
 
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{{ID: 1, Name: "pack_by_label"}}, nil
-	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-		return []*fleet.ScheduledQuery{
-			{Name: "time", Query: "select * from time", Interval: 30, Removed: new(false)},
-		}, nil
-	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
-		return nil, nil
+		return []*fleet.Query{
+			{Name: "time", Query: "select * from time", Interval: 30, Logging: fleet.LoggingSnapshot},
+		}, nil
 	}
 	// Global agent options with a null config. This unmarshals into a nil map,
 	// which previously caused a panic once packs were added to the config.
@@ -452,9 +351,9 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 	conf, err := svc.GetClientConfig(ctx)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
-		"pack_by_label": {
+		"Global": {
 			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
+				"time":{"query":"select * from time","interval":30,"platform":"","version":"","snapshot":true}
 			}
 		}
 	}`,
@@ -465,9 +364,6 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 func TestGetClientConfigStripsDistributedPluginWhenWebSocketTransportEnabled(t *testing.T) {
 	setup := func(t *testing.T, wsEnabled bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
-		ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-			return nil, nil
-		}
 		ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 			return nil, nil
 		}
@@ -837,7 +733,7 @@ func TestEnrollOsqueryDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -898,7 +794,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 
 func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	cfg := config.TestConfig()
 	cfg.WebSocket.TransportEnabled = true
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Task: task})
@@ -1085,7 +981,7 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 
 func TestAuthenticateHostRejectsNonOsqueryPlatforms(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -1365,7 +1261,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
-		// If a global query belongs to a 2017/legacy pack, it should be automated even if the global query has automations turned off.
+		// Results for a pack that isn't Global or team-N (e.g. a removed 2017 pack still in a host's cached config) pass through to the log destination.
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Some Pack Name/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
 		// The "name" field has invalid format, so this result will be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
@@ -3998,9 +3894,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{}, nil
-	}
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, 0, nil, nil
 	}
@@ -5497,7 +5390,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.zoobar.foobar",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "",
 		"last_opened_at":    "0",
@@ -5509,7 +5402,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.acme.zoobar",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "",
 		"last_opened_at":    "0",
@@ -5521,7 +5414,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "IDE extension (VS Code)",
 		"bundle_identifier": "",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "vscode_extensions",
 		"vendor":            "VendorX",
 		"last_opened_at":    "",
@@ -5533,7 +5426,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "IDE extension (VS Code)",
 		"bundle_identifier": "",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "vscode_extensions",
 		"vendor":            "VendorX",
 		"last_opened_at":    "",
@@ -5566,7 +5459,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"version":           "2.46.0",
 		"bundle_identifier": "",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "homebrew_packages",
 		"vendor":            "",
 		"last_opened_at":    "",
@@ -5586,7 +5479,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.zoobar.overrideme",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "OverrideMe",
 		"last_opened_at":    "0",
@@ -5599,7 +5492,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.zoobar.overrideme",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "OverrideMe",
 		"last_opened_at":    "0",
@@ -5610,7 +5503,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"name":           "cryptography",
 		"version":        "41.0.7",
 		"extension_id":   "",
-		"browser":        "",
+		"extension_for":  "",
 		"source":         "python_packages",
 		"vendor":         "",
 		"installed_path": "/usr/lib/python3/dist-packages",
@@ -5619,7 +5512,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"name":           "pip",
 		"version":        "25.0.1",
 		"extension_id":   "",
-		"browser":        "",
+		"extension_for":  "",
 		"source":         "python_packages",
 		"vendor":         "",
 		"installed_path": "/Users/fleetdm/.pyenv/versions/3.13.1/lib/python3.13/site-packages",

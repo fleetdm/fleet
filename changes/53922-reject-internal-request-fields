@@ -1,0 +1,1 @@
+- Fixed an issue where server-internal list options (such as the Fleet Premium flag on `GET /api/v1/fleet/vulnerabilities`) could be set through a JSON body on GET requests, letting Fleet Free bypass Premium-only filters and sort keys.

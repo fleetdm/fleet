@@ -9,7 +9,7 @@ $UninstallPaths = @(
 )
 
 $FleetEntry = Get-ItemProperty -Path $UninstallPaths -ErrorAction SilentlyContinue |
-Where-Object { $_.DisplayName -like "Fleet osquery*" }
+Where-Object { $_.DisplayName -like "Fleet osquery*" -or $_.DisplayName -eq "Fleet" }
 
 if ($FleetEntry) {
   Write-Output "[INFO] Fleet osquery found: $($FleetEntry.DisplayName)"

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 
 import {
@@ -115,5 +115,45 @@ describe("Dashboard software card", () => {
       });
       expect(elements.length).toBeGreaterThan(0);
     });
+  });
+
+  it("links card rows by software_version_id, not the removed software_id", () => {
+    const router = createMockRouter();
+    const response = createMockSoftwareVersionsResponse({
+      counts_updated_at: "2024-08-21T21:01:31Z",
+      count: 1,
+      software: [
+        createMockSoftwareVersion({
+          id: 784,
+          name: vulnSwInfo.name,
+          version: vulnSwInfo.version,
+          hosts_count: vulnSwInfo.hostsCount,
+        }),
+      ],
+    });
+    render(
+      <Software
+        errorSoftware={null}
+        isSoftwareFetching={false}
+        isSoftwareEnabled
+        navTabIndex={0}
+        onTabChange={jest.fn()}
+        onQueryChange={jest.fn()}
+        software={response}
+        teamId={7}
+        router={router}
+        softwarePageIndex={0}
+      />
+    );
+
+    // hosts_count is unique to this row, so use it to anchor.
+    const row = screen
+      .getByText(String(vulnSwInfo.hostsCount))
+      .closest("tr") as HTMLElement;
+    expect(row).toBeInTheDocument();
+    fireEvent.click(row);
+    expect(router.push).toHaveBeenCalledWith(
+      "/hosts/manage?software_version_id=784&fleet_id=7"
+    );
   });
 });

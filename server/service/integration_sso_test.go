@@ -296,7 +296,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 	}
 
 	t.Run("global premium roles", func(t *testing.T) {
-		for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+		for _, role := range []string{fleet.RoleTechnician, fleet.RoleObserverPlus} {
 			// Create user.
 			u := &fleet.User{
 				Name:       "SSO User 2",

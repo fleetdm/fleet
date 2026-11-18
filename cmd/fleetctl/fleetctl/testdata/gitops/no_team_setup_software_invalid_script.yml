@@ -1,7 +1,7 @@
 name: Unassigned
 controls:
-  macos_setup:
-    script: lib/no_such_script.sh
+  setup_experience:
+    macos_script: lib/no_such_script.sh
 policies:
 software:
   packages:

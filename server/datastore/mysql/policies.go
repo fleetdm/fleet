@@ -30,7 +30,6 @@ import (
 var policyAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":                 "p.id",
 	"name":               "p.name",
-	"team_id":            "p.team_id",
 	"fleet_id":           "p.team_id",
 	"created_at":         "p.created_at",
 	"updated_at":         "p.updated_at",
@@ -64,8 +63,8 @@ const (
 )
 
 var (
-	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on team policies")
-	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on team or \"no team\" policies")
+	errSoftwareTitleIDOnGlobalPolicy = errors.New("install software title id can be only be set on fleet policies")
+	errScriptIDOnGlobalPolicy        = errors.New("run script id can only be set on fleet or \"Unassigned\" policies")
 	errProfileUUIDOnGlobalPolicy     = errors.New("resend configuration profile can only be set on fleet-level policies")
 )
 
@@ -185,17 +184,6 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 
 func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet.Policy) error {
 	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
-	const insertLabelStmt = `
-		INSERT INTO policy_labels (
-			policy_id,
-			label_id,
-			exclude,
-			require_all
-		)
-		SELECT ?, id, ?, ?
-		FROM labels
-		WHERE name IN (?)
-	`
 
 	if err := policy.VerifyLabelScopes(); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating policy label scopes")
@@ -215,24 +203,26 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		for _, label := range labels {
 			names = append(names, label.LabelName)
 		}
-
-		stmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, requireAll, names)
+		ids, err := resolveLabelNamesTx(ctx, tx, names, policy.TeamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "constructing policy label update query")
+			return ctxerr.Wrap(ctx, err, "resolving policy labels")
 		}
 
-		res, err := tx.ExecContext(ctx, stmt, args...)
-		if err != nil {
+		values := make([]string, 0, len(ids))
+		args := make([]any, 0, len(ids)*4)
+		inserted := make(map[uint]struct{}, len(ids))
+		for _, name := range names {
+			id := ids[name]
+			if _, ok := inserted[id]; ok {
+				continue
+			}
+			inserted[id] = struct{}{}
+			values = append(values, "(?, ?, ?, ?)")
+			args = append(args, policy.ID, id, exclude, requireAll)
+		}
+		stmt := `INSERT INTO policy_labels (policy_id, label_id, exclude, require_all) VALUES ` + strings.Join(values, ", ")
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating policy labels")
-		}
-
-		rowsAffected, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "listing number of policy labels affected")
-		}
-
-		if rowsAffected != int64(len(names)) {
-			return ctxerr.Errorf(ctx, "invalid label")
 		}
 		return nil
 	}
@@ -643,7 +633,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 			return ctxerr.Wrap(ctx, err, "querying software installer")
 		} else if softwareInstallerTeamID != teamID {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Software installer with ID %d does not belong to team ID %d", *softwareInstallerID, teamID),
+				Message: fmt.Sprintf("Software installer with ID %d does not belong to fleet ID %d", *softwareInstallerID, teamID),
 			})
 		}
 	}
@@ -662,7 +652,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 			return ctxerr.Wrap(ctx, err, "querying VPP app")
 		} else if vppAppTeamID != teamID {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("VPP app with ID %d does not belong to team ID %d", *vppAppsTeamsID, teamID),
+				Message: fmt.Sprintf("VPP app with ID %d does not belong to fleet ID %d", *vppAppsTeamsID, teamID),
 			})
 		}
 	}
@@ -682,7 +672,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 			return ctxerr.Wrap(ctx, err, "querying script")
 		} else if scriptTeamID != teamID {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Script with ID %d does not belong to team ID %d", *scriptID, teamID),
+				Message: fmt.Sprintf("Script with ID %d does not belong to fleet ID %d", *scriptID, teamID),
 			})
 		}
 	}
@@ -721,7 +711,7 @@ func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamI
 	}
 	if profile.TeamID != teamID {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Configuration profile with UUID %s does not belong to team ID %d", profileUUID, teamID),
+			Message: fmt.Sprintf("Configuration profile with UUID %s does not belong to fleet ID %d", profileUUID, teamID),
 		})
 	}
 	// Fleet owns the contents and the lifecycle of its own profiles (disk encryption, Windows OS
@@ -905,17 +895,6 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 			vals = append(vals, updated, policyID, host.ID, matches)
 		}
 	}
-
-	// NOTE: as of #44191, the sync path here narrows the UPSERT batch to only
-	// rows whose stored value differs from incoming, while
-	// AsyncBatchInsertPolicyMembership still UPSERTs every incoming row. As a
-	// result, policy_membership.updated_at means "last state change" under
-	// sync processing and "last reported" under async. The
-	// hosts.policy_updated_at column remains the per-host "last reported"
-	// signal under both paths and is updated below regardless. Narrowing the
-	// async path is a natural follow-up; until then keep the two write paths
-	// aware of this divergence rather than treating them as semantically
-	// equivalent.
 
 	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if len(vals) > 0 {
@@ -1656,6 +1635,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			ID:               policyID,
+			TeamID:           &teamID,
 			LabelsIncludeAny: fleet.LabelNamesToIdents(args.LabelsIncludeAny),
 			LabelsIncludeAll: fleet.LabelNamesToIdents(args.LabelsIncludeAll),
 			LabelsExcludeAny: fleet.LabelNamesToIdents(args.LabelsExcludeAny),
@@ -2076,7 +2056,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 								if errors.Is(err, sql.ErrNoRows) {
 									return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 										Message: fmt.Sprintf(
-											"software_package_id %d does not belong to software_title_id %d on team %q",
+											"software_package_id %d does not belong to software_title_id %d on fleet %q",
 											*spec.SoftwarePackageID, *spec.SoftwareTitleID, spec.Team,
 										),
 									}, "validate pinned software package id")
@@ -2304,6 +2284,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
+						TeamID:           teamID,
 						LabelsIncludeAny: fleet.LabelNamesToIdents(spec.LabelsIncludeAny),
 						LabelsIncludeAll: fleet.LabelNamesToIdents(spec.LabelsIncludeAll),
 						LabelsExcludeAny: fleet.LabelNamesToIdents(spec.LabelsExcludeAny),
@@ -2389,103 +2370,6 @@ func amountPoliciesAutomationEnabledSoftwareDB(ctx context.Context, db sqlx.Quer
 		return 0, err
 	}
 	return amount, nil
-}
-
-// AsyncBatchInsertPolicyMembership inserts into the policy_membership table
-// the batch of policy membership results.
-func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
-	// NOTE: this is tested via the server/service/async package tests.
-
-	// INSERT IGNORE, to avoid failing if policy / host does not exist (as this
-	// runs asynchronously, they could get deleted in between the data being
-	// received and being upserted).
-	sql := `INSERT IGNORE INTO policy_membership (policy_id, host_id, passes) VALUES `
-	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
-	sql = strings.TrimSuffix(sql, ",")
-	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
-
-	vals := make([]interface{}, 0, len(batch)*3)
-	hostIDs := make([]uint, 0, len(batch))
-	// Group incoming results per host for flip detection.
-	incomingByHost := make(map[uint]map[uint]*bool, len(batch))
-	for _, tup := range batch {
-		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
-		hostIDs = append(hostIDs, tup.HostID)
-		m, ok := incomingByHost[tup.HostID]
-		if !ok {
-			m = make(map[uint]*bool)
-			incomingByHost[tup.HostID] = m
-		}
-		m[tup.PolicyID] = tup.Passes
-	}
-	// Compute newly-passing policies per host before upserting membership so we compare against previous state.
-	newPassingByHost := make(map[uint][]uint)
-	for hid, incoming := range incomingByHost {
-		_, newPassing, err := ds.FlippingPoliciesForHost(ctx, hid, incoming)
-		if err != nil {
-			return err
-		}
-		if len(newPassing) > 0 {
-			slices.Sort(newPassing)
-			newPassingByHost[hid] = newPassing
-		}
-	}
-
-	err := ds.withRetryTxx(
-		ctx, func(tx sqlx.ExtContext) error {
-			if _, err := tx.ExecContext(ctx, sql, vals...); err != nil {
-				return ctxerr.Wrap(ctx, err, "insert into policy_membership")
-			}
-
-			// Reset attempt_number to 0 for policies that flipped failing -> passing per host.
-			for hid, newPassing := range newPassingByHost {
-				q1, a1, err := sqlx.In(resetScriptAttemptsStmt, hid, newPassing)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "building reset script attempts query (async)")
-				}
-				if _, err := tx.ExecContext(ctx, q1, a1...); err != nil {
-					return ctxerr.Wrap(ctx, err, "reset script attempt numbers (async)")
-				}
-
-				q2, a2, err := sqlx.In(resetInstallAttemptsStmt, hid, newPassing)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "building reset install attempts query (async)")
-				}
-				if _, err := tx.ExecContext(ctx, q2, a2...); err != nil {
-					return ctxerr.Wrap(ctx, err, "reset install attempt numbers (async)")
-				}
-			}
-			return nil
-		})
-	if err != nil {
-		return err
-	}
-	if err = ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs); err != nil {
-		return err
-	}
-	return nil
-}
-
-// AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
-// for the batch of host ids provided.
-func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
-	// NOTE: this is tested via the server/service/async package tests.
-
-	sql := `
-		UPDATE
-		  hosts
-		SET
-		  policy_updated_at = ?
-		WHERE
-		  id IN (?)`
-	query, args, err := sqlx.In(sql, ts, ids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query to update hosts.policy_updated_at")
-	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, query, args...)
-		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
-	})
 }
 
 func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
@@ -3159,7 +3043,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 		if errors.Is(err, sql.ErrNoRows) {
 			// Policy or team was deleted by a parallel process. We proceed.
 			ds.logger.ErrorContext(ctx,
-				"policy not found for inherited global policies. Was policy or team(s) deleted?", "policy_id", policyID,
+				"policy not found for inherited global policies. Was policy or fleet(s) deleted?", "policy_id", policyID,
 			)
 			return nil
 		}
@@ -3189,7 +3073,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 		if errors.Is(err, sql.ErrNoRows) {
 			// Policy was deleted by a parallel process. We proceed.
 			ds.logger.ErrorContext(ctx,
-				"'No team' policy not found for inherited global policies. Was policy deleted?", "policy_id", policyID,
+				"'Unassigned' policy not found for inherited global policies. Was policy deleted?", "policy_id", policyID,
 			)
 			return nil
 		}
@@ -3514,7 +3398,7 @@ func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, t
 	}
 	if installer.FleetMaintainedAppID == nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID %d", titleID, teamID),
+			Message: fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for fleet ID %d", titleID, teamID),
 		})
 	}
 	return installer, nil

@@ -116,6 +116,7 @@ import HostsFilterBlock from "./components/HostsFilterBlock";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
 import {
+  getHostsReportColumns,
   isAcceptableStatus,
   STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
 } from "./helpers";
@@ -327,6 +328,15 @@ const ManageHostsPage = ({
     isRouteOk,
   ]);
 
+  useEffect(() => {
+    if (queryParams?.software_id === undefined) return;
+    const nextQuery = omit(queryParams, "software_id");
+    if (nextQuery.software_version_id === undefined) {
+      nextQuery.software_version_id = queryParams.software_id;
+    }
+    router.replace({ pathname: location.pathname, query: nextQuery });
+  }, [queryParams, location.pathname, router]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     (userSettings?.hidden_host_columns || defaultHiddenColumns).map(
       toFleetColumnId
@@ -349,12 +359,7 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus =
-    queryParams?.apple_settings ?? queryParams?.macos_settings;
-  const softwareId =
-    queryParams?.software_id !== undefined
-      ? parseInt(queryParams.software_id, 10)
-      : undefined;
+  const macSettingsStatus = queryParams?.apple_settings;
   const softwareVersionId =
     queryParams?.software_version_id !== undefined
       ? parseInt(queryParams.software_version_id, 10)
@@ -401,7 +406,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
@@ -431,7 +436,6 @@ const ManageHostsPage = ({
   //   policyId ||
   //   macSettingsStatus ||
   //   policyResponse ||
-  //   softwareId ||
   //   softwareTitleId ||
   //   softwareVersionId ||
   //   softwareStatus ||
@@ -462,7 +466,6 @@ const ManageHostsPage = ({
       policyId ||
       macSettingsStatus ||
       policyResponse ||
-      softwareId ||
       softwareTitleId ||
       softwareVersionId ||
       softwareStatus ||
@@ -689,7 +692,6 @@ const ManageHostsPage = ({
         teamId: teamIdForApi,
         policyId,
         policyResponse,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -740,7 +742,6 @@ const ManageHostsPage = ({
         teamId: teamIdForApi,
         policyId,
         policyResponse,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -927,11 +928,11 @@ const ManageHostsPage = ({
   useEffect(() => {
     if (
       location.search.match(
-        /software_id|software_version_id|software_title_id|software_status/gi
+        /software_version_id|software_title_id|software_status|software_id/gi
       )
     ) {
-      // regex matches any of "software_id", "software_version_id", "software_title_id", or "software_status"
-      // so we don't set the filtered hosts path in those cases
+      // Match the legacy `software_id` too so the one-frame overlap before the
+      // software_id → software_version_id redirect doesn't stash a stale URL.
       return;
     }
     const path = location.pathname + location.search;
@@ -1251,8 +1252,6 @@ const ManageHostsPage = ({
         newQueryParams.policy_response = policyResponse;
       } else if (macSettingsStatus) {
         newQueryParams.apple_settings = macSettingsStatus;
-      } else if (softwareId) {
-        newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
         newQueryParams.software_version_id = softwareVersionId;
         // Software version can be combined with os name and os version
@@ -1329,7 +1328,6 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       macSettingsStatus,
-      softwareId,
       softwareVersionId,
       softwareTitleId,
       mdmId,
@@ -1535,7 +1533,6 @@ const ManageHostsPage = ({
           currentTeam: teamIdForApi,
           policyId,
           policyResponse,
-          softwareId,
           softwareTitleId,
           softwareVersionId,
           softwareStatus,
@@ -1592,7 +1589,6 @@ const ManageHostsPage = ({
             labelId: selectedLabel?.id,
             policyId,
             policyResponse,
-            softwareId,
             softwareTitleId,
             softwareVersionId,
             softwareStatus,
@@ -1791,27 +1787,9 @@ const ManageHostsPage = ({
           teamId: teamIdForApi,
         });
 
-        const columnIds = tableColumns
-          .map((column) => (column.id ? column.id : ""))
-          // "selection" column does not include any relevant data for the CSV
-          // so we filter it out.
-          .filter((element) => element !== "" && element !== "selection")
-          // "agent" is a display-only column that coalesces orbit and osquery
-          // versions; it has no corresponding CSV field on the backend, so we
-          // substitute the real fields it's derived from. Likewise, the
-          // "hardware_model" column also surfaces the Apple marketing name in
-          // the UI, so we export both fields separately.
-          .reduce((acc: string[], element) => {
-            if (element === "agent") {
-              acc.push("orbit_version", "osquery_version");
-            } else if (element === "hardware_model") {
-              acc.push("hardware_model", "hardware_marketing_name");
-            } else {
-              acc.push(element);
-            }
-            return acc;
-          }, []);
-        visibleColumns = columnIds.join(",");
+        visibleColumns = getHostsReportColumns(
+          tableColumns.map((column) => column.id ?? "")
+        ).join(",");
       }
 
       let options = {
@@ -1822,7 +1800,6 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         macSettingsStatus,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -1889,7 +1866,6 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       macSettingsStatus,
-      softwareId,
       softwareTitleId,
       softwareVersionId,
       softwareStatus,
@@ -2111,7 +2087,6 @@ const ManageHostsPage = ({
     const unsupportedFilter = !!(
       policyId ||
       policyResponse ||
-      softwareId ||
       softwareTitleId ||
       softwareVersionId ||
       osName ||
@@ -2286,7 +2261,6 @@ const ManageHostsPage = ({
             policyId,
             policy,
             macSettingsStatus,
-            softwareId,
             softwareTitleId,
             softwareVersionId,
             softwareStatus,

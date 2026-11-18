@@ -38,7 +38,7 @@ const PoliciesFilter = ({
         options={POLICY_RESPONSE_OPTIONS}
         searchable={false}
         onChange={onChange}
-        iconName="filter-alt"
+        iconName="filter"
       />
     </div>
   );
