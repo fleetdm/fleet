@@ -37,12 +37,21 @@ type mockAndroidModule struct {
 	setAppsForAndroidPolicyFunc          func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
 	addAppsToAndroidPolicyFunc           func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
 	removeAppsFromAndroidPolicyFunc      func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
-	patchPolicyFunc                      func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error)
+	prepareHostPolicyFunc                func(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error
 	patchDeviceFunc                      func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error)
+	buildAndSendFleetAgentConfigFunc     func(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
+	sendFleetAgentConfigFunc             func(ctx context.Context, enterpriseName string, hostUUID string) error
 }
 
-func (m *mockAndroidModule) PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
-	return m.patchPolicyFunc(ctx, policyID, policyName, policy, metadata)
+func (m *mockAndroidModule) SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error {
+	return m.sendFleetAgentConfigFunc(ctx, enterpriseName, hostUUID)
+}
+
+func (m *mockAndroidModule) PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error {
+	if m.prepareHostPolicyFunc != nil {
+		return m.prepareHostPolicyFunc(ctx, enterpriseName, hostUUID, teamID)
+	}
+	return nil
 }
 
 func (m *mockAndroidModule) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error) {
@@ -50,6 +59,9 @@ func (m *mockAndroidModule) PatchDevice(ctx context.Context, policyID, deviceNam
 }
 
 func (m *mockAndroidModule) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	if m.buildAndSendFleetAgentConfigFunc != nil {
+		return m.buildAndSendFleetAgentConfigFunc(ctx, enterpriseName, hostUUIDs, skipHostsWithoutNewCerts)
+	}
 	return nil
 }
 
@@ -117,6 +129,43 @@ func TestUpdateAndroidHostsAfterFleetTransferMovesCertificateTemplates(t *testin
 	require.True(t, ds.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked)
 	require.Equal(t, teamID, newTeamID)
 	require.False(t, ds.SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked)
+}
+
+func TestSoftwareWorkerSendAndroidFleetAgentConfig(t *testing.T) {
+	ds := new(mock.Store)
+	var queued *fleet.Job
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		queued = job
+		return job, nil
+	}
+	require.NoError(t, QueueSendAndroidFleetAgentConfig(t.Context(), ds, slog.New(slog.DiscardHandler), "host-1", "enterprises/test"))
+	require.NotNil(t, queued)
+	require.Equal(t, softwareWorkerJobName, queued.Name)
+
+	var (
+		calls   int
+		gotEnt  string
+		gotHost string
+		sendErr error
+	)
+	androidModule := &mockAndroidModule{
+		sendFleetAgentConfigFunc: func(ctx context.Context, enterpriseName string, hostUUID string) error {
+			calls++
+			gotEnt, gotHost = enterpriseName, hostUUID
+			return sendErr
+		},
+	}
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	// the queued job sends the host's configuration, which carries its new enroll secret
+	require.NoError(t, w.Run(t.Context(), *queued.Args))
+	require.Equal(t, 1, calls)
+	require.Equal(t, "enterprises/test", gotEnt)
+	require.Equal(t, "host-1", gotHost)
+
+	// a failed send fails the job, so the worker retries it
+	sendErr = errors.New("amapi unavailable")
+	require.ErrorIs(t, w.Run(t.Context(), *queued.Args), sendErr)
 }
 
 func TestSoftwareWorkerRunSkipsDeprecatedAndroidAppTasks(t *testing.T) {
@@ -554,9 +603,6 @@ func TestMakeAndroidAppsAvailableForHostSkipsUnresolvableAppConfig(t *testing.T)
 				buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
 					return &androidmanagement.ApplicationPolicy{PackageName: "com.fleetdm.agent"}, nil
 				},
-				patchPolicyFunc: func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
-					return false, nil
-				},
 				setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
 					for _, p := range appPolicies {
 						setPackages = append(setPackages, p.PackageName)
@@ -584,10 +630,11 @@ func TestMakeAndroidAppsAvailableForHostSkipsUnresolvableAppConfig(t *testing.T)
 	}
 }
 
-// Moving a host off the default policy replaces every setting of its host-specific policy,
-// which a re-enrolled host reuses and the reconciler may already have filled, so the host's
-// profiles must be queued for redelivery after the patch. The device must only be moved to
-// that policy once its app list was replaced, so it never sees a previous enrollment's apps.
+// Moving a host off the default policy replaces every setting of its host-specific policy with
+// its fleet's default policy, which a re-enrolled host reuses and the reconciler may already have
+// filled, so the host's profiles must be queued for redelivery after the patch. The device must
+// only be moved to that policy once its app list was replaced, so it never sees a previous
+// enrollment's apps.
 func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	const (
 		hostUUID       = "host-uuid"
@@ -598,10 +645,11 @@ func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 
 	var calls []string
 	var patchPolicyErr, setAppsErr error
+	var hostTeamID *uint
 	androidModule := &mockAndroidModule{
-		patchPolicyFunc: func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
-			calls = append(calls, "patch policy "+policyName)
-			return false, patchPolicyErr
+		prepareHostPolicyFunc: func(ctx context.Context, enterprise, uuid string, teamID uint) error {
+			calls = append(calls, fmt.Sprintf("prepare policy %s/policies/%s for fleet %d", enterprise, uuid, teamID))
+			return patchPolicyErr
 		},
 		setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
 			calls = append(calls, "set apps "+hostUUIDs[hostUUID])
@@ -614,7 +662,7 @@ func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	}
 	ds := new(mock.Store)
 	ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
-		return &fleet.AndroidHost{Host: &fleet.Host{UUID: uuid}, Device: &android.Device{DeviceID: "device-id"}}, nil
+		return &fleet.AndroidHost{Host: &fleet.Host{UUID: uuid, TeamID: hostTeamID}, Device: &android.Device{DeviceID: "device-id"}}, nil
 	}
 	ds.ResetMDMAndroidHostProfilesForRedeliveryFunc = func(ctx context.Context, uuid string) error {
 		calls = append(calls, "reset profiles "+uuid)
@@ -634,28 +682,38 @@ func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-	t.Run("default policy", func(t *testing.T) {
-		calls, patchPolicyErr, setAppsErr = nil, nil, nil
-		require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
-		assert.Equal(t, []string{
-			"patch policy " + hostPolicyName,
-			"reset profiles " + hostUUID,
-			"set apps " + hostUUID,
-			"patch device " + enterpriseName + "/devices/device-id to " + hostPolicyName,
-		}, calls)
-	})
+	for _, c := range []struct {
+		enrollPolicyID string
+		hostTeamID     *uint
+		wantFleet      uint
+	}{
+		{defaultPolicyID, nil, 0},
+		{android.FleetDefaultPolicyID(0), nil, 0},
+		{android.FleetDefaultPolicyID(5), new(uint(5)), 5},
+	} {
+		t.Run("enrollment policy "+c.enrollPolicyID, func(t *testing.T) {
+			calls, patchPolicyErr, setAppsErr, hostTeamID = nil, nil, nil, c.hostTeamID
+			require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, c.enrollPolicyID))
+			assert.Equal(t, []string{
+				fmt.Sprintf("prepare policy %s for fleet %d", hostPolicyName, c.wantFleet),
+				"reset profiles " + hostUUID,
+				"set apps " + hostUUID,
+				"patch device " + enterpriseName + "/devices/device-id to " + hostPolicyName,
+			}, calls)
+		})
+	}
 
 	t.Run("policy patch fails", func(t *testing.T) {
-		calls, patchPolicyErr, setAppsErr = nil, errors.New("nope"), nil
+		calls, patchPolicyErr, setAppsErr, hostTeamID = nil, errors.New("nope"), nil, nil
 		require.Error(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
-		assert.Equal(t, []string{"patch policy " + hostPolicyName}, calls)
+		assert.Equal(t, []string{"prepare policy " + hostPolicyName + " for fleet 0"}, calls)
 	})
 
 	t.Run("app list replace fails", func(t *testing.T) {
-		calls, patchPolicyErr, setAppsErr = nil, nil, errors.New("nope")
+		calls, patchPolicyErr, setAppsErr, hostTeamID = nil, nil, errors.New("nope"), nil
 		require.Error(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
 		assert.Equal(t, []string{
-			"patch policy " + hostPolicyName,
+			"prepare policy " + hostPolicyName + " for fleet 0",
 			"reset profiles " + hostUUID,
 			"set apps " + hostUUID,
 		}, calls, "the device must stay off the host policy")

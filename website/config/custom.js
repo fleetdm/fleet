@@ -230,6 +230,8 @@ module.exports.custom = {
   ***************************************************************************/
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
     '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+    '.github/workflows/market-research-check.yml': 'lukeheath',// « rebuilds and checks the market research explorer, DMs the build on Slack
+    '.github/workflows/market-research-revenue.yml': 'lukeheath',// « weekly Fleet revenue pull from Salesforce for the market research
   },
 
 

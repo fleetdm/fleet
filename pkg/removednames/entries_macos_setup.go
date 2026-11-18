@@ -9,6 +9,7 @@ var macosSetupEntries = []Entry{
 	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "enable_release_device_manually", New: "apple_enable_release_device_manually"},
 	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "manual_agent_install", New: "macos_manual_agent_install"},
 	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "script", New: "macos_script"},
+	{Kind: KindQueryParam, Scope: ScopeRequest, Old: "bootstrap_package", New: "macos_bootstrap_package"},
 
 	yamlEntry("org_settings.mdm.macos_setup", "org_settings.mdm.setup_experience"),
 	yamlEntry("org_settings.mdm.setup_experience.bootstrap_package", "org_settings.mdm.setup_experience.macos_bootstrap_package"),

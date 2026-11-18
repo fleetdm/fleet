@@ -351,11 +351,11 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		assert.Contains(t, errs[0].Error(), "grace_period_das")
 	})
 
-	t.Run("macos_settings any-field recursion", func(t *testing.T) {
+	t.Run("apple_settings any-field recursion", func(t *testing.T) {
 		data := map[string]any{
-			"macos_settings": map[string]any{
-				"custom_settings":  []any{},
-				"custom_settingss": "typo",
+			"apple_settings": map[string]any{
+				"configuration_profiles": []any{},
+				"custom_settingss":       "typo",
 			},
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsControls](), []string{"controls"}, "test.yml")
@@ -366,8 +366,8 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 	t.Run("android_settings any-field recursion", func(t *testing.T) {
 		data := map[string]any{
 			"android_settings": map[string]any{
-				"custom_settings": []any{},
-				"certificatess":   "typo",
+				"configuration_profiles": []any{},
+				"certificatess":          "typo",
 			},
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsControls](), []string{"controls"}, "test.yml")
@@ -383,7 +383,7 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		assert.Contains(t, overrides, "ipados_updates")
 		assert.Contains(t, overrides, "macos_migration")
 		assert.Contains(t, overrides, "windows_updates")
-		assert.Contains(t, overrides, "macos_settings")
+		assert.Contains(t, overrides, "apple_settings")
 		assert.Contains(t, overrides, "windows_settings")
 		assert.Contains(t, overrides, "android_settings")
 	})

@@ -5,7 +5,7 @@ export interface IHQRResult {
   columns: Record<string, string>;
 }
 export interface IGetHQRResponse {
-  query_id: number;
+  report_id: number;
   host_id: number;
   host_name: string;
   last_fetched: string | null; // timestamp

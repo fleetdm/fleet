@@ -646,7 +646,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 
 	if !recoveryLockEnabled {
 		return &fleet.BadRequestError{
-			Message: "Recovery lock password is not enabled for this host's team.",
+			Message: "Recovery lock password is not enabled for this host's fleet.",
 		}
 	}
 

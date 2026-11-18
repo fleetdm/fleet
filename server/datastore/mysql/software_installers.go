@@ -3177,19 +3177,22 @@ WHERE
 
 	const checkExistingActiveInstaller = `
 SELECT
-	id,
-	storage_id != ? is_package_modified,
-	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-	COALESCE(post_install_script_content_id != ? OR
-		(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
-		(? IS NULL AND post_install_script_content_id IS NOT NULL)
-	, FALSE) is_metadata_modified
+	si.id,
+	si.storage_id != ? is_package_modified,
+	si.install_script_content_id != ? OR si.uninstall_script_content_id != ? OR si.pre_install_query != ? OR
+	COALESCE(si.post_install_script_content_id != ? OR
+		(si.post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
+		(? IS NULL AND si.post_install_script_content_id IS NOT NULL)
+	, FALSE) is_metadata_modified,
+	si.fleet_maintained_app_id,
+	fma.name AS fleet_maintained_app_name
 FROM
-	software_installers
+	software_installers si
+	LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
 WHERE
-	global_or_team_id = ? AND
-	title_id = ?
-ORDER BY is_active DESC, id DESC
+	si.global_or_team_id = ? AND
+	si.title_id = ?
+ORDER BY si.is_active DESC, si.id DESC
 `
 
 	const insertNewOrEditedInstaller = `
@@ -3645,15 +3648,29 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// The flags describe existing[0], which is the active installer for an FMA or the
 			// same-hash row for a custom package, not whichever row this apply updates.
 			type existingInstallerUpdateCheckResult struct {
-				InstallerID        uint `db:"id"`
-				IsPackageModified  bool `db:"is_package_modified"`
-				IsMetadataModified bool `db:"is_metadata_modified"`
+				InstallerID            uint    `db:"id"`
+				IsPackageModified      bool    `db:"is_package_modified"`
+				IsMetadataModified     bool    `db:"is_metadata_modified"`
+				FleetMaintainedAppID   *uint   `db:"fleet_maintained_app_id"`
+				FleetMaintainedAppName *string `db:"fleet_maintained_app_name"`
 			}
 			var existing []existingInstallerUpdateCheckResult
 			err = sqlx.SelectContext(ctx, tx, &existing, wasUpdatedStmt, wasUpdatedArgs...)
 			if err != nil {
 				if !errors.Is(err, sql.ErrNoRows) {
 					return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
+				}
+			}
+
+			// Prevent an installer with a different FMA ID from being added.
+			// TODO: this should probably be supported, as long as we make sure every software installer row
+			// for a title has the same FMA ID and we remove the old ones.
+			for _, existingInstaller := range existing {
+				if installer.FleetMaintainedAppID != nil && existingInstaller.FleetMaintainedAppID != nil &&
+					*existingInstaller.FleetMaintainedAppID != *installer.FleetMaintainedAppID {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, ptr.ValOrZero(existingInstaller.FleetMaintainedAppName), installer.FMADisplayName()),
+					}, "different fleet-maintained app already exists on the title")
 				}
 			}
 
@@ -4972,7 +4989,7 @@ WHERE
 			tmID = *installer.TeamID
 		}
 		if _, ok := byTeam[tmID]; ok && installer.Extension != "ipa" {
-			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
+			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one fleet", sha256))
 		}
 		if installer.PackageIDList != "" {
 			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
@@ -5259,7 +5276,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 		}
 
 		if cat.TeamID != ptr.ValOrZero(host.TeamID) {
-			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category team does not match host team"})
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category fleet does not match host fleet"})
 		}
 		categoryName = &cat.Name
 	}

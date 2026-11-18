@@ -1,0 +1,1 @@
+- Removed the undocumented `/api/v1/fleet/mdm/apple/installers` endpoints and the `/api/mdm/apple/installer` download endpoint. They now return 410.
