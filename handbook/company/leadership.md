@@ -221,7 +221,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 ## Tracking hours
 
-Fleet asks US-based hourly contributors to track hours in Gusto, and contributors outside the US to track hours via Pilot.co. This applies to anyone who gets paid by the hour, including consultants and hourly core team members of any employment classification, inside or outside of the US.
+Fleet asks US-based hourly contributors to track hours in Gusto, and contributors outside the US to track hours via Remote.com. This applies to anyone who gets paid by the hour, including consultants and hourly core team members of any employment classification, inside or outside of the US.
 
 > _**Note:** If a contributor uses their own time-tracking process or tools, then it is OK to track the extra time spent tracking!  Contributors at Fleet are evaluated based on their results, not the number of hours they work._
 
