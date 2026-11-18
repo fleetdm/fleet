@@ -1227,7 +1227,8 @@ type Datastore interface {
 	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
 	// SetHostGoogleDeviceID binds the host to its device ID in Google for the customer, stores the
-	// device's DeviceUser names as pending, and reports whether the stored value changed. Setting the
+	// device's DeviceUser names as pending, and reports whether the stored value changed. A change also
+	// clears the host's registration token, so a sign-in started before it can't finish. Setting the
 	// stored value again is a no-op, a different value returns a *HostGoogleDeviceIDConflictError, a
 	// value bound to another host returns a 409 error, and a name stored on another host returns a
 	// *GoogleConditionalAccessDeviceUserConflictError. Nothing is written on an error. An empty
@@ -4345,11 +4346,11 @@ type Datastore interface {
 	// customer with its DeviceUsers, or a NotFoundError.
 	GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID, customerID string) (*GoogleConditionalAccessDevice, error)
 	// StartGoogleConditionalAccessRegistration counts a registration attempt and stores
-	// the hash of the host's single-use token with its expiry. It creates the row, or
+	// the hash of the host's single-use token, which expires after tokenTTL. It creates the row, or
 	// takes over another customer's row and drops its names. It returns false and changes
 	// nothing when the host already made GoogleConditionalAccessMaxRegistrationAttempts
 	// within GoogleConditionalAccessRegistrationWindow.
-	StartGoogleConditionalAccessRegistration(ctx context.Context, hostUUID, customerID string, tokenHash []byte, tokenExpiresAt time.Time) (bool, error)
+	StartGoogleConditionalAccessRegistration(ctx context.Context, hostUUID, customerID string, tokenHash []byte, tokenTTL time.Duration) (bool, error)
 	// ConsumeGoogleConditionalAccessRegistrationToken clears the token and the attempt
 	// counter of the row holding it and returns the host UUID. It returns a
 	// NotFoundError for an unknown or expired token, or one of another customer.

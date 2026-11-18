@@ -44,6 +44,7 @@ func (r *disconnectingGoogleCARelay) Deregister(ctx context.Context, serverURL, 
 type googleCADisconnectTest struct {
 	svc   fleet.Service
 	ctx   context.Context
+	ds    *mock.Store
 	relay *disconnectingGoogleCARelay
 
 	settings   *fleet.GoogleConditionalAccessIntegration
@@ -52,6 +53,8 @@ type googleCADisconnectTest struct {
 	activities []string
 	// saveSecretErr fails saving a row that holds a secret.
 	saveSecretErr error
+	// activityErr fails logging an activity.
+	activityErr error
 }
 
 // newGoogleCADisconnectTest starts from a connected integration when customerID is set.
@@ -73,6 +76,7 @@ func newGoogleCADisconnectTest(t *testing.T, customerID string) *googleCADisconn
 	g.settings = appConfig.Integrations.GoogleConditionalAccess
 
 	ds := new(mock.Store)
+	g.ds = ds
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return appConfig.Copy(), nil }
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 		if err := ctx.Err(); err != nil {
@@ -145,6 +149,9 @@ func newGoogleCADisconnectTest(t *testing.T, customerID string) *googleCADisconn
 	opts.ActivityMock.NewActivityFunc = func(ctx context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if g.activityErr != nil {
+			return g.activityErr
 		}
 		g.activities = append(g.activities, act.ActivityName())
 		return nil
