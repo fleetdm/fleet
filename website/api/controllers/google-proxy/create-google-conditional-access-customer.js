@@ -19,6 +19,7 @@ module.exports = {
     success: { description: 'Details about a Google conditional access registration have been returned to a Fleet instance' },
     connectionAlreadyExists: { description: 'The provided Google customer ID is already registered from another Origin.', statusCode: 409 },
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest' },
+    invalidOriginHeader: { description: 'The Origin header is not an HTTPS URL.', responseType: 'badRequest' },
   },
 
 
@@ -30,6 +31,11 @@ module.exports = {
     // Return a badRequest response if the origin header is missing.
     if(!this.req.get('origin')) {// Note: req.get() is case insensitive.
       throw 'missingOriginHeader';
+    }
+
+    // The OAuth callback sends this server's secret to the Origin, so it must be an HTTPS URL (except in local development).
+    if(sails.config.environment !== 'development' && !this.req.get('origin').startsWith('https://')) {
+      throw 'invalidOriginHeader';
     }
 
     let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
