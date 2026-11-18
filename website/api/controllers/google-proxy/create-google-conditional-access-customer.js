@@ -32,7 +32,7 @@ module.exports = {
       throw 'missingOriginHeader';
     }
 
-    let fleetServerSecret = sails.helpers.strings.random.with({len: 30});
+    let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
 
     let existingRegistration = await GoogleConditionalAccessServer.findOne({googleCustomerId});
     if(existingRegistration) {
