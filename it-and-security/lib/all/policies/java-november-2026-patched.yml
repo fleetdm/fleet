@@ -138,13 +138,20 @@
       WHERE (path LIKE 'C:\Program Files\Java\%\bin\java.exe'
              OR path LIKE 'C:\Program Files (x86)\Java\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\Eclipse Adoptium\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Eclipse Adoptium\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\AdoptOpenJDK\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\AdoptOpenJDK\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\Microsoft\jdk-%\bin\java.exe'
              OR path LIKE 'C:\Program Files\Amazon Corretto\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Amazon Corretto\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\Zulu\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Zulu\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\BellSoft\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\BellSoft\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\Semeru\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Semeru\%\bin\java.exe'
              OR path LIKE 'C:\Program Files\RedHat\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\RedHat\%\bin\java.exe'
              OR path LIKE 'C:\Users\%\.jdks\%\bin\java.exe')
         -- java.exe's file version is feature.interim.update.patch (17.0.21.1); Java 8's is 8.0.<update>0.<build>
         AND CASE CAST(file_version AS INTEGER)
@@ -163,8 +170,9 @@
     build for its line: 8u513, 11.0.33.1, 17.0.21.1, 21.0.13.1, 25.0.5.1 or 27.0.1.1. Fails when a runtime is
     older than that, or is an end-of-life Java version (for example 23 or 24). Java4Shell only affects Intel and
     AMD processors with AVX-512, but this update also fixes flaws that affect every PC. Checks the Oracle,
-    Temurin, Microsoft, Corretto, Zulu, Liberica, Semeru and Red Hat folders in Program Files, and JDKs that
-    IntelliJ IDEA downloaded to each user's .jdks folder. Java copies bundled inside apps aren't checked.
+    Temurin, Microsoft, Corretto, Zulu, Liberica, Semeru and Red Hat folders in Program Files and Program Files
+    (x86), and JDKs that IntelliJ IDEA downloaded to each user's .jdks folder. Java copies bundled inside apps
+    aren't checked.
   resolution: >-
     Update every Java on your PC to the latest patched build. Install the newest update for each Java version
     from the same vendor (Oracle, Adoptium Temurin, Microsoft, Amazon Corretto, Azul Zulu, BellSoft Liberica, IBM
