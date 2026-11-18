@@ -1,5 +1,7 @@
 # Configure Okta management attestation for mobile devices with Fleet
 
+With Fleet and Okta, you can block app sign-in from iPhones, iPads, and Android devices that aren't managed by Fleet, including personal (BYOD) devices. This is conditional access. Fleet deploys Okta Verify with a managed app configuration, and rules like minimum OS version live in Okta.
+
 When an app sign-in policy requires a managed device, Okta checks whether the targeted iOS or Android device holds a key that matches one you generate in the Okta Admin Console and set in Fleet's managed app configuration. This guide shows you how to configure Okta management attestation with Fleet for iOS and Android so Okta marks your enrolled devices as managed. You can then use that status to build authentication policies that restrict app sign-ins to devices you manage.
 
 On iOS, attestation pairs with Okta FastPass and the Credential SSO extension, so users on managed devices get passwordless, phishing-resistant single sign-on.
@@ -85,6 +87,15 @@ In Fleet, use the following configuration payload for Okta Verify:
 
 Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Fleet variables](https://fleetdm.com/guides/fleet-variables).
 
+## Require managed devices in Okta
+
+1. In the Okta Admin Console, go to **Security > Authentication policies** and select the policy for the apps you want to protect.
+2. Add a rule for iOS and Android platforms that requires the device to be managed.
+3. Optionally, add a device assurance policy (for example, minimum OS version) to the rule.
+4. Save, then test with an enrolled device and an unenrolled device.
+
+Learn more in Okta's [mobile device management workflow](https://help.okta.com/oie/en-us/Content/topics/identity-engine/devices/workflow-mobile.htm).
+
 ## Considerations when deploying to iOS
 
 - On iOS, Account-driven User Enrollment supports only one instance of an app bundle on a device at a time. Apple does not allow MDM to take over management of an already-installed app. Users will need to delete and reinstall to receive the management payload.
@@ -101,4 +112,4 @@ Other keys are available for the Android payload. See Okta's [managed app config
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="publishedOn" value="2026-10-19">
 <meta name="category" value="guides">
-<meta name="description" value="Configure Okta management attestation with Fleet so Okta marks your enrolled iOS and Android devices as managed.">
+<meta name="description" value="Use Okta conditional access on iOS, iPadOS, and Android: block app sign-in from devices that aren't managed by Fleet.">

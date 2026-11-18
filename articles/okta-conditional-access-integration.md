@@ -1,6 +1,6 @@
 # Conditional access: Okta
 
-With Fleet, you can integrate with Okta to enforce conditional access on macOS and Windows hosts.
+With Fleet, you can integrate with Okta to enforce conditional access on macOS and Windows hosts. For iOS, iPadOS, and Android, see [Configure Okta management attestation for mobile devices](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices).
 
 When a host fails a policy in Fleet, IT and Security teams can block access to third-party apps until the issue is resolved.
 
