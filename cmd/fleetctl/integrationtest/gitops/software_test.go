@@ -1549,8 +1549,8 @@ software:
 	cases := []struct {
 		name             string
 		cfgs             []string
-		dryRunAssertion  func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error)
-		realRunAssertion func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error)
+		dryRunAssertion  func(t *testing.T, vppTeams map[string][]string, out string, err error)
+		realRunAssertion func(t *testing.T, vppTeams map[string][]string, out string, err error)
 	}{
 		{
 			name: "new key all valid",
@@ -1566,27 +1566,17 @@ software:
 				iosTeam,
 				ipadTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams: []string{
-								"💻 Workstations",
-								"📱🏢 Company-owned iPhones",
-								"🔳🏢 Company-owned iPads",
-							},
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "🔳🏢 Company-owned iPads"},
+					"Acme Inc.":                    nil,
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
@@ -1606,32 +1596,17 @@ software:
 				iosTeam,
 				ipadTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Acme Inc.",
-							Teams: []string{
-								"💻 Workstations",
-							},
-						},
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams: []string{
-								"📱🏢 Company-owned iPhones",
-								"🔳🏢 Company-owned iPads",
-							},
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": {"📱🏢 Company-owned iPhones", "🔳🏢 Company-owned iPads"},
+					"Acme Inc.":                    {"💻 Workstations"},
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
@@ -1648,10 +1623,10 @@ software:
 				workstations,
 				ipadTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
 			},
 		},
@@ -1668,27 +1643,17 @@ software:
 				workstations,
 				iosTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams: []string{
-								"💻 Workstations",
-								"📱🏢 Company-owned iPhones",
-								"No team",
-							},
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "No team"},
+					"Acme Inc.":                    nil,
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
@@ -1703,25 +1668,17 @@ software:
 				workstations,
 				iosTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams: []string{
-								"All teams",
-							},
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": {"All fleets"},
+					"Acme Inc.":                    nil,
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
@@ -1736,25 +1693,17 @@ software:
 				workstations,
 				iosTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams: []string{
-								"All fleets",
-							},
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": {"All fleets"},
+					"Acme Inc.":                    nil,
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
@@ -1768,23 +1717,17 @@ software:
 				workstations,
 				ipadTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				assert.NoError(t, err)
-				assert.ElementsMatch(
-					t,
-					appCfg.MDM.VolumePurchasingProgram.Value,
-					[]fleet.MDMAppleVolumePurchasingProgramInfo{
-						{
-							Location: "Fleet Device Management Inc.",
-							Teams:    nil,
-						},
-					},
-				)
+				assert.Equal(t, map[string][]string{
+					"Fleet Device Management Inc.": nil,
+					"Acme Inc.":                    nil,
+				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
@@ -1798,14 +1741,14 @@ software:
 				workstations,
 				ipadTeam,
 			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.ErrorContains(t, err, "token with organization unit Does not exist doesn't exist")
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.ErrorContains(t, err, "token with organization unit Does not exist doesn't exist")
-				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Empty(t, vppTeams)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 		},
@@ -1813,14 +1756,48 @@ software:
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			ds, savedAppConfigPtr, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+			ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
 			// No existing labels — this test doesn't test label behavior.
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return nil, nil
 			}
 
+			vppTokens := []*fleet.VPPTokenDB{
+				{ID: 1, Location: "Fleet Device Management Inc.", CountryCode: "us"},
+				{ID: 2, Location: "Acme Inc.", CountryCode: "us"},
+			}
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-				return []*fleet.VPPTokenDB{{Location: "Fleet Device Management Inc.", CountryCode: "us"}, {Location: "Acme Inc.", CountryCode: "us"}}, nil
+				return vppTokens, nil
+			}
+			// The config doesn't save VPP assignments, so record what's applied to each token.
+			vppTeamIDs := map[string][]uint{}
+			ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+				for _, tok := range vppTokens {
+					if tok.ID == id {
+						vppTeamIDs[tok.Location] = teams
+					}
+				}
+				return &fleet.VPPTokenDB{ID: id}, nil
+			}
+			vppTeams := func() map[string][]string {
+				teamNames := map[uint]string{0: fleet.TeamNameNoTeam}
+				for _, tm := range savedTeams {
+					teamNames[(*tm).ID] = (*tm).Name
+				}
+				byLocation := make(map[string][]string, len(vppTeamIDs))
+				for loc, ids := range vppTeamIDs {
+					switch {
+					case ids == nil:
+						byLocation[loc] = nil
+					case len(ids) == 0:
+						byLocation[loc] = []string{fleet.DisplayNameAllTeams}
+					default:
+						for _, id := range ids {
+							byLocation[loc] = append(byLocation[loc], teamNames[id])
+						}
+					}
+				}
+				return byLocation
 			}
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
@@ -1866,18 +1843,18 @@ software:
 
 			// Dry run
 			out, err := fleetctltest.RunAppNoChecks(append(args, "--dry-run"))
-			tt.dryRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+			tt.dryRunAssertion(t, vppTeams(), out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
 			out, err = fleetctltest.RunAppNoChecks(args)
-			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+			tt.realRunAssertion(t, vppTeams(), out.String(), err)
 
 			// Second real run, now that all the teams are saved
 			out, err = fleetctltest.RunAppNoChecks(args)
-			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
+			tt.realRunAssertion(t, vppTeams(), out.String(), err)
 		})
 	}
 }

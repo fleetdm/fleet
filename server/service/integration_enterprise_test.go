@@ -170,11 +170,9 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 }
 
 // defaultExpectedWindowsSettings returns the WindowsSettings shape produced by a team config
-// save/load round trip with nothing configured: an empty custom settings slice.
+// save/load round trip with nothing configured.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
-	return fleet.WindowsSettings{
-		CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-	}
+	return fleet.WindowsSettings{}
 }
 
 func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *fleet.Host {

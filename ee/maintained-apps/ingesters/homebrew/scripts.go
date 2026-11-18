@@ -32,6 +32,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 
 	if needsQuitRelaunch {
 		sb.AddFunction("app_process_running", appProcessRunningFunc)
+		sb.AddFunction("force_quit_application", forceQuitApplicationFunc)
 		sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
 		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
 	}
@@ -457,6 +458,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		}
 		quitIDs[appName] = struct{}{}
 		sb.AddFunction("app_process_running", appProcessRunningFunc)
+		sb.AddFunction("force_quit_application", forceQuitApplicationFunc)
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		// Stop before the app's bundle is removed if the app itself won't quit.
 		// Other IDs (helpers, shared updaters like Microsoft AutoUpdate, other
@@ -507,6 +509,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	// removes anything.
 	if signalsApp {
 		sb.AddFunction("app_process_running", appProcessRunningFunc)
+		sb.AddFunction("force_quit_application", forceQuitApplicationFunc)
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
 	}
@@ -640,6 +643,7 @@ func quitAppBeforeRemoval(sb *scriptBuilder, bundleID string, appStopped *bool) 
 	}
 	*appStopped = true
 	sb.AddFunction("app_process_running", appProcessRunningFunc)
+	sb.AddFunction("force_quit_application", forceQuitApplicationFunc)
 	sb.AddFunction("quit_application", quitApplicationFunc)
 	sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
 }
@@ -955,10 +959,64 @@ const appProcessRunningFunc = `app_process_running() {
 }
 `
 
+// forceQuitApplicationFunc stops an app that didn't quit when asked (a quit
+// prompt, a self-update that relaunches it, an app that ignores the event):
+// SIGTERM, then SIGKILL, for the console user's processes running from a bundle
+// with the given ID. Other users' sessions and root daemons that live in the
+// bundle are left alone. Returns 1 if a process is left, none is found or ps
+// fails, so the caller doesn't replace or remove the bundle under a running app.
+const forceQuitApplicationFunc = `app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  kill -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    kill -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+`
+
 // quitApplicationFunc quits a running application. It's a port of the
 // homebrew implementation
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
-// Returns 1 if the application is still running after the timeout. As in
+// An application still running after the timeout is stopped with
+// force_quit_application; returns 1 if that fails too. As in
 // quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
 // 'pgrep -f <bundle_id>' never matches. Both helpers count a -600 quit as quit
 // when app_process_running finds no process left: 'is running' can keep
@@ -1004,7 +1062,8 @@ const quitApplicationFunc = `quit_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 `
@@ -1081,7 +1140,8 @@ ids.join("\n")'
 
 // quitAndTrackApplicationFunc quits a running application and tracks whether it was running
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
-// Returns 1 if the application is still running after the timeout. The quit is
+// An application still running after the timeout is stopped with
+// force_quit_application; returns 1 if that fails too. The quit is
 // confirmed with 'is running' because a macOS app's command line is its
 // executable path, so 'pgrep -f <bundle_id>' never matches. An app whose first
 // quit gets -600 with no process left wasn't running, so it isn't relaunched.
@@ -1135,7 +1195,8 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 `

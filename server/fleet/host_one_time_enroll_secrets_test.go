@@ -87,4 +87,20 @@ func TestHostOneTimeEnrollSecretMatchesHost(t *testing.T) {
 		require.False(t, s.MatchesHost("darwin", "UUID-1", ""))
 		require.False(t, s.MatchesHost("darwin", "", "SERIAL-1"))
 	})
+
+	t.Run("android host bound ignores the serial", func(t *testing.T) {
+		s := &HostOneTimeEnrollSecret{
+			HostID:         &hostID,
+			Platform:       "android",
+			HardwareUUID:   "ESID-1",
+			HardwareSerial: "SERIAL-1",
+		}
+		// The agent presents its enterprise-specific ID as the serial.
+		require.True(t, s.MatchesHost("android", "esid-1", "ESID-1"))
+		require.True(t, s.MatchesHost("android", "ESID-1", ""))
+		require.False(t, s.MatchesHost("android", "ESID-2", "SERIAL-1"))
+		require.False(t, s.MatchesHost("android", "", "SERIAL-1"))
+		require.False(t, s.MatchesHost("darwin", "ESID-1", "SERIAL-1"))
+		require.False(t, s.MatchesHost("", "ESID-1", "SERIAL-1"))
+	})
 }

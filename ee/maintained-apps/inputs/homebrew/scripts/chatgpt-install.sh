@@ -14,6 +14,53 @@ app_process_running() {
 }
 
 
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  kill -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    kill -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
+
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
@@ -64,7 +111,8 @@ quit_and_track_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 
@@ -111,40 +159,35 @@ relaunch_application() {
 }
 
 
-i1profiler_pids() {
-  ps -axo pid=,args= \
-    | grep -E '^ *[0-9]+ /Applications/i1Profiler/i1Profiler\.app/Contents/MacOS/i1Profiler( |$)' \
-    | awk '{print $1}'
-}
-
-# i1Profiler cancels a quit request while one of its dialogs is open. It has no
-# SIGTERM handler, so SIGTERM ends it right away.
-force_quit_i1profiler() {
-  local pids
-  pids=$(i1profiler_pids)
-  [[ -n "$pids" ]] || return 0
-  echo "Forcing i1Profiler to quit..."
-  kill -TERM $pids 2>/dev/null
-  for _ in {1..10}; do
-    sleep 1
-    pids=$(i1profiler_pids)
-    if [[ -z "$pids" ]]; then
-      echo "i1Profiler quit."
-      return 0
-    fi
-  done
-  kill -KILL $pids 2>/dev/null
-  sleep 1
-  if [[ -n "$(i1profiler_pids)" ]]; then
-    echo "i1Profiler did not quit."
-    return 1
-  fi
-  echo "i1Profiler quit."
-}
-
 # extract contents
 ditto -x -k "$INSTALLER_PATH" "$TMPDIR" || exit 1
-# install pkg files
-quit_and_track_application 'com.x-rite.i1Profiler' || force_quit_i1profiler || exit 1
-sudo installer -pkg "$TMPDIR/i1Profiler.pkg" -target / || exit $?
-relaunch_application 'com.x-rite.i1Profiler'
+# copy to the applications folder
+# ChatGPT reports com.openai.codex since OpenAI rebuilt it on the Codex app;
+# older installs report com.openai.chat. Quit only the app being replaced, so a
+# running ChatGPT Classic or Codex.app with the other ID stays open.
+CURRENT_BUNDLE_ID=$(defaults read "${APPDIR}ChatGPT.app/Contents/Info" CFBundleIdentifier 2>/dev/null)
+if [[ "$CURRENT_BUNDLE_ID" == "com.openai.codex" ]]; then
+	quit_and_track_application 'com.openai.codex' || exit 1
+elif [[ "$CURRENT_BUNDLE_ID" == "com.openai.chat" ]]; then
+	quit_and_track_application 'com.openai.chat' || exit 1
+fi
+if [ -d "$APPDIR/ChatGPT.app" ]; then
+	sudo mv "$APPDIR/ChatGPT.app" "$TMPDIR/ChatGPT.app.bkp" || exit $?
+fi
+if ! sudo cp -R "$TMPDIR/ChatGPT.app" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/ChatGPT.app"
+	if [ -d "$TMPDIR/ChatGPT.app.bkp" ]; then
+		sudo mv "$TMPDIR/ChatGPT.app.bkp" "$APPDIR/ChatGPT.app"
+	fi
+	exit 1
+fi
+# If the older app was running, open the new one in its place. Register it with
+# the user's LaunchServices first, or opening it by bundle ID fails.
+if [[ "$APP_WAS_RUNNING_com_openai_chat" == "1" ]]; then
+	console_user=$(stat -f "%Su" /dev/console)
+	/bin/launchctl asuser "$(id -u "$console_user")" sudo -u "$console_user" /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "${APPDIR}ChatGPT.app" >/dev/null 2>&1 || true
+	export APP_WAS_RUNNING_com_openai_codex=1
+fi
+relaunch_application 'com.openai.codex'
