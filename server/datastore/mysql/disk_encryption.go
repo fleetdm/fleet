@@ -331,12 +331,12 @@ func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
 		if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, fmt.Sprintf("executing query for SetHostsDiskEncryptionKeyStatus, at chunk %d (total=%d)", chunk[len(chunk)-1], len(hostIDs)))
 		}
+		if !decryptable {
+			// macOS hosts with an undecryptable key are asked to rotate it.
+			ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, chunk...)
+		}
 	}
 
-	if !decryptable {
-		// macOS hosts with an undecryptable key are asked to rotate it.
-		ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, hostIDs...)
-	}
 	return nil
 }
 
