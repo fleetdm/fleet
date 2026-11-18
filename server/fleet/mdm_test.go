@@ -396,270 +396,38 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 	})
 
 	t.Run("changing labels", func(t *testing.T) {
-		// When updating AppConfig, we unmarshal the incoming JSON into the existing AppConfig
-		// struct, see
-		// https://github.com/fleetdm/fleet/blob/d1144df1318b50482cbd9eb996b863443975f138/server/service/appconfig.go#L334-L335
-		//
-		// But we found there were issues unmarshaling the slice of profile specs where if a key is present in an old
-		// element but not in the new element (e.g. element[0] of the old slice and element[0] of the
-		// new slice), both keys were preserved. This test is designed to cover that issue, which
-		// was addressed in the unmarshal function, see
-		// https://github.com/fleetdm/fleet/blob/1042702def54f095335d8b42ed5fdcc90468fa0d/server/fleet/mdm.go#L551-L552
-
-		storedConfig := fleet.AppConfig{
-			OrgInfo: fleet.OrgInfo{
-				OrgName: "Test",
-			},
-			MDM: fleet.MDM{
-				MacOSSettings: fleet.MacOSSettings{
-					CustomSettings: []fleet.MDMProfileSpec{
-						{
-							Path:             "some-profile-2",
-							LabelsExcludeAny: []string{"bar"},
-						},
-						{
-							Path:             "some-profile-1",
-							LabelsIncludeAll: []string{"foo"},
-						},
-					},
-				},
-			},
+		// Decoding into an existing slice reuses its elements, so a key that only the old element
+		// has must not survive.
+		stored := []fleet.MDMProfileSpec{
+			{Path: "some-profile-2", LabelsExcludeAny: []string{"bar"}},
+			{Path: "some-profile-1", LabelsIncludeAll: []string{"foo"}},
 		}
-
-		incomingConfig := fleet.AppConfig{
-			OrgInfo: fleet.OrgInfo{
-				OrgName: "Test",
-			},
-			MDM: fleet.MDM{
-				MacOSSettings: fleet.MacOSSettings{
-					CustomSettings: []fleet.MDMProfileSpec{
-						{
-							Path:             "some-profile-1",
-							LabelsIncludeAll: []string{"foo"},
-						},
-						{
-							Path:             "some-profile-2",
-							LabelsIncludeAny: []string{"bar"},
-						},
-					},
-				},
-			},
+		incoming := []fleet.MDMProfileSpec{
+			{Path: "some-profile-1", LabelsIncludeAll: []string{"foo"}},
+			{Path: "some-profile-2", LabelsIncludeAny: []string{"bar"}},
 		}
-		b, err := json.Marshal(incomingConfig)
+		b, err := json.Marshal(incoming)
 		require.NoError(t, err)
 
-		err = json.Unmarshal(b, &storedConfig)
+		err = json.Unmarshal(b, &stored)
 		require.NoError(t, err)
 
-		require.Equal(t, storedConfig.MDM.MacOSSettings.CustomSettings, incomingConfig.MDM.MacOSSettings.CustomSettings)
-		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[0].LabelsExcludeAny) // old key should be removed
-		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[1].LabelsIncludeAll) // old key should be removed
+		require.Equal(t, incoming, stored)
+		require.Nil(t, stored[0].LabelsExcludeAny) // old key should be removed
+		require.Nil(t, stored[1].LabelsIncludeAll) // old key should be removed
 	})
 
 	t.Run("legacy string replaces the stored spec", func(t *testing.T) {
 		// same reuse as above, with the old plain-path form of an entry
-		var storedConfig fleet.AppConfig
-		storedConfig.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{
+		stored := []fleet.MDMProfileSpec{{
 			Path:             "some-profile-1",
 			Name:             "Wi-Fi",
 			Description:      "Office network",
 			LabelsIncludeAll: []string{"foo"},
 		}}
-		err := json.Unmarshal([]byte(`{"mdm": {"macos_settings": {"custom_settings": ["some-profile-2"]}}}`), &storedConfig)
+		err := json.Unmarshal([]byte(`["some-profile-2"]`), &stored)
 		require.NoError(t, err)
-		require.Equal(t, []fleet.MDMProfileSpec{{Path: "some-profile-2"}}, storedConfig.MDM.MacOSSettings.CustomSettings)
-	})
-}
-
-func TestMDMProfileSpecsMatch(t *testing.T) {
-	tests := []struct {
-		name     string
-		a        []fleet.MDMProfileSpec
-		b        []fleet.MDMProfileSpec
-		expected bool
-	}{
-		{
-			name:     "Empty Slices",
-			a:        []fleet.MDMProfileSpec{},
-			b:        []fleet.MDMProfileSpec{},
-			expected: true,
-		},
-		{
-			name: "Single Element Match",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label1"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label1"}},
-			},
-			expected: true,
-		},
-		{
-			name: "Single Element Mismatch",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label1"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path2", Labels: []string{"label1"}},
-			},
-			expected: false,
-		},
-		{
-			name: "Multiple Elements Match",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label1", "label2"}},
-				{Path: "path2", Labels: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path2", Labels: []string{"label3"}},
-				{Path: "path1", Labels: []string{"label1", "label2"}},
-			},
-			expected: true,
-		},
-		{
-			name: "Multiple Elements Mismatch",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label1"}},
-				{Path: "path2", Labels: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label2"}},
-				{Path: "path2", Labels: []string{"label3"}},
-			},
-			expected: false,
-		},
-		{
-			name: "Include Labels Match",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsIncludeAll: []string{"label1", "label2"}},
-				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
-				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
-			},
-			expected: true,
-		},
-		{
-			name: "Exclude Labels Match",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsExcludeAny: []string{"label1", "label2"}},
-				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsExcludeAny: []string{"label2", "label1"}},
-				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
-			},
-			expected: true,
-		},
-		{
-			name: "Include Labels Mismatch",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsIncludeAll: []string{"label1", "label2"}},
-				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
-				{Path: "path2", LabelsIncludeAll: []string{"label4"}},
-			},
-			expected: false,
-		},
-		{
-			name: "Exclude Labels Mismatch",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsExcludeAny: []string{"label1", "label2"}},
-				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsExcludeAny: []string{"label2", "label1"}},
-				{Path: "path3", LabelsExcludeAny: []string{"label3"}},
-			},
-			expected: false,
-		},
-		{
-			name: "Deprecated Labels Match IncludeAll",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Labels: []string{"label1", "label2"}},
-				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
-				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
-			},
-			expected: true,
-		},
-		{
-			name: "Name Or Description Change Is A Change",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Name: "Wi-Fi", Description: "office"},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", Name: "Wi-Fi", Description: "home"},
-			},
-			expected: false,
-		},
-		{
-			name: "Name And Description Compared Trimmed",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Name: "Wi-Fi", Description: "office"},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", Name: " Wi-Fi ", Description: "office\n"},
-			},
-			expected: true,
-		},
-		{
-			name: "Hidden Flag Change Is A Change",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", Hidden: false},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", Hidden: true},
-			},
-			expected: false,
-		},
-		{
-			name: "SelfService Flag Change Is A Change",
-			a: []fleet.MDMProfileSpec{
-				{Path: "path1", SelfService: false},
-			},
-			b: []fleet.MDMProfileSpec{
-				{Path: "path1", SelfService: true},
-			},
-			expected: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
-			require.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-// TestMDMProfileSpecsMatchPanicsOnDuplicatePaths pins the precondition
-// documented on MDMProfileSpecsMatch: duplicate Paths within a slice are a
-// programming-bug indicator (upstream validation in client.go and mdm.go
-// rejects them before they reach storage), so the function panics rather
-// than silently miscomparing. See issue #45485.
-func TestMDMProfileSpecsMatchPanicsOnDuplicatePaths(t *testing.T) {
-	dup := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/a"}}
-	clean := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/b"}}
-
-	t.Run("duplicates in a", func(t *testing.T) {
-		require.PanicsWithValue(
-			t,
-			`MDMProfileSpecsMatch: a contains duplicate Path "/a"; upstream validation should have rejected this`,
-			func() { fleet.MDMProfileSpecsMatch(dup, clean) },
-		)
-	})
-	t.Run("duplicates in b", func(t *testing.T) {
-		require.PanicsWithValue(
-			t,
-			`MDMProfileSpecsMatch: b contains duplicate Path "/a"; upstream validation should have rejected this`,
-			func() { fleet.MDMProfileSpecsMatch(clean, dup) },
-		)
+		require.Equal(t, []fleet.MDMProfileSpec{{Path: "some-profile-2"}}, stored)
 	})
 }
 

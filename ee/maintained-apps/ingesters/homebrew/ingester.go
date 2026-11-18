@@ -533,6 +533,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
 			out.UniqueIdentifier, roboformLegacyBundleID,
 		)
+	case "druva-insync", "druva-insync@govcloud":
+		// The app itself is a launch agent that's always running, so only the
+		// client window nested inside it counts as open.
+		out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", druvaInSyncClientBundleID, "")
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -555,6 +559,9 @@ const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
 
 // roboformLegacyBundleID is the bundle identifier RoboForm used before 10.0.
 const roboformLegacyBundleID = "com.SiberSystems.RoboForm"
+
+// druvaInSyncClientBundleID is the client app nested in Druva inSync.app.
+const druvaInSyncClientBundleID = "com.druva.inSyncClient"
 
 // zenChannelLetters are trimmed from the end of Zen versions ("1.24.1b" → "1.24.1").
 const zenChannelLetters = "abcdefghijklmnopqrstuvwxyz"

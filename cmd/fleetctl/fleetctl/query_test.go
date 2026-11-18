@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"sync"
@@ -310,6 +311,14 @@ func TestAdHocLiveQuery(t *testing.T) {
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"report", "--hosts", "1234", "--query", "select 42, * from time"}))
+
+	// Server drops the websocket after select_campaign before the report completes.
+	lq.On("StopQuery", "321").Return(nil)
+	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (*fleet.HostTargets, error) {
+		return nil, errors.New("websocket closed early")
+	}
+	_, err = runAppNoChecks([]string{"report", "--hosts", "1234", "--query", "select 42, * from time"})
+	require.ErrorContains(t, err, "live query connection closed before report completed")
 }
 
 func TestLiveQueryLabelsWithoutHosts(t *testing.T) {

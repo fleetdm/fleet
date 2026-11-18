@@ -38,7 +38,6 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"royal-tsx/darwin":                  {RoyalTSXVersionShortener},
 	"sublime-text/darwin":               {SublimeVersionTransformer},
 	"sublime-merge/darwin":              {SublimeVersionTransformer},
-	"mysqlworkbench/darwin":             {MySQLWorkbenchVersionTransformer},
 	"lens/darwin":                       {LensVersionTransformer},
 	"grammarly-desktop/darwin":          {GrammarlyDesktopVersionShortener},
 	"logitune/darwin":                   {LogiTunePKGInstaller},

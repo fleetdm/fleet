@@ -4726,6 +4726,10 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			opt.MatchQuery = query
 
 		default:
+			// team_id is the only old name filters took.
+			if k == "team_id" {
+				return nil, nil, &endpointer.RemovedKeyError{Key: k}
+			}
 			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
 		}
 	}
