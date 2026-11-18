@@ -825,6 +825,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		chartSvc:               chartSvc,
 		auditLogger:            auditLogger,
 		distributedLock:        distributedLock,
+		googleCAClients:        googleConditionalAccess,
 		initFatal:              initFatal,
 	})
 

@@ -170,6 +170,7 @@ type GoogleConditionalAccessDeviceUser struct {
 	Name         string                                 `db:"device_user_name"`
 	State        GoogleConditionalAccessDeviceUserState `db:"state"`
 	ErrorMessage *string                                `db:"error_message"`
+	CreatedAt    time.Time                              `db:"created_at"`
 	UpdatedAt    time.Time                              `db:"updated_at"`
 }
 

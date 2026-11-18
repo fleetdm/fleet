@@ -156,7 +156,7 @@ func TestMarkGoogleDeviceUserKeepsGoogleError(t *testing.T) {
 	ci, err := client.cloudIdentity(t.Context(), conditional_access_google.Credentials{})
 	require.NoError(t, err)
 
-	_, err = markGoogleDeviceUser(t.Context(), ds, ci, name, "host-uuid")
+	err = markGoogleDeviceUser(t.Context(), ds, ci, name, "host-uuid")
 	require.ErrorIs(t, err, recordErr)
 	require.ErrorIs(t, err, googleErr)
 }
