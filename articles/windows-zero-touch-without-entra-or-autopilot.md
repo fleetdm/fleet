@@ -60,7 +60,7 @@ Changes you make to the fleet in Step 1, like adding software, apply to every ne
 6. Windows signs them out. They sign in with their new password.
 7. Windows offers to set up a Windows Hello PIN.
 
-> **Note:** A Windows password that matches the end user's IdP password is coming soon. Today, the end user chooses a new password in step 5.
+> **Note:** A Windows password that matches the end user's IdP password is coming soon. Today, the end user chooses a new password at point 5 above.
 
 Setup takes a few minutes, depending on how much software you add.
 
