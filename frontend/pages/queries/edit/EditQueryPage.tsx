@@ -356,7 +356,10 @@ const EditQueryPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
+    if (
+      isLiveQueryRunnable ||
+      config?.server_settings.live_reporting_disabled
+    ) {
       return null;
     }
 
@@ -443,7 +446,7 @@ const EditQueryPage = ({
               isQueryUpdating={isQueryUpdating}
               hostId={hostId}
               queryReportsDisabled={
-                appConfig?.server_settings.query_reports_disabled
+                appConfig?.server_settings.discard_reports_data
               }
               showConfirmSaveChangesModal={showConfirmSaveChangesModal}
               setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}

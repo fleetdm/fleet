@@ -258,7 +258,10 @@ const PolicyPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
+    if (
+      isLiveQueryRunnable ||
+      config?.server_settings.live_reporting_disabled
+    ) {
       return null;
     }
 

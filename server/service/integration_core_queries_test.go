@@ -1615,7 +1615,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 
 	// Increase the limit so we can test further submissions
 	appConfigSpec := map[string]map[string]int{
-		"server_settings": {"query_report_cap": fleet.DefaultMaxQueryReportRows * 3},
+		"server_settings": {"report_cap": fleet.DefaultMaxQueryReportRows * 3},
 	}
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 
