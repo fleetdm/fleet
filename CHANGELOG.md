@@ -1,3 +1,14 @@
+## Fleet 4.96.0 (Nov 23, 2026)
+
+### Bug fixes
+
+- Added Google conditional access (Fleet Premium): Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google can block sign-in from hosts Fleet doesn't manage. Connect Google in **Settings > Integrations > Conditional access**, through the REST API, or with GitOps.
+- iOS and iPadOS end users sign in to Google once from the Self-service web clip. Android hosts are registered with no sign-in.
+- `PUT /api/v1/fleet/hosts/:id/google_device_id` now requires Google conditional access to be connected and a company-owned host, and marks the device as managed in Google. `DELETE` unmarks it.
+- Improved the performance of Apple MDM check-ins for hosts with a long MDM command history.
+- Android hosts now set a passcode during setup, before the end user reaches the home screen, when the fleet has an Android configuration profile with `passwordPolicies` or `passwordRequirements` and no labels. Zero-touch enrollment configurations created before this release get the passcode after setup until their DPC extras are copied again from Fleet.
+- Android configuration profiles with `passwordPolicies` or `passwordRequirements` can no longer include Fleet variables, secrets, or custom host vitals.
+
 ## Fleet 4.95.0 (Nov 16, 2026)
 
 ### Changes that may require action
