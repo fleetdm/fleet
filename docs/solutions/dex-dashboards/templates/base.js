@@ -157,7 +157,7 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
   const host = DATA.fleet_url.replace(/^https?:\/\//, "");
   mount("top",
     dashNav(),
-    h("div", { class: "top-row" }, toggle, h("div", { class: "controls" }, sel, themeToggle())),
+    h("div", { class: "top-row" }, toggle, h("div", { class: "controls" }, h("span", { class: "select-wrap" }, sel), themeToggle())),
     h("div", { class: "meta" },
       h("span", {}, `Updated ${fmt.date(DATA.generated_at)}, ${DATA.generated_at.slice(11, 16)} UTC · `, h("a", { href: DATA.fleet_url, target: "_blank", rel: "noopener" }, host))));
 }

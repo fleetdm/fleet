@@ -1,7 +1,7 @@
 /* Layout: one 1120px column in Fleet's product style. A summary card states the
-   verdict, then sections of bordered cards and Fleet-style tables. Color tokens
-   use Fleet's UI names and values (frontend/styles/var/colors.scss), light on
-   :root and Fleet's dark-mode palette under the dark blocks. The viewer stamps
+   verdict, then sections of bordered cards and Fleet-style tables. Light colors,
+   type, links, and buttons follow fleetdm.com (website/assets/styles); the dark
+   blocks use Fleet's product dark palette, since the website has no dark mode. The viewer stamps
    data-theme with its own theme setting, so the page's Light / Dark / System
    choice uses data-dex-theme and wins over it; System follows data-theme, then
    the OS. */
@@ -11,9 +11,10 @@
   --core-fleet-green: #009a7d;
   --ui-fleet-black-75: #515774;
   --ui-fleet-black-50: #8b8fa2;
+  --ui-fleet-black-33: #b3b6c1;
   --ui-fleet-black-25: #c5c7d1;
   --ui-fleet-black-10: #e2e4ea;
-  --ui-fleet-black-5: #f4f4f6;
+  --ui-fleet-black-5: #f2f2f5;
   --ui-off-white: #f9fafc;
   --tooltip-bg: #3e4771;
   --tooltip-ink: #ffffff;
@@ -31,7 +32,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-dex-theme="light"]) {
     --core-fleet-black: #e2e4ea; --core-fleet-white: #1a1c21; --core-fleet-green: #00c28b;
-    --ui-fleet-black-75: #bebebf; --ui-fleet-black-50: #87888b; --ui-fleet-black-25: #42464f;
+    --ui-fleet-black-75: #bebebf; --ui-fleet-black-50: #87888b; --ui-fleet-black-33: #5a5e68; --ui-fleet-black-25: #42464f;
     --ui-fleet-black-10: #32363e; --ui-fleet-black-5: #25272d; --ui-off-white: #1e2128;
     --tooltip-bg: #353940; --tooltip-ink: #e2e4ea;
     --bad: #c95e72; --serious: #9c6cd4; --warn: #b8892a; --info: #6d6bea; --good: #2f9c6b; --neutral: #4a4f5a;
@@ -40,7 +41,7 @@
 }
 :root[data-theme="dark"]:not([data-dex-theme="light"]), :root[data-dex-theme="dark"] {
   --core-fleet-black: #e2e4ea; --core-fleet-white: #1a1c21; --core-fleet-green: #00c28b;
-  --ui-fleet-black-75: #bebebf; --ui-fleet-black-50: #87888b; --ui-fleet-black-25: #42464f;
+  --ui-fleet-black-75: #bebebf; --ui-fleet-black-50: #87888b; --ui-fleet-black-33: #5a5e68; --ui-fleet-black-25: #42464f;
   --ui-fleet-black-10: #32363e; --ui-fleet-black-5: #25272d; --ui-off-white: #1e2128;
   --tooltip-bg: #353940; --tooltip-ink: #e2e4ea;
   --bad: #c95e72; --serious: #9c6cd4; --warn: #b8892a; --info: #6d6bea; --good: #2f9c6b; --neutral: #4a4f5a;
@@ -60,11 +61,16 @@
   --line-2: var(--ui-fleet-black-25);
 }
 
-body { background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font-ui); }
-a { color: var(--ink-2); font-weight: 600; text-decoration: none; }
-a:hover { color: var(--ink); }
+body { background: var(--bg); color: var(--ink-2); font: 400 14px/1.5 var(--font-ui); }
+a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--line-2); }
+a:hover { color: var(--ink); text-decoration-color: var(--ink); }
+a[target="_blank"]:not(.cell-main)::after {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin-left: 3px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M3 1H1v6h6V5M5 1h2v2M7 1L3.5 4.5' fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 8px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M3 1H1v6h6V5M5 1h2v2M7 1L3.5 4.5' fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 8px no-repeat;
+}
 :focus-visible { outline: 1px solid var(--ink); outline-offset: 1px; border-radius: 4px; }
-b, strong { font-weight: 600; }
+b, strong { font-weight: 600; color: var(--ink); }
 .mono { font-family: var(--font-mono); font-size: 12px; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--ink-2); }
@@ -85,7 +91,7 @@ b, strong { font-weight: 600; }
 }
 .dash-nav a {
   display: inline-flex; flex-direction: column; align-items: center; flex-shrink: 0;
-  padding: 6px 8px; border-radius: 8px; font-size: 14px; line-height: 21px; font-weight: 400; color: var(--ink); white-space: nowrap;
+  padding: 6px 8px; border-radius: 8px; font-size: 14px; line-height: 21px; font-weight: 400; color: var(--ink); white-space: nowrap; text-decoration: none;
 }
 .dash-nav a::before { content: attr(data-text); height: 0; visibility: hidden; overflow: hidden; user-select: none; pointer-events: none; font-weight: 600; }
 .dash-nav a:hover, .dash-nav a[aria-current="page"] { background: var(--ui-fleet-black-5); color: var(--ink); }
@@ -96,12 +102,23 @@ b, strong { font-weight: 600; }
 .top { display: flex; flex-direction: column; gap: 8px; }
 .top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
 .controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.controls select { min-width: 0; flex: 0 1 auto; }
+.select-wrap { position: relative; display: inline-flex; min-width: 0; flex: 0 1 auto; }
 .controls .seg-toggle { flex-shrink: 0; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--ink-2); font-size: 12px; }
-.controls select {
+/* Fleet's dropdown: 8px side padding and a 16px chevron, drawn here because the native
+   arrow sits against the border whatever the padding. */
+.select-wrap select {
+  appearance: none; -webkit-appearance: none; min-width: 0; text-overflow: ellipsis; cursor: pointer;
   font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line-2); border-radius: 4px; padding: 0 28px 0 10px; max-width: 220px; height: 36px;
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 32px 0 8px; max-width: 220px; height: 36px;
+}
+.select-wrap select:hover { border-color: var(--ui-fleet-black-50); }
+.select-wrap select:focus-visible { outline: none; border-color: var(--ink); }
+.select-wrap::after {
+  content: ""; position: absolute; right: 8px; top: 50%; width: 16px; height: 16px; margin-top: -8px; pointer-events: none;
+  background: var(--ui-fleet-black-75);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
 }
 .seg-toggle { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-2); border-radius: 4px; overflow: hidden; background: var(--panel); }
 .seg-toggle button {
@@ -117,7 +134,7 @@ b, strong { font-weight: 600; }
 .seg-toggle.small button { font-size: 12px; height: 34px; padding: 0 10px; }
 
 .title-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; }
-h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 600; text-wrap: balance; }
+h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 800; color: var(--ink); text-wrap: balance; }
 .subtitle { margin: 4px 0 0; color: var(--ink-2); max-width: 75ch; }
 
 /* Summary card, like Fleet's dashboard cards */
@@ -128,7 +145,7 @@ h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 600; text-wrap: 
 .hero > * { min-width: 0; }
 .eyebrow { font-size: 14px; color: var(--ink-2); }
 .big { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
-.big b { font-size: 24px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.big b { font-size: 24px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
 .big span { color: var(--ink-2); font-size: 14px; }
 .hero-split { display: flex; gap: 24px; flex-wrap: wrap; }
 .hero-mid { border-left: 1px solid var(--line); padding-left: 24px; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
@@ -142,19 +159,24 @@ h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 600; text-wrap: 
 .hl-good { color: var(--core-fleet-green); }
 
 /* Stat strip */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+/* Flex, not grid, so a short last row stretches across the full width. */
+.stats { display: flex; flex-wrap: wrap; gap: 16px; }
+.stats > * { flex: 1 1 160px; min-width: 0; box-sizing: border-box; }
 .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
 .stat .k { font-size: 14px; color: var(--ink-2); }
-.stat .v { font-size: 20px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.stat .v { font-size: 20px; line-height: 1.2; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
 .stat .s { font-size: 12px; color: var(--ink-2); }
 
 /* Sections */
 .sec { display: flex; flex-direction: column; gap: 16px; }
 .sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
-h2 { margin: 0; font-size: 16px; line-height: 1.2; font-weight: 600; text-wrap: balance; }
-h3 { margin: 0 0 12px; font-size: 14px; line-height: 1.2; font-weight: 600; }
+h2 { margin: 0; font-size: 18px; line-height: 1.2; font-weight: 800; color: var(--ink); text-wrap: balance; }
+h3 { margin: 0 0 12px; font-size: 14px; line-height: 1.2; font-weight: 700; color: var(--ink); }
+h3 a { color: var(--ink); text-decoration: none; }
+h3 a:hover { text-decoration: underline; }
 .hint { color: var(--ink-2); font-size: 12px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.grid > * { flex: 1 1 300px; min-width: 0; box-sizing: border-box; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; min-width: 0; }
 .panel-note { margin: 12px 0 0; font-size: 12px; color: var(--ink-2); }
 .empty { padding: 24px 16px; text-align: center; color: var(--ink-2); background: var(--panel-2); border-radius: 8px; }
@@ -184,15 +206,25 @@ h3 { margin: 0 0 12px; font-size: 14px; line-height: 1.2; font-weight: 600; }
 .chip[aria-pressed="true"] { color: var(--ink); background: var(--ui-fleet-black-5); border-color: var(--ui-fleet-black-50); font-weight: 600; }
 .chip[aria-pressed="true"] b { color: var(--ink); font-weight: 600; }
 .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--tone, var(--neutral)); }
+/* fleetdm.com buttons: outline secondary, and a green primary with the website's hover shine. */
 .btn {
-  font: 600 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line-2);
+  font: 700 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line-2);
   border-radius: 4px; padding: 0 12px; height: 32px; cursor: pointer;
 }
 .btn:hover { border-color: var(--ui-fleet-black-50); }
+.btn.primary { position: relative; overflow: hidden; color: var(--core-fleet-white); background: var(--core-fleet-green); border-color: var(--core-fleet-green); padding: 0 16px; }
+.btn.primary::before {
+  content: ""; position: absolute; top: 0; left: -5px; width: 50%; height: 100%; transform: skew(-10deg); pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+  transition: left 0.5s ease-in, opacity 0.5s ease-in, width 0.5s ease-in;
+}
+.btn.primary:hover::before, .btn.primary:focus-visible::before { opacity: 0; left: 160px; width: 110%; }
 input.search {
-  font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line-2);
+  font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
   border-radius: 4px; padding: 0 12px; height: 32px; min-width: 0; width: 220px; max-width: 100%;
 }
+input.search:hover { border-color: var(--ui-fleet-black-50); }
+input.search:focus-visible { outline: none; border-color: var(--ink); }
 input.search::placeholder { color: var(--ui-fleet-black-50); }
 
 /* Tables, like Fleet's data tables */
@@ -216,7 +248,8 @@ table.tbl { width: 100%; border-collapse: collapse; color: var(--ink-2); }
 .tbl tr.click { cursor: pointer; }
 .tbl tr.click:hover td { background: var(--panel-2); }
 .tbl tr.detail td { background: var(--panel-2); padding: 16px 24px; }
-.cell-main { font-weight: 600; color: var(--ink); }
+.cell-main { font-weight: 600; color: var(--ink); text-decoration: none; }
+.cell-main:hover { text-decoration: underline; }
 .cell-sub { color: var(--ink-2); font-size: 12px; }
 .mini { display: inline-block; vertical-align: middle; width: 64px; height: 8px; border-radius: 4px; background: var(--ui-fleet-black-5); overflow: hidden; margin-left: 8px; }
 .mini > span { display: block; height: 100%; background: var(--tone, var(--ink-2)); }

@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap">
 <style>
 /*__BASE_CSS__*/
 .title-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -12,7 +12,8 @@
 .new { font-size: 12px; font-weight: 600; color: var(--ink); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px 32px; margin-top: 16px; }
 .detail-grid h4, .policy h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
-.mini-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.mini-stats { display: flex; flex-wrap: wrap; gap: 12px; }
+.mini-stats > * { flex: 1 1 150px; min-width: 0; box-sizing: border-box; }
 .mini-stats .stat { background: var(--panel); }
 .host-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 24px; margin-top: 16px; font-size: 12px; }
 .host-list > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; min-width: 0; }
@@ -20,7 +21,8 @@
 .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; font-size: 12px; }
 .kv dt { color: var(--ink-2); }
 .kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
-.policy { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.policy { display: flex; flex-wrap: wrap; gap: 16px; }
+.policy > * { flex: 1 1 320px; min-width: 0; box-sizing: border-box; }
 .policy p { margin: 8px 0 0; color: var(--ink-2); max-width: 70ch; }
 .decision { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .decision:last-child { border-bottom: 0; }
@@ -768,7 +770,7 @@ async function renderLog() {
 function renderTools(c, oop) {
   const seg = h("div", { class: "seg-toggle small", role: "group", "aria-label": "Activity window" }, DATA.windows.map((d) => h("button", { type: "button",
     "aria-pressed": WINDOW === d ? "true" : "false", onclick: () => { WINDOW = d; store.set("dex-ai-window", String(d)); render(); } }, `${d} days`)));
-  mount("title-tools", seg, DOWNLOADS ? h("button", { type: "button", class: "btn", onclick: () => downloadReport(c, oop) }, "Download report") : null);
+  mount("title-tools", seg, DOWNLOADS ? h("button", { type: "button", class: "btn primary", onclick: () => downloadReport(c, oop) }, "Download report") : null);
 }
 
 // Evidence for an audit: a self-contained HTML snapshot of what the page shows.

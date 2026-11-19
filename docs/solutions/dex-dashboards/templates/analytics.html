@@ -2,11 +2,12 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap">
 <style>
 /*__BASE_CSS__*/
 .act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-.domains { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.domains { display: flex; flex-wrap: wrap; gap: 16px; }
+.domains > * { flex: 1 1 170px; min-width: 0; box-sizing: border-box; }
 .domain { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
 .domain .k { color: var(--ink-2); }
 .domain .v { font-size: 20px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
