@@ -7,12 +7,14 @@ Run Fleet on DigitalOcean App Platform with one `terraform apply`. You get a man
 - **Fleet** on App Platform, served over HTTPS at a free `ondigitalocean.app` address or your own domain.
 - **Managed MySQL 8.4** with daily backups. Only the Fleet app can connect to it.
 - **Redis** running as an internal App Platform service. Fleet uses it as a cache, so nothing in it needs to survive a restart.
+- **A Spaces bucket** for software installers, with a key limited to that bucket. App Platform has no persistent disk, so Fleet stores installers in Spaces.
 - **A pre-deploy job** that runs `fleet prepare db` before every deploy. A failed migration stops the deploy and the previous version keeps serving.
 
 ## Prerequisites
 
 - A [DigitalOcean account](https://cloud.digitalocean.com/registrations/new) and a [personal access token](https://docs.digitalocean.com/reference/api/create-personal-access-token/) with read and write scope.
 - [Terraform](https://developer.hashicorp.com/terraform/install) 1.5 or later.
+- A [Spaces access key](https://docs.digitalocean.com/products/spaces/how-to/manage-access/) with access to all buckets. Terraform uses it to create the installers bucket. To skip the bucket, set `create_installers_bucket = false` and you don't need the key.
 - (Optional) A domain you can add a DNS record to.
 
 > **Warning:** Terraform's state file contains your database password and Fleet's private key. Store it in a [remote backend](https://developer.hashicorp.com/terraform/language/backend) with restricted access, and never commit it.
@@ -28,10 +30,12 @@ Run Fleet on DigitalOcean App Platform with one `terraform apply`. You get a man
    mv terraform.tfvars.example terraform.tfvars
    ```
 
-2. Set your API token and apply.
+2. Set your API token and Spaces key, then apply.
 
    ```bash
    export DIGITALOCEAN_TOKEN=your_api_token
+   export SPACES_ACCESS_KEY_ID=your_spaces_access_key_id
+   export SPACES_SECRET_ACCESS_KEY=your_spaces_secret_key
    terraform init
    terraform apply
    ```
@@ -68,21 +72,13 @@ fleet_license_key = "your_license_key"
 
 > **Note:** The module sets secrets only when it creates the app, so Terraform doesn't redeploy on every apply. To add or rotate a secret later, remove `spec[0].env` from the `ignore_changes` list in `main.tf`, apply, then put it back.
 
-## Store software installers in Spaces
+## Choose where software installers are stored
 
-App Platform has no persistent disk, so Fleet needs S3-compatible storage for software installers. Skip this section if you don't deploy software.
+The module creates a private Spaces bucket in `nyc3` and gives Fleet a key limited to it. To use another Spaces region, set `installers_region`. To skip the bucket, for example if you don't deploy software, set:
 
-1. [Create a Spaces bucket](https://docs.digitalocean.com/products/spaces/how-to/create/) and a [limited access key](https://docs.digitalocean.com/products/spaces/how-to/manage-access/) for it.
-2. Add the bucket details to `terraform.tfvars`:
-
-   ```hcl
-   installers_bucket            = "my-fleet-installers"
-   installers_region            = "nyc3"
-   installers_access_key_id     = "your_access_key_id"
-   installers_secret_access_key = "your_secret_key"
-   ```
-
-3. Remove `spec[0].env` from the `ignore_changes` list in `main.tf`, run `terraform apply`, then put it back.
+```hcl
+create_installers_bucket = false
+```
 
 ## Verify the deployment
 
@@ -111,7 +107,7 @@ DigitalOcean backs up managed MySQL daily and keeps seven days of point-in-time 
 
 ## Remove the deployment
 
-`terraform destroy` deletes the app and the database cluster, including all Fleet data. Take a manual backup first if you need to keep anything.
+`terraform destroy` deletes the app and the database cluster, including all Fleet data. Take a manual backup first if you need to keep anything. Terraform won't delete the installers bucket while it holds files, so empty it first.
 
 ## Troubleshoot
 

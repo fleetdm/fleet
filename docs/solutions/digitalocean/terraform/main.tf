@@ -14,7 +14,8 @@ terraform {
 }
 
 provider "digitalocean" {
-  # Reads the DIGITALOCEAN_TOKEN environment variable.
+  # Reads the DIGITALOCEAN_TOKEN environment variable. Creating the Spaces bucket
+  # also needs SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY.
 }
 
 locals {
@@ -23,7 +24,7 @@ locals {
   # percent sign is format()'s escape for a literal one.
   fleet_cmd = "sh -c 'printf \"%%s\\n\" \"$FLEET_MYSQL_CA_PEM\" > /tmp/mysql-ca.pem && exec fleet %s'"
 
-  use_s3 = var.installers_bucket != ""
+  use_s3 = var.create_installers_bucket
 
   # The $${...} syntax is Terraform's escape for App Platform's own ${...} bindings,
   # which App Platform resolves at runtime.
@@ -48,7 +49,7 @@ locals {
       FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS = "yes"
     },
     local.use_s3 ? {
-      FLEET_S3_SOFTWARE_INSTALLERS_BUCKET       = var.installers_bucket
+      FLEET_S3_SOFTWARE_INSTALLERS_BUCKET       = digitalocean_spaces_bucket.installers[0].name
       FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL = "https://${var.installers_region}.digitaloceanspaces.com"
       FLEET_S3_SOFTWARE_INSTALLERS_REGION       = var.installers_region
     } : {}
@@ -64,14 +65,37 @@ locals {
     },
     var.fleet_license_key != "" ? { FLEET_LICENSE_KEY = var.fleet_license_key } : {},
     local.use_s3 ? {
-      FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID     = var.installers_access_key_id
-      FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY = var.installers_secret_access_key
+      FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID     = digitalocean_spaces_key.installers[0].access_key
+      FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY = digitalocean_spaces_key.installers[0].secret_key
     } : {}
   )
 }
 
 resource "random_id" "private_key" {
   byte_length = 32
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+# App Platform has no persistent disk, so Fleet stores software installers in Spaces.
+resource "digitalocean_spaces_bucket" "installers" {
+  count  = var.create_installers_bucket ? 1 : 0
+  name   = "${var.name}-installers-${random_id.bucket_suffix.hex}"
+  region = var.installers_region
+  acl    = "private"
+}
+
+# A key limited to the installers bucket, so Fleet can't touch other Spaces.
+resource "digitalocean_spaces_key" "installers" {
+  count = var.create_installers_bucket ? 1 : 0
+  name  = "${var.name}-installers"
+
+  grant {
+    bucket     = digitalocean_spaces_bucket.installers[0].name
+    permission = "readwrite"
+  }
 }
 
 resource "digitalocean_database_cluster" "mysql" {

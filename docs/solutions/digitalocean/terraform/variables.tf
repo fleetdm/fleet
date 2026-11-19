@@ -59,28 +59,14 @@ variable "mysql_node_count" {
   default     = 1
 }
 
-variable "installers_bucket" {
-  description = "Optional Spaces bucket name for software installers. Leave empty to skip."
-  type        = string
-  default     = ""
+variable "create_installers_bucket" {
+  description = "Create a Spaces bucket for software installers. Needs SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY set. Set to false to skip."
+  type        = bool
+  default     = true
 }
 
 variable "installers_region" {
-  description = "Region slug of the Spaces bucket, such as nyc3."
+  description = "Spaces region slug for the installers bucket, such as nyc3."
   type        = string
   default     = "nyc3"
-}
-
-variable "installers_access_key_id" {
-  description = "Spaces access key ID for the bucket."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "installers_secret_access_key" {
-  description = "Spaces secret key for the bucket."
-  type        = string
-  default     = ""
-  sensitive   = true
 }
