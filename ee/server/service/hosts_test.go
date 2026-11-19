@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -732,7 +733,9 @@ func TestLockHostAndroidAuthorization(t *testing.T) {
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
 	}
+	var statusReadFromPrimary bool
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		statusReadFromPrimary = ctxdb.IsPrimaryRequired(ctx)
 		return &fleet.HostLockWipeStatus{HostFleetPlatform: "android"}, nil
 	}
 	baseSvc.VerifyMDMAndroidConfiguredFunc = func(ctx context.Context) error { return nil }
@@ -773,6 +776,36 @@ func TestLockHostAndroidAuthorization(t *testing.T) {
 			require.Equal(t, "135792", pin)
 			require.Equal(t, []uint{1}, androidModule.lockedHostIDs)
 			require.Len(t, activities, 1)
+			// A replica lagging behind an earlier request's lock or clear would let this one through.
+			require.True(t, statusReadFromPrimary)
 		})
 	}
+}
+
+func TestClearPasscodeAndroidPendingLock(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, _ := newTestServiceWithMock(t, ds)
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, Platform: "android"}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
+	var statusReadFromPrimary bool
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		statusReadFromPrimary = ctxdb.IsPrimaryRequired(ctx)
+		return &fleet.HostLockWipeStatus{
+			HostFleetPlatform: "android",
+			LockMDMCommand:    &fleet.MDMCommand{RequestType: string(android.MDMAndroidCommandTypeResetPassword)},
+		}, nil
+	}
+
+	_, err := svc.ClearPasscode(test.UserContext(t.Context(), test.UserAdmin), 1)
+	require.ErrorContains(t, err, "Host has pending lock request. Passcode cannot be cleared until lock is complete.")
+	require.True(t, statusReadFromPrimary)
 }

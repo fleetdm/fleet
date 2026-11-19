@@ -2252,7 +2252,8 @@ func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, 
 	}
 
 	// Lock is also RESET_PASSWORD on Android, so a clear landing after a pending lock would leave a stale PIN marked available.
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	// Read from the primary so a lock committed by an earlier request isn't missed.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}

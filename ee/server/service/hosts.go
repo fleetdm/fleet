@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -147,8 +148,8 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	}
 
 	// if there's a lock, unlock or wipe action pending, do not accept the lock
-	// request.
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	// request. Read from the primary so an action committed by an earlier request isn't missed.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
