@@ -405,7 +405,7 @@ func (r CountPoliciesResponse) Error() error { return r.Err }
 // CreatePolicyRequest creates a policy in any scope: no fleet_id is "All fleets", 0 is "Unassigned".
 type CreatePolicyRequest struct {
 	TeamID                *uint  `json:"fleet_id"`
-	QueryID               *uint  `json:"query_id" renameto:"report_id"`
+	QueryID               *uint  `json:"report_id" removedkey:"query_id"`
 	Query                 string `json:"query"`
 	Name                  string `json:"name"`
 	Description           string `json:"description"`
