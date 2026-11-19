@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -149,4 +150,37 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 	assertExisting([]string{installers[0], installers[2]})
+}
+
+func TestSoftwareInstallerPutFailureLeavesNothing(t *testing.T) {
+	ctx := t.Context()
+	dir := t.TempDir()
+	store, err := NewSoftwareInstallerStore(dir)
+	require.NoError(t, err)
+
+	installer := make([]byte, 4096)
+	_, err = rand.Read(installer)
+	require.NoError(t, err)
+	sum := sha256.Sum256(installer)
+	id := hex.EncodeToString(sum[:])
+
+	sentinel := errors.New("no space left on device")
+	err = store.Put(ctx, id, &errReader{good: installer[:len(installer)/2], err: sentinel})
+	require.ErrorIs(t, err, sentinel)
+
+	exists, err := store.Exists(ctx, id)
+	require.NoError(t, err)
+	require.False(t, exists, "a failed Put must not leave an installer that Exists reports")
+	dirEnts, err := os.ReadDir(filepath.Join(dir, softwareInstallersPrefix))
+	require.NoError(t, err)
+	require.Empty(t, dirEnts, "a failed Put must leave no file in the store")
+
+	require.NoError(t, store.Put(ctx, id, bytes.NewReader(installer)))
+	rc, sz, err := store.Get(ctx, id)
+	require.NoError(t, err)
+	defer rc.Close()
+	got, err := io.ReadAll(rc)
+	require.NoError(t, err)
+	require.EqualValues(t, len(installer), sz)
+	require.Equal(t, installer, got)
 }
