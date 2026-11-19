@@ -574,7 +574,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 	}
 
 	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 	// send software_id alone, the request should be rejected with the Fleet 5 message
 	softwareIDURL, err := url.Parse("/foo?software_id=1")
@@ -613,7 +613,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		require.Len(t, invalidArgumentErr.Invalid(), 1, c.query)
 		require.Equal(t, c.name, invalidArgumentErr.Invalid()[0]["name"], c.query)
 		require.Equal(t, `The "`+c.name+`" parameter is not available anymore. `+
-			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, invalidArgumentErr.Invalid()[0]["reason"], c.query)
+			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, invalidArgumentErr.Invalid()[0]["reason"], c.query)
 	}
 }
 

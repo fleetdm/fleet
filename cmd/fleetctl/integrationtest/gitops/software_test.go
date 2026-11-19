@@ -1744,12 +1744,12 @@ software:
 				iosTeam,
 			},
 			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, map[string][]string{
 					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "Unassigned"},
 					"Acme Inc.":                    nil,

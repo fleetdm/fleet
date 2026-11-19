@@ -12,6 +12,8 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { ILabelSummary } from "interfaces/label";
 import PATHS from "router/paths";
 
+import UserTargetingTip from "./UserTargetingTip";
+
 const baseClass = "target-label-selector";
 
 interface ITargetChooserProps {
@@ -267,20 +269,23 @@ const DropdownTargetLabelSelector = ({
         error={error}
       />
       {selectedTargetType === "Custom" && (
-        <LabelChooser
-          selectedCustomTarget={selectedCustomTarget}
-          customTargetOptions={customTargetOptions}
-          isError={isErrorLabels}
-          isLoading={isLoadingLabels}
-          labels={labels || []}
-          selectedLabels={selectedLabels}
-          customHelpText={customHelpText}
-          dropdownHelpText={dropdownHelpText}
-          labelsError={labelsError}
-          onSelectCustomTarget={onSelectCustomTarget}
-          onSelectLabel={onSelectLabel}
-          disableOptions={disableOptions}
-        />
+        <>
+          <LabelChooser
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            isError={isErrorLabels}
+            isLoading={isLoadingLabels}
+            labels={labels || []}
+            selectedLabels={selectedLabels}
+            customHelpText={customHelpText}
+            dropdownHelpText={dropdownHelpText}
+            labelsError={labelsError}
+            onSelectCustomTarget={onSelectCustomTarget}
+            onSelectLabel={onSelectLabel}
+            disableOptions={disableOptions}
+          />
+          <UserTargetingTip />
+        </>
       )}
     </div>
   );

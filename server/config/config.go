@@ -289,9 +289,15 @@ type OsqueryConfig struct {
 	// TODO(lucas): We should at least add a warning if this field is populated.
 	ResultLogFile string `yaml:"result_log_file"`
 
-	EnableLogRotation           bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent            int           `yaml:"max_jitter_percent"`
-	MinSoftwareLastOpenedAtDiff time.Duration `yaml:"min_software_last_opened_at_diff"`
+	EnableLogRotation bool `yaml:"enable_log_rotation"`
+	MaxJitterPercent  int  `yaml:"max_jitter_percent"`
+	// AISessionMaxToolCalls is how many of an AI agent session's tool calls Fleet stores, its first ones. 0 stores the
+	// sessions without their tool calls.
+	AISessionMaxToolCalls int `yaml:"ai_session_max_tool_calls"`
+	// AISessionMaxToolCallsPerRefresh is how many new tool calls Fleet asks a host for per AI agent session at each
+	// refresh; 0 leaves it to what fits in the host's result.
+	AISessionMaxToolCallsPerRefresh int           `yaml:"ai_session_max_tool_calls_per_refresh"`
+	MinSoftwareLastOpenedAtDiff     time.Duration `yaml:"min_software_last_opened_at_diff"`
 
 	// MaxLogWriteBodySize overrides the default request body size limit
 	// for the /api/osquery/log endpoint. A value of 0 means use the
@@ -371,8 +377,9 @@ type OsqueryConfig struct {
 	MaxConcurrentQueryReportWrites int `yaml:"max_concurrent_query_report_writes"`
 }
 
-// Validate checks that osquery_host_identifier is one of the supported values.
-// The osquery agent uses this to determine which identifier is reported as the host UUID.
+// Validate checks that osquery_host_identifier is one of the supported values, and that
+// osquery_ai_session_max_tool_calls isn't negative.
+// The osquery agent uses the host identifier to determine which identifier is reported as the host UUID.
 func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	allowed := map[string]struct{}{
 		"provided": {},
@@ -383,6 +390,10 @@ func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	if _, ok := allowed[o.HostIdentifier]; !ok {
 		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
 			"set host identifier")
+	}
+	if o.AISessionMaxToolCalls < 0 {
+		initFatal(fmt.Errorf("%d is not a valid value for osquery_ai_session_max_tool_calls: it can't be negative", o.AISessionMaxToolCalls),
+			"set AI session max tool calls")
 	}
 }
 
@@ -1014,6 +1025,7 @@ type FleetConfig struct {
 	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	GoogleConditionalAccess    GoogleConditionalAccessConfig    `yaml:"google_conditional_access"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
 	WebSocket                  WebSocketConfig                  `yaml:"websocket"`
 
@@ -1142,6 +1154,12 @@ type MicrosoftCompliancePartnerConfig struct {
 	// ClientID is the client ID of Fleet's multi-tenant Entra app, the audience of the
 	// device ID tokens reported by macOS hosts.
 	ClientID string `yaml:"client_id"`
+}
+
+// GoogleConditionalAccessConfig holds the server configuration for Google conditional access.
+type GoogleConditionalAccessConfig struct {
+	// ProxyURI is the URI of the fleetdm.com relay (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
 }
 
 type MDMConfig struct {
@@ -1941,6 +1959,10 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
+	man.addConfigInt("osquery.ai_session_max_tool_calls", 10000,
+		"Maximum number of tool calls stored per host AI agent session (the first ones are kept)")
+	man.addConfigInt("osquery.ai_session_max_tool_calls_per_refresh", 0,
+		"Maximum number of new tool calls requested per host AI agent session at each detail refresh (0 for no limit)")
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
@@ -2332,6 +2354,7 @@ func (man Manager) addConfigs() {
 	// Microsoft Compliance Partner
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 	man.addConfigString("microsoft_compliance_partner.client_id", DefaultMicrosoftCompliancePartnerClientID, "Client ID of Fleet's Microsoft Compliance Partner Entra app (for development/testing)")
+	man.addConfigString("google_conditional_access.proxy_uri", "https://fleetdm.com", "URI of the Google conditional access relay (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
@@ -2518,21 +2541,23 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			// StatusLogFile is deprecated. FilesystemConfig.StatusLogFile is used instead.
 			StatusLogFile: man.getConfigString("osquery.status_log_file"),
 			// ResultLogFile is deprecated. FilesystemConfig.ResultLogFile is used instead.
-			ResultLogFile:                  man.getConfigString("osquery.result_log_file"),
-			LabelUpdateInterval:            man.getConfigDuration("osquery.label_update_interval"),
-			PolicyUpdateInterval:           man.getConfigDuration("osquery.policy_update_interval"),
-			DetailUpdateInterval:           man.getConfigDuration("osquery.detail_update_interval"),
-			EnableLogRotation:              man.getConfigBool("osquery.enable_log_rotation"),
-			MaxJitterPercent:               man.getConfigInt("osquery.max_jitter_percent"),
-			MinSoftwareLastOpenedAtDiff:    man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
-			MaxLogWriteBodySize:            man.getConfigByteSize("osquery.max_log_write_body_size"),
-			MaxDistributedWriteBodySize:    man.getConfigByteSize("osquery.max_distributed_write_body_size"),
-			AllowBodyAuthFallback:          man.getConfigBool("osquery.allow_body_auth_fallback"),
-			ConfigETags:                    man.getConfigBool("osquery.config_etags"),
-			RedisConfigETags:               man.getConfigBool("osquery.redis_config_etags"),
-			ConfigInMemoryCache:            man.getConfigBool("osquery.config_in_memory_cache"),
-			MaxConcurrentQueryReportReads:  man.getConfigInt("osquery.max_concurrent_query_report_reads"),
-			MaxConcurrentQueryReportWrites: man.getConfigInt("osquery.max_concurrent_query_report_writes"),
+			ResultLogFile:                   man.getConfigString("osquery.result_log_file"),
+			LabelUpdateInterval:             man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval:            man.getConfigDuration("osquery.policy_update_interval"),
+			DetailUpdateInterval:            man.getConfigDuration("osquery.detail_update_interval"),
+			EnableLogRotation:               man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:                man.getConfigInt("osquery.max_jitter_percent"),
+			AISessionMaxToolCalls:           man.getConfigInt("osquery.ai_session_max_tool_calls"),
+			AISessionMaxToolCallsPerRefresh: man.getConfigInt("osquery.ai_session_max_tool_calls_per_refresh"),
+			MinSoftwareLastOpenedAtDiff:     man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:             man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:     man.getConfigByteSize("osquery.max_distributed_write_body_size"),
+			AllowBodyAuthFallback:           man.getConfigBool("osquery.allow_body_auth_fallback"),
+			ConfigETags:                     man.getConfigBool("osquery.config_etags"),
+			RedisConfigETags:                man.getConfigBool("osquery.redis_config_etags"),
+			ConfigInMemoryCache:             man.getConfigBool("osquery.config_in_memory_cache"),
+			MaxConcurrentQueryReportReads:   man.getConfigInt("osquery.max_concurrent_query_report_reads"),
+			MaxConcurrentQueryReportWrites:  man.getConfigInt("osquery.max_concurrent_query_report_writes"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2757,6 +2782,9 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 			ClientID: man.getConfigString("microsoft_compliance_partner.client_id"),
+		},
+		GoogleConditionalAccess: GoogleConditionalAccessConfig{
+			ProxyURI: man.getConfigString("google_conditional_access.proxy_uri"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
@@ -3148,6 +3176,7 @@ func TestConfig() FleetConfig {
 			AllowBodyAuthFallback: true,
 			ConfigETags:           true,
 			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
+			AISessionMaxToolCalls: 10000,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

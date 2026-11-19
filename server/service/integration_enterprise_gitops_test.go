@@ -477,8 +477,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &gplr)
 
 	// Attempt to edit a global policy, should allow.
-	mgplr := fleet.ModifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	mgplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from plist WHERE path = 'foo';"),
 	}, http.StatusOK, &mgplr)
 

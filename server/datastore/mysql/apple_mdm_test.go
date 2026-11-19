@@ -1937,6 +1937,20 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
 	require.NoError(t, err)
 	require.NotNil(t, key)
+
+	// A mobile host's Google names are queued for unmark.
+	iosUUID, googleName := "test-ios-uuid", "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           iosUUID,
+		HardwareSerial: "test-ios-serial",
+		Platform:       "ios",
+	}, fleet.PersonalEnrollmentTypeNone))
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, iosUUID, "C02cajzvg", []string{googleName}))
+	_, _, err = ds.MDMTurnOff(ctx, iosUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, iosUUID))
 }
 
 func expectAppleProfiles(
@@ -4624,16 +4638,6 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, profMan.ID)
-
-	profs, err := ds.ListMDMAppleEnrollmentProfiles(ctx)
-	require.NoError(t, err)
-	require.Len(t, profs, 2)
-
-	tokens := make([]string, 2)
-	for i, p := range profs {
-		tokens[i] = p.Token
-	}
-	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
 
 	// get the automatic profile by type
 	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)

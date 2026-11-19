@@ -153,7 +153,7 @@ func TestValidateUnknownKeys(t *testing.T) {
 		}
 		require.NotNil(t, removedErr)
 		assert.Equal(t, `in "default.yml": The "controls.setup_experience.require_all_software_macos" key is not available anymore. `+
-			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, removedErr.Error())
+			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, removedErr.Error())
 		require.NotNil(t, unknownErr)
 		assert.Empty(t, unknownErr.Suggestion, "the removed key is never suggested")
 
@@ -184,6 +184,20 @@ func TestValidateUnknownKeys(t *testing.T) {
 						"client_x509_cert_url":        "https://www.googleapis.com/robot/v1/metadata/x509/foo",
 						"universe_domain":             "googleapis.com",
 					},
+				},
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
+		assert.Empty(t, errs)
+	})
+
+	t.Run("google_conditional_access api_key_json keys are not validated", func(t *testing.T) {
+		data := map[string]any{
+			"google_conditional_access": map[string]any{
+				"customer_id": "C02cajzvg",
+				"admin_email": "admin@example.com",
+				"api_key_json": map[string]any{
+					"type": "service_account", "client_email": "test@example.com", "private_key": "some value",
 				},
 			},
 		}

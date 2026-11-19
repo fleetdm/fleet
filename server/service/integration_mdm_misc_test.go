@@ -1123,32 +1123,32 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		}, http.StatusOK, &gpResp)
 
 		// 1.A.3 Attempt to modify a global policy with team labels (should fail).
-		mgpr := &fleet.ModifyGlobalPolicyRequest{
+		mgpr := &fleet.ModifyPolicyRequest{
 			Name:             new("newName1"),
 			LabelsIncludeAny: []string{l1t1.Name},
 		}
-		patchPol1 := &fleet.ModifyGlobalPolicyResponse{}
+		patchPol1 := &fleet.ModifyPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
-		mgpr = &fleet.ModifyGlobalPolicyRequest{
+		mgpr = &fleet.ModifyPolicyRequest{
 			Name:             new("newName1"),
 			LabelsExcludeAny: []string{l1t1.Name},
 		}
-		patchPol1 = &fleet.ModifyGlobalPolicyResponse{}
+		patchPol1 = &fleet.ModifyPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
 
 		// 1.A.4 Attempt to modify a global policy with global labels (should succeed).
-		mgpr = &fleet.ModifyGlobalPolicyRequest{
+		mgpr = &fleet.ModifyPolicyRequest{
 			Name:             new("newName1"),
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}
-		patchPol1 = &fleet.ModifyGlobalPolicyResponse{}
+		patchPol1 = &fleet.ModifyPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
-		mgpr = &fleet.ModifyGlobalPolicyRequest{
+		mgpr = &fleet.ModifyPolicyRequest{
 			Name:             new("newName2"),
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{globalLabel.Name},
 		}
-		patchPol1 = &fleet.ModifyGlobalPolicyResponse{}
+		patchPol1 = &fleet.ModifyPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
 
 		// 1.B.1 Attempt to create a team policy that references l2t2 (should fail).
