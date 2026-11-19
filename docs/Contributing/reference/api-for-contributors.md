@@ -577,7 +577,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Over the air enrollment](#over-the-air-enrollment)
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Get host's DEP assignment](#get-hosts-dep-assignment)
-- [List Apple MDM devices](#list-apple-mdm-devices)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
@@ -1382,41 +1381,6 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
   "dep_device_error": null
 }
 ```
-
-### List Apple MDM devices
-
-Returns the Apple hosts that have a device enrollment in Fleet's MDM, including hosts that have since turned off MDM. Requires a global admin.
-
-`GET /api/v1/fleet/mdm/apple/devices`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple/devices`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "devices": [
-    {
-      "id": "8F4F6A0B-6E2B-4D4B-9C1A-2B3C4D5E6F70",
-      "serial_number": "C02XL0ABCDEF",
-      "enabled": true
-    }
-  ]
-}
-```
-
-In the response above:
-
-- `id` is the host's hardware UUID.
-- `enabled` is `false` if the host turned off MDM.
 
 
 ### SCEP proxy
