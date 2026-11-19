@@ -362,6 +362,20 @@ type SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc func(ctx context.Contex
 
 type CleanupSoftDeletedHostCertificatesFunc func(ctx context.Context, olderThan time.Time) (int64, error)
 
+type UpsertHostAISessionsFunc func(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error
+
+type ListHostAISessionsNeedingEventsFunc func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error)
+
+type UpsertHostAISessionEventsFunc func(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error
+
+type CleanupHostAISessionsFunc func(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error)
+
+type ListHostAISessionsFunc func(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error)
+
+type GetHostAISessionFunc func(ctx context.Context, hostID uint, id uint) (*fleet.HostAISession, error)
+
+type ListHostAISessionEventsFunc func(ctx context.Context, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error)
+
 type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
 type OktaCACleanupTargetForInstallCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.OktaCACleanupTarget, bool, error)
@@ -822,6 +836,10 @@ type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.List
 
 type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) ([]*fleet.Policy, error)
 
+type ListPoliciesInScopeFunc func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error)
+
+type CountPoliciesInScopeFunc func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error)
+
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
@@ -1181,6 +1199,20 @@ type GetNanoMDMUserEnrollmentUsernameAndUUIDFunc func(ctx context.Context, devic
 type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string, userUUID string, username string) error
 
 type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
+
+type FilterWebhooksAndTicketsPoliciesFunc func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error)
+
+type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]uint, error)
+
+type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
+
+type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error)
+
+type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
+
+type WebhooksAndTicketsByPatchPolicySlugFunc func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
+
+type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -3100,6 +3132,27 @@ type DataStore struct {
 	CleanupSoftDeletedHostCertificatesFunc        CleanupSoftDeletedHostCertificatesFunc
 	CleanupSoftDeletedHostCertificatesFuncInvoked bool
 
+	UpsertHostAISessionsFunc        UpsertHostAISessionsFunc
+	UpsertHostAISessionsFuncInvoked bool
+
+	ListHostAISessionsNeedingEventsFunc        ListHostAISessionsNeedingEventsFunc
+	ListHostAISessionsNeedingEventsFuncInvoked bool
+
+	UpsertHostAISessionEventsFunc        UpsertHostAISessionEventsFunc
+	UpsertHostAISessionEventsFuncInvoked bool
+
+	CleanupHostAISessionsFunc        CleanupHostAISessionsFunc
+	CleanupHostAISessionsFuncInvoked bool
+
+	ListHostAISessionsFunc        ListHostAISessionsFunc
+	ListHostAISessionsFuncInvoked bool
+
+	GetHostAISessionFunc        GetHostAISessionFunc
+	GetHostAISessionFuncInvoked bool
+
+	ListHostAISessionEventsFunc        ListHostAISessionEventsFunc
+	ListHostAISessionEventsFuncInvoked bool
+
 	ProfileHasACMEPayloadForCommandFunc        ProfileHasACMEPayloadForCommandFunc
 	ProfileHasACMEPayloadForCommandFuncInvoked bool
 
@@ -3790,6 +3843,12 @@ type DataStore struct {
 	ListMergedTeamPoliciesFunc        ListMergedTeamPoliciesFunc
 	ListMergedTeamPoliciesFuncInvoked bool
 
+	ListPoliciesInScopeFunc        ListPoliciesInScopeFunc
+	ListPoliciesInScopeFuncInvoked bool
+
+	CountPoliciesInScopeFunc        CountPoliciesInScopeFunc
+	CountPoliciesInScopeFuncInvoked bool
+
 	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
 	DeleteTeamPoliciesFuncInvoked bool
 
@@ -4329,6 +4388,27 @@ type DataStore struct {
 
 	GetNanoMDMEnrollmentDetailsFunc        GetNanoMDMEnrollmentDetailsFunc
 	GetNanoMDMEnrollmentDetailsFuncInvoked bool
+
+	FilterWebhooksAndTicketsPoliciesFunc        FilterWebhooksAndTicketsPoliciesFunc
+	FilterWebhooksAndTicketsPoliciesFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsFunc        WebhooksAndTicketsPolicyIDsFunc
+	WebhooksAndTicketsPolicyIDsFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
+	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
+
+	PoliciesWithOtherAutomationsFunc        PoliciesWithOtherAutomationsFunc
+	PoliciesWithOtherAutomationsFuncInvoked bool
+
+	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
+	WebhooksAndTicketsByPolicyNameFuncInvoked bool
+
+	WebhooksAndTicketsByPatchPolicySlugFunc        WebhooksAndTicketsByPatchPolicySlugFunc
+	WebhooksAndTicketsByPatchPolicySlugFuncInvoked bool
+
+	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
+	SetWebhooksAndTicketsPoliciesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -7631,6 +7711,55 @@ func (s *DataStore) CleanupSoftDeletedHostCertificates(ctx context.Context, olde
 	return s.CleanupSoftDeletedHostCertificatesFunc(ctx, olderThan)
 }
 
+func (s *DataStore) UpsertHostAISessions(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error {
+	s.mu.Lock()
+	s.UpsertHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAISessionsFunc(ctx, hostID, sessions)
+}
+
+func (s *DataStore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsNeedingEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsNeedingEventsFunc(ctx, hostID, limit, maxEvents)
+}
+
+func (s *DataStore) UpsertHostAISessionEvents(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error {
+	s.mu.Lock()
+	s.UpsertHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAISessionEventsFunc(ctx, hostID, requested, events)
+}
+
+func (s *DataStore) CleanupHostAISessions(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.CleanupHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostAISessionsFunc(ctx, before, maxRunTime)
+}
+
+func (s *DataStore) ListHostAISessions(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsFunc(ctx, hostID, opts)
+}
+
+func (s *DataStore) GetHostAISession(ctx context.Context, hostID uint, id uint) (*fleet.HostAISession, error) {
+	s.mu.Lock()
+	s.GetHostAISessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAISessionFunc(ctx, hostID, id)
+}
+
+func (s *DataStore) ListHostAISessionEvents(ctx context.Context, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionEventsFunc(ctx, aiSessionID, opts)
+}
+
 func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {
 	s.mu.Lock()
 	s.ProfileHasACMEPayloadForCommandFuncInvoked = true
@@ -9241,6 +9370,20 @@ func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opt
 	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts, automationType, platform)
 }
 
+func (s *DataStore) ListPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListPoliciesInScopeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPoliciesInScopeFunc(ctx, teamID, mergeInherited, opts, filter)
+}
+
+func (s *DataStore) CountPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesInScopeFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesInScopeFunc(ctx, teamID, mergeInherited, matchQuery, filter)
+}
+
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
 	s.mu.Lock()
 	s.DeleteTeamPoliciesFuncInvoked = true
@@ -10499,6 +10642,55 @@ func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID st
 	s.GetNanoMDMEnrollmentDetailsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMEnrollmentDetailsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+	s.mu.Lock()
+	s.FilterWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.FilterWebhooksAndTicketsPoliciesFunc(ctx, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsFunc(ctx, teamID)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
+}
+
+func (s *DataStore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PoliciesWithOtherAutomationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.PoliciesWithOtherAutomationsFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPolicyNameFunc(ctx, teamID, names)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPatchPolicySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPatchPolicySlugFunc(ctx, teamID, slugs)
+}
+
+func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.SetWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetWebhooksAndTicketsPoliciesFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

@@ -475,7 +475,7 @@ const UserForm = ({
         placeholder={isNewUser ? "Password" : "••••••••"}
         type="password"
         disabled={isSubmitting}
-        helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+        helpText="12-48 characters, with at least 1 letter, 1 number (e.g. 0 - 9), and 1 symbol (e.g. &*#)."
         blockAutoComplete
         tooltip={
           isNewUser ? (
