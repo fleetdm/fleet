@@ -3283,7 +3283,7 @@ host's fleet sub-key are `true`.
 
 Returns the valid global enroll secrets.
 
-`GET /api/v1/fleet/spec/enroll_secret`
+`GET /api/v1/fleet/gitops/enroll_secret`
 
 #### Parameters
 
@@ -3291,7 +3291,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/spec/enroll_secret`
+`GET /api/v1/fleet/gitops/enroll_secret`
 
 ##### Default response
 
@@ -3375,7 +3375,7 @@ Delete a custom logo added via [Update organization logo](#update-organization-l
 
 Replaces all existing global enroll secrets.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/gitops/enroll_secret`
 
 #### Parameters
 
@@ -3387,7 +3387,7 @@ Replaces all existing global enroll secrets.
 
 Replace all global enroll secrets with a new enroll secret.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/gitops/enroll_secret`
 
 ##### Request body
 
@@ -3415,7 +3415,7 @@ Replace all global enroll secrets with a new enroll secret.
 
 Delete all global enroll secrets.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/gitops/enroll_secret`
 
 ##### Request body
 
@@ -3571,6 +3571,615 @@ None.
   "build_user": "zwass"
 }
 ```
+
+---
+
+## GitOps
+
+- [Batch-apply fleets](#batch-apply-fleets)
+- [Batch-apply labels](#batch-apply-labels)
+- [List labels (GitOps)](#list-labels-gitops)
+- [Get label (GitOps)](#get-label-gitops)
+- [Batch-apply policies](#batch-apply-policies)
+- [Batch-apply reports](#batch-apply-reports)
+- [List reports (GitOps)](#list-reports-gitops)
+- [Get report (GitOps)](#get-report-gitops)
+- [Batch-apply certificate authorities (CAs)](#batch-apply-certificate-authorities-cas)
+- [List certificate authorities (GitOps)](#list-certificate-authorities-gitops)
+- [Batch-apply certificate templates](#batch-apply-certificate-templates)
+- [Batch-delete certificate templates](#batch-delete-certificate-templates)
+- [Batch-apply custom variables](#batch-apply-custom-variables)
+
+These endpoints apply or return many resources at once, in the same shape as [GitOps YAML files](https://fleetdm.com/docs/configuration/yaml-files). `fleetctl gitops` uses them, and you can use them to build your own GitOps tooling.
+
+Other endpoints under `/api/v1/fleet/gitops/` are documented with the resource they manage: [Get global enroll secrets](#get-global-enroll-secrets), [Update global enroll secrets](#update-global-enroll-secrets), and [Replace all custom host vitals](#replace-all-custom-host-vitals).
+
+> All `/api/v1/fleet/gitops/` endpoints were renamed from `/api/v1/fleet/spec/` in Fleet 5.2. The `/api/v1/fleet/spec/` endpoints are deprecated. They're maintained for backwards compatibility.
+
+### Batch-apply fleets
+
+((Admin)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Creates or updates the fleets in the list. If a fleet with the specified `name` exists, its settings are replaced with the settings in the request. Otherwise, a new fleet is created. Creating a fleet requires the global admin or global GitOps role.
+
+> This endpoint accepts a maximum request body size of 5MiB.
+
+`POST /api/v1/fleet/gitops/fleets`
+
+#### Parameters
+
+| Name    | Type    | In    | Description |
+| ------- | ------- | ----- | ----------- |
+| specs   | array   | body  | **Required.** A list of fleets. See [specs](#specs). |
+| force   | boolean | query | If `true`, apply the fleets even if there are ignorable validation errors (unknown keys and agent options validation errors). Default is `false`. |
+| dry_run | boolean | query | If `true`, validate the request and return any validation errors, but don't apply the changes. Default is `false`. |
+
+##### specs
+
+Each fleet is an object with the keys below. Each key, other than `name`, uses the same format as the matching key in a [fleet YAML file](https://fleetdm.com/docs/configuration/yaml-files) and the [Update fleet](#update-fleet) endpoint.
+
+| Name                 | Type   | Description |
+| -------------------- | ------ | ----------- |
+| name                 | string | **Required.** The fleet's name. |
+| agent_options        | object | The fleet's agent options. These completely override the global agent options. |
+| features             | object | The fleet's features. These completely override the global features. |
+| host_expiry_settings | object | The fleet's host expiry settings. |
+| secrets              | array  | The fleet's enroll secrets. Existing secrets are replaced with this list, or left unchanged if the list is empty. Maximum of 50 secrets. |
+| mdm                  | object | The fleet's MDM settings (OS updates, disk encryption, setup experience, etc.). |
+| scripts              | array  | The fleet's scripts. |
+| webhook_settings     | object | The fleet's webhook settings. Only the webhooks provided are applied. Omitted webhooks are left unchanged. |
+| integrations         | object | The fleet's integrations. |
+| software             | object | The fleet's software. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/fleets`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Workstations",
+      "features": {
+        "enable_host_users": false,
+        "enable_software_inventory": true
+      },
+      "agent_options": {
+        "config": {
+          "options": {
+            "distributed_interval": 10
+          }
+        }
+      },
+      "secrets": [
+        {
+          "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn"
+        }
+      ],
+      "mdm": {
+        "macos_updates": {
+          "minimum_version": "15.6",
+          "deadline": "2026-12-01"
+        }
+      }
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_ids_by_name": {
+    "Workstations": 1
+  }
+}
+```
+
+### Batch-apply labels
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician))
+
+Creates or updates the labels in the list. If a label with the specified `name` exists, it's updated. Otherwise, a new label is created.
+
+If `label_membership_type` is `dynamic`, `query` is required. If `label_membership_type` is `manual`, `hosts` is required.
+
+`POST /api/v1/fleet/gitops/labels`
+
+#### Parameters
+
+| Name           | Type    | In    | Description |
+| -------------- | ------- | ----- | ----------- |
+| fleet_id       | integer | query | _Available in Fleet Premium_. The ID of the fleet to apply labels to. If omitted, global labels are applied. |
+| specs          | array   | body  | **Required.** A list of labels. Each label uses the same keys as the [Add label](#add-label) endpoint. |
+| labels_to_move | array   | body  | A list of labels that are in `specs` and already exist on another fleet (or globally). Each item is an object with `name` and, optionally, `from_fleet_id`. Omit `from_fleet_id` to move a global label to the fleet specified by `fleet_id`. If you have permission to modify the existing labels, Fleet renames them so the new labels can be created. If any label can't be moved, the request fails and no changes are made. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/labels`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Ubuntu",
+      "description": "Filters Ubuntu hosts",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "name": "local_machine",
+      "description": "Includes only my local machine",
+      "label_membership_type": "manual",
+      "hosts": ["snacbook-pro.local"]
+    }
+  ],
+  "labels_to_move": [
+    {
+      "name": "local_machine",
+      "from_fleet_id": 2
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List labels (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns labels in the same format accepted by [Batch-apply labels](#batch-apply-labels).
+
+`GET /api/v1/fleet/gitops/labels`
+
+#### Parameters
+
+| Name     | Type    | In    | Description |
+| -------- | ------- | ----- | ----------- |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to return labels from. If omitted, all labels you have access to are returned. Use `0` to return only global labels. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/labels?fleet_id=1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": [
+    {
+      "id": 4663,
+      "name": "Workstations: g-software",
+      "description": "Workstations used by g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "fleet_id": 1,
+      "fleet_name": "Workstations"
+    }
+  ]
+}
+```
+
+### Get label (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns the label with the specified name, in the same format accepted by [Batch-apply labels](#batch-apply-labels).
+
+`GET /api/v1/fleet/gitops/labels/:name`
+
+#### Parameters
+
+| Name | Type   | In   | Description |
+| ---- | ------ | ---- | ----------- |
+| name | string | path | **Required.** The label's name. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/labels/local_machine`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": {
+    "id": 12,
+    "name": "local_machine",
+    "description": "Includes only my local machine",
+    "query": "",
+    "label_membership_type": "manual",
+    "fleet_id": null
+  }
+}
+```
+
+### Batch-apply policies
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+Creates or updates the policies in the list. If a policy with the specified `name` exists, it's updated. Otherwise, a new policy is created. When a policy is updated, `fleet` and `platform` are ignored.
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/gitops/policies`
+
+#### Parameters
+
+| Name  | Type  | In   | Description |
+| ----- | ----- | ---- | ----------- |
+| specs | array | body | **Required.** A list of policies. Each policy uses the same keys as the [Create policy](#create-policy) endpoint, plus `fleet`, the name of the fleet the policy belongs to. Omit `fleet` for a global policy, or use `"Unassigned"` for a policy that applies to hosts that aren't assigned to a fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Is FileVault enabled on macOS devices?",
+      "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+      "fleet": "Workstations",
+      "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
+      "resolution": "Choose Apple menu > System Settings, then click Privacy & Security. Scroll to FileVault and click Turn On.",
+      "platform": "darwin",
+      "critical": true,
+      "script_id": 123
+    },
+    {
+      "name": "Is Adobe Acrobat installed and up to date?",
+      "query": "SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
+      "fleet": "Workstations",
+      "description": "Checks to make sure that Adobe Acrobat is installed and up to date.",
+      "platform": "darwin",
+      "software_title_id": 12
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Batch-apply reports
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+Creates or updates the reports in the list. If a report with the specified `name` exists, it's updated. Otherwise, a new report is created. If a key is omitted, its default value is used (for example, `interval` defaults to `0` and `discard_data` defaults to `false`).
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/gitops/reports`
+
+#### Parameters
+
+| Name  | Type  | In   | Description |
+| ----- | ----- | ---- | ----------- |
+| specs | array | body | **Required.** A list of reports. Each report uses the same keys as the [Create report](#create-report) endpoint, plus `fleet`, the name of the fleet the report belongs to. Omit `fleet` for a global report. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/reports`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "osquery_info",
+      "description": "Returns osquery version and process info.",
+      "query": "SELECT * FROM osquery_info",
+      "interval": 3600
+    },
+    {
+      "name": "osquery_schedule",
+      "description": "Report performance stats for each report in the schedule.",
+      "query": "SELECT name, interval, executions, output_size, wall_time FROM osquery_schedule;",
+      "fleet": "Workstations"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List reports (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns reports in the same format accepted by [Batch-apply reports](#batch-apply-reports).
+
+`GET /api/v1/fleet/gitops/reports`
+
+#### Parameters
+
+| Name     | Type    | In    | Description |
+| -------- | ------- | ----- | ----------- |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to return reports from. If omitted, global reports are returned. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": [
+    {
+      "name": "osquery_info",
+      "description": "Returns osquery version and process info.",
+      "query": "SELECT * FROM osquery_info"
+    },
+    {
+      "name": "osquery_schedule",
+      "description": "Report performance stats for each report in the schedule.",
+      "query": "SELECT name, interval, executions, output_size, wall_time FROM osquery_schedule;"
+    }
+  ]
+}
+```
+
+### Get report (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns the report with the specified name, in the same format accepted by [Batch-apply reports](#batch-apply-reports).
+
+`GET /api/v1/fleet/gitops/reports/:name`
+
+#### Parameters
+
+| Name     | Type    | In    | Description |
+| -------- | ------- | ----- | ----------- |
+| name     | string  | path  | **Required.** The report's name. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet the report belongs to. If omitted, a global report is returned. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/reports/osquery_info`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": {
+    "name": "osquery_info",
+    "description": "Returns osquery version and process info.",
+    "query": "SELECT * FROM osquery_info"
+  }
+}
+```
+
+### Batch-apply certificate authorities (CAs)
+
+((Global admin)) ((Global GitOps))
+
+_Available in Fleet Premium_
+
+Replaces all certificate authorities (CAs) with the CAs in the request. Existing CAs that aren't in the request are deleted, unless `skip_deletes` is `true`.
+
+`POST /api/v1/fleet/gitops/certificate_authorities`
+
+#### Parameters
+
+| Name                    | Type    | In   | Description |
+| ----------------------- | ------- | ---- | ----------- |
+| certificate_authorities | object  | body | **Required.** The CAs, grouped by type. Uses the same format as `certificate_authorities` in the [GitOps YAML file](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities). Supported keys: `custom_est_proxy`, `hydrant`, `digicert`, `ndes_scep_proxy`, `custom_scep_proxy`, `smallstep`, `ejbca`, and `google_cas`. |
+| dry_run                 | boolean | body | If `true`, validate the request and return any validation errors, but don't apply the changes. Default is `false`. |
+| skip_deletes            | boolean | body | If `true`, CAs that aren't in the request are left unchanged. Default is `false`. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/certificate_authorities`
+
+##### Request body
+
+```json
+{
+  "certificate_authorities": {
+    "custom_scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "url": "https://scep.example.com/scep",
+        "challenge": "********"
+      }
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List certificate authorities (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Returns all certificate authorities (CAs), grouped by type, in the same format accepted by [Batch-apply certificate authorities (CAs)](#batch-apply-certificate-authorities-cas).
+
+`GET /api/v1/fleet/gitops/certificate_authorities`
+
+#### Parameters
+
+| Name            | Type    | In    | Description |
+| --------------- | ------- | ----- | ----------- |
+| include_secrets | boolean | query | If `true`, secrets (for example, challenges, passwords, and API tokens) are returned in plain text. Only available to the global admin and global GitOps roles. Default is `false`. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/certificate_authorities`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authorities": {
+    "custom_est_proxy": [],
+    "hydrant": [],
+    "digicert": [],
+    "ndes_scep_proxy": null,
+    "custom_scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "url": "https://scep.example.com/scep",
+        "challenge": "********"
+      }
+    ],
+    "smallstep": [],
+    "ejbca": [],
+    "google_cas": []
+  }
+}
+```
+
+### Batch-apply certificate templates
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Creates or updates the certificate templates in the list. Existing templates with the same name are updated. Existing templates that aren't in the list are deleted. An empty list deletes all certificate templates.
+
+`POST /api/v1/fleet/gitops/certificates`
+
+#### Parameters
+
+| Name  | Type  | In   | Description |
+| ----- | ----- | ---- | ----------- |
+| specs | array | body | **Required.** A list of certificate templates. Each template is an object with `name`, `fleet` (the fleet's name), `certificate_authority_id`, `subject_name`, and, optionally, `subject_alternative_name`. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/certificates`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "WIFI_CERTIFICATE",
+      "fleet": "Workstations",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+    {
+      "name": "WIFI_CERTIFICATE_TEST",
+      "fleet": "Workstations (canary)",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Batch-delete certificate templates
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Deletes the specified certificate templates. All templates must belong to the specified fleet.
+
+`DELETE /api/v1/fleet/gitops/certificates`
+
+#### Parameters
+
+| Name     | Type    | In   | Description |
+| -------- | ------- | ---- | ----------- |
+| ids      | array   | body | **Required.** The IDs of the certificate templates to delete. |
+| fleet_id | integer | body | The ID of the fleet the certificate templates belong to. If omitted, defaults to `0` ("Unassigned"). |
+
+#### Example
+
+`DELETE /api/v1/fleet/gitops/certificates`
+
+##### Request body
+
+```json
+{
+  "ids": [1, 2, 3, 4],
+  "fleet_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Batch-apply custom variables
+
+((Global admin)) ((Global maintainer)) ((Global GitOps))
+
+Creates or updates the [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) in the list. Existing variables with the same name are updated.
+
+`PUT /api/v1/fleet/gitops/secret_variables`
+
+#### Parameters
+
+| Name    | Type    | In   | Description |
+| ------- | ------- | ---- | ----------- |
+| secrets | array   | body | **Required.** A list of custom variables. Each variable is an object with `name` (prefixed with `FLEET_SECRET_`) and `value`. |
+| dry_run | boolean | body | If `true`, validate the request and return any validation errors, but don't apply the changes. Default is `false`. |
+
+#### Example
+
+`PUT /api/v1/fleet/gitops/secret_variables`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "name": "FLEET_SECRET_SOME_API_TOKEN",
+      "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -15438,8 +16047,9 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
 - [Update package](#update-package)
-- [Update software appearance](#update-software-appearance)
+- [Update software icon](#update-software-icon)
 - [Download software icon](#download-software-icon)
+- [Delete software icon](#delete-software-icon)
 - [List Apple App Store apps](#list-apple-app-store-apps)
 - [Add app store app](#add-app-store-app)
 - [Update app store app](#update-app-store-app)
@@ -16095,7 +16705,7 @@ For example:
         "🔐 Security"
       ],
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
+      "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Production config --></dict></dict></dict>"
     },
     {
       "id": 42,
@@ -16124,7 +16734,7 @@ For example:
       "created_at": "2026-02-03T10:14:22.882031Z",
       "categories": null,
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+      "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
     }
   ],
   "app_store_app": {
@@ -16152,7 +16762,7 @@ For example:
       "🔐 Security"
     ],
     "display_name": "Cloudflare One Agent",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
+    "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Production config --></dict></dict></dict>",
     "vpp_token": {
       "id": 1,
       "org_name": "Fleet Device Management Inc.",
@@ -16510,6 +17120,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | upload_id       | string  | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `software` to replace the package with one uploaded directly to GCS. |
 | filename        | string  | body | The package's file name, including its extension. Required with `upload_id`. |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
+| display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh`, `.py`, and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If set to an empty string, Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -16592,39 +17203,35 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 }
 ```
 
-### Update software appearance
+### Update software icon
 
 ((Admin)) ((Maintainer)) ((GitOps))
 
 _Available in Fleet Premium._
 
-Update how a software title looks in Fleet and on **Fleet Desktop > Self-service** for the specified fleet: its display name and icon. The icon overrides the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
-
-Only the fields included in the request are updated.
+Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
 
 > You need to send a request of type `multipart/form-data`.
 
-`PATCH /api/v1/fleet/software/titles/:software_title_id/appearance`
+`PUT /api/v1/fleet/software/titles/:id/icon`
 
 #### Parameters
 
 | Name        | Type    | In   | Description                                      |
 | ----        | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| fleet_id     | integer | query | **Required**. The fleet ID. Updates the software title's appearance in the specified fleet. |
-| display_name | string | body | Override for the software title's default `name`. Set to `""` to use the default `name`. |
-| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. Set to an empty value (`icon=""`) to remove the custom icon and go back to the default icon. |
+| id          | integer | path | ID of the software title being updated. |
+| fleet_id     | integer | query | **Required**. The fleet ID. Updates a software icon in the specified fleet. |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
 | filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/33/appearance?fleet_id=2`
+`PUT /api/v1/fleet/software/titles/33/icon?fleet_id=2`
 
 ##### Request body
 
 ```http
-display_name="CrowdStrike Falcon"
 icon="crowdstrike-icon-512x512.png"
 ```
 
@@ -16634,7 +17241,6 @@ icon="crowdstrike-icon-512x512.png"
 
 ```json
 {
-  "display_name": "CrowdStrike Falcon",
   "icon_url": "/api/latest/fleet/software/titles/33/icon?fleet_id=2"
 }
 ```
@@ -16645,7 +17251,7 @@ icon="crowdstrike-icon-512x512.png"
 
 _Available in Fleet Premium._
 
-Download the icon added via [Update software appearance](#update-software-appearance) or icon from the Apple App Store (VPP). **This endpoint requires authentication.**
+Download the icon added via [Update software icon](#update-software-icon) or icon from the Apple App Store (VPP). **This endpoint requires authentication.**
 
 `GET /api/v1/fleet/software/titles/:id/icon`
 
@@ -16674,6 +17280,29 @@ Content-Length: 124567
 
 <BINARY_IMAGE_DATA>
 ```
+
+### Delete software icon
+
+_Available in Fleet Premium._
+
+Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
+
+`DELETE /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title being updated. |
+| fleet_id         | integer | query | **Required**. The fleet ID. Deletes the software icon in the specified fleet. |
+
+#### Example
+
+`DELETE /api/v1/fleet/software/titles/33/icon?fleet_id=2`
+
+##### Default response
+
+`Status: 204`
 
 ### List Apple App Store apps
 
@@ -16772,7 +17401,9 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 An Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token for all requests to Apple related to the app in that fleet, like assigning licenses. To add the app from a different VPP token, delete the app from the fleet and add it again.
 
-`configuration` supports all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) except `packageName` and `installType`. Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+For iOS and iPadOS apps, `configuration` is a `<dict>` whose only key is `Command`. `Command` supports `ManagementFlags`, `Configuration` (the app's managed configuration), and `Attributes` (e.g. `VPNUUID` for per-app VPN). Any other key is rejected. Learn more about [iOS and iPadOS managed configuration](https://fleetdm.com/learn-more-about/ios-software-managed-configuration).
+
+For Android, `configuration` supports all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) except `packageName` and `installType`. Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
 #### Example
 
@@ -16808,11 +17439,22 @@ To add more than one version of the same app, call this endpoint once per versio
 ```json
 {
   "app_store_id": "546505307",
-  "team_id": 2,
+  "fleet_id": 2,
   "platform": "ios",
   "name": "Test",
   "labels_include_any": ["Test"],
-  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+  "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict><key>example_key</key><string>example string value</string></dict></dict></dict>"
+}
+```
+
+##### Request body adding a version with per-app VPN
+
+```json
+{
+  "app_store_id": "6443476492",
+  "fleet_id": 2,
+  "platform": "ios",
+  "configuration": "<dict><key>Command</key><dict><key>Attributes</key><dict><key>VPNUUID</key><string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string></dict></dict></dict>"
 }
 ```
 
@@ -16859,6 +17501,7 @@ A software title can have more than one version of the same App Store app on a f
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store, Google Play, or Microsoft Store app from the specified fleet.  |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS, Windows, and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS and Windows shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| display_name    | string  | body | Optional override for the default `name`. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
@@ -16905,7 +17548,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
   "team_id": 2,
   "name": "Test",
   "labels_include_any": ["Test"],
-  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+  "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>"
 }
 ```
 
@@ -16936,7 +17579,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
     "auto_update_window_start": null,
     "auto_update_window_end": null,
     "created_at": "2026-08-25T14:22:03Z",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->",
+    "configuration": "<dict><key>Command</key><dict><key>Configuration</key><dict>...<!-- Test config --></dict></dict></dict>",
     "automatic_install_policies": [
       {
         "id": 345,
@@ -17248,7 +17891,7 @@ Uninstalls software from a host.
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/device/:token/software/:software_title_id/install`
+`POST /api/v1/fleet/device/:token/software/install/:software_title_id`
 
 #### Parameters
 
@@ -17259,7 +17902,7 @@ Install self-service software on a macOS, Windows, or Linux host. The software m
 
 #### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/123/install`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
 
 ##### Default response
 
@@ -20653,7 +21296,7 @@ Sets a host's value for a custom host vital.
 
 Replaces all existing custom host vital definitions with the provided list. Existing vitals not included in the list are deleted, which fails if one of them is still referenced by a script, configuration profile, or Host vitals label.
 
-`PUT /api/v1/fleet/spec/custom_host_vitals`
+`PUT /api/v1/fleet/gitops/custom_host_vitals`
 
 #### Parameters
 
@@ -20666,7 +21309,7 @@ Replaces all existing custom host vital definitions with the provided list. Exis
 
 #### Example
 
-`PUT /api/v1/fleet/spec/custom_host_vitals`
+`PUT /api/v1/fleet/gitops/custom_host_vitals`
 
 ##### Request body
 
