@@ -229,6 +229,27 @@ describe("GoogleWorkspaceSection", () => {
     ).toBeDisabled();
   });
 
+  it("masks a replaced API key after a successful save", async () => {
+    const render = renderWith();
+    const { user } = render(
+      <GoogleWorkspaceSection appConfig={configuredConfig(["example.org"])} />
+    );
+
+    const keyField = screen.getByLabelText("API key JSON");
+    await user.clear(keyField);
+    // user.type treats braces as key descriptors, so paste the JSON instead.
+    await user.click(keyField);
+    await user.paste(
+      '{"client_email":"new@example.com","private_key":"secret"}'
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("********")).toBeInTheDocument()
+    );
+    expect(screen.queryByDisplayValue(/secret/)).not.toBeInTheDocument();
+  });
+
   it("deletes a domain from the modal", async () => {
     const render = renderWith();
     const { user } = render(

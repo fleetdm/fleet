@@ -190,6 +190,16 @@ const GoogleWorkspaceSection = ({
         integrations: { google_workspace: googleWorkspace },
       });
       updateCachedIntegrations(queryClient, updatedConfig);
+      // A replaced key comes back masked like the old one, so the sync effect
+      // won't re-run; mask it here unless it was edited after submitting.
+      if (!isDisconnect && apiKeyJson !== UNCHANGED_PASSWORD_API_RESPONSE) {
+        const submittedKey = apiKeyJson;
+        setFormData((prev) =>
+          prev.apiKeyJson === submittedKey
+            ? { ...prev, apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE }
+            : prev
+        );
+      }
       notify.success(
         "Successfully saved Google Workspace integration settings."
       );
