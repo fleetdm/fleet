@@ -1099,8 +1099,7 @@ FROM
 WHERE
 	-- this is guaranteed to select a single in-house installer, due to unique index
 	global_or_team_id = ?	AND
-	filename = ? AND
-	platform = ?
+	title_id = ?
 `
 
 	const deleteInHouseLabelsNotInList = `
@@ -1450,7 +1449,7 @@ WHERE
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, installer.Filename, installer.Platform); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 

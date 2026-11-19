@@ -1202,6 +1202,72 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, pendingHost2)
 
+	// batch-set ipa1 with a new filename in the team and in unassigned, the existing in-house app
+	// of each title should be updated instead of a second one being added
+	for _, batchTeamID := range []*uint{&team.ID, nil} {
+		var globalOrTeamID uint
+		if batchTeamID != nil {
+			globalOrTeamID = *batchTeamID
+		}
+		ipa1Payloads := func(filename string) []*fleet.UploadSoftwareInstallerPayload {
+			return []*fleet.UploadSoftwareInstallerPayload{
+				{
+					StorageID:        ipa1.StorageID,
+					Filename:         filename,
+					Title:            ipa1.Title,
+					Source:           "ios_apps",
+					Version:          ipa1.Version,
+					UserID:           user1.ID,
+					Platform:         "ios",
+					URL:              "https://example.com/1",
+					ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+					BundleIdentifier: ipa1.BundleIdentifier,
+					SelfService:      ipa1.SelfService,
+				},
+				{
+					StorageID:        ipa1.StorageID,
+					Filename:         filename,
+					Title:            ipa1.Title,
+					Source:           "ipados_apps",
+					Version:          ipa1.Version,
+					UserID:           user1.ID,
+					Platform:         "ipados",
+					URL:              "https://example.com/1",
+					ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+					BundleIdentifier: ipa1.BundleIdentifier,
+					SelfService:      ipa1.SelfService,
+				},
+			}
+		}
+
+		err = ds.BatchSetInHouseAppsInstallers(ctx, batchTeamID, ipa1Payloads(ipa1.Filename))
+		require.NoError(t, err)
+		appsBeforeRename, err := ds.GetSoftwareInstallers(ctx, globalOrTeamID)
+		require.NoError(t, err)
+		require.Len(t, appsBeforeRename, 2)
+		iosTitleID := *appsBeforeRename[0].TitleID
+		ipadosTitleID := *appsBeforeRename[1].TitleID
+		iosAppBeforeRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, iosTitleID)
+		require.NoError(t, err)
+		ipadosAppBeforeRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, ipadosTitleID)
+		require.NoError(t, err)
+
+		err = ds.BatchSetInHouseAppsInstallers(ctx, batchTeamID, ipa1Payloads("ipa1-renamed.ipa"))
+		require.NoError(t, err)
+		appsAfterRename, err := ds.GetSoftwareInstallers(ctx, globalOrTeamID)
+		require.NoError(t, err)
+		require.Len(t, appsAfterRename, 2)
+		iosAppAfterRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, iosTitleID)
+		require.NoError(t, err)
+		ipadosAppAfterRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, ipadosTitleID)
+		require.NoError(t, err)
+
+		require.Equal(t, iosAppBeforeRename.InstallerID, iosAppAfterRename.InstallerID)
+		require.Equal(t, "ipa1-renamed.ipa", iosAppAfterRename.Name)
+		require.Equal(t, ipadosAppBeforeRename.InstallerID, ipadosAppAfterRename.InstallerID)
+		require.Equal(t, "ipa1-renamed.ipa", ipadosAppAfterRename.Name)
+	}
+
 	// remove everything
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)

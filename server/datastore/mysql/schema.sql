@@ -1861,10 +1861,10 @@ CREATE TABLE `in_house_apps` (
   `url` varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `global_or_team_id` (`global_or_team_id`,`filename`,`platform`),
+  UNIQUE KEY `idx_in_house_apps_global_or_team_id_title_id` (`global_or_team_id`,`title_id`),
   KEY `fk_in_house_apps_title` (`title_id`),
   CONSTRAINT `fk_in_house_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
