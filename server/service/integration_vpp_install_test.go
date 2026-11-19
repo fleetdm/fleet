@@ -1840,14 +1840,17 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstallVerificationPushFailure()
 	require.Equal(t, 1, verifyCmds)
 
 	// Each cycle is one minute: the worker cron runs once, then the device checks in.
-	var cmdsPerCycle, jobsPerCycle []int
-	for range 6 {
+	runWorkerAfterOneMinute := func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = not_before - INTERVAL 1 MINUTE WHERE state = ?", fleet.JobStateQueued)
 			return err
 		})
-		jobsBefore := countJobs()
 		require.NoError(t, s.worker.ProcessJobs(ctx))
+	}
+	var cmdsPerCycle, jobsPerCycle []int
+	for range 6 {
+		jobsBefore := countJobs()
+		runWorkerAfterOneMinute()
 		cmd, err = iosDevice.Idle()
 		require.NoError(t, err)
 		lastVerifyUUID, verifyCmds = answerAll(cmd)
@@ -1877,6 +1880,30 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstallVerificationPushFailure()
 	pending, err := s.ds.IsHostPendingMDMInstallVerification(ctx, iosHost.UUID)
 	require.NoError(t, err)
 	require.True(t, pending)
+
+	// The device reports the app installed while pushes still fail; verification releases the host.
+	runWorkerAfterOneMinute()
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.True(t, strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix))
+	_, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, []fleet.Software{
+		{Name: "test", BundleIdentifier: "com.ipa-test.ipa-test", Version: "1.0", Installed: true},
+	})
+	require.NoError(t, err)
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var verifiedAt *time.Time
+		if err := sqlx.GetContext(ctx, q, &verifiedAt,
+			"SELECT verification_at FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID); err != nil {
+			return err
+		}
+		assert.NotNil(t, verifiedAt)
+		return nil
+	})
+	pending, err = s.ds.IsHostPendingMDMInstallVerification(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.False(t, pending)
 }
 
 func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {
