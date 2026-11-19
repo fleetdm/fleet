@@ -294,7 +294,13 @@ describe("HostDetailsPage - AI sessions", () => {
 });
 
 describe("HostDetailsPage - pending hosts", () => {
+  // Fake from before the render: the refetch poll is scheduled on first load.
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
   afterEach(() => {
+    jest.useRealTimers();
     jest.resetAllMocks();
   });
 
@@ -311,11 +317,13 @@ describe("HostDetailsPage - pending hosts", () => {
     });
     await screen.findByText("Vitals");
     // Give the poll timer (2s) room to fire if it was scheduled.
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
 
     expect(screen.queryByText(/refetching\.\.\./i)).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
-  }, 15000);
+  });
 
   it("still reports back when the user asks for the refetch", async () => {
     stubQueries(mockPendingWindowsHost("online"));
@@ -323,10 +331,11 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    const { user } = renderHostDetails({
+    renderHostDetails({
       currentUser: ADMIN,
       isGlobalAdmin: true,
     });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -340,7 +349,7 @@ describe("HostDetailsPage - pending hosts", () => {
       },
       { timeout: 10000 }
     );
-  }, 20000);
+  });
 });
 
 describe("HostDetailsPage - hosts that haven't reported vitals", () => {
@@ -349,6 +358,8 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
   let dateNowSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    // Date stays real: these tests move the clock themselves through the spy.
+    jest.useFakeTimers({ doNotFake: ["Date"] });
     elapsedMs = 0;
     dateNowSpy = jest
       .spyOn(Date, "now")
@@ -356,6 +367,7 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     dateNowSpy.mockRestore();
     jest.resetAllMocks();
   });
@@ -391,8 +403,7 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
       );
 
       expect(notify.error).not.toHaveBeenCalled();
-    },
-    15000
+    }
   );
 });
 
