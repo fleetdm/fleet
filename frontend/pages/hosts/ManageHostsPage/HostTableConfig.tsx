@@ -757,7 +757,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (isMobilePlatform(platform) || platform === "chrome") {
+      if (isMobilePlatform(platform)) {
         return NotSupported;
       }
       return (
