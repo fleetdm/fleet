@@ -19,7 +19,7 @@ import (
 
 type createDistributedQueryCampaignRequest struct {
 	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"query_id" renameto:"report_id"`
+	QueryID  *uint             `json:"report_id" removedkey:"query_id"`
 	Selected fleet.HostTargets `json:"selected"`
 }
 
@@ -50,7 +50,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 	}
 
 	if queryID == nil && strings.TrimSpace(queryString) == "" {
-		return nil, fleet.NewInvalidArgumentError("query", "one of query or query_id must be specified")
+		return nil, fleet.NewInvalidArgumentError("query", "one of query or report_id must be specified")
 	}
 
 	var query *fleet.Query
@@ -187,7 +187,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 
 type createDistributedQueryCampaignByIdentifierRequest struct {
 	QuerySQL string                                       `json:"query"`
-	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
+	QueryID  *uint                                        `json:"report_id" removedkey:"query_id"`
 	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }
 

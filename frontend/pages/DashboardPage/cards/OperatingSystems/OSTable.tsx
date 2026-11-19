@@ -15,7 +15,7 @@ const DEFAULT_SORT_DIRECTION = "desc";
 // together (where comparing versions across platforms isn't meaningful),
 // and by version once a single platform is selected.
 const DEFAULT_SORT_HEADER_ALL_PLATFORMS = "hosts_count";
-const DEFAULT_SORT_HEADER_SINGLE_PLATFORM = "version";
+const DEFAULT_SORT_HEADER_SINGLE_PLATFORM = "os_version";
 const PAGE_SIZE = 8;
 
 const baseClass = "operating-systems";

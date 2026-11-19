@@ -952,6 +952,14 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
 	require.NoError(t, err)
 	require.Equal(t, 2, title.SoftwareInstallersCount)
+
+	// list available for install, the title with two active packages should appear once
+	titles, count, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, AvailableForInstall: true}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	require.Equal(t, "Multi App", titles[0].Name)
+	require.Len(t, titles[0].Packages, 2)
 }
 
 // Regression guard for the per-installer policy dispatch loop in
@@ -1253,7 +1261,7 @@ func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
 		require.Equal(t, policy.ID, customTitle.Packages[0].AutomaticInstallPolicies[0].ID)
 		require.Nil(t, customTitle.Packages[0].FleetMaintainedAppID)
 		require.Nil(t, customTitle.Packages[0].FleetMaintainedVersions)
-		require.Equal(t, new(false), customTitle.Packages[0].InstallDuringSetup)
+		require.Nil(t, customTitle.Packages[0].InstallDuringSetup)
 
 		// read the Fleet-maintained app package, it should have the Fleet-maintained app id
 		maintainedAppTitle := titlesByID[maintainedAppTitleID]
@@ -1277,7 +1285,7 @@ func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
 		require.Equal(t, "3.0", iosInHouseTitle.Packages[0].Version)
 		require.Equal(t, new(true), iosInHouseTitle.Packages[0].SelfService)
 		require.Nil(t, iosInHouseTitle.Packages[0].FleetMaintainedAppID)
-		require.Equal(t, new(false), iosInHouseTitle.Packages[0].InstallDuringSetup)
+		require.Nil(t, iosInHouseTitle.Packages[0].InstallDuringSetup)
 		require.Equal(t, "in-house.ipa", iosInHouseTitle.SoftwarePackage.Name)
 
 		// select the custom package and the Linux script for macOS setup, both should have install_during_setup on macOS
@@ -2624,7 +2632,7 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 			PackagesOnly: true,
 		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "packages_only can only be provided with team_id")
+		require.Contains(t, err.Error(), "packages_only can only be provided with fleet_id")
 	})
 
 	t.Run("packages_only=false with team_id", func(t *testing.T) {

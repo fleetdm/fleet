@@ -16,6 +16,11 @@
     @include flex-column-8px-gap;
   }
 
+  // The "Target" label's line height adds space above the banner, so match it below.
+  .target-label-selector .info-banner {
+    margin-bottom: $pad-xsmall;
+  }
+
   &__auto-updates-help {
     margin: 0;
     color: $core-fleet-black;

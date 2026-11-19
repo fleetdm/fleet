@@ -53,7 +53,7 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) *fleet.VPPToke
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
 	return resPatchVPP.Token
 }
 
@@ -1540,8 +1540,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Len(t, listSw.SoftwareTitles[0].AppStoreApps, 1)
 	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
 	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
-	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
-	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+	require.NotEmpty(t, listSw.SoftwareTitles[1].Packages)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].Packages[0].Name)
 
 	// a different team can batch-add the two installers without conflict
 	newTeamResp = teamResponse{}
@@ -1565,11 +1565,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Len(t, listSw.SoftwareTitles, 2)
 	// both are software packages
 	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
-	require.NotNil(t, listSw.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", listSw.SoftwareTitles[0].SoftwarePackage.Name)
+	require.NotEmpty(t, listSw.SoftwareTitles[0].Packages)
+	require.Equal(t, "dummy_installer.pkg", listSw.SoftwareTitles[0].Packages[0].Name)
 	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
-	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
-	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+	require.NotEmpty(t, listSw.SoftwareTitles[1].Packages)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].Packages[0].Name)
 
 	// a different team can batch-add the two VPP apps without conflict
 	newTeamResp = teamResponse{}
@@ -1579,7 +1579,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	var tokenResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
 
 	var batchAppResp batchAssociateAppStoreAppsResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -1768,9 +1768,10 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		nil, http.StatusOK, &st, "fleet_id", "0")
 
 	require.Equal(t, "ipa_test", st.SoftwareTitle.Name)
-	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.SoftwarePackage.Name)
-	require.Equal(t, "ios", st.SoftwareTitle.SoftwarePackage.Platform)
-	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
+	require.Len(t, st.SoftwareTitle.Packages, 1)
+	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.Packages[0].Name)
+	require.Equal(t, "ios", st.SoftwareTitle.Packages[0].Platform)
+	require.WithinDuration(t, time.Now(), st.SoftwareTitle.Packages[0].UploadedAt, time.Hour)
 }
 
 func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {
@@ -2133,7 +2134,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	var tokenResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
 
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     &team2.ID,
@@ -2157,7 +2158,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	team3 := newTeamResp3.Team
 
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     nil,
@@ -2165,7 +2166,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		Platform:   "ios",
 	}, http.StatusConflict)
 	txt = extractServerErrorText(res.Body)
-	require.Contains(t, txt, "already has an installer available for the No team fleet.")
+	require.Contains(t, txt, "already has an installer available for the Unassigned fleet.")
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
@@ -3251,8 +3252,8 @@ func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
 
 	// Both tokens go to the same fleet.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenAID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenBID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenAID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenBID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// App 2 is an iOS app and app 3 an iPadOS app. App X is added from token A and app Y from token B.
 	const adamX, adamY = "2", "3"

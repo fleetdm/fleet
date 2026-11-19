@@ -8,10 +8,8 @@ export interface IOperatingSystemKernels {
 }
 export interface IOperatingSystemVersion {
   os_version_id: number;
-  /** name often includes "<name> <version>" */
-  name: string;
-  name_only: string;
-  version: string;
+  os_name: string;
+  os_version: string;
   platform: string; // TODO: More specific
   hosts_count: number;
   generated_cpes?: string[];

@@ -5,12 +5,15 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/cenkalti/backoff/v4"
+	condaccessdepot "github.com/fleetdm/fleet/v4/ee/server/service/condaccess/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -57,19 +60,17 @@ func RegisterSCEP(
 		return fmt.Errorf("initializing conditional access assets: %w", err)
 	}
 
+	scepServiceLogger := logger.With("component", "conditional-access-scep")
 	// Create signer without renewal middleware (key difference from host identity SCEP)
-	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scepdepot.NewSigner(
+	signer := challengeMiddleware(ds, scepServiceLogger, fleetConfig.MDM, scepdepot.NewSigner(
 		scepStorage,
 		scepdepot.WithValidityDays(scepValidityDays),
 	))
 
-	// Add challenge middleware for enrollment secret verification
-	signer = challengeMiddleware(ds, signer)
-
 	scepService := NewSCEPService(
 		ds,
 		signer,
-		logger.With("component", "conditional-access-scep"),
+		scepServiceLogger,
 	)
 
 	scepLogger := logger.With("component", "http-conditional-access-scep")
@@ -89,29 +90,65 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret.
-// Unlike host identity SCEP, this does NOT support renewal (no renewal extension check).
-func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
-	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
-		// No renewal support for conditional access SCEP
-		// Always require a valid challenge password
+type csrCallbackSigner interface {
+	SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error)
+}
 
+// challengeMiddleware checks that ChallengePassword is a one-time challenge Fleet created for the host in the CSR's
+// device URI, or a global enroll secret, which profiles written before one-time challenges carry, and signs the CSR
+// with that device URI as the certificate's only SAN, rather than every SAN the requester asked for. The global enroll
+// secret isn't accepted for hosts whose platform gets one-time enroll secrets.
+// Unlike host identity SCEP, this does NOT support renewal (no renewal extension check).
+func challengeMiddleware(ds fleet.Datastore, logger *slog.Logger, mdmConfig config.MDMConfig, next csrCallbackSigner) scepserver.CSRSignerContextFunc {
+	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
-		secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+		uri, hostUUID := condaccessdepot.DeviceURI(m.CSR.URIs)
+		if hostUUID == "" {
+			return nil, errors.New("no device UUID found in CSR SAN URI")
+		}
+		// Looked up before any challenge is used, so a request for a host that doesn't exist doesn't use one up.
+		host, err := ds.HostByUUID(ctx, hostUUID)
+		switch {
+		case fleet.IsNotFound(err):
+			return nil, errors.New("unknown host")
+		case err != nil:
+			return nil, fmt.Errorf("looking up host: %w", err)
+		}
+
+		sign := func() (*x509.Certificate, error) {
+			return next.SignX509CSRWithCallback(m.CSR, m.CSR.Subject, func(tmpl *x509.Certificate) {
+				tmpl.URIs = []*url.URL{uri}
+			})
+		}
+
+		if mdmConfig.GlobalEnrollSecretAllowed(host.Platform) {
+			secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+			switch {
+			case err == nil:
+				// Only global enroll secrets (team_id IS NULL) are valid for
+				// conditional-access SCEP. Reject team-scoped secrets.
+				if secret.TeamID != nil {
+					return nil, errors.New("invalid challenge")
+				}
+				// Anyone holding the secret can get a certificate for any host, so admins need to find who still uses it.
+				logger.WarnContext(ctx, "conditional access certificate requested with a global enroll secret, redeploy the Okta profile to use one-time challenges",
+					"host_uuid", hostUUID)
+				return sign()
+			case !fleet.IsNotFound(err):
+				return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+			}
+		}
+
+		err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, m.ChallengePassword, hostUUID)
 		switch {
 		case fleet.IsNotFound(err):
 			return nil, errors.New("invalid challenge")
 		case err != nil:
-			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+			return nil, fmt.Errorf("consuming conditional access SCEP challenge: %w", err)
 		}
-		// Only global enroll secrets (team_id IS NULL) are valid for
-		// conditional-access SCEP. Reject team-scoped secrets.
-		if secret.TeamID != nil {
-			return nil, errors.New("invalid challenge")
-		}
-		return next.SignCSRContext(ctx, m)
+		return sign()
 	}
 }
 

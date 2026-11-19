@@ -61,7 +61,7 @@ export default PropTypes.shape({
     PropTypes.shape({
       pack_id: PropTypes.number,
       pack_name: PropTypes.string,
-      query_stats: PropTypes.arrayOf(queryStatsInterface),
+      report_stats: PropTypes.arrayOf(queryStatsInterface),
     })
   ),
   fleet_name: PropTypes.string,
@@ -289,7 +289,7 @@ export interface IMacadminsResponse {
 export interface IPackStats {
   pack_id: number;
   pack_name: string;
-  query_stats: IQueryStats[];
+  report_stats: IQueryStats[];
   type: string;
 }
 
@@ -329,6 +329,9 @@ export interface IDUPDetails {
   platform?: HostPlatform;
   global_config: IDeviceGlobalConfig;
   self_service: boolean;
+  /** Whether an iOS or iPadOS host should ask the Google status route for a
+   * sign-in URL. */
+  google_conditional_access_sign_in_required?: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {

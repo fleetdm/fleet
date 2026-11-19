@@ -26,9 +26,9 @@ export const canDownloadInstallerRow = (
 ): boolean => rowIsActive && hasInstallerReadPermission;
 
 /** Resolves which package to download: the explicitly-clicked row on a
- * multi-package title, or the title's first-added `software_package` for
+ * multi-package title, or the title's first-added package for
  * single-package callers. Returns null when neither is available (e.g.,
- * an app-store title with no `software_package`). */
+ * an app-store title with no packages). */
 export const resolveDownloadTarget = (
   clicked: ISoftwarePackage | undefined,
   fallback: ISoftwarePackage | null | undefined
@@ -150,7 +150,7 @@ export const getInstallerCardInfo = (
   softwareTitle: ISoftwareTitleDetails
 ): InstallerCardInfo => {
   const installerData =
-    softwareTitle.software_package ??
+    softwareTitle.packages?.[0] ??
     (adaptAppStoreApp(softwareTitle) as IAppStoreApp);
 
   const isPackage = isSoftwarePackage(installerData);

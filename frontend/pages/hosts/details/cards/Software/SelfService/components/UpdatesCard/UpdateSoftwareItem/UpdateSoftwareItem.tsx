@@ -64,7 +64,7 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
     display_name,
     source,
     icon_url: iconUrl,
-    software_package: installerPackage,
+    package: installerPackage,
     app_store_app: vppApp,
   } = software;
   return (
@@ -149,13 +149,12 @@ interface IInstallerStatusActionProps {
 }
 
 const InstallerStatusAction = ({
-  software: { status, software_package, app_store_app, ui_status },
+  software: { status, package: pkg, app_store_app, ui_status },
   onInstall,
   onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {
   // TODO: update this if/when we support self-service app store apps
-  const lastInstall =
-    software_package?.last_install ?? app_store_app?.last_install ?? null;
+  const lastInstall = pkg?.last_install ?? app_store_app?.last_install ?? null;
   // localStatus is used to track the status of the any user-initiated install action
 
   const isMountedRef = useRef(false);

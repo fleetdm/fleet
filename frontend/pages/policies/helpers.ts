@@ -1,3 +1,5 @@
+import { QueryClient } from "react-query";
+
 import { IConfig } from "interfaces/config";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { TicketOrWebhookState } from "interfaces/policy";
@@ -11,42 +13,32 @@ import { addedFromNow } from "utilities/date_format";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { pluralize } from "utilities/strings/stringUtils";
 
-export interface ITicketOrWebhookInfo {
-  /** "webhook" or "ticket" when an "other workflow" automation is configured
-   *  on the policy's fleet/global config; "disabled" otherwise. */
-  state: TicketOrWebhookState;
-  /** Policy IDs configured for the active webhook/ticket automation, or `[]`
-   *  when disabled.
-   *  NOTE: the backend stores membership for both webhooks and integrations
-   *  in webhook_settings.failing_policies_webhook.policy_ids. */
-  policyIds: number[];
-}
+/** Settings responses list the webhook or ticket policies (`policy_ids`) and
+ *  the settings modal sends that list back, so refetch them after a policy's
+ *  automation changes or a stale list undoes the change.
+ *  TODO(#58577): remove with `policy_ids`. */
+export const invalidateWebhookPolicySettings = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries(["config"]);
+  queryClient.invalidateQueries(["teams"]);
+};
 
-export const getTicketOrWebhookInfo = (
+/** "webhook" or "ticket" when a failing policies webhook or ticket destination
+ *  is turned on in the config; "disabled" otherwise. */
+export const getTicketOrWebhookState = (
   automationsConfig: IConfig | ITeamConfig | undefined
-): ITicketOrWebhookInfo => {
-  if (!automationsConfig) return { state: "disabled", policyIds: [] };
+): TicketOrWebhookState => {
+  if (!automationsConfig) return "disabled";
 
   const webhookEnabled =
     automationsConfig.webhook_settings?.failing_policies_webhook
       ?.enable_failing_policies_webhook ?? false;
+  if (webhookEnabled) return "webhook";
 
   const integrations = automationsConfig.integrations;
   const ticketEnabled =
     !!integrations?.jira?.some((j) => j.enable_failing_policies) ||
     !!integrations?.zendesk?.some((z) => z.enable_failing_policies);
-
-  let state: TicketOrWebhookState = "disabled";
-  if (webhookEnabled) state = "webhook";
-  else if (ticketEnabled) state = "ticket";
-
-  const policyIds =
-    state === "disabled"
-      ? []
-      : automationsConfig.webhook_settings?.failing_policies_webhook
-          ?.policy_ids ?? [];
-
-  return { state, policyIds };
+  return ticketEnabled ? "ticket" : "disabled";
 };
 
 export const getTicketOrWebhookLabel = (
@@ -78,9 +70,7 @@ export const generateSoftwareOptionHelpText = (
 
   const platform: Platform | null =
     INSTALLABLE_SOURCE_PLATFORM_CONVERSION[title.source] || null;
-  const extension = getExtensionFromFileName(
-    title.software_package?.name ?? ""
-  );
+  const extension = getExtensionFromFileName(title.packages?.[0]?.name ?? "");
   const platformString =
     platform && extension
       ? `${PLATFORM_DISPLAY_NAMES[platform]} (.${extension})`
@@ -94,7 +84,7 @@ export const generateSoftwareOptionHelpText = (
   const versionOrCount =
     packageCount > 1
       ? `${packageCount} ${pluralize(packageCount, "version")}`
-      : title.software_package?.version ?? "";
+      : title.packages?.[0]?.version ?? "";
   const separator = platformString && versionOrCount ? " • " : "";
 
   return `${platformString}${separator}${versionOrCount}`;

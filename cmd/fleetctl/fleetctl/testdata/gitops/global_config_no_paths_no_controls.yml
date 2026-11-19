@@ -75,9 +75,9 @@ org_settings:
       - 10728
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_report_cap: 2000
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    report_cap: 2000
+    discard_reports_data: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true
   org_info:
@@ -134,7 +134,6 @@ org_settings:
       destination_url: https://host.docker.internal:8080/bozo
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: []
     host_status_webhook:
       days_count: 0
       destination_url: ""

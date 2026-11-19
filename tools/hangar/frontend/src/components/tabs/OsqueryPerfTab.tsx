@@ -6,18 +6,23 @@ import {
   type PerfConfig,
   type PerfTemplate,
   type ProcEvent,
+  type ApnsMockPreflight,
   type ProcInfo,
   type Settings,
 } from "../../lib/ipc";
 import {
   activeServer,
-  apnsMockMoved,
+  apnsMockLiveUrl,
+  apnsMockProcId,
+  apnsMockRunningPort,
   apnsMockUrl,
   procId,
   serveNeedsRestartForApns,
   serverForUrl,
   type ServerProfile,
 } from "../../lib/servers";
+import { startApnsMockFor } from "../../lib/orchestration";
+import { copyText } from "../../lib/clipboard";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 import { useApnsMockStatus } from "../../lib/useApnsMockStatus";
 
@@ -465,6 +470,8 @@ export function OsqueryPerfTab({
     );
   }
 
+  const apns = resolveApnsTarget(form, settings, procs);
+
   return (
     <div
       style={{
@@ -516,21 +523,24 @@ export function OsqueryPerfTab({
           overflow: "hidden",
         }}
       >
-        <ActiveRunsPanel
-          procs={perfProcs}
-          tails={tails}
-          activeCount={activeCount}
-          totalHosts={totalHosts}
-          runConfigIds={runConfigIds}
-          configs={configs}
-          onKillAll={killAll}
-          onKill={killRun}
-          onDismiss={dismissRun}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-medium)", minHeight: 0, minWidth: 0 }}>
+          <MockApnsCard server={apns.server ?? srv} settings={settings} procs={procs} />
+          <ActiveRunsPanel
+            procs={perfProcs}
+            tails={tails}
+            activeCount={activeCount}
+            totalHosts={totalHosts}
+            runConfigIds={runConfigIds}
+            configs={configs}
+            onKillAll={killAll}
+            onKill={killRun}
+            onDismiss={dismissRun}
+          />
+        </div>
         <NewRunPanel
           form={form}
           onChange={setForm}
-          apns={resolveApnsTarget(form, settings, procs)}
+          apns={apns}
           templates={templates}
           onStart={(f, name) => startRun(f, name, loadedId)}
           canStart={activeCount < MAX_PERF_RUNS && templates.length > 0}
@@ -599,6 +609,7 @@ function ActiveRunsPanel({
     <div
       className="card"
       style={{
+        flex: 1,
         padding: "var(--pad-medium)",
         display: "flex",
         flexDirection: "column",
@@ -1943,6 +1954,172 @@ function MdmSection({
 /// The mock APNs URL simulated Apple devices listen on for MDM pushes. The
 /// agent refuses to start Apple MDM hosts without one, and Fleet has to push
 /// to the same mock, so this also reports whether that's set up.
+// MockApnsCard runs the mock APNs that a run's simulated Apple hosts need, for
+// the server the run targets. Start waits until what the mock needs is there:
+// it exits right away without Redis, and go run fails without its source.
+function MockApnsCard({
+  server,
+  settings,
+  procs,
+}: {
+  server: ServerProfile;
+  settings: Settings;
+  procs: ProcInfo[];
+}) {
+  const proc = procs.find((p) => p.id === apnsMockProcId(server));
+  const liveUrl = apnsMockLiveUrl(server, procs);
+  const running = liveUrl !== null;
+  const port = apnsMockRunningPort(server, procs) ?? server.ports.apns_mock;
+  const url = liveUrl ?? apnsMockUrl(server);
+  const status = useApnsMockStatus(running ? port : null);
+  const repo = settings.servers[0]?.worktree_path ?? "";
+  const serveRunning = procs.some(
+    (p) => p.id === procId(server.id, "fleet-serve") && (p.state === "running" || p.state === "stopping"),
+  );
+
+  const [pre, setPre] = useState<ApnsMockPreflight | null>(null);
+  useEffect(() => {
+    if (running) return;
+    let cancelled = false;
+    const check = () =>
+      api
+        .apnsMockPreflight(repo, server.ports.redis, server.ports.apns_mock)
+        .then((p) => {
+          if (!cancelled) setPre(p);
+        })
+        .catch(() => {});
+    check();
+    const timer = setInterval(check, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [running, repo, server.ports.redis, server.ports.apns_mock]);
+
+  const needs: string[] = [];
+  if (pre && !running) {
+    if (!pre.has_source) {
+      needs.push(
+        repo
+          ? `Server 1's repo (${repo}) has no cmd/apple-apns-mock: check out a newer branch there.`
+          : "Set server 1's Fleet repo in Settings: the mock runs from it.",
+      );
+    }
+    if (!pre.redis_up) {
+      needs.push(`${server.name}'s Redis isn't answering on :${server.ports.redis}: start its stack on the Server tab.`);
+    }
+    if (!pre.port_free) {
+      needs.push(`Something else is using :${server.ports.apns_mock}: stop it in Settings → Troubleshoot, or pick another Mock APNs port.`);
+    }
+  }
+  const ready = !!pre && needs.length === 0;
+
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [showLog, setShowLog] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const act = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setErr("");
+    try {
+      await fn();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+    setBusy(false);
+  };
+  const log = proc?.recent_log ?? [];
+  const failed = !running && proc?.state === "failed";
+  const small = { fontSize: "var(--fs-xx-small)" };
+
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
+        <span className={`dot ${running ? (status?.up ? "run" : "warn") : "idle"}`} />
+        <span className="card-title">Mock APNs</span>
+        <span className="dim">· {server.name}</span>
+        <span className="mono dim">:{port}</span>
+        <div style={{ flex: 1 }} />
+        {running ? (
+          <button className="danger" onClick={() => act(() => api.stopProcess(apnsMockProcId(server)))} disabled={busy}>
+            {busy ? "Stopping…" : "Stop"}
+          </button>
+        ) : (
+          <button
+            className="primary"
+            onClick={() => act(() => startApnsMockFor(server, settings, procs))}
+            disabled={busy || !ready}
+            title={ready ? (serveRunning ? `Also restarts fleet serve on ${server.name} so it pushes here` : "") : "See what's missing below"}
+          >
+            {busy ? "Starting…" : serveRunning ? "Start (restarts fleet serve)" : "Start"}
+          </button>
+        )}
+        {log.length > 0 && <button onClick={() => setShowLog((v) => !v)}>{showLog ? "Hide logs" : "Logs"}</button>}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 16, rowGap: 4, ...small }}>
+        <span className="dim">URL</span>
+        <span>
+          <span className="mono">{url}</span>{" "}
+          <button
+            className="link-btn"
+            onClick={() =>
+              copyText(url)
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                })
+                .catch(() => {})
+            }
+          >
+            {copied ? "copied" : "copy"}
+          </button>
+        </span>
+        <span className="dim">Status</span>
+        <span>
+          {!running
+            ? "stopped"
+            : status?.up
+              ? `up · ${status.active_connections} device${status.active_connections === 1 ? "" : "s"} connected · ${status.total_pushes} push${status.total_pushes === 1 ? "" : "es"}`
+              : "starting · compiling cmd/apple-apns-mock on first run"}
+        </span>
+        <span className="dim">Redis</span>
+        <span>
+          <span className="mono">127.0.0.1:{server.ports.redis}</span>
+          {!running && pre && (
+            <span style={{ color: pre.redis_up ? "var(--core-fleet-green)" : "var(--ui-error)" }}>
+              {pre.redis_up ? " · answering" : " · not answering"}
+            </span>
+          )}
+        </span>
+      </div>
+
+      {needs.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, color: "var(--ui-error)", ...small }}>
+          {needs.map((n) => (
+            <span key={n}>{n}</span>
+          ))}
+        </div>
+      )}
+      {failed && !showLog && log.length > 0 && (
+        <div style={{ color: "var(--ui-error)", ...small }}>
+          Last start failed: <span className="mono">{log.filter((l) => !l.startsWith("[exit:")).slice(-1)[0] ?? log[log.length - 1]}</span>
+        </div>
+      )}
+      {showLog && (
+        <pre className="mono" style={{ margin: 0, maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", ...small }}>
+          {log.slice(-30).join("\n")}
+        </pre>
+      )}
+      {err && <div style={{ color: "var(--ui-error)", ...small }}>{err}</div>}
+      <div className="dim" style={small}>
+        While it runs, fleet serve on {server.name} pushes to it instead of Apple, so real Apple devices on{" "}
+        {server.name} get no pushes.
+      </div>
+    </div>
+  );
+}
+
 function ApnsField({
   form,
   onChange,
@@ -1952,32 +2129,27 @@ function ApnsField({
   onChange: (next: PerfFormConfig) => void;
   apns: ApnsTarget;
 }) {
-  const { server } = apns;
-  const auto = !apns.overridden && server?.mock_apns;
-  const status = useApnsMockStatus(auto ? server.ports.apns_mock : null);
+  const { server, mockUrl } = apns;
+  const auto = !apns.overridden && !!mockUrl;
+  const status = useApnsMockStatus(auto && mockUrl ? Number(mockUrl.split(":").pop()) : null);
 
   let note: React.ReactNode = null;
   let tone: "ok" | "neutral" | "warn" | "error" = "ok";
   if (apns.overridden) {
-    note = server?.mock_apns
-      ? `Using this URL instead of ${server.name}'s own mock (${apnsMockUrl(server)}).`
-      : null;
-  } else if (auto) {
-    if (apns.mockMoved) {
-      tone = "warn";
-      note = `${server.name}'s mock APNs is still running on its old port. Restart it from the Server tab; hosts connect once it's on ${apns.url}.`;
-    } else if (status === null) {
+    note = server && mockUrl ? `Using this URL instead of ${server.name}'s running mock (${mockUrl}).` : null;
+  } else if (auto && server) {
+    if (status === null) {
       tone = "neutral";
       note = `Checking ${server.name}'s mock APNs…`;
     } else if (status.up) {
       note = `${server.name}'s mock APNs · ${apns.url} · ${status.active_connections} device${status.active_connections === 1 ? "" : "s"} connected`;
     } else {
       tone = "warn";
-      note = `${server.name}'s mock APNs isn't running yet. Start it on the Server tab (Start all starts it too); hosts connect once it's up.`;
+      note = `${server.name}'s mock APNs is starting; hosts connect once it's up.`;
     }
   } else if (server) {
     tone = "error";
-    note = `${server.name} doesn't run a mock APNs server. Turn on Mock APNs in Settings → Fleet server with ${server.name} active, then restart fleet serve. Or enter the URL of a mock you run yourself.`;
+    note = `${server.name} isn't running mock APNs. Start it in Mock APNs at the top of this tab, or enter the URL of a mock you run yourself.`;
   } else {
     tone = "error";
     note = "The server URL isn't one of Hangar's servers. Enter the mock APNs URL that Fleet server pushes to (its FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL).";
@@ -1986,8 +2158,7 @@ function ApnsField({
     tone = tone === "error" ? "error" : "warn";
     note = (
       <>
-        {note} fleet serve on {server.name} was started before mock APNs was turned on, so its
-        pushes still go to Apple: restart it from the Server tab.
+        {note} fleet serve on {server.name} isn't pushing to the mock yet: restart it from the Server tab.
       </>
     );
   }
@@ -2021,9 +2192,7 @@ function ApnsField({
       <input
         type="text"
         value={form.mdm_apns_url}
-        placeholder={
-          server?.mock_apns ? `${apnsMockUrl(server)} (${server.name}'s mock)` : "http://127.0.0.1:8378"
-        }
+        placeholder={server && mockUrl ? `${mockUrl} (${server.name}'s mock)` : "http://127.0.0.1:8378"}
         onChange={(e) => onChange({ ...form, mdm_apns_url: e.target.value })}
         {...noAutocorrect}
         className="mono"
@@ -2244,12 +2413,10 @@ export type ApnsTarget = {
   /// The Hangar server the run targets, when server_url points at one.
   server?: ServerProfile;
   overridden: boolean;
-  /// That server's fleet serve is running without the push URL its mock
-  /// APNs setting asks for.
+  /// That server's running mock APNs, or null.
+  mockUrl: string | null;
+  /// That server's fleet serve is up and isn't pushing to its running mock.
   serveNeedsRestart: boolean;
-  /// That server's mock is still on the port it had before the one in
-  /// Settings changed, so nothing answers on `url` yet.
-  mockMoved: boolean;
 };
 
 export function resolveApnsTarget(
@@ -2258,6 +2425,7 @@ export function resolveApnsTarget(
   procs: ProcInfo[],
 ): ApnsTarget {
   const server = serverForUrl(settings, form.server_url);
+  const mockUrl = server ? apnsMockLiveUrl(server, procs) : null;
   const serveProc = server
     ? procs.find(
         (p) =>
@@ -2266,30 +2434,14 @@ export function resolveApnsTarget(
       )
     : undefined;
   const serveNeedsRestart =
-    !!server && !!serveProc && server.mock_apns &&
-    serveNeedsRestartForApns(server, serveProc);
+    !!server && !!serveProc && !!mockUrl && serveNeedsRestartForApns(server, serveProc, mockUrl);
+  const base = { server, mockUrl };
   const override = form.mdm_apns_url.trim();
   if (override) {
-    // Typing the server's own mock URL is still that mock, so keep its warnings.
-    const ownMock = server?.mock_apns && override === apnsMockUrl(server) ? server : undefined;
-    return {
-      url: override,
-      server,
-      overridden: true,
-      serveNeedsRestart: !!ownMock && serveNeedsRestart,
-      mockMoved: !!ownMock && apnsMockMoved(ownMock, procs),
-    };
+    // Typing the server's own mock URL is still that mock, so keep its warning.
+    return { ...base, url: override, overridden: true, serveNeedsRestart: override === mockUrl && serveNeedsRestart };
   }
-  if (server?.mock_apns) {
-    return {
-      url: apnsMockUrl(server),
-      server,
-      overridden: false,
-      serveNeedsRestart,
-      mockMoved: apnsMockMoved(server, procs),
-    };
-  }
-  return { url: "", server, overridden: false, serveNeedsRestart: false, mockMoved: false };
+  return { ...base, url: mockUrl ?? "", overridden: false, serveNeedsRestart };
 }
 
 export function perfArgsFor(form: PerfFormConfig, apnsUrl: string): string[] {
