@@ -544,6 +544,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "new microsoft compliance proxy")
 	}
 
+	googleConditionalAccess := service.NewGoogleConditionalAccessClient(config.GoogleConditionalAccess.ProxyURI, logger)
+
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
@@ -616,6 +618,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		scepConfigMgr,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		redis_key_value.New(redisPool),
 		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
@@ -822,6 +825,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		chartSvc:               chartSvc,
 		auditLogger:            auditLogger,
 		distributedLock:        distributedLock,
+		googleCAClients:        googleConditionalAccess,
 		initFatal:              initFatal,
 	})
 

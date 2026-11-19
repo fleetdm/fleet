@@ -27,6 +27,10 @@ spec:
     okta_audience_uri: null
     okta_certificate: null
     bypass_disabled: null
+    google:
+      service_account_key_configured: false
+      state: ""
+      error_message: null
   integrations:
     certificates_disable_host_end_user_binding: null
     certificates_idp_client_ids: null

@@ -163,6 +163,20 @@ func TestValidateUnknownKeys(t *testing.T) {
 		assert.Empty(t, errs)
 	})
 
+	t.Run("google_conditional_access api_key_json keys are not validated", func(t *testing.T) {
+		data := map[string]any{
+			"google_conditional_access": map[string]any{
+				"customer_id": "C02cajzvg",
+				"admin_email": "admin@example.com",
+				"api_key_json": map[string]any{
+					"type": "service_account", "client_email": "test@example.com", "private_key": "some value",
+				},
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
+		assert.Empty(t, errs)
+	})
+
 	t.Run("unknown keys at google_calendar entry level are rejected", func(t *testing.T) {
 		// Skipping validation for api_key_json must not leak into siblings.
 		data := map[string]any{

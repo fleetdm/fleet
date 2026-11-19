@@ -687,6 +687,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateEndpoint, conditionalAccessMicrosoftCreateRequest{})
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmEndpoint, conditionalAccessMicrosoftConfirmRequest{})
 	ue.DELETE("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftDeleteEndpoint, conditionalAccessMicrosoftDeleteRequest{})
+	ue.POST("/api/_version_/fleet/conditional_access/google", connectGoogleConditionalAccessEndpoint, connectGoogleConditionalAccessRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/google", getGoogleConditionalAccessEndpoint, nil)
+	ue.PATCH("/api/_version_/fleet/conditional_access/google", updateGoogleConditionalAccessEndpoint, updateGoogleConditionalAccessRequest{})
+	ue.DELETE("/api/_version_/fleet/conditional_access/google", deleteGoogleConditionalAccessEndpoint, nil)
 
 	// Okta Conditional Access
 	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
@@ -1050,6 +1054,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/disk_encryption_pin", submitDiskEncryptionPINEndpoint, submitDiskEncryptionPINRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/conditional_access/google", getDeviceGoogleConditionalAccessEndpoint, getDeviceGoogleConditionalAccessRequest{})
 
 	// Endpoints exempt from the Fleet Desktop SSO gate.
 	deNoSSO := newDeviceSSOExemptEndpointer(svc, logger, opts, r, apiVersions...)
@@ -1364,6 +1369,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
 
 	ne.HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, fleet.OrbitPingRequest{})
+
+	// Called by fleetdm.com with this server's secret after an end user signs in to Google.
+	ne.WithCustomMiddleware(limiter.Limit("google_conditional_access_register",
+		throttled.RateQuota{MaxRate: throttled.PerMin(600), MaxBurst: 100})).
+		POST("/api/_version_/fleet/google_conditional_access/register", registerGoogleConditionalAccessDeviceEndpoint, registerGoogleConditionalAccessDeviceRequest{})
 
 	// This is a callback endpoint for calendar integration -- it is called to notify an event change in a user calendar
 	ne.POST("/api/_version_/fleet/calendar/webhook/{event_uuid}", calendarWebhookEndpoint, calendarWebhookRequest{})

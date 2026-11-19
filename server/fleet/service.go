@@ -515,9 +515,10 @@ type Service interface {
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	DeleteHostIDP(ctx context.Context, id uint) error
-	// SetHostGoogleDeviceID binds an iOS, iPadOS or Android host to its device ID in Google. A different
+	// SetHostGoogleDeviceID binds a company-owned iOS, iPadOS or Android host to its device ID in Google
+	// and marks the device's users as managed there. It needs Google conditional access connected. A different
 	// value than the stored one, or one bound to another host, is refused with a 409. Only
-	// DeleteHostGoogleDeviceID removes it.
+	// DeleteHostGoogleDeviceID removes it, which also queues the unmark in Google.
 	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
 	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
@@ -1719,6 +1720,30 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	// ConnectGoogleConditionalAccess verifies the key with Google, registers with
+	// fleetdm.com, and turns the integration on.
+	ConnectGoogleConditionalAccess(ctx context.Context, customerID, adminEmail string, serviceAccountKey json.RawMessage) error
+	// GetGoogleConditionalAccess returns the settings from the app config (nil when not
+	// configured) and the connection status. Both are nil on Fleet Free.
+	GetGoogleConditionalAccess(ctx context.Context) (*GoogleConditionalAccessIntegration, *ConditionalAccessGoogleStatus, error)
+	// UpdateGoogleConditionalAccess edits the configured integration. A nil customerID or
+	// adminEmail and an empty serviceAccountKey keep the stored value.
+	UpdateGoogleConditionalAccess(ctx context.Context, customerID, adminEmail *string, serviceAccountKey json.RawMessage) error
+	// DeleteGoogleConditionalAccess drops the fleetdm.com registration, turns the
+	// integration off and deletes the key. Nothing is unmarked in Google, and the device
+	// rows are kept for a re-add for the same customer.
+	DeleteGoogleConditionalAccess(ctx context.Context) error
+	// GetGoogleConditionalAccessDeviceStatus returns the Google sign-in URL of the
+	// authenticated host, counting an attempt when it hands out a sign-in.
+	GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *Host) (*GoogleConditionalAccessDeviceStatus, error)
+	// GoogleConditionalAccessSignInRequired reports whether the Self-service web clip of
+	// the authenticated host should ask the status route for a sign-in. It only reads,
+	// so it counts no attempt.
+	GoogleConditionalAccessSignInRequired(ctx context.Context, host *Host) (bool, error)
+	// RegisterGoogleConditionalAccessDevice stores and marks the DeviceUsers fleetdm.com
+	// looked up for an iOS or iPadOS host. secret is the bearer token fleetdm.com sent.
+	RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg GoogleConditionalAccessRegistration) (GoogleConditionalAccessRegisterResult, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Okta conditional access

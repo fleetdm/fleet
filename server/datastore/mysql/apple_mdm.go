@@ -2675,6 +2675,13 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "deleting one-time enroll secrets for host")
 		}
 
+		// Only mobile hosts can register with Google conditional access.
+		if fleet.IsMobilePlatform(host.Platform) {
+			if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, []string{uuid}); err != nil {
+				return err
+			}
+		}
+
 		// clear up the MDM-dependent upcoming activities as it won't be able
 		// to process them anymore
 		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {

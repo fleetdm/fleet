@@ -1525,6 +1525,14 @@ allow {
   action == write
 }
 
+# Global admins and gitops can configure Google conditional access, as they can through the
+# app config.
+allow {
+  object.type == "conditional_access_google"
+  subject.global_role == [admin, gitops][_]
+  action == write
+}
+
 ##
 # Microsoft Graph credentials
 ##

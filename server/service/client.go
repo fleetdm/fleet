@@ -2435,6 +2435,11 @@ func (c *Client) DoGitOps(
 		} else if gwList, ok := gw.([]any); ok && allGoogleWorkspaceEntriesEmpty(gwList) {
 			integrations.(map[string]any)["google_workspace"] = []any{}
 		}
+		// Google conditional access is turned off when it is not set: sending the key as null
+		// tells the server so, where a missing key keeps it for older fleetctl versions.
+		if _, ok := integrations.(map[string]any)["google_conditional_access"]; !ok {
+			integrations.(map[string]any)["google_conditional_access"] = json.RawMessage("null")
+		}
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}

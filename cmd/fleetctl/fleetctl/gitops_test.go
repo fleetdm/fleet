@@ -330,6 +330,66 @@ org_settings:
 	}
 }
 
+func TestGitOpsGlobalGoogleConditionalAccessTurnedOff(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// An absent or null google_conditional_access turns the integration off.
+	cases := []struct {
+		name         string
+		integrations string
+	}{
+		{"absent", "  integrations:"},
+		{"null", "  integrations:\n    google_conditional_access:"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t)
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleConditionalAccess = &fleet.GoogleConditionalAccessIntegration{
+					CustomerID: "C02cajzvg", AdminEmail: "admin@example.com",
+				}
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = fmt.Fprintf(tmpFile, `
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GCA Test
+%s
+  secrets:
+`, c.integrations)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			require.Nil(t, savedAppConfig.Integrations.GoogleConditionalAccess)
+		})
+	}
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 

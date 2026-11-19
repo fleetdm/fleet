@@ -220,7 +220,12 @@
           "owl": "hoot"
         }
       }
-    ]
+    ],
+    "google_conditional_access": {
+      "customer_id": "C02cajzvg",
+      "admin_email": "admin@fleetdm.com",
+      "api_key_json": "********"
+    }
   },
   "mdm": {
     "apple_server_url": "http://some-apple-server-url.com",
