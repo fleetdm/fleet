@@ -433,23 +433,7 @@ type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.Certifi
 
 type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
-type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
-
-type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
-
-type ModifyGlobalScheduledQueriesFunc func(ctx context.Context, id uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error)
-
-type DeleteGlobalScheduledQueriesFunc func(ctx context.Context, id uint) error
-
 type TranslateFunc func(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error)
-
-type TeamScheduleQueryFunc func(ctx context.Context, teamID uint, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
-
-type GetTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
-
-type ModifyTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, scheduledQueryID uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error)
-
-type DeleteTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, id uint) error
 
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -612,8 +596,6 @@ type SkipAuthFunc func(ctx context.Context)
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
-
-type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type GenerateABMKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
 
@@ -1634,32 +1616,8 @@ type Service struct {
 	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
 	ResendHostCertificateTemplateFuncInvoked bool
 
-	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
-	GlobalScheduleQueryFuncInvoked bool
-
-	GetGlobalScheduledQueriesFunc        GetGlobalScheduledQueriesFunc
-	GetGlobalScheduledQueriesFuncInvoked bool
-
-	ModifyGlobalScheduledQueriesFunc        ModifyGlobalScheduledQueriesFunc
-	ModifyGlobalScheduledQueriesFuncInvoked bool
-
-	DeleteGlobalScheduledQueriesFunc        DeleteGlobalScheduledQueriesFunc
-	DeleteGlobalScheduledQueriesFuncInvoked bool
-
 	TranslateFunc        TranslateFunc
 	TranslateFuncInvoked bool
-
-	TeamScheduleQueryFunc        TeamScheduleQueryFunc
-	TeamScheduleQueryFuncInvoked bool
-
-	GetTeamScheduledQueriesFunc        GetTeamScheduledQueriesFunc
-	GetTeamScheduledQueriesFuncInvoked bool
-
-	ModifyTeamScheduledQueriesFunc        ModifyTeamScheduledQueriesFunc
-	ModifyTeamScheduledQueriesFuncInvoked bool
-
-	DeleteTeamScheduledQueriesFunc        DeleteTeamScheduledQueriesFunc
-	DeleteTeamScheduledQueriesFuncInvoked bool
 
 	NewGlobalPolicyFunc        NewGlobalPolicyFunc
 	NewGlobalPolicyFuncInvoked bool
@@ -1903,9 +1861,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	ListMDMAppleDevicesFunc        ListMDMAppleDevicesFunc
-	ListMDMAppleDevicesFuncInvoked bool
 
 	GenerateABMKeyPairFunc        GenerateABMKeyPairFunc
 	GenerateABMKeyPairFuncInvoked bool
@@ -3952,67 +3907,11 @@ func (s *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint
 	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
 }
 
-func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.GlobalScheduleQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.GlobalScheduleQueryFunc(ctx, sq)
-}
-
-func (s *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.GetGlobalScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetGlobalScheduledQueriesFunc(ctx, opts)
-}
-
-func (s *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.ModifyGlobalScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyGlobalScheduledQueriesFunc(ctx, id, q)
-}
-
-func (s *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteGlobalScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteGlobalScheduledQueriesFunc(ctx, id)
-}
-
 func (s *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
 	s.mu.Lock()
 	s.TranslateFuncInvoked = true
 	s.mu.Unlock()
 	return s.TranslateFunc(ctx, payloads)
-}
-
-func (s *Service) TeamScheduleQuery(ctx context.Context, teamID uint, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.TeamScheduleQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.TeamScheduleQueryFunc(ctx, teamID, sq)
-}
-
-func (s *Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.GetTeamScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetTeamScheduledQueriesFunc(ctx, teamID, opts)
-}
-
-func (s *Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.ModifyTeamScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyTeamScheduledQueriesFunc(ctx, teamID, scheduledQueryID, q)
-}
-
-func (s *Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error {
-	s.mu.Lock()
-	s.DeleteTeamScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteTeamScheduledQueriesFunc(ctx, teamID, id)
 }
 
 func (s *Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -4580,13 +4479,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	s.mu.Lock()
-	s.ListMDMAppleDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleDevicesFunc(ctx)
 }
 
 func (s *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {

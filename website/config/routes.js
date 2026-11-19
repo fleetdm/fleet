@@ -571,6 +571,38 @@ module.exports.routes = {
     }
   },
 
+  'GET /google-conditional-access/done': {
+    action: 'google-proxy/view-google-conditional-access-done',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/not-allowed': {
+    action: 'google-proxy/view-google-conditional-access-not-allowed',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/not-found': {
+    action: 'google-proxy/view-google-conditional-access-not-found',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/error': {
+    action: 'google-proxy/view-google-conditional-access-error',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
   'GET /legal/terms': {
     action: 'legal/view-terms',
   },
@@ -1670,6 +1702,14 @@ module.exports.routes = {
   'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
   'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
+
+  //  ╔═╗╔═╗╔═╗╔═╗╦  ╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║ ╦║ ║║ ║║ ╦║  ║╣   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╚═╝╚═╝╚═╝╚═╝╩═╝╚═╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/google-conditional-access': { action: 'google-proxy/create-google-conditional-access-customer', csrf: false },
+  'DELETE /api/v1/google-conditional-access': { action: 'google-proxy/remove-one-google-conditional-access-customer', csrf: false },
+  'GET /api/v1/google-conditional-access/sign-in': { action: 'google-proxy/redirect-to-google-sign-in' },
+  'GET /api/v1/google-conditional-access/callback': { action: 'google-proxy/receive-redirect-from-google' },
 
   //
   //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

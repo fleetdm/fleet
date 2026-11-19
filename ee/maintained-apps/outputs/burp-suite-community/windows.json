@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.10.1",
+      "version": "2026.11.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security') AND version_compare(version, '2026.10.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security') AND version_compare(version, '2026.11.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('burpsuite.exe','burpsuitepro.exe','burpsuitecommunity.exe'));"
       },
-      "installer_url": "https://portswigger.net/burp/releases/download?product=desktop&version=2026.10.1&type=WindowsX64",
+      "installer_url": "https://portswigger.net/burp/releases/download?product=desktop&version=2026.11.2&type=WindowsX64",
       "install_script_ref": "3305ee90",
       "uninstall_script_ref": "0a72a98e",
-      "sha256": "793e42d920e14eff09e5aa438d21076970f306e1a15b6a3752184a374c91f206",
+      "sha256": "d3fc8cf99521353038bb7f3783688ee570d243dfbc80bfc7be4e55c0d1a94874",
       "default_categories": [
         "Developer tools"
       ]

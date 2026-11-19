@@ -138,27 +138,35 @@ describe("GoogleCASForm", () => {
     { id: 2, name: "HYDRANT_NAME", type: "hydrant" as const },
   ];
 
-  it("rejects a name another Google CAS CA already uses", async () => {
+  it.each([
+    ["another Google CAS CA", "TAKEN"],
+    ["a CA of another type, in another case", "hydrant_name"],
+  ])("rejects a name used by %s", async (_, name) => {
     const onSubmit = jest.fn();
     const { user } = renderForm({ certAuthorities, onSubmit });
 
-    await fillForm(user, createTestFormData({ name: "TAKEN" }));
+    await fillForm(user, createTestFormData({ name }));
     await user.click(screen.getByRole("button", { name: "Add CA" }));
 
     expect(
-      screen.getByText("Enter a name that isn't used by another Google CAS CA")
+      screen.getByText(
+        "Enter a name that isn't used by another certificate authority"
+      )
     ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("accepts a name used by a CA of another type", async () => {
+  it("rejects the NDES name in any case", async () => {
     const onSubmit = jest.fn();
-    const { user } = renderForm({ certAuthorities, onSubmit });
+    const { user } = renderForm({ onSubmit });
 
-    await fillForm(user, createTestFormData({ name: "HYDRANT_NAME" }));
+    await fillForm(user, createTestFormData({ name: "ndes" }));
     await user.click(screen.getByRole("button", { name: "Add CA" }));
 
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByText("Enter a name other than NDES")
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("rejects the masked key when adding", async () => {
@@ -198,6 +206,7 @@ describe("GoogleCASForm", () => {
     });
     const { user } = renderForm({
       defaultData: saved,
+      editingCertAuthorityId: 1,
       submitBtnText: "Save",
       certAuthorities: [{ id: 1, name: "GOOGLE_WIFI", type: "google_cas" }],
       onSubmit,

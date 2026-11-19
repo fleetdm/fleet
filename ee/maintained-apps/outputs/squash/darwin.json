@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.0",
+      "version": "4.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.realmacsoftware.squash3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.realmacsoftware.squash3' AND version_compare(bundle_short_version, '3.3.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.realmacsoftware.squash3' AND version_compare(bundle_short_version, '4.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.realmacsoftware.squash3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.devant-cdn.io/v1/app/4ad73d1f-7ab7-4f7f-b9df-8d2d906ef718/Squash-913.zip/Squash.zip",
+      "installer_url": "https://dl.devant-cdn.io/v1/app/4ad73d1f-7ab7-4f7f-b9df-8d2d906ef718/Squash-1115.zip/Squash.zip",
       "install_script_ref": "e26dafe4",
       "uninstall_script_ref": "017325ae",
-      "sha256": "8c78625b22fb599e0a8bae839815db052d234d8ff70e4c4be86b0fd3e2a5c9f5",
+      "sha256": "f7b79731ef68a280b80689ebc01b1d26e28105ee3ed099b4bead7ac6b7adcdd3",
       "default_categories": [
         "Productivity"
       ]
