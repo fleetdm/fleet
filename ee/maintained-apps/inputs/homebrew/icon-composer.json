@@ -4,6 +4,5 @@
   "token": "icon-composer",
   "installer_format": "dmg",
   "slug": "icon-composer/darwin",
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 }

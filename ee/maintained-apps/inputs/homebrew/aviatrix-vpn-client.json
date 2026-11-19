@@ -6,6 +6,5 @@
   "slug": "aviatrix-vpn-client/darwin",
   "default_categories": [
     "Security"
-  ],
-  "frozen": true
+  ]
 }
