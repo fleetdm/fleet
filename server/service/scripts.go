@@ -99,18 +99,6 @@ func (svc *Service) GetScriptIDByName(ctx context.Context, scriptName string, te
 const maxPendingScripts = 1000
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// Must check for presence of mutually exclusive parameters before
 	// authorization, as the permissions are not the same in all cases.
 	// There's no harm in returning the error if this validation fails,
@@ -240,7 +228,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false)
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
@@ -438,7 +426,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
@@ -701,9 +689,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 
 	// cursor-based pagination is not supported for scripts
 	opt.After = ""
-	// custom ordering is not supported, always by name
+	// only name ordering is supported; direction comes from the request (ascending by default)
 	opt.OrderKey = "name"
-	opt.OrderDirection = fleet.OrderAscending
 	// no matching query support
 	opt.MatchQuery = ""
 	// always include metadata for scripts
@@ -728,7 +715,7 @@ func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet
 func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error) {
 	if maybeTmID != nil && maybeTmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_name", "cannot specify both fleet_id and fleet_name"))
 	}
 
 	var teamID *uint
@@ -916,7 +903,8 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 		return ctxerr.Wrap(ctx, err, "canceling batch script")
 	}
 
-	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	// Read from the primary, a replica may not have the canceled count written above yet.
+	batchActivity, err := svc.ds.GetBatchActivity(ctxdb.RequirePrimary(ctx, true), batchExecutionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting canceled activity stats")
 	}
@@ -1089,18 +1077,6 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
 	}
 
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return "", err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// Use the authorize script by ID to handle authz
 	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
 	if err != nil {
@@ -1132,7 +1108,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		}
 
 		if opt.TeamFilter == nil {
-			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
+			return "", fleet.NewInvalidArgumentError("filters", "filters must include a fleet filter")
 		}
 
 		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}

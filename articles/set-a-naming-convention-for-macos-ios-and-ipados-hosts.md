@@ -15,7 +15,7 @@ Fleet can automatically rename macOS, iOS, and iPadOS hosts as they enroll, so y
 
 ## Set the template
 
-1. In the Fleet UI, select the team you want to apply the template to (or **No team**).
+1. In the Fleet UI, select the fleet you want to apply the template to (or **Unassigned**).
 2. Head to **Controls > OS settings > Host names**.
 3. In **Name template**, enter the name you want hosts to have. Combine fixed text with variables to make each host's name unique, for example: `iPad $FLEET_VAR_HOST_HARDWARE_SERIAL`.
 4. Click **Save**.
@@ -38,6 +38,7 @@ If an end user renames a host on the device, Fleet detects it the next time the 
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | The local part of the end user's IdP username (before the `@`) |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | The end user's IdP groups |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | The end user's IdP department |
+| `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` | The end user's immutable IdP user ID (SCIM `externalId`) |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULLNAME` | The end user's full name from the IdP |
 
 You can also reference [secret variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) and [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) in a template.
@@ -65,7 +66,7 @@ You can also reference [secret variables](https://fleetdm.com/guides/secrets-in-
 
 ## Manage with GitOps
 
-If you manage controls with GitOps, set `name_template` under `controls` for a team (or under `controls` at the top level for **No team**):
+If you manage controls with GitOps, set `name_template` under `controls` for a fleet (or under `controls` at the top level for **Unassigned**):
 
 ```yaml
 controls:

@@ -40,7 +40,7 @@ const renderModal = ({
       softwareTitle={createMockSoftwareTitle({
         id: 10,
         name: "Firefox",
-        software_package: softwarePackage,
+        packages: [softwarePackage],
       })}
       teamId={1}
       onExit={onExit}

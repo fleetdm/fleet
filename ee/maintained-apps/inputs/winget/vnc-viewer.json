@@ -3,6 +3,7 @@
   "slug": "vnc-viewer/windows",
   "package_identifier": "RealVNC.VNCConnect.Viewer",
   "unique_identifier": "RealVNC Connect Viewer",
+  "open_process_names": ["rvncconnect.exe", "vncviewer.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/vnc-viewer_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vnc-viewer_uninstall.ps1",
   "installer_arch": "x64",

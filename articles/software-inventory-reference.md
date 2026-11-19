@@ -1,8 +1,4 @@
-# Software inventory reference
-
-Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. [Vulnerability (CVE) processing](https://fleetdm.com/guides/vulnerability-processing#coverage) runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
-
-Each software type below lists its `source`, and browser and IDE extensions also list `extension_for` (the browser or IDE the extension belongs to). Use these values to filter software in [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#list-software).
+# Software inventory
 
 ## Apps
 
@@ -109,7 +105,7 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 - NixOS hosts enroll with the NixOS module instead of a package from `fleetctl package`, and Fleet collects their software as [Nix packages](#packages). Learn how in [Enroll NixOS hosts](https://fleetdm.com/guides/enroll-hosts#enroll-nixos-hosts).
 - Raspberry Pi OS 64-bit reports as Debian and is covered. Raspberry Pi OS 32-bit reports as `raspbian`, which Fleet doesn't recognize.
 - Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
-- Fedora Atomic desktops, Bazzite, Bluefin, and Aurora use rpm-ostree, which keeps the OS read-only. Fleet's agent package can't be installed on them. Support is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
+- Fedora Atomic desktops, Bazzite, Bluefin, and Aurora use rpm-ostree, which keeps the OS read-only. Fleet's standard agent package can't be installed on them, but you can repackage it. Learn how in [Enroll rpm-ostree hosts](https://fleetdm.com/guides/enroll-hosts#enroll-rpm-ostree-hosts). On these hosts, Fleet collects RPM packages only after you add the `nobody` user to `/etc/passwd`, which is a step in that guide. Learn more in [#58969](https://github.com/fleetdm/fleet/issues/58969). Native rpm-ostree support is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
 - SteamOS also has a read-only OS, and Fleet's agent package can't be installed on it.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 - [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
@@ -191,7 +187,7 @@ If Fleet already collects an AI tool as another type, such as a macOS app or an 
 | AI browser extensions | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | Keep their [browser extensions](#browser-extensions) type, such as Chrome extension. |
 | Live AI and MCP sockets | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | Open network ports for running AI tools, such as a local model server's API port. They aren't software, so they don't appear in software inventory. You can report on them with the `ai_tools` table's `sockets` type. |
 | AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't collect installed model weights or which model a local runner has loaded. Only the runner app is visible, under AI desktop apps. |
-| AI sessions | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't track AI agent sessions, such as which user ran Claude Code, Codex, or Cursor, when, or in which project. A `sessions` or `memory` directory only counts as evidence of an agent workspace; its contents aren't read. Seeing AI sessions on the **Host details** page is [coming soon](https://github.com/fleetdm/fleet/issues/51825). |
+| AI sessions | macOS, Windows, Linux | N/A | N/A | N/A | N/A | N/A | Fleet Premium shows the sessions of Claude Code, GitHub Copilot CLI, Cursor, Codex CLI, and Gemini CLI, with each session's tool calls, on the **Host details** page. They aren't software, so they don't appear in software inventory. Only admins and maintainers can see them, because commands and their arguments can include secrets. Hosts report the sessions active in the last 7 days, and Fleet keeps each session for 30 days after it was last active. A session's tool calls can trail the session by a refresh, and Fleet stops collecting them once the session's transcript is gone from the host. In the API, use [List host's AI sessions](https://fleetdm.com/docs/rest-api/rest-api#list-hosts-ai-sessions). |
 
 - Fleet marks an AI tool collected as another type by matching install paths. Windows apps whose registry entry has no install location, such as some per-user installs, aren't marked. Linux desktop apps aren't marked, because Linux packages don't report an install path.
 - On hosts running an older version of Fleet's agent, AI CLI tools from a native installer, such as Claude Code's, show no version. AI CLI tools installed with Homebrew also appear as a separate **AI CLI tool** with no version, and the Homebrew package isn't marked as an AI tool. Update Fleet's agent to fix both.
@@ -250,5 +246,5 @@ Fleet refreshes software inventory on the same schedule as other host details. T
 <meta name="authorGitHubUsername" value="karmine05">
 <meta name="authorFullName" value="Dhruv Majumdar">
 <meta name="publishedOn" value="2026-09-11">
-<meta name="articleTitle" value="Software inventory reference">
-<meta name="description" value="Find out how Fleet collects software inventory and what software it covers on each platform.">
+<meta name="articleTitle" value="Software inventory">
+<meta name="description" value="Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts.">

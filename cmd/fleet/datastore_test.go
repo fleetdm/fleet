@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,18 @@ func TestEvalMigrationStatus(t *testing.T) {
 			name:     "unknown migrations tolerated outside dev still warns",
 			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownMigrations, UnknownTable: []int64{1}},
 			devMode:  false,
+			wantExit: false,
+			wantOut:  "unrecognized migrations",
+		},
+		{
+			name:     "unknown migrations newer than the fleet 5 baseline",
+			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownMigrations, UnknownTable: []int64{tables.Fleet5BaselineVersion + 1}},
+			wantExit: false,
+			wantOut:  "migrations from a newer Fleet release",
+		},
+		{
+			name:     "unknown migrations older than the fleet 5 baseline",
+			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownMigrations, UnknownTable: []int64{tables.Fleet5BaselineVersion - 1, tables.Fleet5BaselineVersion + 1}},
 			wantExit: false,
 			wantOut:  "unrecognized migrations",
 		},

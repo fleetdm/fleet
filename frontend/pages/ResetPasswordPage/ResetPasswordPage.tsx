@@ -46,7 +46,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     } catch (response: any) {
       if (
         response.data.message.includes(
-          "either global role or team role needs to be defined"
+          "either global role or fleet role needs to be defined"
         )
       ) {
         router.push(PATHS.NO_ACCESS);

@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,17 +53,12 @@ func TestAggregatedStats(t *testing.T) {
 	var args []interface{}
 
 	batchSize := 4000
-	hostCount := 10           // 2000
-	scheduledQueryCount := 20 // 400
-	queryCount := 30          // 1000
+	hostCount := 10  // 2000
+	queryCount := 30 // 1000
 
 	start := time.Now()
 	for i := 0; i < queryCount; i++ {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
-		require.NoError(t, err)
-	}
-	for i := 0; i < scheduledQueryCount; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions, query_type) VALUES %s`
@@ -90,13 +86,9 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Make sure we have some queries and scheduled queries that don't have stats
+	// Make sure we have some queries that don't have stats
 	for i := queryCount; i < queryCount+4; i++ {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
-		require.NoError(t, err)
-	}
-	for i := scheduledQueryCount; i < scheduledQueryCount+4; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 
@@ -182,13 +174,24 @@ func TestAggregatedStatsSkipsDeletedQueries(t *testing.T) {
 	require.Equal(t, []uint{live.ID}, ids)
 }
 
+var deleteQueryStatsBatchSizeMu sync.Mutex
+
+// setDeleteQueryStatsBatchSize holds a lock until the test ends, since MySQL tests run in parallel.
+func setDeleteQueryStatsBatchSize(t *testing.T, size int) {
+	deleteQueryStatsBatchSizeMu.Lock()
+	orig := deleteQueryStatsBatchSize
+	deleteQueryStatsBatchSize = size
+	t.Cleanup(func() {
+		deleteQueryStatsBatchSize = orig
+		deleteQueryStatsBatchSizeMu.Unlock()
+	})
+}
+
 func TestDeleteOrphanedQueryStats(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
 
-	orig := deleteQueryStatsBatchSize
-	deleteQueryStatsBatchSize = 2
-	t.Cleanup(func() { deleteQueryStatsBatchSize = orig })
+	setDeleteQueryStatsBatchSize(t, 2)
 
 	live := test.NewQuery(t, ds, nil, "live", "select 1", 0, true)
 	deleted := test.NewQuery(t, ds, nil, "deleted", "select 2", 0, true)

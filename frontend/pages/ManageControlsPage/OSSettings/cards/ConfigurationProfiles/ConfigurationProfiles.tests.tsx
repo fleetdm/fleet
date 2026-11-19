@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
+import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -31,17 +32,17 @@ const asset = {
   checksum: "abc",
 };
 
-const mdmEnabledConfig = {
-  mdm: { enabled_and_configured: true },
-} as any;
+const mdmEnabledConfig = createMockConfig({
+  mdm: createMockMdmConfig({ enabled_and_configured: true }),
+});
 
-const mdmDisabledConfig = {
-  mdm: {
+const mdmDisabledConfig = createMockConfig({
+  mdm: createMockMdmConfig({
     enabled_and_configured: false,
     windows_mdm_enabled: false,
     android_enabled_and_configured: false,
-  },
-} as any;
+  }),
+});
 
 const baseProps = {
   currentTeamId: 0,

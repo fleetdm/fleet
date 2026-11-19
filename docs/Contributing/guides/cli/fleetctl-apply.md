@@ -357,7 +357,7 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
-`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts`  only include the settings applied using `fleetctl apply`. To list settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
+`fleetctl get config` and `fleetctl get fleets` don't include configuration profiles, scripts, setup experience items (bootstrap package, setup assistant, and script), or VPP token assignments. To list them, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts).
 
 ### Mobile device management (MDM) settings for fleets
 
@@ -431,8 +431,8 @@ spec:
     jira: null
     zendesk: null
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     contact_url: ""
     org_name: Fleet
   server_settings:
@@ -480,7 +480,6 @@ spec:
       destination_url: ""
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""
@@ -492,8 +491,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    apple_bm_default_fleet: ""
-    windows_enabled_and_configured: false
+    windows_mdm_enabled: false
     macos_updates:
       minimum_version: ""
       deadline: ""

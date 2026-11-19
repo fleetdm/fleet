@@ -1,6 +1,8 @@
 # Windows zero touch without Entra or Autopilot
 
-Fleet already supports [zero-touch Windows deployment](https://fleetdm.com/articles/autopilot-without-autopilot): a partner preinstalls Fleet's agent (fleetd), and new computers enroll in Fleet the first time they're online. Starting in Fleet 5.2.0, zero touch can also sign the end user in with your identity provider (IdP) and install their software before they reach the Windows desktop. Fleet builds the Windows image for you and sends it to your PC maker (OEM), and the OEM ships computers straight to your end users.
+The best way to do [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot) is a Fleet factory image ([coming soon](https://github.com/fleetdm/fleet/issues/57617)). It signs the end user in with your identity provider (IdP) and installs their software before they reach the Windows desktop. Fleet builds the Windows image for you and sends it to your PC maker (OEM), and the OEM ships computers straight to your end users. Watch a [preview](https://www.youtube.com/watch?v=RHd214noYKs) of what end users see.
+
+You can do zero touch today with a [provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package): a partner preinstalls Fleet's agent (fleetd), and new computers enroll in Fleet the first time they're online.
 
 ## What's new
 
@@ -40,6 +42,8 @@ Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com
 
 Fleet builds a Windows 11 image with fleetd set up for that fleet, tests it, and sends it to your OEM.
 
+> **Note:** Fleet is working on turning the factory image into a provisioning package. Today, computers get the Windows version the image was built with. With a provisioning package, they'll keep the up-to-date Windows version your OEM ships.
+
 ## Step 3: Order computers
 
 Order computers from your OEM as usual. The OEM loads the image at the factory and ships each computer straight to the end user.
@@ -56,6 +60,8 @@ Changes you make to the fleet in Step 1, like adding software, apply to every ne
 6. Windows signs them out. They sign in with their new password.
 7. Windows offers to set up a Windows Hello PIN.
 
+> **Note:** A Windows password that matches the end user's IdP password is coming soon. Today, the end user chooses a new password at point 5 above.
+
 Setup takes a few minutes, depending on how much software you add.
 
 ## Further reading
@@ -63,6 +69,7 @@ Setup takes a few minutes, depending on how much software you add.
 - [Autopilot without Autopilot: zero-touch Windows deployment with Fleet](https://fleetdm.com/articles/autopilot-without-autopilot)
 - [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package)
 - [Windows and Linux setup experience](https://fleetdm.com/guides/windows-linux-setup-experience)
+- [Provision Windows devices with Fleet, Okta, and a partner](https://fleetdm.com/guides/provision-windows-devices-with-fleet-okta-and-a-partner)
 
 <meta name="articleTitle" value="Windows zero touch without Entra or Autopilot">
 <meta name="authorFullName" value="Luke Heath">

@@ -19,10 +19,7 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { isVulnUnsupportedPlatform } from "interfaces/platform";
 import {
   ISoftwareVulnerability,
@@ -171,12 +168,7 @@ const generateDefaultTableHeaders = (
     accessor: "name_only",
     Cell: (cellProps: INameCellProps) => {
       if (!configOptions?.includeIcon) {
-        return (
-          <TextCell
-            value={cellProps.cell.value}
-            formatter={(name) => formatOperatingSystemDisplayName(name)}
-          />
-        );
+        return <TextCell value={cellProps.cell.value} />;
       }
 
       const { name_only, os_version_id, platform } = cellProps.row.original;

@@ -762,9 +762,9 @@ CREATE TABLE `android_zero_touch_configurations` (
 ```
 
 The nullable `team_id` plus non-null `global_or_team_id` pattern is borrowed from
-`android_app_configurations`, which uses it to give "No team" a real value (`0`) in a unique key. Note the
-difference: that table's unique key is composite, `(global_or_team_id, application_id)`, because a team has
-many app configurations. Here a team has exactly one zero-touch configuration, so the unique key is on
+`android_app_configurations`, which uses it to give Unassigned a real value (`0`) in a unique key. Note the
+difference: that table's unique key is composite, `(global_or_team_id, application_id)`, because a fleet has
+many app configurations. Here a fleet has exactly one zero-touch configuration, so the unique key is on
 `global_or_team_id` alone.
 
 ```sql
@@ -980,7 +980,7 @@ Phase 1 is independently shippable and worth doing even if Phases 2–4 never ar
   reason to do the work.
 - **Integration** — extend `server/mdm/android/tests/` and the mock at `cmd/android-amapi-mock/` with a
   provisioning-API surface, so the cron and endpoints run without Google.
-- **Multi-team** — per `CLAUDE.md`: "No team", multiple teams, and the default-team transition.
+- **Multi-fleet** — per `CLAUDE.md`: Unassigned, multiple fleets, and the default-fleet transition.
 - **Multi-host** — at least two zero-touch devices from different manufacturers in manual QA, per Fleet's
   multi-host requirement. OEM differences in serial/IMEI reporting are the likeliest correlation bugs and
   one device will not reveal them.

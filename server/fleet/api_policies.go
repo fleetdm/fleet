@@ -5,7 +5,7 @@ package fleet
 /////////////////////////////////////////////////////////////////////////////////
 
 type GlobalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id" renameto:"report_id"`
+	QueryID          *uint    `json:"report_id" removedkey:"query_id"`
 	Query            string   `json:"query"`
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
@@ -124,7 +124,7 @@ func (r ResetPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	TeamIDs   []uint `json:"fleet_ids" premium:"true"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 
@@ -170,7 +170,7 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 
 type TeamPolicyRequest struct {
 	TeamID                uint   `url:"fleet_id"`
-	QueryID               *uint  `json:"query_id" renameto:"report_id"`
+	QueryID               *uint  `json:"report_id" removedkey:"query_id"`
 	Query                 string `json:"query"`
 	Name                  string `json:"name"`
 	Description           string `json:"description"`

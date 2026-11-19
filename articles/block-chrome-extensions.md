@@ -57,7 +57,7 @@ Chrome offers three extension policies:
 </plist>
 ```
 
-2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+2. In Fleet, go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 3. Choose the `.mobileconfig` file and select **Add profile** to upload it.
 
 To allow only specific extensions, block everything with `*` and add the extensions you approve to `ExtensionInstallAllowlist`:
@@ -113,7 +113,7 @@ Chrome policies on Windows are ADMX-backed. Put the Chrome ADMX file and the ext
 </Replace>
 ```
 
-3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+3. In Fleet, go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 4. Choose the `.xml` file and select **Add profile** to upload it.
 
 > **Note:** `<?xml ...?>` at the start of the ADMX file must stay on the same line as `<![CDATA[`, with no line break or spaces in between. Otherwise the profile fails with `status 500`. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).

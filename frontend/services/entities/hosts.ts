@@ -78,7 +78,7 @@ export interface IDepAssignmentHostResponse {
     response_updated_at: string;
     added_at: string;
     deleted_at: string | null;
-    abm_token_id: number;
+    ab_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
   } | null;
@@ -109,10 +109,8 @@ export const HOSTS_QUERY_PARAMS = {
 export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   "apple_settings",
-  "macos_settings",
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "macos_bootstrap_package",
-  "bootstrap_package",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
 ];
 
@@ -132,7 +130,6 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
@@ -170,7 +167,6 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
@@ -207,7 +203,6 @@ export interface IActionByFilter {
   currentTeam?: number | null;
   policyId?: number | null;
   policyResponse?: PolicyResponse;
-  softwareId?: number | null;
   softwareTitleId?: number | null;
   softwareVersionId?: number | null;
   softwareStatus?: SoftwareAggregateStatus;
@@ -354,7 +349,6 @@ export default {
     labelId,
     policyId,
     policyResponse,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -380,7 +374,6 @@ export default {
         fleet_id: teamId,
         policy_id: policyId,
         policy_response: policyResponse,
-        software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
         [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
@@ -406,7 +399,6 @@ export default {
     const teamId = options?.teamId;
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
-    const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
@@ -454,7 +446,6 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -495,7 +486,6 @@ export default {
     policyId,
     policyResponse = "passing",
     macSettingsStatus,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -547,7 +537,6 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -626,7 +615,6 @@ export default {
     currentTeam,
     policyId,
     policyResponse,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -655,7 +643,6 @@ export default {
         fleet_id: currentTeam,
         policy_id: policyId,
         policy_response: policyResponse,
-        software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
         [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,

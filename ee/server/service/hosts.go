@@ -34,13 +34,6 @@ func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier stri
 	return svc.Service.GetHostByIDOrIdentifier(ctx, identifier, opts)
 }
 
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	// reuse HostByIdentifier, but include premium options
-	opts.IncludeCVEScores = true
-	opts.IncludePolicies = true
-	return svc.Service.HostByIdentifier(ctx, identifier, opts)
-}
-
 func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, _ bool,
 	maxVulnerabilities *int,
 ) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
@@ -653,7 +646,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 
 	if !recoveryLockEnabled {
 		return &fleet.BadRequestError{
-			Message: "Recovery lock password is not enabled for this host's team.",
+			Message: "Recovery lock password is not enabled for this host's fleet.",
 		}
 	}
 

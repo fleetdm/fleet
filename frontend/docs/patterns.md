@@ -286,30 +286,32 @@ sandbox expiry message with more to come).
 
 ```typescript
 /** An example of a top level page utilising MainConent and SidePanel content */
-const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
+const AccountPage = ({ router }: IAccountPageProps): JSX.Element => {
   // ...
 
   return (
     <SidePanelPage>
       <>
         <MainContent className={baseClass}>
-          <PackForm
-            className={`${baseClass}__pack-form`}
+          <UserSettingsForm
+            formData={currentUser}
             handleSubmit={handleSubmit}
-            onFetchTargets={onFetchTargets}
-            selectedTargetsCount={selectedTargetsCount}
-            isPremiumTier={isPremiumTier}
+            onCancel={onCancel}
           />
         </MainContent>
         <SidePanelContent>
-          <PackInfoSidePanel />
-      </SidePanelContent>
-    </>
-  </SidePanelPage>
+          <AccountSidePanel
+            currentUser={currentUser}
+            onChangePassword={onShowPasswordModal}
+            onGetApiToken={onShowApiTokenModal}
+          />
+        </SidePanelContent>
+      </>
+    </SidePanelPage>
   );
 };
 
-export default PackComposerPage;
+export default AccountPage;
 ```
 
 ## Forms
@@ -375,6 +377,17 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 - Typing in one field never clears errors on other fields.
 - On blur, clear any other field's error that the new value made irrelevant — e.g. filling **Metadata** clears the shared "Enter metadata or a metadata URL" error on **Metadata URL**. Errors that still apply, and server-set errors, stay.
 - When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
+
+#### Code and YAML editors
+
+`Editor`, `YamlAce`, and `SQLEditor` are exempt from the blur-only rule. Per-keystroke validation flashes mid-token; blur-only surfaces errors too late for code authoring.
+
+- Clear the error on change.
+- Re-validate 3s after the last keystroke, via `useDebouncedCallback` from `use-debounce`. Cancel the pending debounce on blur and on submit.
+- Validate immediately on blur (where supported) and on submit.
+- Save stays enabled per [Submit button state](#submit-button-state).
+
+Reference implementations: `EditQueryForm`, `PackageForm`, `EditScriptModal`, `Agents`, `AgentOptionsPage`, `EditConfigurationModal`, `VersionFormFields`.
 
 #### Error priority
 
@@ -948,18 +961,6 @@ The three chip helpers:
 
 Each returns `undefined` when no switch will actually happen, so you can pass it straight to `teamName` without guarding.
 
-### Search-only items
-
-Some entries are gated on the search string itself (e.g., the "Packs" page only appears when searching for `packs`). Use the `search` field from `ICommandPaletteContext` and a regex test:
-
-```ts
-.../packs|create new pack/.test(search.toLowerCase())
-  ? [/* the item */]
-  : []
-```
-
-Use this pattern sparingly — it bypasses the normal Best match ranking and should be reserved for legacy / deprecated features users only reach by name.
-
 ### Tests
 
 Extend `frontend/components/CommandPalette/helpers.tests.ts` when adding a meaningful item:
@@ -1017,6 +1018,32 @@ The icon should now be available to use with the `Icon` component from the given
 ```tsx
 // using a new icon with the given key name 'chevron`
 <Icon name="chevron" />
+```
+
+### Icon rules
+
+Figma is the source of truth for icons. If an icon in code doesn't match Figma, update the code.
+
+- **Size:** 16px minimum (`size="medium"`, the default). Don't use 12px icons. The only exception is
+  `external-link` with `size="small"`, which has its own 12px drawing for links in 12px text. If an
+  icon needs another size, draw it separately in Figma instead of scaling the 16px icon.
+- **Grid and stroke:** icons are drawn on a 16px grid with a 1.5px stroke.
+- **Outlined by default:** use outlined icons. Use a filled icon only when it's needed to convey
+  meaning or importance. For example, `error` is filled so failures stand out, and `success-filled`
+  is used only for the OS settings "Verified" status.
+- **Names:** use simple names (`error`, `pending`, `info`, `success`, `close`). Before adding an
+  icon, check `ICON_MAP` for an existing one instead of adding a variant.
+- **Buttons:** pass the icon with the `icon` prop instead of an `<Icon>` child, so the button handles
+  icon color, spacing, and icon-only sizing.
+
+```tsx
+// good
+<Button variant="secondary" icon="filter">Filter</Button>
+
+// bad
+<Button variant="secondary">
+  <Icon name="filter" /> Filter
+</Button>
 ```
 
 ### File size

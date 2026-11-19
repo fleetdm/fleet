@@ -899,13 +899,13 @@ describe("Device User Page", () => {
           })
         );
         // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
-        await screen.findByText(/fetching fresh vitals/i);
+        await screen.findByText(/refetching\.\.\./i);
         // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
         mockNow += 200000;
         await waitFor(
           () =>
             expect(
-              screen.queryByText(/fetching fresh vitals/i)
+              screen.queryByText(/refetching\.\.\./i)
             ).not.toBeInTheDocument(),
           { timeout: 4000 }
         );

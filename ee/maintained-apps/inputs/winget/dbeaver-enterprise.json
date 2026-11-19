@@ -3,6 +3,7 @@
   "slug": "dbeaver-enterprise/windows",
   "package_identifier": "DBeaver.DBeaver.Enterprise",
   "unique_identifier": "DBeaverEE",
+  "open_process_names": ["dbeaver.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaver_enterprise_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaver_enterprise_uninstall.ps1",

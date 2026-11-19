@@ -140,6 +140,9 @@ This activity does not contain any detail fields.
 - [added_smallstep](#added-smallstep)
 - [deleted_smallstep](#deleted-smallstep)
 - [edited_smallstep](#edited-smallstep)
+- [added_google_cas](#added-google-cas)
+- [edited_google_cas](#edited-google-cas)
+- [deleted_google_cas](#deleted-google-cas)
 - [added_ejbca](#added-ejbca)
 - [edited_ejbca](#edited-ejbca)
 - [deleted_ejbca](#deleted-ejbca)
@@ -442,6 +445,51 @@ This activity contains the following fields:
 }
 ```
 
+### added_google_cas
+
+Generated when Google CAS certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+### edited_google_cas
+
+Generated when Google CAS certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+### deleted_google_cas
+
+Generated when Google CAS certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
 ### added_ejbca
 
 Generated when EJBCA certificate authority configuration is added in Fleet.
@@ -559,6 +607,7 @@ This activity contains the following fields:
 - [deleted_conditional_access_okta](#deleted-conditional-access-okta)
 - [enabled_conditional_access_automations](#enabled-conditional-access-automations)
 - [disabled_conditional_access_automations](#disabled-conditional-access-automations)
+- [stopped_reporting_microsoft_entra_device_id](#stopped-reporting-microsoft-entra-device-id)
 
 ### added_conditional_access_integration_microsoft
 
@@ -615,6 +664,29 @@ This activity contains the following field:
 {
   "fleet_id": 5,
   "fleet_name": "Workstations"
+}
+```
+
+### stopped_reporting_microsoft_entra_device_id
+
+Generated when Fleet, with [`microsoft_compliance_partner.windows_trusted_device_id_only`](https://fleetdm.com/docs/configuration/fleet-server-configuration#microsoft-compliance-partner-windows-trusted-device-id-only) set, stops reporting a Windows host's Microsoft Entra device ID that it already reported to Entra. Entra keeps the last status Fleet reported for that device. To check it, see [Conditional access: Entra](https://fleetdm.com/guides/entra-conditional-access-integration#stopped-reporting-a-device-id). The activity is associated with the host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "entra_device_id": The Entra device ID Fleet stopped reporting.
+- "reason": `no_trusted_certificate` if the host no longer has a trusted certificate for the device ID, or `replaced` if it now reports a different one.
+- "new_entra_device_id": The device ID the host now reports. Only included when "reason" is `replaced`.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "WIN-ANNA",
+  "entra_device_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "reason": "replaced",
+  "new_entra_device_id": "4f1c2a3b-5d6e-4f70-8a9b-0c1d2e3f4a5b"
 }
 ```
 
@@ -793,6 +865,8 @@ This activity contains the following fields:
 - [unlocked_host](#unlocked-host)
 - [wiped_host](#wiped-host)
 - [failed_wipe](#failed-wipe)
+- [reset_host](#reset-host)
+- [failed_reset](#failed-reset)
 - [escrowed_disk_encryption_key](#escrowed-disk-encryption-key)
 - [rotated_disk_encryption_key](#rotated-disk-encryption-key)
 - [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
@@ -802,8 +876,8 @@ This activity contains the following fields:
 - [deleted_host_google_device_id](#deleted-host-google-device-id)
 - [edited_host_idp_data](#edited-host-idp-data)
 - [read_host_recovery_lock_password](#read-host-recovery-lock-password)
-- [escrowed_recovery_lock_password](#escrowed-recovery-lock-password)
-- [rotated_recovery_lock_password](#rotated-recovery-lock-password)
+- [set_host_recovery_lock_password](#set-host-recovery-lock-password)
+- [rotated_host_recovery_lock_password](#rotated-host-recovery-lock-password)
 - [rotated_managed_local_account_password](#rotated-managed-local-account-password)
 - [failed_to_rotate_managed_local_account_password](#failed-to-rotate-managed-local-account-password)
 - [read_managed_local_account](#read-managed-local-account)
@@ -880,8 +954,9 @@ This activity contains the following fields:
 
 ### host_enrollment_rejected
 
-Generated when Fleet refuses an enrollment in either of these cases:
+Generated when Fleet refuses an enrollment in any of these cases:
 - An Orbit or osquery enrollment is refused under the one-time enroll secret rules. See the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) for Windows.
+- An Orbit or osquery enrollment is refused because it presented the hardware UUID of another host that has MDM turned on.
 - An automatic enrollment (ADE) is refused because the host is in a fleet that requires end user authentication and the device didn't complete it.
 
 Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
@@ -899,6 +974,7 @@ This activity contains the following fields:
   - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
   - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+  - "uuid_of_another_mdm_host": an enrollment tried to add a host with the hardware UUID of another host that is enrolled in Fleet MDM. "host_id" is that other host.
   - "end_user_authentication_required": the host is in a fleet that requires end user authentication, but the device tried to enroll without completing it. This happens when the device got its automatic enrollment configuration before its fleet required end user authentication, or before it moved to that fleet. Erase and reactivate the device so it goes through end user authentication. Fleet only records this reason when every other enrollment check passed.
 
 #### Example
@@ -1063,19 +1139,57 @@ Generated when a user sends a request to wipe a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
 ### failed_wipe
 
 Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1",
+  "host_platform": "windows"
+}
+```
+
+### reset_host
+
+Generated when a user sends a request to reset a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
+}
+```
+
+### failed_reset
+
+Generated when a Windows host reports that a reset MDM command failed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1272,9 +1386,9 @@ This activity contains the following fields:
 }
 ```
 
-### escrowed_recovery_lock_password
+### set_host_recovery_lock_password
 
-Generated when a Recovery Lock password is escrowed.
+Generated when Fleet sets the Recovery Lock password on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1289,9 +1403,9 @@ This activity contains the following fields:
 }
 ```
 
-### rotated_recovery_lock_password
+### rotated_host_recovery_lock_password
 
-Generated when a Recovery Lock password is rotated.
+Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1586,8 +1700,8 @@ This activity contains the following fields:
 - [resent_configuration_profile_batch](#resent-configuration-profile-batch)
 - [installed_opt_in_configuration_profile](#installed-opt-in-configuration-profile)
 - [uninstalled_opt_in_configuration_profile](#uninstalled-opt-in-configuration-profile)
-- [enabled_recovery_lock_password](#enabled-recovery-lock-password)
-- [disabled_recovery_lock_password](#disabled-recovery-lock-password)
+- [enabled_recovery_lock_passwords](#enabled-recovery-lock-passwords)
+- [disabled_recovery_lock_passwords](#disabled-recovery-lock-passwords)
 - [edited_host_name_template](#edited-host-name-template)
 - [created_apple_asset_declaration](#created-apple-asset-declaration)
 - [edited_disk_encryption_settings](#edited-disk-encryption-settings)
@@ -2095,7 +2209,7 @@ This activity contains the following fields:
 }
 ```
 
-### enabled_recovery_lock_password
+### enabled_recovery_lock_passwords
 
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
 
@@ -2112,7 +2226,7 @@ This activity contains the following fields:
 }
 ```
 
-### disabled_recovery_lock_password
+### disabled_recovery_lock_passwords
 
 Generated when a user turns off Recovery Lock password for a fleet (or no fleet).
 
@@ -3066,8 +3180,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_id": 123,
-  "query_name": "foo",
   "report_id": 123,
   "report_name": "foo",
   "fleet_id": 1,
@@ -3089,8 +3201,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_id": 123,
-  "query_name": "foo",
   "report_id": 123,
   "report_name": "foo",
   "fleet_id": 1,
@@ -3111,7 +3221,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_name": "foo",
   "report_name": "foo",
   "fleet_id": 1,
   "fleet_name": "Workstations"
@@ -3131,7 +3240,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "query_ids": [1, 42, 100],
   "report_ids": [1, 42, 100],
   "fleet_id": 123,
   "fleet_name": "Workstations"
@@ -3167,7 +3275,7 @@ Generated when running live queries.
 
 This activity contains the following fields:
 - "targets_count": Number of hosts where the live query was targeted to run.
-- "query_sql": The SQL query to run on hosts.
+- "query": The SQL query to run on hosts.
 - "report_name": Name of the report (this field is not set if this was not a saved report).
 
 #### Example
@@ -3175,8 +3283,7 @@ This activity contains the following fields:
 ```json
 {
   "targets_count": 5000,
-  "query_sql": "SELECT * from osquery_info;",
-  "query_name": "foo",
+  "query": "SELECT * from osquery_info;",
   "report_name": "foo"
 }
 ```
@@ -3383,6 +3490,7 @@ This activity contains the following fields:
 - [installed_software](#installed-software)
 - [installed_all_self_service_software](#installed-all-self-service-software)
 - [notified_end_user_before_patching](#notified-end-user-before-patching)
+- [edited_patch_deadline_settings](#edited-patch-deadline-settings)
 - [uninstalled_software](#uninstalled-software)
 - [added_software](#added-software)
 - [edited_software](#edited-software)
@@ -3414,8 +3522,10 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
-- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when the policy had `patch_when_closed` or `notify_before_patching` enabled at the time of the install. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
+- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when the policy had `patch_when_closed`, `notify_before_patching`, or `patch_deadline` enabled at the time of the install. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
 - "patch_when_closed": Whether the policy that triggered this install had `patch_when_closed` enabled at the time of the install.
+- "notify_before_patching": Whether the policy that triggered this install had `notify_before_patching` enabled at the time of the install. Only present when `true`.
+- "patch_deadline": Whether the policy that triggered this install had `patch_deadline` enabled at the time of the install. Only present when `true`.
 
 #### Example
 
@@ -3493,6 +3603,27 @@ This activity contains the following fields:
   "install_at": "2026-08-06T14:00:00Z",
   "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be",
   "exit_code": 0
+}
+```
+
+### edited_patch_deadline_settings
+
+Generated when the patch deadline days or time are modified for a fleet.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "days": Days of the week when the deadline applies.
+- "time": The deadline, formatted as `HH:MM` in the host's local time.
+
+#### Example
+
+```json
+{
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
 }
 ```
 
@@ -3701,6 +3832,7 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
@@ -3715,6 +3847,7 @@ This activity contains the following fields:
 ```json
 {
   "software_title": "Slack",
+  "software_display_name": "Slack (work)",
   "app_store_id": "618783545",
   "platform": "ios",
   "fleet_name": "Workstations",
@@ -3746,7 +3879,7 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps, or if the VPP token was deleted before the install finished.
   - "id": ID of the VPP token.
   - "location": Name of the organization unit in Apple Business for the VPP token.
   - "country_code": Country code of the VPP token (e.g. `us`).
@@ -3756,6 +3889,7 @@ This activity contains the following fields:
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
+- "from_configuration_resend": Whether Fleet re-installed the app to deliver an updated managed app configuration or a label change.
 - "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
 - "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
@@ -3781,8 +3915,9 @@ This activity contains the following fields:
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
   "host_platform": "darwin",
-  "from_setup_experience": false,
   "from_auto_update": false,
+  "from_setup_experience": false,
+  "from_configuration_resend": false,
   "version_name": "Logic Pro",
   "configuration": null
 }
@@ -3810,6 +3945,7 @@ This activity contains the following fields:
   "host_platform": "ios",
   "from_setup_experience": false,
   "from_auto_update": false,
+  "from_configuration_resend": true,
   "version_name": "Production",
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }

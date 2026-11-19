@@ -1110,32 +1110,47 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	go func() {
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
+		// The fallback poll is checked at osquery's local config refresh
+		// against orbit (wstransport.LocalConfigRefresh), not at the
+		// config interval, which would round its deadline up.
+		fallbackTicker := time.NewTicker(min(a.ConfigInterval, 10*time.Second))
+		defer fallbackTicker.Stop()
 
-		// lastFetch is the last successful fetch: a failed one is retried
-		// on the next tick, as orbit does.
-		var lastFetch time.Time
-		if initialConfigErr == nil {
-			lastFetch = time.Now()
-		}
+		// A failed fetch is retried at the config interval, also while
+		// connected, as orbit does.
+		lastAttempt, lastFailed := time.Now(), initialConfigErr != nil
+		// jitter randomizes each fallback poll interval by ±50%, as orbit
+		// does (see wstransport.fallbackPollInterval).
+		jitter := rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		for {
 			fallback := false
 			select {
 			case <-configTicker.C:
 				// With orbit serving the config over a connected WebSocket,
-				// ticks are only the fallback poll.
-				if poll := a.osqueryConfigFallbackInterval(); poll > 0 {
-					if time.Since(lastFetch) < poll {
-						continue
-					}
+				// the fallback ticker polls instead.
+				if a.osqueryConfigFallbackInterval() > 0 {
+					continue
+				}
+			case <-fallbackTicker.C:
+				poll := a.osqueryConfigFallbackInterval()
+				if poll == 0 {
+					continue
+				}
+				wait := a.ConfigInterval
+				if !lastFailed {
+					d := max(a.ConfigInterval, poll)
+					lo := max(a.ConfigInterval, d/2)
+					wait = lo + time.Duration(float64(d+d/2-lo)*jitter)
 					fallback = true
+				}
+				if time.Since(lastAttempt) < wait {
+					continue
 				}
 			case <-a.osqueryConfigNudge:
 			}
-			if err := a.fetchConfig(fallback); err != nil {
-				lastFetch = time.Time{}
-			} else {
-				lastFetch = time.Now()
-			}
+			lastFailed = a.fetchConfig(fallback) != nil
+			lastAttempt = time.Now()
+			jitter = rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		}
 	}()
 
@@ -3323,7 +3338,7 @@ func (a *agent) goBinDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\go\bin\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/go/bin/"
 	default:
 		return "/home/fleet/go/bin/"
@@ -3383,7 +3398,7 @@ func (a *agent) aiHomeDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/"
 	default:
 		return "/home/fleet/"
@@ -3447,7 +3462,7 @@ func (a *agent) softwareAITools() []map[string]string {
 	}
 
 	// Template apps are reported identically by every simulated Mac, so their paths always match.
-	if a.os == "darwin" {
+	if a.os == "macos" {
 		marked := 0
 		for _, app := range macOSSoftware {
 			if marked >= c.markedApps {

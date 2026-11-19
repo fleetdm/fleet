@@ -46,7 +46,7 @@ type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID           *uint                       `db:"team_id" json:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
 	Description      string                      `db:"description" json:"description"`
 	SyncML           []byte                      `db:"syncml" json:"-"`

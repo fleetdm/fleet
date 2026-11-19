@@ -106,7 +106,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [error, setError] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
@@ -129,9 +128,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const disableNext = !count
     ? data.length < pageSize
     : currentPage * pageSize + data.length >= count;
-
-  // TODO -- better error state?
-  if (error) return <p>Error: {error.message}</p>;
 
   // Render the list.
   const classes = classnames(baseClass, "form", {

@@ -91,20 +91,21 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
+Fleet's `macos_end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 
 How to enforce account types on macOS hosts:
 
-1. Head to **Controls > Setup experience**.
+1. Head to **Controls > Setup experience > Users** under the **macOS** tab.
 
-2. Under the managed local account options, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
+2. Under the **End user account**, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
 
-To configure via GitOps, set the `end_user_local_account_type` field under `mdm.macos_setup` in your YAML configuration:
+To configure via GitOps, set `macos_end_user_local_account_type` under `controls.setup_experience`. It requires `macos_managed_local_account_enabled` to be `true`:
 
 ```yaml
-mdm:
-  macos_setup:
-    end_user_local_account_type: "standard"
+controls:
+  setup_experience:
+    macos_managed_local_account_enabled: true
+    macos_end_user_local_account_type: "standard"
 ```
 
 Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`, Fleet creates the end user's local account as a standard (non-admin) account during macOS setup, regardless of the OS default. When set to `"none"`, Fleet skips creating the end user's local account during macOS setup, leaving the device with only the managed local admin account provisioned by Fleet.
@@ -119,13 +120,13 @@ Fleet can create a hidden admin account (`_fleetadmin`) with a unique password o
 
 > The managed local account is only created during automatic enrollment (ADE). It is not created during [MDM migration](https://fleetdm.com/guides/mdm-migration). Wipe and re-enroll the Mac to get the account.
 
-This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
+This feature is available for macOS hosts that automatically enroll via Apple Business (AB). Manually enrolled Macs are not supported. For Windows, see the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#managed-local-account-windows).
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
+1. In Fleet, head to **Controls > Setup experience > Users**, select the **macOS** tab, then choose **Create hidden admin**. Alternatively, use `macos_managed_local_account_enabled` in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files#setup-experience).
 
-2. Wipe and re-enroll any existing hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
+2. Wipe and re-enroll any existing Macs that should receive the account. Macs enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 
@@ -176,15 +177,20 @@ To require an end user agreement, in Fleet, head to **Settings > Integrations > 
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. You can also install the bootstrap package on macOS hosts that turn on MDM manually by checking **Install during manual enrollment** in **Controls > Setup experience > Bootstrap package**.
+
+Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 > Fleet will always deliver the command to install a bootstrap package before delivering commands for installing profiles. 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
-By default, the bootstrap package is not installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) or when a host is enrolled by running `sudo profiles renew -type enrollment`. To change this behavior, you can set the [`fleet​_allow​_bootstrap​_package​_during​_migration`](https://fleetdm.com/docs/configuration/fleet-server-configuration#fleet-allow-bootstrap-package-during-migration) server configuration.
+By default, the bootstrap package isn't installed during [MDM migration](https://fleetdm.com/guides/mdm-migration), when a host is enrolled by running `sudo profiles renew -type enrollment`, or when a host turns on MDM manually. To change this, check these options in **Controls > Setup experience > Bootstrap package**:
 
-Fleet's agent (fleetd) is also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#manually-install-fleetd), fleetd won't be installed.
+- **Install during manual enrollment**: installs the bootstrap package on hosts that turn on MDM manually, rather than automatically via Apple Business. This includes re-enrollment.
+- **Install during migration**: installs the bootstrap package on hosts assigned to Fleet in Apple Business that migrate from another MDM, including re-enrollment via `sudo profiles renew -type enrollment`.
+
+Fleet's agent (fleetd) is also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration), during manual enrollment, and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [deploy a custom agent](#manually-install-fleetd), fleetd won't be installed when the bootstrap package is.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -268,6 +274,8 @@ To sign the package we need a valid Developer ID Installer certificate:
 2. Choose which fleet you want to add the bootstrap package to by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Select **Upload** and choose your bootstrap package.
+
+4. (Optional) Check **Install during manual enrollment** or **Install during migration** to also install the bootstrap package on hosts that turn on MDM manually or migrate from another MDM, then select **Save**.
 
 ## Install software
 
@@ -496,7 +504,7 @@ To manage setup experience software using Fleet's best practice GitOps, check ou
 
 ### Manually install fleetd
 
-By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
+By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package. If **Install during manual enrollment** is checked, the custom agent is also deployed on hosts that turn on MDM manually.
 
 How to deploy a custom fleetd:
 
@@ -504,9 +512,9 @@ How to deploy a custom fleetd:
 
 2. Add fleetd to your bootstrap package. To customize fleetd further, you can also add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/fleet-v4.66.0/orbit/pkg/packaging/macos_templates.go#L96).
 
-3. In Fleet, head to **Controls > Setup Experience > Bootstrap package** and add your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
+3. In Fleet, head to **Controls > Setup Experience > Bootstrap package** and add your bootstrap package. Select **Advanced options**, check **Deploy custom agent**, and then select **Save**.
 
-4. Once the option to manually install Fleet's agent is checked, instead of using the **Install software** option, include your software in the bootstrap package.
+4. Once **Deploy custom agent** is checked, instead of using the **Install software** option, include your software in the bootstrap package.
 
 If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software [configured in setup experience](#install-software).
 

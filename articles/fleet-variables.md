@@ -21,6 +21,7 @@ Built-in variables:
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's IdP immutable user ID, ingested via SCIM as `externalId` (e.g. an Entra ID object ID). Unlike the IdP username, this doesn't change when the user is renamed. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware serial number. For personal (BYOD) iOS, iPadOS, and Android hosts enrolled with a Managed Apple Account or a work profile, this is the enrollment ID. |
 | `$FLEET_VAR_HOST_UUID` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's hardware UUID. For personal (BYOD) iOS, iPadOS, and Android hosts enrolled with a Managed Apple Account or a work profile, this is the enrollment ID. For company-owned Android hosts, this is an ID that Fleet generates from the device's brand and serial number. |
 | `$FLEET_VAR_HOST_PLATFORM` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`, and `"android"`. |
@@ -36,6 +37,8 @@ Built-in variables:
 | `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed Smallstep SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_CHALLENGE` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` | None | macOS, Windows | None | Fleet's conditional access SCEP endpoint URL, used in the certificate profile for [Okta conditional access](https://fleetdm.com/guides/okta-conditional-access-integration). It must be the whole value of the SCEP payload's `URL` field (macOS) or the `ServerURL` field (Windows). The profile must also include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. |
+| `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE` | None | macOS, Windows | None | Fleet-managed one-time challenge for [Okta conditional access](https://fleetdm.com/guides/okta-conditional-access-integration). Fleet creates it for each host when it sends the profile, and it only works for that host. It must be the whole value of the SCEP payload's `Challenge` field (macOS) or the `Challenge` field (Windows). The profile must also include `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL`. |
 
 
 
@@ -43,7 +46,7 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 
 > Profiles that use IdP variables will trigger a resend when the IdP user is removed from the host, but will fail sending a new profile due to missing variables, leaving the old one on the device. Once the host has a new IdP user it will be resent again with fresh values.
 
-> The host vital and IdP variables listed above are also accepted in the DigiCert CA fields `certificate_common_name`, `certificate_seat_id`, and `certificate_user_principal_names` in `org_settings.certificate_authorities.digicert[]` (Apple hosts only). The legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` is also accepted for backwards compatibility. When these values change, or when the CA fields are edited, Fleet reissues the certificate.
+> The host vital and IdP variables listed above are also accepted in the DigiCert CA fields `certificate_common_name`, `certificate_seat_id`, and `certificate_user_principal_names` in `org_settings.certificate_authorities.digicert[]`, and in the EJBCA CA fields `certificate_common_name`, `username_template`, and `certificate_user_principal_names` in `org_settings.certificate_authorities.ejbca[]` (Apple hosts only). When these values change, or when the CA fields are edited, Fleet reissues the certificate.
 
 > If Fleet can't fill in a variable in an app's managed configuration, Fleet doesn't send the app or its configuration to that host. Learn more in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#variables).
 

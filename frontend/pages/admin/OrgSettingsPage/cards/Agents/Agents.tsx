@@ -1,5 +1,6 @@
 import yaml from "js-yaml";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -11,7 +12,10 @@ import PageDescription from "components/PageDescription";
 import YamlAce from "components/YamlAce";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
-import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import {
+  EMPTY_AGENT_OPTIONS,
+  FLEET_GUIDES_BASE_LINK,
+} from "utilities/constants";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 import { IAppConfigFormProps } from "../constants";
@@ -43,32 +47,39 @@ const Agents = ({
 
   const { agentOptions } = formData;
 
-  const handleAgentOptionsChange = (value: string) => {
-    setFormData({ ...formData, agentOptions: value });
-  };
-
-  const validateForm = () => {
+  const runYamlValidation = (value?: string): IAgentOptionsFormErrors => {
     const errors: IAgentOptionsFormErrors = {};
-
-    if (agentOptions) {
-      const { error: yamlError, isValid: yamlValid } = validateYaml(
-        agentOptions
-      );
+    if (value) {
+      const { error: yamlError, isValid: yamlValid } = validateYaml(value);
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }
     }
-
-    setFormErrors(errors);
+    return errors;
   };
 
-  // onChange basic yaml validation only
-  useEffect(() => {
-    validateForm();
-  }, [agentOptions]);
+  // 3s pause after the last keystroke surfaces the error without flashing
+  // mid-token. Submit still validates immediately.
+  const debounceValidate = useDebouncedCallback((value: string) => {
+    setFormErrors(runYamlValidation(value));
+  }, 3000);
+
+  const handleAgentOptionsChange = (value: string) => {
+    setFormData({ ...formData, agentOptions: value });
+    if (formErrors.agent_options) {
+      setFormErrors({});
+    }
+    debounceValidate(value);
+  };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errors = runYamlValidation(agentOptions);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     // Formatting of API not UI and allows empty agent options
     const formDataToSubmit: any = agentOptions
@@ -111,7 +122,7 @@ const Agents = ({
           <InfoBanner>
             Want some hosts to have different options?&nbsp;
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/teams"
+              url={`${FLEET_GUIDES_BASE_LINK}/fleets`}
               text="Learn more about fleets"
               newTab
               variant="banner-link"
@@ -131,7 +142,7 @@ const Agents = ({
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+              disabled={disableChildren || isUpdatingSettings}
               className="button-wrap"
               isLoading={isUpdatingSettings}
             >

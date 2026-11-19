@@ -13,16 +13,13 @@ interface IAutoEnrollMdmModalProps {
 const baseClass = "auto-enroll-mdm-modal";
 
 const AutoEnrollMdmModal = ({
-  host: { platform, os_version },
+  host: { platform, os_name, os_version },
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
   let isMacOsSonomaOrLater = false;
   let isMacOs26OrLater = false;
-  if (platform === "darwin" && os_version.startsWith("macOS ")) {
-    const [major] = os_version
-      .replace("macOS ", "")
-      .split(".")
-      .map((s) => parseInt(s, 10));
+  if (platform === "darwin" && os_name === "macOS") {
+    const [major] = os_version.split(".").map((s) => parseInt(s, 10));
     isMacOsSonomaOrLater = major >= 14;
     isMacOs26OrLater = major >= 26;
   }

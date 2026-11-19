@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -33,7 +34,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
@@ -70,12 +70,7 @@ type DetailQuery struct {
 	IngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data stored in a separate table.
-	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
-	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
-	// ingest the results. This is for ingestion that can be either sync or async.
-	// DirectIngestFunc must not be set if this is set.
-	DirectTaskIngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -1205,7 +1200,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -1249,7 +1244,7 @@ SELECT
 FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("vscode_extensions"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1268,7 +1263,7 @@ SELECT
 FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("jetbrains_plugins"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1314,7 +1309,7 @@ SELECT
 FROM adobe_plugins`,
 	Platforms: []string{"darwin", "windows"},
 	Discovery: discoveryTable("adobe_plugins"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1323,8 +1318,8 @@ var scheduledQueryStats = DetailQuery{
 			SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
-	DirectTaskIngestFunc: directIngestScheduledQueryStats,
-	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+	DirectIngestFunc: directIngestScheduledQueryStats,
+	Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
 // softwareLinuxPacman splits pacman's "[epoch:]pkgver-pkgrel" version the way
@@ -1353,7 +1348,7 @@ SELECT
 FROM packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1379,7 +1374,7 @@ SELECT
 FROM fleetd_nix_packages`,
 	Platforms: []string{"nixos"},
 	Discovery: discoveryTable("fleetd_nix_packages"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1409,7 +1404,7 @@ SELECT
 FROM go_binaries`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("go_binaries"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1461,7 +1456,7 @@ WHERE type IN ('agents', 'mcp_server', 'agent_instruction', 'skill', 'apps', 'id
   AND NOT (type = 'mcp_server' AND source = 'process')`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("ai_tools"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because preProcessSoftwareResults
+	// Has no IngestFunc or DirectIngestFunc because preProcessSoftwareResults
 	// merges its results into the main software query using AIToolsProcessResults, which needs the
 	// host's platform.
 }
@@ -2307,36 +2302,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	name := rows[0]["name"]
-	// forceRollingVersion is set for Arch-based distributions that report their
-	// own release number but must still be recorded as "rolling". See the
-	// Omarchy case below for why the version cannot be derived in that case.
-	var forceRollingVersion bool
-	switch {
-	case strings.HasPrefix(name, "Arch Linux"):
-		name = strings.TrimSuffix(name, " ARM")
-	case name == "CachyOS Linux":
-		// CachyOS is an Arch-based rolling-release distribution; aggregate it
-		// onto the "Arch Linux" operating system row in the OS inventory. It
-		// reports BUILD_ID=rolling, so parseOSVersion already derives "rolling".
-		name = "Arch Linux"
-	case name == "Omarchy":
-		// Omarchy is also an Arch-based rolling-release distribution, but unlike
-		// CachyOS it reports a real release number in both VERSION_ID and
-		// BUILD_ID (e.g. "4.0.0"). parseOSVersion would therefore derive
-		// "4.0.0" and produce an "Arch Linux 4.0.0" row, a version that does not
-		// exist upstream and that does not merge with the "Arch Linux rolling"
-		// row these hosts occupied before Omarchy started shipping its own
-		// os-release ID.
-		//
-		// Pin the version explicitly rather than rewriting the ingested build
-		// value, so parseOSVersion still sees exactly what the host reported.
-		// Note this only affects the OS inventory: the separate os_version
-		// detail query keeps recording the true build on the host, which
-		// continues to display as "Omarchy 4.0.0" on the host details page.
-		name = "Arch Linux"
-		forceRollingVersion = true
-	}
+	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
+	// version in hosts.os_version (the os_version detail query), which the host API returns.
+	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2537,7 +2505,7 @@ func directIngestEntraJoinUser(
 	return nil
 }
 
-func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
+func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
 		providedName := row["name"]
@@ -2608,8 +2576,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, h
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
-		return ctxerr.Wrap(ctx, err, "record host pack stats")
+	if err := ds.SaveHostPackStats(ctx, host.TeamID, host.ID, packStats); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host pack stats")
 	}
 
 	return nil
@@ -2728,7 +2696,8 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 		}
 	}
 
-	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software,
+		fleet.PreserveSoftwareSources(preservedsources.FromContext(ctx)...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
@@ -3585,7 +3554,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (fleet/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
 			"host", host.Hostname)
@@ -3717,7 +3686,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host fleet/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
 			"host", host.Hostname)
@@ -4001,7 +3970,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
 	}
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
-		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+		"host_id", hostID, "fleet_id", *teamID, "fleet_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
 }
 

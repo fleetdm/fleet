@@ -3,9 +3,9 @@
     {
       "version": "4.23.1",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher = 'The Sleuth Kit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher = 'The Sleuth Kit' AND version_compare(version, '4.23.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'autopsy.exe');"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher IN ('Sleuth Kit Labs', 'The Sleuth Kit');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher IN ('Sleuth Kit Labs', 'The Sleuth Kit') AND version_compare(version, '4.23.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('autopsy.exe','autopsy64.exe'));"
       },
       "installer_url": "https://github.com/sleuthkit/autopsy/releases/download/autopsy-4.23.1/autopsy-4.23.1-64bit.msi",
       "install_script_ref": "22e48c46",

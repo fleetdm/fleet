@@ -846,6 +846,8 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 This key is required for enabling Apple, Windows, and Android MDM features and features that require third-party secrets, passwords, or API keys (ex. [maintenance windows](https://fleetdm.com/guides/using-maintenance-windows)). If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
+Fleet also encrypts the disk encryption keys it escrows from Windows and Linux hosts with this key, so escrowing them requires it.
+
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
 - Default value: ""
@@ -1301,151 +1303,38 @@ to the amount of time it takes for Fleet to give the host the label queries.
     max_jitter_percent: 10
   ```
 
-### osquery_enable_async_host_processing
+### osquery_ai_session_max_tool_calls
 
-**Experimental feature**. Enable asynchronous processing of hosts' report results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled report statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session. Set it to 0 to store sessions without their tool calls. It can't be negative.
 
-Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
+Fleet stores each tool call with its arguments, which take around 1 KB in the database on average, so a single long session can add up. Once a session reaches the limit, Fleet stops collecting its tool calls. Fleet keeps a session's first tool calls rather than its latest, so for a session longer than the limit, the newest tool calls are the ones missing. The session's tool call count still shows how many it made in total.
 
-It can be set to a single boolean value ("true" or "false"), which controls all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=true&policy_membership=true". When using the per-task syntax, omitted tasks get the default value. The supported async task names are:
+Raising the limit lets Fleet collect the rest of the tool calls of sessions that hit it, as long as they haven't expired and their transcripts are still on the host. Lowering it doesn't delete tool calls Fleet already stored; they're removed when the session expires, 30 days after it was last active.
 
-* `label_membership` for updating the hosts' label query execution;
-* `policy_membership` for updating the hosts' policy membership results;
-* `host_last_seen` for updating the hosts' last seen timestamp.
-* `scheduled_query_stats` for saving the hosts' scheduled report statistics.
+Setting it to 0 stops Fleet from asking hosts for tool calls, which also keeps commands and their arguments out of Fleet. Sessions are still collected, and the **Host details** page shows them without events. To stop collecting AI sessions altogether, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
 
-- Default value: false
-- Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
+- Default value: 10000
+- Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS`
 - Config file format:
   ```yaml
   osquery:
-    enable_async_host_processing: true
+    ai_session_max_tool_calls: 10000
   ```
 
-> Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+### osquery_ai_session_max_tool_calls_per_refresh
 
-### osquery_async_host_collect_interval
+Applies only to Fleet Premium. The maximum number of new tool calls Fleet asks a host for, per AI coding agent session, each time it refreshes the host's vitals (every [`osquery_detail_update_interval`](#osquery-detail-update-interval), one hour by default).
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+At each refresh, Fleet asks a host for the tool calls it hasn't collected yet from up to 5 of its sessions. With the default of 0, the host sends as many as fit in one result, about 1 MB. When many hosts report their sessions for the first time, such as right after you upgrade Fleet or turn on AI sessions, every host sends that much at each refresh until it has caught up, which can put a heavy write load on the database.
 
-It can be set to a single duration value (e.g., "30s"), which defines the interval for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=10s&policy_membership=1m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
+Setting a limit spreads that work over more refreshes, at the cost of collecting long sessions more slowly. For example, with a limit of 500, a session with 10,000 tool calls is fully collected after 20 refreshes, about 20 hours at the default refresh interval. Once a host has caught up, it rarely reaches the limit, since each refresh only asks for the tool calls made since the last one.
 
-- Default value: 30s
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
+- Default value: 0
+- Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS_PER_REFRESH`
 - Config file format:
   ```yaml
   osquery:
-    async_host_collect_interval: 1m
-  ```
-
-### osquery_async_host_collect_max_jitter_percent
-
-Applies only when `osquery_enable_async_host_processing` is enabled. A number interpreted as a percentage of `osquery_async_host_collect_interval` to add to (or remove from) the interval so that not all hosts try to do the collection at the same time.
-
-- Default value: 10
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_MAX_JITTER_PERCENT`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_collect_max_jitter_percent: 5
-  ```
-
-### osquery_async_host_collect_lock_timeout
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
-
-It can be set to a single duration value (e.g., "1m"), which defines the lock timeout for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=2m&policy_membership=5m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
-
-- Default value: 1m
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_collect_lock_timeout: 5m
-  ```
-
-### osquery_async_host_collect_log_stats_interval
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Interval at which the host collection statistics are logged, 0 to disable logging of statistics. Note that logging is done at the "debug" level.
-
-- Default value: 1m
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOG_STATS_INTERVAL`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_collect_log_stats_interval: 5m
-  ```
-
-### osquery_async_host_insert_batch
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Size of the INSERT batch when collecting host data into the database.
-
-- Default value: 2000
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_INSERT_BATCH`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_insert_batch: 1000
-  ```
-
-### osquery_async_host_delete_batch
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Size of the DELETE batch when collecting host data into the database.
-
-- Default value: 2000
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_DELETE_BATCH`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_delete_batch: 1000
-  ```
-
-### osquery_async_host_update_batch
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Size of the UPDATE batch when collecting host data into the database.
-
-- Default value: 1000
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_UPDATE_BATCH`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_update_batch: 500
-  ```
-
-### osquery_async_host_redis_pop_count
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Maximum number of items to pop from a redis key at a time when collecting host data into the database.
-
-- Default value: 1000
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_POP_COUNT`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_redis_pop_count: 500
-  ```
-
-### osquery_async_host_redis_scan_keys_count
-
-Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g., 10, 100, 1000, etc.) of set members to scan in a single ZSCAN/SSCAN request for items to process when collecting host data into the database.
-
-- Default value: 1000
-- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT`
-- Config file format:
-  ```yaml
-  osquery:
-    async_host_redis_scan_keys_count: 100
-  ```
-
-### osquery_min_software_last_opened_at_diff
-
-The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
-
-- Default value: 1h
-- Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
-- Config file format:
-  ```yaml
-  osquery:
-    min_software_last_opened_at_diff: 4h
+    ai_session_max_tool_calls_per_refresh: 500
   ```
 
 ### osquery_max_concurrent_query_report_reads
@@ -1504,7 +1393,7 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
 
 Caches the scheduled-report section of the osquery config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
 
-When enabled, the cache holds that section for one minute, keyed by fleet and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+When enabled, the cache holds that section for one minute, keyed by fleet and the `server_settings.discard_reports_data` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
 
 When disabled, every check-in builds that section from the database.
 
@@ -3195,6 +3084,90 @@ The previous name, `s3_software_installers_signed_url` (`FLEET_S3_SOFTWARE_INSTA
     software_installers_gcs_signed_url: true
   ```
 
+### cloud_storage_azure_files_account_name
+
+*Available in Fleet Premium.*
+
+Azure Storage account name. Setting `cloud_storage_azure_files_container` enables Azure Blob Storage
+as the backend for software installers, bootstrap packages, software title icons, and org logos,
+in place of S3. Only one of `s3_software_installers_bucket` and `cloud_storage_azure_files_container`
+may be set.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_NAME`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_account_name: myfleetstorageaccount
+  ```
+
+### cloud_storage_azure_files_account_key
+
+*Available in Fleet Premium.*
+
+Azure Storage account shared key, used to authenticate against the storage account.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_KEY`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_account_key: <account key>
+  ```
+
+### cloud_storage_azure_files_container
+
+*Available in Fleet Premium.*
+
+Azure Storage container where uploaded software installers, bootstrap packages, software title
+icons, and org logos are stored.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_container: fleet-software-installers
+  ```
+
+### cloud_storage_azure_files_container_url
+
+*Available in Fleet Premium.*
+
+Azure Blob Storage endpoint override. Leave blank to use the default
+`https://<account>.blob.core.windows.net` endpoint. Used to point at the
+[Azurite](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite) emulator for
+testing.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER_URL`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_container_url: http://127.0.0.1:10000/devstoreaccount1
+  ```
+
+### cloud_storage_azure_files_signed_url
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet hands out [SAS-signed URLs](https://learn.microsoft.com/en-us/azure/storage/common/storage-sas-overview)
+for installer, in-house app, and bootstrap package downloads instead of proxying the bytes through
+Fleet.
+
+- Default value: false
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_SIGNED_URL`
+- Config file format:
+  ```yaml
+  cloud_storage:  
+    azure:
+      files_signed_url: true
+  ```
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
@@ -3926,7 +3899,9 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a fleet with disk encryption turned off, then move them back.
+Before Fleet 4.95.0, Fleet encrypted Windows BitLocker recovery keys with this certificate. Fleet now encrypts them with [`server_private_key`](#server-private-key), so replacing or renewing the certificate doesn't affect them.
+
+Fleet re-encrypts keys escrowed by an earlier version with `server_private_key` automatically, starting ten minutes after the upgraded server starts. This requires both `server_private_key` and this certificate and key. If the configured certificate and key can't decrypt one of these keys, the host shows "Enforcing" and escrows a new key when it comes online.
 
 ### mdm.windows_wstep_identity_key_bytes
 
@@ -4160,6 +4135,7 @@ Fleet delivers the secret on the fleetd install command and through the Fleet-ma
 - Recovery: a host that has to enroll again, for example because its node key was deleted, needs a new one-time enroll secret. To issue one, resend the "Fleetd enroll secret" profile from **Host details > OS settings**. fleetd picks it up at the host's next MDM check-in, without a reinstall or restart (requires fleetd v1.63.0). Hosts with an older fleetd need fleetd reinstalled instead. End users can't resend this profile from the **My device** page.
 - Deleted hosts: a deleted Windows host that has MDM turned on enrolls again on its own. [Learn more](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
 - Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that has MDM turned on or is registered in Windows Autopilot. This includes a deleted host whose device still has MDM turned on. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Okta conditional access: Fleet doesn't let a global enroll secret get a [conditional access](https://fleetdm.com/guides/okta-conditional-access-integration) certificate for a Windows host. Certificate profiles copied from Fleet before one-time challenges stop renewing until you copy and redeploy them.
 - Re-imaged devices: Fleet isn't notified when MDM is turned off on a device (re-imaged, disconnected in **Settings > Accounts > Access work or school**, or unenrolled with a script), so Fleet still treats the device as enrolled, even after you delete its host. Such a device can't enroll fleetd with a package. To bring it back, enroll it in MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Fleet then replaces the old enrollment and installs fleetd with a one-time enroll secret. If the device can't enroll in MDM again, delete its host in Fleet. Fleet removes the old enrollment after the `mdm.windows_enrollment_retention` period (30 days by default), and fleetd can then enroll with a package.
 - Reserved names: custom configuration profiles can't be named "Fleetd enroll secret". Custom configuration profiles and MDM commands can't use `$FLEET_HOST_SECRET_` variables.
 
@@ -4173,6 +4149,24 @@ When you turn this setting off, Fleet removes the "Fleetd enroll secret" profile
     windows_one_time_enroll_secrets: true
   ```
 
+### mdm.android_one_time_enroll_secrets
+
+When enabled, Fleet delivers a one-time enroll secret for each Android host to the Fleet Android agent, in the agent's managed configuration, instead of the fleet's enroll secret. The secret is bound to the host and can be used once.
+
+- Recovery: after the agent uses its secret, the next managed configuration Fleet sends the host carries a new one. If the agent has to enroll again before that, for example because its node key was deleted, Fleet refuses it and sends the host a new secret. The agent picks the new secret up the next time the app starts.
+- Deleted hosts: a deleted Android host comes back when the device next reports to Fleet, and Fleet then sends the agent a new secret.
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll as an existing Android host, or with the ID of an Android device Fleet manages, including a device whose host was deleted. Refused attempts are recorded as `host_enrollment_rejected` activities.
+
+When you turn this setting off, Fleet stops accepting the one-time enroll secrets it delivered, and sends the fleet's enroll secret the next time it updates a host's agent configuration (when the host's apps or certificates change). Until then, an Android host whose agent has to enroll again, for example because its node key was deleted, can't enroll.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ANDROID_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    android_one_time_enroll_secrets: true
+  ```
+
 ### mdm.apple_one_time_enroll_secrets
 
 When enabled, Fleet delivers a one-time, device-scoped enroll secret to each macOS host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number. Orbit and osquery can each use it once.
@@ -4180,6 +4174,8 @@ When enabled, Fleet delivers a one-time, device-scoped enroll secret to each mac
 A host that needs to re-enroll, for example after its node key has been deleted or its local orbit installation corrupted, needs a new one-time enroll secret. To issue one, resend the "Fleetd configuration" profile from the host's **Controls** tab. End users can't resend this profile from the **My device** page when this setting is enabled.
 
 Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a macOS host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+Fleet also doesn't let a global enroll secret get an Okta [conditional access](https://fleetdm.com/guides/okta-conditional-access-integration) certificate for Apple hosts. Profiles copied from Fleet before one-time challenges stop renewing until you copy and redeploy them.
 
 This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed by Fleet MDM, so it reads the enroll secret from the "Fleetd configuration" profile. Macs running a fleetd package built with a global or fleet-level enroll secret won't be able to re-enroll.
 
@@ -4193,11 +4189,18 @@ This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed
 
 ### fleet_allow_bootstrap_package_during_migration
 
-When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
+> **Deprecated.** Use the **Install during migration** option in **Controls > Setup experience > Bootstrap package** (`macos_enable_bootstrap_package_during_migration` in [YAML](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) instead. This environment variable will be removed in a future major release.
+
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts assigned to Fleet in Apple Business during MDM migration, including re-enrollment via `sudo profiles renew -type enrollment`. It applies to all fleets, even if **Install during migration** isn't checked. It doesn't affect hosts that turn on MDM manually.
+
+When you upgrade to Fleet 4.95, if this variable is set, a one-time database migration checks **Install during migration** for every fleet that has a bootstrap package. If your fleets are managed with GitOps, the next GitOps run unchecks the option unless `macos_enable_bootstrap_package_during_migration: true` is in your YAML. While the variable is set, Fleet logs a deprecation warning on startup and installs the bootstrap package during migration either way.
+
+To stop using this variable, check **Install during migration**, or set `macos_enable_bootstrap_package_during_migration: true` in your YAML, for every fleet that has a bootstrap package. Then remove the variable.
 
 This is only supported as an environment variable.
 
 - Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
 
 ### silent_migration_enrollment_profile
 
@@ -4230,6 +4233,25 @@ This configuration allows Fleet to correctly parse the serial number regardless 
   ```yaml
   conditional_access:
     cert_serial_format: decimal
+  ```
+
+### microsoft_compliance_partner_windows_trusted_device_id_only
+
+When enabled, Fleet uses a Windows host's Entra device ID for Microsoft Entra conditional access only if it comes from:
+
+- The device certificate of an Entra joined or hybrid joined host.
+- A device certificate whose device ID matches the one Microsoft issued when the host enrolled to Fleet's MDM through Entra, or the one in the host's Windows Autopilot record.
+
+Hosts that are only registered with Entra (**Settings > Accounts > Access work or school > Connect**) and didn't enroll to MDM through Entra aren't reported to Entra.
+
+When a host stops reporting a device ID that Fleet already reported to Entra, Fleet stops reporting it. Entra keeps the last status Fleet reported for that device, so Fleet adds a [`stopped_reporting_microsoft_entra_device_id`](https://fleetdm.com/docs/api/global-audit-logs#stopped-reporting-microsoft-entra-device-id) activity to the host and logs a warning with the same device ID. After you turn this option on, watch for these activities for at least an hour, since hosts check in hourly. For what to do when you see one, see [Conditional access: Entra](https://fleetdm.com/guides/entra-conditional-access-integration#stopped-reporting-a-device-id).
+
+- Default value: `false`
+- Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_WINDOWS_TRUSTED_DEVICE_ID_ONLY`
+- Config file format:
+  ```yaml
+  microsoft_compliance_partner:
+    windows_trusted_device_id_only: true
   ```
 
 ## Partnerships

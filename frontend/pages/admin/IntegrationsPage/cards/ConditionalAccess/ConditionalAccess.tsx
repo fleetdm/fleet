@@ -34,6 +34,15 @@ import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
 
+const troubleshootLink = (
+  <CustomLink
+    text="Learn more"
+    url="https://fleetdm.com/guides/entra-conditional-access-integration#troubleshooting"
+    newTab
+    variant="flash-message-link"
+  />
+);
+
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: (config: IConfig) => void;
@@ -215,20 +224,50 @@ const ConditionalAccess = () => {
           // IT admin did not complete the consent.
           !setup_error ||
           // IT admin clicked "Cancel" in the consent dialog.
-          setup_error.includes(
-            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
-          )
+          setup_error.includes("A Microsoft Entra admin did not consent")
         ) {
           notify.error(
-            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+            <>
+              Couldn&apos;t connect. Fleet didn&apos;t get permissions for
+              Entra. Please try again and accept the permissions.{" "}
+              {troubleshootLink}
+            </>
           );
         } else if (
-          setup_error.includes(
-            'No "Fleet conditional access" Entra ID group was found'
-          )
+          // Covers both the empty (HTTP 204) and unexpected-shape responses.
+          setup_error.includes("PartnerCompliancePolicies API returned")
         ) {
           notify.error(
-            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+            <>
+              Couldn&apos;t connect. Entra didn&apos;t create Fleet&apos;s
+              compliance policy. Have an Entra admin who&apos;s also a Fleet
+              admin select <b>Connect</b> and approve permissions in one
+              session. {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes('No "Fleet conditional access" Entra ID group')
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Create a group named &quot;Fleet
+              conditional access&quot; in Entra and try again.{" "}
+              <CustomLink
+                text="Learn how"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/create-entra-conditional-access-group`}
+                newTab
+                variant="flash-message-link"
+              />
+            </>
+          );
+        } else if (
+          setup_error.includes("Error occurred when retrieving API tokens")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Fleet couldn&apos;t access your Entra
+              tenant. Please try again. {troubleshootLink}
+            </>
           );
         } else {
           // For other kind of errors we just show a generic error.
@@ -240,7 +279,9 @@ const ConditionalAccess = () => {
           //  - The Fleet server logs the error.
           //  - The MS proxy stores the error in its database.
           notify.error(
-            "Couldn't connect. Please contact your Fleet administrator."
+            <>
+              Couldn&apos;t connect. Entra returned an error. {troubleshootLink}
+            </>
           );
         }
       }
