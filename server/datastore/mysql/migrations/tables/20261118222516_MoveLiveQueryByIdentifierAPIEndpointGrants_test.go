@@ -35,6 +35,17 @@ func TestUp_20261118222516(t *testing.T) {
 	grant(bothGrants, newPath)
 	unrelated := newUser("unrelated")
 	grant(unrelated, otherPath)
+	// The server accepts any placeholder spelling and the version placeholder, so the stored path can differ from the catalog's.
+	alternateSpellings := []string{
+		"/api/v1/fleet/hosts/identifier/{identifier}/query",
+		"/api/v1/fleet/hosts/identifier/:serial/query",
+		"/api/_version_/fleet/hosts/identifier/:identifier/query",
+	}
+	alternateUsers := make([]int64, len(alternateSpellings))
+	for i, path := range alternateSpellings {
+		alternateUsers[i] = newUser(fmt.Sprintf("alternate-spelling-%d", i))
+		grant(alternateUsers[i], path)
+	}
 
 	applyNext(t, db)
 
@@ -47,4 +58,7 @@ func TestUp_20261118222516(t *testing.T) {
 	assert.Equal(t, []string{newPath, otherPath}, grantsOf(identifierAndOther))
 	assert.Equal(t, []string{newPath}, grantsOf(bothGrants))
 	assert.Equal(t, []string{otherPath}, grantsOf(unrelated))
+	for i, userID := range alternateUsers {
+		assert.Equal(t, []string{newPath}, grantsOf(userID), alternateSpellings[i])
+	}
 }

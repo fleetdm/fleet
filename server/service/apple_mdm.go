@@ -3074,7 +3074,14 @@ func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet
 	req := request.(*getHostProfilesRequest)
 	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
 	if err != nil {
-		return getHostProfilesResponse{Err: err}, nil
+		// GitOps users can't list hosts, so they can't resolve identifiers, but MDMListHostConfigurationProfiles only needs a selective
+		// list and they could always pass a host ID here.
+		var forbidden *authz.Forbidden
+		id, parseErr := strconv.ParseUint(req.Identifier, 10, 0)
+		if !errors.As(err, &forbidden) || parseErr != nil {
+			return getHostProfilesResponse{Err: err}, nil
+		}
+		hostID = uint(id)
 	}
 	sums, err := svc.MDMListHostConfigurationProfiles(ctx, hostID)
 	if err != nil {

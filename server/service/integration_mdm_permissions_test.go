@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -178,6 +179,8 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{h1.ID}))
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
+	// GitOps users can't list hosts, so they can't look one up by identifier.
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+url.PathEscape(h1.UUID)+"/configuration_profiles", getHostRequest{}, http.StatusForbidden, &getHostResponse{})
 
 	// GitOps users can't run MDM commands, even on hosts of their fleets.
 	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
