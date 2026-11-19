@@ -71,6 +71,25 @@ func TestClaudeCodeNPMTranslation(t *testing.T) {
 	require.Equal(t, []string{"node.js"}, filter.TargetSW)
 }
 
+// TestClineNPMTranslation covers the cline CLI from #57926: the npm package maps
+// to NVD's cline:cline product. Its CVEs use target_sw "*", so the rule must not
+// pin target_sw to node.js the way the generic npm_packages rule does.
+func TestClineNPMTranslation(t *testing.T) {
+	translations, err := loadCPETranslations(filepath.Join(".", cpeTranslationsFilename))
+	require.NoError(t, err)
+
+	filter, matched, err := translations.Translate(newRegexpCache(), &fleet.Software{
+		Name:    "cline",
+		Source:  "npm_packages",
+		Version: "3.0.29",
+	})
+	require.NoError(t, err)
+	require.True(t, matched)
+	require.Equal(t, []string{"cline"}, filter.Product)
+	require.Equal(t, []string{"cline"}, filter.Vendor)
+	require.Empty(t, filter.TargetSW)
+}
+
 func TestTranslate(t *testing.T) {
 	tests := []struct {
 		name         string

@@ -731,6 +731,16 @@
   },
   {
     "software": {
+      "name": ["cline"],
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "product": ["cline"],
+      "vendor": ["cline"]
+    }
+  },
+  {
+    "software": {
       "source": ["npm_packages"]
     },
     "filter": {
