@@ -583,7 +583,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	defer s.cleanupQuery(q.ID)
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
-			QueryID: &q.ID,
+			Name:        q.Name,
+			Query:       q.Query,
+			Description: q.Description,
 		},
 	)
 	require.NoError(t, err)

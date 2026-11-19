@@ -333,3 +333,18 @@ describe("SoftwareDetailsSummary VPP token", () => {
     expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
   });
 });
+
+describe("SoftwareDetailsSummary title", () => {
+  it("keeps the space before the rolling tooltip for a rolling Arch Linux version", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="Arch Linux rolling"
+        isOperatingSystem
+      />
+    );
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      /^Arch Linux rolling$/
+    );
+  });
+});

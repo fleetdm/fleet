@@ -28,7 +28,6 @@ const (
 // failing policy to send to the configured automation.
 type FailingPolicyAutomationConfig struct {
 	AutomationType FailingPolicyAutomationType
-	PolicyIDs      map[uint]bool
 	WebhookURL     *url.URL // for webhook automation type only
 	HostBatchSize  int      // for webhook automation type only
 }
@@ -83,12 +82,20 @@ func TriggerFailingPoliciesAutomation(
 			return ctxerr.Wrapf(ctx, err, "get policy: %d", policyID)
 		}
 
+		if !policy.WebhooksAndTicketsEnabled {
+			logger.DebugContext(ctx, "skipping failing policy, webhook or ticket automation off", "policyID", policyID)
+			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+				logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
+			}
+			continue
+		}
+
 		// Determine which configuration to use based on policy's team
 		switch {
 		case policy.TeamID == nil:
 			// Global policy - use global config
-			if !globalAutomationCfg.PolicyIDs[policy.ID] {
-				logger.DebugContext(ctx, "skipping failing policy, not found in global policy IDs", "policyID", policyID)
+			if globalAutomationCfg.AutomationType == "" {
+				logger.DebugContext(ctx, "global automation disabled", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
 					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
@@ -108,14 +115,6 @@ func TriggerFailingPoliciesAutomation(
 
 			if cfg.AutomationType == "" {
 				logger.DebugContext(ctx, "default fleet automation disabled", "policyID", policyID)
-				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
-				}
-				continue
-			}
-
-			if !cfg.PolicyIDs[policy.ID] {
-				logger.DebugContext(ctx, "skipping failing policy, not found in default fleet policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
 					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
@@ -150,14 +149,6 @@ func TriggerFailingPoliciesAutomation(
 				continue
 			}
 
-			if !teamCfg.PolicyIDs[policy.ID] {
-				logger.DebugContext(ctx, "skipping failing policy, not found in fleet policy IDs", "policyID", policyID)
-				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
-				}
-				continue
-			}
-
 			if err := sendFunc(policy, teamCfg); err != nil {
 				logger.ErrorContext(ctx, "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
@@ -176,13 +167,6 @@ func buildFailingPolicyAutomationConfig(webhookSettings fleet.FailingPoliciesWeb
 	}
 
 	cfg.AutomationType = automation
-
-	// Build policy IDs map
-	polIDs := make(map[uint]bool, len(webhookSettings.PolicyIDs))
-	for _, pID := range webhookSettings.PolicyIDs {
-		polIDs[pID] = true
-	}
-	cfg.PolicyIDs = polIDs
 
 	// Parse webhook URL if needed
 	if automation == FailingPolicyWebhook {
