@@ -296,7 +296,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		"description": "Some description updated",
 		"resolution": "some global resolution updated"
 	}`), http.StatusOK)
-	var mgpResp fleet.ModifyGlobalPolicyResponse
+	var mgpResp fleet.ModifyPolicyResponse
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(responseBody, &mgpResp)
@@ -721,13 +721,13 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			require.Nil(t, tpResp.Policy)
 
 			if testUpdate {
-				gpReq := fleet.ModifyGlobalPolicyRequest{
+				gpReq := fleet.ModifyPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  new(tc.name),
 						Query: new(tc.query),
 					},
 				}
-				gpResp := fleet.ModifyGlobalPolicyResponse{}
+				gpResp := fleet.ModifyPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), gpReq, http.StatusBadRequest, &gpResp)
 				require.Nil(t, tpResp.Policy)
 			}
@@ -1263,7 +1263,7 @@ func (s *integrationTestSuite) TestGlobalPolicyAutomationTypeFree() {
 		require.NoError(t, err)
 	})
 
-	var modResp fleet.ModifyGlobalPolicyResponse
+	var modResp fleet.ModifyPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": null}`),
 		http.StatusOK, &modResp)
 	require.Nil(t, modResp.Policy.AutomationType)

@@ -430,7 +430,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	require.Len(t, listPolByName.Policies, 1)
 	require.Equal(t, "name1", listPolByName.Policies[0].Name)
 
-	patchPol1Req := &fleet.ModifyGlobalPolicyRequest{
+	patchPol1Req := &fleet.ModifyPolicyRequest{
 		Name:        new("newName1"),
 		Query:       new("newQuery"),
 		Description: new("newDescription"),
@@ -438,11 +438,11 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Platform:    new("windows"),
 		Critical:    new(false),
 	}
-	patchPol1 := &fleet.ModifyGlobalPolicyResponse{}
+	patchPol1 := &fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
 	allEqual(t, patchPol1Req, patchPol1.Policy, fields...)
 
-	patchPol2Req := &fleet.ModifyGlobalPolicyRequest{
+	patchPol2Req := &fleet.ModifyPolicyRequest{
 		Name:        new("newName2"),
 		Query:       new("newQuery"),
 		Description: new("newDescription"),
@@ -450,7 +450,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Platform:    new("windows"),
 		Critical:    new(true),
 	}
-	patchPol2 := &fleet.ModifyGlobalPolicyResponse{}
+	patchPol2 := &fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
 	allEqual(t, patchPol2Req, patchPol2.Policy, fields...)
 
@@ -585,7 +585,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Name: "hidden global", Query: "SELECT 1;", Hidden: true,
 	}, http.StatusOK, &gpResp)
 	s.Require().True(gpResp.Policy.Hidden)
-	modGP := &fleet.ModifyGlobalPolicyResponse{}
+	modGP := &fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID),
 		json.RawMessage(`{"hidden": false}`), http.StatusOK, modGP)
 	s.Require().False(modGP.Policy.Hidden)
@@ -821,8 +821,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 	// 3. PATCH: switch existing include_all policy to include_any. Other slices should clear.
 	switchAny := []string{lblA.Name}
-	var patchResp fleet.ModifyGlobalPolicyResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	var patchResp fleet.ModifyPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyPolicyRequest{
 		LabelsIncludeAny: switchAny,
 	}, http.StatusOK, &patchResp)
 	require.Empty(t, patchResp.Policy.LabelsIncludeAll)
@@ -831,8 +831,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 	// Switch back to include_all so end-to-end targeting test below uses it.
 	switchAll := []string{lblA.Name, lblB.Name}
-	patchResp = fleet.ModifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	patchResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyPolicyRequest{
 		LabelsIncludeAll: switchAll,
 	}, http.StatusOK, &patchResp)
 	require.Len(t, patchResp.Policy.LabelsIncludeAll, 2)
@@ -840,7 +840,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 	// PATCH mutex rejection. Assert on the specific validation error so a
 	// generic 400 cannot silently satisfy the test.
-	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyPolicyRequest{
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)

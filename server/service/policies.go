@@ -388,12 +388,12 @@ func checkAllFleetsPolicyRequest(req fleet.CreatePolicyRequest) error {
 }
 
 func modifyPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.ModifyGlobalPolicyRequest)
+	req := request.(*fleet.ModifyPolicyRequest)
 	policy, err := svc.ModifyPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
-		return fleet.ModifyGlobalPolicyResponse{Err: err}, nil
+		return fleet.ModifyPolicyResponse{Err: err}, nil
 	}
-	return fleet.ModifyGlobalPolicyResponse{Policy: policy}, nil
+	return fleet.ModifyPolicyResponse{Policy: policy}, nil
 }
 
 // ModifyPolicy updates a policy in any scope. The policy keeps its scope.

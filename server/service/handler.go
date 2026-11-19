@@ -402,7 +402,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
 	ue.GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
 	ue.POST("/api/_version_/fleet/policies/delete", deletePoliciesEndpoint, fleet.DeletePoliciesRequest{})
-	ue.PATCH("/api/_version_/fleet/policies/{policy_id}", modifyPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
+	ue.PATCH("/api/_version_/fleet/policies/{policy_id}", modifyPolicyEndpoint, fleet.ModifyPolicyRequest{})
 	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
