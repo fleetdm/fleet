@@ -1043,14 +1043,17 @@
               document.querySelector(".qr-code"),
               { width: 245, color: { dark: "#515774", light: "#fff" } }
             );
-            // Google issues enrollment tokens with a 1-hour lifetime by default.
-            const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-            document.querySelector(
-              ".qr-expiry"
-            ).textContent = `Expires ${expiresAt.toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}`;
+            const expiresAt = new Date(
+              data.android_enrollment_token_expires_at
+            );
+            if (!isNaN(expiresAt)) {
+              document.querySelector(
+                ".qr-expiry"
+              ).textContent = `Expires ${expiresAt.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}`;
+            }
           } catch (error) {
             renderError(
               "Couldn't get Android enrollment token.",

@@ -1510,7 +1510,8 @@ This endpoint is used to retrieve an Android enrollment token and enrollment URL
 {
   "android_enrollment_token": "OJDDNCYSEZPAUZZOXHDF",
   "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF",
-  "android_enrollment_qrcode": "{\"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME\":\"com.google.android.apps.work.clouddpc\/.receivers.CloudDeviceAdminReceiver\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM\":\"I9DvS1O5hXZ46mb01AlRjq4oJJGs2kuZcHvCkACEXlg\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION\":\"https:\/\/play.google.com\/managed\/downloadManagingApp?identifier=setup\",\"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE\":{\"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN\":\"OJDDNCYSEZPAUZZOXHDF\"}}"
+  "android_enrollment_qr_code": "{\"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME\":\"com.google.android.apps.work.clouddpc\/.receivers.CloudDeviceAdminReceiver\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM\":\"I9DvS1O5hXZ46mb01AlRjq4oJJGs2kuZcHvCkACEXlg\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION\":\"https:\/\/play.google.com\/managed\/downloadManagingApp?identifier=setup\",\"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE\":{\"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN\":\"OJDDNCYSEZPAUZZOXHDF\"}}",
+  "android_enrollment_token_expires_at": "2026-11-19T13:00:00Z"
 }
 ```
 

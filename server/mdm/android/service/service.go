@@ -734,6 +734,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		EnrollmentToken:  token.Value,
 		EnrollmentURL:    "https://enterprise.google.com/android/enroll?et=" + token.Value,
 		EnrollmentQRCode: token.QrCode,
+		ExpiresAt:        token.ExpirationTimestamp,
 	}, nil
 }
 
