@@ -8,7 +8,7 @@
 
 * On Windows, added reporting of the device's Autopilot device ID at enrollment, so Fleet can match the device to its pending Autopilot host without relying on the hardware serial.
 
-* When Fleet enables osquery config notifications over the WebSocket transport, fleetd serves osquery its config: it fetches the config from Fleet as soon as Fleet notifies it of a change, and at the interval Fleet sets (10 minutes by default) instead of every minute. Hosts whose `command_line_flags` set `config_plugin` to a plugin other than `tls` keep using that plugin.
+* Added support for osquery config notifications over the WebSocket transport. When Fleet enables this, fleetd fetches osquery's config from Fleet as soon as Fleet notifies it of a change, and at the interval Fleet sets (10 minutes by default) instead of every minute. Hosts whose `command_line_flags` set `config_plugin` to a plugin other than `tls` keep using that plugin.
 
 * fleetd no longer installs or launches its built-in Nudge for macOS 13 and older. Nudge is still available as a Fleet-maintained app.
 
