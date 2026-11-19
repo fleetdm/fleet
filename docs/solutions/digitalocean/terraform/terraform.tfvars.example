@@ -1,0 +1,12 @@
+# Everything here is optional. Run `terraform apply` with an empty file to use the defaults.
+
+# domain            = "fleet.example.com"
+# app_region        = "nyc"
+# db_region         = "nyc3"
+# fleet_license_key = "your_license_key"
+
+# Software installers (optional). Create a Spaces bucket and a key for it first.
+# installers_bucket            = "my-fleet-installers"
+# installers_region            = "nyc3"
+# installers_access_key_id     = "DO00..."
+# installers_secret_access_key = "..."
