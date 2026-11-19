@@ -499,7 +499,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 
 			// digicert can't have the same name as a custom scep
 			testCopy = goodDigiCertCA
@@ -514,7 +514,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: false,
 			}
 			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
+			require.Contains(t, extractServerErrorText(res.Body), "already exists")
 		})
 
 		t.Run("digicert more than 1 user principal name", func(t *testing.T) {
@@ -829,7 +829,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 		})
 
 		t.Run("custom_scep challenge not set", func(t *testing.T) {
@@ -1009,7 +1009,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 		})
 
 		t.Run("smallstep url not set", func(t *testing.T) {
@@ -1224,7 +1224,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.hydrant")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 		})
 
 		// TODO(hca): hydrant happy path and other specific tests
@@ -1286,7 +1286,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.google_cas")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 		})
 
 		t.Run("google cas happy path with activities add then modify then delete", func(t *testing.T) {
@@ -1429,7 +1429,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 		})
 	})
 
@@ -1514,7 +1514,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		} {
 			errMsg := extractServerErrorText(apply(tc.cas, http.StatusUnprocessableEntity).Body)
 			require.Contains(t, errMsg, "certificate_authorities."+tc.caType)
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "already exists")
 		}
 		s.checkAppliedCAs(t, s.ds, named("case_x"))
 	})
@@ -1670,8 +1670,8 @@ func (s *integrationMDMTestSuite) TestGoogleCASCertificateAuthorities() {
 	require.JSONEq(t, key, string(verified[0].APIKeyJSON))
 
 	// The same name is already used.
-	res := s.Do("POST", "/api/latest/fleet/certificate_authorities", createReq("GOOGLE_WIFI"), http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), `"GOOGLE_WIFI" name is already used by another certificate authority`)
+	res := s.Do("POST", "/api/latest/fleet/certificate_authorities", createReq("GOOGLE_WIFI"), http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), `CertificateAuthority "GOOGLE_WIFI" already exists`)
 
 	// A CA pool Google rejects is not stored.
 	verifyErr = errors.New("The service account can't access the CA pool.")
@@ -2765,7 +2765,7 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	require.NotZero(t, createResp.ID)
 	require.Equal(t, fleet.CATypeEJBCA, createResp.Type)
 	s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
-	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_WIFI", trusted), http.StatusUnprocessableEntity,
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_WIFI", trusted), http.StatusConflict,
 		&createCertificateAuthorityResponse{})
 
 	// No response has a secret: not the PKCS#12 or its password, and not the stored key, in PEM or as the base64 of its body.
@@ -2867,15 +2867,16 @@ func (s *integrationMDMTestSuite) TestCertificateAuthorityNamesAreUnique() {
 		name    string
 		id      uint
 		body    map[string]any
+		status  int
 		wantErr string
 	}{
 		{"SCEP takes an EJBCA name in another case", scep.ID, map[string]any{"custom_scep_proxy": map[string]any{"name": "ejbca_wifi"}},
-			`Couldn't edit certificate authority. "ejbca_wifi" name is already used by another certificate authority`},
+			http.StatusConflict, `CertificateAuthority "ejbca_wifi" already exists`},
 		{"SCEP takes the NDES name", scep.ID, map[string]any{"custom_scep_proxy": map[string]any{"name": "ndes"}},
-			"Couldn't edit certificate authority. CA name cannot be NDES"},
+			http.StatusUnprocessableEntity, "Couldn't edit certificate authority. CA name cannot be NDES"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Contains(t, patch(tc.id, tc.body, http.StatusUnprocessableEntity), tc.wantErr)
+			require.Contains(t, patch(tc.id, tc.body, tc.status), tc.wantErr)
 		})
 	}
 
@@ -2893,8 +2894,8 @@ func (s *integrationMDMTestSuite) TestCertificateAuthorityNamesAreUnique() {
 		})
 
 		// Any edit of either CA fails, even one that doesn't change the name, until one of them is renamed.
-		require.Contains(t, patch(legacy.ID, map[string]any{"hydrant": map[string]any{"client_id": "other"}}, http.StatusUnprocessableEntity),
-			`"LEGACY_WIFI" name is already used by another certificate authority`)
+		require.Contains(t, patch(legacy.ID, map[string]any{"hydrant": map[string]any{"client_id": "other"}}, http.StatusConflict),
+			`CertificateAuthority "LEGACY_WIFI" already exists`)
 		patch(scep.ID, map[string]any{"custom_scep_proxy": map[string]any{"name": "RENAMED_WIFI"}}, http.StatusOK)
 		patch(legacy.ID, map[string]any{"hydrant": map[string]any{"client_id": "other"}}, http.StatusOK)
 	})
@@ -3043,7 +3044,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 			}
 			errText := applyCAs(batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: grouped, DryRun: true},
 				http.StatusUnprocessableEntity)
-			require.Contains(t, errText, fmt.Sprintf("%q name is already used by another certificate authority", tc.scepName+tc.googleCASName))
+			require.Contains(t, errText, fmt.Sprintf("CertificateAuthority %q already exists", tc.scepName+tc.googleCASName))
 		})
 	}
 	// The name of the NDES CA is reserved in any case, whether or not an NDES CA is configured.

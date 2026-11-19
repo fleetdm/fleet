@@ -107,6 +107,15 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.NDESSCEPProxy != nil {
+		// The NDES CA is always named NDES, so this is checked by type. Otherwise a second NDES CA would get the error for a name in use.
+		cas, err := svc.ds.ListCertificateAuthorities(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if slices.ContainsFunc(cas, func(ca *fleet.CertificateAuthoritySummary) bool { return ca.Type == string(fleet.CATypeNDESSCEPProxy) }) {
+			return nil, &fleet.BadRequestError{Message: errPrefix + "Only a single NDES CA can be added."}
+		}
+
 		p.NDESSCEPProxy.Preprocess()
 
 		if err := svc.validateNDESSCEPProxy(ctx, p.NDESSCEPProxy, errPrefix); err != nil {
@@ -172,16 +181,6 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
-		if nameInUse, ok := errors.AsType[fleet.CANameInUseError](err); ok {
-			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
-				if nameInUse.SameType {
-					return nil, &fleet.BadRequestError{Message: errPrefix + "Only a single NDES CA can be added."}
-				}
-				// A CA of another type can hold the name from before names had to be unique.
-				return nil, &fleet.BadRequestError{Message: errPrefix + "Another certificate authority is named NDES. Please rename it and try again."}
-			}
-			return nil, fleet.NewInvalidArgumentError("name", errPrefix+err.Error())
-		}
 		return nil, err
 	}
 
@@ -562,15 +561,28 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return nil
 	}
 
-	if err := svc.ds.BatchApplyCertificateAuthorities(ctx, *ops); err != nil {
-		if _, ok := errors.AsType[fleet.CANameInUseError](err); ok {
-			return fleet.NewInvalidArgumentError("name", "certificate_authorities: "+err.Error())
-		}
+	templateFleetIDs, err := svc.ds.BatchApplyCertificateAuthorities(ctx, *ops)
+	if err != nil {
 		return err
 	}
 
 	if err := svc.recordActivitiesBatchApplyCAs(ctx, ops); err != nil {
 		return err
+	}
+
+	// The fleet configs won't find these templates to remove, so the edit is recorded here, like it is when a fleet config removes one.
+	for _, fleetID := range templateFleetIDs {
+		activity := &fleet.ActivityTypeEditedAndroidCertificate{}
+		if fleetID != 0 {
+			team, err := svc.ds.TeamLite(ctx, fleetID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting fleet for edited android certificate activity")
+			}
+			activity.TeamID, activity.TeamName = &team.ID, &team.Name
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for edited android certificate")
+		}
 	}
 
 	return nil
@@ -605,13 +617,16 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	// for every CA, before the unchanged ones are skipped, so that one keeping a name from before these rules can't be applied either.
 	allNames := make(map[string]struct{})
 	checkAllNames := func(name, caType string) error {
+		if name == "" {
+			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("certificate_authorities.%s: CA name cannot be empty.", caType))
+		}
 		if strings.EqualFold(name, "NDES") {
 			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("certificate_authorities.%s.name: CA name cannot be NDES", caType))
 		}
 		key := caNameKey(name)
 		if _, seen := allNames[key]; seen {
 			return fleet.NewInvalidArgumentError("name",
-				fmt.Sprintf("certificate_authorities.%s.name: %s", caType, fleet.CANameInUseError{Name: name}.Error()))
+				fmt.Sprintf("certificate_authorities.%s.name: CertificateAuthority %q already exists", caType, name))
 		}
 		allNames[key] = struct{}{}
 		return nil
@@ -621,10 +636,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for i := range incoming.DigiCert {
 		ca := &incoming.DigiCert[i]
 		ca.Preprocess()
-		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert: CA name cannot be empty.")
-		}
-
 		if err := checkAllNames(ca.Name, "digicert"); err != nil {
 			return nil, err
 		}
@@ -633,10 +644,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for i := range incoming.EJBCA {
 		ca := &incoming.EJBCA[i]
 		ca.Preprocess()
-		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.ejbca: CA name cannot be empty.")
-		}
-
 		if err := checkAllNames(ca.Name, "ejbca"); err != nil {
 			return nil, err
 		}
@@ -645,10 +652,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for i := range incoming.CustomScepProxy {
 		ca := &incoming.CustomScepProxy[i]
 		ca.Preprocess()
-		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_scep_proxy: CA name cannot be empty.")
-		}
-
 		if err := checkAllNames(ca.Name, "custom_scep_proxy"); err != nil {
 			return nil, err
 		}
@@ -657,10 +660,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for i := range incoming.Hydrant {
 		ca := &incoming.Hydrant[i]
 		ca.Preprocess()
-		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.hydrant: CA name cannot be empty.")
-		}
-
 		if err := checkAllNames(ca.Name, "hydrant"); err != nil {
 			return nil, err
 		}
@@ -669,10 +668,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for i := range incoming.EST {
 		ca := &incoming.EST[i]
 		ca.Preprocess()
-		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_est_proxy: CA name cannot be empty.")
-		}
-
 		if err := checkAllNames(ca.Name, "custom_est_proxy"); err != nil {
 			return nil, err
 		}
@@ -681,10 +676,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for i := range incoming.Smallstep {
 		ca := &incoming.Smallstep[i]
 		ca.Preprocess()
-		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep: CA name cannot be empty.")
-		}
-
 		if err := checkAllNames(ca.Name, "smallstep"); err != nil {
 			return nil, err
 		}
@@ -692,11 +683,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	// preprocess google cas, in place so the trimmed values are what gets stored
 	for i := range incoming.GoogleCAS {
 		ca := &incoming.GoogleCAS[i]
-		if strings.TrimSpace(ca.Name) == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.google_cas: CA name cannot be empty.")
-		}
 		ca.Preprocess()
-
 		if err := checkAllNames(ca.Name, "google_cas"); err != nil {
 			return nil, err
 		}
@@ -1493,9 +1480,6 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	}
 
 	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
-		if _, ok := errors.AsType[fleet.CANameInUseError](err); ok {
-			return fleet.NewInvalidArgumentError("name", errPrefix+err.Error())
-		}
 		return err
 	}
 

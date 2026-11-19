@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
+import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMock";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
@@ -13,9 +14,21 @@ describe("CertificateAuthorities", () => {
       http.get(baseUrl("/certificate_authorities"), () =>
         HttpResponse.json({
           certificate_authorities: [
-            { id: 1, name: "WIFI", type: "digicert" },
-            { id: 2, name: "wifi", type: "custom_scep_proxy" },
-            { id: 3, name: "VPN", type: "hydrant" },
+            createMockCertificateAuthorityPartial({
+              id: 1,
+              name: "WIFI",
+              type: "digicert",
+            }),
+            createMockCertificateAuthorityPartial({
+              id: 2,
+              name: "wifi",
+              type: "custom_scep_proxy",
+            }),
+            createMockCertificateAuthorityPartial({
+              id: 3,
+              name: "VPN",
+              type: "hydrant",
+            }),
           ],
         })
       )

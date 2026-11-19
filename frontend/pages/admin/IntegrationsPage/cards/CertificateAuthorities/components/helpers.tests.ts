@@ -1,4 +1,4 @@
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMock";
 
 import {
   CA_NAME_IN_USE_ERROR,
@@ -7,10 +7,18 @@ import {
   getConflictingCANames,
 } from "./helpers";
 
-const certAuthorities: ICertificateAuthorityPartial[] = [
-  { id: 1, name: "NDES", type: "ndes_scep_proxy" },
-  { id: 2, name: "WIFI", type: "digicert" },
-  { id: 3, name: "VPN", type: "custom_scep_proxy" },
+const certAuthorities = [
+  createMockCertificateAuthorityPartial({
+    id: 1,
+    name: "NDES",
+    type: "ndes_scep_proxy",
+  }),
+  createMockCertificateAuthorityPartial({ id: 2, name: "WIFI" }),
+  createMockCertificateAuthorityPartial({
+    id: 3,
+    name: "VPN",
+    type: "custom_scep_proxy",
+  }),
 ];
 
 describe("getCANameConflictError", () => {
@@ -44,10 +52,18 @@ describe("getConflictingCANames", () => {
   });
 
   it("groups the CAs that share a name without regard to case", () => {
-    const legacy: ICertificateAuthorityPartial[] = [
+    const legacy = [
       ...certAuthorities,
-      { id: 4, name: "wifi", type: "hydrant" },
-      { id: 5, name: "Vpn", type: "smallstep" },
+      createMockCertificateAuthorityPartial({
+        id: 4,
+        name: "wifi",
+        type: "hydrant",
+      }),
+      createMockCertificateAuthorityPartial({
+        id: 5,
+        name: "Vpn",
+        type: "smallstep",
+      }),
     ];
     expect(getConflictingCANames(legacy)).toEqual([
       [certAuthorities[1], legacy[3]],

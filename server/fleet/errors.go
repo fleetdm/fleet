@@ -705,18 +705,6 @@ func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConfl
 
 func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
 
-// CANameInUseError is returned when a certificate authority would share its name with another certificate authority. Names are unique
-// across all types and compared without regard to case, because profiles reference a CA by name.
-type CANameInUseError struct {
-	Name string
-	// SameType is set when the other CA is of the same type, which for NDES means an NDES CA already exists.
-	SameType bool
-}
-
-func (e CANameInUseError) Error() string {
-	return fmt.Sprintf("%q name is already used by another certificate authority. Please choose a different name and try again.", e.Name)
-}
-
 // CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
 // serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
 // Retry-After tells callers such as curl --retry when to try again.

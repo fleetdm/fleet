@@ -917,8 +917,26 @@ software:
 	apply("    custom_scep_proxy:\n"+scepCA("WIFI")+scepCA("OTHER"), "WIFI")
 	require.Equal(t, "WIFI", templateCAName())
 
+	var (
+		mu     sync.Mutex
+		edited []string
+	)
+	prev := s.activityMock.NewActivityFunc
+	s.activityMock.NewActivityFunc = func(ctx context.Context, u *activity_api.User, a activity_api.ActivityDetails) error {
+		if edit, ok := a.(*fleet.ActivityTypeEditedAndroidCertificate); ok {
+			mu.Lock()
+			edited = append(edited, ptr.ValOrZero(edit.TeamName))
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, u, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
 	// WIFI becomes a DigiCert CA. The custom SCEP CA has to be deleted before its name can be taken, which takes its template with it, and
-	// then the fleet config adds the template back on the other CA.
+	// then the fleet config adds the template back on the other CA. Each pass records an edit of the fleet's certificates.
 	apply(fmt.Sprintf(`    digicert:
       - name: WIFI
         url: %s
@@ -936,6 +954,9 @@ software:
 	require.Len(t, groupedCAs.CustomScepProxy, 1)
 	require.Equal(t, "OTHER", groupedCAs.CustomScepProxy[0].Name)
 	require.Equal(t, "OTHER", templateCAName())
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []string{"CA Replace Team", "CA Replace Team"}, edited)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) writeConfigFile(t *testing.T, content string) string {

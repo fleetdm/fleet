@@ -197,6 +197,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			// check for
 			return nil, errors.New("mock error to avoid NewActivity panic")
 		}
+		ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+			return nil, nil
+		}
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 
@@ -264,11 +267,11 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{}, nil
 		}
-		ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) ([]uint, error) {
 			require.Empty(t, ops.Add)
 			require.Empty(t, ops.Update)
 			require.Empty(t, ops.Delete)
-			return nil
+			return nil, nil
 		}
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -490,28 +493,17 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		verifyNilFieldsForType(t, createdCA)
 	})
 
-	t.Run("Create NDES SCEP CA - NDES name in use", func(t *testing.T) {
-		for _, tc := range []struct {
-			name    string
-			dsErr   fleet.CANameInUseError
-			wantErr string
-		}{
-			{"by an NDES CA", fleet.CANameInUseError{Name: "NDES", SameType: true},
-				"Couldn't add certificate authority. Only a single NDES CA can be added."},
-			{"by a CA of another type from before names had to be unique", fleet.CANameInUseError{Name: "NDES"},
-				"Couldn't add certificate authority. Another certificate authority is named NDES. Please rename it and try again."},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				svc, ctx := baseSetupForCATests()
-				svc.ds.(*mock.Store).NewCertificateAuthorityFunc = func(context.Context, *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
-					return nil, tc.dsErr
-				}
-				_, err := svc.NewCertificateAuthority(ctx, fleet.CertificateAuthorityPayload{NDESSCEPProxy: &fleet.NDESSCEPProxyCA{
-					URL: "https://ndes.example.com", AdminURL: "https://ndes-admin.example.com", Username: "ndes_user", Password: "ndes_password",
-				}})
-				require.EqualError(t, err, tc.wantErr)
-			})
+	t.Run("Create NDES SCEP CA - an NDES CA already exists", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+		ds := svc.ds.(*mock.Store)
+		ds.ListCertificateAuthoritiesFunc = func(context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+			return []*fleet.CertificateAuthoritySummary{{ID: 1, Name: "NDES", Type: string(fleet.CATypeNDESSCEPProxy)}}, nil
 		}
+		_, err := svc.NewCertificateAuthority(ctx, fleet.CertificateAuthorityPayload{NDESSCEPProxy: &fleet.NDESSCEPProxyCA{
+			URL: "https://ndes.example.com", AdminURL: "https://ndes-admin.example.com", Username: "ndes_user", Password: "ndes_password",
+		}})
+		require.EqualError(t, err, "Couldn't add certificate authority. Only a single NDES CA can be added.")
+		require.False(t, ds.NewCertificateAuthorityFuncInvoked)
 	})
 
 	t.Run("Create Smallstep SCEP CA - Happy path", func(t *testing.T) {

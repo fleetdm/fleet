@@ -345,18 +345,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 		assert.Nil(t, env.created, "nothing is stored")
 	})
 
-	t.Run("the name is used by another CA", func(t *testing.T) {
-		env := newEJBCATestEnv(t, nil)
-		env.ds.NewCertificateAuthorityFunc = func(context.Context, *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
-			return nil, fleet.CANameInUseError{Name: "EJBCA_WIFI"}
-		}
-		payload := validEJBCA(p12s.valid)
-		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
-		var invalidArg *fleet.InvalidArgumentError
-		require.ErrorAs(t, err, &invalidArg)
-		require.ErrorContains(t, err, `Couldn't add certificate authority. "EJBCA_WIFI" name is already used by another certificate authority`)
-	})
-
 	t.Run("only one CA can be created at a time", func(t *testing.T) {
 		env := newEJBCATestEnv(t, nil)
 		payload := validEJBCA(p12s.valid)
