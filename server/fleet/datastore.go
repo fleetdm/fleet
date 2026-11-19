@@ -4423,9 +4423,10 @@ type Datastore interface {
 	// UpdateCertificateAuthorityByID updates the certificate authority of the provided ID, returns not found if it does not exist
 	UpdateCertificateAuthorityByID(ctx context.Context, id uint, certificateAuthority *CertificateAuthority) error
 	// BatchApplyCertificateAuthorities applies a batch of certificate authority changes (add,
-	// update, delete). Deletes are processed first based on name and type. Adds and updates are
-	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE. It returns the IDs of the
-	// fleets whose certificate templates were deleted with their CAs (see DeleteCertificateTemplates).
+	// update, delete) in one transaction. Adds and updates are upserted first, using INSERT...ON
+	// DUPLICATE KEY UPDATE. Then the deletes run by name and type, along with the certificate
+	// templates that use them when DeleteCertificateTemplates is set. It returns the IDs of the
+	// fleets whose certificate templates were deleted.
 	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) (templateFleetIDs []uint, err error)
 	// UpsertCertificateStatus allows a host to update the installation status of a certificate given its template.
 	UpsertCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error

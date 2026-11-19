@@ -302,8 +302,11 @@ func ensureCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...
 	}
 	// The error names the CA as it was written, not as the other CA stores it.
 	name := shared[0]
-	if i := slices.IndexFunc(names, func(written string) bool { return strings.EqualFold(written, name) }); i >= 0 {
-		name = names[i]
+	for _, written := range names {
+		if strings.EqualFold(written, name) {
+			name = written
+			break
+		}
 	}
 	return ctxerr.Wrap(ctx, alreadyExists("CertificateAuthority", name))
 }
