@@ -67,7 +67,7 @@ var (
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
-const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -194,7 +194,7 @@ func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationErr
 }
 
 func (e *ParamRequiredDeprecationError) Error() string {
-	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, e.Param)
 }
 
 // Messages returned to GitOps users for actions the role lost in Fleet 5.

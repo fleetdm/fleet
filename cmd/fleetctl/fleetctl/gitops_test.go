@@ -331,6 +331,66 @@ org_settings:
 	}
 }
 
+func TestGitOpsGlobalGoogleConditionalAccessTurnedOff(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// An absent or null google_conditional_access turns the integration off.
+	cases := []struct {
+		name         string
+		integrations string
+	}{
+		{"absent", "  integrations:"},
+		{"null", "  integrations:\n    google_conditional_access:"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t)
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleConditionalAccess = &fleet.GoogleConditionalAccessIntegration{
+					CustomerID: "C02cajzvg", AdminEmail: "admin@example.com",
+				}
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = fmt.Fprintf(tmpFile, `
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GCA Test
+%s
+  secrets:
+`, c.integrations)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			require.Nil(t, savedAppConfig.Integrations.GoogleConditionalAccess)
+		})
+	}
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -5296,8 +5356,10 @@ func TestGitOpsGlobalWebhooksAndTicketsEnabled(t *testing.T) {
 
 	// Track applied policies and return them with IDs.
 	var appliedPolicies []*fleet.Policy
+	appliedSpecs := map[string]bool{}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		for i, spec := range specs {
+			appliedSpecs[spec.Name] = spec.WebhooksAndTicketsEnabled
 			appliedPolicies = append(appliedPolicies, &fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					ID:   uint(i + 1),
@@ -5350,15 +5412,16 @@ software:
 	require.True(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com/global-webhook", (*appConfig).WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 
-	// Get the IDs of the policies with webhooks_and_tickets_enabled.
-	policiesWithWebhooksEnabled := []string{"Global Webhook Policy 1", "Global Webhook Policy 2"}
-	expectedIDs := make([]uint, 0)
-	for _, p := range appliedPolicies {
-		if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
-			expectedIDs = append(expectedIDs, p.ID)
-		}
-	}
-	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	// Each policy spec carries its automation, and no settings write sets it.
+	require.Equal(t, map[string]bool{
+		"Global Webhook Policy 1":  true,
+		"Global Webhook Policy 2":  true,
+		"Global No Webhook Policy": false,
+	}, appliedSpecs)
+	require.Empty(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), nil)
+	require.NoError(t, err)
+	require.Empty(t, webhookPolicyIDs)
 }
 
 func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
@@ -5392,15 +5455,14 @@ agent_options:
 `, fleetName))
 	require.NoError(t, err)
 
+	// policy_ids was removed in Fleet 5, and nothing is applied.
 	_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
-	require.NoError(t, err)
+	require.ErrorContains(t, err, `The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore.`)
 
 	savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 	require.NoError(t, err)
-	require.True(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	// Note -- this codepath doesn't actually verify that the policies with the specified IDs exist, it just saves the IDs from the config.
-	require.Equal(t, []uint{1, 2}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.False(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
 func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
@@ -5415,8 +5477,10 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 
 	// Override ApplyPolicySpecs to track applied policies and assign IDs.
 	var appliedPolicies []*fleet.Policy
+	var appliedSpecs map[string]bool
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		for i, spec := range specs {
+			appliedSpecs[spec.Name] = spec.WebhooksAndTicketsEnabled
 			appliedPolicies = append(appliedPolicies, &fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					ID:   uint(i + 1),
@@ -5434,8 +5498,19 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 		return appliedPolicies, nil, nil
 	}
 
-	t.Run("conflict with policy_ids", func(t *testing.T) {
+	// No settings write sets the fleet's webhook or ticket policies; each policy spec carries its own.
+	requireNoPolicyIDs := func(t *testing.T) {
+		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
+		require.NoError(t, err)
+		require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), &savedFleet.ID)
+		require.NoError(t, err)
+		require.Empty(t, webhookPolicyIDs)
+	}
+
+	t.Run("policy_ids is rejected", func(t *testing.T) {
 		appliedPolicies = nil
+		appliedSpecs = map[string]bool{}
 
 		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -5461,12 +5536,41 @@ agent_options:
 		require.NoError(t, err)
 
 		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids'")
+		require.ErrorContains(t, err, `The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore.`)
+		require.Empty(t, appliedSpecs)
 	})
 
-	t.Run("sets policy_ids from webhooks_and_tickets_enabled", func(t *testing.T) {
+	t.Run("two automations fail before anything is applied", func(t *testing.T) {
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+software:
+queries:
+policies:
+  - name: Two automations
+    query: "SELECT 1"
+    calendar_events_enabled: true
+    webhooks_and_tickets_enabled: true
+agent_options:
+`, fleetName))
+		require.NoError(t, err)
+
+		for _, args := range [][]string{{"gitops", "-f", cfgFile.Name(), "--dry-run"}, {"gitops", "-f", cfgFile.Name()}} {
+			appliedSpecs = map[string]bool{}
+			_, err = runAppNoChecks(args)
+			require.ErrorContains(t, err, fmt.Sprintf(`Couldn't apply policy "Two automations" in %s: a policy can only have one automation, `+
+				`but it sets calendar_events_enabled, webhooks_and_tickets_enabled.`, filepath.Base(cfgFile.Name())))
+			require.Empty(t, appliedSpecs)
+		}
+	})
+
+	t.Run("sends webhooks_and_tickets_enabled on each policy", func(t *testing.T) {
 		appliedPolicies = nil
+		appliedSpecs = map[string]bool{}
 
 		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -5496,20 +5600,11 @@ agent_options:
 		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 		require.NoError(t, err)
 
-		// Verify the fleet's webhook settings were updated with the correct policy IDs.
 		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 		require.NoError(t, err)
 		require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-
-		// Get the IDs of the policies with webhooks_and_tickets_enabled.
-		policiesWithWebhooksEnabled := []string{"Webhook Policy 1", "Webhook Policy 2"}
-		expectedIDs := make([]uint, 0)
-		for _, p := range appliedPolicies {
-			if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
-				expectedIDs = append(expectedIDs, p.ID)
-			}
-		}
-		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		require.Equal(t, map[string]bool{"Webhook Policy 1": true, "Webhook Policy 2": true, "No Webhook Policy": false}, appliedSpecs)
+		requireNoPolicyIDs(t)
 	})
 
 	t.Run("does not re-fetch policies when all already exist", func(t *testing.T) {
@@ -5518,6 +5613,7 @@ agent_options:
 			{PolicyData: fleet.PolicyData{ID: 10, Name: "Existing Policy 1"}},
 			{PolicyData: fleet.PolicyData{ID: 20, Name: "Existing Policy 2"}},
 		}
+		appliedSpecs = map[string]bool{}
 
 		// Track how many times ListTeamPolicies is called.
 		listTeamPoliciesCalls := 0
@@ -5559,9 +5655,8 @@ agent_options:
 		// since all policies already existed.
 		require.Equal(t, 1, listTeamPoliciesCalls)
 
-		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
-		require.NoError(t, err)
-		require.ElementsMatch(t, []uint{10, 20}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		require.Equal(t, map[string]bool{"Existing Policy 1": true, "Existing Policy 2": true}, appliedSpecs)
+		requireNoPolicyIDs(t)
 	})
 }
 

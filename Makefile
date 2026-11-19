@@ -1148,7 +1148,8 @@ UPDATE_GO_MODS := \
 	./tools/hangar/go.mod \
 	./tools/dibble/go.mod \
 	./tools/gitops-auto-complete/go.mod \
-	./tools/upgrade/go.mod
+	./tools/upgrade/go.mod \
+	./tools/mdm/migration/micromdm/touchless/go.mod
 # The index digest is scraped from the default `imagetools inspect` output rather than requested with
 # `--format '{{.Manifest.Digest}}'`: buildx >= v0.32 silently ignores that template and prints the full
 # report, which then gets written into the Dockerfile as the digest.

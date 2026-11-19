@@ -362,6 +362,20 @@ type SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc func(ctx context.Contex
 
 type CleanupSoftDeletedHostCertificatesFunc func(ctx context.Context, olderThan time.Time) (int64, error)
 
+type UpsertHostAISessionsFunc func(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error
+
+type ListHostAISessionsNeedingEventsFunc func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error)
+
+type UpsertHostAISessionEventsFunc func(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error
+
+type CleanupHostAISessionsFunc func(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error)
+
+type ListHostAISessionsFunc func(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error)
+
+type GetHostAISessionFunc func(ctx context.Context, hostID uint, id uint) (*fleet.HostAISession, error)
+
+type ListHostAISessionEventsFunc func(ctx context.Context, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error)
+
 type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
 type OktaCACleanupTargetForInstallCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.OktaCACleanupTarget, bool, error)
@@ -776,11 +790,11 @@ type ConditionalAccessClearBypassesFunc func(ctx context.Context) error
 
 type ConditionalAccessBypassedAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
 
-type SetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+type SetHostGoogleDeviceIDFunc func(ctx context.Context, hostUUID string, customerID string, googleDeviceID string, names []string) (bool, error)
 
-type GetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint) (string, error)
+type GetHostGoogleDeviceIDFunc func(ctx context.Context, hostUUID string, customerID string) (string, error)
 
-type DeleteHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) (bool, error)
+type DeleteHostGoogleDeviceIDFunc func(ctx context.Context, hostUUID string, googleDeviceID string) (bool, error)
 
 type MigrateTablesFunc func(ctx context.Context) error
 
@@ -821,6 +835,10 @@ type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, ar
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type ListMergedTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string) ([]*fleet.Policy, error)
+
+type ListPoliciesInScopeFunc func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error)
+
+type CountPoliciesInScopeFunc func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -1181,6 +1199,20 @@ type GetNanoMDMUserEnrollmentUsernameAndUUIDFunc func(ctx context.Context, devic
 type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string, userUUID string, username string) error
 
 type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
+
+type FilterWebhooksAndTicketsPoliciesFunc func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error)
+
+type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]uint, error)
+
+type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
+
+type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error)
+
+type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
+
+type WebhooksAndTicketsByPatchPolicySlugFunc func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
+
+type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -2178,6 +2210,8 @@ type GetZeroTouchEnrollmentTokenFunc func(ctx context.Context, teamID *uint) (*a
 
 type CreateZeroTouchEnrollmentTokenFunc func(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error)
 
+type ReplaceZeroTouchEnrollmentTokenFunc func(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error)
+
 type DeleteZeroTouchEnrollmentTokensFunc func(ctx context.Context) error
 
 type GetAndroidDeviceLastTeamIDFunc func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
@@ -2292,6 +2326,16 @@ type GetMDMAndroidReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMAndroidReconcileCursorFunc func(ctx context.Context, cursor string) error
 
+type ListAndroidFleetDefaultPolicyProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error)
+
+type GetAndroidFleetDefaultPolicyChecksumsFunc func(ctx context.Context) (map[uint][]byte, error)
+
+type ListAndroidFleetDefaultPolicyDeletedFleetsFunc func(ctx context.Context) ([]uint, error)
+
+type SetAndroidFleetDefaultPolicyChecksumFunc func(ctx context.Context, teamID uint, checksum []byte, previous []byte) error
+
+type MarkAndroidFleetDefaultPolicyUnverifiedFunc func(ctx context.Context, teamID uint) error
+
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
 type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*android.Device, error)
@@ -2369,6 +2413,38 @@ type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.Conditi
 type ConditionalAccessMicrosoftMarkSetupDoneFunc func(ctx context.Context) error
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
+
+type GetGoogleConditionalAccessIntegrationFunc func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error)
+
+type SaveGoogleConditionalAccessIntegrationFunc func(ctx context.Context, integration *fleet.ConditionalAccessGoogleIntegration) error
+
+type DeleteGoogleConditionalAccessDevicesExceptFunc func(ctx context.Context, customerID string, limit int) (int, error)
+
+type PurgeDeletedGoogleConditionalAccessIntegrationFunc func(ctx context.Context, deletedBefore time.Time, limit int) (bool, error)
+
+type SetGoogleConditionalAccessIntegrationStateFunc func(ctx context.Context, secret string, fromStates []fleet.ConditionalAccessGoogleState, toState fleet.ConditionalAccessGoogleState, errorMessage *string) (bool, error)
+
+type GetGoogleConditionalAccessDeviceFunc func(ctx context.Context, hostUUID string, customerID string) (*fleet.GoogleConditionalAccessDevice, error)
+
+type StartGoogleConditionalAccessRegistrationFunc func(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenTTL time.Duration) (bool, error)
+
+type ConsumeGoogleConditionalAccessRegistrationTokenFunc func(ctx context.Context, customerID string, tokenHash []byte) (string, error)
+
+type RecordGoogleConditionalAccessRegistrationFunc func(ctx context.Context, hostUUID string, customerID string, names []string) error
+
+type UpdateGoogleConditionalAccessDeviceUserStateFunc func(ctx context.Context, name string, fromState fleet.GoogleConditionalAccessDeviceUserState, toState fleet.GoogleConditionalAccessDeviceUserState, errorMessage *string) (bool, error)
+
+type QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc func(ctx context.Context, customerID string, limit int) (int, error)
+
+type ListGoogleConditionalAccessDeviceUsersFunc func(ctx context.Context, filter fleet.GoogleConditionalAccessDeviceUserFilter) ([]fleet.GoogleConditionalAccessDeviceUser, error)
+
+type DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc func(ctx context.Context, name string) (bool, error)
+
+type ListGoogleConditionalAccessBookmarkHostsFunc func(ctx context.Context, customerID string, afterHostID uint, limit int) ([]fleet.GoogleConditionalAccessBookmarkHost, error)
+
+type ListGoogleConditionalAccessUnresolvedAndroidHostsFunc func(ctx context.Context, customerID string, minAttempts int, maxAttempts int, limit int) ([]fleet.GoogleConditionalAccessAndroidHost, error)
+
+type CountGoogleConditionalAccessResolutionAttemptFunc func(ctx context.Context, hostUUID string, customerID string) error
 
 type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error)
 
@@ -2571,6 +2647,10 @@ type QueueHostMDMAppleProfileRemovalFunc func(ctx context.Context, hostUUID stri
 type NewAppleSCEPChallengeFunc func(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error)
 
 type ConsumeAppleSCEPChallengeFunc func(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error)
+
+type FindOrCreateWindowsConditionalAccessSCEPChallengeFunc func(ctx context.Context, enrollmentID uint) (string, error)
+
+type ConsumeConditionalAccessSCEPChallengeFunc func(ctx context.Context, challenge string, hostUUID string) error
 
 type SetAppleSCEPChallengeIssuedCertFunc func(ctx context.Context, challenge string, certSerial int64) error
 
@@ -3083,6 +3163,27 @@ type DataStore struct {
 
 	CleanupSoftDeletedHostCertificatesFunc        CleanupSoftDeletedHostCertificatesFunc
 	CleanupSoftDeletedHostCertificatesFuncInvoked bool
+
+	UpsertHostAISessionsFunc        UpsertHostAISessionsFunc
+	UpsertHostAISessionsFuncInvoked bool
+
+	ListHostAISessionsNeedingEventsFunc        ListHostAISessionsNeedingEventsFunc
+	ListHostAISessionsNeedingEventsFuncInvoked bool
+
+	UpsertHostAISessionEventsFunc        UpsertHostAISessionEventsFunc
+	UpsertHostAISessionEventsFuncInvoked bool
+
+	CleanupHostAISessionsFunc        CleanupHostAISessionsFunc
+	CleanupHostAISessionsFuncInvoked bool
+
+	ListHostAISessionsFunc        ListHostAISessionsFunc
+	ListHostAISessionsFuncInvoked bool
+
+	GetHostAISessionFunc        GetHostAISessionFunc
+	GetHostAISessionFuncInvoked bool
+
+	ListHostAISessionEventsFunc        ListHostAISessionEventsFunc
+	ListHostAISessionEventsFuncInvoked bool
 
 	ProfileHasACMEPayloadForCommandFunc        ProfileHasACMEPayloadForCommandFunc
 	ProfileHasACMEPayloadForCommandFuncInvoked bool
@@ -3774,6 +3875,12 @@ type DataStore struct {
 	ListMergedTeamPoliciesFunc        ListMergedTeamPoliciesFunc
 	ListMergedTeamPoliciesFuncInvoked bool
 
+	ListPoliciesInScopeFunc        ListPoliciesInScopeFunc
+	ListPoliciesInScopeFuncInvoked bool
+
+	CountPoliciesInScopeFunc        CountPoliciesInScopeFunc
+	CountPoliciesInScopeFuncInvoked bool
+
 	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
 	DeleteTeamPoliciesFuncInvoked bool
 
@@ -4313,6 +4420,27 @@ type DataStore struct {
 
 	GetNanoMDMEnrollmentDetailsFunc        GetNanoMDMEnrollmentDetailsFunc
 	GetNanoMDMEnrollmentDetailsFuncInvoked bool
+
+	FilterWebhooksAndTicketsPoliciesFunc        FilterWebhooksAndTicketsPoliciesFunc
+	FilterWebhooksAndTicketsPoliciesFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsFunc        WebhooksAndTicketsPolicyIDsFunc
+	WebhooksAndTicketsPolicyIDsFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
+	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
+
+	PoliciesWithOtherAutomationsFunc        PoliciesWithOtherAutomationsFunc
+	PoliciesWithOtherAutomationsFuncInvoked bool
+
+	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
+	WebhooksAndTicketsByPolicyNameFuncInvoked bool
+
+	WebhooksAndTicketsByPatchPolicySlugFunc        WebhooksAndTicketsByPatchPolicySlugFunc
+	WebhooksAndTicketsByPatchPolicySlugFuncInvoked bool
+
+	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
+	SetWebhooksAndTicketsPoliciesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -5808,6 +5936,9 @@ type DataStore struct {
 	CreateZeroTouchEnrollmentTokenFunc        CreateZeroTouchEnrollmentTokenFunc
 	CreateZeroTouchEnrollmentTokenFuncInvoked bool
 
+	ReplaceZeroTouchEnrollmentTokenFunc        ReplaceZeroTouchEnrollmentTokenFunc
+	ReplaceZeroTouchEnrollmentTokenFuncInvoked bool
+
 	DeleteZeroTouchEnrollmentTokensFunc        DeleteZeroTouchEnrollmentTokensFunc
 	DeleteZeroTouchEnrollmentTokensFuncInvoked bool
 
@@ -5979,6 +6110,21 @@ type DataStore struct {
 	SetMDMAndroidReconcileCursorFunc        SetMDMAndroidReconcileCursorFunc
 	SetMDMAndroidReconcileCursorFuncInvoked bool
 
+	ListAndroidFleetDefaultPolicyProfilesFunc        ListAndroidFleetDefaultPolicyProfilesFunc
+	ListAndroidFleetDefaultPolicyProfilesFuncInvoked bool
+
+	GetAndroidFleetDefaultPolicyChecksumsFunc        GetAndroidFleetDefaultPolicyChecksumsFunc
+	GetAndroidFleetDefaultPolicyChecksumsFuncInvoked bool
+
+	ListAndroidFleetDefaultPolicyDeletedFleetsFunc        ListAndroidFleetDefaultPolicyDeletedFleetsFunc
+	ListAndroidFleetDefaultPolicyDeletedFleetsFuncInvoked bool
+
+	SetAndroidFleetDefaultPolicyChecksumFunc        SetAndroidFleetDefaultPolicyChecksumFunc
+	SetAndroidFleetDefaultPolicyChecksumFuncInvoked bool
+
+	MarkAndroidFleetDefaultPolicyUnverifiedFunc        MarkAndroidFleetDefaultPolicyUnverifiedFunc
+	MarkAndroidFleetDefaultPolicyUnverifiedFuncInvoked bool
+
 	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
 	GetMDMAndroidProfilesContentsFuncInvoked bool
 
@@ -6095,6 +6241,54 @@ type DataStore struct {
 
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	GetGoogleConditionalAccessIntegrationFunc        GetGoogleConditionalAccessIntegrationFunc
+	GetGoogleConditionalAccessIntegrationFuncInvoked bool
+
+	SaveGoogleConditionalAccessIntegrationFunc        SaveGoogleConditionalAccessIntegrationFunc
+	SaveGoogleConditionalAccessIntegrationFuncInvoked bool
+
+	DeleteGoogleConditionalAccessDevicesExceptFunc        DeleteGoogleConditionalAccessDevicesExceptFunc
+	DeleteGoogleConditionalAccessDevicesExceptFuncInvoked bool
+
+	PurgeDeletedGoogleConditionalAccessIntegrationFunc        PurgeDeletedGoogleConditionalAccessIntegrationFunc
+	PurgeDeletedGoogleConditionalAccessIntegrationFuncInvoked bool
+
+	SetGoogleConditionalAccessIntegrationStateFunc        SetGoogleConditionalAccessIntegrationStateFunc
+	SetGoogleConditionalAccessIntegrationStateFuncInvoked bool
+
+	GetGoogleConditionalAccessDeviceFunc        GetGoogleConditionalAccessDeviceFunc
+	GetGoogleConditionalAccessDeviceFuncInvoked bool
+
+	StartGoogleConditionalAccessRegistrationFunc        StartGoogleConditionalAccessRegistrationFunc
+	StartGoogleConditionalAccessRegistrationFuncInvoked bool
+
+	ConsumeGoogleConditionalAccessRegistrationTokenFunc        ConsumeGoogleConditionalAccessRegistrationTokenFunc
+	ConsumeGoogleConditionalAccessRegistrationTokenFuncInvoked bool
+
+	RecordGoogleConditionalAccessRegistrationFunc        RecordGoogleConditionalAccessRegistrationFunc
+	RecordGoogleConditionalAccessRegistrationFuncInvoked bool
+
+	UpdateGoogleConditionalAccessDeviceUserStateFunc        UpdateGoogleConditionalAccessDeviceUserStateFunc
+	UpdateGoogleConditionalAccessDeviceUserStateFuncInvoked bool
+
+	QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc        QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc
+	QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFuncInvoked bool
+
+	ListGoogleConditionalAccessDeviceUsersFunc        ListGoogleConditionalAccessDeviceUsersFunc
+	ListGoogleConditionalAccessDeviceUsersFuncInvoked bool
+
+	DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc        DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc
+	DeleteGoogleConditionalAccessUnmarkedDeviceUserFuncInvoked bool
+
+	ListGoogleConditionalAccessBookmarkHostsFunc        ListGoogleConditionalAccessBookmarkHostsFunc
+	ListGoogleConditionalAccessBookmarkHostsFuncInvoked bool
+
+	ListGoogleConditionalAccessUnresolvedAndroidHostsFunc        ListGoogleConditionalAccessUnresolvedAndroidHostsFunc
+	ListGoogleConditionalAccessUnresolvedAndroidHostsFuncInvoked bool
+
+	CountGoogleConditionalAccessResolutionAttemptFunc        CountGoogleConditionalAccessResolutionAttemptFunc
+	CountGoogleConditionalAccessResolutionAttemptFuncInvoked bool
 
 	LoadHostConditionalAccessStatusFunc        LoadHostConditionalAccessStatusFunc
 	LoadHostConditionalAccessStatusFuncInvoked bool
@@ -6398,6 +6592,12 @@ type DataStore struct {
 
 	ConsumeAppleSCEPChallengeFunc        ConsumeAppleSCEPChallengeFunc
 	ConsumeAppleSCEPChallengeFuncInvoked bool
+
+	FindOrCreateWindowsConditionalAccessSCEPChallengeFunc        FindOrCreateWindowsConditionalAccessSCEPChallengeFunc
+	FindOrCreateWindowsConditionalAccessSCEPChallengeFuncInvoked bool
+
+	ConsumeConditionalAccessSCEPChallengeFunc        ConsumeConditionalAccessSCEPChallengeFunc
+	ConsumeConditionalAccessSCEPChallengeFuncInvoked bool
 
 	SetAppleSCEPChallengeIssuedCertFunc        SetAppleSCEPChallengeIssuedCertFunc
 	SetAppleSCEPChallengeIssuedCertFuncInvoked bool
@@ -7589,6 +7789,55 @@ func (s *DataStore) CleanupSoftDeletedHostCertificates(ctx context.Context, olde
 	s.CleanupSoftDeletedHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupSoftDeletedHostCertificatesFunc(ctx, olderThan)
+}
+
+func (s *DataStore) UpsertHostAISessions(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error {
+	s.mu.Lock()
+	s.UpsertHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAISessionsFunc(ctx, hostID, sessions)
+}
+
+func (s *DataStore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsNeedingEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsNeedingEventsFunc(ctx, hostID, limit, maxEvents)
+}
+
+func (s *DataStore) UpsertHostAISessionEvents(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error {
+	s.mu.Lock()
+	s.UpsertHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAISessionEventsFunc(ctx, hostID, requested, events)
+}
+
+func (s *DataStore) CleanupHostAISessions(ctx context.Context, before time.Time, maxRunTime time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.CleanupHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostAISessionsFunc(ctx, before, maxRunTime)
+}
+
+func (s *DataStore) ListHostAISessions(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsFunc(ctx, hostID, opts)
+}
+
+func (s *DataStore) GetHostAISession(ctx context.Context, hostID uint, id uint) (*fleet.HostAISession, error) {
+	s.mu.Lock()
+	s.GetHostAISessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAISessionFunc(ctx, hostID, id)
+}
+
+func (s *DataStore) ListHostAISessionEvents(ctx context.Context, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionEventsFunc(ctx, aiSessionID, opts)
 }
 
 func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {
@@ -9040,25 +9289,25 @@ func (s *DataStore) ConditionalAccessBypassedAt(ctx context.Context, hostID uint
 	return s.ConditionalAccessBypassedAtFunc(ctx, hostID)
 }
 
-func (s *DataStore) SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error) {
+func (s *DataStore) SetHostGoogleDeviceID(ctx context.Context, hostUUID string, customerID string, googleDeviceID string, names []string) (bool, error) {
 	s.mu.Lock()
 	s.SetHostGoogleDeviceIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostGoogleDeviceIDFunc(ctx, hostID, googleDeviceID)
+	return s.SetHostGoogleDeviceIDFunc(ctx, hostUUID, customerID, googleDeviceID, names)
 }
 
-func (s *DataStore) GetHostGoogleDeviceID(ctx context.Context, hostID uint) (string, error) {
+func (s *DataStore) GetHostGoogleDeviceID(ctx context.Context, hostUUID string, customerID string) (string, error) {
 	s.mu.Lock()
 	s.GetHostGoogleDeviceIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostGoogleDeviceIDFunc(ctx, hostID)
+	return s.GetHostGoogleDeviceIDFunc(ctx, hostUUID, customerID)
 }
 
-func (s *DataStore) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) (bool, error) {
+func (s *DataStore) DeleteHostGoogleDeviceID(ctx context.Context, hostUUID string, googleDeviceID string) (bool, error) {
 	s.mu.Lock()
 	s.DeleteHostGoogleDeviceIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteHostGoogleDeviceIDFunc(ctx, hostID, googleDeviceID)
+	return s.DeleteHostGoogleDeviceIDFunc(ctx, hostUUID, googleDeviceID)
 }
 
 func (s *DataStore) MigrateTables(ctx context.Context) error {
@@ -9199,6 +9448,20 @@ func (s *DataStore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opt
 	s.ListMergedTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMergedTeamPoliciesFunc(ctx, teamID, opts, automationType, platform)
+}
+
+func (s *DataStore) ListPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListPoliciesInScopeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPoliciesInScopeFunc(ctx, teamID, mergeInherited, opts, filter)
+}
+
+func (s *DataStore) CountPoliciesInScope(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesInScopeFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesInScopeFunc(ctx, teamID, mergeInherited, matchQuery, filter)
 }
 
 func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -10459,6 +10722,55 @@ func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID st
 	s.GetNanoMDMEnrollmentDetailsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMEnrollmentDetailsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+	s.mu.Lock()
+	s.FilterWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.FilterWebhooksAndTicketsPoliciesFunc(ctx, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsFunc(ctx, teamID)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
+}
+
+func (s *DataStore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PoliciesWithOtherAutomationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.PoliciesWithOtherAutomationsFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPolicyNameFunc(ctx, teamID, names)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPatchPolicySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPatchPolicySlugFunc(ctx, teamID, slugs)
+}
+
+func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.SetWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetWebhooksAndTicketsPoliciesFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -13947,6 +14259,13 @@ func (s *DataStore) CreateZeroTouchEnrollmentToken(ctx context.Context, token *a
 	return s.CreateZeroTouchEnrollmentTokenFunc(ctx, token)
 }
 
+func (s *DataStore) ReplaceZeroTouchEnrollmentToken(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	s.mu.Lock()
+	s.ReplaceZeroTouchEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceZeroTouchEnrollmentTokenFunc(ctx, oldTokenName, token)
+}
+
 func (s *DataStore) DeleteZeroTouchEnrollmentTokens(ctx context.Context) error {
 	s.mu.Lock()
 	s.DeleteZeroTouchEnrollmentTokensFuncInvoked = true
@@ -14346,6 +14665,41 @@ func (s *DataStore) SetMDMAndroidReconcileCursor(ctx context.Context, cursor str
 	return s.SetMDMAndroidReconcileCursorFunc(ctx, cursor)
 }
 
+func (s *DataStore) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.ListAndroidFleetDefaultPolicyProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidFleetDefaultPolicyProfilesFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	s.mu.Lock()
+	s.GetAndroidFleetDefaultPolicyChecksumsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidFleetDefaultPolicyChecksumsFunc(ctx)
+}
+
+func (s *DataStore) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	s.mu.Lock()
+	s.ListAndroidFleetDefaultPolicyDeletedFleetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidFleetDefaultPolicyDeletedFleetsFunc(ctx)
+}
+
+func (s *DataStore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte, previous []byte) error {
+	s.mu.Lock()
+	s.SetAndroidFleetDefaultPolicyChecksumFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidFleetDefaultPolicyChecksumFunc(ctx, teamID, checksum, previous)
+}
+
+func (s *DataStore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.MarkAndroidFleetDefaultPolicyUnverifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAndroidFleetDefaultPolicyUnverifiedFunc(ctx, teamID)
+}
+
 func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
 	s.mu.Lock()
 	s.GetMDMAndroidProfilesContentsFuncInvoked = true
@@ -14617,6 +14971,118 @@ func (s *DataStore) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *DataStore) GetGoogleConditionalAccessIntegration(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessIntegrationFunc(ctx)
+}
+
+func (s *DataStore) SaveGoogleConditionalAccessIntegration(ctx context.Context, integration *fleet.ConditionalAccessGoogleIntegration) error {
+	s.mu.Lock()
+	s.SaveGoogleConditionalAccessIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveGoogleConditionalAccessIntegrationFunc(ctx, integration)
+}
+
+func (s *DataStore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error) {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessDevicesExceptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessDevicesExceptFunc(ctx, customerID, limit)
+}
+
+func (s *DataStore) PurgeDeletedGoogleConditionalAccessIntegration(ctx context.Context, deletedBefore time.Time, limit int) (bool, error) {
+	s.mu.Lock()
+	s.PurgeDeletedGoogleConditionalAccessIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.PurgeDeletedGoogleConditionalAccessIntegrationFunc(ctx, deletedBefore, limit)
+}
+
+func (s *DataStore) SetGoogleConditionalAccessIntegrationState(ctx context.Context, secret string, fromStates []fleet.ConditionalAccessGoogleState, toState fleet.ConditionalAccessGoogleState, errorMessage *string) (bool, error) {
+	s.mu.Lock()
+	s.SetGoogleConditionalAccessIntegrationStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetGoogleConditionalAccessIntegrationStateFunc(ctx, secret, fromStates, toState, errorMessage)
+}
+
+func (s *DataStore) GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID string, customerID string) (*fleet.GoogleConditionalAccessDevice, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessDeviceFunc(ctx, hostUUID, customerID)
+}
+
+func (s *DataStore) StartGoogleConditionalAccessRegistration(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenTTL time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.StartGoogleConditionalAccessRegistrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.StartGoogleConditionalAccessRegistrationFunc(ctx, hostUUID, customerID, tokenHash, tokenTTL)
+}
+
+func (s *DataStore) ConsumeGoogleConditionalAccessRegistrationToken(ctx context.Context, customerID string, tokenHash []byte) (string, error) {
+	s.mu.Lock()
+	s.ConsumeGoogleConditionalAccessRegistrationTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeGoogleConditionalAccessRegistrationTokenFunc(ctx, customerID, tokenHash)
+}
+
+func (s *DataStore) RecordGoogleConditionalAccessRegistration(ctx context.Context, hostUUID string, customerID string, names []string) error {
+	s.mu.Lock()
+	s.RecordGoogleConditionalAccessRegistrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordGoogleConditionalAccessRegistrationFunc(ctx, hostUUID, customerID, names)
+}
+
+func (s *DataStore) UpdateGoogleConditionalAccessDeviceUserState(ctx context.Context, name string, fromState fleet.GoogleConditionalAccessDeviceUserState, toState fleet.GoogleConditionalAccessDeviceUserState, errorMessage *string) (bool, error) {
+	s.mu.Lock()
+	s.UpdateGoogleConditionalAccessDeviceUserStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateGoogleConditionalAccessDeviceUserStateFunc(ctx, name, fromState, toState, errorMessage)
+}
+
+func (s *DataStore) QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts(ctx context.Context, customerID string, limit int) (int, error) {
+	s.mu.Lock()
+	s.QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc(ctx, customerID, limit)
+}
+
+func (s *DataStore) ListGoogleConditionalAccessDeviceUsers(ctx context.Context, filter fleet.GoogleConditionalAccessDeviceUserFilter) ([]fleet.GoogleConditionalAccessDeviceUser, error) {
+	s.mu.Lock()
+	s.ListGoogleConditionalAccessDeviceUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListGoogleConditionalAccessDeviceUsersFunc(ctx, filter)
+}
+
+func (s *DataStore) DeleteGoogleConditionalAccessUnmarkedDeviceUser(ctx context.Context, name string) (bool, error) {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessUnmarkedDeviceUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc(ctx, name)
+}
+
+func (s *DataStore) ListGoogleConditionalAccessBookmarkHosts(ctx context.Context, customerID string, afterHostID uint, limit int) ([]fleet.GoogleConditionalAccessBookmarkHost, error) {
+	s.mu.Lock()
+	s.ListGoogleConditionalAccessBookmarkHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListGoogleConditionalAccessBookmarkHostsFunc(ctx, customerID, afterHostID, limit)
+}
+
+func (s *DataStore) ListGoogleConditionalAccessUnresolvedAndroidHosts(ctx context.Context, customerID string, minAttempts int, maxAttempts int, limit int) ([]fleet.GoogleConditionalAccessAndroidHost, error) {
+	s.mu.Lock()
+	s.ListGoogleConditionalAccessUnresolvedAndroidHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListGoogleConditionalAccessUnresolvedAndroidHostsFunc(ctx, customerID, minAttempts, maxAttempts, limit)
+}
+
+func (s *DataStore) CountGoogleConditionalAccessResolutionAttempt(ctx context.Context, hostUUID string, customerID string) error {
+	s.mu.Lock()
+	s.CountGoogleConditionalAccessResolutionAttemptFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountGoogleConditionalAccessResolutionAttemptFunc(ctx, hostUUID, customerID)
 }
 
 func (s *DataStore) LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error) {
@@ -15324,6 +15790,20 @@ func (s *DataStore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge str
 	s.ConsumeAppleSCEPChallengeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConsumeAppleSCEPChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx context.Context, enrollmentID uint) (string, error) {
+	s.mu.Lock()
+	s.FindOrCreateWindowsConditionalAccessSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.FindOrCreateWindowsConditionalAccessSCEPChallengeFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) ConsumeConditionalAccessSCEPChallenge(ctx context.Context, challenge string, hostUUID string) error {
+	s.mu.Lock()
+	s.ConsumeConditionalAccessSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeConditionalAccessSCEPChallengeFunc(ctx, challenge, hostUUID)
 }
 
 func (s *DataStore) SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error {

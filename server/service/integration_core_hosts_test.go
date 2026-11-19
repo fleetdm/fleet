@@ -556,7 +556,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
 
 	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	allHostsLabelIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	labelHostsPath := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabelIDs["All Hosts"])
@@ -583,7 +583,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	defer s.cleanupQuery(q.ID)
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
-			QueryID: &q.ID,
+			Name:        q.Name,
+			Query:       q.Query,
+			Description: q.Description,
 		},
 	)
 	require.NoError(t, err)

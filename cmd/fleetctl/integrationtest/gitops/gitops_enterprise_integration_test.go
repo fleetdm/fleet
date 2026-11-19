@@ -1565,12 +1565,17 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
-// Helper function to get No Team webhook settings from the database
+// Helper function to get No Team webhook settings from the database. policy_ids isn't stored in the settings; it's
+// built from the policies that have the webhook or ticket automation on.
 func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
 	cfg, err := ds.DefaultTeamConfig(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	return cfg.WebhookSettings.FailingPoliciesWebhook
+	settings := cfg.WebhookSettings.FailingPoliciesWebhook
+	require.Empty(t, settings.PolicyIDs)
+	settings.PolicyIDs, err = ds.WebhooksAndTicketsPolicyIDs(ctx, new(uint(0)))
+	require.NoError(t, err)
+	return settings
 }
 
 // Helper function to verify No Team webhook settings match expected values
@@ -1627,6 +1632,7 @@ policies:
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
     description: Test policy for no team
     resolution: This is a test
+    webhooks_and_tickets_enabled: true
 controls:
 software:
 settings:
@@ -1635,10 +1641,6 @@ settings:
       enable_failing_policies_webhook: true
       destination_url: https://example.com/no-team-webhook
       host_batch_size: 50
-      policy_ids:
-        - 1
-        - 2
-        - 3
 `
 
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1651,10 +1653,17 @@ settings:
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
+	// policy_ids was removed in Fleet 5.
+	policyIDsFilePath := filepath.Join(t.TempDir(), "unassigned.yml")
+	require.NoError(t, os.WriteFile(policyIDsFilePath, []byte(noTeamTemplateWithWebhook+"      policy_ids: [1]\n"), 0o644))
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", policyIDsFilePath},
+		policyIDsFilePath+`: The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore. `+
+			"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
+
 	// Test dry-run first
 	output := fleetctltest.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
-	s.assertDryRunOutputWithDeprecation(t, output, true)
+	s.assertDryRunOutput(t, output)
 
 	// Check that webhook settings are mentioned in the output
 	require.Contains(t, output, "would've applied webhook settings for unassigned hosts")
@@ -1662,18 +1671,22 @@ settings:
 	// Apply the configuration (non-dry-run)
 	output = fleetctltest.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	s.assertRealRunOutputWithDeprecation(t, output, true)
+	s.assertRealRunOutput(t, output)
 
 	// Verify the output mentions webhook settings were applied
 	require.Contains(t, output, "applying webhook settings for unassigned hosts")
 	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
-	// Verify webhook settings were actually applied by checking the database
+	// Verify webhook settings were actually applied by checking the database, and that the policy's
+	// webhooks_and_tickets_enabled turned its automation on.
+	noTeamPolicies, _, err := s.DS.ListTeamPolicies(ctx, 0, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
 		Enable:         true,
 		DestinationURL: "https://example.com/no-team-webhook",
 		HostBatchSize:  50,
-		PolicyIDs:      []uint{1, 2, 3},
+		PolicyIDs:      []uint{noTeamPolicies[0].ID},
 	})
 
 	// Test updating webhook settings
@@ -1692,9 +1705,6 @@ settings:
       enable_failing_policies_webhook: false
       destination_url: https://updated.example.com/webhook
       host_batch_size: 100
-      policy_ids:
-        - 4
-        - 5
 `
 
 	noTeamFileUpdated, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1720,8 +1730,11 @@ settings:
 		Enable:         false,
 		DestinationURL: "https://updated.example.com/webhook",
 		HostBatchSize:  100,
-		PolicyIDs:      []uint{4, 5},
 	})
+	// The policy leaves webhooks_and_tickets_enabled out, so its automation is off.
+	webhookPolicyIDs, err := s.DS.WebhooksAndTicketsPolicyIDs(ctx, new(uint(0)))
+	require.NoError(t, err)
+	require.Empty(t, webhookPolicyIDs)
 
 	// Test removing webhook settings entirely
 	const noTeamTemplateNoWebhook = `
