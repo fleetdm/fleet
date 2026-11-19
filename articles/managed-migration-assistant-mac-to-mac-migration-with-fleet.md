@@ -120,7 +120,7 @@ controls:
 
 3. Select the fleet you want to add the profile to.
 
-4. Select **Add profile** and upload your `.json` file.
+4. Select **Add profile**, select **Create manually**, and upload your `.json` file.
 
 5. Under **Target**, select **Include any** and choose the `macOS 26.4+` label.
 

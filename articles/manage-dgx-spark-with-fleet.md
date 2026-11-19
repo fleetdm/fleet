@@ -68,9 +68,9 @@ write_files:
       PermitRootLogin no
 
 runcmd:
-  - [ sh, -c, "curl -fsSL -o /tmp/fleet-osquery.deb https://your-artifact-host/fleet-osquery_arm64.deb" ]
-  - [ dpkg, -i, /tmp/fleet-osquery.deb ]
-  - [ shred, -u, /tmp/fleet-osquery.deb ]
+  - [ sh, -c, "curl -fsSL -o /tmp/fleet-linux-arm64.deb https://your-artifact-host/fleet-linux-arm64.deb" ]
+  - [ dpkg, -i, /tmp/fleet-linux-arm64.deb ]
+  - [ shred, -u, /tmp/fleet-linux-arm64.deb ]
 ```
 
 The package contains your enroll secret, which is why the seed shreds it after install. After enrollment, the secret stays in `/etc/default/orbit`, readable only by root.

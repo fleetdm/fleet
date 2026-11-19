@@ -93,7 +93,7 @@ pkgutil --check-signature build/dist/fleet_desktop-v<version>.pkg
 
 Pick whichever matches what you're exercising:
 
-**Push through Fleet (mirrors production).** Upload the signed `.pkg` under **Software → Add software** as a custom package, then install it on the enrolled test host (from the host's **Software** tab, or by adding it to the team's install list). Fleet's agent downloads and installs it on the Mac. This is the path most contributors will use.
+**Push through Fleet (mirrors production).** Upload the signed `.pkg` under **Software → Add software** as a custom package, then install it on the enrolled test host (from the host's **Software** tab, or by adding it to the fleet's install list). Fleet's agent downloads and installs it on the Mac. This is the path most contributors will use.
 
 **Manual install (fastest for iterating).** Copy the pkg to the test Mac and install it directly:
 
@@ -174,7 +174,7 @@ In the `com.apple.associated-domains` payload, for **both** `Configuration` entr
 | `ApplicationIdentifier` | `5K28R5ZUK5.com.fleetdm.pssotesting` and `5K28R5ZUK5.com.fleetdm.pssotesting.extension` respectively |
 | `AssociatedDomains` (array entry) | `authsrv:myenv.ngrok.app?mode=developer` (host only, no scheme) |
 
-Upload the edited profile to your test host's team as a custom configuration profile.
+Upload the edited profile to your test host's fleet as a custom configuration profile.
 
 > **`?mode=developer` matters for iteration.** Apple's CDN caches the AASA for hours (6–24h), so a plain `authsrv:host` entry will keep validating a stale document while you're changing things. Appending `?mode=developer` makes the device fetch the AASA **directly** from your server instead of via the CDN. Keep it on for all dev testing.
 

@@ -117,7 +117,7 @@ Always-on VPN uses an Android configuration profile. Start with lockdown off. Sa
 ### Fleet UI
 
 1. Head to **Controls > OS settings > Configuration profiles** and select your fleet in the fleets dropdown.
-2. Select **Add profile** and upload `always-on-vpn-cloudflare.json`.
+2. Select **Add profile**, select **Create manually**, and upload `always-on-vpn-cloudflare.json`.
 3. [Verify](#verify) that the agent stays connected.
 4. Change `lockdownEnabled` to `true` in your file. Then edit the profile in Fleet and upload the updated file as a replacement.
 

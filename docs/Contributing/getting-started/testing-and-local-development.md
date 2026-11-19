@@ -44,7 +44,6 @@
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
       - [Debugging tips](#debugging-tips)
     - [Bootstrap package](#bootstrap-package)
-    - [Puppet module](#puppet-module)
     - [Testing the end user flow for MDM migrations](#testing-the-end-user-flow-for-mdm-migrations)
   - [Software packages](#software-packages)
     - [Troubleshooting installation](#troubleshooting-installation)
@@ -937,7 +936,7 @@ To use the workflow, follow these steps:
 
 `productsign --sign "Developer ID Installer: Your Apple Account Name (serial number)" <path_to_unpacked_files> <path_to_signed_package.pkg>`
 
-Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-osquery.pkg signed-fleetd.pkg`
+Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-macos.pkg signed-fleetd.pkg`
 
 5. Check the signature by running `pkgutil --check-signature signed-fleetd.pkg`
 6. Rename your signed pkg `mv signed-fleetd.pkg fleet-base.pkg`
@@ -1057,7 +1056,7 @@ DEBUG=1 \
   "fleetd_base_msi_sha256": "[sha256sum of]"
 }
 ```
-3. Rename the generated fleet-osquery.msi to fleetd-base.msi
+3. Rename the generated fleet-windows-amd64.msi to fleetd-base.msi
 
 #### Serving the fleetd-base.msi installer
 
@@ -1189,6 +1188,36 @@ mdm:
 
 The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
 
+### Nudge
+
+We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Fleetd:
+
+1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
+2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
+3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
+
+#### Debugging tips
+
+- Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
+
+```sh
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
+```
+
+- Make sure that the `fleet-macos.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
+
+- Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
+
+```sh
+log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
+```
+
+- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
+
+```sh
+open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
+```
+
 ### Bootstrap package
 
 A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via ABM/DEP.
@@ -1196,12 +1225,6 @@ A bootstrap package is a `pkg` file that gets automatically installed on hosts w
 The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
 
 The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
-
-### Puppet module
-
-> The Puppet module is deprecated as of Fleet 4.66. It is maintained for backwards compatibility.
-
-Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
 
 ### Testing the end user flow for MDM migrations
 

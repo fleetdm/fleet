@@ -15,7 +15,7 @@ Fleet can automatically rename macOS, iOS, and iPadOS hosts as they enroll, so y
 
 ## Set the template
 
-1. In the Fleet UI, select the team you want to apply the template to (or **No team**).
+1. In the Fleet UI, select the fleet you want to apply the template to (or **Unassigned**).
 2. Head to **Controls > OS settings > Host names**.
 3. In **Name template**, enter the name you want hosts to have. Combine fixed text with variables to make each host's name unique, for example: `iPad $FLEET_VAR_HOST_HARDWARE_SERIAL`.
 4. Click **Save**.
@@ -66,7 +66,7 @@ You can also reference [secret variables](https://fleetdm.com/guides/secrets-in-
 
 ## Manage with GitOps
 
-If you manage controls with GitOps, set `name_template` under `controls` for a team (or under `controls` at the top level for **No team**):
+If you manage controls with GitOps, set `name_template` under `controls` for a fleet (or under `controls` at the top level for **Unassigned**):
 
 ```yaml
 controls:

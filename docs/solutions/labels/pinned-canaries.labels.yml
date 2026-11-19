@@ -6,7 +6,7 @@
 #   labels:
 #     - path: ./labels/pinned-canaries.labels.yml
 #
-# hosts: accepts hardware_serial, uuid, or id. hostname is deprecated.
+# hosts: accepts hardware_serial, uuid, or id.
 
 - name: Pinned canaries
   description: "Hosts that always go in the first wave regardless of UUID shard."

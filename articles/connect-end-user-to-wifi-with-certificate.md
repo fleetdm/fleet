@@ -174,7 +174,7 @@ The following steps show how to deploy DigiCert certificates.
 
 2. Select **Add CA** and then choose **DigiCert** in the dropdown.
 
-3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
+3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile. Each CA needs a unique name (case-insensitive).
 
 4. If you're using DigiCert One's cloud offering, keep the default **URL**. If you're using a self-hosted (on-prem) DigiCert One, update the URL to match the one you use to log in to your DigiCert One.
 
@@ -273,7 +273,7 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 
 1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select **Add CA** and then choose **EJBCA** in the dropdown.
-3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
+3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile. Each CA needs a unique name (case-insensitive).
 4. In **URL**, enter the URL of your EJBCA instance (for example, "https://ejbca.example.com:8443"). It must start with `https://`.
 5. In **Client certificate**, upload the `.p12` file from step 1, and enter its password in **Client certificate password**.
 6. If your EJBCA server needs it, paste the CA certificates (PEM) from step 1 in **Trust CA bundle**. The order doesn't matter. If you leave it empty, Fleet trusts public CAs.
@@ -659,7 +659,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 1. In Fleet, go to **Settings > Integrations > Certificate authorities** and click **Add CA**. 
 
-2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
+2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile. Each CA needs a unique name (case-insensitive).
 
 3. For the **Challenge URL**, **Username**, and **Password**, enter the values noted in step 1. For the **SCEP URL**, you'll need to modify the URL provided by Smallstep to use the public proxy route instead. For example, `https://agents.SMALLSTEP_TEAM_NAME.ca.smallstep.com/scep/INTEGRATION_ID` becomes `https://<SMALLSTEP_TEAM_NAME>.scep.smallstep.com/p/agents/<INTEGRATION_ID>`
 
@@ -774,7 +774,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 2. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
 
-3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). Each CA needs a unique name (case-insensitive).
 
 4. Add your Hydrant EST **URL**.
 
@@ -857,7 +857,7 @@ Google CAS doesn't support the SCEP or EST enrollment protocols, so it doesn't u
 
 2. Select **Add CA** and then choose **Google Cloud Certificate Authority Service (CAS)** in the dropdown.
 
-3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). Each CA needs a unique name (case-insensitive).
 
 4. Add your Google Cloud **Project ID**, **Location**, and **CA pool**.
 
@@ -927,7 +927,7 @@ The following steps show how to deploy certificates from any certificate authori
 
 2. Select the **Add CA** button and select **Custom Simple Certificate Enrollment Protocol (SCEP)** in the dropdown.
 
-3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile. Each CA needs a unique name (case-insensitive).
 
 4. Add your **SCEP URL** and **Challenge**.
 
@@ -1198,7 +1198,7 @@ This step will vary between providers. EST servers require a `username` and `pas
 
 2. Select **Add CA** and then choose **Custom Enrollment over Secure Transport (EST)** in the dropdown.
 
-3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). Each CA needs a unique name (case-insensitive).
 
 4. Add your EST **URL**.
 

@@ -323,7 +323,7 @@ mv fleetctl_v4.15.0_linux/fleetctl /usr/bin/fleetctl
 ### (after the Fleet instance is running, you'll get a command like the one below to run on hosts)
 ### $ fleetctl package --type=deb --fleet-url=https://fleet.vadosware.io --enroll-secret=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ### (Running the command above produces a .DEB package you can install like the example below)
-### $ apt install /root/fleet-osquery_0.0.13_amd64.deb
+### $ apt install /root/fleet-linux-amd64.deb
 ### (After this, you should be able to see your new machine on the fleet instance! 🎉)
 ```
 

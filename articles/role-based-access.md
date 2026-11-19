@@ -11,7 +11,7 @@ The tables in this guide summarize what each role can do. To see more granular A
 + **Technician:** _Available in Fleet Premium_. Technicians have the ability to run saved scripts, view their results, and install/uninstall software.
 + **Observer+:** _Available in Fleet Premium_. Observer+ is an observer with the added ability to run *any* report.
 + **Observer:** The observer role is a read-only role. It can access most entities in Fleet, like reports, policies, labels, application configuration, fleets, etc. They can also run reports configured with the `observer_can_run` flag set to `true`.
-+ **GitOps:** _Available in Fleet Premium_. GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations. GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
++ **GitOps:** GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations. GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 ## User permissions
 
@@ -21,13 +21,12 @@ The tables in this guide summarize what each role can do. To see more granular A
 | Cancel [hosts' upcoming activity](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                  |          |            |            | ✅         | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                                             |          |            |            |            | ✅    | ✅      |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅         | ✅    |         |
-| View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅         | ✅    | ✅      |
 | Add hosts                                                                                                                                  |          |            |            | ✅         | ✅    |         |
 | Delete hosts                                                                                                                               |          |            | ✅         | ✅         | ✅    |         |
-| Transfer hosts between fleets\*                                                                                                            |          |            | ✅         | ✅         | ✅    | ✅      |
+| Transfer hosts between fleets\*                                                                                                            |          |            | ✅         | ✅         | ✅    |        |
 | Add user information from IdP to hosts\*                                                                                                   |          |            |            | ✅         | ✅    |         |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
@@ -124,7 +123,6 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | **Action**                                                                                                                       | Observer | Observer+ | Technician | Maintainer | Admin | GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | :-----------: | :------------: | :-------------: | :-------------: | :--------: | :---------: |
 | View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅              | ✅         |             |
-| View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | View hosts' [past](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-past-activity) and [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity | ✅            | ✅             | ✅              | ✅              | ✅         |             |
@@ -133,7 +131,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Create and edit self-authored labels                                                                                             |               |                | ✅              | ✅              | ✅         | ✅          |
 | Add hosts                                                                                                                        |               |                |                 | ✅              | ✅         |             |
 | Delete hosts                                                                                                                     |               |                | ✅              | ✅              | ✅         |             |
-| Transfer hosts between fleets\*                                                                                                  |               |                | ✅              | ✅              | ✅         | ✅          |
+| Transfer hosts between fleets\*                                                                                                  |               |                | ✅              | ✅              | ✅         |            |
 | View software                                                                                                                    | ✅            | ✅             | ✅              | ✅              | ✅         | ✅          |
 | Add, edit, and delete software                                                                                                   |               |                |                 | ✅              | ✅         | ✅          |
 | Download added software                                                                                                          |               |                | ✅              | ✅              | ✅         |             |

@@ -148,7 +148,7 @@ The certificates are valid for 1 year and 33 days, and Fleet automatically renew
 
 > **Upgrading from Fleet 4.85 or earlier?** Your existing Conditional Access deployment continues to work, but auto-renewal activates only on profiles redeployed in 4.86 or later. To opt in, copy the macOS profile again and re-deploy via custom OS settings.
 
-> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
+> **Upgrading from Fleet 4.95 or earlier?** Profiles you deployed earlier carry a global enroll secret and keep working. To switch to one-time challenges, copy the macOS profile again and redeploy it. If you turn on `mdm.apple_one_time_enroll_secrets`, redeploy first: Fleet then refuses the global enroll secret for macOS hosts. [Learn more](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets)
 
 ### Windows
 
@@ -156,21 +156,18 @@ Windows uses two profiles. The certificate profile enrolls the certificate into 
 
 1. Select the **Windows** tab.
 2. Copy the **Certificate profile** to a new `.xml` file.
-3. Create a [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (e.g. `FLEET_SECRET_OKTA_CONDITIONAL_ACCESS_CHALLENGE`) whose value is a global enroll secret. To find your global enroll secrets, go to **Hosts**, select **All fleets**, and select **Enroll secrets**.
-4. In the file, replace `<!-- Replace with a global enroll secret -->` with the variable (e.g. `$FLEET_SECRET_OKTA_CONDITIONAL_ACCESS_CHALLENGE`).
-5. Copy the **Browser profile** to a second `.xml` file.
-6. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy both profiles to the hosts where you want conditional access to apply.
+3. Copy the **Browser profile** to a second `.xml` file.
+4. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy both profiles to the hosts where you want conditional access to apply.
 
-We recommend a custom variable over pasting the enroll secret into the profile. The secret stays out of the profile and your GitOps repository, and when you rotate the secret, you only update the variable. Fleet uses the new value for new certificates and renewals without re-uploading the profile.
+The certificate profile uses `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` and `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE`. Fleet fills them in when it sends the profile to each host, and the challenge only works for that host. [Learn more](https://fleetdm.com/guides/fleet-variables)
 
-Fleet rejects the certificate profile if the challenge isn't a global enroll secret made of letters, numbers, spaces, and `' ( ) + , - . / : = ?`. Windows can't send other characters. Fleet-generated enroll secrets always qualify. Enroll secrets that belong to a fleet don't work.
+> **Upgrading from Fleet 4.95 or earlier?** Certificate profiles you deployed earlier carry a global enroll secret and keep working. To switch to one-time challenges, copy the certificate profile again and redeploy it. If you turn on `mdm.windows_one_time_enroll_secrets`, redeploy first: Fleet then refuses the global enroll secret for Windows hosts. [Learn more](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets)
 
 Some things to know about the Windows profiles:
 
 - The certificate is installed in the signed-in user's store, so Fleet delivers the certificate profile once a user has signed in to the host.
 - The certificate profile shows **Verifying** until the host reports the enrollment result, usually within a few minutes, and then **Verified**. If enrollment fails, the profile shows **Failed** with the error code reported by the host, and Fleet retries it.
 - To renew the certificate automatically, Windows hosts need osquery 5.23.1 or later, as for every other certificate authority on Windows.
-- If you rotate or delete the enroll secret, new certificates and renewals fail until you update the custom variable (or the profile, if you pasted the secret in).
 - The browser profile is optional. Without it, Chrome and Edge ask the end user to pick the certificate. If you already manage Chrome or Edge policies, you can add the same `AutoSelectCertificateForUrls` rule to your own configuration instead.
 - A Group Policy that manages `AutoSelectCertificateForUrls` overrides the browser profile.
 - The browser profile requires Windows 11 Pro, Enterprise, or Education. On Windows Home, it fails.

@@ -38,8 +38,8 @@ Via `fleetctl gitops`, the following YAML section can be used to manage profiles
 
 ```
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any:
           - Macs on Sequoia
