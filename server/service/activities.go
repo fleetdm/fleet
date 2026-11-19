@@ -94,11 +94,11 @@ func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return listHostUpcomingActivitiesResponse{Err: err}, nil
-	}
-	acts, meta, err := svc.ListHostUpcomingActivities(ctx, hostID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	acts, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (acts []*fleet.UpcomingActivity, err error) {
+		acts, meta, err = svc.ListHostUpcomingActivities(ctx, hostID, req.ListOptions)
+		return acts, err
+	})
 	if err != nil {
 		return listHostUpcomingActivitiesResponse{Err: err}, nil
 	}

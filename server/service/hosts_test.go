@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -7950,4 +7951,60 @@ func selfSignedCertForKey(t *testing.T, key *rsa.PrivateKey, serial int64) *x509
 	cert, err := tokenpki.SelfSignedCertForKey(key, "Fleet WSTEP test", serial)
 	require.NoError(t, err)
 	return cert
+}
+
+func TestHostByIDOrIdentifier(t *testing.T) {
+	const otherHostID = 42
+	notFound := newNotFoundError()
+	forbidden := authz.ForbiddenWithInternal("can't list hosts", nil, nil, nil)
+	testCases := []struct {
+		name       string
+		identifier string
+		// failFor is the host ID that get is not found for, and lookup is what HostIDByIDOrIdentifier returns.
+		failFor     uint
+		lookupID    uint
+		lookupErr   error
+		wantCalls   []uint
+		wantHostID  uint
+		wantErr     error
+		wantLookups int
+	}{
+		{name: "a host ID isn't looked up", identifier: "7", wantCalls: []uint{7}, wantHostID: 7},
+		{name: "an identifier is looked up", identifier: "serial", lookupID: 7, wantCalls: []uint{7}, wantHostID: 7, wantLookups: 1},
+		{name: "a number that isn't a host ID names another host", identifier: "7", failFor: 7, lookupID: otherHostID,
+			wantCalls: []uint{7, otherHostID}, wantHostID: otherHostID, wantLookups: 1},
+		// Like a recovery lock password the host doesn't have: the lookup finds the same host, so the error stands.
+		{name: "not found for an existing host", identifier: "7", failFor: 7, lookupID: 7, wantCalls: []uint{7}, wantHostID: 7,
+			wantErr: notFound, wantLookups: 1},
+		{name: "no host has the number", identifier: "7", failFor: 7, lookupErr: notFound, wantCalls: []uint{7}, wantHostID: 7,
+			wantErr: notFound, wantLookups: 1},
+		{name: "a caller who can't list hosts gets the error", identifier: "7", failFor: 7, lookupErr: forbidden, wantCalls: []uint{7},
+			wantHostID: 7, wantErr: notFound, wantLookups: 1},
+		{name: "an identifier a caller can't look up", identifier: "serial", lookupErr: forbidden, wantErr: forbidden, wantLookups: 1},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &svcmock.Service{}
+			lookups := 0
+			svc.HostIDByIDOrIdentifierFunc = func(context.Context, string) (uint, error) {
+				lookups++
+				return tc.lookupID, tc.lookupErr
+			}
+			var calls []uint
+			res, hostID, err := hostByIDOrIdentifier(t.Context(), svc, tc.identifier, func(hostID uint) (uint, error) {
+				calls = append(calls, hostID)
+				if hostID == tc.failFor {
+					return 0, notFound
+				}
+				return hostID, nil
+			})
+			require.ErrorIs(t, err, tc.wantErr)
+			require.Equal(t, tc.wantCalls, calls)
+			require.Equal(t, tc.wantHostID, hostID)
+			require.Equal(t, tc.wantLookups, lookups)
+			if tc.wantErr == nil {
+				require.Equal(t, tc.wantHostID, res)
+			}
+		})
+	}
 }

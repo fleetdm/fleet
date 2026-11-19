@@ -122,11 +122,9 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
-	}
-	host, err := svc.HostLiteByID(ctx, hostID)
+	host, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostLite, error) {
+		return svc.HostLiteByID(ctx, hostID)
+	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
 	}

@@ -1133,11 +1133,10 @@ func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier stri
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, authz.GitOpsListError(ctx, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 	}
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, identifier)
-	if err != nil {
-		return nil, err
-	}
-	return svc.GetHost(ctx, hostID, opts)
+	host, _, err := hostByIDOrIdentifier(ctx, svc, identifier, func(hostID uint) (*fleet.HostDetail, error) {
+		return svc.GetHost(ctx, hostID, opts)
+	})
+	return host, err
 }
 
 func (svc *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
@@ -1150,6 +1149,40 @@ func (svc *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier strin
 		return 0, ctxerr.Wrap(ctx, err, "get host id by id or identifier")
 	}
 	return hostID, nil
+}
+
+// hostByIDOrIdentifier calls get with the ID of the host that the :id path parameter of a host endpoint names, and returns its result and
+// that ID. A number is tried as the host ID first, without a lookup, so a request by host ID costs what it did before identifiers were
+// accepted. The identifier is looked up when it isn't a number, or when the call by ID is not found and the identifier names another host,
+// like one with a numeric serial. get should load the host before anything else that can be not found.
+func hostByIDOrIdentifier[T any](ctx context.Context, svc fleet.Service, identifier string, get func(hostID uint) (T, error)) (T, uint, error) {
+	id, parseErr := strconv.ParseUint(identifier, 10, 0)
+	if parseErr != nil {
+		hostID, err := svc.HostIDByIDOrIdentifier(ctx, identifier)
+		if err != nil {
+			var zero T
+			return zero, 0, err
+		}
+		res, err := get(hostID)
+		return res, hostID, err
+	}
+
+	res, err := get(uint(id))
+	if !fleet.IsNotFound(err) {
+		return res, uint(id), err
+	}
+	// The call can be not found for something an existing host doesn't have, like a recovery lock password. The lookup matches the host ID
+	// first, so then it returns the same ID and the error stands. A caller who can't list hosts gets the error, as before identifiers.
+	hostID, lookupErr := svc.HostIDByIDOrIdentifier(ctx, identifier)
+	var forbidden *authz.Forbidden
+	switch {
+	case lookupErr == nil && hostID != uint(id):
+		res, err = get(hostID)
+		return res, hostID, err
+	case lookupErr != nil && !fleet.IsNotFound(lookupErr) && !errors.As(lookupErr, &forbidden):
+		return res, uint(id), lookupErr
+	}
+	return res, uint(id), err
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2395,13 +2428,10 @@ func (r getHostQueryReportResponse) Error() error { return r.Err }
 
 func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostQueryReportRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
-	}
-
 	// Need to return hostname in response even if there are no report results
-	host, err := svc.GetHostLite(ctx, hostID)
+	host, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.Host, error) {
+		return svc.GetHostLite(ctx, hostID)
+	})
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -2486,10 +2516,6 @@ func (r listHostReportsResponse) Error() error { return r.Err }
 
 func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostReportsRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return listHostReportsResponse{Err: err}, nil
-	}
 
 	var includeReportsDontStoreResults bool
 	if req.IncludeReportsDontStoreResults != nil {
@@ -2501,7 +2527,14 @@ func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service
 		IncludeReportsDontStoreResults: includeReportsDontStoreResults,
 	}
 
-	reports, count, meta, err := svc.ListHostReports(ctx, hostID, opts)
+	var (
+		count int
+		meta  *fleet.PaginationMetadata
+	)
+	reports, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (reports []*fleet.HostReport, err error) {
+		reports, count, meta, err = svc.ListHostReports(ctx, hostID, opts)
+		return reports, err
+	})
 	if err != nil {
 		return listHostReportsResponse{Err: err}, nil
 	}
@@ -3437,11 +3470,9 @@ func (r getHostMDMResponse) Error() error { return r.Err }
 
 func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostMDMRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostMDMResponse{Err: err}, nil
-	}
-	mdm, err := svc.MDMData(ctx, hostID)
+	mdm, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostMDM, error) {
+		return svc.MDMData(ctx, hostID)
+	})
 	if err != nil {
 		return getHostMDMResponse{Err: err}, nil
 	}
@@ -3489,11 +3520,9 @@ func (r getMacadminsDataResponse) Error() error { return r.Err }
 
 func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMacadminsDataRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getMacadminsDataResponse{Err: err}, nil
-	}
-	data, err := svc.MacadminsData(ctx, hostID)
+	data, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.MacadminsData, error) {
+		return svc.MacadminsData(ctx, hostID)
+	})
 	if err != nil {
 		return getMacadminsDataResponse{Err: err}, nil
 	}
@@ -4445,11 +4474,9 @@ func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
 func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostEncryptionKeyResponse{Err: err}, nil
-	}
-	key, err := svc.HostEncryptionKey(ctx, hostID, req.AllowArchivedSerialLookup)
+	key, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return svc.HostEncryptionKey(ctx, hostID, req.AllowArchivedSerialLookup)
+	})
 	if err != nil {
 		return getHostEncryptionKeyResponse{Err: err}, nil
 	}
@@ -4710,11 +4737,9 @@ func (r getHostHealthResponse) Error() error { return r.Err }
 
 func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostHealthRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostHealthResponse{Err: err}, nil
-	}
-	hh, err := svc.GetHostHealth(ctx, hostID)
+	hh, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostHealth, error) {
+		return svc.GetHostHealth(ctx, hostID)
+	})
 	if err != nil {
 		return getHostHealthResponse{Err: err}, nil
 	}
@@ -5084,11 +5109,11 @@ func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Req
 
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSoftwareRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostSoftwareResponse{Err: err}, nil
-	}
-	res, meta, err := svc.ListHostSoftware(ctx, hostID, req.HostSoftwareTitleListOptions)
+	var meta *fleet.PaginationMetadata
+	res, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (res []*fleet.HostSoftwareWithInstaller, err error) {
+		res, meta, err = svc.ListHostSoftware(ctx, hostID, req.HostSoftwareTitleListOptions)
+		return res, err
+	})
 	if err != nil {
 		return getHostSoftwareResponse{Err: err}, nil
 	}
@@ -5232,11 +5257,11 @@ func (r listHostCertificatesResponse) Error() error { return r.Err }
 
 func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostCertificatesRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return listHostCertificatesResponse{Err: err}, nil
-	}
-	res, meta, err := svc.ListHostCertificates(ctx, hostID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	res, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (res []*fleet.HostCertificatePayload, err error) {
+		res, meta, err = svc.ListHostCertificates(ctx, hostID, req.ListOptions)
+		return res, err
+	})
 	if err != nil {
 		return listHostCertificatesResponse{Err: err}, nil
 	}
@@ -5304,11 +5329,9 @@ func (r getHostRecoveryLockPasswordResponse) Error() error { return r.Err }
 
 func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostRecoveryLockPasswordRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostRecoveryLockPasswordResponse{Err: err}, nil
-	}
-	password, err := svc.GetHostRecoveryLockPassword(ctx, hostID)
+	password, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+		return svc.GetHostRecoveryLockPassword(ctx, hostID)
+	})
 	if err != nil {
 		return getHostRecoveryLockPasswordResponse{Err: err}, nil
 	}
@@ -5477,11 +5500,9 @@ func (r getHostManagedAccountPasswordResponse) Error() error { return r.Err }
 
 func getHostManagedAccountPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostManagedAccountPasswordRequest)
-	hostID, err := svc.HostIDByIDOrIdentifier(ctx, req.Identifier)
-	if err != nil {
-		return getHostManagedAccountPasswordResponse{Err: err}, nil
-	}
-	pwd, err := svc.GetHostManagedAccountPassword(ctx, hostID)
+	pwd, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+		return svc.GetHostManagedAccountPassword(ctx, hostID)
+	})
 	if err != nil {
 		return getHostManagedAccountPasswordResponse{Err: err}, nil
 	}
