@@ -35,15 +35,21 @@ export const DROPDOWN_OPTIONS = [
 const createOnlyInstallableOnMacOSMessage = (reason: string) =>
   `Couldn't install. ${reason.replace("darwin", "macOS")}.`;
 
-const createVPPTokenExpiredMessage = () => (
+const createVPPTokenExpiredMessage = (tokenName?: string) => (
   <>
-    {INSTALL_SOFTWARE_ERROR_PREFIX} VPP token expired. Go to{" "}
+    {INSTALL_SOFTWARE_ERROR_PREFIX} VPP token
+    {tokenName ? ` "${tokenName}"` : ""} expired. Go to{" "}
     <b>
       Settings {">"} Integration {">"} Volume Purchasing Program
     </b>{" "}
     and renew token.
   </>
 );
+
+// Matches the install-time expired-token error in ee/server/service/vpp.go.
+// Legacy form before the token name was included is still matched so stale
+// in-flight errors don't fall through to the generic default message.
+const VPP_TOKEN_EXPIRED_RE = /VPP token (?:"([^"]+)" )?(?:is )?expired/;
 
 // determines if we want to show the API message as is to the user.
 const showAPIMessage = (message: string) => {
@@ -61,15 +67,20 @@ export const getInstallErrorMessage = (e: unknown) => {
 
   if (reason.includes("fleetd installed")) {
     return `${INSTALL_SOFTWARE_ERROR_PREFIX}. ${reason}.`;
-  } else if (reason.includes("can be installed only on")) {
+  }
+  if (reason.includes("can be installed only on")) {
     return createOnlyInstallableOnMacOSMessage(reason);
-  } else if (reason.includes("VPP token expired")) {
-    return createVPPTokenExpiredMessage();
-  } else if (
+  }
+  const vppExpiredMatch = reason.match(VPP_TOKEN_EXPIRED_RE);
+  if (vppExpiredMatch) {
+    return createVPPTokenExpiredMessage(vppExpiredMatch[1]);
+  }
+  if (
     reason.includes("unresolvable Fleet variable in managed app configuration")
   ) {
     return `${INSTALL_SOFTWARE_ERROR_PREFIX} Couldn't resolve a Fleet variable in the managed app configuration for this host.`;
-  } else if (showAPIMessage(reason)) {
+  }
+  if (showAPIMessage(reason)) {
     return reason;
   }
 

@@ -1,3 +1,6 @@
+import { render } from "@testing-library/react";
+import React from "react";
+
 import { getInstallErrorMessage } from "./helpers";
 
 const makeErr = (reason: string) => ({
@@ -55,6 +58,28 @@ describe("getInstallErrorMessage", () => {
     expect(result).toBe(
       "Couldn't install. Couldn't resolve a Fleet variable in the managed app configuration for this host."
     );
+  });
+
+  it("surfaces the expired VPP token name", () => {
+    const result = getInstallErrorMessage(
+      makeErr(
+        `Couldn't install. VPP token "Acme US" is expired. Please renew it and try again.`
+      )
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain(`VPP token "Acme US" expired`);
+    expect(container.textContent).toContain(
+      "Settings > Integration > Volume Purchasing Program"
+    );
+  });
+
+  it("still handles the legacy expired-token message without a name", () => {
+    const result = getInstallErrorMessage(
+      makeErr("Couldn't install. VPP token expired.")
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("VPP token expired");
+    expect(container.textContent).not.toContain(`"`);
   });
 
   it("returns default message for unknown errors", () => {
