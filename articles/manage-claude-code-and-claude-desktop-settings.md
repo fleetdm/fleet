@@ -318,6 +318,6 @@ Check that the hash in the policy is lowercase. osquery reports `sha256` in lowe
 <meta name="articleTitle" value="Manage Claude Code and Claude Desktop settings with Fleet">
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
-<meta name="publishedOn" value="2026-10-13">
+<meta name="publishedOn" value="2026-11-23">
 <meta name="category" value="guides">
 <meta name="description" value="Deploy managed settings for Claude Code and Claude Desktop with Fleet, keep them in line, and review MCP servers with the ai_tools table.">
