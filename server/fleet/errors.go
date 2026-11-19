@@ -67,7 +67,7 @@ var (
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
-const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -194,7 +194,7 @@ func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationErr
 }
 
 func (e *ParamRequiredDeprecationError) Error() string {
-	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, e.Param)
 }
 
 // Messages returned to GitOps users for actions the role lost in Fleet 5.
@@ -652,7 +652,7 @@ const (
 	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\", \"$FLEET_VAR_NDES_SCEP\" and \"$FLEET_VAR_SMALLSTEP_\" must only be in the SCEP payload."
 
 	// Invalid list options combinations
-	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'fleet_id' parameters must be used together to filter the software available for install."
 
 	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
 	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL

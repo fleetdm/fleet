@@ -446,7 +446,29 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 	}, nil
 }
 
-func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+// mockPolicyAutomations is the automation_type the server returns for each mock policy, which generate-gitops writes
+// the calendar, conditional access, and webhook or ticket keys from.
+var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
+	"Global Policy":               fleet.PolicyAutomationConditionalAccess,
+	"Team Policy":                 fleet.PolicyAutomationConditionalAccess,
+	"Team patch policy":           fleet.PolicyAutomationConditionalAccess,
+	"Team VPP policy":             fleet.PolicyAutomationWebhookOrTicket,
+	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
+	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
+	"Team package install policy": fleet.PolicyAutomationSoftware,
+}
+
+func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+	policies, err := c.mockPolicies(teamID)
+	for _, p := range policies {
+		if a, ok := mockPolicyAutomations[p.Name]; ok {
+			p.AutomationType = new(a)
+		}
+	}
+	return policies, err
+}
+
+func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{
 			{
@@ -3094,7 +3116,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil, "default.yml", nil)
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var generatedPolicies []map[string]any
@@ -3120,7 +3142,7 @@ func TestGeneratePolicies(t *testing.T) {
 
 	var expectedTeamPolicies []map[string]any
 	var generatedTeamPolicies []map[string]any
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	policiesRaw, err = cmd.generatePolicies(new(uint(1)), "some_team")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
@@ -3971,7 +3993,7 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 		},
 	}
 
-	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	_, err = cmd.generatePolicies(new(uint(1)), "some_team")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
 }
@@ -4198,4 +4220,33 @@ func TestGenerateGitopsEnableProfileValidationFalse(t *testing.T) {
 			require.Equal(t, false, controls["enable_profile_validation"])
 		})
 	}
+}
+
+func TestGenerateSMTPSettingsPassword(t *testing.T) {
+	cmd := &GenerateGitopsCommand{}
+
+	settings := cmd.generateSMTPSettings(&fleet.SMTPSettings{SMTPServer: "smtp.example.com", SMTPPassword: fleet.MaskedPassword})
+	require.Len(t, cmd.Comments, 1)
+	require.Equal(t, cmd.Comments[0].Token, settings["password"])
+	require.Equal(t, []SecretWarning{{Filename: "default.yml", Key: "smtp_settings.password"}}, cmd.Messages.SecretWarnings)
+	require.NotContains(t, settings, "configured")
+
+	cmd = &GenerateGitopsCommand{}
+	settings = cmd.generateSMTPSettings(&fleet.SMTPSettings{SMTPServer: "smtp.example.com"})
+	require.Empty(t, settings["password"])
+	require.Empty(t, cmd.Comments)
+	require.Empty(t, cmd.Messages.SecretWarnings)
+}
+
+func TestGenerateGitopsKeyResolvesComments(t *testing.T) {
+	configureFMAManifestServer(t)
+	action := createGenerateGitopsAction(&MockClient{})
+	buf := new(bytes.Buffer)
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("key", "org_settings.certificate_authorities.custom_est_proxy", "")
+
+	err := action(cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil))
+	require.NoError(t, err, buf.String())
+	require.Contains(t, buf.String(), "password: # TODO: Add your EST password here")
+	require.NotContains(t, buf.String(), "GITOPS_COMMENT")
 }

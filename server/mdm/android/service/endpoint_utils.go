@@ -54,9 +54,6 @@ func (e *androidEndpointer) Service() any {
 func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
-	// Full-slice expression prevents aliasing into the caller's backing array
-	// if it happens to have spare capacity.
-	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(auth.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &androidEndpointer{
 			svc: svc,

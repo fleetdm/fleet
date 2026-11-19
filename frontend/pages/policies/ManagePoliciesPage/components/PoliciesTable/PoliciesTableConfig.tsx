@@ -147,15 +147,23 @@ const EditableAutomationsCell = ({
 interface IAutomationsCellProps {
   policy: IPolicyStats;
   otherAutomationType?: OtherAutomationType;
+  inheritedOtherAutomationType?: OtherAutomationType;
   onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const AutomationsCell = ({
   policy,
   otherAutomationType,
+  inheritedOtherAutomationType,
   onOpenManageAutomationsModal,
 }: IAutomationsCellProps): JSX.Element => {
-  const automations = getAutomationsForPolicy(policy, otherAutomationType);
+  // Each policy's webhook or ticket comes from the scope that owns it.
+  const automations = getAutomationsForPolicy(
+    policy,
+    policy.fleet_id === null
+      ? inheritedOtherAutomationType
+      : otherAutomationType
+  );
   // Without an edit callback the user's role can't open the automations modal,
   // so the cell is read-only: no pencil icon, no pointer cursor, not focusable.
   const canEdit = !!onOpenManageAutomationsModal;
@@ -263,6 +271,7 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
     otherAutomationType?: OtherAutomationType;
+    inheritedOtherAutomationType?: OtherAutomationType;
     onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
   },
   isPremiumTier?: boolean,
@@ -272,6 +281,7 @@ const generateTableHeaders = (
     selectedTeamId,
     hasPermissionAndPoliciesToDelete,
     otherAutomationType,
+    inheritedOtherAutomationType,
     onOpenManageAutomationsModal,
   } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
@@ -335,14 +345,15 @@ const generateTableHeaders = (
       },
     },
     {
-      title: "Automations",
-      Header: "Automations",
+      title: "Automation",
+      Header: "Automation",
       accessor: "automations",
       disableSortBy: true,
       Cell: (cellProps: ICellProps): JSX.Element => (
         <AutomationsCell
           policy={cellProps.row.original}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={onOpenManageAutomationsModal}
         />
       ),
@@ -536,7 +547,6 @@ const nextPolicyUpdateMs = (
 
 const generateDataSet = (
   policiesList: IPolicyStats[] = [],
-  currentAutomatedPolicies?: number[],
   osquery_policy?: number
 ): IPolicyStats[] => {
   policiesList = policiesList.sort((a, b) =>
@@ -578,12 +588,6 @@ const generateDataSet = (
       : 0);
 
   policiesList.forEach((policyItem) => {
-    policyItem.webhook =
-      currentAutomatedPolicies &&
-      currentAutomatedPolicies.includes(policyItem.id)
-        ? "On"
-        : "Off";
-
     // Define policy has_run based on updated_at compared against last time policies ran.
     const policyItemUpdatedAt = new Date(policyItem.updated_at);
     // TODO: restore and update setting of policyItem.has_run based on upcoming custom

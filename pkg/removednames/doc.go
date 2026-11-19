@@ -32,7 +32,8 @@
 //     ScopeActivityDetails for keys inside the stored details of activities. Combine them with |. Consumers load only the scopes they
 //     need, so a request check does not reject a name that only appears in a response.
 //   - Old is the removed name. A KindPath entry is a full path template that starts with /api/_version_/fleet and writes path
-//     parameters as {name}. A KindYAMLKey entry is a dotted path where [] marks an array element.
+//     parameters as {name}, except a device-facing path outside the Fleet API, which keeps its own full path. A KindYAMLKey entry is a
+//     dotted path where [] marks an array element.
 //   - New is the replacement. Leave it empty when there is none.
 //   - Context narrows the entry. For a flag, env var, or command it is the fleetctl command (for example "fleetctl get hosts"), so the
 //     same flag name can be removed from one command and stay on another. For a path it is an HTTP method, so GET can be removed while
@@ -65,8 +66,9 @@
 // copy of the whole table.
 //
 // The package only holds names and messages. It does not match requests or choose the status code. A removed path's message shows the
-// path without its /api/_version_/fleet prefix, and the method of the entry's Context. A path that is removed for every method has no
-// Context, so the handler sets it to the method of the request before it asks for the message.
+// path without its /api/_version_/fleet prefix (a path outside the Fleet API shows in full), and the method of the entry's Context. A
+// path that is removed for every method has no Context, so the handler sets it to the method of the request before it asks for the
+// message.
 //
 // # Keeping the table honest
 //

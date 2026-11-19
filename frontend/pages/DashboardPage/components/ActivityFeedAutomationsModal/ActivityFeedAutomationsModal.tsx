@@ -110,7 +110,7 @@ const ActivityFeedAutomationsModal = ({
               actor_email: "anna.chao@example.com",
               type: "live_query",
               details: {
-                query_sql: "SELECT * FROM os_version",
+                query: "SELECT * FROM os_version",
                 targets_count: 1,
               },
             }),

@@ -343,7 +343,7 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	t := s.T()
 
 	// host_identifier is required, also when other filters are set.
-	const hostRequiredMsg = `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	const hostRequiredMsg = `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	for _, query := range []string{
 		"",
 		"?host_identifier=",

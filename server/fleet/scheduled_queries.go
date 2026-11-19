@@ -16,8 +16,8 @@ type ScheduledQuery struct {
 	ID          uint   `json:"id"`
 	PackID      uint   `json:"pack_id" db:"pack_id"`
 	Name        string `json:"name"`
-	QueryID     uint   `json:"query_id" renameto:"report_id" db:"query_id"`
-	QueryName   string `json:"query_name" renameto:"report_name" db:"query_name"`
+	QueryID     uint   `json:"report_id" db:"query_id"`
+	QueryName   string `json:"report_name" db:"query_name"`
 	Query       string `json:"query"` // populated via a join on queries
 	Description string `json:"description,omitempty"`
 	// Interval specifies query frequency, in seconds.
@@ -60,7 +60,7 @@ type PackStats struct {
 	//	- "global" is the type of the global pack.
 	//	- "team-$ID" is returned for team packs.
 	Type       string                `json:"type"`
-	QueryStats []ScheduledQueryStats `json:"query_stats" renameto:"report_stats"`
+	QueryStats []ScheduledQueryStats `json:"report_stats"`
 }
 
 type AggregatedStats struct {
@@ -73,7 +73,7 @@ type AggregatedStats struct {
 
 type ScheduledQueryPayload struct {
 	PackID   *uint     `json:"pack_id"`
-	QueryID  *uint     `json:"query_id" renameto:"report_id"`
+	QueryID  *uint     `json:"report_id" removedkey:"query_id"`
 	Interval *uint     `json:"interval"`
 	Snapshot *bool     `json:"snapshot"`
 	Removed  *bool     `json:"removed"`
@@ -84,10 +84,10 @@ type ScheduledQueryPayload struct {
 }
 
 type ScheduledQueryStats struct {
-	ScheduledQueryName string `json:"scheduled_query_name,omitempty" renameto:"scheduled_report_name" db:"scheduled_query_name"`
-	ScheduledQueryID   uint   `json:"scheduled_query_id,omitempty" renameto:"scheduled_report_id" db:"scheduled_query_id"`
+	ScheduledQueryName string `json:"scheduled_report_name,omitempty" db:"scheduled_query_name"`
+	ScheduledQueryID   uint   `json:"scheduled_report_id,omitempty" db:"scheduled_query_id"`
 
-	QueryName   string `json:"query_name,omitempty" renameto:"report_name" db:"query_name"`
+	QueryName   string `json:"report_name,omitempty" db:"query_name"`
 	Description string `json:"description,omitempty" db:"description"`
 
 	PackName string `json:"pack_name,omitempty" db:"pack_name"`

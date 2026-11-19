@@ -417,7 +417,6 @@ var hostRefs = []string{
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
 	"host_conditional_access",
-	"host_google_device_ids",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps or vpp apps as the activity contains the MDM
@@ -458,6 +457,10 @@ var hostRefs = []string{
 // MDM-enrolled with Platform SSO active, and its registered keys must keep
 // authenticating token requests. ADE re-enrollment clears them via
 // MDMAppleResetOnReenrollment.
+
+// - host_ai_sessions (and host_ai_session_events, by its foreign key): a host can have too many events
+// to delete with it, so the cleanups cron deletes the sessions of deleted hosts in batches
+// (CleanupHostAISessions).
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
@@ -513,6 +516,31 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
+// hostUUIDsWithoutHostsDB returns the UUIDs that no host row has, compared
+// case-insensitively as the column's collation does. Empty UUIDs are dropped.
+func hostUUIDsWithoutHostsDB(ctx context.Context, tx sqlx.ExtContext, uuids []string) ([]string, error) {
+	uuids = slices.DeleteFunc(slices.Clone(uuids), func(u string) bool { return u == "" })
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building select of remaining host uuids")
+	}
+	var remaining []string
+	if err := sqlx.SelectContext(ctx, tx, &remaining, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting remaining host uuids")
+	}
+	kept := make(map[string]struct{}, len(remaining))
+	for _, u := range remaining {
+		kept[strings.ToLower(u)] = struct{}{}
+	}
+	return slices.DeleteFunc(uuids, func(u string) bool {
+		_, ok := kept[strings.ToLower(u)]
+		return ok
+	}), nil
+}
+
 func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -564,6 +592,23 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		if err != nil {
 			return err
 		}
+	}
+
+	// Only mobile hosts can register with Google conditional access. A UUID another host
+	// row still has is skipped, since the device is still in Fleet; if that row isn't
+	// enrolled, the sweep of unenrolled hosts unmarks it.
+	var mobileUUIDs []string
+	for _, info := range hostInfos {
+		if fleet.IsMobilePlatform(info.Platform) {
+			mobileUUIDs = append(mobileUUIDs, info.UUID)
+		}
+	}
+	gone, err := hostUUIDsWithoutHostsDB(ctx, tx, mobileUUIDs)
+	if err != nil {
+		return err
+	}
+	if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, gone); err != nil {
+		return err
 	}
 
 	// no point trying the uuid-based tables if the host's uuid is missing
@@ -1508,7 +1553,7 @@ func (ds *Datastore) applyHostFilters(
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
-					Message:     "team is invalid",
+					Message:     "fleet is invalid",
 					InternalErr: err,
 				},
 			)
@@ -1659,7 +1704,7 @@ func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}
 		if fleet.IsArchGroupedOSName(*opt.OSNameFilter) {
 			// The OS inventory records these hosts as "Arch Linux"; only their display string has their own name and version.
 			// Requiring the inventory row matches what fleet.HostAPIOS returns and keeps list and count in step.
-			inventoryName, _ := fleet.InventoryOSName(*opt.OSNameFilter)
+			inventoryName := fleet.InventoryOSName(*opt.OSNameFilter)
 			sql += ` AND h.os_version = ? AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ?)`
 			params = append(params, *opt.OSNameFilter+" "+*opt.OSVersionFilter, inventoryName)
 		} else {
@@ -2292,9 +2337,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	// One `now` per `?`: MIA, Missing, offline (mobile + desktop), online
+	// One `now` per `?`: Missing, offline (mobile + desktop), online
 	// (mobile + desktop), new.
-	args := []any{now, now, now, now, now, now, now}
+	args := []any{now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
@@ -2318,7 +2363,6 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
-				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE
 					WHEN h.platform IN ('ios','ipados','android')
@@ -2619,14 +2663,32 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		overwrittenHostID = 0
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
 		osqueryIdentifier := hostInfo.OsqueryIdentifier
 		if osqueryIdentifier == "" {
 			osqueryIdentifier = hostInfo.HardwareUUID
+		}
+
+		var (
+			enrolledHostInfo *enrolledHostInfo
+			androidSecret    bool
+			err              error
+		)
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			enrolledHostInfo, androidSecret, err = ds.androidOneTimeSecretHost(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, osqueryIdentifier)
+			if err != nil {
+				return err
+			}
+		}
+		if enrolledHostInfo == nil {
+			enrolledHostInfo, err = matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
+				hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
+		}
+		androidDeviceIDReason := fleet.EnrollmentRejectedSharedSecretForMDMManagedHost
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			androidDeviceIDReason = fleet.EnrollmentRejectedUUIDOfAnotherMDMHost
 		}
 
 		switch {
@@ -2654,6 +2716,16 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOrbit); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -2723,6 +2795,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -2888,6 +2965,15 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
+		var androidSecret bool
+		androidDeviceIDReason := fleet.EnrollmentRejectedSharedSecretForMDMManagedHost
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			androidDeviceIDReason = fleet.EnrollmentRejectedUUIDOfAnotherMDMHost
+			var err error
+			if androidSecret, err = isAndroidOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID); err != nil {
+				return err
+			}
+		}
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "", "")
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
@@ -2900,6 +2986,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}
@@ -2974,6 +3065,16 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOsquery); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}
@@ -6845,12 +6946,43 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *flee
 	return row.JSONValue, row.UpdatedAt, nil
 }
 
+// storedOSVersion is an OS version entry as aggregated_stats stores it. Its keys are not the API's, so rows written
+// before the API renamed them still read correctly after an upgrade, until the next aggregation rewrites them.
+type storedOSVersion struct {
+	ID          uint   `json:"id,omitempty"`
+	OSVersionID uint   `json:"os_version_id"`
+	HostsCount  int    `json:"hosts_count"`
+	Name        string `json:"name"`
+	NameOnly    string `json:"name_only"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+}
+
 func (ds *Datastore) unmarshalOSVersions(jsonValue *json.RawMessage) ([]fleet.OSVersion, error) {
-	var versions []fleet.OSVersion
+	var stored []storedOSVersion
 	if jsonValue != nil {
-		if err := json.Unmarshal(*jsonValue, &versions); err != nil {
+		if err := json.Unmarshal(*jsonValue, &stored); err != nil {
 			return nil, err
 		}
+	}
+	versions := make([]fleet.OSVersion, 0, len(stored))
+	for _, s := range stored {
+		platform := s.Platform
+		// Arch Linux's rows include Arch Linux ARM's (archarm) and, until those hosts report again, the CachyOS
+		// and Omarchy hosts an earlier Fleet recorded as Arch Linux, so the merged entry would otherwise take
+		// whichever platform came first.
+		if s.NameOnly == fleet.ArchLinuxOSName {
+			platform = fleet.ArchLinuxPlatform
+		}
+		versions = append(versions, fleet.OSVersion{
+			ID:          s.ID,
+			OSVersionID: s.OSVersionID,
+			HostsCount:  s.HostsCount,
+			Name:        s.Name,
+			NameOnly:    s.NameOnly,
+			Version:     s.Version,
+			Platform:    platform,
+		})
 	}
 	return versions, nil
 }
@@ -6889,12 +7021,12 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 
 	// each team has a slice of stats with team host counts per os version, no
 	// team are grouped under team id 0
-	statsByTeamID := make(map[uint][]fleet.OSVersion)
+	statsByTeamID := make(map[uint][]storedOSVersion)
 	// stats are also aggregated globally per os version
-	globalStats := make(map[uint]fleet.OSVersion)
+	globalStats := make(map[uint]storedOSVersion)
 
 	for _, r := range rows {
-		os := fleet.OSVersion{
+		os := storedOSVersion{
 			HostsCount:  r.HostsCount,
 			Name:        fmt.Sprintf("%s %s", r.Name, r.Version),
 			NameOnly:    r.Name,
@@ -6926,12 +7058,12 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	}
 	for _, id := range teamIDs {
 		if _, ok := statsByTeamID[id]; !ok {
-			statsByTeamID[id] = []fleet.OSVersion{}
+			statsByTeamID[id] = []storedOSVersion{}
 		}
 	}
 	// same for "no team"
 	if _, ok := statsByTeamID[0]; !ok {
-		statsByTeamID[0] = []fleet.OSVersion{}
+		statsByTeamID[0] = []storedOSVersion{}
 	}
 
 	// assemble values as arguments for insert statement
@@ -6945,7 +7077,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	}
 
 	// add the global stats
-	globalArray := make([]fleet.OSVersion, 0, len(globalStats))
+	globalArray := make([]storedOSVersion, 0, len(globalStats))
 	for _, os := range globalStats {
 		globalArray = append(globalArray, os)
 	}

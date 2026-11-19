@@ -16,7 +16,7 @@ const mockRouter = createMockRouter();
 
 const createReportsHandler = (reports: Record<string, unknown>[]) =>
   http.get(baseUrl("/reports"), () => {
-    return HttpResponse.json({ queries: reports });
+    return HttpResponse.json({ reports });
   });
 
 const baseProps = {

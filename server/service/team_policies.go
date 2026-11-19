@@ -25,7 +25,6 @@ import (
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.TeamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
-		QueryID:                      req.QueryID,
 		Name:                         req.Name,
 		Query:                        req.Query,
 		Description:                  req.Description,
@@ -49,6 +48,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		NotifyBeforePatching:         req.NotifyBeforePatching,
 		PatchDeadline:                req.PatchDeadline,
 		ProfileUUID:                  req.ProfileUUID,
+		AutomationType:               req.AutomationType,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -67,28 +67,44 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("user must be authenticated to create team policies")
+		return nil, errors.New("user must be authenticated to create fleet policies")
+	}
+
+	if err := checkAutomationTypeLicense(ctx, tp.AutomationType); err != nil {
+		return nil, err
+	}
+	if err := normalizePatchPolicyCreate(&tp); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
+	}
+	if tp.AutomationType != nil {
+		if err := checkAutomationTypeCompanions(tp.AutomationType, policyAutomationCompanions{
+			softwareTitleID: tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0,
+			scriptID:        tp.ScriptID != nil && *tp.ScriptID != 0,
+			profileUUID:     tp.ProfileUUID != nil && *tp.ProfileUUID != "",
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check automation type")
+		}
+		switch *tp.AutomationType {
+		case fleet.PolicyAutomationCalendar:
+			tp.CalendarEventsEnabled = true
+		case fleet.PolicyAutomationConditionalAccess:
+			tp.ConditionalAccessEnabled = true
+		}
 	}
 
 	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp)
 	if err != nil {
 		return nil, err
 	}
+	p.WebhooksAndTicketsEnabled = tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationWebhookOrTicket
 
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
-
-	if p.QueryID != nil {
-		query, err := svc.ds.Query(ctx, *p.QueryID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get query for policy")
-		}
-		if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
-			return nil, err
-		}
+	if err := svc.checkNewPolicyAutomations(ctx, &teamID, p); err != nil {
+		return nil, err
 	}
 
 	if (len(tp.LabelsIncludeAll) > 0 || len(tp.LabelsExcludeAll) > 0 || len(tp.LabelsIncludeAny) > 0 || len(tp.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
@@ -379,7 +395,6 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	}
 
 	return fleet.PolicyPayload{
-		QueryID:                      p.QueryID,
 		Name:                         p.Name,
 		Query:                        p.Query,
 		Critical:                     p.Critical,
@@ -612,7 +627,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	for _, policy := range policiesByID {
 		if t := policy.PolicyData.TeamID; t == nil || *t != teamID {
 			return nil, authz.ForbiddenWithInternal(
-				fmt.Sprintf("attempting to delete policy that does not belong to team %s", strconv.Itoa(int(teamID))),
+				fmt.Sprintf("attempting to delete policy that does not belong to fleet %s", strconv.Itoa(int(teamID))),
 				authz.UserFromContext(ctx),
 				policy,
 				fleet.ActionWrite,
@@ -714,9 +729,26 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if ok := checkTeamID(teamID, policy); !ok {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "policy does not belong to team/global",
+			Message:     "policy does not belong to fleet/global",
 			InternalErr: fmt.Errorf("teamID: %+v, policy: %+v", teamID, policy),
 		})
+	}
+
+	if err := normalizePatchPolicyUpdate(policy, &p); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
+	}
+	automationsBefore := policy.Automations()
+	webhookOrTicketBefore := policy.WebhooksAndTicketsEnabled
+	webhookOrTicketAfter := webhookOrTicketBefore
+	if p.AutomationType.Valid {
+		if err := checkAutomationTypeLicense(ctx, &p.AutomationType.Value); err != nil {
+			return nil, err
+		}
+	}
+	if p.AutomationType.Set {
+		if webhookOrTicketAfter, err = applyAutomationType(teamID, &p); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "apply automation type")
+		}
 	}
 
 	if p.ConditionalAccessEnabled != nil && *p.ConditionalAccessEnabled && teamID == nil {
@@ -801,6 +833,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.Hidden != nil {
 		policy.Hidden = *p.Hidden
 	}
+	policy.WebhooksAndTicketsEnabled = webhookOrTicketAfter
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
@@ -932,6 +965,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if err := checkPolicyAutomations(teamID, automationsBefore, policy.Automations()); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check policy automations")
+	}
+	if policy.WebhooksAndTicketsEnabled != webhookOrTicketBefore {
+		if err := svc.authorizeWebhookOrTicketChange(ctx, teamID); err != nil {
+			return nil, err
+		}
+	}
+
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
 	err = svc.ds.SavePolicy(ctx, policy, removeAllMemberships, removeStats)
@@ -1053,7 +1095,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 			}
 		}
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Software installer with ID %d does not belong to software title ID %d on team ID %d", *chosenInstallerID, *softwareTitleID, *teamID),
+			Message: fmt.Sprintf("Software installer with ID %d does not belong to software title ID %d on fleet ID %d", *chosenInstallerID, *softwareTitleID, *teamID),
 		})
 	}
 
@@ -1061,7 +1103,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Software title with ID %d does not belong to team ID %d", *softwareTitleID, *teamID),
+				Message: fmt.Sprintf("Software title with ID %d does not belong to fleet ID %d", *softwareTitleID, *teamID),
 			})
 		}
 		return nil, nil, ctxerr.Wrap(ctx, err, "software title by id")
@@ -1070,7 +1112,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 		if softwareTitle.AppStoreApps[0].Platform != fleet.MacOSPlatform {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf(
-					"Software title with ID %d on team ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
+					"Software title with ID %d on fleet ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
 					*softwareTitleID,
 					*teamID,
 				),
@@ -1081,7 +1123,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	}
 	if len(softwareTitle.Packages) == 0 {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Software title with ID %d on team ID %d does not have an associated package", *softwareTitleID, *teamID),
+			Message: fmt.Sprintf("Software title with ID %d on fleet ID %d does not have an associated package", *softwareTitleID, *teamID),
 		})
 	}
 

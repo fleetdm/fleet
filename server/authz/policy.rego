@@ -289,6 +289,25 @@ allow {
 # (Technicians, observer_plus, and observers are not granted read for enroll secrets)
 
 ##
+# Host AI sessions
+##
+
+# Global admins and maintainers can read hosts' AI sessions, which can include secrets in commands and arguments.
+allow {
+  object.type == "host_ai_session"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins and maintainers can read AI sessions of their teams' hosts.
+allow {
+  not is_null(object.team_id)
+  object.type == "host_ai_session"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == read
+}
+
+##
 # Hosts
 ##
 
@@ -1133,13 +1152,6 @@ allow {
   action == read
 }
 
-# Global admins can read and write Apple MDM installers.
-allow {
-  object.type == "mdm_apple_installer"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins can read and write Apple devices.
 allow {
   object.type == "mdm_apple_device"
@@ -1496,6 +1508,14 @@ allow {
 allow {
   object.type == "conditional_access_microsoft"
   subject.global_role == admin
+  action == write
+}
+
+# Global admins and gitops can configure Google conditional access, as they can through the
+# app config.
+allow {
+  object.type == "conditional_access_google"
+  subject.global_role == [admin, gitops][_]
   action == write
 }
 

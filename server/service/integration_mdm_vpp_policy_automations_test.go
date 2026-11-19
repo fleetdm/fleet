@@ -227,8 +227,16 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	})
 	require.NoError(t, err)
 
-	policy3Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{ // will be set up with same VPP app + a script
+	policy3Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{ // will be set up with same VPP app
 		Name:     "policy3Team1",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+	// A policy has one automation, so the script that runs alongside policy3Team1's VPP app is on its own policy, which
+	// the host fails together with policy3Team1.
+	policy4Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{ // will be set up with a script
+		Name:     "policy4Team1",
 		Query:    "SELECT 1;",
 		Platform: "darwin",
 	})
@@ -251,7 +259,9 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policy3Team1.ID), fleet.ModifyTeamPolicyRequest{
 		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-		ScriptID:        optjson.Any[uint]{Set: true, Valid: true, Value: savedTmScript.ID},
+	}, http.StatusOK, &mtplr)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policy4Team1.ID), fleet.ModifyTeamPolicyRequest{
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: savedTmScript.ID},
 	}, http.StatusOK, &mtplr)
 
 	titleResponse := getSoftwareTitleResponse{}
@@ -355,6 +365,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		mdmHost2,
 		map[uint]*bool{
 			policy3Team1.ID: new(false),
+			policy4Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
@@ -365,7 +376,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost2.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, getHostResp.Host.ID, mdmHost2.ID)
 	require.NotNil(t, getHostResp.Host.Policies)
-	require.Len(t, *getHostResp.Host.Policies, 4)
+	require.Len(t, *getHostResp.Host.Policies, 5)
 	policySeen := false
 	for _, p := range *getHostResp.Host.Policies {
 		if p.Name == policy3Team1.Name {
@@ -398,8 +409,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
-			policy3Team1.ID,
-			policy3Team1.Name,
+			policy4Team1.ID,
+			policy4Team1.Name,
 			scriptExecID,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
@@ -414,7 +425,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null, "from_setup_experience": false}`,
-			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
+			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy4Team1.ID, policy4Team1.Name,
 		),
 		0,
 		new(true),
@@ -425,10 +436,19 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsExcludeAny: []string{l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
+	// The script runs when its policy starts failing, so the script policy passes first.
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		mdmHost2,
+		map[uint]*bool{
+			policy4Team1.ID: new(true),
+		},
+	), http.StatusOK, &distributedResp)
+
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost2,
 		map[uint]*bool{
 			policy3Team1.ID: new(false),
+			policy4Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
@@ -439,7 +459,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost2.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, getHostResp.Host.ID, mdmHost2.ID)
 	require.NotNil(t, getHostResp.Host.Policies)
-	require.Len(t, *getHostResp.Host.Policies, 4)
+	require.Len(t, *getHostResp.Host.Policies, 5)
 	policySeen = false
 	for _, p := range *getHostResp.Host.Policies {
 		if p.Name == policy3Team1.Name {
@@ -468,8 +488,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
-			policy3Team1.ID,
-			policy3Team1.Name,
+			policy4Team1.ID,
+			policy4Team1.Name,
 			scriptExecID,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
@@ -483,7 +503,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null, "from_setup_experience": false}`,
-			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
+			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy4Team1.ID, policy4Team1.Name,
 		),
 		0,
 		new(true),
@@ -494,10 +514,19 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsIncludeAny: []string{l1.Name, l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
+	// The script runs when its policy starts failing, so the script policy passes first.
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		mdmHost2,
+		map[uint]*bool{
+			policy4Team1.ID: new(true),
+		},
+	), http.StatusOK, &distributedResp)
+
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost2,
 		map[uint]*bool{
 			policy3Team1.ID: new(false),
+			policy4Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
@@ -507,7 +536,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost2.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, getHostResp.Host.ID, mdmHost2.ID)
 	require.NotNil(t, getHostResp.Host.Policies)
-	require.Len(t, *getHostResp.Host.Policies, 4)
+	require.Len(t, *getHostResp.Host.Policies, 5)
 	policySeen = false
 	for _, p := range *getHostResp.Host.Policies {
 		if p.Name == policy3Team1.Name {
@@ -636,8 +665,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
-			policy3Team1.ID,
-			policy3Team1.Name,
+			policy4Team1.ID,
+			policy4Team1.Name,
 			scriptExecID,
 		),
 		string(*hostActivitiesResp.Activities[0].Details),
@@ -652,7 +681,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null, "from_setup_experience": false}`,
-			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
+			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy4Team1.ID, policy4Team1.Name,
 		),
 		0,
 		new(true),

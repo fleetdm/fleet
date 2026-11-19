@@ -176,11 +176,14 @@ func sanitizeRepoURL(s string) string {
 	return s
 }
 
-func unixString(t time.Time) string {
+func unixString(t time.Time) string { return strconv.FormatInt(unixSeconds(t), 10) }
+
+// unixSeconds is t as the time columns report it: 0 when unknown.
+func unixSeconds(t time.Time) int64 {
 	if t.IsZero() {
-		return "0"
+		return 0
 	}
-	return strconv.FormatInt(t.Unix(), 10)
+	return t.Unix()
 }
 
 // parseTime reads the RFC 3339 timestamps agents write; anything else is the

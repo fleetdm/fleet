@@ -38,7 +38,7 @@ We will start with a traditional workflow to demonstrate the process used to com
 
 ![gif-1](../website/assets/images/articles/preventing-mistakes-1-711x385@2x.gif)
 
-Here, after making changes to the `passcode.json` file, it has been added to the fleet we are configuring under the `macos_settings` section.
+Here, after making changes to the `passcode.json` file, it has been added to the fleet we are configuring under the `apple_settings` section.
 
 ![gif-2](../website/assets/images/articles/preventing-mistakes-2-480x270@2x.gif)
 

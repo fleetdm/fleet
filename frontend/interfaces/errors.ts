@@ -20,7 +20,7 @@ export interface IApiError {
   uuid?: string;
 }
 
-const isFleetApiError = (err: unknown): err is IFleetApiError => {
+export const isFleetApiError = (err: unknown): err is IFleetApiError => {
   if (!err || typeof err !== "object" || !("name" in err && "reason" in err)) {
     return false;
   }
