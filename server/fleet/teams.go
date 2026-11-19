@@ -73,7 +73,13 @@ func ReservedTeamNameReason(name string) string {
 const TeamNameNoLetterOrNumberReason = "must include at least one letter or number"
 
 // TeamNameConflictHint ends every fleet name conflict error.
-const TeamNameConflictHint = "Choose a fleet name distinct from other fleets."
+const TeamNameConflictHint = "Please try another name."
+
+// TeamNameConflictMessage is the error for a fleet name that matches the name
+// of the existing fleet.
+func TeamNameConflictMessage(name, existing string) string {
+	return fmt.Sprintf("%q is too similar to the fleet name %q. %s", name, existing, TeamNameConflictHint)
+}
 
 // TeamNameKey returns the form of a fleet name that must be unique across
 // fleets: compatibility-decomposed, case-folded, and reduced to letters and

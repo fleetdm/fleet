@@ -111,7 +111,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 	if conflict != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, fleet.TeamNameConflictHint),
+			Message: fleet.TeamNameConflictMessage(*p.Name, conflict.Name),
 		})
 	}
 
@@ -209,7 +209,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if conflict != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, fleet.TeamNameConflictHint),
+				Message: fleet.TeamNameConflictMessage(*payload.Name, conflict.Name),
 			})
 		}
 		oldName = team.Name
@@ -1658,10 +1658,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return nil, err
 		}
 		if conflict != nil {
-			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
-				"fleet name %q conflicts with existing fleet %q. %s",
-				spec.Name, conflict.Name, fleet.TeamNameConflictHint,
-			)})
+			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.TeamNameConflictMessage(spec.Name, conflict.Name)})
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {

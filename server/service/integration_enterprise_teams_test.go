@@ -1571,11 +1571,8 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 		require.Equal(t, []string{wantName}, names, msgAndArgs...)
 		require.Equal(t, []string{wantReason}, reasons, msgAndArgs...)
 	}
-	conflictReason := func(existing string) string {
-		return fmt.Sprintf("A fleet named %q already exists. Choose a fleet name distinct from other fleets.", existing)
-	}
-	specConflictReason := func(name, existing string) string {
-		return fmt.Sprintf("fleet name %q conflicts with existing fleet %q. Choose a fleet name distinct from other fleets.", name, existing)
+	conflictReason := func(name, existing string) string {
+		return fmt.Sprintf("%q is too similar to the fleet name %q. Please try another name.", name, existing)
 	}
 
 	workstations := createFleet("Workstations")
@@ -1626,9 +1623,9 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 		before := fleetNames()
 		for _, name := range c.names {
 			res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusConflict)
-			requireError(res, "base", conflictReason(c.existing), name)
+			requireError(res, "base", conflictReason(name, c.existing), name)
 			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusConflict)
-			requireError(res, "base", conflictReason(c.existing), name)
+			requireError(res, "base", conflictReason(name, c.existing), name)
 
 			// A new GitOps file with a name that matches under the collation adopts the existing fleet, as before.
 			// A name that only matches by name key doesn't, and must not create a second fleet.
@@ -1639,9 +1636,9 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 			if byCollation == nil {
 				for _, dryRun := range []bool{true, false} {
 					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name, "gitops_filename": "new.yml"})
-					requireError(res, "base", specConflictReason(name, c.existing), name)
+					requireError(res, "base", conflictReason(name, c.existing), name)
 					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name})
-					requireError(res, "base", specConflictReason(name, c.existing), name)
+					requireError(res, "base", conflictReason(name, c.existing), name)
 				}
 			} else {
 				require.Equal(t, id, byCollation.ID, name)
@@ -1673,12 +1670,12 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 	// Two specs in one request.
 	res := applySpecs(http.StatusConflict, false, map[string]any{"name": "Work Stations"}, map[string]any{"name": "work-stations"})
 	requireError(res, "base", `duplicate fleet names in request: "Work Stations" (filename "") and "work-stations" (filename ""). `+
-		"Choose a fleet name distinct from other fleets.")
+		"Please try another name.")
 	res = applySpecs(http.StatusConflict, true,
 		map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"},
 		map[string]any{"name": "kiosks!", "gitops_filename": "kiosks2.yml"})
 	requireError(res, "base", `duplicate fleet names in request: "Kiosks" (filename "kiosks.yml") and "kiosks!" (filename "kiosks2.yml"). `+
-		"Choose a fleet name distinct from other fleets.")
+		"Please try another name.")
 
 	// A fleet matched by its GitOps filename.
 	var applyResp applyTeamSpecsResponse
@@ -1690,7 +1687,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
 	before = fleetNames()
 	for _, dryRun := range []bool{true, false} {
 		res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": "work stations", "gitops_filename": "kiosks.yml"})
-		requireError(res, "base", specConflictReason("work stations", "Workstations"))
+		requireError(res, "base", conflictReason("work stations", "Workstations"))
 	}
 	require.Equal(t, before, fleetNames())
 	applySpecs(http.StatusOK, false, map[string]any{"name": "KIOSKS!", "gitops_filename": "kiosks.yml"})

@@ -1,7 +1,7 @@
 import { isFleetApiError } from "interfaces/errors";
 
 export const FLEET_NAME_CONFLICT_ERROR =
-  "Choose a fleet name distinct from other fleets.";
+  "Name is too similar to another fleet name. Please try another name.";
 export const FLEET_NAME_NO_LETTER_OR_NUMBER_ERROR =
   "Fleet name must include at least one letter or number.";
 
@@ -37,8 +37,14 @@ export const getFleetNameError = (
   if (reason.includes("at least one letter or number")) {
     return FLEET_NAME_NO_LETTER_OR_NUMBER_ERROR;
   }
-  if (reason.includes("too similar to the reserved name")) {
-    return `${nameError.reason}. Please try another name.`;
+  // The reason starts with the name the user typed, which can make the error wrap.
+  const similarToReserved = nameError.reason.lastIndexOf(
+    "is too similar to the reserved name"
+  );
+  if (similarToReserved !== -1) {
+    return `Name ${nameError.reason.slice(
+      similarToReserved
+    )}. Please try another name.`;
   }
   if (reason.includes("reserved fleet name")) {
     return `"${name}" is a reserved fleet name. Please try another name.`;
