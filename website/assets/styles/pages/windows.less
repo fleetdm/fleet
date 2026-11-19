@@ -363,8 +363,7 @@
       text-align: center;
     }
     a[name='faq'] {
-      // Clears the sticky header (and the announcement banner, when shown) when linked to as /windows#faq.
-      scroll-margin-top: ~'calc(81px + var(--announcement-banner-height, 0px) + 24px)';
+      position: absolute;// Out of the flex flow, so it doesn't add a gap above the heading.
     }
   }
   [purpose='accordion'] {
