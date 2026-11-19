@@ -49,6 +49,21 @@ describe("getFleetNameError", () => {
     ).toBe('"All fleets" is a reserved fleet name. Please try another name.');
   });
 
+  it("returns the too-similar error naming the reserved name", () => {
+    expect(
+      getFleetNameError(
+        response(
+          422,
+          "name",
+          '"Un-assigned" is too similar to the reserved name "Unassigned"'
+        ),
+        "Un-assigned"
+      )
+    ).toBe(
+      '"Un-assigned" is too similar to the reserved name "Unassigned". Please try another name.'
+    );
+  });
+
   it("returns undefined for other errors", () => {
     expect(
       getFleetNameError(response(422, "name", "may not be empty"), "")

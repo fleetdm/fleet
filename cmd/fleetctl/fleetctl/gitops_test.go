@@ -2048,6 +2048,11 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `is a reserved fleet name`)
 
+	t.Setenv("TEST_TEAM_NAME", "Un-assigned")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"Un-assigned" is too similar to the reserved name "Unassigned"`)
+
 	// Dry run
 	t.Setenv("TEST_TEAM_NAME", teamName)
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})

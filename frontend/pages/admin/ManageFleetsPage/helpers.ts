@@ -37,6 +37,9 @@ export const getFleetNameError = (
   if (reason.includes("at least one letter or number")) {
     return FLEET_NAME_NO_LETTER_OR_NUMBER_ERROR;
   }
+  if (reason.includes("too similar to the reserved name")) {
+    return `${nameError.reason}. Please try another name.`;
+  }
   if (reason.includes("reserved fleet name")) {
     return `"${name}" is a reserved fleet name. Please try another name.`;
   }

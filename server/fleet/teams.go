@@ -48,6 +48,26 @@ func IsReservedTeamName(name string) bool {
 		normalizedName == "unassigned" || normalizedName == "all fleets"
 }
 
+var reservedTeamNamesByKey = map[string]string{
+	TeamNameKey(DisplayNameNoTeam):    DisplayNameNoTeam,
+	TeamNameKey(DisplayNameAllTeams):  DisplayNameAllTeams,
+	TeamNameKey(ReservedNameNoTeam):   ReservedNameNoTeam,
+	TeamNameKey(ReservedNameAllTeams): ReservedNameAllTeams,
+}
+
+// ReservedTeamNameReason returns the validation reason for a fleet name that
+// matches a reserved name by TeamNameKey, the comparison used for fleet name
+// uniqueness. It returns "" for a name a fleet can have.
+func ReservedTeamNameReason(name string) string {
+	if IsReservedTeamName(name) {
+		return fmt.Sprintf("%q is a reserved fleet name", name)
+	}
+	if reserved, ok := reservedTeamNamesByKey[TeamNameKey(name)]; ok {
+		return fmt.Sprintf("%q is too similar to the reserved name %q", name, reserved)
+	}
+	return ""
+}
+
 // TeamNameNoLetterOrNumberReason is the validation reason for a fleet name
 // whose TeamNameKey is empty.
 const TeamNameNoLetterOrNumberReason = "must include at least one letter or number"

@@ -98,8 +98,8 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 	}
-	if fleet.IsReservedTeamName(*p.Name) {
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
+	if reason := fleet.ReservedTeamNameReason(*p.Name); reason != "" {
+		return nil, fleet.NewInvalidArgumentError("name", reason)
 	}
 	if fleet.TeamNameKey(*p.Name) == "" {
 		return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
@@ -196,8 +196,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
-		if fleet.IsReservedTeamName(*payload.Name) {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
+		if reason := fleet.ReservedTeamNameReason(*payload.Name); reason != "" {
+			return nil, fleet.NewInvalidArgumentError("name", reason)
 		}
 		if fleet.TeamNameKey(*payload.Name) == "" {
 			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
@@ -1593,8 +1593,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
-		if fleet.IsReservedTeamName(spec.Name) {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
+		if reason := fleet.ReservedTeamNameReason(spec.Name); reason != "" {
+			return nil, fleet.NewInvalidArgumentError("name", reason)
 		}
 		if fleet.TeamNameKey(spec.Name) == "" {
 			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)

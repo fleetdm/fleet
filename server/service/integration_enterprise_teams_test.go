@@ -1156,6 +1156,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	r = s.Do("POST", "/api/latest/fleet/fleets", teamReserved, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
+	for name, reserved := range map[string]string{"Un-assigned": "Unassigned", "All_fleets": "All fleets", "No-team": "No team", "all-teams": "All teams"} {
+		teamReserved.Name = name
+		r = s.Do("POST", "/api/latest/fleet/fleets", teamReserved, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(r.Body), fmt.Sprintf(`%q is too similar to the reserved name %q`, name, reserved))
+	}
+
 	// create a team with a whitespace-only name
 	teamWhitespace := &fleet.Team{
 		Name:        "     ",
@@ -1318,6 +1324,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), fleet.TeamPayload{Name: new("ALL teAMs")}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
+
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), fleet.TeamPayload{Name: new("Un-assigned")}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), `"Un-assigned" is too similar to the reserved name "Unassigned"`)
 
 	// try to rename to a whitespace-only name
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), fleet.TeamPayload{Name: new("     ")}, http.StatusUnprocessableEntity)
