@@ -189,7 +189,7 @@ Each policy below passes when the host has your settings. A host that fails gets
 
 To do the same in the Fleet UI, go to **Policies**, select your fleet, and select **Add policy** for each query. Then select **Manage automations > Run script**, check each policy, and pick its script.
 
-> **Note:** The Windows policy checks that each value exists, not what it holds. When you change a value in `vscode-settings.ps1`, run the script on your Windows hosts with batch execution. On Linux, update `<sha256>` at the same time as the script, and hosts pick up the new file on their own. Fleet runs the script when a policy newly fails and retries it up to three times. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+> **Note:** The Windows policy checks that each value exists, not what it holds. When you change a value in `vscode-settings.ps1`, run the script on your Windows hosts with batch execution. On Linux, update `<sha256>` at the same time as the script, and hosts pick up the new file on their own. Fleet runs the script when a policy newly fails, and makes up to three attempts in total if the script fails. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
 ## What your users see
 
@@ -198,7 +198,7 @@ Fleet applies the profile and runs the scripts in the background, so users see n
 - In the Settings editor, a managed setting shows that your organization manages it, and users can't change it. A managed policy wins over the same setting in a user's or workspace's `settings.json`.
 - An extension that isn't on your allowlist can't be installed, and one that's already installed is disabled.
 - An MCP server that isn't on your allowlist can't be installed or run.
-- VS Code applies policy to new windows right away. Users with VS Code already open may need to restart it.
+- VS Code applies policy to new VS Code instances right away. Users with VS Code already open may need to restart it.
 
 Tell your users before you roll out a new restriction, so a disabled extension doesn't come as a surprise.
 
