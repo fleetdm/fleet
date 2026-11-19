@@ -277,9 +277,10 @@ describe("Policies table", () => {
     );
 
     await user.hover(screen.getByTestId("eye-slash-icon"));
-    await waitFor(() => {
-      expect(screen.getByText("Hidden from end users")).toBeInTheDocument();
-    });
+    // By role: the badge also carries the same text for screen readers.
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Hidden from end users"
+    );
   });
 
   it("Does not render a hidden badge for a visible policy", () => {

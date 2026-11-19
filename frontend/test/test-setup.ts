@@ -64,3 +64,27 @@ beforeAll(() => {
   console.warn = suppressKnownWarnings(console.warn);
   console.error = suppressKnownWarnings(console.error);
 });
+
+// jsdom has no IntersectionObserver. Tooltip positioning reaches for it once
+// an element reports a size, which only happens in suites that mock layout.
+global.IntersectionObserver = class {
+  root = null;
+  rootMargin = "";
+  scrollMargin = "";
+  thresholds = [];
+  observe = noop;
+  unobserve = noop;
+  disconnect = noop;
+  takeRecords = () => [];
+};
+
+// A tooltip's show delay is a real-time wait in every test that hovers one.
+jest.mock("react-tooltip-5", () => {
+  const { createElement } = jest.requireActual("react");
+  const actual = jest.requireActual("react-tooltip-5");
+  return {
+    ...actual,
+    Tooltip: (props: Record<string, unknown>) =>
+      createElement(actual.Tooltip, { ...props, delayShow: 0 }),
+  };
+});
