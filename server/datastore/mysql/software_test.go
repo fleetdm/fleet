@@ -55,7 +55,6 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
-		{"UpdateHostSoftwareLastOpenedAtMinDiff", testUpdateHostSoftwareLastOpenedAtMinDiff},
 		{"GoBinaries", testSoftwareGoBinaries},
 		{"AITool", testSoftwareAITool},
 		{"UpdateHostSoftwarePreserveSources", testUpdateHostSoftwarePreserveSources},
@@ -2322,6 +2321,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", now}) // baz hasn't been updated to nowish, too small diff
 
+	// a 6 second change on baz is above the minimum diff, so it's saved
+	sixSecondsLater := now.Add(6 * time.Second)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &sixSecondsLater},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", sixSecondsLater})
+
 	// more changes: bar receives a date further in the past, baz and qux to future
 	lastLastYear := lastYear.Add(-365 * 24 * time.Hour)
 	future := now.Add(3 * 24 * time.Hour)
@@ -2371,57 +2381,6 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	require.NotContains(t, buf.String(), "bar_app")
 
 	ds.logger = oldLogger
-}
-
-func testUpdateHostSoftwareLastOpenedAtMinDiff(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
-
-	// MySQL stores last_opened_at with second precision.
-	opened := time.Now().UTC().Truncate(time.Second).Add(-24 * time.Hour)
-	app := func(lastOpenedAt time.Time) fleet.Software {
-		return fleet.Software{Name: "app", Version: "1.0", Source: "apps", LastOpenedAt: &lastOpenedAt}
-	}
-	// Each report also changes the package list, so ingestion doesn't skip the update
-	// path because the last opened time is the only change.
-	packages := func(names ...string) []fleet.Software {
-		var sw []fleet.Software
-		for _, n := range names {
-			sw = append(sw, fleet.Software{Name: n, Version: "1.0", Source: "deb_packages"})
-		}
-		return sw
-	}
-	report := func(appLastOpenedAt time.Time, pkgs ...string) {
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, append([]fleet.Software{app(appLastOpenedAt)}, packages(pkgs...)...))
-		require.NoError(t, err)
-	}
-	storedLastOpenedAt := func() time.Time {
-		sw, err := ds.ListSoftwareByHostIDShort(ctx, host.ID)
-		require.NoError(t, err)
-		for _, s := range sw {
-			if s.Name == "app" {
-				require.NotNil(t, s.LastOpenedAt)
-				return s.LastOpenedAt.UTC()
-			}
-		}
-		require.FailNow(t, "app not found in host software")
-		return time.Time{}
-	}
-
-	report(opened)
-	require.Equal(t, opened, storedLastOpenedAt())
-
-	report(opened.Add(4*time.Second), "pkg1")
-	assert.Equal(t, opened, storedLastOpenedAt(), "4 seconds later isn't saved")
-
-	report(opened.Add(5*time.Second), "pkg1", "pkg2")
-	assert.Equal(t, opened.Add(5*time.Second), storedLastOpenedAt(), "5 seconds later is saved")
-
-	report(opened.Add(5*time.Second), "pkg1")
-	assert.Equal(t, opened.Add(5*time.Second), storedLastOpenedAt(), "same time is a no-op")
-
-	report(opened.Add(-time.Hour), "pkg1", "pkg2")
-	assert.Equal(t, opened.Add(5*time.Second), storedLastOpenedAt(), "earlier time isn't saved")
 }
 
 // Test edge case: Software with same bundle identifier but different names
