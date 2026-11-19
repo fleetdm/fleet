@@ -10,6 +10,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import {
   ListEntitiesResponseCommon,
+  MAX_SERVER_PER_PAGE,
   OrderDirection,
   PaginationParams,
 } from "./common";
@@ -215,6 +216,41 @@ export interface IScriptBatchHostResultsResponse
   hosts: IScriptBatchHostResult[];
 }
 
+const getScripts = (
+  params: IListScriptsApiParams
+): Promise<IScriptsResponse> => {
+  const { SCRIPTS } = endpoints;
+  const path = `${SCRIPTS}?${buildQueryStringFromParams(params)}`;
+
+  return sendRequest("GET", path);
+};
+
+/** Fetches every script, page by page, following `meta.has_next_results`.
+ * Use when the caller needs the complete list (e.g. script pickers). */
+const getAllScripts = async (
+  params: Omit<IListScriptsApiParams, "page" | "per_page"> = {}
+): Promise<IScriptsResponse> => {
+  const scripts: IScript[] = [];
+  let page = 0;
+  let response: IScriptsResponse;
+  do {
+    // pages must be fetched sequentially
+    // eslint-disable-next-line no-await-in-loop
+    response = await getScripts({
+      ...params,
+      page,
+      per_page: MAX_SERVER_PER_PAGE,
+    });
+    scripts.push(...(response.scripts ?? []));
+    page += 1;
+  } while (response.meta?.has_next_results);
+
+  return {
+    scripts,
+    meta: { has_next_results: false, has_previous_results: false },
+  };
+};
+
 export default {
   getHostScripts({
     host_id,
@@ -234,12 +270,8 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
-    const { SCRIPTS } = endpoints;
-    const path = `${SCRIPTS}?${buildQueryStringFromParams(params)}`;
-
-    return sendRequest("GET", path);
-  },
+  getScripts,
+  getAllScripts,
 
   getScript(id: number) {
     const { SCRIPT } = endpoints;

@@ -71,11 +71,6 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (): Promise<ILoadAllPoliciesResponse> => {
-    const { GLOBAL_POLICIES } = endpoints;
-
-    return sendRequest("GET", GLOBAL_POLICIES);
-  },
   loadAllNew: ({
     page,
     perPage,

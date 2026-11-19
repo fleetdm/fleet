@@ -72,9 +72,8 @@ import hostsAPI, {
 } from "services/entities/hosts";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import {
+  getOSVersion,
   getOSVersions,
-  IGetOSVersionsQueryKey,
-  IOSVersionsResponse,
 } from "services/entities/operating_systems";
 import policiesAPI from "services/entities/policies";
 import scriptsAPI, {
@@ -659,19 +658,35 @@ const ManageHostsPage = ({
     }
   );
 
+  // Only the one os version matching the current filter is needed (to render
+  // the filter label), so look it up directly rather than listing every os
+  // version (which the server caps at a page).
   const { data: osVersions, isLoading: isLoadingOsVersions } = useQuery<
-    IOSVersionsResponse,
-    Error,
     IOperatingSystemVersion[],
-    IGetOSVersionsQueryKey[]
-  >([{ scope: "os_versions" }], () => getOSVersions(), {
-    enabled:
-      isRouteOk &&
-      (!!queryParams?.os_version_id ||
-        (!!queryParams?.os_name && !!queryParams?.os_version)),
-    keepPreviousData: true,
-    select: (data) => data.os_versions,
-  });
+    Error
+  >(
+    ["os_versions", osVersionId, osName, osVersion],
+    async () => {
+      if (osVersionId) {
+        const { os_version } = await getOSVersion({
+          os_version_id: parseInt(osVersionId, 10),
+        });
+        return os_version ? [os_version] : [];
+      }
+      const response = await getOSVersions({
+        os_name: osName,
+        os_version: osVersion,
+      });
+      return response.os_versions;
+    },
+    {
+      enabled:
+        isRouteOk &&
+        (!!queryParams?.os_version_id ||
+          (!!queryParams?.os_name && !!queryParams?.os_version)),
+      keepPreviousData: true,
+    }
+  );
 
   const {
     data: hostsData,

@@ -98,7 +98,7 @@ export const getOSVersions = ({
   return sendRequest("GET", path);
 };
 
-const getOSVersion = ({
+export const getOSVersion = ({
   os_version_id,
   teamId,
   max_vulnerabilities,

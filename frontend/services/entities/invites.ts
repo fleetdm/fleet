@@ -6,6 +6,7 @@ import {
   IEditInviteFormData,
 } from "interfaces/invite";
 import sendRequest from "services";
+import { fetchAllPages } from "services/entities/common";
 import { toFleetRoles } from "services/entities/users";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
@@ -53,21 +54,23 @@ export default {
   verify: (token: string): Promise<IValidateInviteResponse> => {
     return sendRequest("GET", endpoints.INVITE_VERIFY(token));
   },
-  loadAll: ({ globalFilter = "" }: IInviteSearchOptions) => {
-    const queryParams = {
-      query: globalFilter,
-    };
-
-    const queryString = buildQueryStringFromParams(queryParams);
-    const endpoint = endpoints.INVITES;
-    const path = `${endpoint}?${queryString}`;
-
-    return sendRequest("GET", path).then((response) => {
-      const { invites } = response;
-
-      return invites.map((invite: IInvite) => {
-        return helpers.addGravatarUrlToResource(invite);
+  /** Fetches every invite, page by page — duplicate-invite detection needs
+   * the complete list. */
+  loadAll: async ({ globalFilter = "" }: IInviteSearchOptions) => {
+    const invites = await fetchAllPages<IInvite>(async (page, perPage) => {
+      const queryString = buildQueryStringFromParams({
+        query: globalFilter,
+        page,
+        per_page: perPage,
       });
+      const response = await sendRequest(
+        "GET",
+        `${endpoints.INVITES}?${queryString}`
+      );
+      return response.invites;
     });
+    return invites.map((invite: IInvite) =>
+      helpers.addGravatarUrlToResource(invite)
+    );
   },
 };

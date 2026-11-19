@@ -72,7 +72,9 @@ const ManageQueryAutomationsModal = ({
         mergeInherited: false,
       },
     ],
-    ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
+    // Fetch every page — automation state is PATCHed back from the full
+    // list, so a truncated list would silently disable automations.
+    ({ queryKey }) => queriesAPI.loadAllPages(queryKey[0]),
     {
       refetchOnWindowFocus: false,
     }

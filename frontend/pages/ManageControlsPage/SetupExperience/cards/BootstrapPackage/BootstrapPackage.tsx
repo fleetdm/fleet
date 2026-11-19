@@ -47,10 +47,6 @@ import UploadedPackageView from "./components/UploadedPackageView";
 
 const baseClass = "bootstrap-package";
 
-// This is so large because we want to get all the software titles that are
-// available for install so we can correctly display the selected count.
-const PER_PAGE_SIZE = 3000;
-
 const BootstrapPackage = ({
   currentTeamId,
   router,
@@ -66,11 +62,11 @@ const BootstrapPackage = ({
     ISoftwareTitle[] | null
   >(
     ["install-software", currentTeamId],
+    // fetch all pages so the selected count is correct
     () =>
-      mdmAPI.getSetupExperienceSoftware({
+      mdmAPI.getAllSetupExperienceSoftware({
         platform: "macos",
         fleet_id: currentTeamId,
-        per_page: PER_PAGE_SIZE,
       }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,

@@ -193,11 +193,6 @@ export default {
     const path = `${TEAMS}/${team_id}/policies/${id}`;
     return sendRequest("GET", path);
   },
-  loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
-    const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies`;
-    return sendRequest("GET", path);
-  },
   loadAllNew: async ({
     teamId,
     page,

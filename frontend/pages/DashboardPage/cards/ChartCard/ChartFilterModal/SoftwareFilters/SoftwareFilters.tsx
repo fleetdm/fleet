@@ -14,6 +14,7 @@ import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { CVE_SOFTWARE_CATEGORIES } from "interfaces/charts";
 import { IVulnerability } from "interfaces/vulnerability";
+import { MAX_SERVER_PER_PAGE } from "services/entities/common";
 import {
   getVulnerabilities,
   IVulnerabilitiesResponse,
@@ -102,17 +103,20 @@ const SoftwareFilters = ({
 
   // Search all CVEs (not just the curated set) so a user can exclude anything.
   // Mirrors the host search: keep prior pages cached and grow per_page on scroll.
+  // The server clamps per_page at MAX_SERVER_PER_PAGE, so the list stops
+  // growing there — the search field narrows to anything beyond it.
+  const perPage = Math.min(pageCount * PAGE_SIZE, MAX_SERVER_PER_PAGE);
   const {
     data: vulnData,
     isLoading: isLoadingVulns,
     error: vulnsError,
   } = useQuery<IVulnerabilitiesResponse, Error>(
-    ["chartFilterCVEs", currentTeamId, searchQuery, pageCount],
+    ["chartFilterCVEs", currentTeamId, searchQuery, perPage],
     () =>
       getVulnerabilities({
         teamId: currentTeamId,
         page: 0,
-        per_page: pageCount * PAGE_SIZE,
+        per_page: perPage,
         query: searchQuery || undefined,
       }),
     // The CVE search UI lives entirely inside the Advanced section, so don't
@@ -121,7 +125,9 @@ const SoftwareFilters = ({
   );
 
   const cves: IVulnerability[] = vulnData?.vulnerabilities ?? [];
-  const hasMore = vulnData?.meta?.has_next_results ?? false;
+  const hasMore =
+    (vulnData?.meta?.has_next_results ?? false) &&
+    perPage < MAX_SERVER_PER_PAGE;
 
   const handleScroll = useCallback(() => {
     const el = listRef.current;

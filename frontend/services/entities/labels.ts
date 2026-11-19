@@ -10,6 +10,7 @@ import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
 import { INewLabelFormData } from "pages/labels/NewLabelPage/NewLabelPage";
 import sendRequest from "services";
+import { fetchAllPages } from "services/entities/common";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -141,6 +142,7 @@ export default {
 
     return sendRequest("DELETE", path);
   },
+  /** Fetches every label, page by page — callers expect the complete list. */
   loadAll: async (teamID: number | null = null): Promise<ILabelsResponse> => {
     const { LABELS } = endpoints;
 
@@ -155,12 +157,17 @@ export default {
       queryStringParams.fleet_id = teamID;
     }
 
-    const queryString = buildQueryStringFromParams(queryStringParams);
-    const path = `${LABELS}?${queryString}`;
-
     try {
-      const response = await sendRequest("GET", path);
-      return Promise.resolve({ labels: helpers.formatLabelResponse(response) });
+      const labels = await fetchAllPages<ILabel>(async (page, perPage) => {
+        const queryString = buildQueryStringFromParams({
+          ...queryStringParams,
+          page,
+          per_page: perPage,
+        });
+        const response = await sendRequest("GET", `${LABELS}?${queryString}`);
+        return helpers.formatLabelResponse(response);
+      });
+      return { labels };
     } catch (error) {
       console.error(error);
       return Promise.reject(error);
@@ -210,8 +217,25 @@ export default {
     return sendRequest("GET", LABEL(labelId));
   },
 
-  getHostsInLabel: (labelId: number): Promise<IGetHostsInLabelResponse> => {
+  /** Fetches every host in the label, page by page. Callers (e.g.
+   * EditLabelPage) write the full membership back on save, so a truncated
+   * list would silently drop hosts from the label. */
+  getHostsInLabel: async (
+    labelId: number
+  ): Promise<IGetHostsInLabelResponse> => {
     const { LABEL_HOSTS } = endpoints;
-    return sendRequest("GET", LABEL_HOSTS(labelId));
+    const hosts = await fetchAllPages<IHost>(async (page, perPage) => {
+      const queryString = buildQueryStringFromParams({
+        page,
+        per_page: perPage,
+        order_key: "id",
+      });
+      const response = await sendRequest(
+        "GET",
+        `${LABEL_HOSTS(labelId)}?${queryString}`
+      );
+      return response.hosts;
+    });
+    return { hosts };
   },
 };

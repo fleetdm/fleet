@@ -1,4 +1,5 @@
 import classnames from "classnames";
+import { omit } from "lodash";
 import React, { useCallback, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
@@ -98,8 +99,10 @@ const RunScriptBatchModal = ({
     IListScriptsQueryKey[]
   >(
     [addTeamIdCriteria({ scope: "scripts" }, teamId, isFreeTier)],
+    // Fetch every page — the scripts list endpoint has no count field, so the
+    // total is derived from the full list's length.
     ({ queryKey }) => {
-      return scriptsAPI.getScripts(queryKey[0]);
+      return scriptsAPI.getAllScripts(omit(queryKey[0], "scope"));
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,

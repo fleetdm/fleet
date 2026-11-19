@@ -12,6 +12,7 @@ import {
   ICreateUserWithInvitationFormData,
 } from "interfaces/user";
 import sendRequest from "services";
+import { fetchAllPages } from "services/entities/common";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -139,21 +140,22 @@ export default {
 
     return sendRequest("POST", FORGOT_PASSWORD, { email });
   },
-  loadAll: ({ globalFilter = "", teamId }: IUserSearchOptions = {}) => {
-    const queryParams = {
-      query: globalFilter,
-      fleet_id: teamId,
-    };
-
-    const queryString = buildQueryStringFromParams(queryParams);
-    const endpoint = endpoints.USERS;
-    const path = `${endpoint}?${queryString}`;
-
-    return sendRequest("GET", path).then((response) => {
-      const { users } = response;
-
-      return users.map((u: IUser) => helpers.addGravatarUrlToResource(u));
+  /** Fetches every user, page by page — callers expect the complete list. */
+  loadAll: async ({ globalFilter = "", teamId }: IUserSearchOptions = {}) => {
+    const users = await fetchAllPages<IUser>(async (page, perPage) => {
+      const queryString = buildQueryStringFromParams({
+        query: globalFilter,
+        fleet_id: teamId,
+        page,
+        per_page: perPage,
+      });
+      const response = await sendRequest(
+        "GET",
+        `${endpoints.USERS}?${queryString}`
+      );
+      return response.users;
     });
+    return users.map((u: IUser) => helpers.addGravatarUrlToResource(u));
   },
   me: (): Promise<IGetMeResponse> => {
     // include the user's settings when calling from the UI

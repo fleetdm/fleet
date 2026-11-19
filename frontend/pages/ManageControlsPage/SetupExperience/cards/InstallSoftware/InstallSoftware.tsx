@@ -39,10 +39,6 @@ import InstallSoftwareForm from "./components/InstallSoftwareForm";
 
 const baseClass = "install-software";
 
-// This is so large because we want to get all the software titles that are
-// available for install so we can correctly display the selected count.
-const PER_PAGE_SIZE = 3000;
-
 export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "macos",
   "windows",
@@ -79,11 +75,11 @@ const InstallSoftware = ({
     ISoftwareTitle[] | null
   >(
     ["install-software", currentTeamId, selectedPlatform],
+    // fetch all pages so the selected count is correct
     () =>
-      mdmAPI.getSetupExperienceSoftware({
+      mdmAPI.getAllSetupExperienceSoftware({
         platform: selectedPlatform,
         fleet_id: currentTeamId,
-        per_page: PER_PAGE_SIZE,
       }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,

@@ -16,7 +16,7 @@ import sendRequest, { uploadToStorage } from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import { PaginationParams } from "./common";
+import { MAX_SERVER_PER_PAGE, PaginationParams } from "./common";
 import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
@@ -558,6 +558,39 @@ const mdmService = {
     )}`;
 
     return sendRequest("GET", path);
+  },
+
+  /** Fetches every setup experience software title, page by page, following
+   * `meta.has_next_results`. Use when the caller needs the complete list
+   * (e.g. to count selected titles). */
+  getAllSetupExperienceSoftware: async (
+    params: Omit<IGetSetupExperienceSoftwareParams, keyof PaginationParams>
+  ): Promise<IGetSetupExperienceSoftwareResponse> => {
+    const titles: ISoftwareTitle[] = [];
+    let sawTitles = false;
+    let page = 0;
+    let response: IGetSetupExperienceSoftwareResponse;
+    do {
+      // pages must be fetched sequentially
+      // eslint-disable-next-line no-await-in-loop
+      response = await mdmService.getSetupExperienceSoftware({
+        ...params,
+        page,
+        per_page: MAX_SERVER_PER_PAGE,
+      });
+      if (response.software_titles) {
+        sawTitles = true;
+        titles.push(...response.software_titles);
+      }
+      page += 1;
+    } while (response.meta?.has_next_results);
+
+    return {
+      ...response,
+      // preserve `null` (vs an empty list) — callers treat it as meaningful
+      software_titles: sawTitles ? titles : response.software_titles,
+      meta: { has_next_results: false, has_previous_results: false },
+    };
   },
 
   updateSetupExperienceSoftware: (

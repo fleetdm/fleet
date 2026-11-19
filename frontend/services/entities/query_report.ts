@@ -2,6 +2,7 @@
 
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 import sendRequest from "services";
+import { MAX_SERVER_PER_PAGE } from "services/entities/common";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -28,10 +29,12 @@ interface ILoadQueryReportQueryParams {
   query?: string;
 }
 
-/** Page size used when fetching every result, e.g. for CSV export. */
-const LOAD_ALL_PAGE_SIZE = 5000;
+/** Page size used when fetching every result, e.g. for CSV export. The
+ * server clamps per_page to MAX_SERVER_PER_PAGE, so asking for more would
+ * silently truncate pages. */
+const LOAD_ALL_PAGE_SIZE = MAX_SERVER_PER_PAGE;
 /** Upper bound on pages fetched by loadAll, well above any report cap. */
-const LOAD_ALL_MAX_PAGES = 1000;
+const LOAD_ALL_MAX_PAGES = 5000;
 export const LOAD_ALL_MAX_RESULTS = LOAD_ALL_PAGE_SIZE * LOAD_ALL_MAX_PAGES;
 
 const getSortParams = (sortOptions?: ISortOption[]) => {

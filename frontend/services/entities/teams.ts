@@ -12,12 +12,11 @@ import {
   ITeamWebhookSettings,
 } from "interfaces/team";
 import sendRequest from "services";
+import { fetchAllPages } from "services/entities/common";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 interface ILoadTeamsParams {
-  page?: number;
-  perPage?: number;
   globalFilter?: string;
 }
 
@@ -100,18 +99,23 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: ({
+  /** Fetches every fleet, page by page — callers expect the complete list. */
+  loadAll: async ({
     globalFilter = "",
   }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
-    const queryParams = {
-      query: globalFilter,
-    };
-
-    const queryString = buildQueryStringFromParams(queryParams);
-    const endpoint = endpoints.TEAMS;
-    const path = `${endpoint}?${queryString}`;
-
-    return sendRequest("GET", path);
+    const fleets = await fetchAllPages<ITeamConfig>(async (page, perPage) => {
+      const queryString = buildQueryStringFromParams({
+        query: globalFilter,
+        page,
+        per_page: perPage,
+      });
+      const response = await sendRequest(
+        "GET",
+        `${endpoints.TEAMS}?${queryString}`
+      );
+      return response.fleets;
+    });
+    return { fleets };
   },
   update: (
     {

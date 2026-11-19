@@ -79,8 +79,9 @@ const PolicyRunScriptModal = ({
         fleet_id: teamId,
       },
     ],
+    // Fetch every page so all scripts are selectable in the dropdown.
     ({ queryKey: [queryKey] }) =>
-      scriptsAPI.getScripts(omit(queryKey, "scope")),
+      scriptsAPI.getAllScripts(omit(queryKey, "scope")),
     {
       select: (data) => data.scripts || [],
       ...DEFAULT_USE_QUERY_OPTIONS,

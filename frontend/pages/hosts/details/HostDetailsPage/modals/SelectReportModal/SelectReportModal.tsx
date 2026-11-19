@@ -57,7 +57,8 @@ const SelectReportModal = ({
         mergeInherited: hostTeamId !== API_ALL_TEAMS_ID,
       },
     ],
-    ({ queryKey }) => queryAPI.loadAll(queryKey[0]),
+    // Fetch every page so all saved reports are selectable.
+    ({ queryKey }) => queryAPI.loadAllPages(queryKey[0]),
     {
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,

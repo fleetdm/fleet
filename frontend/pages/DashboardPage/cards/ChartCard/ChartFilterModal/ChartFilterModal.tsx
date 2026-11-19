@@ -22,6 +22,7 @@ import Tag from "components/Tag";
 import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 import { IHost } from "interfaces/host";
 import { ILabelSummary } from "interfaces/label";
+import { MAX_SERVER_PER_PAGE } from "services/entities/common";
 import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 import labelsAPI from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -175,16 +176,19 @@ const ChartFilterModal = ({
   // Note that we use infinite scrolling in the UI, rather than
   // traditional pagination controls, so we keep previously loaded
   // pages in the cache and just increase the page count as the user scrolls.
+  // The server clamps per_page at MAX_SERVER_PER_PAGE, so the list stops
+  // growing there — the search field narrows to anything beyond it.
+  const perPage = Math.min(pageCount * PAGE_SIZE, MAX_SERVER_PER_PAGE);
   const {
     data: hostsData,
     isLoading: isLoadingHosts,
     error: hostsError,
   } = useQuery<ILoadHostsResponse, Error>(
-    ["chartFilterHosts", currentTeamId, searchQuery, pageCount],
+    ["chartFilterHosts", currentTeamId, searchQuery, perPage],
     () =>
       hostsAPI.loadHosts({
         page: 0,
-        perPage: pageCount * PAGE_SIZE,
+        perPage,
         teamId: currentTeamId,
         globalFilter: searchQuery || undefined,
         sortBy: [{ key: "display_name", direction: "asc" }],
@@ -196,7 +200,7 @@ const ChartFilterModal = ({
   );
 
   const hosts = hostsData?.hosts ?? [];
-  const hasMore = hosts.length === pageCount * PAGE_SIZE;
+  const hasMore = hosts.length === perPage && perPage < MAX_SERVER_PER_PAGE;
 
   // This implements "infinite" scrolling by increasing the page count when the user scrolls
   // near the bottom of the list.
