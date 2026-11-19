@@ -162,6 +162,31 @@ Fleet 4 already supports reports with an `interval`, so change them before you u
 
 GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
+### Queries endpoints renamed to reports
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET` and `POST /queries` | [`GET /reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports) and [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) |
+| `GET` and `PATCH /queries/:id` | [`GET /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-report) and [`PATCH /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
+| `DELETE /queries/:name` and `DELETE /queries/id/:id` | [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
+| `POST /queries/delete` | [`POST /reports/delete`](https://fleetdm.com/docs/rest-api/rest-api#delete-reports) |
+| `GET /queries/:id/report` | [`GET /reports/:id/report`](https://fleetdm.com/docs/rest-api/rest-api#get-report-data) |
+| `POST /queries/:id/run` | [`POST /reports/:id/run`](https://fleetdm.com/docs/rest-api/rest-api#run-live-report) |
+| `GET` and `POST /queries/run` | `GET` and [`POST /reports/run`](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-ad-hoc) |
+| `POST /queries/run_by_identifiers`, `POST /queries/run_by_names`, and `POST /reports/run_by_names` | [`POST /reports/run_by_identifiers`](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-by-target-name-ad-hoc) |
+| `GET` and `POST /spec/queries`, and `GET /spec/queries/:name` | `GET` and `POST /spec/reports`, and `GET /spec/reports/:name` |
+| `GET /hosts/:id/queries` and `GET /hosts/:id/queries/:report_id` | `GET /hosts/:id/reports` and [`GET /hosts/:id/reports/:report_id`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-data) |
+
+The old paths return a `410` error that links to this guide.
+
+#### What to do
+
+Fleet 4 already supports the `/reports` endpoints, so change them before you upgrade. To delete reports, follow [Delete report by name removed](#delete-report-by-name-removed) instead, because Fleet 4 doesn't support `DELETE /reports/:id`.
+
+1. Search for the old paths: `grep -rnE '/queries\b|run_by_names' .`
+2. Replace `queries` with `reports` in each path, and `run_by_names` with `run_by_identifiers`. The request and response bodies are the same.
+3. If an API-only user can call `GET /queries/run`, Fleet gives it `GET /reports/run` when you upgrade. For the other endpoints, give your API-only users permission for the new endpoints.
+
 ### Reports can't target built-in labels
 
 | Fleet 4 | Fleet 5 |
@@ -627,16 +652,18 @@ GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `DELETE /reports/:name` | Removed. Use [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). |
-| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). `DELETE /reports/id/:id` still works, but is deprecated. |
+| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). |
 
 `DELETE /reports/:name` returns a `410` error, except when the name is only digits (for example `42`). Then Fleet 5 deletes the report with that ID. This includes `fleetctl delete` from Fleet 4.
 
 #### What to do
 
-Make these changes before you upgrade.
+In Fleet 4, `DELETE /reports/42` deletes the report named `42`, so you can't switch to `DELETE /reports/:id` before you upgrade. Instead:
 
-1. Delete reports with `DELETE /reports/id/:id`, which works in Fleet 4 and Fleet 5. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports. After you upgrade, you can switch to `DELETE /reports/:id`.
-2. If an API-only user can only call "Delete report by name", give it "Delete report by ID" instead. If you don't, Fleet does this when you upgrade.
+1. Before you upgrade, delete reports with `DELETE /reports/id/:id`. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports.
+2. After you upgrade, switch to `DELETE /reports/:id`.
+   - Until you do, `DELETE /reports/id/:id` fails with a `410` error.
+3. If an API-only user can call "Delete report by name" or `DELETE /reports/id/:id`, Fleet gives it "Delete report by ID" (`DELETE /reports/:id`) when you upgrade.
 
 GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
