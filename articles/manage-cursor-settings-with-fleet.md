@@ -7,7 +7,7 @@ It covers Cursor on macOS, Windows, and Linux. It doesn't cover settings you con
 ## Prerequisites
 
 - Cursor 2.0 or later on your hosts
-- A Cursor Teams or Enterprise plan, for the team ID policy and MDM-distributed hooks
+- A Cursor Teams or Enterprise plan, for the team ID policy
 - fleetd 1.59.0 or later, which adds the `ai_tools` table
 - `jq` on your macOS and Linux hosts, for the MCP hook (macOS 15 and later include it at `/usr/bin/jq`)
 - macOS hosts enrolled in Fleet MDM, to deploy the profile
@@ -94,7 +94,7 @@ New-ItemProperty -Path $key -Name 'AllowedTeamId' -PropertyType String -Value '1
 
 ### Linux
 
-Cursor reads policy from `~/.cursor/policy.json` in each user's home directory. Every value is a string or a boolean, so `AllowedExtensions` is a JSON string with escaped quotes, not a JSON object.
+Cursor reads policy from `~/.cursor/policy.json` in each user's home directory. Every value is a string, number, or boolean, so `AllowedExtensions` is a JSON string with escaped quotes, not a JSON object.
 
 > **Warning:** On Linux, the policy file lives in the user's home directory, so users can edit or delete it. Treat it as a default you reapply, not as a lock. On macOS and Windows, users can't change the policy.
 
@@ -119,7 +119,7 @@ for home in /home/*; do
 done
 ```
 
-Cursor applies changes to the Linux policy file when it restarts.
+Cursor watches the Linux policy file and applies changes without a restart. If a change doesn't take effect, restart Cursor.
 
 ## Block MCP servers with an enterprise hook
 
@@ -242,7 +242,7 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 
 ### GitOps
 
-1. Save the profile in `platforms/macos/configuration-profiles/`, where the default fleet file already picks up `.mobileconfig` files.
+1. Save the profile in `platforms/macos/configuration-profiles/`, where the `fleets/workstations.yml` file from `fleetctl new` already picks up `.mobileconfig` files.
 2. Save the scripts in `lib/cursor/` and add them to your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
@@ -303,7 +303,7 @@ Each policy below passes when the host has your settings. A host that fails gets
 
 To do the same in the Fleet UI, go to **Policies**, select your fleet, and select **Add policy** for each query. Then select **Manage automations > Run script**, check each policy, and pick its script.
 
-> **Note:** Changing the allowlist in a hook script changes its hash, so update the hash in the policy at the same time. Hosts then fail the policy and pick up the new hook. The Windows registry policy checks only that each value exists, so when you change a value in `cursor-settings.ps1`, run the script on your Windows hosts with batch execution. Fleet runs the script when a policy newly fails and retries it up to three times. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+> **Note:** Changing the allowlist in a hook script changes its hash, so update the hash in the policy at the same time. Hosts then fail the policy and pick up the new hook. The Windows registry policy checks only that each value exists, so when you change a value in `cursor-settings.ps1`, run the script on your Windows hosts with batch execution. Fleet runs the script when a policy newly fails, and makes up to three attempts if the script fails. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
 ## What your users see
 
@@ -362,7 +362,7 @@ Then review the results on a schedule:
 
 **Every MCP call is blocked, including allowed servers**
 
-On macOS and Linux, check that `jq` is installed. Without it, the hook fails, and `failClosed` blocks the call. Run the hook by hand to see its output: `echo '{"mcp_server_url": "https://mcp.linear.app/sse"}' | "/Library/Application Support/Cursor/hooks/mcp-allowlist.sh"`.
+On macOS and Linux, check that `jq` is installed. Without it, the hook can't read the server URL, so it denies every call. Run the hook by hand to see its output: `echo '{"mcp_server_url": "https://mcp.linear.app/sse"}' | "/Library/Application Support/Cursor/hooks/mcp-allowlist.sh"`.
 
 **A local (stdio) MCP server is blocked**
 
