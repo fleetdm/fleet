@@ -1669,6 +1669,9 @@ func (s *integrationTestSuite) TestHostEndpointsAcceptIdentifiers() {
 		{path: "/api/latest/fleet/hosts/%s/reports", wantStatus: http.StatusOK},
 		{path: "/api/latest/fleet/hosts/%s/reports/" + fmt.Sprint(report.ID), wantStatus: http.StatusOK},
 		{path: "/api/latest/fleet/hosts/%s/scripts", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions/1", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions/1/events", wantStatus: http.StatusPaymentRequired},
 	}
 	identifiers := map[string]string{"serial": target.HardwareSerial, "uuid": target.UUID, "hostname": target.Hostname}
 	for _, endpoint := range endpoints {
