@@ -255,13 +255,9 @@ func androidOperationTerminalState(op *androidmanagement.Operation) (status stri
 		code, message := "UNKNOWN", "AMAPI returned no operation for the command"
 		return string(android.MDMAndroidCommandStatusError), &code, &message
 	}
-	if op.Error != nil {
-		code := googleStatusCode(op.Error.Code)
-		message := op.Error.Message
-		return string(android.MDMAndroidCommandStatusError), &code, &message
-	}
-	// AMAPI can report a failed command (e.g. a RESET_PASSWORD the device rejected) only through the
-	// Command's errorCode, with no Operation-level error.
+	// AMAPI documents the Command's errorCode as more specific than Operation.Error: a rejected
+	// RESET_PASSWORD has errorCode INVALID_VALUE and an Operation error with only the code 3. It can
+	// also report a failure through errorCode alone.
 	var command struct {
 		ErrorCode string `json:"errorCode"`
 	}
@@ -269,6 +265,14 @@ func androidOperationTerminalState(op *androidmanagement.Operation) (status stri
 		command.ErrorCode != "" && command.ErrorCode != "COMMAND_ERROR_CODE_UNSPECIFIED" {
 		code := command.ErrorCode
 		message := "The device couldn't run the command: " + command.ErrorCode
+		if op.Error != nil && op.Error.Message != "" {
+			message = op.Error.Message
+		}
+		return string(android.MDMAndroidCommandStatusError), &code, &message
+	}
+	if op.Error != nil {
+		code := googleStatusCode(op.Error.Code)
+		message := op.Error.Message
 		return string(android.MDMAndroidCommandStatusError), &code, &message
 	}
 	return string(android.MDMAndroidCommandStatusAcknowledged), nil, nil
