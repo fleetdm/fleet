@@ -9,6 +9,5 @@
   "installer_scope": "user",
   "install_script_path": "pkg/file/scripts/install_msi.ps1",
   "uninstall_script_path": "pkg/file/scripts/uninstall_msi.ps1",
-  "default_categories": ["Developer tools"],
-  "frozen": true
+  "default_categories": ["Developer tools"]
 }

@@ -10,6 +10,5 @@
   "installer_scope": "user",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/emclient_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/emclient_uninstall.ps1",
-  "default_categories": ["Communication"],
-  "frozen": true
+  "default_categories": ["Communication"]
 }

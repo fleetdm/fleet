@@ -1,20 +1,19 @@
 {
   "versions": [
     {
-      "version": "11.0.1054",
+      "version": "11.0.1577.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name IN ('eM Client (Updater)', 'eM Client') AND publisher = 'eM Client s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name IN ('eM Client (Updater)', 'eM Client') AND publisher = 'eM Client s.r.o.' AND version_compare(version, '11.0.1054') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name IN ('eM Client (Updater)', 'eM Client') AND publisher = 'eM Client s.r.o.' AND version_compare(version, '11.0.1577.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mailclient.exe');"
       },
-      "installer_url": "https://www.emclient.com/dist/v11.0.1054/setup.msi",
+      "installer_url": "https://cdn-dist.emclient.com/dist/v11.0.1577/setup.msixbundle",
       "install_script_ref": "9d6a3e47",
       "uninstall_script_ref": "5d7b652a",
-      "sha256": "b05eec28554adb72f221e698ab88216bac0cf162e50ef5d1f677f6ba5857626d",
+      "sha256": "e40f6d7ef2d93fe6ff98a2204e5685673e103d838b985b8a7d70c50a554708b4",
       "default_categories": [
         "Communication"
-      ],
-      "upgrade_code": "{D8A1DC6C-8EDA-4135-8E82-6F4EEA116B2F}"
+      ]
     }
   ],
   "refs": {
