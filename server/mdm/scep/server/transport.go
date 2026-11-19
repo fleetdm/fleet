@@ -253,7 +253,7 @@ type errWithInternal interface {
 // newSCEPResponseEncoder returns an encoder that writes a SCEP response back to the SCEP client. The client
 // only gets the error's public message, so the encoder logs the full error, including any internal detail.
 func newSCEPResponseEncoder(logger *slog.Logger) kithttp.EncodeResponseFunc {
-	return func(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	return func(ctx context.Context, w http.ResponseWriter, response any) error {
 		resp := response.(SCEPResponse)
 		if resp.Err != nil {
 			status := http.StatusInternalServerError
