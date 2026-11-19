@@ -19,10 +19,12 @@
 
     // Chrome treats a scrollable region as keyboard-focusable for arrow-key
     // scrolling; without this rule the default browser outline shows instead
-    // of Fleet's ring.
+    // of Fleet's ring. Offset is negative so the outline sits inside the
+    // border; containers like modals clip a positive-offset outline on the
+    // sides flush against them.
     &:focus-visible {
       outline: 1px solid $core-focused-outline;
-      outline-offset: 1px;
+      outline-offset: -1px;
     }
   }
 }
