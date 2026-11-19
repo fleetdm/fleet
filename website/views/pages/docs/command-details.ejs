@@ -31,6 +31,25 @@
                 <pre><code class="hljs xml"><%= thisCommand.command %></code></pre>
             </div>
           </div>
+          <% if(thisCommand.faq && thisCommand.faq.length > 0) { %>
+          <div purpose="faq-section">
+            <h3>FAQ</h3>
+            <div purpose="accordion">
+              <% for(let i = 0; i < thisCommand.faq.length; i++) { %>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="accordion__header-faq-<%= i %>" class="accordion" data-toggle="collapse" data-target="#accordion__body-faq-<%= i %>" aria-controls="accordion__body-faq-<%= i %>" aria-expanded="false">
+                  <%= thisCommand.faq[i].question %>
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <div purpose="accordion-answer" id="accordion__body-faq-<%= i %>" class="collapse" aria-labelledby="accordion__header-faq-<%= i %>">
+                  <%- thisCommand.faq[i].answerHtml %>
+                </div>
+              </div>
+              <% } %>
+              <p purpose="faq-note">Have another question? <a href="/guides/mdm-commands">Read the MDM commands guide</a> or <a href="/contact?talkToUs">talk to an engineer</a>.</p>
+            </div>
+          </div>
+          <% } %>
         </div>
         <div purpose="right-sidebar" class="d-flex flex-column">
           <div purpose="docs-links" class="order-3">
@@ -42,4 +61,17 @@
     </div>
   </div>
 </div>
+<% if(thisCommand.faq && thisCommand.faq.length > 0) { %>
+<script type="application/ld+json">
+<%- JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: thisCommand.faq.map((faqItem)=>({
+    '@type': 'Question',
+    name: faqItem.question,
+    acceptedAnswer: { '@type': 'Answer', text: faqItem.answerText },
+  })),
+}).replace(/</g, '\\u003c') %>
+</script>
+<% } %>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
