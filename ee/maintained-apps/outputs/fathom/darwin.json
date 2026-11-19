@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.14.1",
+      "version": "3.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'video.fathom.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'video.fathom.electron' AND version_compare(bundle_short_version, '3.14.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'video.fathom.electron' AND version_compare(bundle_short_version, '3.15.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'video.fathom.electron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://electron-update.fathom.video/download/file/Fathom-darwin-arm64-3.14.1.dmg",
+      "installer_url": "https://electron-update.fathom.video/download/file/Fathom-darwin-arm64-3.15.0.dmg",
       "install_script_ref": "ef8c291d",
       "uninstall_script_ref": "dad35634",
-      "sha256": "feeb85a2fe40d0d295f3dade19397da4a522e4606b725edb8beae3c09c222a0a",
+      "sha256": "73f8ab87e7fc86a0df477a7c9dca6b1a992292714e3fabcfac2ca78383bc1813",
       "default_categories": [
         "Productivity"
       ]
