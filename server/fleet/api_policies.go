@@ -5,7 +5,7 @@ package fleet
 /////////////////////////////////////////////////////////////////////////////////
 
 type GlobalPolicyRequest struct {
-	QueryID          *uint    `json:"report_id" removedkey:"query_id"`
+	_                struct{} `json:"-" removedkey:"query_id"`
 	Query            string   `json:"query"`
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
@@ -187,16 +187,16 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type TeamPolicyRequest struct {
-	TeamID                uint   `url:"fleet_id"`
-	QueryID               *uint  `json:"report_id" removedkey:"query_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
+	TeamID                uint     `url:"fleet_id"`
+	_                     struct{} `json:"-" removedkey:"query_id"`
+	Query                 string   `json:"query"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Resolution            string   `json:"resolution"`
+	Platform              string   `json:"platform"`
+	Critical              bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint    `json:"software_title_id"`
 	// SoftwareInstallerID optionally selects which package of the title to install on failure.
 	// When omitted, the policy defaults to the title's first-added package. The wire
 	// key is `software_package_id`; the endpointer's renameto layer accepts the
@@ -404,16 +404,16 @@ func (r CountPoliciesResponse) Error() error { return r.Err }
 
 // CreatePolicyRequest creates a policy in any scope: no fleet_id is "All fleets", 0 is "Unassigned".
 type CreatePolicyRequest struct {
-	TeamID                *uint  `json:"fleet_id"`
-	QueryID               *uint  `json:"query_id" renameto:"report_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
+	TeamID                *uint    `json:"fleet_id"`
+	_                     struct{} `json:"-" removedkey:"query_id"`
+	Query                 string   `json:"query"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Resolution            string   `json:"resolution"`
+	Platform              string   `json:"platform"`
+	Critical              bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint    `json:"software_title_id"`
 	// SoftwareInstallerID optionally selects which package of the title to install on failure.
 	// When omitted, the policy defaults to the title's first-added package. The wire
 	// key is `software_package_id`; the endpointer's renameto layer accepts the

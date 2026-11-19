@@ -14,22 +14,14 @@ import (
 )
 
 // PolicyPayload holds data for policy creation.
-//
-// If QueryID is not nil, then Name, Query and Description are ignored
-// (such fields are fetched from the queries table).
 type PolicyPayload struct {
-	// QueryID allows creating a policy from an existing query.
-	//
-	// Using QueryID is the old way of creating policies.
-	// Use Query, Name and Description instead.
-	QueryID *uint
-	// Name is the name of the policy (ignored if QueryID != nil).
+	// Name is the name of the policy.
 	Name string
-	// Query is the policy query (ignored if QueryID != nil).
+	// Query is the policy query.
 	Query string
 	// Critical marks the policy as high impact.
 	Critical bool
-	// Description is the policy description text (ignored if QueryID != nil).
+	// Description is the policy description text.
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
@@ -100,22 +92,14 @@ type PolicyPayload struct {
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
-//
-// If QueryID is not nil, then Name, Query and Description are ignored
-// (such fields are fetched from the queries table).
 type NewTeamPolicyPayload struct {
-	// QueryID allows creating a policy from an existing query.
-	//
-	// Using QueryID is the old way of creating policies.
-	// Use Query, Name and Description instead.
-	QueryID *uint
-	// Name is the name of the policy (ignored if QueryID != nil).
+	// Name is the name of the policy.
 	Name string
-	// Query is the policy query (ignored if QueryID != nil).
+	// Query is the policy query.
 	Query string
 	// Critical marks the policy as high impact.
 	Critical bool
-	// Description is the policy description text (ignored if QueryID != nil).
+	// Description is the policy description text.
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
@@ -167,7 +151,6 @@ type NewTeamPolicyPayload struct {
 var (
 	errPolicyEmptyName                               = errors.New("policy name cannot be empty")
 	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
 	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
 	ErrPolicyConflictingIncludeLabels                = errors.New("policy can include at most one of labels_include_any or labels_include_all")
 	ErrPolicyConflictingExcludeLabels                = errors.New("policy can include at most one of labels_exclude_any or labels_exclude_all")
@@ -230,9 +213,6 @@ func (p PolicyPayload) Verify() error {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
-		if p.QueryID != nil {
-			return errPolicyPatchAndQuerySet
-		}
 		if !emptyString(p.Query) {
 			return errPolicyPatchAndQuerySet
 		}
@@ -248,17 +228,11 @@ func (p PolicyPayload) Verify() error {
 		return nil
 	}
 
-	if p.QueryID != nil {
-		if p.Query != "" {
-			return errPolicyIDAndQuerySet
-		}
-	} else {
-		if err := verifyPolicyName(p.Name); err != nil {
-			return err
-		}
-		if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
-			return err
-		}
+	if err := verifyPolicyName(p.Name); err != nil {
+		return err
+	}
+	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
+		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err

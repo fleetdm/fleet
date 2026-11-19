@@ -32,29 +32,34 @@ func (os OperatingSystem) IsWindows() bool {
 	return strings.ToLower(os.Platform) == "windows"
 }
 
-// archGroupedOSNames are the OS names the OS inventory records as "Arch Linux", so these Arch-based distributions group
-// with it in the OS list and on the dashboard. The value is whether the version is recorded as "rolling" no matter what
-// the host reports: Omarchy reports its own release number (e.g. "4.0.0"), which Arch Linux doesn't have.
-var archGroupedOSNames = map[string]bool{
-	"Arch Linux ARM": false,
-	"CachyOS Linux":  false,
-	"Omarchy":        true,
+const (
+	// ArchLinuxOSName is the OS inventory name of Arch Linux and of the names in archGroupedOSNames.
+	ArchLinuxOSName = "Arch Linux"
+	// ArchLinuxPlatform is the platform the Arch Linux operating system always reports, whichever of its hosts'
+	// platforms (arch, archarm) its inventory rows have.
+	ArchLinuxPlatform = "arch"
+)
+
+// archGroupedOSNames are the OS names the OS inventory records as "Arch Linux", so they group with it in the OS list
+// and on the dashboard.
+var archGroupedOSNames = map[string]struct{}{
+	"Arch Linux ARM": {},
 }
 
-// InventoryOSName returns the name the OS inventory records for an operating system that reports name, and whether its
-// version is recorded as "rolling" instead of the reported one.
-func InventoryOSName(name string) (inventoryName string, forceRollingVersion bool) {
-	if forceRolling, ok := archGroupedOSNames[name]; ok {
-		return "Arch Linux", forceRolling
+// InventoryOSName returns the name the OS inventory records for an operating system that reports name.
+func InventoryOSName(name string) string {
+	if _, ok := archGroupedOSNames[name]; ok {
+		return ArchLinuxOSName
 	}
-	return name, false
+	return name
 }
 
 // HostAPIOS returns the os_name and os_version host API responses carry, from the host's OS inventory row and its stored
 // display string (hosts.os_version). Hosts the inventory groups under "Arch Linux" keep their own reported name and
-// version, which the display string holds as "<name> <version>".
+// version, which the display string holds as "<name> <version>". CachyOS and Omarchy hosts that still have the "Arch
+// Linux" row an earlier Fleet recorded for them read as Arch Linux until they report again, like the OS list counts.
 func HostAPIOS(inventoryName, inventoryVersion, display string) (name, version string) {
-	if inventoryName == "Arch Linux" {
+	if inventoryName == ArchLinuxOSName {
 		for reported := range archGroupedOSNames {
 			if v, ok := strings.CutPrefix(display, reported+" "); ok {
 				return reported, v

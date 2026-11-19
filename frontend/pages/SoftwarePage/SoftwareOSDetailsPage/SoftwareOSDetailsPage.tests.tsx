@@ -31,7 +31,7 @@ describe("SummaryCard", () => {
       />
     );
 
-    expect(screen.getByText("Mac OS X")).toBeInTheDocument();
+    expect(screen.getByText("Mac OS X 10.15.7")).toBeInTheDocument();
     expect(screen.getByText(/123/)).toBeInTheDocument();
     expect(screen.getByText(/Updated 2 days ago/)).toBeInTheDocument();
   });
@@ -58,9 +58,8 @@ describe("VulnerabilitiesCard", () => {
     render(
       <VulnerabilitiesCard
         osVersion={createMockOSVersion({
-          name: "Android 16 (2026-05-01)",
-          name_only: "Android",
-          version: "16 (2026-05-01)",
+          os_name: "Android",
+          os_version: "16 (2026-05-01)",
           platform: "android",
         })}
         isLoading={false}
@@ -78,9 +77,8 @@ describe("VulnerabilitiesCard", () => {
     render(
       <VulnerabilitiesCard
         osVersion={createMockOSVersion({
-          name: "iPadOS 17.6",
-          name_only: "iPadOS",
-          version: "17.5",
+          os_name: "iPadOS",
+          os_version: "17.5",
           platform: "ipados",
         })}
         isLoading={false}
