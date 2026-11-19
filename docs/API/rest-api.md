@@ -17137,7 +17137,7 @@ _Available in Fleet Premium_
 
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names. When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
+| name | string | body | **Required.** The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names and from the reserved names "Unassigned", "All fleets", "No team", and "All teams". When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
 
 #### Example
 
@@ -17155,7 +17155,7 @@ _Available in Fleet Premium_
 
 `Status: 422`
 
-Returned when the name doesn't include at least one letter or number (for example, `🚀` or `---`).
+Returned when the name doesn't include at least one letter or number (for example, `🚀` or `---`), or when it matches a reserved name (for example, `Un-assigned`).
 
 ```json
 {
@@ -17181,7 +17181,7 @@ Returned when the name matches another fleet's name, ignoring letter case, accen
   "errors": [
     {
       "name": "base",
-      "reason": "A fleet named \"Workstations\" already exists. Choose a fleet name distinct from other fleets."
+      "reason": "\"workstations!\" is too similar to the fleet name \"Workstations\". Please try another name."
     }
   ]
 }
@@ -17243,7 +17243,7 @@ _Available in Fleet Premium_
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
-| name                                                    | string  | body | The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names. When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
+| name                                                    | string  | body | The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names and from the reserved names "Unassigned", "All fleets", "No team", and "All teams". When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -17268,7 +17268,7 @@ _Available in Fleet Premium_
 
 `Status: 422`
 
-Returned when the name doesn't include at least one letter or number (for example, `🚀` or `---`).
+Returned when the name doesn't include at least one letter or number (for example, `🚀` or `---`), or when it matches a reserved name (for example, `Un-assigned`).
 
 ```json
 {
@@ -17294,7 +17294,7 @@ Returned when the name matches another fleet's name, ignoring letter case, accen
   "errors": [
     {
       "name": "base",
-      "reason": "A fleet named \"Workstations\" already exists. Choose a fleet name distinct from other fleets."
+      "reason": "\"workstations!\" is too similar to the fleet name \"Workstations\". Please try another name."
     }
   ]
 }
