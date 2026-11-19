@@ -151,7 +151,7 @@ function spark(rows, value, { yMax, yFmt, label }) {
     el.replaceChildren(svg("svg", { width: "100%", height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": summary },
       svg("line", { class: "axis", x1: 0, x2: W, y1: H - P, y2: H - P }),
       svg("path", { d: area, style: "fill:var(--info);fill-opacity:0.12;stroke:none" }),
-      svg("path", { class: "halo", d: line }), svg("path", { class: "series", d: line, style: "stroke:var(--info)" }),
+      svg("path", { class: "series", d: line, style: "stroke:var(--info)" }),
       svg("circle", { class: "marker", cx: x(d1), cy: y(v1), r: 4, style: "fill:var(--info)" })));
   };
   sparks.add(el);

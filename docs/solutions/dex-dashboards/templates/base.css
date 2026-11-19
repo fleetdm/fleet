@@ -102,22 +102,30 @@ b, strong { font-weight: 600; color: var(--ink); }
 .top { display: flex; flex-direction: column; gap: 8px; }
 .top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
 .controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.select-wrap { position: relative; display: inline-flex; min-width: 0; flex: 0 1 auto; }
 .controls .seg-toggle { flex-shrink: 0; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--ink-2); font-size: 12px; }
-/* The native arrow sits against the border whatever the padding, so the chevron is drawn
-   here, 12px in from each side. */
-.select-wrap select {
-  appearance: none; -webkit-appearance: none; min-width: 0; text-overflow: ellipsis; cursor: pointer;
+/* Fleet filter: Fleet's DropdownWrapper control and menu (frontend/components/forms/fields/DropdownWrapper). */
+.dd { position: relative; display: inline-flex; min-width: 0; flex: 0 1 auto; }
+.dd-control {
+  display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 220px; height: 36px; padding: 0 8px;
   font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line-2); border-radius: 4px; padding: 0 36px 0 12px; max-width: 220px; height: 36px;
+  border: 1px solid var(--line); border-radius: 4px; cursor: pointer;
 }
-.select-wrap::after {
-  content: ""; position: absolute; right: 12px; top: 50%; width: 12px; height: 12px; margin-top: -6px; pointer-events: none;
-  background: var(--ink);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+.dd-control:hover { border-color: var(--ui-fleet-black-50); }
+.dd-control:focus-visible, .dd-control[aria-expanded="true"] { outline: none; border-color: var(--ink); }
+.dd-value { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-control svg { flex: none; width: 16px; height: 16px; stroke: var(--ui-fleet-black-75); transition: transform 0.25s ease; }
+.dd-control[aria-expanded="true"] svg { transform: rotate(180deg); }
+.dd-menu {
+  position: absolute; top: calc(100% + 3px); right: 0; z-index: 6; box-sizing: border-box;
+  min-width: 100%; width: max-content; max-width: min(320px, calc(100vw - 32px)); max-height: 305px; overflow-y: auto;
+  margin: 0; padding: 8px; list-style: none; background: var(--panel); border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--line); animation: dd-fade 150ms ease-out;
 }
+@keyframes dd-fade { from { opacity: 0; } to { opacity: 1; } }
+.dd-option { padding: 10px 8px; border-radius: 4px; color: var(--ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-option[aria-selected="true"] { font-weight: 600; background: var(--ui-fleet-black-10); }
+.dd-option.active { background: var(--ui-fleet-black-5); }
 .seg-toggle { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-2); border-radius: 4px; overflow: hidden; background: var(--panel); }
 .seg-toggle button {
   font: 400 14px var(--font-ui); color: var(--ink-2); background: transparent; border: 0; border-left: 1px solid var(--line-2);

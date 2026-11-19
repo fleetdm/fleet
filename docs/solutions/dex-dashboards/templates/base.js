@@ -133,6 +133,86 @@ const store = {
 const PLATFORMS = [["macos", "macOS"], ["windows", "Windows"], ["linux", "Linux"]];
 const platformLabel = (p) => (PLATFORMS.find(([k]) => k === p) || [p, p])[1];
 let FLEET = "";
+// A select-only combobox in the style of Fleet's DropdownWrapper. A native <select> opens the
+// OS menu (on macOS, a pop-up over the control), not a list below it.
+let ddCount = 0;
+function dropdown(label, options, value, onChange) {
+  const id = `dd-${++ddCount}`;
+  let active = Math.max(0, options.findIndex(([v]) => v === value));
+  const text = h("span", { class: "dd-value" }, options[active][1]);
+  const chevron = svg("svg", { viewBox: "0 0 16 16", "aria-hidden": "true" },
+    svg("path", { d: "M12 6l-4 4-4-4", fill: "none", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round" }));
+  const control = h("button", { type: "button", class: "dd-control", role: "combobox", "aria-label": label,
+    "aria-haspopup": "listbox", "aria-expanded": "false", "aria-controls": `${id}-list` }, text, chevron);
+  const items = options.map(([v, t], i) => h("li", { id: `${id}-${i}`, role: "option", class: "dd-option",
+    "aria-selected": v === value ? "true" : "false",
+    onmousemove: () => setActive(i), onmousedown: (e) => e.preventDefault(), onclick: () => choose(i) }, t));
+  const menu = h("ul", { id: `${id}-list`, role: "listbox", class: "dd-menu", "aria-label": label, hidden: true }, items);
+  // Like a native select, size the control to the longest option so it doesn't jump on change.
+  control.style.minWidth = `min(220px, calc(${Math.max(...options.map(([, t]) => [...t].length))}ch + 40px))`;
+  const wrap = h("div", { class: "dd" }, control, menu);
+  const isOpen = () => !menu.hidden;
+  function setActive(i) {
+    active = Math.min(options.length - 1, Math.max(0, i));
+    items.forEach((el, j) => el.classList.toggle("active", j === active));
+    control.setAttribute("aria-activedescendant", items[active].id);
+    const el = items[active];
+    if (el.offsetTop < menu.scrollTop) menu.scrollTop = el.offsetTop - 4;
+    else if (el.offsetTop + el.offsetHeight > menu.scrollTop + menu.clientHeight) menu.scrollTop = el.offsetTop + el.offsetHeight - menu.clientHeight + 4;
+  }
+  function open() {
+    if (isOpen()) return;
+    menu.hidden = false;
+    control.setAttribute("aria-expanded", "true");
+    setActive(options.findIndex(([v]) => v === value));
+    document.addEventListener("mousedown", outside, true);
+  }
+  function close() {
+    if (!isOpen()) return;
+    menu.hidden = true;
+    control.setAttribute("aria-expanded", "false");
+    control.removeAttribute("aria-activedescendant");
+    document.removeEventListener("mousedown", outside, true);
+  }
+  function outside(e) { if (!wrap.contains(e.target)) close(); }
+  function choose(i) {
+    close();
+    control.focus();
+    if (options[i][0] === value) return;
+    value = options[i][0];
+    text.textContent = options[i][1];
+    items.forEach((el, j) => el.setAttribute("aria-selected", j === i ? "true" : "false"));
+    onChange(value);
+  }
+  let typed = "", typedAt = 0;
+  control.addEventListener("click", () => (isOpen() ? close() : open()));
+  control.addEventListener("blur", () => setTimeout(() => { if (!wrap.contains(document.activeElement)) close(); }));
+  control.addEventListener("keydown", (e) => {
+    const k = e.key;
+    if (!isOpen()) {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(k)) { e.preventDefault(); open(); }
+      return;
+    }
+    if (k === "ArrowDown") setActive(active + 1);
+    else if (k === "ArrowUp") setActive(active - 1);
+    else if (k === "Home") setActive(0);
+    else if (k === "End") setActive(options.length - 1);
+    else if (k === "PageDown") setActive(active + 8);
+    else if (k === "PageUp") setActive(active - 8);
+    else if (k === "Enter" || k === " ") choose(active);
+    else if (k === "Escape") close();
+    else if (k === "Tab") { close(); return; }
+    else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      typed = (Date.now() - typedAt < 700 ? typed : "") + k.toLowerCase();
+      typedAt = Date.now();
+      const hit = options.findIndex(([, t]) => t.toLowerCase().startsWith(typed));
+      if (hit >= 0) setActive(hit);
+    } else return;
+    e.preventDefault();
+  });
+  return wrap;
+}
+
 let PLATFORM = "";
 // counts: {macos: n, ...}. unsupported: {linux: "why"} greys a platform out.
 function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
@@ -151,13 +231,13 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
     return why ? tip(btn, why) : btn;
   }));
   drawToggle();
-  const sel = h("select", { id: "fleet-filter", "aria-label": "Filter by fleet", onchange: (e) => {
-    FLEET = e.target.value; store.set("dex-fleet", FLEET); onChange();
-  } }, h("option", { value: "" }, "All fleets"), fleets.map((f) => h("option", { value: f, selected: f === FLEET }, f)));
+  const sel = dropdown("Filter by fleet", [["", "All fleets"], ...fleets.map((f) => [f, f])], FLEET, (v) => {
+    FLEET = v; store.set("dex-fleet", FLEET); onChange();
+  });
   const host = DATA.fleet_url.replace(/^https?:\/\//, "");
   mount("top",
     dashNav(),
-    h("div", { class: "top-row" }, toggle, h("div", { class: "controls" }, h("span", { class: "select-wrap" }, sel), themeToggle())),
+    h("div", { class: "top-row" }, toggle, h("div", { class: "controls" }, sel, themeToggle())),
     h("div", { class: "meta" },
       h("span", {}, `Updated ${fmt.date(DATA.generated_at)}, ${DATA.generated_at.slice(11, 16)} UTC · `, h("a", { href: DATA.fleet_url, target: "_blank", rel: "noopener" }, host))));
 }
