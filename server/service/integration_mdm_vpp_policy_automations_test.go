@@ -250,23 +250,19 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.NoError(t, err)
 
 	mtplr := fleet.ModifyPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1Team1.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1Team1.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: iOSTitleID},
-	}}, http.StatusBadRequest, &mtplr)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1Team1.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: iOSTitleID}}, http.StatusBadRequest, &mtplr)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1Team1.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-	}}, http.StatusOK, &mtplr)
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID}}, http.StatusOK, &mtplr)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy3Team1.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy3Team1.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-	}}, http.StatusOK, &mtplr)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy4Team1.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID}}, http.StatusOK, &mtplr)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy4Team1.ID), fleet.ModifyPolicyRequest{
 		AutomationType: optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationScript},
-		ScriptID:       optjson.Any[uint]{Set: true, Valid: true, Value: savedTmScript.ID},
-	}}, http.StatusOK, &mtplr)
+		ScriptID:       optjson.Any[uint]{Set: true, Valid: true, Value: savedTmScript.ID}}, http.StatusOK, &mtplr)
 
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{
@@ -275,10 +271,9 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps[0].AutomaticInstallPolicies, 2)
 	require.Equal(t, titleResponse.SoftwareTitle.AppStoreApps[0].AutomaticInstallPolicies[0].ID, policy1Team1.ID)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy2Team1.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy2Team1.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-	}}, http.StatusOK, &mtplr)
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID}}, http.StatusOK, &mtplr)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{
 		TeamID: &team.ID,
 	}, http.StatusOK, &titleResponse)
@@ -888,10 +883,9 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.NoError(t, err)
 
 	mtplr := fleet.ModifyPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
-	}}, http.StatusOK, &mtplr)
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID}}, http.StatusOK, &mtplr)
 
 	// Send back a failed result for the policy.
 	distributedResp := submitDistributedQueryResultsResponse{}
@@ -1112,10 +1106,9 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 
 	attach := func(policyID, titleID uint) {
 		var mtplr fleet.ModifyPolicyResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), fleet.ModifyPolicyRequest{
 			AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-		}}, http.StatusOK, &mtplr)
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID}}, http.StatusOK, &mtplr)
 	}
 	attach(continuousPolicy.ID, continuousTitleID)
 	attach(transitionPolicy.ID, transitionTitleID)
@@ -1338,10 +1331,9 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 	require.NoError(t, err)
 
 	var mtplr fleet.ModifyPolicyResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppTitleID},
-	}}, http.StatusOK, &mtplr)
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppTitleID}}, http.StatusOK, &mtplr)
 
 	submitPolicyResult := func(passes bool) {
 		var distributedResp submitDistributedQueryResultsResponse
@@ -1504,10 +1496,9 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	})
 	require.NoError(t, err)
 	var modifyResp fleet.ModifyPolicyResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-	}}, http.StatusOK, &modifyResp)
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID}}, http.StatusOK, &modifyResp)
 
 	// apply the app config with the token on fleet A, the automation on fleet A should be kept
 	var acResp appConfigResponse
@@ -1588,10 +1579,9 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	})
 	require.NoError(t, err)
 	modifyResp = fleet.ModifyPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyFleetB.ID), fleet.ModifyPolicyRequest{ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyFleetB.ID), fleet.ModifyPolicyRequest{
 		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-	}}, http.StatusOK, &modifyResp)
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID}}, http.StatusOK, &modifyResp)
 
 	// apply the app config with the token on no fleets, the app and the automation on fleet B should be removed
 	acResp = appConfigResponse{}

@@ -1868,10 +1868,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamPoliciesProprietaryInvalid() {
 
 			if tc.testUpdate {
 				tpReq := fleet.ModifyPolicyRequest{
-					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  new(tc.name),
-						Query: new(tc.query),
-					},
+					Name:  new(tc.name),
+					Query: new(tc.query),
 				}
 				tpResp := fleet.ModifyPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicyID), tpReq, http.StatusBadRequest, &tpResp)
@@ -1889,10 +1887,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamPoliciesProprietaryInvalid() {
 
 			if tc.testUpdate {
 				gpReq := fleet.ModifyPolicyRequest{
-					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  new(tc.name),
-						Query: new(tc.query),
-					},
+					Name:  new(tc.name),
+					Query: new(tc.query),
 				}
 				gpResp := fleet.ModifyPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), gpReq, http.StatusBadRequest, &gpResp)

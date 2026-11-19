@@ -401,7 +401,7 @@ func (svc *Service) ModifyPolicy(ctx context.Context, id uint, p fleet.ModifyPol
 		return nil, err
 	}
 	if !p.AutomationType.Set {
-		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: policy.TeamID}}, fleet.ActionWrite); err != nil {
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: policy.TeamID}, fleet.ActionWrite); err != nil {
 			return nil, err
 		}
 		if err := checkUpdateCompanions(policy, p); err != nil {

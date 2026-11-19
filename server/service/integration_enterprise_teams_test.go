@@ -2676,7 +2676,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		}
 		for _, id := range ids {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", id), fleet.ModifyPolicyRequest{
-				ModifyPolicyPayload: fleet.ModifyPolicyPayload{AutomationType: automation},
+				AutomationType: automation,
 			}, http.StatusOK, &fleet.ModifyPolicyResponse{})
 		}
 	}

@@ -1484,18 +1484,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 	mtplr := fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1Team1.ID), fleet.ModifyPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// Associate ruby.deb in team2 to policy2Team2.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy2Team2.ID), fleet.ModifyPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// Get rid of all installers in team1.

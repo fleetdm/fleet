@@ -8,7 +8,7 @@ import (
 )
 
 func TestPolicyResponsesOmitAutomationBooleans(t *testing.T) {
-	policy := &Policy{PolicyData: PolicyData{ID: 1, Name: "p", CalendarEventsEnabled: true}}
+	policy := &Policy{ID: 1, Name: "p", CalendarEventsEnabled: true}
 
 	for name, resp := range map[string]any{
 		"get":    GetPolicyByIDResponse{Policy: policy},
