@@ -387,7 +387,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// when inventory reports less than the installer version, which would stick
 		// on up-to-date hosts. The patched query compares the core receipt instead,
 		// which changes every release. Both come from the installer itself.
-		versions, err := external_refs.MunkiPackageVersions(out.InstallerURL)
+		versions, err := external_refs.MunkiPackageVersions(ctx, out.InstallerURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading Munki versions from installer")
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"compress/zlib"
+	"context"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
@@ -84,9 +85,9 @@ type MunkiVersions struct {
 // installer at installerURL, via small HTTP range requests against the pkg's xar
 // structure (header, table of contents, and the Distribution file) rather than
 // downloading the ~20MB installer.
-func MunkiPackageVersions(installerURL string) (MunkiVersions, error) {
+func MunkiPackageVersions(ctx context.Context, installerURL string) (MunkiVersions, error) {
 	return munkiPackageVersions(func(start, end int64) ([]byte, error) {
-		return rangeGet(installerURL, start, end)
+		return rangeGet(ctx, installerURL, start, end)
 	})
 }
 
@@ -175,8 +176,8 @@ var munkiRangeClient = fleethttp.NewClient(
 	fleethttp.WithMaxResponseSize(10<<20),
 )
 
-func rangeGet(url string, start, end int64) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func rangeGet(ctx context.Context, url string, start, end int64) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

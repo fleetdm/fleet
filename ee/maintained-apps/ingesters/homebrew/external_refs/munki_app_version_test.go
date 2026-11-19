@@ -104,7 +104,7 @@ func TestMunkiPackageVersions(t *testing.T) {
 
 		url := serveRangedPkg(t, buildFlatPkgWithDistribution(t, distributionXML))
 
-		got, err := MunkiPackageVersions(url)
+		got, err := MunkiPackageVersions(t.Context(), url)
 		require.NoError(t, err)
 		require.Equal(t, MunkiVersions{Core: "7.4.1.5894", App: "7.4.0.5891"}, got)
 	})
@@ -124,7 +124,7 @@ func TestMunkiPackageVersions(t *testing.T) {
 
 		url := serveRangedPkg(t, buildFlatPkgWithDistribution(t, distributionXML))
 
-		got, err := MunkiPackageVersions(url)
+		got, err := MunkiPackageVersions(t.Context(), url)
 		require.NoError(t, err)
 		require.Equal(t, MunkiVersions{Core: "7.4.2.5903", App: "7.4.2.5904"}, got)
 	})
@@ -143,7 +143,7 @@ func TestMunkiPackageVersions(t *testing.T) {
 
 		url := serveRangedPkg(t, buildFlatPkgWithDistribution(t, distributionXML))
 
-		got, err := MunkiPackageVersions(url)
+		got, err := MunkiPackageVersions(t.Context(), url)
 		require.NoError(t, err)
 		require.Equal(t, MunkiVersions{Core: "7.4.1.5894", App: "5891"}, got)
 	})
@@ -161,7 +161,7 @@ func TestMunkiPackageVersions(t *testing.T) {
 
 		url := serveRangedPkg(t, buildFlatPkgWithDistribution(t, distributionXML))
 
-		_, err := MunkiPackageVersions(url)
+		_, err := MunkiPackageVersions(t.Context(), url)
 		require.ErrorContains(t, err, "com.googlecode.munki.core")
 	})
 
@@ -179,7 +179,7 @@ func TestMunkiPackageVersions(t *testing.T) {
 
 		url := serveRangedPkg(t, buildFlatPkgWithDistribution(t, distributionXML))
 
-		_, err := MunkiPackageVersions(url)
+		_, err := MunkiPackageVersions(t.Context(), url)
 		require.ErrorContains(t, err, "com.googlecode.munki.ManagedSoftwareCenter")
 	})
 
@@ -193,7 +193,7 @@ func TestMunkiPackageVersions(t *testing.T) {
 
 		url := serveRangedPkg(t, slices.Concat(header, tocCompressed))
 
-		_, err := MunkiPackageVersions(url)
+		_, err := MunkiPackageVersions(t.Context(), url)
 		require.Error(t, err)
 	})
 }
