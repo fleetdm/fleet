@@ -6,7 +6,7 @@
 
 * Added the `sshd_config` table on macOS and Linux to report the OpenSSH server's effective configuration (`sshd -G`), including `Match` block evaluation for a given connection.
 
-* On Windows, fleetd now reports the device's Autopilot device ID when it enrolls, so Fleet can match the device to its pending Autopilot host without relying on the hardware serial.
+* On Windows, added reporting of the device's Autopilot device ID at enrollment, so Fleet can match the device to its pending Autopilot host without relying on the hardware serial.
 
 * When Fleet enables osquery config notifications over the WebSocket transport, fleetd serves osquery its config: it fetches the config from Fleet as soon as Fleet notifies it of a change, and at the interval Fleet sets (10 minutes by default) instead of every minute. Hosts whose `command_line_flags` set `config_plugin` to a plugin other than `tls` keep using that plugin.
 
