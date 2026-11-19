@@ -598,7 +598,7 @@ To create a mailto link... oh wait, I'm not going to tell you.
 Headings and titles should:
 - Give an accurate idea of a topic's content.
 - Help guide readers through your writing so they can quickly find what they need.
-- [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
+- [Make good permalinks](https://fleetdm.com/handbook/company/writing#links-and-anchors).
 
 Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
 
