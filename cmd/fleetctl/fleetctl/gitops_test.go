@@ -525,7 +525,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	var storedCAs fleet.GroupedCertificateAuthorities
 	muStoredCAs := sync.Mutex{}
 
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) ([]uint, error) {
 		muStoredCAs.Lock()
 		defer muStoredCAs.Unlock()
 		if len(ops.Delete) > 0 {
@@ -537,7 +537,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		if len(upserts) > 0 {
 			g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			// Merge into stored state per CA type, like a real DB upsert.
 			if g.NDESSCEP != nil {
@@ -556,7 +556,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 				storedCAs.GoogleCAS = g.GoogleCAS
 			}
 		}
-		return nil
+		return nil, nil
 	}
 
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
