@@ -2652,13 +2652,18 @@ This activity contains a `domain` field with the Google Workspace primary domain
 
 Generated when an existing Google Workspace integration is edited.
 
-This activity contains a `domain` field with the Google Workspace primary domain.
+This activity contains the following fields:
+- "domain": The Google Workspace primary domain.
+- "added_domains": Domains added to the integration by this edit. Omitted when none were added.
+- "removed_domains": Domains removed from the integration by this edit. Omitted when none were removed.
 
 #### Example
 
 ```json
 {
-  "domain": "example.com"
+  "domain": "example.com",
+  "added_domains": ["example.org"],
+  "removed_domains": ["example.net"]
 }
 ```
 

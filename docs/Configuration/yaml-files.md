@@ -1221,6 +1221,8 @@ org_settings:
     google_workspace:
       - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
         domain: fleetdm.com
+        additional_domains:
+          - fleetdm.org
         impersonated_user_email: admin@example.com
     jira:
       - url: https://example.atlassian.net
@@ -1268,6 +1270,7 @@ Connecting Google Workspace populates identity provider (IdP) host vitals direct
 
 - `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key. The service account must have domain-wide delegation enabled (default: `""`).
 - `domain` is your Google Workspace primary domain (default: `""`).
+- `additional_domains` is a list of other domains in the same Google Workspace account (secondary domains) whose users and groups are also synced. Fleet only syncs users whose primary email address is in `domain` or one of these domains, and groups whose email address is, so list every domain your users and groups belong to (default: `[]`).
 - `impersonated_user_email` is a Google Workspace admin the service account impersonates via domain-wide delegation (default: `""`).
 
 Can be configured for "All fleets" (`org_settings`).

@@ -2830,6 +2830,7 @@ _Available in Fleet Premium._
 | Name                    | Type   | Description   |
 | ----------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | domain                  | string | Your Google Workspace primary domain whose directory is synced.                                                              |
+| additional_domains      | array  | Other domains in the same Google Workspace account (secondary domains) whose users and groups are also synced.               |
 | impersonated_user_email | string | A Google Workspace admin the service account impersonates via domain-wide delegation.                                        |
 | api_key_json            | object | The service account JSON key (with domain-wide delegation enabled) used to authenticate to the Google Workspace directory.   |
 
