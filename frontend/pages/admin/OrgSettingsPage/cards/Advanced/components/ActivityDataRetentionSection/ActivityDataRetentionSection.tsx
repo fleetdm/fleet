@@ -19,6 +19,7 @@ const ActivityDataRetentionSection = ({
 
   const {
     disableQueryReports,
+    disableAISessions,
     deleteActivities,
     activityExpiryWindow,
     preserveHostActivitiesOnReenrollment,
@@ -149,6 +150,37 @@ const ActivityDataRetentionSection = ({
           </Checkbox>
         )}
       />
+      {isPremiumTier && (
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={() =>
+                onInputChange({
+                  name: "disableAISessions",
+                  value: !disableAISessions,
+                })
+              }
+              name="disableAISessions"
+              value={!disableAISessions}
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When disabled, Fleet stops collecting host AI session data.
+                    <br />
+                    <i>
+                      (Default: <strong>On</strong>)
+                    </i>
+                  </>
+                )
+              }
+            >
+              Store host AI sessions
+            </Checkbox>
+          )}
+        />
+      )}
       <GitOpsModeTooltipWrapper
         position="left"
         renderChildren={(disableChildren) => (

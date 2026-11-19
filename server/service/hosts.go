@@ -21,6 +21,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -3917,10 +3918,14 @@ func (svc *Service) OSVersions(
 
 	if platform != nil {
 		switch *platform {
-		case "darwin", "windows", "linux", "chrome", "ios", "ipados", "android":
+		case "darwin", "windows", "chrome", "ios", "ipados", "android":
 			// valid platform
 		default:
-			return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", or "android".`)
+			// "linux" matches every Linux operating system, and a Linux distribution's platform (e.g.
+			// "ubuntu") only its own.
+			if !fleet.IsLinux(*platform) {
+				return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", "android", or a Linux distribution's platform (e.g. "ubuntu").`)
+			}
 		}
 	}
 
@@ -3932,7 +3937,12 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
-	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" && opts.OrderKey != "version" {
+	if opts.OrderKey == "version" {
+		if entry, ok := removednames.Find(removednames.KindSortKey, "order_key=version", ""); ok {
+			return nil, count, nil, fleet.NewInvalidArgumentError("order_key", entry.Message())
+		}
+	}
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" && opts.OrderKey != "os_version" {
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
@@ -3979,7 +3989,7 @@ func (svc *Service) OSVersions(
 
 	// Sort by version or hosts_count (default: hosts_count desc, to match previous behavior)
 	switch opts.OrderKey {
-	case "version":
+	case "os_version":
 		// Comparing versions across different platforms isn't meaningful
 		// (e.g. macOS "26.6" vs. Windows "22H1" don't share a version
 		// scheme), so group by platform first — the platform with the most

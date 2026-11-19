@@ -1265,12 +1265,12 @@ kill() {
 	})
 }
 
-// TestAffinityInstallRelaunchesByPath runs the Affinity install script with
-// osascript and open stubbed out. Opening Affinity by bundle ID right after
-// it's replaced fails, so the script opens the new copy by path, retries every
-// 10 seconds for up to 2 minutes, and logs open's error. A relaunch that keeps
-// failing doesn't fail the install.
-func TestAffinityInstallRelaunchesByPath(t *testing.T) {
+// TestInstallScriptsRelaunchByPath runs the Affinity and Rider install scripts
+// with osascript and open stubbed out. Opening these apps by bundle ID right
+// after they're replaced fails, so the scripts open the new copy by path, retry
+// every 10 seconds for up to 2 minutes, and log open's error. A relaunch that
+// keeps failing doesn't fail the install.
+func TestInstallScriptsRelaunchByPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
 	}
@@ -1281,21 +1281,29 @@ func TestAffinityInstallRelaunchesByPath(t *testing.T) {
 	if err != nil {
 		t.Skip("bash not found")
 	}
-	b, err := os.ReadFile("../../inputs/homebrew/scripts/affinity-install.sh")
-	require.NoError(t, err)
 
-	// open fails its first openFailures calls. running is whether Affinity is
-	// open before the install; it quits on the first quit event.
-	run := func(t *testing.T, running bool, openFailures int) (string, []string) {
-		dir := t.TempDir()
-		openFile := filepath.Join(dir, "opened")
-		stubs := `running=` + strconv.FormatBool(running) + `
+	for _, tc := range []struct{ script, bundleID, appPath string }{
+		{"affinity-install.sh", "com.canva.affinity", "/Applications/Affinity.app"},
+		{"rider-install.sh", "com.jetbrains.rider", "/Applications/Rider.app"},
+	} {
+		t.Run(tc.script, func(t *testing.T) {
+			b, err := os.ReadFile("../../inputs/homebrew/scripts/" + tc.script)
+			require.NoError(t, err)
+
+			// open fails its first openFailures calls. running is whether the app
+			// is open before the install; it quits on the first quit event.
+			run := func(t *testing.T, running bool, openFailures int) (string, []string) {
+				dir := t.TempDir()
+				openFile := filepath.Join(dir, "opened")
+				stubs := `running=` + strconv.FormatBool(running) + `
 open_failures=` + strconv.Itoa(openFailures) + `
 opened=` + shellSingleQuote(openFile) + `
 quits=` + shellSingleQuote(filepath.Join(dir, "quits")) + `
 stat() { echo alice; }
 realpath() { echo /tmp/fleet-test/installer; }
 ditto() { :; }
+mktemp() { echo /tmp/fleet-test/mount; }
+hdiutil() { :; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 ps() { :; }
@@ -1313,44 +1321,47 @@ osascript() {
   esac
 }
 `
-		out, err := exec.Command(bash, "-c", stubs+string(b)).CombinedOutput()
-		require.NoError(t, err, string(out))
-		opened, err := os.ReadFile(openFile)
-		if !os.IsNotExist(err) {
-			require.NoError(t, err)
-		}
-		return string(out), strings.Fields(string(opened))
+				out, err := exec.Command(bash, "-c", stubs+string(b)).CombinedOutput()
+				require.NoError(t, err, string(out))
+				opened, err := os.ReadFile(openFile)
+				if !os.IsNotExist(err) {
+					require.NoError(t, err)
+				}
+				return string(out), strings.Fields(string(opened))
+			}
+			success := "Application '" + tc.bundleID + "' relaunched successfully."
+			failure := "Failed to relaunch application '" + tc.bundleID + "'."
+			attempt := func(n int) string {
+				return "Attempt " + strconv.Itoa(n) + " to relaunch application '" + tc.bundleID + "' failed"
+			}
+
+			out, opened := run(t, false, 0)
+			require.Contains(t, out, "sudo cp -R")
+			require.NotContains(t, out, "Relaunching application")
+			require.Empty(t, opened)
+
+			out, opened = run(t, true, 0)
+			require.Contains(t, out, "Application '"+tc.bundleID+"' quit successfully.")
+			require.Less(t, strings.Index(out, "sudo cp -R /tmp/fleet-test/"), strings.Index(out, success))
+			require.Equal(t, []string{tc.appPath}, opened)
+
+			out, opened = run(t, true, 2)
+			require.Contains(t, out, attempt(1)+" (exit 1): LSOpenURLsWithRole() failed with error -10810.")
+			require.Contains(t, out, attempt(2))
+			require.Contains(t, out, success)
+			require.NotContains(t, out, failure)
+			require.Equal(t, []string{tc.appPath, tc.appPath, tc.appPath}, opened)
+
+			// sleep advances SECONDS, so the last attempt starts at the 120-second
+			// deadline: 13 attempts in all.
+			out, opened = run(t, true, 100)
+			require.Contains(t, out, attempt(13))
+			require.NotContains(t, out, attempt(14))
+			require.Contains(t, out, failure)
+			require.NotContains(t, out, success)
+			require.Len(t, opened, 13)
+		})
 	}
-	const (
-		appPath = "/Applications/Affinity.app"
-		success = "Application 'com.canva.affinity' relaunched successfully."
-		failure = "Failed to relaunch application 'com.canva.affinity'."
-	)
-
-	out, opened := run(t, false, 0)
-	require.Contains(t, out, "sudo cp -R")
-	require.NotContains(t, out, "Relaunching application")
-	require.Empty(t, opened)
-
-	out, opened = run(t, true, 0)
-	require.Contains(t, out, "Application 'com.canva.affinity' quit successfully.")
-	require.Less(t, strings.Index(out, "sudo cp -R"), strings.Index(out, success))
-	require.Equal(t, []string{appPath}, opened)
-
-	out, opened = run(t, true, 2)
-	require.Contains(t, out, "Attempt 1 to relaunch application 'com.canva.affinity' failed (exit 1): LSOpenURLsWithRole() failed with error -10810.")
-	require.Contains(t, out, "Attempt 2 to relaunch application 'com.canva.affinity' failed")
-	require.Contains(t, out, success)
-	require.NotContains(t, out, failure)
-	require.Equal(t, []string{appPath, appPath, appPath}, opened)
-
-	// sleep advances SECONDS, so the last attempt starts at the 120-second
-	// deadline: 13 attempts in all.
-	out, opened = run(t, true, 100)
-	require.Contains(t, out, "Attempt 13 to relaunch application 'com.canva.affinity' failed")
-	require.Contains(t, out, failure)
-	require.NotContains(t, out, success)
-	require.Len(t, opened, 13)
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {

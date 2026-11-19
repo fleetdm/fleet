@@ -2061,24 +2061,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		// Filter policy results for webhooks using pre-computed flipping sets.
-		var policyIDs []uint
-		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
-			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-		}
-
-		teamID := uint(0)
-		if host.TeamID != nil {
-			teamID = *host.TeamID
-		}
-		team, err := svc.ds.TeamLite(ctx, teamID)
-		if err != nil {
-			logging.WithErr(ctx, err)
-		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-			policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-		}
-
-		filteredResults := filterPolicyResults(policyResults, policyIDs)
+		filteredResults := svc.webhookAndTicketPolicyResults(ctx, ac, policyResults, newFailing, newPassing)
 		if len(filteredResults) > 0 {
 			// Filter the pre-computed flipping results to only webhook-enabled policies.
 			webhookFailing := filterByPolicyIDs(newFailing, filteredResults)
@@ -2833,18 +2816,45 @@ func (svc *Service) unsetUUIDOwnedByAnotherMDMHost(ctx context.Context, host *fl
 	}
 }
 
-// filterPolicyResults filters out policies that aren't configured for webhook automation.
-func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[uint]*bool {
-	wp := make(map[uint]struct{})
-	for _, policyID := range webhookPolicies {
-		wp[policyID] = struct{}{}
+// webhookAndTicketPolicyResults returns the results of the flipped policies that have the webhook or ticket
+// automation on and whose scope has a destination turned on. Only flipped policies can trigger it, so most
+// check-ins skip the lookup.
+func (svc *Service) webhookAndTicketPolicyResults(ctx context.Context, ac *fleet.AppConfig,
+	results map[uint]*bool, newFailing, newPassing []uint,
+) map[uint]*bool {
+	flipped := append(append(make([]uint, 0, len(newFailing)+len(newPassing)), newFailing...), newPassing...)
+	if len(flipped) == 0 {
+		return nil
 	}
-	filtered := make(map[uint]*bool)
-	for policyID, passes := range incoming {
-		if _, ok := wp[policyID]; !ok {
-			continue
+	policies, err := svc.ds.FilterWebhooksAndTicketsPolicies(ctx, flipped)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		return nil
+	}
+
+	var teamChecked, teamEnabled bool
+	filtered := make(map[uint]*bool, len(policies))
+	for _, p := range policies {
+		if p.TeamID == nil {
+			if !globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
+				continue
+			}
+		} else {
+			// A host only reports global policies and policies of its own fleet, so there's one fleet to load.
+			if !teamChecked {
+				teamChecked = true
+				team, err := svc.ds.TeamLite(ctx, *p.TeamID)
+				if err != nil {
+					logging.WithErr(ctx, err)
+				} else {
+					teamEnabled = teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations)
+				}
+			}
+			if !teamEnabled {
+				continue
+			}
 		}
-		filtered[policyID] = passes
+		filtered[p.ID] = results[p.ID]
 	}
 	return filtered
 }
