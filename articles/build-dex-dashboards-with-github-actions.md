@@ -79,7 +79,7 @@ An [environment](https://docs.github.com/en/actions/managing-workflow-runs-and-d
 5. Optional: add any of these environment variables. Each one works the same as in the Claude guide.
    - `DEX_WARRANTY_VITAL`: the custom host vital that holds warranty end dates. The default is `AppleCare warranty expiration`.
    - `DEX_GRID_INTENSITY`: grams of CO2 per kWh, for computers with no GeoIP country.
-   - `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents.
+   - `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents. Without it, AI governance uses your identity provider's email domains, leaving out personal email providers such as gmail.com.
    - `DEX_WORKERS`: how many requests go to Fleet at once. The default is 8. Lower it if your Fleet server is busy during runs.
 
 > **Note:** Don't add required reviewers to this environment. Every scheduled run would wait for someone to approve it.

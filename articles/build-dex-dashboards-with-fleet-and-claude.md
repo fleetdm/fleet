@@ -138,7 +138,7 @@ FLEET_API_TOKEN=<api-only-user-token>
 
 3. Optional: if your warranty dates are in a custom host vital with another name, add `DEX_WARRANTY_VITAL=<vital name>`. The default is `AppleCare warranty expiration`.
 4. Optional: to estimate carbon for computers with no GeoIP country, add `DEX_GRID_INTENSITY=<grams of CO2 per kWh>`. Without it, Sustainability uses the figure for your most common country.
-5. Optional: to set which email domains count as company sign-ins for coding agents, add `DEX_COMPANY_DOMAINS=<domain>,<domain>`. Without it, AI governance uses the domains of the end users Fleet has from your identity provider.
+5. Optional: to set which email domains count as company sign-ins for coding agents, add `DEX_COMPANY_DOMAINS=<domain>,<domain>`. Without it, AI governance uses the domains of the end users Fleet has from your identity provider, leaving out personal email providers such as gmail.com.
 
 > **Warning:** Anyone who can use an environment can read its environment variables. Keep this environment to yourself.
 

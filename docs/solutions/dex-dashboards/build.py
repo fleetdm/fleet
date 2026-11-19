@@ -1134,6 +1134,15 @@ AI_SESSION_AGENTS = {
 }
 AI_CLOUD_SIGNINS = {"bedrock", "vertex", "vertex-ai", "foundry", "anthropic_aws", "anthropic_google_cloud",
                     "bedrock_mantle", "amazon-bedrock", "azure"}
+# Identity providers can hold contractors or test users with personal addresses, so these
+# never count as company domains unless DEX_COMPANY_DOMAINS names them.
+PERSONAL_EMAIL_DOMAINS = {
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com", "yahoo.com", "ymail.com",
+    "rocketmail.com", "icloud.com", "me.com", "mac.com", "aol.com", "proton.me", "protonmail.com", "pm.me",
+    "gmx.com", "gmx.net", "gmx.de", "web.de", "mail.com", "zoho.com", "yandex.com", "yandex.ru", "fastmail.com",
+    "hey.com", "tutanota.com", "qq.com", "163.com", "126.com", "naver.com", "hotmail.co.uk", "yahoo.co.uk",
+    "outlook.de", "hotmail.de", "hotmail.fr", "yahoo.fr", "orange.fr", "free.fr", "libero.it", "yahoo.co.jp",
+}
 AI_MODEL_VENDORS = [
     (re.compile(r"claude"), "Anthropic"), (re.compile(r"gpt|o\d|codex|chatgpt"), "OpenAI"),
     (re.compile(r"gemini|gemma"), "Google"), (re.compile(r"grok"), "xAI"), (re.compile(r"llama"), "Meta"),
@@ -1192,13 +1201,16 @@ def ai_signin(account, company):
 
 
 def ai_company_domains(snap):
-    """Email domains that count as company sign-ins: DEX_COMPANY_DOMAINS, or else the
-    domains of the end users Fleet has from the identity provider."""
+    """Email domains that count as company sign-ins, where they came from, and the identity
+    provider domains left out as personal: DEX_COMPANY_DOMAINS, or else the domains of the
+    end users Fleet has from the identity provider, minus personal email providers."""
     env = [d.strip().lower().lstrip("@") for d in os.environ.get("DEX_COMPANY_DOMAINS", "").split(",") if d.strip()]
     if env:
-        return set(env), "setting"
+        return set(env), "setting", set()
     found = {d for det in (snap.get("host_details") or {}).values() for d in det.get("idp_domains") or []}
-    return found, "idp" if found else ""
+    skipped = found & PERSONAL_EMAIL_DOMAINS
+    found -= skipped
+    return found, "idp" if found else "", skipped
 
 
 def ai_usage(snap):
@@ -1362,7 +1374,7 @@ def build_ai(snap, hist):
     # window (last 7, 7 to 14, 14 to 30 days); the trend gets totals per day.
     usage = ai_usage(snap)
     usage_info = (snap.get("report_info") or {}).get("ai_usage") or {}
-    company, company_source = ai_company_domains(snap)
+    company, company_source, company_skipped = ai_company_domains(snap)
     details = snap.get("host_details") or {}
     first_day = today - dt.timedelta(days=AI_USAGE_DAYS - 1)
     on_page = set(ids)
@@ -1505,7 +1517,7 @@ def build_ai(snap, hist):
                        for k, m in sorted(models.items(), key=lambda kv: kv[1]["i"])],
             # [account, sign-in type], indexed by rows[3]
             "signins": [[a, ai_signin(a, company)] for a, _ in sorted(signins.items(), key=lambda kv: kv[1])],
-            "company": sorted(company), "company_source": company_source,
+            "company": sorted(company), "company_source": company_source, "company_skipped": sorted(company_skipped),
             # [host, agent, model, sign-in, window, sessions, prompts, tool calls, input, output, cache read, cache write]
             "rows": [[*k, *v] for k, v in agg.items()],
         },

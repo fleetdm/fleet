@@ -460,9 +460,11 @@ function renderUsage(c) {
     const which = [...x.accounts].sort((a, b) => b[1].size - a[1].size).slice(0, 6).map(([a, hs]) => `${a || "unknown"} (${hs.size})`).join(", ");
     return { label: SIGNIN[k][0], valueText: fmt.n(x.hosts.size), segs: [{ value: x.hosts.size, color: SIGNIN[k][1], tip: `${SIGNIN[k][0]} sign-in on ${noun(x.hosts.size)}: ${which}` }] };
   });
-  const signinNote = U.company_source === "idp" ? `Company accounts are emails at ${U.company.join(", ")}, the domains of your identity provider's users.`
+  const skipped = (U.company_skipped || []).join(", ");
+  const signinNote = U.company_source === "idp" ? `Company accounts are emails at ${U.company.join(", ")}, the domains of your identity provider's users.${skipped ? ` Personal email domains (${skipped}) are left out. To choose the domains yourself, set DEX_COMPANY_DOMAINS.` : ""}`
     : U.company_source === "setting" ? `Company accounts are emails at ${U.company.join(", ")}, from the DEX_COMPANY_DOMAINS setting.`
-    : "Fleet has no end users from an identity provider, so email sign-ins aren't sorted into company and personal. Set DEX_COMPANY_DOMAINS for the routine to sort them.";
+    : skipped ? `Your identity provider's users only have personal email domains (${skipped}), so email sign-ins aren't sorted into company and personal. Set DEX_COMPANY_DOMAINS to sort them.`
+    : "Fleet has no end users from an identity provider, so email sign-ins aren't sorted into company and personal. Set DEX_COMPANY_DOMAINS to sort them.";
 
   // Agents whose every session fleetd reads: installed with no session means unused.
   const idle = Object.entries(U.agents).filter(([, a]) => a[2]).map(([agent, [label, product]]) => {

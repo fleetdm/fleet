@@ -33,4 +33,4 @@ A run that needs more than about 9 minutes saves what it collected under `--work
 - `DEX_WARRANTY_VITAL`: the custom host vital that holds warranty end dates as `YYYY-MM-DD`. The default is `AppleCare warranty expiration`.
 - `DEX_GRID_INTENSITY`: grams of CO2 per kWh for computers with no GeoIP country. Without it, Sustainability uses the figure for the fleet's most common country.
 - `DEX_WORKERS`: requests to Fleet at once (default 8).
-- `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents. Without it, AI governance uses the domains of end users from the identity provider.
+- `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents. Without it, AI governance uses the domains of end users from the identity provider, leaving out personal email providers such as gmail.com.

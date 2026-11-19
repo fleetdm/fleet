@@ -105,22 +105,20 @@ b, strong { font-weight: 600; color: var(--ink); }
 .select-wrap { position: relative; display: inline-flex; min-width: 0; flex: 0 1 auto; }
 .controls .seg-toggle { flex-shrink: 0; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--ink-2); font-size: 12px; }
-/* fleetdm.com's normal text field (36px, 12px sides, 8px radius) with a 16px chevron,
-   drawn here because the native arrow sits against the border whatever the padding. */
+/* The native arrow sits against the border whatever the padding, so the chevron is drawn
+   here, 12px in from each side. */
 .select-wrap select {
   appearance: none; -webkit-appearance: none; min-width: 0; text-overflow: ellipsis; cursor: pointer;
-  font: 400 14px/1.5 var(--font-ui); color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 8px; padding: 0 36px 0 12px; max-width: 220px; height: 36px;
+  font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-2); border-radius: 4px; padding: 0 36px 0 12px; max-width: 220px; height: 36px;
 }
-.select-wrap select:hover { border-color: var(--ui-fleet-black-50); }
-.select-wrap select:focus-visible { outline: none; border-color: var(--ink); }
 .select-wrap::after {
-  content: ""; position: absolute; right: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; pointer-events: none;
-  background: var(--ui-fleet-black-75);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
+  content: ""; position: absolute; right: 12px; top: 50%; width: 12px; height: 12px; margin-top: -6px; pointer-events: none;
+  background: var(--ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
 }
-.seg-toggle { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg-toggle { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-2); border-radius: 4px; overflow: hidden; background: var(--panel); }
 .seg-toggle button {
   font: 400 14px var(--font-ui); color: var(--ink-2); background: transparent; border: 0; border-left: 1px solid var(--line-2);
   padding: 0 12px; height: 34px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
@@ -199,7 +197,7 @@ h3 a:hover { text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   font: 400 14px var(--font-ui); color: var(--ink-2); background: var(--panel); border: 1px solid var(--line-2);
-  border-radius: 8px; padding: 0 12px; height: 32px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+  border-radius: 4px; padding: 0 12px; height: 32px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
 }
 .chip b { font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 400; }
 .chip:hover { color: var(--ink); border-color: var(--ui-fleet-black-50); }
@@ -211,7 +209,7 @@ h3 a:hover { text-decoration: underline; }
    (base.js sets --spotlight-x/y). The primary keeps the website's green in both themes. */
 .btn {
   font: 700 14px/1.5 var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line-2);
-  border-radius: 8px; padding: 0 12px; height: 36px; cursor: pointer;
+  border-radius: 4px; padding: 0 12px; height: 36px; cursor: pointer;
 }
 .btn:hover { border-color: var(--ui-fleet-black-50); }
 .btn.primary {
@@ -239,7 +237,7 @@ h3 a:hover { text-decoration: underline; }
 .btn.primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 input.search {
   font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
-  border-radius: 8px; padding: 0 12px; height: 36px; min-width: 0; width: 220px; max-width: 100%; box-sizing: border-box;
+  border-radius: 4px; padding: 0 12px; height: 36px; min-width: 0; width: 220px; max-width: 100%; box-sizing: border-box;
 }
 input.search:hover { border-color: var(--ui-fleet-black-50); }
 input.search:focus-visible { outline: none; border-color: var(--ink); }
