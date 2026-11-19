@@ -2121,6 +2121,21 @@ OVERVIEW_FIELDS = {
 }
 
 
+# Order of the nav bar on every page: the overview, its cards, then Policies and Analytics.
+NAV_PAGES = ("overview", "ai", "connectivity", "lifecycle", "patch", "software", "sustainability", "policies", "analytics")
+
+
+def nav_links(here, links, site=False):
+    """Each page's link from page `here`: its artifact URL, else a relative path. A --site
+    copy always links by relative path, with the overview at the root."""
+    def rel(p):
+        if not site:
+            return f"../{p}/"
+        up = "" if here == "overview" else "../"
+        return f"{up}index.html" if p == "overview" else f"{up}{p}/index.html"
+    return {p: (None if site else links.get(p)) or rel(p) for p in NAV_PAGES}
+
+
 def build_overview(snap, page_hists):
     """Reads the daily counts each page just saved, so every number matches that page's trend."""
     today = parse_ts(snap["generated_at"]).date()
@@ -2203,11 +2218,10 @@ def main():
     links = dict(x.split("=", 1) for x in args.link)
     if args.page == "overview":
         data = build_overview(snap, {p: load_history(path)[0] for p, path in (x.split("=", 1) for x in args.page_history)})
-        data["links"] = {p: links.get(p) or f"../{p}/" for p in OVERVIEW_FIELDS}
     else:
         hist = load_history(args.history)[0] if args.history else {}
         data = BUILDERS[args.page](snap, hist)
-        data["links"] = {"overview": links["overview"]} if links.get("overview") else {}
+    data["page"], data["links"] = args.page, nav_links(args.page, links)
     html_text, parts = render(args.templates, args.page, data)
     written = write_page(args.out, html_text, parts)
     if args.page != "overview":

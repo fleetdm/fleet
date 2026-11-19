@@ -11,9 +11,10 @@ prints one line per page:
   PUBLISH {"page": ..., "url": ..., "file_path": ..., "files": {...}, "overwrite_unread": [...]}
 
 which is the Artifact publish call for that page, file removals included.
---link gives each page's artifact URL, so the overview links to the dashboards
-and each dashboard links back. --site also writes a static copy of every page,
-without histories, for hosting on your own domain.
+--link gives each page's artifact URL, for the nav bar on every page and the
+overview's cards. --site also writes a static copy of every page, without
+histories, for hosting on your own domain. Its pages link to each other by
+relative path and open in the same tab.
 
 A large fleet can take longer than one 10-minute command. When the time budget
 runs out, run.py saves what it collected under WORK and prints CONTINUE; run
@@ -116,7 +117,7 @@ def main():
     for page in PAGES:
         h, old_hist_parts, old_page_parts = hist[page]
         data = build.BUILDERS[page](snap, h)
-        data["links"] = {"overview": links["overview"]} if links.get("overview") else {}
+        data["page"], data["links"] = page, build.nav_links(page, links)
         page_data[page] = data
         page_dir = os.path.join(out, page)
         html_text, parts = build.render(templates, page, data)
@@ -132,7 +133,7 @@ def main():
                         "files": files, "overwrite_unread": old_page_parts})
 
     overview = build.build_overview(snap, {page: hist[page][0] for page in PAGES})
-    overview["links"] = {p: links.get(p) or f"../{p}/" for p in build.OVERVIEW_FIELDS}
+    overview["page"], overview["links"] = "overview", build.nav_links("overview", links)
     page_dir = os.path.join(out, "overview")
     html_text, parts = build.render(templates, "overview", overview)
     written = build.write_page(page_dir, html_text, parts)
@@ -151,11 +152,11 @@ def main():
             build.write_page(out_dir, head + html_text, parts)
 
         shutil.rmtree(args.site, ignore_errors=True)
+        # Some hosts don't serve a folder's index.html for "page/", so nav_links names the file.
         for page in PAGES:
-            page_data[page]["links"] = {"overview": "../index.html"}
+            page_data[page]["links"] = build.nav_links(page, links, site=True)
             site_page(os.path.join(args.site, page), page, page_data[page])
-        # Some hosts don't serve a folder's index.html for "page/", so name the file.
-        overview["links"] = {p: f"{p}/index.html" for p in build.OVERVIEW_FIELDS}
+        overview["links"] = build.nav_links("overview", links, site=True)
         site_page(args.site, "overview", overview)
         for root, _, _ in os.walk(args.site, topdown=False):
             if not os.listdir(root):

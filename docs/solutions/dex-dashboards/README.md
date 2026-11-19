@@ -12,6 +12,7 @@ Scripts that build eight dashboards from the Fleet API for macOS, Windows, and L
 | `templates/` | Page templates. |
 | `dex-reports.yml` | The 15 DEX reports the dashboards read: six for Macs, three for Windows security, two for AI governance on every platform (AI tools and agent usage), and four for Sustainability (two for Macs, one each for Windows and Linux). |
 | `routine-prompt.md` | The routine's prompt, with placeholders the setup fills in. |
+| `github-workflow.yml` | A GitHub Actions workflow that runs the scripts on a schedule, keeps the histories on a branch, and publishes the pages to GitHub Pages. To set it up, follow [Build DEX dashboards with GitHub Actions](https://fleetdm.com/guides/build-dex-dashboards-with-github-actions). |
 
 The scripts need Python 3.9 or later and no third-party packages. To try them locally, set `FLEET_URL` and `FLEET_API_TOKEN`, then run:
 
@@ -19,7 +20,7 @@ The scripts need Python 3.9 or later and no third-party packages. To try them lo
 python3 run.py --work ./work --first-run --site ./site
 ```
 
-That writes `work/out/<page>/index.html` with the page's `data/` folder (its `history.json`, and part files on a large fleet) for each dashboard and the overview. `--site` also writes a copy for your own web server: `site/index.html` is the overview, and each dashboard is in its own folder. Serve it over HTTP, because a page with part files can't fetch them from a local file. On later runs, copy `work/out` somewhere else, for example to `last`, and pass it with `--in last` so each page picks up its history.
+That writes `work/out/<page>/index.html` with the page's `data/` folder (its `history.json`, and part files on a large fleet) for each dashboard and the overview. `--site` also writes a copy for your own web server: `site/index.html` is the overview, and each dashboard is in its own folder. Its pages link to each other by relative path and open in the same tab. Serve it over HTTP, because a page with part files can't fetch them from a local file. On later runs, copy `work/out` somewhere else, for example to `last`, and pass it with `--in last` so each page picks up its history.
 
 ## Large fleets
 

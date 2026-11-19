@@ -212,7 +212,7 @@ On a large fleet, keep these in mind:
 
 ## Verify
 
-1. Open the overview. Each card shows today's numbers and opens its dashboard in a new tab. Each dashboard shows today's date next to **Updated**, and **All dashboards** takes you back to the overview.
+1. Open the overview. Each card shows today's numbers and opens its dashboard in a new tab. Each dashboard shows today's date next to **Updated**, and the tabs across the top of every page open the overview and the other dashboards.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead. Under **macOS updates waiting to install**, updates that were already queued on the first run show a "+" after their waiting time, since the page can't tell when they were queued.
 3. Under **Over time**, each chart says "Not enough history yet," and the overview's cards say the trend starts after a second day. The charts fill in after the second daily run.
 4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.
@@ -243,7 +243,9 @@ To set it up:
 2. In Claude Code, ask Claude to edit the routine's prompt: add `--site "$W/site"` to the run.py command in step 4, and add a step after step 6 that uploads `$W/site` with your host's tool. For example, for an Amazon S3 bucket behind CloudFront: `aws s3 sync "$W/site" s3://<bucket>/dex --delete`.
 3. Run the routine once and open the site. `index.html` is the overview, and each dashboard is in its own folder.
 
-The site holds no history files. Each run's history stays on the artifacts, so the artifacts keep working, and you can stop uploading at any time.
+The site holds no history files. Each run's history stays on the artifacts, so the artifacts keep working, and you can stop uploading at any time. Its pages link to each other by relative path, so they open in the same tab.
+
+To build the pages without Claude, run the same scripts in a GitHub Actions workflow: see [Build DEX dashboards with GitHub Actions](https://fleetdm.com/guides/build-dex-dashboards-with-github-actions).
 
 ## Troubleshoot
 

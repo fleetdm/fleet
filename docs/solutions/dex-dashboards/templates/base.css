@@ -77,6 +77,21 @@ b, strong { font-weight: 600; }
   display: flex; flex-direction: column; gap: 24px;
 }
 
+/* Nav bar across every page, in Fleet's primary tab style (frontend/components/TabNav). */
+.dash-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+@media (max-width: 600px) {
+  .dash-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .dash-nav::-webkit-scrollbar { display: none; }
+}
+.dash-nav a {
+  display: inline-flex; flex-direction: column; align-items: center; flex-shrink: 0;
+  padding: 6px 8px; border-radius: 8px; font-size: 14px; line-height: 21px; font-weight: 400; color: var(--ink); white-space: nowrap;
+}
+.dash-nav a::before { content: attr(data-text); height: 0; visibility: hidden; overflow: hidden; user-select: none; pointer-events: none; font-weight: 600; }
+.dash-nav a:hover, .dash-nav a[aria-current="page"] { background: var(--ui-fleet-black-5); color: var(--ink); }
+.dash-nav a[aria-current="page"] { font-weight: 600; }
+.dash-nav a:focus-visible { outline-offset: -1px; }
+
 /* Top bar: platform toggle on the left, fleet filter and theme on the right, freshness below */
 .top { display: flex; flex-direction: column; gap: 8px; }
 .top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }

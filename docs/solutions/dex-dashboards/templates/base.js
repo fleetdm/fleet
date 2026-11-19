@@ -103,6 +103,29 @@ function hostLink(id, name) {
   return h("a", { href: hostUrl(id), target: "_blank", rel: "noopener", class: "cell-main", onclick: (e) => e.stopPropagation() }, name);
 }
 
+// Artifact links are claude.ai URLs and open in a new tab, since each artifact runs in
+// its own sandboxed frame. A static copy links by relative path, in the same tab.
+const isExternal = (href) => /^https?:/i.test(href || "");
+function pageLink(href, attrs, ...kids) {
+  return h("a", { href, ...(isExternal(href) ? { target: "_blank", rel: "noopener" } : {}), ...attrs }, ...kids);
+}
+const NAV = [["overview", "Overview"], ["ai", "AI governance"], ["connectivity", "Connectivity"], ["lifecycle", "Hardware lifecycle"],
+  ["patch", "Patch velocity"], ["software", "Software usage"], ["sustainability", "Sustainability"], ["policies", "Policies"], ["analytics", "Analytics"]];
+function dashNav() {
+  const links = DATA.links || {};
+  const items = NAV.filter(([p]) => p === DATA.page || links[p]);
+  if (items.length < 2) return null;
+  // data-text reserves the bold width, so the current tab doesn't shift its neighbors.
+  const nav = h("nav", { class: "dash-nav", "aria-label": "DEX dashboards" }, items.map(([p, label]) => (p === DATA.page
+    ? h("a", { "aria-current": "page", "data-text": label }, label)
+    : pageLink(links[p], { "data-text": label }, label))));
+  requestAnimationFrame(() => {
+    const cur = nav.querySelector("[aria-current]");
+    if (cur && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = cur.offsetLeft - nav.offsetLeft - 16;
+  });
+  return nav;
+}
+
 // Fleet and platform filters, remembered per viewer.
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -133,11 +156,10 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
     FLEET = e.target.value; store.set("dex-fleet", FLEET); onChange();
   } }, h("option", { value: "" }, "All fleets"), fleets.map((f) => h("option", { value: f, selected: f === FLEET }, f)));
   const host = DATA.fleet_url.replace(/^https?:\/\//, "");
-  const overview = DATA.links && DATA.links.overview;
   mount("top",
+    dashNav(),
     h("div", { class: "top-row" }, toggle, h("div", { class: "controls" }, sel, themeToggle())),
     h("div", { class: "meta" },
-      overview ? h("a", { href: overview, target: "_blank", rel: "noopener" }, "All dashboards") : null,
       h("span", {}, `Updated ${fmt.date(DATA.generated_at)}, ${DATA.generated_at.slice(11, 16)} UTC · `, h("a", { href: DATA.fleet_url, target: "_blank", rel: "noopener" }, host))));
 }
 const inPlatform = (p) => !PLATFORM || p === PLATFORM;
