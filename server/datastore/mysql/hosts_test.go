@@ -4683,85 +4683,62 @@ func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
 	setSerial := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.HardwareSerial = value } }
 	setUUID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.UUID = value } }
 	setHostname := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.Hostname = value } }
-	setOsqueryHostID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.OsqueryHostID = &value } }
-	setNodeKey := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.NodeKey = &value } }
-	allColumns := fleet.HostIDByIdentifierOptions{MatchID: true}
+	matchID := fleet.HostIDByIdentifierOptions{MatchID: true}
 
 	t.Run("priority across and within columns", func(t *testing.T) {
-		// winnerIsLast creates the winner after the loser, so a case about column priority shows whether the newest host can override it.
+		// The older host is created first, so a column beating a newer host's column shows that priority comes before recency.
 		testCases := []struct {
 			name         string
-			setLoser     func(string) func(*fleet.Host)
-			setWinner    func(string) func(*fleet.Host)
-			winnerIsLast bool
+			older, newer func(string) func(*fleet.Host)
+			newerWins    bool
 		}{
-			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
-			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
-			{name: "serial beats a newer UUID", setLoser: setUUID, setWinner: setSerial},
-			{name: "newest host wins on a shared serial", setLoser: setSerial, setWinner: setSerial, winnerIsLast: true},
-			{name: "newest host wins on a shared UUID", setLoser: setUUID, setWinner: setUUID, winnerIsLast: true},
-			{name: "newest host wins on a shared hostname", setLoser: setHostname, setWinner: setHostname, winnerIsLast: true},
+			{name: "serial beats a newer UUID", older: setSerial, newer: setUUID},
+			{name: "UUID beats a newer hostname", older: setUUID, newer: setHostname},
+			{name: "newest host wins on a shared serial", older: setSerial, newer: setSerial, newerWins: true},
+			{name: "newest host wins on a shared UUID", older: setUUID, newer: setUUID, newerWins: true},
+			{name: "newest host wins on a shared hostname", older: setHostname, newer: setHostname, newerWins: true},
 		}
 		for i, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				contested := fmt.Sprintf("contested_%d", i)
-				var wantID uint
-				if tc.winnerIsLast {
-					newHost(tc.setLoser(contested))
-					wantID = newHost(tc.setWinner(contested))
-				} else {
-					wantID = newHost(tc.setWinner(contested))
-					newHost(tc.setLoser(contested))
+				wantID, newerID := newHost(tc.older(contested)), newHost(tc.newer(contested))
+				if tc.newerWins {
+					wantID = newerID
 				}
-
-				gotID, err := ds.HostIDByIdentifier(t.Context(), contested, allColumns)
+				gotID, err := ds.HostIDByIdentifier(t.Context(), contested, matchID)
 				require.NoError(t, err)
 				require.Equal(t, wantID, gotID)
 			})
 		}
 	})
 
-	t.Run("host ID beats a numeric identifier of another host", func(t *testing.T) {
+	t.Run("host ID", func(t *testing.T) {
 		idHost := newHost(nil)
 		serialHost := newHost(setSerial(fmt.Sprint(idHost)))
-
-		gotID, err := ds.HostIDByIdentifier(t.Context(), fmt.Sprint(idHost), allColumns)
-		require.NoError(t, err)
-		require.Equal(t, idHost, gotID)
-
-		gotID, err = ds.HostIDByIdentifier(t.Context(), fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{})
-		require.NoError(t, err)
-		require.Equal(t, serialHost, gotID)
-	})
-
-	t.Run("numeric identifier falls back when no host has that ID", func(t *testing.T) {
-		serialHost := newHost(setSerial("987654321"))
-
-		gotID, err := ds.HostIDByIdentifier(t.Context(), "987654321", allColumns)
-		require.NoError(t, err)
-		require.Equal(t, serialHost, gotID)
-	})
-
-	t.Run("agent keys and, without MatchID, the host ID don't match", func(t *testing.T) {
-		idHost := newHost(setOsqueryHostID("excluded_osquery_host_id"))
-		newHost(setNodeKey("excluded_node_key"))
-
-		for _, identifier := range []string{"excluded_osquery_host_id", "excluded_node_key"} {
-			_, err := ds.HostIDByIdentifier(t.Context(), identifier, allColumns)
-			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", identifier, err)
+		fallbackHost := newHost(setSerial("987654321"))
+		for _, tc := range []struct {
+			identifier string
+			opts       fleet.HostIDByIdentifierOptions
+			wantID     uint
+		}{
+			{fmt.Sprint(idHost), matchID, idHost},                               // a host ID beats another host's serial
+			{fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{}, serialHost}, // without MatchID, the ID isn't matched
+			{"987654321", matchID, fallbackHost},                                // a number no host has as its ID falls back
+		} {
+			gotID, err := ds.HostIDByIdentifier(t.Context(), tc.identifier, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantID, gotID, tc.identifier)
 		}
-		_, err := ds.HostIDByIdentifier(t.Context(), fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{})
-		require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%d): %v", idHost, err)
 	})
 
-	t.Run("blank identifiers match nothing", func(t *testing.T) {
+	t.Run("agent keys and blank identifiers match nothing", func(t *testing.T) {
 		newHost(func(h *fleet.Host) {
-			h.OsqueryHostID, h.NodeKey, h.UUID, h.Hostname, h.HardwareSerial = new(""), new(""), "", "", ""
+			h.OsqueryHostID, h.NodeKey = new("agent_osquery_host_id"), new("agent_node_key")
+			h.UUID, h.Hostname, h.HardwareSerial = "", "", ""
 		})
-
-		for _, blank := range []string{"", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
-			_, err := ds.HostIDByIdentifier(t.Context(), blank, allColumns)
-			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", blank, err)
+		for _, identifier := range []string{"agent_osquery_host_id", "agent_node_key", "", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostIDByIdentifier(t.Context(), identifier, matchID)
+			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", identifier, err)
 		}
 	})
 }
