@@ -136,25 +136,9 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 // configuration changed).
 // this is called when an app is removed from Fleet.
 // prepareHostSpecificPolicy sets the settings of the host-specific policy before the device is moved to it.
-func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID string, enterpriseName string) error {
-	var policy androidmanagement.Policy
-	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
-		DeviceSettingsEnabled:        true,
-		MemoryInfoEnabled:            true,
-		NetworkInfoEnabled:           true,
-		DisplayInfoEnabled:           true,
-		PowerManagementEventsEnabled: true,
-		HardwareStatusEnabled:        true,
-		SystemPropertiesEnabled:      true,
-		SoftwareInfoEnabled:          true,
-		CommonCriteriaModeEnabled:    true,
-		ApplicationReportsEnabled:    true,
-		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
-	}
-
-	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-	_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
-	if err != nil {
+func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, androidHost *fleet.AndroidHost, enterpriseName string) error {
+	hostUUID := androidHost.Host.UUID
+	if err := v.AndroidModule.PrepareHostPolicy(ctx, enterpriseName, hostUUID, ptr.ValOrZero(androidHost.Host.TeamID)); err != nil {
 		return err
 	}
 
@@ -165,8 +149,7 @@ func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID
 		return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
 	}
 
-	err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
-	if err != nil {
+	if err := v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false); err != nil {
 		return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
 	}
 	return nil
@@ -192,16 +175,16 @@ func (v *SoftwareWorker) moveDeviceToHostSpecificPolicy(ctx context.Context, and
 }
 
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
-	onDefaultPolicy := policyID == fmt.Sprint(android.DefaultAndroidPolicyID)
-	if onDefaultPolicy {
-		if err := v.prepareHostSpecificPolicy(ctx, hostUUID, enterpriseName); err != nil {
-			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)
-		}
-	}
-
 	androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+	}
+
+	onDefaultPolicy := android.IsDefaultPolicyID(policyID)
+	if onDefaultPolicy {
+		if err := v.prepareHostSpecificPolicy(ctx, androidHost, enterpriseName); err != nil {
+			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)
+		}
 	}
 
 	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)

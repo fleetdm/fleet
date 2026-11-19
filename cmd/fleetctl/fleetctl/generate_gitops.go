@@ -153,6 +153,9 @@ var aliasRules = buildAliasRules()
 func buildAliasRules() map[string]aliasRule {
 	rules := make(map[string]aliasRule)
 	for _, m := range slices.Concat(spec.DeprecatedGitOpsKeyMappings, spec.RemovedGitOpsKeys) {
+		if m.NewPath == "" {
+			continue
+		}
 		// Take the last segment of the old and new paths as the leaf key names.
 		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
 		oldLeaf := m.OldPath
@@ -527,15 +530,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
 		}
 
-		// Collect failing policy IDs from webhook settings so we can output
-		// webhooks_and_tickets_enabled per-policy instead of policy_ids in settings.
-		var failingPolicyIDs map[uint]bool
-		if team == nil {
-			failingPolicyIDs = policyIDSliceToSet(cmd.AppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		} else {
-			failingPolicyIDs = policyIDSliceToSet(team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		}
-
 		if team == nil {
 			// Generate org settings, agent options and labels for the global config.
 			orgSettings, err := cmd.generateOrgSettings()
@@ -629,7 +623,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(teamToProcess.ID, fileName, failingPolicyIDs)
+		policies, err := cmd.generatePolicies(teamToProcess.ID, fileName)
 		if err != nil {
 			teamName := "global"
 			if team != nil {
@@ -2015,7 +2009,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string, failingPolicyIDs map[uint]bool) ([]map[string]any, error) {
+func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string) ([]map[string]any, error) {
 	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
@@ -2027,14 +2021,18 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	t := reflect.TypeOf(fleet.Policy{})
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
+		automation := func(a fleet.PolicyAutomation) bool {
+			return policy.AutomationType != nil && *policy.AutomationType == a
+		}
 		policySpec := map[string]interface{}{
 			jsonFieldName(t, "Name"):                         policy.Name,
 			jsonFieldName(t, "Description"):                  policy.Description,
 			jsonFieldName(t, "Resolution"):                   policy.Resolution,
 			jsonFieldName(t, "Platform"):                     policy.Platform,
-			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
-			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "CalendarEventsEnabled"):        automation(fleet.PolicyAutomationCalendar),
+			jsonFieldName(t, "ConditionalAccessEnabled"):     automation(fleet.PolicyAutomationConditionalAccess),
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+			"webhooks_and_tickets_enabled":                   automation(fleet.PolicyAutomationWebhookOrTicket),
 		}
 		if cmd.AppConfig.License.IsPremium() {
 			policySpec[jsonFieldName(t, "Critical")] = policy.Critical
@@ -2064,8 +2062,6 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			policySpec["type"] = policy.Type
 		}
 
-		// This is derived from the failing_policies_webhook.policy_ids field, which is being deprecated.
-		policySpec["webhooks_and_tickets_enabled"] = failingPolicyIDs[policy.ID]
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
@@ -2125,19 +2121,11 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	return result, nil
 }
 
-func policyIDSliceToSet(ids []uint) map[uint]bool {
-	m := make(map[uint]bool, len(ids))
-	for _, id := range ids {
-		m[id] = true
-	}
-	return m
-}
-
 // webhookSettingsWithoutPolicyIDs serializes the given webhook settings struct
 // to a map and removes the failing_policies_webhook.policy_ids key (since
 // those are now represented as webhooks_and_tickets_enabled on individual
 // policies).
-// TODO - remove this in Fleet 5 when we remove support for policy_ids under failing_policies_webhook.
+// TODO(#58577): remove with policy_ids.
 func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error) {
 	b, err := json.Marshal(webhookSettings)
 	if err != nil {

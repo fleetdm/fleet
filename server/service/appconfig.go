@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	strconv "strconv"
 	"strings"
 
@@ -272,8 +273,9 @@ func (svc *Service) SandboxEnabled() bool {
 }
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
+	deviceAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
+	if !deviceAuthenticated {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
@@ -282,6 +284,11 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if !deviceAuthenticated {
+		if err := svc.loadGlobalWebhookPolicyIDs(ctx, ac); err != nil {
+			return nil, err
+		}
 	}
 
 	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
@@ -311,6 +318,28 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	ac.Obfuscate()
 
 	return ac, nil
+}
+
+// loadGlobalWebhookPolicyIDs fills failing_policies_webhook.policy_ids from the "All fleets" policies that have the webhook or
+// ticket automation on.
+//
+// TODO(#58577): remove with policy_ids. Until the UI and GitOps set the automation on the policy, they read and write it
+// through policy_ids, so the list is built from the per-policy flag on reads and sets the flags on writes.
+func (svc *Service) loadGlobalWebhookPolicyIDs(ctx context.Context, ac *fleet.AppConfig) error {
+	ids, err := svc.ds.WebhooksAndTicketsPolicyIDs(ctx, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load webhook and ticket policy IDs")
+	}
+	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = ids
+	return nil
+}
+
+// samePolicyIDs reports whether a and b hold the same IDs, ignoring order and duplicates.
+func samePolicyIDs(a, b []uint) bool {
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(slices.Compact(a), slices.Compact(b))
 }
 
 func (svc *Service) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
@@ -612,6 +641,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// AppConfig, in which case the cache will be up-to-date and safe to use).
 	ctx = ctxdb.BypassCachedMysql(ctx, false)
 
+	if err := svc.loadGlobalWebhookPolicyIDs(ctx, appConfig); err != nil {
+		return nil, err
+	}
 	oldAppConfig := appConfig.Copy()
 
 	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
@@ -743,6 +775,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.SSOSettings = newAppConfig.SSOSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
 		appConfig.FleetDesktop.SSOEnabled = newAppConfig.FleetDesktop.SSOEnabled
+		// the rest of server_settings is kept when omitted
+		appConfig.ServerSettings.AISessionsDisabled = newAppConfig.ServerSettings.AISessionsDisabled
 		// absent means true, so an older fleetctl that doesn't send the key
 		// can't turn validation off; the unmarshal below applies it if present
 		appConfig.MDM.EnableProfileValidation = true
@@ -1138,6 +1172,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+	if newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs; !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
+		if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, nil, newIDs); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
+		}
+	}
 
 	if err := applyAndValidateConditionalAccessOktaFields(ctx, appConfig, &newAppConfig, invalid, lic); err != nil {
 		return nil, err
@@ -1239,6 +1278,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// must reload to get the unchanged app config (retrieve with obfuscated secrets)
 		obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
+			return nil, err
+		}
+		if err := svc.loadGlobalWebhookPolicyIDs(ctx, obfuscatedAppConfig); err != nil {
 			return nil, err
 		}
 		obfuscatedAppConfig.Obfuscate()
@@ -1382,8 +1424,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// TODO(#58577): remove with policy_ids, see loadGlobalWebhookPolicyIDs. The list lives on the policies, so it isn't
+	// stored, and only a changed list is written, so a request that doesn't change it can't undo a concurrent change.
+	newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = nil
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+	if !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
+		if err := svc.ds.SetWebhooksAndTicketsPolicies(ctx, nil, newIDs); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set webhook and ticket policies from policy_ids")
+		}
 	}
 
 	if aapChanged {
@@ -1563,6 +1614,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// retrieve new app config with obfuscated secrets
 	obfuscatedAppConfig, err := svc.ds.AppConfig(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
+		return nil, err
+	}
+	if err := svc.loadGlobalWebhookPolicyIDs(ctxdb.RequirePrimary(ctx, true), obfuscatedAppConfig); err != nil {
 		return nil, err
 	}
 	obfuscatedAppConfig.Obfuscate()
@@ -2839,9 +2893,15 @@ func (svc *Service) validateVPPAssignments(
 		return nil, err
 	}
 	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	// Fleets created before "Unassigned" was reserved can still have that name.
+	var fleetsNamedUnassigned []string
 	for _, tm := range teams {
 		teamsByName[tm.Name] = tm.ID
+		if fleet.IsUnassignedFleetName(tm.Name) {
+			fleetsNamedUnassigned = append(fleetsNamedUnassigned, fmt.Sprintf("%q", tm.Name))
+		}
 	}
+	slices.Sort(fleetsNamedUnassigned)
 	tokens, err := svc.ds.ListVPPTokens(ctx)
 	if err != nil {
 		return nil, err
@@ -2863,6 +2923,13 @@ func (svc *Service) validateVPPAssignments(
 			if tmName == fleet.DisplayNameAllTeams {
 				tmName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(tmName) {
+				if len(fleetsNamedUnassigned) > 0 {
+					invalid.Appendf("mdm.volume_purchasing_program", "fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
+					return nil, nil
+				}
+				tmName = fleet.TeamNameNoTeam
+			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
@@ -2880,6 +2947,9 @@ func (svc *Service) validateVPPAssignments(
 			if teamName == fleet.DisplayNameAllTeams {
 				teamName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(teamName) {
+				teamName = fleet.TeamNameNoTeam
+			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
@@ -2888,7 +2958,7 @@ func (svc *Service) validateVPPAssignments(
 				tokenTeams = []uint{}
 				break
 			}
-			teamID := teamsByName[teamName]
+			teamID := teamsByName[norm.NFC.String(teamName)]
 			tokenTeams = append(tokenTeams, teamID)
 		}
 

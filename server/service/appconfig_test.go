@@ -186,6 +186,56 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
+// TODO(#58577): remove with policy_ids.
+func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+	})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	enabled := []uint{2, 1}
+	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
+		require.Nil(t, teamID)
+		return enabled, nil
+	}
+	var setCalls [][]uint
+	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
+		require.Nil(t, teamID)
+		setCalls = append(setCalls, policyIDs)
+		return nil
+	}
+
+	// Requests that leave the list as it is don't write the policies, so they can't undo a concurrent change.
+	for _, body := range []string{
+		`{"org_info": {"org_name": "Changed"}}`,
+		`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`,
+		`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
+	} {
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.NoError(t, err, body)
+	}
+	require.Empty(t, setCalls)
+
+	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [3]}}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	require.Equal(t, [][]uint{{3}, {}}, setCalls)
+
+	// Dry runs don't write the policies.
+	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [4]}}}`), fleet.ApplySpecOptions{DryRun: true})
+	require.NoError(t, err)
+	require.Len(t, setCalls, 2)
+}
+
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The
@@ -3715,6 +3765,65 @@ func TestModifyAppConfigGitOpsMCPDisabled(t *testing.T) {
 	}
 }
 
+// Unlike the rest of server_settings, ai_sessions_disabled follows the YAML in overwrite mode: a GitOps payload
+// without it turns collection back on.
+func TestModifyAppConfigGitOpsAISessionsDisabled(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name      string
+		initial   bool
+		payload   string
+		overwrite bool
+		expected  bool
+	}{
+		{"omitted enables it", true, `{"server_settings":{"server_url":"https://example.org"}}`, true, false},
+		{"no server_settings enables it", true, `{"org_info":{"org_name":"Renamed"}}`, true, false},
+		{"explicit true keeps it disabled", true, `{"server_settings":{"ai_sessions_disabled":true}}`, true, true},
+		{"explicit true disables it", false, `{"server_settings":{"ai_sessions_disabled":true}}`, true, true},
+		{"explicit false enables it", true, `{"server_settings":{"ai_sessions_disabled":false}}`, true, false},
+		{"omitted outside overwrite mode keeps it disabled", true, `{"org_info":{"org_name":"Renamed"}}`, false, true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo: fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{
+					ServerURL:          "https://example.org",
+					AISessionsDisabled: tt.initial,
+					MCPDisabled:        true,
+				},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+				return false, nil
+			}
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: tt.overwrite})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, updated.ServerSettings.AISessionsDisabled)
+			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.AISessionsDisabled)
+			// The reset is scoped to ai_sessions_disabled: its siblings are still kept when omitted.
+			require.True(t, dsAppConfig.ServerSettings.MCPDisabled)
+			require.Equal(t, "https://example.org", dsAppConfig.ServerSettings.ServerURL)
+		})
+	}
+}
+
 // TestDiffStringSlices covers the helper that computes per-value added/removed activity emissions for the Entra
 // tenant ID and client ID allowlists, including the deduplication that prevents a repeated config entry from
 // producing duplicate activities.
@@ -4502,6 +4611,57 @@ func TestStagedUploadAvailable(t *testing.T) {
 	}
 }
 
+func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
+	newSvc := func(teams ...*fleet.TeamSummary) *Service {
+		ds := new(mock.Store)
+		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+			return teams, nil
+		}
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}}, nil
+		}
+		return &Service{ds: ds}
+	}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	t.Run("a fleet name in decomposed form resolves to that fleet", func(t *testing.T) {
+		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Caf\u00e9 Macs"})
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Cafe\u0301 Macs"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Equal(t, map[uint][]uint{1: {1}}, got)
+	})
+
+	t.Run("Unassigned is rejected while fleets are named Unassigned", func(t *testing.T) {
+		svc := newSvc(
+			&fleet.TeamSummary{ID: 1, Name: "Workstations"},
+			&fleet.TeamSummary{ID: 7, Name: "unassigned"},
+			&fleet.TeamSummary{ID: 8, Name: "Unassigned"},
+		)
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: "Unassigned", "unassigned"`)
+	})
+
+	t.Run("No team and other fleets still work while a fleet is named Unassigned", func(t *testing.T) {
+		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}, &fleet.TeamSummary{ID: 7, Name: "unassigned"})
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.TeamNameNoTeam, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Equal(t, map[uint][]uint{1: {0, 1}}, got)
+	})
+}
+
 func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 	ds := new(mock.Store)
 	ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
@@ -4522,6 +4682,18 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
 		require.Equal(t, map[uint][]uint{1: {1, 0}, 2: {1, 0}}, got)
+	})
+
+	t.Run("Unassigned is the same as No team", func(t *testing.T) {
+		for _, name := range []string{fleet.DisplayNameNoTeam, "unassigned"} {
+			invalid := &fleet.InvalidArgumentError{}
+			got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "HQ", Teams: []string{name, "Workstations"}},
+			}, invalid, lic)
+			require.NoError(t, err)
+			require.False(t, invalid.HasErrors(), invalid.Error())
+			require.Equal(t, map[uint][]uint{1: {0, 1}}, got)
+		}
 	})
 
 	t.Run("All fleets can't mix with other fleets on one token", func(t *testing.T) {

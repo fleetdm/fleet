@@ -5931,6 +5931,13 @@
       "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
     },
     {
+      "name": "Munki",
+      "slug": "munki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+      "description": "Munki is a software installation manager."
+    },
+    {
       "name": "MURAL",
       "slug": "mural/darwin",
       "platform": "darwin",
@@ -7168,6 +7175,13 @@
       "platform": "darwin",
       "unique_identifier": "me.proton.pass.electron",
       "description": "Proton Pass is a desktop client for Proton Pass."
+    },
+    {
+      "name": "Proton Pass",
+      "slug": "proton-pass/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Pass",
+      "description": "Proton Pass is an open-source, end-to-end encrypted password manager."
     },
     {
       "name": "ProtonVPN",

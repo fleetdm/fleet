@@ -251,8 +251,8 @@ Register it under the fleet's macOS settings:
 
 ```yaml
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/socket-firewall/socket-firewall-ca.mobileconfig
 ```
 
