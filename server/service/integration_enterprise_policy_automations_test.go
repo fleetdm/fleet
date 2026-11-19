@@ -4716,6 +4716,17 @@ func (s *integrationEnterpriseTestSuite) TestFailingPoliciesWebhookPolicyIDsFrom
 		http.StatusOK, &modResp)
 	require.Equal(t, []uint{team1, team2}, teamPolicyIDs())
 
+	// The list is built from the policies, so the settings don't store any IDs (an empty list is saved as null).
+	var stored int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stored, `SELECT
+			(SELECT COUNT(*) FROM app_config_json WHERE JSON_TYPE(json_value->'$.webhook_settings.failing_policies_webhook.policy_ids') = 'ARRAY') +
+			(SELECT COUNT(*) FROM teams WHERE id = ? AND JSON_TYPE(config->'$.webhook_settings.failing_policies_webhook.policy_ids') = 'ARRAY')`,
+			team.ID)
+	})
+	require.Zero(t, stored)
+	require.Equal(t, []uint{global1}, s.getConfig().WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{PolicyIDs: []uint{team2}},
 	}}, http.StatusOK, &modResp)

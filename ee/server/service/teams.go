@@ -628,10 +628,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.Features.EnableSoftwareInventory = payload.Features.EnableSoftwareInventory.Value
 	}
 
+	webhookPolicyIDs := takeWebhookPolicyIDs(&team.Config.WebhookSettings.FailingPoliciesWebhook)
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
 	}
+	team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs
 	if payload.WebhookSettings != nil && payload.WebhookSettings.FailingPoliciesWebhook != nil {
 		if err := svc.saveTeamWebhookPolicyIDs(ctx, teamID, &team.Config.WebhookSettings.FailingPoliciesWebhook); err != nil {
 			return nil, err
@@ -2512,9 +2514,11 @@ func (svc *Service) editTeamFromSpec(
 		return nil
 	}
 
+	webhookPolicyIDs := takeWebhookPolicyIDs(&team.Config.WebhookSettings.FailingPoliciesWebhook)
 	if _, err := svc.ds.SaveTeam(ctx, team); err != nil {
 		return err
 	}
+	team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs
 	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
 		if err := svc.saveTeamWebhookPolicyIDs(ctx, team.ID, &team.Config.WebhookSettings.FailingPoliciesWebhook); err != nil {
 			return err
@@ -3034,6 +3038,16 @@ func (svc *Service) loadTeamWebhookPolicyIDs(ctx context.Context, teamID uint, w
 	return nil
 }
 
+// takeWebhookPolicyIDs returns the list and clears it, since the list lives on the policies and isn't stored in the
+// settings.
+//
+// TODO(#58577): remove with policy_ids, see loadTeamWebhookPolicyIDs.
+func takeWebhookPolicyIDs(wh *fleet.FailingPoliciesWebhookSettings) []uint {
+	ids := wh.PolicyIDs
+	wh.PolicyIDs = nil
+	return ids
+}
+
 // saveTeamWebhookPolicyIDs sets the webhook or ticket automation of the fleet's policies to match policy_ids, then
 // reloads the list so IDs that aren't the fleet's policies are dropped from it.
 //
@@ -3163,9 +3177,11 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	}
 
 	// Save the configuration
+	webhookPolicyIDs := takeWebhookPolicyIDs(&config.WebhookSettings.FailingPoliciesWebhook)
 	if err := svc.ds.SaveDefaultTeamConfig(ctx, config); err != nil {
 		return nil, err
 	}
+	config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs
 	if payload.WebhookSettings != nil && payload.WebhookSettings.FailingPoliciesWebhook != nil {
 		if err := svc.saveTeamWebhookPolicyIDs(ctx, 0, &config.WebhookSettings.FailingPoliciesWebhook); err != nil {
 			return nil, err

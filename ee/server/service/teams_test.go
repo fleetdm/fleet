@@ -861,7 +861,10 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 
 				want := stored()
 				c.want(&want)
-				require.Equal(t, want, saved)
+				// policy_ids lives on the policies and isn't stored in the settings.
+				wantSaved := want
+				wantSaved.FailingPoliciesWebhook.PolicyIDs = nil
+				require.Equal(t, wantSaved, saved)
 				require.Equal(t, want.FailingPoliciesWebhook.PolicyIDs, webhookPolicyIDs)
 			})
 		}

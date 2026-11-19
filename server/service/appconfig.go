@@ -1422,12 +1422,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// TODO(#58577): remove with policy_ids, see loadGlobalWebhookPolicyIDs. The list lives on the policies, so it isn't
+	// stored, and only a changed list is written, so a request that doesn't change it can't undo a concurrent change.
+	newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = nil
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
-	// TODO(#58577): remove with policy_ids, see loadGlobalWebhookPolicyIDs. Only a changed list is written, so a request
-	// that doesn't change it can't undo a concurrent change to the policies.
-	if newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs; !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
+	if !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
 		if err := svc.ds.SetWebhooksAndTicketsPolicies(ctx, nil, newIDs); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "set webhook and ticket policies from policy_ids")
 		}
