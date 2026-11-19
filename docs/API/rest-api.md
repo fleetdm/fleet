@@ -3742,7 +3742,7 @@ the `software` table.
 | dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in AB will be returned. |
 | script_batch_execution_id | string | query | The ID of a batch script run (`batch_execution_id`) to filter hosts by. Only includes hosts targeted by that run. |
-| script_batch_execution_status | string | query | **Requires `script_batch_execution_id`**. Filters hosts by their script status in the batch script run. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or `"canceled"`. |
+| script_batch_execution_status | string | query | **Requires `script_batch_execution_id`**. Filters hosts by their script status in the batch script run. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or `"canceled"`.  If no `script_batch_execution_id` is provided, this filter is ignored. |
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
