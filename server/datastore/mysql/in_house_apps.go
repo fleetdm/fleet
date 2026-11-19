@@ -18,7 +18,7 @@ import (
 )
 
 func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
-	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR filename = ?)`
+	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND bundle_identifier = ?`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -42,7 +42,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	var installerID uint
 	var count uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Filename)
+		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID)
 		if err := row.Scan(&count); err != nil {
 			return err
 		}
@@ -310,13 +310,6 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		}
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			if IsDuplicate(err) {
-				teamName, err := ds.getTeamName(ctx, payload.TeamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err)
-				}
-				return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
-			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
 

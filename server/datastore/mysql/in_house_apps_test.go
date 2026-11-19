@@ -316,6 +316,27 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	_, titleSameName, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadSameName)
 	require.NoError(t, err)
 	require.NotEqual(t, titleIDWithTitle, titleSameName)
+
+	// Upload an app with a different bundle id but a filename already used in the fleet, it
+	// should create a new in-house app for a new software title
+	payloadSameFilename := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "Same Filename",
+		Filename:         payloadSameName.Filename,
+		BundleIdentifier: "com.same.filename",
+		StorageID:        "testing6",
+		Extension:        "ipa",
+		Version:          "1.0.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, titleSameFilename, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadSameFilename)
+	require.NoError(t, err)
+	require.NotEqual(t, titleSameName, titleSameFilename)
+	installerSameFilename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleSameFilename)
+	require.NoError(t, err)
+	require.Equal(t, payloadSameFilename.Filename, installerSameFilename.Name)
+	require.Equal(t, payloadSameFilename.BundleIdentifier, installerSameFilename.BundleIdentifier)
 }
 
 func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
