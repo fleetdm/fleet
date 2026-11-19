@@ -28,7 +28,7 @@ Windows apps are x64, so they run on both x64 and Arm hosts. On Arm, Windows 11 
 
 ## Windows install scope
 
-Fleet installs Windows apps for all users (machine scope) when the app supports it. Otherwise, Fleet installs the app for the signed-in user.
+Fleet installs Windows apps for all users (machine scope) when the app supports it. Otherwise, Fleet installs the app for the signed-in user. If more than one user is signed in, Fleet installs the app for one of them.
 
 ## Add a Fleet-maintained app
 
