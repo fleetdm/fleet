@@ -6,6 +6,8 @@ The API endpoints in this document are only used when contributing to Fleet. The
 
 If you see an endpoint documented here that you'd like to use, please [file a feature request](https://github.com/fleetdm/fleet/issues/new/choose) to bring it into the stable API.
 
+As of Fleet v5.0.0, the [pagination contract](https://fleetdm.com/docs/rest-api/rest-api#pagination) applies to these endpoints too: list endpoints that accept `page` and `per_page` return the first page of 100 results when `per_page` is not specified, clamp `per_page` values above 1,000 to 1,000, and include `meta` pagination metadata.
+
 - [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
@@ -2936,7 +2938,7 @@ Lists the software installed on the current device.
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified. Must be provided with `vulnerable=true`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`. Must be provided with `vulnerable=true`. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped).|
 
 ##### Example
 
@@ -3242,6 +3244,8 @@ Lists the policies applied to the current device. Policies are returned in a dev
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 | include_hidden_policies | boolean | query | If `true`, the response includes policies marked `hidden`. Hidden policies are omitted by default. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped).|
 
 ##### Example
 
@@ -3283,7 +3287,11 @@ Lists the policies applied to the current device. Policies are returned in a dev
       "conditional_access_enabled": false,
       "response": ""
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -3302,7 +3310,7 @@ Lists the certificates installed on the current device.
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped).|
 | order_key | string | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
