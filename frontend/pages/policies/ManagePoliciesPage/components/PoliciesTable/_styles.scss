@@ -76,7 +76,7 @@
       }
 
       &__search {
-        align-self: start;
+        width: 100%;
       }
     }
   }
@@ -86,6 +86,12 @@
   display: flex;
   align-items: center;
   cursor: pointer;
+
+  // A div with role="button" doesn't get Button's focus ring, so apply it here.
+  &:focus-visible {
+    @include unstyled-button-focus-outline;
+    border-radius: $border-radius;
+  }
 
   &--none {
     color: $ui-fleet-black-50;

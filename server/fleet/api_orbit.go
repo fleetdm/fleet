@@ -34,6 +34,8 @@ type EnrollOrbitRequest struct {
 	HardwareModel string `json:"hardware_model"`
 	// EUAToken is a Fleet-signed JWT containing the user's UPN and Windows MDM device ID.
 	EUAToken string `json:"eua_token,omitempty"`
+	// AutopilotDeviceID is the Windows Autopilot device ID (ZTDID), if the device has one.
+	AutopilotDeviceID string `json:"autopilot_device_id,omitempty"`
 }
 
 // SetOrbitNodeKeyer is the interface implemented by orbit request types that
@@ -194,6 +196,29 @@ type OrbitPutDeviceMappingResponse struct {
 }
 
 func (r OrbitPutDeviceMappingResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Entra device token
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPostEntraDeviceTokenRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	IDToken      string `json:"id_token"`
+}
+
+func (r *OrbitPostEntraDeviceTokenRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostEntraDeviceTokenRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostEntraDeviceTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostEntraDeviceTokenResponse) Error() error { return r.Err }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Post Orbit disk encryption key

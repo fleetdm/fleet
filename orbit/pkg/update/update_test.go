@@ -79,12 +79,6 @@ func TestLocalTargetPaths(t *testing.T) {
 			"",
 		},
 		{
-			NudgeMacOSTarget,
-			"root/bin/target/macos/stable/nudge.app.tar.gz",
-			"root/bin/target/macos/stable/Nudge.app/Contents/MacOS/Nudge",
-			"root/bin/target/macos/stable/Nudge.app",
-		},
-		{
 			DesktopLinuxTarget,
 			"root/bin/target/linux/stable/desktop.tar.gz",
 			"root/bin/target/linux/stable/fleet-desktop/fleet-desktop",

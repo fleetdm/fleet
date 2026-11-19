@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -396,7 +395,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			return err
 		}
 
-		// only hosts whose IdP email actually moved need the email profiles resent
+		// only hosts whose IdP email actually moved need their IdP username profiles resent
 		var idpEmailChangedHostIDs []uint
 		if renamedBetweenEmails {
 			idpEmailChangedHostIDs, err = reconcileHostIdPMappingsForIdPEmailChange(ctx, tx, ds.logger, user.ID, hostIDs, old.UserName, user.UserName)
@@ -560,7 +559,7 @@ func renameMDMIdPAccount(
 }
 
 // renameHostIdPEmails rewrites both mapping sources and returns the hosts whose
-// authenticated row moved, the only source the IdP email variable resolves from.
+// authenticated row moved, which a host without a SCIM user takes its IdP username from.
 //
 // Authenticated rows are matched on the address rather than on scimHostIDs: the
 // account email is unique, so a row holding it belongs to that account whether or
@@ -1724,8 +1723,9 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 }
 
 // triggerResendProfilesForIDPUserChange resends profiles using changedVars on
-// scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
-// either set without being in the other.
+// scimHostIDs, and IdP username profiles on the hosts of idpEmailChangedHostIDs
+// that no SCIM user is linked to, since those take their IdP username from the
+// IdP email that moved; a host can be in either set without being in the other.
 func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs []uint, changedVars []fleet.FleetVarName, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(changedVars))
 	if err != nil {
@@ -1735,28 +1735,55 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		return nil, err
 	}
 
-	if len(idpEmailChangedHostIDs) == 0 {
-		return resentCerts, nil
-	}
-	emailVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserEmailIDP}
-	emailCerts, err := selectCertTemplatesToResend(ctx, tx, idpEmailChangedHostIDs, fleetVarNamesToDBVars(emailVars))
+	unlinkedHostIDs, err := hostIDsWithoutScimUser(ctx, tx, idpEmailChangedHostIDs)
 	if err != nil {
 		return nil, err
 	}
-	if err := triggerResendProfilesUsingVariables(ctx, tx, idpEmailChangedHostIDs, emailVars); err != nil {
+	if len(unlinkedHostIDs) == 0 {
+		return resentCerts, nil
+	}
+	usernameVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart}
+	usernameCerts, err := selectCertTemplatesToResend(ctx, tx, unlinkedHostIDs, fleetVarNamesToDBVars(usernameVars))
+	if err != nil {
 		return nil, err
 	}
-	// a template using both kinds of variable is selected twice
+	if err := triggerResendProfilesUsingVariables(ctx, tx, unlinkedHostIDs, usernameVars); err != nil {
+		return nil, err
+	}
+	// a host in both sets has its templates selected twice
 	seen := make(map[[2]uint]struct{}, len(resentCerts))
 	for _, c := range resentCerts {
 		seen[[2]uint{c.HostID, c.CertificateTemplateID}] = struct{}{}
 	}
-	for _, c := range emailCerts {
+	for _, c := range usernameCerts {
 		if _, dup := seen[[2]uint{c.HostID, c.CertificateTemplateID}]; !dup {
 			resentCerts = append(resentCerts, c)
 		}
 	}
 	return resentCerts, nil
+}
+
+// hostIDsWithoutScimUser returns the hosts of hostIDs that no SCIM user is linked to.
+func hostIDsWithoutScimUser(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) ([]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT DISTINCT host_id FROM host_scim_user WHERE host_id IN (?)`, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select hosts with a scim user")
+	}
+	var linked []uint
+	if err := sqlx.SelectContext(ctx, tx, &linked, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts with a scim user")
+	}
+	linkedSet := make(map[uint]struct{}, len(linked))
+	for _, id := range linked {
+		linkedSet[id] = struct{}{}
+	}
+	return slices.DeleteFunc(slices.Clone(hostIDs), func(id uint) bool {
+		_, ok := linkedSet[id]
+		return ok
+	}), nil
 }
 
 func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
@@ -1957,7 +1984,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	SET
 		hmap.status = NULL,
 		hmap.detail = NULL,
-		hmap.command_uuid = ''
+		hmap.command_uuid = '',
+		hmap.retries = 0
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
@@ -2121,7 +2149,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		}
 	}
 
-	if err := triggerResendDigiCertProfilesUsingVariables(ctx, tx, hostIDs, affectedVars); err != nil {
+	if err := triggerResendCAProfilesUsingVariables(ctx, tx, hostIDs, affectedVars); err != nil {
 		return err
 	}
 
@@ -2158,40 +2186,55 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
-// triggerResendDigiCertProfilesUsingVariables resends Apple profiles that get a certificate from a DigiCert CA whose common name, seat
-// ID, or UPN uses an affected variable. The variable is in the CA, not the profile, so the profile has no association with it.
-func triggerResendDigiCertProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
+// triggerResendCAProfilesUsingVariables resends Apple profiles that get a certificate from a DigiCert or EJBCA CA whose certificate fields
+// use an affected variable. The variable is in the CA, not the profile, so the profile has no association with it.
+func triggerResendCAProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
 	var cas []struct {
-		Name   string `db:"name"`
-		Fields string `db:"fields"`
+		Type   fleet.CAType `db:"type"`
+		Name   string       `db:"name"`
+		Fields string       `db:"fields"`
 	}
-	// The UPNs column is a JSON array of strings, and variables.Find works on its raw text.
-	if err := sqlx.SelectContext(ctx, tx, &cas, `
-		SELECT name, CONCAT_WS(' ', certificate_common_name, certificate_seat_id, certificate_user_principal_names) AS fields
+	// The UPNs column is a JSON array of strings, and variables.Find works on its raw text. CONCAT_WS skips the columns a type doesn't use.
+	caTypes := make([]fleet.CAType, 0, len(profileCATypes))
+	for _, t := range profileCATypes {
+		caTypes = append(caTypes, t.caType)
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT type, name, CONCAT_WS(' ', certificate_common_name, certificate_seat_id, ejbca_username_template,
+			certificate_user_principal_names) AS fields
 		FROM certificate_authorities
-		WHERE type = ?`, fleet.CATypeDigiCert); err != nil {
-		return ctxerr.Wrap(ctx, err, "select DigiCert CAs for resend")
+		WHERE type IN (?)`, caTypes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select CAs for resend")
 	}
-	var caNames []string
+	if err := sqlx.SelectContext(ctx, tx, &cas, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select CAs for resend")
+	}
+	caNames := make(map[fleet.CAType][]string, len(profileCATypes))
 	for _, ca := range cas {
 		if slices.ContainsFunc(variables.Find(ca.Fields), func(v string) bool {
 			return slices.Contains(affectedVars, fleet.FleetVarName(v))
 		}) {
-			caNames = append(caNames, ca.Name)
+			caNames[ca.Type] = append(caNames[ca.Type], ca.Name)
 		}
 	}
-	if len(caNames) == 0 {
-		return nil
+	for _, t := range profileCATypes {
+		if len(caNames[t.caType]) == 0 {
+			continue
+		}
+		if err := resendCAProfilesDB(ctx, tx, t.dataVar, caNames[t.caType], hostIDs); err != nil {
+			return err
+		}
 	}
-	return resendDigiCertProfilesDB(ctx, tx, caNames, hostIDs)
+	return nil
 }
 
-// resendDigiCertProfilesDB resends the Apple profiles that get a certificate from one of the named DigiCert CAs, to hostIDs, or to every
-// host that has them when hostIDs is empty.
-func resendDigiCertProfilesDB(ctx context.Context, tx sqlx.ExtContext, caNames []string, hostIDs []uint) error {
+// resendCAProfilesDB resends the Apple profiles that get a certificate from one of the named CAs, through the profile variable with the
+// dataVar prefix, to hostIDs, or to every host that has them when hostIDs is empty.
+func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.FleetVarName, caNames []string, hostIDs []uint) error {
 	dataVars := make(map[string]struct{}, len(caNames))
 	for _, name := range caNames {
-		dataVars[string(fleet.FleetVarDigiCertDataPrefix)+name] = struct{}{}
+		dataVars[string(dataVar)+name] = struct{}{}
 	}
 
 	selectStmt := `
@@ -2203,7 +2246,7 @@ func resendDigiCertProfilesDB(ctx context.Context, tx sqlx.ExtContext, caNames [
 				JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
 			WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name = ?
 		)`
-	selectArgs := []any{"FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix)}
+	selectArgs := []any{"FLEET_VAR_" + string(dataVar)}
 	if len(hostIDs) > 0 {
 		// Scoped to the hosts' teams rather than their host_mdm_apple_profiles rows, which have no index by profile alone.
 		selectStmt += ` AND EXISTS (
@@ -2215,19 +2258,19 @@ func resendDigiCertProfilesDB(ctx context.Context, tx sqlx.ExtContext, caNames [
 	}
 	selectStmt, selectArgs, err := sqlx.In(selectStmt, selectArgs...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare select DigiCert profiles for resend")
+		return ctxerr.Wrap(ctx, err, "prepare select CA profiles for resend")
 	}
-	type digiCertProfile struct {
+	type caProfile struct {
 		ProfileUUID  string `db:"profile_uuid"`
 		TeamID       uint   `db:"team_id"`
 		Mobileconfig []byte `db:"mobileconfig"`
 	}
-	var profiles []digiCertProfile
+	var profiles []caProfile
 	if err := sqlx.SelectContext(ctx, tx, &profiles, selectStmt, selectArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "select DigiCert profiles for resend")
+		return ctxerr.Wrap(ctx, err, "select CA profiles for resend")
 	}
 	// Keep only the profiles that actually get their certificate from one of the CAs being resent
-	profiles = slices.DeleteFunc(profiles, func(p digiCertProfile) bool {
+	profiles = slices.DeleteFunc(profiles, func(p caProfile) bool {
 		return !slices.ContainsFunc(variables.Find(string(p.Mobileconfig)), func(v string) bool {
 			_, ok := dataVars[v]
 			return ok
@@ -2253,17 +2296,18 @@ func resendDigiCertProfilesDB(ctx context.Context, tx sqlx.ExtContext, caNames [
 			SET
 				hmap.status = NULL,
 				hmap.detail = NULL,
-				hmap.command_uuid = ''
+				hmap.command_uuid = '',
+				hmap.retries = 0
 			WHERE
 				h.id IN (?) AND
 				hmap.profile_uuid IN (?) AND
 				hmap.operation_type = ? AND
 				hmap.status IS NOT NULL`, hostIDs, profileUUIDs, fleet.MDMOperationTypeInstall)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare resend DigiCert profiles")
+			return ctxerr.Wrap(ctx, err, "prepare resend CA profiles")
 		}
 		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "resend DigiCert profiles")
+			return ctxerr.Wrap(ctx, err, "resend CA profiles")
 		}
 		return nil
 	}
@@ -2278,13 +2322,14 @@ func resendDigiCertProfilesDB(ctx context.Context, tx sqlx.ExtContext, caNames [
 			SET
 				hmap.status = NULL,
 				hmap.detail = NULL,
-				hmap.command_uuid = ''
+				hmap.command_uuid = '',
+				hmap.retries = 0
 			WHERE
 				h.team_id <=> ? AND
 				hmap.profile_uuid = ? AND
 				hmap.operation_type = ? AND
 				hmap.status IS NOT NULL`, ptr.UintOrNilIfZero(p.TeamID), p.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
-			return ctxerr.Wrap(ctx, err, "resend DigiCert profile to all hosts")
+			return ctxerr.Wrap(ctx, err, "resend CA profile to all hosts")
 		}
 	}
 	return nil
@@ -2340,9 +2385,9 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds android app configs that reference any of
-// the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values.
+// queueManagedConfigResendJobs finds App Store app configurations that reference any of the affected Fleet
+// variables and flags the affected hosts' installs, so the App Store app configuration cron and the Android app
+// reconciler will send them with the updated values.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2391,57 +2436,43 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	// Re-send iOS and iPadOS apps with the new configuration to the affected hosts that have them
-	var apps []affectedApp
+	var androidAppTeamIDs []uint
+	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
-		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
-			apps = append(apps, app)
+		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
+			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}
-		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
-		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, false, hostIDs)
+		androidAppTeamIDs = append(androidAppTeamIDs, app.AppTeamID)
+	}
+
+	// Flag the hosts' installs of the affected iOS and iPadOS apps for the configuration cron, whatever version they're of, since a
+	// host's latest install can be of another version with the same configuration
+	if len(appleAppTeamIDs) > 0 {
+		const markConfigurationResendStmt = `
+		UPDATE host_vpp_software_installs hvsi
+		JOIN vpp_apps_teams vat ON vat.adam_id = hvsi.adam_id AND vat.platform = hvsi.platform
+		SET hvsi.needs_resend = 1
+		WHERE hvsi.host_id IN (?) AND vat.id IN (?) AND hvsi.canceled = 0
+`
+		var markStmt string
+		var markArgs []any
+		markStmt, markArgs, err = sqlx.In(markConfigurationResendStmt, hostIDs, appleAppTeamIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
+			return ctxerr.Wrap(ctx, err, "prepare mark vpp app configuration resend")
+		}
+		_, err = tx.ExecContext(ctx, markStmt, markArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "mark vpp app configuration resend")
 		}
 	}
 
-	if len(apps) == 0 {
+	if len(androidAppTeamIDs) == 0 {
 		return nil
 	}
 
-	// Get the enterprise name from the DB.
-	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// No enterprise configured — nothing to do.
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android enterprise id")
-	}
-	enterpriseName := "enterprises/" + enterpriseID
-
-	// Insert a job for each affected app config.
-	const insertJob = `
-	INSERT INTO jobs (name, args, state, error)
-	VALUES (?, ?, 'queued', '')
-`
-	for _, app := range apps {
-		args, err := json.Marshal(map[string]any{
-			"task":               "make_android_app_available",
-			"application_id":     app.ApplicationID,
-			"app_team_id":        app.AppTeamID,
-			"enterprise_name":    enterpriseName,
-			"app_config_changed": true,
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshal job args for managed config resend")
-		}
-		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert managed config resend job")
-		}
-	}
-
-	return nil
+	// Flag the affected Android apps for the Android app reconciler
+	return setHostAndroidSoftwareInstallsNeedsResendTx(ctx, tx, hostIDs, androidAppTeamIDs)
 }
 
 // emailsRequireUpdate compares two slices of emails and returns true if they are different

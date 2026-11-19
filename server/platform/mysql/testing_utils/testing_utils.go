@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -118,11 +120,49 @@ type DatastoreTestOptions struct {
 	UniqueTestName string
 }
 
+// MigrationVersions returns the versions of the Go migrations in dir, derived
+// from their filenames the same way goose.NumericComponent does (goose isn't a
+// platform package, so it can't be imported here).
+func MigrationVersions(dir string) ([]int64, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read migrations dir: %w", err)
+	}
+	var versions []int64
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || filepath.Ext(name) != ".go" || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		// Non-migration files (migration.go, fleet4_migrations.go, ...) have no numeric prefix.
+		prefix, _, found := strings.Cut(name, "_")
+		if v, err := strconv.ParseInt(prefix, 10, 64); found && err == nil && v > 0 {
+			versions = append(versions, v)
+		}
+	}
+	slices.Sort(versions)
+	return versions, nil
+}
+
 // LoadDefaultSchema loads the default database schema for testing.
 func LoadDefaultSchema(t testing.TB, testName string, opts *DatastoreTestOptions) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
-	LoadSchema(t, testName, opts, schemaPath)
+	dir := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql")
+	schema, err := os.ReadFile(filepath.Join(dir, "schema.sql"))
+	require.NoError(t, err)
+
+	// schema.sql has no migration_status_tables rows, so that PRs adding
+	// migrations don't conflict on it. Derive them from the migration files.
+	versions, err := MigrationVersions(filepath.Join(dir, "migrations", "tables"))
+	require.NoError(t, err)
+	var sb strings.Builder
+	sb.Write(schema)
+	sb.WriteString("\nINSERT INTO `migration_status_tables` (`version_id`, `is_applied`) VALUES (0, 1)")
+	for _, v := range versions {
+		fmt.Fprintf(&sb, ", (%d, 1)", v)
+	}
+	sb.WriteString(";\n")
+	loadSchemaSQL(t, testName, opts, sb.String())
 }
 
 // LoadSchema loads a database schema from the specified path for testing.
@@ -132,7 +172,10 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 		t.Error(err)
 		t.FailNow()
 	}
+	loadSchemaSQL(t, testName, opts, string(schema))
+}
 
+func loadSchemaSQL(t testing.TB, testName string, opts *DatastoreTestOptions, schema string) {
 	// execute the schema for the test db, and once more for the replica db if
 	// that option is set.
 	dbs := []string{testName}

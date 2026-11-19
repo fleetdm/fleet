@@ -1,1 +1,0 @@
-- Fixed GitOps runs that don't change a fleet's Fleet-maintained apps holding up installs queued for those apps, in that fleet and in other fleets with the same app, until the run finished.

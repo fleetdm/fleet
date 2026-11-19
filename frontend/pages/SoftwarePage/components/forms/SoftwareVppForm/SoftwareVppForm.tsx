@@ -33,6 +33,7 @@ interface IVppAppListItemProps {
   selected: boolean;
   uniqueAppId: string;
   onSelect: (software: IVppApp) => void;
+  disabled?: boolean;
 }
 
 const VppAppListItem = ({
@@ -40,6 +41,7 @@ const VppAppListItem = ({
   selected,
   uniqueAppId,
   onSelect,
+  disabled,
 }: IVppAppListItemProps) => {
   return (
     <li className={`${baseClass}__list-item`}>
@@ -55,6 +57,7 @@ const VppAppListItem = ({
         value={uniqueAppId}
         name="vppApp"
         onChange={() => onSelect(app)}
+        disabled={disabled}
       />
       {app.platform && (
         <div className="app-platform">
@@ -69,9 +72,15 @@ interface IVppAppListProps {
   apps: IVppApp[];
   selectedApp: IVppApp | null;
   onSelect: (app: IVppApp) => void;
+  disabled?: boolean;
 }
 
-const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
+const VppAppList = ({
+  apps,
+  selectedApp,
+  onSelect,
+  disabled,
+}: IVppAppListProps) => {
   const uniqueSelectedAppId = selectedApp ? getUniqueAppId(selectedApp) : null;
   return (
     <div className={`${baseClass}__list-container`}>
@@ -85,6 +94,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
               selected={uniqueSelectedAppId === uniqueAppId}
               uniqueAppId={uniqueAppId}
               onSelect={onSelect}
+              disabled={disabled}
             />
           );
         })}
@@ -101,6 +111,7 @@ export interface ISoftwareVppFormData {
   labelTargets: Record<string, boolean>;
   selectedApp?: IVppApp | null;
   categories: string[];
+  vppTokenId?: number;
 }
 
 export interface IFormValidation {
@@ -272,6 +283,7 @@ const SoftwareVppForm = ({
                 onClickPreviewEndUserExperience(isAppleMobile)
               }
               teamId={teamId}
+              disableOptions={gitOpsModeEnabled}
             />
             <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
@@ -291,6 +303,7 @@ const SoftwareVppForm = ({
                   ? "Changing this will also apply to targets for auto-updates."
                   : ""
               }
+              disableOptions={gitOpsModeEnabled}
             />
           </div>
         </div>
@@ -312,6 +325,7 @@ const SoftwareVppForm = ({
             apps={vppApps}
             selectedApp={formData.selectedApp || null}
             onSelect={onSelectApp}
+            disabled={gitOpsModeEnabled}
           />
           <div className={`${baseClass}__help-text`}>
             These apps were added in Apple Business (AB). To add more apps, head
@@ -329,12 +343,14 @@ const SoftwareVppForm = ({
                 )
               }
               teamId={teamId}
+              disableOptions={gitOpsModeEnabled}
             />
           )}
           {showDeploySoftwareSlider && (
             <SoftwareDeploySlider
               deploySoftware={formData.automaticInstall}
               onToggleDeploySoftware={onToggleAutomaticInstall}
+              disabled={gitOpsModeEnabled}
             />
           )}
         </div>
@@ -348,15 +364,11 @@ const SoftwareVppForm = ({
     [`${baseClass}__content-disabled`]: isLoading,
   });
 
-  const formContentClasses = classnames(`${baseClass}__form-content`, {
-    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
-  });
-
   return (
     <form className={baseClass} onSubmit={onFormSubmit}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
-        <div className={formContentClasses}>
+        <div className={`${baseClass}__form-content`}>
           <>{renderContent()}</>
         </div>
         <div className={`${baseClass}__action-buttons`}>

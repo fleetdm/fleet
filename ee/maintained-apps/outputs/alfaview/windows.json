@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.30.2",
+      "version": "9.30.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'alfaview msi version %' AND publisher = 'alfaview Video Conferencing Systems GmbH & Co. KG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'alfaview msi version %' AND publisher = 'alfaview Video Conferencing Systems GmbH & Co. KG' AND version_compare(version, '9.30.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'alfaview msi version %' AND publisher = 'alfaview Video Conferencing Systems GmbH & Co. KG' AND version_compare(version, '9.30.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'alfaview.exe');"
       },
-      "installer_url": "https://assets.alfaview.com/stable/win/alfaview-setup-win-production-9.30.2.msi",
+      "installer_url": "https://assets.alfaview.com/stable/win/alfaview-setup-win-production-9.30.5.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "cfe9bd59",
-      "sha256": "a316c690f3098d21967db322915cef55c3de854b29338554ba023cc69202a3f3",
+      "sha256": "e4744d33a04439d3b3dcfcfb9e4ad996e728c4d8e5ec8d63320d8ffa71738512",
       "default_categories": [
         "Communication"
       ],

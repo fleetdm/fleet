@@ -5,7 +5,7 @@ import { createMockScript } from "__mocks__/scriptMock";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
-  createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
 import createMockUser from "__mocks__/userMock";
 import { IPolicy } from "interfaces/policy";
@@ -77,7 +77,7 @@ const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
   author_email: "admin@example.com",
   resolution: "",
   platform: "darwin",
-  team_id: 1,
+  fleet_id: 1,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -92,12 +92,6 @@ const singlePackageTitle: ISoftwareTitle = createMockSoftwareTitle({
   id: 10,
   name: "Single App",
   source: "apps",
-  software_package: createMockSoftwarePackage({
-    installer_id: 100,
-    name: "single-app.pkg",
-    version: "1.0.0",
-    uploaded_at: "2026-06-01T00:00:00Z",
-  }),
   packages: [
     createMockSoftwarePackage({
       installer_id: 100,
@@ -112,12 +106,6 @@ const multiPackageTitle: ISoftwareTitle = createMockSoftwareTitle({
   id: 20,
   name: "Multi App",
   source: "apps",
-  software_package: createMockSoftwarePackage({
-    installer_id: 200,
-    name: "multi-app-1.0.0.pkg",
-    version: "1.0.0",
-    uploaded_at: "2026-06-01T00:00:00Z",
-  }),
   packages: [
     createMockSoftwarePackage({
       installer_id: 201,
@@ -145,8 +133,7 @@ const vppTitle: ISoftwareTitle = createMockSoftwareTitle({
   id: 30,
   name: "VPP App",
   source: "apps",
-  software_package: null,
-  app_store_app: createMockAppStoreApp({ version: "5.0.0" }),
+  app_store_apps: [createMockAppStoreAppVersion({ version: "5.0.0" })],
   packages: null,
 });
 
@@ -159,6 +146,31 @@ const render = createCustomRenderer({
     },
   },
 });
+
+const openAutomationOptions = async (user: {
+  click: (element: Element) => Promise<void>;
+}) => {
+  await user.click(screen.getByRole("combobox", { name: "Automation" }));
+  return Array.from(document.querySelectorAll(".react-select__option"));
+};
+
+const getAutomationOption = async (
+  user: { click: (element: Element) => Promise<void> },
+  label: string
+) => {
+  const option = (await openAutomationOptions(user)).find((o) =>
+    o.textContent?.startsWith(label)
+  );
+  if (!option) throw new Error(`No "${label}" automation option`);
+  return option;
+};
+
+const selectAutomation = async (
+  user: { click: (element: Element) => Promise<void> },
+  label: string
+) => {
+  await user.click(await getAutomationOption(user, label));
+};
 
 /** Renders the field, forwarding the passed-in ref directly to the
  * component's `useImperativeHandle` so tests can call
@@ -210,6 +222,7 @@ describe("PolicyAutomationsFields — Install software row", () => {
 
   it("surfaces the Select package dropdown for a multi-package title and auto-selects the first-added (smallest installer_id)", () => {
     renderWithHandle({
+      automation_type: "software",
       install_software: {
         name: "Multi App",
         software_title_id: 20,
@@ -228,6 +241,7 @@ describe("PolicyAutomationsFields — Install software row", () => {
 
   it("does not surface the Select package dropdown for a single-package title", () => {
     renderWithHandle({
+      automation_type: "software",
       install_software: {
         name: "Single App",
         software_title_id: 10,
@@ -241,6 +255,7 @@ describe("PolicyAutomationsFields — Install software row", () => {
 
   it("does not surface the Select package dropdown for a VPP / App Store title (no packages[])", () => {
     renderWithHandle({
+      automation_type: "software",
       install_software: {
         name: "VPP App",
         software_title_id: 30,
@@ -284,6 +299,7 @@ describe("PolicyAutomationsFields — Install software row", () => {
       }),
     ]);
     renderWithHandle({
+      automation_type: "software",
       install_software: {
         name: "Duo App",
         software_title_id: 40,
@@ -315,6 +331,7 @@ describe("PolicyAutomationsFields — payload", () => {
     };
     renderWithHandle(
       {
+        automation_type: "software",
         install_software: {
           name: "Multi App",
           software_title_id: 20,
@@ -342,6 +359,7 @@ describe("PolicyAutomationsFields — payload", () => {
     };
     renderWithHandle(
       {
+        automation_type: "software",
         install_software: {
           name: "VPP App",
           software_title_id: 30,
@@ -379,7 +397,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
-      software_title_id: 42,
+      automation_type: "software",
       patch_when_closed: true,
       continuous_automations_enabled: true,
     });
@@ -409,7 +427,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
-      software_title_id: 42,
+      automation_type: "software",
       patch_when_closed: false,
       continuous_automations_enabled: false,
     });
@@ -424,6 +442,7 @@ describe("PolicyAutomationsFields — payload", () => {
         type: "patch",
         patch_software: { name: "Firefox", software_title_id: 42 },
         install_software: { name: "Firefox", software_title_id: 42 },
+        automation_type: "software",
         patch_when_closed: false,
         continuous_automations_enabled: true,
       },
@@ -436,7 +455,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
-      software_title_id: null,
+      automation_type: null,
       continuous_automations_enabled: true,
     });
 
@@ -465,7 +484,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(continuous).toHaveAttribute("aria-disabled", "true");
 
     const icon = container.querySelector(
-      ".policy-automations-fields__section:last-child .fleet-checkbox__icon"
+      ".policy-automations-fields__continuous .fleet-checkbox__icon"
     );
     expect(icon).not.toBeNull();
     await user.hover(icon as Element);
@@ -533,7 +552,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
-      software_title_id: 42,
+      automation_type: "software",
       notify_before_patching: true,
       continuous_automations_enabled: true,
     });
@@ -559,7 +578,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(continuous).toHaveAttribute("aria-disabled", "true");
 
     const icon = container.querySelector(
-      ".policy-automations-fields__section:last-child .fleet-checkbox__icon"
+      ".policy-automations-fields__continuous .fleet-checkbox__icon"
     );
     expect(icon).not.toBeNull();
     await user.hover(icon as Element);
@@ -581,19 +600,23 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
     jest.clearAllMocks();
   });
 
-  it("is enabled for platforms that support configuration profiles", () => {
-    renderWithHandle(undefined, undefined, { selectedPlatforms: ["windows"] });
+  it("is enabled for platforms that support configuration profiles", async () => {
+    const { user } = renderWithHandle(undefined, undefined, {
+      selectedPlatforms: ["windows"],
+    });
 
     expect(
-      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+      await getAutomationOption(user, "Resend configuration profile")
     ).toHaveAttribute("aria-disabled", "false");
   });
 
-  it("is disabled for platforms without configuration profiles", () => {
-    renderWithHandle(undefined, undefined, { selectedPlatforms: ["linux"] });
+  it("is disabled for platforms without configuration profiles", async () => {
+    const { user } = renderWithHandle(undefined, undefined, {
+      selectedPlatforms: ["linux"],
+    });
 
     expect(
-      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+      await getAutomationOption(user, "Resend configuration profile")
     ).toHaveAttribute("aria-disabled", "true");
   });
 
@@ -615,6 +638,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
     // effect, so the first render sees an empty selection (#51272).
     const { rerender } = renderWithHandle(
       {
+        automation_type: "configuration_profile",
         resend_configuration_profile: {
           profile_uuid: "abc-123",
           name: "Safari home page",
@@ -627,6 +651,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
     rerender(
       <PolicyAutomationsFields
         policy={createMockPolicy({
+          automation_type: "configuration_profile",
           resend_configuration_profile: {
             profile_uuid: "abc-123",
             name: "Safari home page",
@@ -642,12 +667,12 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
     );
 
     expect(
-      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
-    ).toHaveAttribute("aria-checked", "true");
+      screen.getByText("Resend configuration profile")
+    ).toBeInTheDocument();
     expect(screen.getByText("Safari home page")).toBeInTheDocument();
   });
 
-  it("blocks the save when the row is checked but no profile is selected", async () => {
+  it("blocks the save when the automation is selected but no profile is", async () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
     };
@@ -655,9 +680,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
       selectedPlatforms: ["darwin"],
     });
 
-    await user.click(
-      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
-    );
+    await selectAutomation(user, "Resend configuration profile");
 
     act(() => {
       expect(handleRef.current?.getAutomationsPayload().isValid).toBe(false);
@@ -691,6 +714,7 @@ describe("PolicyAutomationsFields — type-to-search pickers", () => {
 
   it("filters software titles as the user types", async () => {
     const { user } = renderWithHandle({
+      automation_type: "software",
       install_software: { name: "Single App", software_title_id: 10 },
     });
 
@@ -708,6 +732,7 @@ describe("PolicyAutomationsFields — type-to-search pickers", () => {
 
   it("filters scripts as the user types", async () => {
     const { user } = renderWithHandle({
+      automation_type: "script",
       run_script: { id: 1, name: "Rotate keys" },
     });
 
@@ -720,5 +745,280 @@ describe("PolicyAutomationsFields — type-to-search pickers", () => {
       document.querySelectorAll(".react-select__option")
     ).map((o) => o.textContent);
     expect(options).toEqual(["Clear cache"]);
+  });
+});
+
+describe("PolicyAutomationsFields — Automation dropdown", () => {
+  const webhookConfig = {
+    webhook_settings: {
+      failing_policies_webhook: {
+        enable_failing_policies_webhook: true,
+        destination_url: "https://example.com",
+        policy_ids: [],
+        host_batch_size: 0,
+      },
+    },
+  } as never;
+
+  beforeEach(() => {
+    mockedUseScripts.mockReturnValue(({
+      data: {
+        count: 1,
+        scripts: [createMockScript({ id: 1, name: "Rotate keys" })],
+        meta: { has_next_results: false, has_previous_results: false },
+      },
+    } as unknown) as ReturnType<typeof useScripts>);
+    setSoftwareTitles([singlePackageTitle]);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const optionLabels = (options: Element[]) =>
+    options.map((o) => o.textContent);
+
+  it("shows None for a policy without an automation", () => {
+    renderWithHandle();
+    expect(screen.getByText("None")).toBeInTheDocument();
+  });
+
+  it("offers every automation for a fleet policy", async () => {
+    const { user } = renderWithHandle(undefined, undefined, {
+      automationsConfig: webhookConfig,
+    });
+    expect(optionLabels(await openAutomationOptions(user))).toEqual([
+      "None",
+      "Send webhook",
+      "Install software",
+      "Run script",
+      "Resend configuration profile",
+      "Calendar event",
+      "Conditional access",
+    ]);
+  });
+
+  it("only offers webhook or ticket for an All fleets policy", async () => {
+    const { user } = renderWithHandle(undefined, undefined, {
+      isGlobalPolicy: true,
+      teamIdForApi: undefined,
+      automationsConfig: webhookConfig,
+    });
+    expect(optionLabels(await openAutomationOptions(user))).toEqual([
+      "None",
+      "Send webhook",
+    ]);
+  });
+
+  it("doesn't offer calendar for an Unassigned policy", async () => {
+    const { user } = renderWithHandle(undefined, undefined, {
+      teamIdForApi: 0,
+    });
+    expect(optionLabels(await openAutomationOptions(user))).not.toContain(
+      "Calendar event"
+    );
+  });
+
+  it("disables automations that aren't turned on for the fleet", async () => {
+    const { user } = renderWithHandle();
+    const options = await openAutomationOptions(user);
+    const disabled = options
+      .filter((o) => o.getAttribute("aria-disabled") === "true")
+      .map((o) => o.textContent);
+    expect(disabled).toEqual([
+      "Send webhook or create ticket",
+      "Calendar event",
+      "Conditional access",
+    ]);
+  });
+
+  it("shows the item dropdown and continuous automations for a script", async () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    const { user } = renderWithHandle(undefined, handleRef);
+
+    await selectAutomation(user, "Run script");
+    expect(screen.getByText("Script")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    ).toBeInTheDocument();
+
+    act(() => {
+      expect(handleRef.current?.getAutomationsPayload().isValid).toBe(false);
+    });
+    expect(
+      await screen.findByText("Please select a script to run.")
+    ).toBeInTheDocument();
+  });
+
+  it("hides continuous automations for automations other than software and script", async () => {
+    const { user } = renderWithHandle(undefined, undefined, {
+      automationsConfig: webhookConfig,
+    });
+
+    await selectAutomation(user, "Send webhook");
+    expect(
+      screen.queryByRole("checkbox", { name: "continuous-automations-enabled" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends the selected automation with its item in one update", async () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    const { user } = renderWithHandle(
+      {
+        automation_type: "software",
+        install_software: { name: "Single App", software_title_id: 10 },
+      },
+      handleRef
+    );
+
+    await selectAutomation(user, "Run script");
+    await user.click(screen.getByRole("combobox", { name: /Select script/i }));
+    await user.click(screen.getByText("Rotate keys"));
+
+    expect(handleRef.current?.getAutomationsPayload()).toEqual({
+      isValid: true,
+      isDirty: true,
+      policyUpdate: {
+        automation_type: "script",
+        script_id: 1,
+        continuous_automations_enabled: false,
+      },
+    });
+  });
+
+  it("drops a continuous change made before switching away from script", async () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    const { user } = renderWithHandle(
+      { automation_type: "script", run_script: { id: 1, name: "Rotate keys" } },
+      handleRef,
+      { automationsConfig: webhookConfig }
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
+    );
+    await selectAutomation(user, "Send webhook");
+
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({
+      automation_type: "webhook_or_ticket",
+      continuous_automations_enabled: false,
+    });
+  });
+
+  it("sends a null automation_type when None is selected", async () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    const { user } = renderWithHandle(
+      { automation_type: "script", run_script: { id: 1, name: "Rotate keys" } },
+      handleRef
+    );
+
+    await selectAutomation(user, "None");
+    expect(
+      handleRef.current?.getAutomationsPayload().policyUpdate
+    ).toMatchObject({ automation_type: null });
+  });
+
+  it("sends nothing when the automation didn't change", () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    renderWithHandle(
+      { automation_type: "script", run_script: { id: 1, name: "Rotate keys" } },
+      handleRef
+    );
+
+    expect(handleRef.current?.getAutomationsPayload()).toEqual({
+      isValid: true,
+      isDirty: false,
+    });
+  });
+
+  it("leaves software to the Patch options on a patch policy", async () => {
+    const { user } = renderWithHandle(
+      {
+        type: "patch",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+      },
+      undefined,
+      { patchOption: "manual", automationsConfig: webhookConfig }
+    );
+
+    expect(optionLabels(await openAutomationOptions(user))).not.toContain(
+      "Install software"
+    );
+  });
+
+  it("shows software and locks the dropdown while a patch policy patches", () => {
+    renderWithHandle(
+      {
+        type: "patch",
+        automation_type: "software",
+        patch_software: { name: "Firefox", software_title_id: 42 },
+      },
+      undefined,
+      { patchOption: "closed" }
+    );
+
+    expect(screen.getByText("Install software")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Automation" })).toBeDisabled();
+  });
+
+  describe("for a maintainer", () => {
+    const renderAsMaintainer = createCustomRenderer({
+      context: {
+        app: {
+          currentUser: createMockUser({ global_role: "maintainer" }),
+          isGlobalAdmin: false,
+          isPremiumTier: true,
+        },
+      },
+    });
+
+    it("disables the webhook or ticket option", async () => {
+      const { user } = renderAsMaintainer(
+        <PolicyAutomationsFields
+          policy={createMockPolicy()}
+          isGlobalPolicy={false}
+          teamIdForApi={1}
+          automationsConfig={webhookConfig}
+          globalConfig={undefined}
+          fleetName="Test Fleet"
+          selectedPlatforms={["darwin"]}
+        />
+      );
+
+      expect(await getAutomationOption(user, "Send webhook")).toHaveAttribute(
+        "aria-disabled",
+        "true"
+      );
+    });
+
+    it("locks the dropdown when the policy's automation is webhook or ticket", () => {
+      renderAsMaintainer(
+        <PolicyAutomationsFields
+          policy={createMockPolicy({ automation_type: "webhook_or_ticket" })}
+          isGlobalPolicy={false}
+          teamIdForApi={1}
+          automationsConfig={webhookConfig}
+          globalConfig={undefined}
+          fleetName="Test Fleet"
+          selectedPlatforms={["darwin"]}
+        />
+      );
+
+      expect(
+        screen.getByRole("combobox", { name: "Automation" })
+      ).toBeDisabled();
+    });
   });
 });

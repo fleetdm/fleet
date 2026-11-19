@@ -12,6 +12,7 @@ module.exports = {
     prNumber: { type: 'number', example: 382, required: true },
     githubUserToCheck: { type: 'string', example: 'mikermcneil', description: 'If excluded, then this returns `true` if all of the PRs changed paths are preapproved for SOMEONE.' },
     isGithubUserMaintainerOrDoesntMatter: { type: 'boolean', required: true, description: 'Whether (a) the user is a maintainer, or (b) it even matters for this check whether the user is a maintainer.' },// FUTURE: « this could be replaced with an extra GitHub API call herein, but doesn't seem worth it
+    ignoreSizeLimit: { type: 'boolean', defaultsTo: false, description: 'If set, skip the "fewer than 100 changed files" rule, and only check maintainership of the (first 100) changed paths.  Used to tell whether a PR\'s size was the only thing standing in the way of auto-approval.' },
   },
 
 
@@ -26,7 +27,7 @@ module.exports = {
   },
 
 
-  fn: async function ({repo, prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter}) {
+  fn: async function ({repo, prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter, ignoreSizeLimit}) {
 
     require('assert')(sails.config.custom.githubRepoMaintainersByPath);
     require('assert')(sails.config.custom.confidentialGithubRepoMaintainersByPath);
@@ -86,7 +87,7 @@ module.exports = {
         }//∞
       });//∞
 
-      if (isMaintainerForAllChangedPathsStill && changedPaths.length < 100) {
+      if (isMaintainerForAllChangedPathsStill && (ignoreSizeLimit || changedPaths.length < 100)) {
         return true;
       } else {
         return false;

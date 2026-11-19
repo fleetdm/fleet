@@ -518,7 +518,7 @@ export const pathSupportsAllFleets = (pathname: string): boolean =>
  *
  * This bypasses useTeamIdParam.handleTeamChange (which owns per-page
  * `overrideParamsOnTeamChange` config), so it reproduces handleTeamChange's
- * generic strip rules (page, legacy team_id) plus the fleet-scoped Hosts
+ * generic strip rules (page) plus the fleet-scoped Hosts
  * filter keys (script_batch_execution_*, software_status on switch to All).
  */
 export const buildFleetSwitchUrl = ({
@@ -554,7 +554,6 @@ export const buildFleetSwitchUrl = ({
     params.set("fleet_id", String(fleetId));
   }
   params.delete("page");
-  params.delete("team_id");
   params.delete("script_batch_execution_id");
   params.delete("script_batch_execution_status");
   if (isAll) {

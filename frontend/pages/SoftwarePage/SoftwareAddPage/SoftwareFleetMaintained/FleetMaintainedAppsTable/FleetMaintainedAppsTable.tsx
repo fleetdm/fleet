@@ -46,20 +46,48 @@ const EmptyFleetAppsTable = () => (
  * for different platforms into one row. Apps are keyed by their slug token (the
  * prefix before "/"), not by name, so two distinct apps that share a display
  * name stay as separate rows. */
+const PLATFORM_NAME_SUFFIX = / for (macOS|Mac|Windows)$/;
+
+// Windows slugs whose slug token differs from the macOS slug of the same app
+export const WINDOWS_TO_MACOS_SLUGS = new Map<string, string>([
+  ["docker/windows", "docker-desktop/darwin"],
+  ["burp-suite-community/windows", "burp-suite/darwin"],
+  ["chrome-remote-desktop/windows", "chrome-remote-desktop-host/darwin"],
+  ["github-desktop/windows", "github/darwin"],
+  ["handbrake/windows", "handbrake-app/darwin"],
+  ["tableau-desktop/windows", "tableau/darwin"],
+  ["tailscale/windows", "tailscale-app/darwin"],
+  ["wireshark/windows", "wireshark-app/darwin"],
+  ["zen-browser/windows", "zen/darwin"],
+]);
+
 export const combineAppsByPlatform = (
   fmaList: IFleetMaintainedApp[]
 ): ICombinedFMA[] => {
   const combinedApps: { [appToken: string]: ICombinedFMA } = {};
+  const platformNames: { [appToken: string]: Set<string> } = {};
 
   fmaList.forEach((app: IFleetMaintainedApp) => {
     const { name, platform, ...rest } = app;
-    const appToken = app.slug.split("/")[0];
+    const rowSlug = WINDOWS_TO_MACOS_SLUGS.get(app.slug) ?? app.slug;
+    const appToken = rowSlug.split("/")[0];
 
     if (!combinedApps[appToken]) {
-      combinedApps[appToken] = { name, macos: null, windows: null };
+      combinedApps[appToken] = {
+        name,
+        displayName: name,
+        macos: null,
+        windows: null,
+      };
+      platformNames[appToken] = new Set();
     }
+    platformNames[appToken].add(name);
 
     if (platform === "darwin") {
+      // The API orders entries by name in the requested direction, so take the
+      // name from the macOS entry to keep it stable across sort directions.
+      combinedApps[appToken].name = name;
+      combinedApps[appToken].displayName = name;
       combinedApps[appToken].macos = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
@@ -69,6 +97,20 @@ export const combineAppsByPlatform = (
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
+    }
+  });
+
+  // Only strip the suffix when the platforms' names differ by it (e.g. "R for
+  // macOS" and "R for Windows"); a single-platform app's suffix is part of its
+  // name (e.g. "Google Credential Provider for Windows").
+  Object.entries(combinedApps).forEach(([appToken, combinedApp]) => {
+    const names = platformNames[appToken];
+    if (names.size < 2) return;
+    const baseNames = new Set(
+      [...names].map((n) => n.replace(PLATFORM_NAME_SUFFIX, ""))
+    );
+    if (baseNames.size === 1) {
+      [combinedApp.displayName] = baseNames;
     }
   });
 

@@ -9,6 +9,7 @@ import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCe
 interface IHostQueriesTableData extends Partial<IQueryStats> {
   should_link_to_hqr: boolean;
   id: number;
+  query_name: string;
 }
 interface IHeaderProps {
   column: {
@@ -107,16 +108,16 @@ const enhanceScheduleData = (
 ): IHostQueriesTableData[] => {
   return Object.values(query_stats).map((query) => {
     const {
-      query_name,
-      scheduled_query_id,
+      report_name,
+      scheduled_report_id,
       last_fetched,
       interval,
       discard_data,
       automations_enabled,
     } = query;
     return {
-      query_name,
-      id: scheduled_query_id,
+      query_name: report_name,
+      id: scheduled_report_id,
       last_fetched,
       interval,
       discard_data,

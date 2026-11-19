@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -631,6 +632,20 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 		return "", nil
 	}
 
+	// The Android OS reports itself as package "android". Its vulnerabilities come from the Android
+	// OSV artifacts by security patch level; with target_sw=android it would match every unversioned
+	// Android OS CVE in NVD.
+	if software.Source == "android_apps" && software.ApplicationID != nil && *software.ApplicationID == "android" {
+		return "", nil
+	}
+
+	// fleetd's Windows Installed apps entry, once fleetd renames it (fleet.CapabilityFleetAgentNames).
+	// The name alone matches the Fleet server's CPE, and other apps are also called "Fleet", so the
+	// publisher decides.
+	if software.Source == "programs" && software.Name == constant.AgentDisplayName && software.Vendor == constant.AgentPublisher {
+		return "", nil
+	}
+
 	mutateSoftware(ctx, software, logger) // tweak e.g. software versions prior to CPE matching if needed
 
 	translation, match, err := translations.Translate(reCache, software)
@@ -869,8 +884,10 @@ func TranslateSoftwareToCPE(
 			// CEP/UXP extensions are only ever filed against the host Adobe application, so any
 			// match here would be a false positive pinned to the wrong version.
 			// Go binaries are matched by module path against the Go vulnerability database
-			// instead.
-			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins", "go_binaries"),
+			// instead. MCP servers and AI skills have no vulnerability data source, and AI CLIs
+			// installed by a package manager are matched under that package's own source.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins", "go_binaries",
+				"ai_clis", "mcp_servers", "ai_skills"),
 		},
 	)
 	if err != nil {

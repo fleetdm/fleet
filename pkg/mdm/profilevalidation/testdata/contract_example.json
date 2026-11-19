@@ -1,0 +1,111 @@
+{
+  "format_version": 1,
+  "version": {
+    "apple": {"release": "Release-v27.0", "commit": "0123456789abcdef0123456789abcdef01234567"},
+    "windows": {"release": "DDFv2Feb2026", "url": "https://download.microsoft.com/download/015bd9f5-9cca-4821-8a85-a4c5f9a5d0f2/DDFv2Feb2026.zip", "sha256": "bf667d895af4a8c8ab5a31065ce0e28ea2f8b649c4dc416f452f62fd1c42ff14"},
+    "windows_templates": {"sha256": "0f0e", "generated_at": "2026-10-07T14:08:30.957Z"},
+    "future_platform": {"release": "ignored"},
+    "generated_at": "2026-10-15T00:00:00Z"
+  },
+  "apple_envelope": {
+    "TopLevel": {"keys": {"PayloadVersion": {"type": "integer", "required": true}}},
+    "CommonPayloadKeys": {"keys": {"PayloadUUID": {"type": "string", "required": true}}}
+  },
+  "apple_declaration_envelope": {
+    "platforms": {"iOS": {"introduced": "15.0"}, "macOS": {"introduced": "13.0"}, "tvOS": {"introduced": "16.0"},
+                  "visionOS": {"introduced": "1.1"}, "watchOS": {"introduced": "10.0"}},
+    "source": "apple",
+    "keys": {
+      "Type": {"type": "string", "required": true},
+      "Identifier": {"type": "string", "required": true},
+      "Payload": {"type": "dictionary", "required": true, "open": true}
+    }
+  },
+  "apple_profiles": {
+    "com.apple.applicationaccess": {
+      "platforms": {"iOS": {"introduced": "4.0"}, "macOS": {"introduced": "10.7"}, "tvOS": {"introduced": "9.0"},
+                    "visionOS": {"introduced": "1.1"}, "watchOS": {"introduced": "10.0"}},
+      "source": "apple",
+      "keys": {
+        "allowCamera": {"type": "boolean"},
+        "allowAirPrint": {"type": "boolean", "platforms": {"iOS": {"introduced": "11.0", "supervised": true}, "macOS": {"introduced": "n/a"}}},
+        "autonomousSingleAppModePermittedAppIDs": {"type": "array", "items": {"type": "string"}},
+        "enforcedSoftwareUpdateDelay": {"type": "integer", "range": {"min": 1, "max": 90},
+                                        "platforms": {"macOS": {"introduced": "10.13.4", "deprecated": "26.0", "removed": "27.0"}}}
+      }
+    },
+    "com.apple.example.override": {
+      "keys": {
+        "SomeKey": {"type": ["integer", "string"]}
+      }
+    },
+    "com.apple.eas.account": {
+      "keys": {
+        "PayloadCertificateUUID": {"type": "string", "format": "^[0-9A-Za-z]{8}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{12}$"}
+      }
+    },
+    "com.apple.homescreenlayout": {
+      "platforms": {"iOS": {"introduced": "9.3", "supervised": true}, "tvOS": {"introduced": "11.0", "supervised": true},
+                    "macOS": {"introduced": "n/a"}},
+      "source": "apple",
+      "keys": {
+        "Dock": {"type": "array", "items": {"type": "dictionary", "keys": {
+          "Type": {"type": "string", "required": true, "rangelist": ["Application", "Folder", "WebClip"]},
+          "Pages": {"type": "array", "items": {"type": "array", "items": {"type": "dictionary", "ref": "Dock[]"}}}
+        }}}
+      }
+    },
+    "com.apple.ManagedClient.preferences": {
+      "source": "apple",
+      "keys": {"PayloadContent": {"type": "dictionary", "open": true}}
+    }
+  },
+  "apple_declarations": {
+    "com.apple.configuration.passcode.settings": {
+      "platforms": {"iOS": {"introduced": "15.0"}, "macOS": {"introduced": "13.0"}, "tvOS": {"introduced": "n/a"},
+                    "visionOS": {"introduced": "2.0"}, "watchOS": {"introduced": "10.0"}},
+      "source": "apple",
+      "keys": {
+        "MinimumLength": {"type": "integer", "range": {"min": 0, "max": 16}},
+        "CustomRegex": {"type": "dictionary", "keys": {"Regex": {"type": "string", "required": true}}}
+      }
+    }
+  },
+  "windows": {
+    "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {
+      "format": "int", "scope": "device", "source": "windows", "range": {"min": 0, "max": 999}, "min_build": ["10.0.10240"]
+    },
+    "./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion": {
+      "format": "chr", "scope": "device", "source": "windows", "regex": "^(\\d\\.)?(\\d)$"
+    },
+    "./Device/Vendor/MSFT/DMClient/Provider/*/FirstSyncStatus/BlockInStatusPage": {
+      "format": "int", "scope": "device", "source": "windows", "flag": ["0x0", "0x1", "0x2", "0x4"], "min_build": ["10.0.17134"]
+    },
+    "./Device/Vendor/MSFT/Policy/Config/LocalUsersAndGroups/Configure": {
+      "format": "chr", "scope": "device", "source": "windows", "xsd": "4f2a", "min_build": ["10.0.19042"]
+    },
+    "./Device/Vendor/MSFT/Policy/Config/RemoteAssistance/SolicitedRemoteAssistance": {
+      "format": "chr", "scope": "device", "source": "windows", "admx_backed": true
+    },
+    "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type": {
+      "format": "int", "scope": "device", "source": "windows", "enum": ["0", "1"]
+    },
+    "./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation": {
+      "format": "chr", "scope": "device", "source": "admx_template"
+    },
+    "./User/Vendor/MSFT/Policy/Config/Example/Deprecated": {
+      "format": "int", "scope": "user", "source": "windows", "range": {"min": -1, "max": 10},
+      "min_build": ["10.0.19041", "10.0.19042.1", "99.9.99999"], "deprecated": {"build": "10.0.22000"}
+    },
+    "./Device/Vendor/MSFT/Policy/Config/Example/List": {
+      "format": "chr", "scope": "device", "source": "windows", "enum": ["a", "b"], "delimiter": ",", "deprecated": {}
+    },
+    "./Device/Vendor/MSFT/Policy/Config/Example/Loosened": {
+      "format": ["int", "chr"], "scope": "device", "source": "windows", "override": "Devices accept a string.", "future_field": 1
+    },
+    "./Device/Vendor/MSFT/Example/FutureFormat": {"format": "decimal128", "scope": "device", "source": "windows"}
+  },
+  "windows_xsds": {
+    "4f2a": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"accessgroup\"/></xs:schema>"
+  }
+}

@@ -12,6 +12,8 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { ILabelSummary } from "interfaces/label";
 import PATHS from "router/paths";
 
+import UserTargetingTip from "./UserTargetingTip";
+
 const baseClass = "target-label-selector";
 
 interface ITargetChooserProps {
@@ -81,6 +83,8 @@ interface ILabelChooserProps {
   customTargetOptions?: IDropdownOption[];
   customHelpText?: ReactNode;
   dropdownHelpText?: ReactNode;
+  /** Replaces the scope help text with a red validation message. */
+  labelsError?: ReactNode | null;
   onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
   disableOptions: boolean;
@@ -92,6 +96,7 @@ const LabelChooser = ({
   labels,
   customHelpText,
   dropdownHelpText,
+  labelsError,
   selectedLabels,
   selectedCustomTarget,
   customTargetOptions = [],
@@ -105,18 +110,37 @@ const LabelChooser = ({
       ?.helpText;
   };
 
+  const errorBanner = !!labelsError && (
+    <div
+      className={`${baseClass}__description ${baseClass}__description--error`}
+    >
+      {labelsError}
+    </div>
+  );
+
   if (isLoading) {
-    return <Spinner centered={false} />;
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
   }
 
   if (isError) {
-    return <DataError />;
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
   }
 
   // Not using <EmptyState/> here as we want to include short string only
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>
+        {errorBanner}
         <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
         specific hosts.
       </div>
@@ -134,12 +158,21 @@ const LabelChooser = ({
           disabled={disableOptions}
         />
       )}
-      <div className={`${baseClass}__description`}>
-        {customTargetOptions.length
-          ? getHelpText(selectedCustomTarget)
-          : customHelpText}
+      <div
+        className={classnames(`${baseClass}__description`, {
+          [`${baseClass}__description--error`]: !!labelsError,
+        })}
+      >
+        {labelsError ??
+          (customTargetOptions.length
+            ? getHelpText(selectedCustomTarget)
+            : customHelpText)}
       </div>
-      <div className={`${baseClass}__checkboxes`}>
+      <div
+        className={classnames(`${baseClass}__checkboxes`, {
+          [`${baseClass}__checkboxes--error`]: !!labelsError,
+        })}
+      >
         {labels.map((label) => {
           return (
             <div className={`${baseClass}__label`} key={label.name}>
@@ -187,6 +220,8 @@ interface IDropdownTargetLabelSelectorProps {
   /** Validation error for the Custom-labels selection. Rendered in place of
    * the "Target" title. */
   error?: string | null;
+  /** Replaces the Custom scope's help text with a red validation message. */
+  labelsError?: ReactNode | null;
 }
 
 /**
@@ -216,8 +251,11 @@ const DropdownTargetLabelSelector = ({
   suppressTitle = false,
   labelInfoBanner,
   error,
+  labelsError,
 }: IDropdownTargetLabelSelectorProps) => {
-  const classNames = classnames(baseClass, className, "form");
+  const classNames = classnames(baseClass, className, "form", {
+    [`${baseClass}--disabled`]: disableOptions,
+  });
 
   return (
     <div className={classNames}>
@@ -231,19 +269,23 @@ const DropdownTargetLabelSelector = ({
         error={error}
       />
       {selectedTargetType === "Custom" && (
-        <LabelChooser
-          selectedCustomTarget={selectedCustomTarget}
-          customTargetOptions={customTargetOptions}
-          isError={isErrorLabels}
-          isLoading={isLoadingLabels}
-          labels={labels || []}
-          selectedLabels={selectedLabels}
-          customHelpText={customHelpText}
-          dropdownHelpText={dropdownHelpText}
-          onSelectCustomTarget={onSelectCustomTarget}
-          onSelectLabel={onSelectLabel}
-          disableOptions={disableOptions}
-        />
+        <>
+          <LabelChooser
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            isError={isErrorLabels}
+            isLoading={isLoadingLabels}
+            labels={labels || []}
+            selectedLabels={selectedLabels}
+            customHelpText={customHelpText}
+            dropdownHelpText={dropdownHelpText}
+            labelsError={labelsError}
+            onSelectCustomTarget={onSelectCustomTarget}
+            onSelectLabel={onSelectLabel}
+            disableOptions={disableOptions}
+          />
+          <UserTargetingTip />
+        </>
       )}
     </div>
   );

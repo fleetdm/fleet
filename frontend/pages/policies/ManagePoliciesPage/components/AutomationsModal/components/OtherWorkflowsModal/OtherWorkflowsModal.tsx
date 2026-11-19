@@ -10,7 +10,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 import Slider from "components/forms/fields/Slider";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
 import {
   IGlobalIntegrations,
@@ -56,7 +56,7 @@ const getDestinationUrlError = (url: string): string | undefined => {
   if (!url) {
     return "Please add a destination URL";
   }
-  if (!validUrl({ url })) {
+  if (!isValidURL({ url })) {
     return "Destination URL is not a valid URL";
   }
   return undefined;
@@ -137,7 +137,11 @@ const OtherWorkflowsModal = forwardRef<
             z.group_id === selectedIntegration?.group_id,
         })) || null;
 
-      // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
+      // Each policy's automation_type decides whether it sends webhooks or
+      // tickets. Until the server stops reading policy_ids from settings, a
+      // fleet settings save without it turns that automation off on every
+      // policy in the fleet, so the list the server returned is sent back.
+      // TODO(#58577): stop sending policy_ids.
       const newWebhook = {
         failing_policies_webhook: {
           destination_url: destinationUrl,

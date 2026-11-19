@@ -1275,6 +1275,21 @@ func TestProfileTargetsReservedLocURI(t *testing.T) {
 			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/Policy/Config/UpdateExtra/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
 			want:   false,
 		},
+		{
+			name:   "OS update LocURI with a character reference",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Updat&#101;/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "OS update LocURI with a hex character reference",
+			syncML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/&#x55;pdate/AllowAutoUpdate</LocURI></Target></Item></Replace>`,
+			want:   true,
+		},
+		{
+			name:   "non-OS-update profile with a character reference",
+			syncML: `<Replace><Item><Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target><Data>&#49;</Data></Item></Replace>`,
+			want:   false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1358,6 +1373,32 @@ func TestEnrollmentVersionAtLeast(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestWindowsMDMAccessTokenPayloadIsValidToken(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		typ     WindowsMDMEnrollmentType
+		nodeKey string
+		wantErr string
+	}{
+		{"programmatic", WindowsMDMProgrammaticEnrollmentType, "node-key", ""},
+		{"programmatic without node key", WindowsMDMProgrammaticEnrollmentType, "", "payload content"},
+		{"missing type", 0, "node-key", "payload type"},
+		{"unsupported type", 2, "node-key", "payload type"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var pld WindowsMDMAccessTokenPayload
+			pld.Type = tc.typ
+			pld.Payload.OrbitNodeKey = tc.nodeKey
+			err := pld.IsValidToken()
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
 		})
 	}
 }

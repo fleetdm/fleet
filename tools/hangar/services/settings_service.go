@@ -26,6 +26,11 @@ func (s *SettingsService) BuildInfo() buildinfo.Info { return buildinfo.Current(
 // Empty means "unknown" — see netinfo.LanIP.
 func (s *SettingsService) LanIP() string { return netinfo.LanIP() }
 
+// ExpandPath expands a leading "~" the way Hangar's own path settings do, for
+// paths the frontend hands to a process that gets no shell (python
+// http.server's --directory).
+func (s *SettingsService) ExpandPath(p string) string { return paths.Expand(p) }
+
 // GetSettings loads the persisted settings (defaults if none saved yet).
 func (s *SettingsService) GetSettings() (settings.Settings, error) {
 	dir, err := paths.ConfigDir()

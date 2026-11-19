@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,6 +43,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"GetCACert", testGetCACert},
 		{"SCEPEnrollment", testSCEPEnrollment},
 		{"InvalidChallenge", testInvalidChallenge},
+		{"OneTimeChallenge", testOneTimeChallenge},
 		{"MissingUUID", testMissingUUID},
 		{"NonExistentHost", testNonExistentHost},
 		{"CertificateRotation", testCertificateRotation},
@@ -50,7 +52,8 @@ func TestConditionalAccessSCEP(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
-				"conditional_access_scep_serials", "conditional_access_scep_certificates",
+				"conditional_access_scep_serials", "conditional_access_scep_certificates", "mdm_apple_scep_challenges",
+				"mdm_windows_enrollments",
 			}...)
 			c.fn(t, s)
 		})
@@ -115,41 +118,49 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
 	require.NoError(t, err)
 
-	// Create a test host
-	host, err := s.DS.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   ptr.String("test-host-scep-1"),
-		NodeKey:         ptr.String("test-node-key-scep-1"),
-		UUID:            "test-uuid-scep-1",
-		Hostname:        "test-hostname-scep-1",
-		Platform:        "darwin",
-		DetailUpdatedAt: time.Now(),
-	})
-	require.NoError(t, err)
+	// macOS profiles use the Apple prefix, Windows profiles the platform-neutral one.
+	for i, prefix := range []string{"urn:device:apple:uuid:", "urn:device:fleet:uuid:"} {
+		t.Run(prefix, func(t *testing.T) {
+			// Create a test host
+			host, err := s.DS.NewHost(ctx, &fleet.Host{
+				OsqueryHostID:   new(fmt.Sprintf("test-host-scep-%d", i+1)),
+				NodeKey:         new(fmt.Sprintf("test-node-key-scep-%d", i+1)),
+				UUID:            fmt.Sprintf("test-uuid-scep-%d", i+1),
+				Hostname:        fmt.Sprintf("test-hostname-scep-%d", i+1),
+				Platform:        "darwin",
+				DetailUpdatedAt: time.Now(),
+			})
+			require.NoError(t, err)
 
-	// Request certificate via SCEP
-	cert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
-	require.NotNil(t, cert)
+			// Request certificate via SCEP
+			deviceURI, err := url.Parse(prefix + host.UUID)
+			require.NoError(t, err)
+			cert, err := requestSCEPCertificateWithOptions(t, s, []*url.URL{deviceURI}, testEnrollmentSecret)
+			require.NoError(t, err, "SCEP request should succeed")
+			require.NotNil(t, cert)
 
-	// Verify certificate attributes
-	assert.NotNil(t, cert.SerialNumber)
-	assert.True(t, time.Now().Before(cert.NotAfter))
-	assert.True(t, time.Now().After(cert.NotBefore))
+			// Verify certificate attributes
+			assert.NotNil(t, cert.SerialNumber)
+			assert.True(t, time.Now().Before(cert.NotAfter))
+			assert.True(t, time.Now().After(cert.NotBefore))
 
-	// Verify SAN URI contains the host UUID
-	require.Len(t, cert.URIs, 1)
-	assert.Equal(t, "urn:device:apple:uuid:"+host.UUID, cert.URIs[0].String())
+			// Verify SAN URI contains the host UUID
+			require.Len(t, cert.URIs, 1)
+			assert.Equal(t, deviceURI.String(), cert.URIs[0].String())
 
-	// Verify certificate is stored in database and linked to host
-	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
-	require.NoError(t, err)
-	assert.Equal(t, host.ID, hostID)
+			// Verify certificate is stored in database and linked to host
+			hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
+			require.NoError(t, err)
+			assert.Equal(t, host.ID, hostID)
 
-	// Verify certificate validity period (398 days, Apple's maximum)
-	expectedMaxDuration := 398*24*time.Hour + 24*time.Hour // Allow 1 day tolerance
-	expectedMinDuration := 398*24*time.Hour - 24*time.Hour
-	actualDuration := cert.NotAfter.Sub(cert.NotBefore)
-	assert.True(t, actualDuration >= expectedMinDuration && actualDuration <= expectedMaxDuration,
-		"Certificate should be valid for approximately 398 days")
+			// Verify certificate validity period (398 days, Apple's maximum)
+			expectedMaxDuration := 398*24*time.Hour + 24*time.Hour // Allow 1 day tolerance
+			expectedMinDuration := 398*24*time.Hour - 24*time.Hour
+			actualDuration := cert.NotAfter.Sub(cert.NotBefore)
+			assert.True(t, actualDuration >= expectedMinDuration && actualDuration <= expectedMaxDuration,
+				"Certificate should be valid for approximately 398 days")
+		})
+	}
 }
 
 func testInvalidChallenge(t *testing.T, s *Suite) {
@@ -174,6 +185,48 @@ func testInvalidChallenge(t *testing.T, s *Suite) {
 	cert, err := requestSCEPCertificateWithChallenge(t, s, host.UUID, "invalid-secret")
 	requireSCEPFailure(t, err, "SCEP request should fail with invalid challenge")
 	require.Nil(t, cert, "Certificate should not be issued with invalid challenge")
+}
+
+func testOneTimeChallenge(t *testing.T, s *Suite) {
+	ctx := t.Context()
+	host := test.NewHost(t, s.DS, "one-time-1", "", "one-time-key-1", "one-time-uuid-1", time.Now(), test.WithPlatform("windows"))
+	otherHost := test.NewHost(t, s.DS, "one-time-2", "", "one-time-key-2", "one-time-uuid-2", time.Now(), test.WithPlatform("windows"))
+
+	require.NoError(t, s.DS.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:    "device-one-time-1",
+		MDMHardwareID:  "hardware-one-time-1",
+		MDMDeviceState: "ENROLLED",
+		MDMDeviceType:  "CIMClient_Windows",
+		MDMEnrollType:  "ProgrammaticEnrollment",
+		HostUUID:       host.UUID,
+	}))
+	device, err := s.DS.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, "device-one-time-1")
+	require.NoError(t, err)
+	challenge, err := s.DS.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, device.ID)
+	require.NoError(t, err)
+
+	// another host can't use it, and the attempt doesn't use it up
+	cert, err := requestSCEPCertificateWithChallenge(t, s, otherHost.UUID, challenge)
+	requireSCEPFailure(t, err, "a one-time challenge must only work for its own host")
+	require.Nil(t, cert)
+
+	cert = requestSCEPCertificate(t, s, host.UUID, challenge)
+	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, cert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.Equal(t, host.ID, hostID)
+
+	cert, err = requestSCEPCertificateWithChallenge(t, s, host.UUID, challenge)
+	requireSCEPFailure(t, err, "a one-time challenge must only work once")
+	require.Nil(t, cert)
+
+	// a request for a host that was deleted fails without using up its challenge
+	challenge, err = s.DS.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, device.ID)
+	require.NoError(t, err)
+	require.NoError(t, s.DS.DeleteHost(ctx, host.ID))
+	cert, err = requestSCEPCertificateWithChallenge(t, s, host.UUID, challenge)
+	requireSCEPFailure(t, err, "a deleted host must not get a certificate")
+	require.Nil(t, cert)
+	require.NoError(t, s.DS.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, host.UUID))
 }
 
 func testMissingUUID(t *testing.T, s *Suite) {
@@ -201,10 +254,23 @@ func testNonExistentHost(t *testing.T, s *Suite) {
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
 	require.NoError(t, err)
 
-	// Try to enroll with UUID for a host that doesn't exist
-	cert, err := requestSCEPCertificateWithChallenge(t, s, "non-existent-uuid", testEnrollmentSecret)
-	requireSCEPFailure(t, err, "SCEP request should fail for non-existent host")
-	require.Nil(t, cert, "Certificate should not be issued for non-existent host")
+	// The SAN URI is matched against host UUIDs only, so a host's other identifiers don't resolve to it.
+	host, err := s.DS.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("test-osquery-id-non-existent"),
+		NodeKey:         new("test-node-key-non-existent"),
+		UUID:            "test-uuid-non-existent",
+		Hostname:        "test-hostname-non-existent",
+		HardwareSerial:  "test-serial-non-existent",
+		Platform:        "windows",
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	for _, identifier := range []string{"non-existent-uuid", host.Hostname, host.HardwareSerial, *host.OsqueryHostID, *host.NodeKey} {
+		cert, err := requestSCEPCertificateWithChallenge(t, s, identifier, testEnrollmentSecret)
+		requireSCEPFailure(t, err, "SCEP request should fail for "+identifier)
+		require.Nil(t, cert, "Certificate should not be issued for "+identifier)
+	}
 }
 
 // Helper functions

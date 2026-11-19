@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -92,7 +93,8 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
-	hasUsers, err := svc.ds.HasUsers(ctx)
+	// A lagging replica would report no users and re-open unauthenticated setup.
+	hasUsers, err := svc.ds.HasUsers(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return false, err
 	}
@@ -294,5 +296,6 @@ func (svc *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, erro
 	return &fleet.AuthSettings{
 		MDMAppleOneTimeEnrollSecrets:   svc.config.MDM.AppleOneTimeEnrollSecrets,
 		MDMWindowsOneTimeEnrollSecrets: svc.config.MDM.WindowsOneTimeEnrollSecrets,
+		MDMAndroidOneTimeEnrollSecrets: svc.config.MDM.AndroidOneTimeEnrollSecrets,
 	}, nil
 }

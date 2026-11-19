@@ -97,25 +97,6 @@ func SubstituteFleetVarsInAppConfig(
 				platform = "macos"
 			}
 			contents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, contents, platform)
-		case fleet.FleetVarHostEndUserEmailIDP:
-			emails, err := ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get host idp email for app config")
-			}
-			if len(emails) == 0 {
-				// The shared HostEndUserEmailIDPVariableReplacementFailedError
-				// embeds a "[Learn more](…)" markdown link for the
-				// configuration-profile surface, which has a frontend formatter
-				// for it. The install-details modal renders failure_reason
-				// inside a plain monospace block with no markdown processing,
-				// so we surface a plain-text reason mirroring the other IdP
-				// variables here.
-				return nil, &UnresolvableAppConfigVarError{
-					FleetVar: name,
-					Detail:   fmt.Sprintf("There is no IdP email for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
-				}
-			}
-			contents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, contents, emails[0])
 		case fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
@@ -139,10 +120,15 @@ func SubstituteFleetVarsInAppConfig(
 			contents = replaced
 		default:
 			// The validator restricts to FleetVarsSupportedInAppleAppConfig at
-			// write time, so an unknown variable here means the validator and
-			// this switch have drifted. Treat it as unresolvable rather than
+			// write time, so an unknown variable here is either one Fleet 5
+			// removed, saved before the upgrade, or a drift between the
+			// validator and this switch. Treat it as unresolvable rather than
 			// silently leaving the literal token in the device-bound XML.
-			return nil, &UnresolvableAppConfigVarError{FleetVar: name}
+			var detail string
+			if err := fleet.FindRemovedFleetVariable(name); err != nil {
+				detail = err.Error()
+			}
+			return nil, &UnresolvableAppConfigVarError{FleetVar: name, Detail: detail}
 		}
 	}
 
@@ -207,50 +193,50 @@ func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Command</key>
-    <dict>
-        <key>InstallAsManaged</key>
-        <true/>
-        <key>ManagementFlags</key>
-        <integer>`)
+  <key>Command</key>
+  <dict>
+    <key>InstallAsManaged</key>
+    <true/>
+    <key>ManagementFlags</key>
+    <integer>`)
 	fmt.Fprintf(&b, "%d", managementFlags)
 	b.WriteString(`</integer>
 `)
 	// Apple rejects ChangeManagementState on the Account-Driven User Enrollment
 	// channel. Omit it for User Enrollment; include it everywhere else.
 	if !params.IsUserEnrollment {
-		b.WriteString(`        <key>ChangeManagementState</key>
-        <string>Managed</string>
+		b.WriteString(`    <key>ChangeManagementState</key>
+    <string>Managed</string>
 `)
 	}
-	b.WriteString(`        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
+	b.WriteString(`    <key>Options</key>
+    <dict>
+      <key>PurchaseMethod</key>
+      <integer>1</integer>
+    </dict>
 `)
 
 	// Configuration is iOS/iPadOS-only. Strip any outer plist wrapper so we
 	// inline only the bare <dict>...</dict>.
 	if fleet.IsAppleMobilePlatform(params.HostPlatform) && len(params.Configuration) > 0 {
-		b.WriteString("        <key>Configuration</key>\n        ")
+		b.WriteString("    <key>Configuration</key>\n    ")
 		b.Write(stripPlistWrapper(params.Configuration))
 		b.WriteString("\n")
 	}
 
-	b.WriteString(`        <key>RequestType</key>
-        <string>InstallApplication</string>
+	b.WriteString(`    <key>RequestType</key>
+    <string>InstallApplication</string>
 `)
 	switch {
 	case params.ITunesStoreID != "":
-		fmt.Fprintf(&b, "        <key>iTunesStoreID</key>\n        <integer>%s</integer>\n", params.ITunesStoreID)
+		fmt.Fprintf(&b, "    <key>iTunesStoreID</key>\n    <integer>%s</integer>\n", params.ITunesStoreID)
 	case params.ManifestURL != "":
-		fmt.Fprintf(&b, "        <key>ManifestURL</key>\n        <string>%s</string>\n", params.ManifestURL)
+		fmt.Fprintf(&b, "    <key>ManifestURL</key>\n    <string>%s</string>\n", params.ManifestURL)
 	}
 
-	b.WriteString(`    </dict>
-    <key>CommandUUID</key>
-    <string>`)
+	b.WriteString(`  </dict>
+  <key>CommandUUID</key>
+  <string>`)
 	b.WriteString(params.CommandUUID)
 	b.WriteString(`</string>
 </dict>

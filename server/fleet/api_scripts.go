@@ -14,8 +14,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
-	"github.com/gorilla/mux"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,7 +25,7 @@ type RunScriptRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID         uint   `json:"fleet_id"`
 }
 
 type RunScriptResponse struct {
@@ -48,7 +46,7 @@ type RunScriptSyncRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID         uint   `json:"fleet_id"`
 }
 
 type RunScriptSyncResponse struct {
@@ -107,7 +105,7 @@ type CreateScriptRequest struct {
 func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded CreateScriptRequest
 
-	err := multipartform.Parse(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
 	if err != nil {
 		return nil, &BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -115,7 +113,7 @@ func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	val := r.MultipartForm.Value["fleet_id"]
+	val := r.Form["fleet_id"]
 	if len(val) > 0 {
 		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
@@ -161,7 +159,7 @@ func (r DeleteScriptResponse) Status() int  { return http.StatusNoContent }
 ////////////////////////////////////////////////////////////////////////////////
 
 type ListScriptsRequest struct {
-	TeamID      *uint       `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID      *uint       `query:"fleet_id,optional"`
 	ListOptions ListOptions `url:"list_options"`
 }
 
@@ -209,8 +207,7 @@ func (UpdateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	vars := mux.Vars(r)
-	scriptIDStr, ok := vars["script_id"]
+	scriptIDStr, ok := platform_http.PathVar(r, "script_id")
 	if !ok {
 		return nil, &BadRequestError{Message: "missing script id"}
 	}
@@ -263,8 +260,8 @@ func (r GetHostScriptDetailsResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type BatchSetScriptsRequest struct {
-	TeamID   *uint           `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName *string         `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID   *uint           `json:"-" query:"fleet_id,optional"`
+	TeamName *string         `json:"-" query:"fleet_name,optional"`
 	DryRun   bool            `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Scripts  []ScriptPayload `json:"scripts"`
 }
@@ -277,7 +274,7 @@ type BatchSetScriptsResponse struct {
 func (r BatchSetScriptsResponse) Error() error { return r.Err }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Batch Script Execution Status / List / Summary / Host Results
+// Batch Script Execution Status / List / Host Results
 ////////////////////////////////////////////////////////////////////////////////
 
 type BatchScriptExecutionStatusRequest struct {
@@ -285,7 +282,7 @@ type BatchScriptExecutionStatusRequest struct {
 }
 
 type BatchScriptExecutionListRequest struct {
-	TeamID  uint    `query:"team_id,required" renameto:"fleet_id"`
+	TeamID  uint    `query:"fleet_id,required"`
 	Status  *string `query:"status,optional"`
 	Page    *uint   `query:"page,optional"`
 	PerPage *uint   `query:"per_page,optional"`
@@ -297,25 +294,6 @@ type BatchScriptExecutionStatusResponse struct {
 }
 
 func (r BatchScriptExecutionStatusResponse) Error() error { return r.Err }
-
-// TODO - remove these once we retire batch script summary endpoint and code.
-type (
-	BatchScriptExecutionSummaryRequest  BatchScriptExecutionStatusRequest
-	BatchScriptExecutionSummaryResponse struct {
-		ScriptID    uint      `json:"script_id" db:"script_id"`
-		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id" renameto:"fleet_id"`
-		CreatedAt   time.Time `json:"created_at" db:"created_at"`
-		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
-		NumPending  *uint     `json:"pending" db:"num_pending"`
-		NumRan      *uint     `json:"ran" db:"num_ran"`
-		NumErrored  *uint     `json:"errored" db:"num_errored"`
-		NumCanceled *uint     `json:"canceled" db:"num_canceled"`
-		Err         error     `json:"error,omitempty"`
-	}
-)
-
-func (r BatchScriptExecutionSummaryResponse) Error() error { return r.Err }
 
 type BatchScriptExecutionListResponse struct {
 	BatchScriptExecutions []BatchActivity    `json:"batch_executions"`

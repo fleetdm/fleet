@@ -37,11 +37,36 @@ const userSummaryColumns = `id, name, email, gravatar_url, api_only`
 
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	return ds.newUser(ctx, user, false)
+}
+
+func (ds *Datastore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	return ds.newUser(ctx, user, true)
+}
+
+func (ds *Datastore) newUser(ctx context.Context, user *fleet.User, isInitial bool) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if isInitial {
+			// Serialize on the singleton app config row: a gap lock on the empty users
+			// table isn't taken under READ COMMITTED and deadlocks concurrent callers
+			// under REPEATABLE READ.
+			var id uint
+			if err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM app_config_json WHERE id = 1 FOR UPDATE`); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock app config for initial user")
+			}
+			err := sqlx.GetContext(ctx, tx, &id, `SELECT id FROM users LIMIT 1 FOR UPDATE`)
+			switch {
+			case err == nil:
+				return ctxerr.Wrap(ctx, alreadyExists("User", user.Email))
+			case !errors.Is(err, sql.ErrNoRows):
+				return ctxerr.Wrap(ctx, err, "check for existing users")
+			}
+		}
+
 		sqlStatement := `
       INSERT INTO users (
       	password,
@@ -265,6 +290,50 @@ func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 		}
 		return nil
 	})
+}
+
+// lockUserRolesDB locks the users and returns their identity and current roles. Writers that take this lock, including
+// saveUserDB's UPDATE, serialize with it; SaveTeam does not. Call it first in the transaction, because an earlier plain
+// read would fix the snapshot that the role read uses.
+func lockUserRolesDB(ctx context.Context, tx sqlx.ExtContext, ids []uint) (map[uint]fleet.User, error) {
+	users := make(map[uint]fleet.User, len(ids))
+	if len(ids) == 0 {
+		return users, nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, name, email, global_role FROM users WHERE id IN (?) ORDER BY id FOR UPDATE`, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build lock users query")
+	}
+	var rows []fleet.User
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "lock users")
+	}
+	for _, user := range rows {
+		users[user.ID] = user
+	}
+
+	stmt, args, err = sqlx.In(`
+		SELECT ut.team_id AS id, ut.user_id, ut.role, t.name
+		FROM user_teams ut INNER JOIN teams t ON ut.team_id = t.id
+		WHERE ut.user_id IN (?)`, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build user roles query")
+	}
+	var teams []struct {
+		UserID uint `db:"user_id"`
+		fleet.UserTeam
+	}
+	if err := sqlx.SelectContext(ctx, tx, &teams, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select user roles")
+	}
+	for _, row := range teams {
+		if user, ok := users[row.UserID]; ok {
+			user.Teams = append(user.Teams, row.UserTeam)
+			users[row.UserID] = user
+		}
+	}
+	return users, nil
 }
 
 func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {

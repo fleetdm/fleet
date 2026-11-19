@@ -14,9 +14,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).)
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).)
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/93) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the 🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
@@ -32,22 +32,34 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 3. [Near-term roadmap](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=1189480063#gid=1189480063) — features planned for upcoming quarters. Up to Fleet's Head of IT.
 4. [Release planning](https://github.com/orgs/fleetdm/projects/87/views/10) — stories planned for the current and upcoming releases. Up to Fleet's Head of Product Design.
 
-### Triage new requests
-
-The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
-
-Once labeled, each Product Designer (PD) reviews the inbox and triages every new labeled request:
-
-- **Contributes to [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or a [product group's goal](https://fleetdm.com/handbook/company/product-groups#current-product-groups):** add the `~product-maturity` label for review at the next [unpacking the why](#unpacking-the-why) call.
-- **Meets another [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization):** remove the issue from the intake & outtake board and either prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) for immediate [drafting](https://fleetdm.com/handbook/company/product-groups#drafting) or add it to the [release planning project](https://github.com/orgs/fleetdm/projects/87) for later. Then add the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
-- **Not going to work on it:** move the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and off the intake & outtake board.
-
-
 ### Unpacking the why
 
-During this call, the relevant product group's Product Designer (PD) and a former IT admin review all requests tagged with the `~product-maturity` label (applied during [triage](#triage-new-requests)) to synthesize why users are making each request (i.e. what problem they're trying to solve). During the call, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87). Next, remove the request from the intake & outtake board and add it to the feature fest board.
+Every new request, from customers, prospects, and the community, is unpacked within one week.
 
-If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
+The Head of Product Design is responsible for going through the inbox on the [🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) daily, newest first, and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
+
+Once labeled, the product group's Product Designer (PD) unpacks the request. If the PD understands the why, they unpack it right away. If they don't, the request goes to the weekly "Unpacking the why" call, where the PD and a former IT Admin or Security Engineer synthesize why users are making the request (i.e. what problem they're trying to solve).
+
+If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the PD will @mention the relevant Customer Success Manager (CSM) or Account Executive (AE), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) or [💡 :help-solutions-consulting](https://github.com/orgs/fleetdm/projects/69) board respectively.
+
+A request is unpacked when the top of the GitHub issue description includes these three lines, each starting with the GitHub username of the person who wrote it:
+
+- _User requested this because_: What the user is trying to accomplish and why Fleet doesn't solve it today.
+- _In the interim_: The workaround available today. If there's no workaround, write "No workaround."
+- _Eventually_: How Fleet would solve it and when we expect to ship it (e.g., a release, a quarter, or a customer promise date). If there's no plan, write "No plans."
+
+Example:
+
+```
+- @username: _User requested this because_ IT admins want to preserve the iOS/iPadOS data plan when wiping a device so the device stays connected after the wipe (available in Jamf).
+  - @username: _In the interim_ send a custom MDM command.
+  - @username: _Eventually_ No plans.
+```
+
+Once a request is unpacked, the PD decides (live on the call, if it went to the call):
+
+- **Meets the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization):** if it contributes to [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or a [product group's goal](https://fleetdm.com/handbook/company/product-groups#current-product-groups), add a `~product-maturity-*` label. Then remove the issue from the intake & outtake board and either prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) for immediate [drafting](https://fleetdm.com/handbook/company/product-groups#drafting) or add it to the [release planning project](https://github.com/orgs/fleetdm/projects/87) for later. Then add the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and notify the requester.
+- **Not going to work on it:** move the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and off the intake & outtake board and notify the requester.
 
 
 ### Drafting
@@ -87,9 +99,9 @@ Additionally:
   - How the story addresses the original request.
   - If the original request is a customer promise, specify what the due date is and who it's for.
 
-- Sometimes a Product Designer in one product group drafts a user story or bug that will be specified, estimated, or implemented by another product group. This happens when the original group is constrained by design or engineering capacity. You'll know this is happening when they're a `assisting-g-*` label on the story or bug.
+- Sometimes a Product Designer in one product group drafts a user story or bug that will be specified or implemented by another product group. This happens when the original group is constrained by design or engineering capacity. You'll know this is happening when there's an `assisting-g-*` label on the story or bug.
   - For example, if a #g-apple-at-work Product Designer drafts a story that #g-supply-chain will implement, the #g-apple-at-work Product Designer invites the #g-supply-chain Tech Lead to #g-apple-at-work design reviews. Once the story is approved, it’s brought to #g-supply-chain user story review.
-  - At that point, the #g-supply-chain Product Designer becomes the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). They bring the story to their group’s estimation and handle questions from their team, coordinating with others as needed.
+  - At that point, the #g-supply-chain Product Designer becomes the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). They handle questions from their team, coordinating with others as needed.
 
 >**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >
@@ -165,7 +177,7 @@ Ensure the interview process follows these steps in order. This process must fol
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
 3. **HOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Head of People (HOP) to set up the HOP interview.
-4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
+4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate.
 5. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
 6. **Conduct reference checks**: See the [ 🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for instructions.
 7. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
@@ -183,8 +195,8 @@ If the story has customer labels, it's up to the Manager of CSA to decide if the
 ### Update a company brand front
 
 Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
-- The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
-- The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
+- The current pitch, found in the "Overall pitch" section of the [Why Fleet?](https://docs.google.com/document/d/1h8N9Icow6g-08EZPQMnbH-bDKDbXoPy-lwlUm9DiPJA/edit?tab=t.0) doc.
+- The current brand imagery, found in the [Imagery section of the brand guidelines](https://fleetdm.com/handbook/company/brand#imagery).
 
 ### Notify Customer Success about new macOS features
 

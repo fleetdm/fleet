@@ -28,6 +28,8 @@ You can use either:
 
 Repeat this step for every fleet that needs the package.
 
+> **Note:** If Fleet is hosted on GCP Cloud Run, requests to the Fleet server are limited to 32 MiB. To upload a larger bootstrap package, use a Google Cloud Storage (GCS) installer store and turn on [`s3_software_installers_gcs_signed_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-gcs-signed-url). The Fleet UI and `fleetctl` then upload the package directly to GCS. From the API, use [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload) first.
+
 
 ## Get the bootstrap package token
 

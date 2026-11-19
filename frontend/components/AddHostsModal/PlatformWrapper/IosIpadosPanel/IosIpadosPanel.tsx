@@ -23,7 +23,9 @@ const IosIpadosPanel = ({
   enrollSecret,
   isManualAppleEnrollmentsBlocked,
 }: IosIpadosPanelProps) => {
-  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
+  const { config, isMacMdmEnabledAndConfigured, isGlobalAdmin } = useContext(
+    AppContext
+  );
 
   // Default to "Personal (BYOD)" per #23242 design.
   const [enrollmentType, setEnrollmentType] = useState<EnrollmentType>(
@@ -33,7 +35,7 @@ const IosIpadosPanel = ({
   if (!config) return null;
 
   if (isManualAppleEnrollmentsBlocked) {
-    return renderAppleManualEnrollmentDisabled("iOS & iPadOS");
+    return renderAppleManualEnrollmentDisabled("iOS & iPadOS", isGlobalAdmin);
   }
 
   if (!isMacMdmEnabledAndConfigured) {

@@ -3,14 +3,19 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
+# The Sonos installer is a 32-bit InstallShield setup that wraps an MSI. Run as
+# SYSTEM, it caches the MSI under the WOW64-redirected
+# system32\config\systemprofile, where the 64-bit Windows Installer service
+# can't find it (exit 1619). /b points the cache at a folder outside System32.
+$cacheDir = Join-Path ([System.IO.Path]::GetTempPath()) ("sonos-" + [guid]::NewGuid())
+
 try {
 
-# The Sonos installer is an InstallShield setup that wraps an MSI. The documented
-# winget silent switches run the setup silently (/S) and pass /quiet /norestart
-# through to the inner MSI (/V) for an unattended, machine-wide install.
+New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S /V/quiet /V/norestart"
+  ArgumentList = "/S /b`"$cacheDir`" /v`"/qn /norestart`""
   PassThru = $true
   Wait = $true
 }
@@ -21,9 +26,15 @@ $exitCode = $process.ExitCode
 
 # Prints the exit code
 Write-Host "Install exit code: $exitCode"
+
+if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
+  Exit 0
+}
 Exit $exitCode
 
 } catch {
   Write-Host "Error: $_"
   Exit 1
+} finally {
+  Remove-Item -Path $cacheDir -Recurse -Force -ErrorAction SilentlyContinue
 }

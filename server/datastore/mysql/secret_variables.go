@@ -235,7 +235,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&scriptContents,
 			`SELECT 'script' AS entity, s.name,
-			COALESCE(t.name, 'No team') AS team_name, sc.contents
+			COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 			FROM script_contents sc
 			JOIN scripts s ON s.script_content_id = sc.id
 			LEFT JOIN teams t ON t.id = s.team_id;`,
@@ -260,7 +260,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleConfigurationProfileContents,
 			`SELECT 'apple_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.mobileconfig AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.mobileconfig AS contents
 			FROM mdm_apple_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -284,7 +284,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleDeclarationContents,
 			`SELECT 'apple_declaration' AS entity, d.name,
-			COALESCE(t.name, 'No team') AS team_name, d.raw_json AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, d.raw_json AS contents
 			FROM mdm_apple_declarations d
 			LEFT JOIN teams t ON t.id = d.team_id;`,
 		); err != nil {
@@ -308,7 +308,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&windowsProfileContents,
 			`SELECT 'windows_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.syncml AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.syncml AS contents
 			FROM mdm_windows_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -569,9 +569,18 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 			}
 			secretValues[secretType] = token
 		case fleet.HostSecretSCEPChallenge:
-			challenge, err := ds.findOrCreateAppleSCEPRenewalChallenge(ctx, enrollmentID)
+			challenge, err := ds.findOrCreateAppleEnrollmentSCEPChallenge(ctx, enrollmentID, fleet.AppleMDMCertPurposeSCEPRenewal,
+				fleet.AppleSCEPRenewalChallengeTTL, fleet.GenerateRandom32ByteEntropyURLSafeToken)
 			if err != nil {
 				return "", ctxerr.Wrapf(ctx, err, "getting scep renewal challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
+		case fleet.HostSecretConditionalAccessSCEPChallenge:
+			// The device channel ID is the UDID, which the Okta profile's SAN carries as %HardwareUUID%.
+			challenge, err := ds.findOrCreateAppleEnrollmentSCEPChallenge(ctx, enrollmentID, fleet.ConditionalAccessSCEPChallengePurpose,
+				fleet.ConditionalAccessSCEPChallengeTTL, newConditionalAccessSCEPChallengeToken)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting conditional access scep challenge for enrollment %s", enrollmentID)
 			}
 			secretValues[secretType] = challenge
 		case fleet.HostSecretFileVaultKey:
@@ -627,7 +636,7 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 // mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
 // registration token bound to hostUUID, using the PSSO signing key asset. The
 // token is not stored: it is minted fresh for the requesting host each time the
-// profile is delivered, so it never lands in the database or on /mdm/commands.
+// profile is delivered, so it never lands in the database or on /commands.
 func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUUID string) (string, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey}, nil)
 	if err != nil {

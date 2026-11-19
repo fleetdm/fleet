@@ -3,6 +3,7 @@
   "slug": "r/windows",
   "package_identifier": "RProject.R",
   "unique_identifier": "R for Windows",
+  "open_process_names": ["rgui.exe", "rterm.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",

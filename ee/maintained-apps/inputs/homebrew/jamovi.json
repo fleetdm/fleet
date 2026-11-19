@@ -6,5 +6,6 @@
   "slug": "jamovi/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

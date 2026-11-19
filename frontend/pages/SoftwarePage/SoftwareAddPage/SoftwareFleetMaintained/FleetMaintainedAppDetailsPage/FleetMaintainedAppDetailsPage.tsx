@@ -16,12 +16,13 @@ import SidePanelPage from "components/SidePanelPage";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -141,6 +142,7 @@ const FleetMaintainedAppDetailsPage = ({
     data: fleetApp,
     isLoading: isLoadingFleetApp,
     isError: isErrorFleetApp,
+    error: errorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
     () => softwareAPI.getFleetMaintainedApp(appId, teamId),
@@ -149,7 +151,13 @@ const FleetMaintainedAppDetailsPage = ({
       enabled: isPremiumTier,
       retry: false,
       select: (res) => res.fleet_maintained_app,
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        // Show the server's message on the page when Fleet can't reach the Fleet-maintained apps manifest
+        if (hasStatusKey(error) && error.status === 502) {
+          return;
+        }
+        handlePageError(error);
+      },
     }
   );
 
@@ -206,12 +214,12 @@ const FleetMaintainedAppDetailsPage = ({
       softwareFmaTitleId = addedSoftwareTitleId;
 
       if (formData.patch) {
-        await teamPoliciesAPI.create({
-          team_id: parseInt(teamId, 10),
+        await policiesAPI.create({
+          fleet_id: parseInt(teamId, 10),
           type: "patch",
-          patch_software_title_id: addedSoftwareTitleId,
+          software_title_id: addedSoftwareTitleId,
           ...(formData.patchOption !== "manual" && {
-            software_title_id: addedSoftwareTitleId,
+            automation_type: "software",
           }),
           ...getPatchPolicyFlags(
             formData.patchOption,
@@ -254,7 +262,13 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return (
+        <DataError
+          verticalPaddingSize="pad-xxxlarge"
+          description={getErrorReason(errorFleetApp) || undefined}
+          excludeIssueLink
+        />
+      );
     }
 
     if (fleetApp) {

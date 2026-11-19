@@ -30,6 +30,11 @@ reviews:
       enabled: false
 chat:
   auto_reply: false
+knowledge_base:
+  code_guidelines:
+    filePatterns:
+      - files: "docs/Contributing/reference/patterns-backend.md"
+        applyTo: "server/**/*.go, ee/**/*.go"
 issue_enrichment:
   auto_enrich:
     enabled: false

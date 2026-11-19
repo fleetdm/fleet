@@ -3,6 +3,7 @@
   "slug": "vim/windows",
   "package_identifier": "vim.vim",
   "unique_identifier": "Vim",
+  "open_process_names": ["gvim.exe", "vim.exe", "evim.exe", "gview.exe", "gvimdiff.exe", "view.exe", "vimdiff.exe"],
   "fuzzy_match_name": true,
   "program_publisher": "The Vim Project",
   "installer_arch": "x64",

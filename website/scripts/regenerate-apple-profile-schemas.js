@@ -46,16 +46,36 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
       description: 'Parse and report, but do not write the output files.'
     },
 
+    ref: {
+      type: 'string',
+      defaultsTo: 'release',
+      description: 'The branch, tag, or commit of apple/device-management to read.',
+      extendedDescription: 'Pass the sourceCommit recorded in the current output files to change how they are built without also picking up whatever Apple has published since.',
+    },
+
   },
 
 
-  fn: async function ({dry}) {
+  fn: async function ({dry, ref}) {
 
     let path = require('path');
     let YAML = require('yaml');
 
     const GITHUB_API_BASE_URL = 'https://api.github.com/repos/apple/device-management';
-    const RAW_BASE_URL = 'https://raw.githubusercontent.com/apple/device-management/release';
+    const GITHUB_API_HEADERS = {
+      'User-Agent': 'Fleet configuration profile generator schema build',
+      'Accept': 'application/vnd.github+json',
+    };
+
+    // Resolved to a commit up front, so every file below is read from the same snapshot even if Apple
+    // publishes mid-run, and so the output can say exactly what it was built from.
+    let commit = await sails.helpers.http.get(`${GITHUB_API_BASE_URL}/commits/${encodeURIComponent(ref)}`, {}, GITHUB_API_HEADERS)
+    .intercept((err)=>{
+      return new Error(`Could not resolve "${ref}" to a commit in apple/device-management.  Full error: ${err.message}`);
+    });
+    let sourceCommit = commit.sha;
+    sails.log(`Reading apple/device-management at ${sourceCommit} (${ref}).`);
+    const RAW_BASE_URL = `https://raw.githubusercontent.com/apple/device-management/${sourceCommit}`;
 
     // Both schemas come from one repo, so they are regenerated together -- their upstream moves as a unit,
     // and a run that refreshed one but not the other would be a state nobody asked for.
@@ -79,6 +99,9 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
         },
         minimumPlausibleCount: 40,
         mustInclude: ['com.apple.configuration.migration-assistant.settings/ExcludedPaths', 'com.apple.configuration.passcode.settings/MinimumLength'],
+        // MDMs deliver declarations to the device channel unless told otherwise, so a declaration Apple only
+        // accepts on the user channel does nothing until it is scoped to the user.
+        recordUserChannelOnlyPlatforms: true,
       },
     ];
 
@@ -95,10 +118,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
       // GitHub rejects API requests with no User-Agent, so that header is required rather than decorative.
       // No token: this reads a public repo, and needing credentials to regenerate a schema would be a
       // reason not to regenerate it.
-      let tree = await sails.helpers.http.get(`${GITHUB_API_BASE_URL}/git/trees/release:${schemaToBuild.directory}`, {}, {
-        'User-Agent': 'Fleet configuration profile generator schema build',
-        'Accept': 'application/vnd.github+json',
-      })
+      let tree = await sails.helpers.http.get(`${GITHUB_API_BASE_URL}/git/trees/${sourceCommit}:${schemaToBuild.directory}`, {}, GITHUB_API_HEADERS)
       .intercept((err)=>{
         return new Error(
           `Could not list ${schemaToBuild.directory} in apple/device-management.  GitHub rate-limits ` +
@@ -155,7 +175,9 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
             title: doc.title,
             description: doc.description ? squash(doc.description, 200) : undefined,
             platforms: supportedPlatforms(doc),
-            keys: extractKeys(doc.payloadkeys, 0, []),
+            supportedOS: lifecycleBySupportedOS(doc.payload && doc.payload.supportedOS),
+            userChannelOnly: schemaToBuild.recordUserChannelOnlyPlatforms ? userChannelOnlyPlatforms(doc) : undefined,
+            keys: extractKeys(doc.payloadkeys, 0, [], lifecycleBySupportedOS(doc.payload && doc.payload.supportedOS)),
           }, _.isUndefined));
         });
       }
@@ -210,7 +232,8 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
         destination: outputPath,
         json: {
           generatedAt: (new Date()).toISOString(),
-          source: `https://github.com/apple/device-management/tree/release/${schemaToBuild.directory}`,
+          source: `https://github.com/apple/device-management/tree/${sourceCommit}/${schemaToBuild.directory}`,
+          sourceCommit,
           entries: sortedEntries,
         },
         force: true
@@ -229,9 +252,13 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
 /**
  * Pull the keys worth keeping out of one payload's `payloadkeys`.
  *
- * Apple's manifests carry far more than a generator needs -- per-OS availability, supervision and
- * enrollment modes, titles, update behaviour -- so this keeps the name, the type, whether it is required,
- * and whatever constrains the value, and drops the rest.
+ * Apple's manifests carry far more than a generator needs -- supervision and enrollment modes, titles,
+ * update behaviour -- so this keeps the name, the type, whether it is required, whatever constrains the
+ * value, and the OS versions the key was introduced, deprecated, and removed in, and drops the rest.
+ *
+ * A key's supportedOS in Apple's YAML lists only what differs from the payload or key it sits in, so it is
+ * merged over the lifecycle it inherits, and kept only where that changes something: a key with no
+ * supportedOS of its own has its nearest ancestor's.
  *
  * Depth is capped and visited keys are tracked because a few manifests are self-referential: YAML anchors
  * resolve to shared objects, and walking them naively never terminates.
@@ -239,9 +266,10 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
  * @param  {Array} payloadKeys
  * @param  {Number} depth
  * @param  {Array} alreadyVisited
+ * @param  {Dictionary} inheritedSupportedOS  The lifecycle of the payload or key these keys sit in.
  * @returns {Array}
  */
-function extractKeys(payloadKeys, depth, alreadyVisited) {
+function extractKeys(payloadKeys, depth, alreadyVisited, inheritedSupportedOS) {
   const MAX_DEPTH = 3;
   if(depth > MAX_DEPTH) {
     return [];
@@ -269,13 +297,49 @@ function extractKeys(payloadKeys, depth, alreadyVisited) {
       // it still renders to ~25KB.
       description: payloadKey.content ? wholeSentences(payloadKey.content, 150, _.without(_.pluck(payloadKeys, 'key'), payloadKey.key)) : undefined,
     };
-    let nested = extractKeys(payloadKey.subkeys, depth + 1, alreadyVisited);
+    let supportedOS = inheritedSupportedOS;
+    let ownSupportedOS = lifecycleBySupportedOS(payloadKey.supportedOS);
+    if(ownSupportedOS) {
+      supportedOS = {};
+      for (let platformName of _.union(Object.keys(inheritedSupportedOS || {}), Object.keys(ownSupportedOS))) {
+        supportedOS[platformName] = _.extend({}, (inheritedSupportedOS || {})[platformName], ownSupportedOS[platformName]);
+      }
+      if(!_.isEqual(supportedOS, inheritedSupportedOS)) {
+        extracted.supportedOS = supportedOS;
+      }
+    }
+    let nested = extractKeys(payloadKey.subkeys, depth + 1, alreadyVisited, supportedOS);
     if(nested.length > 0) {
       extracted.subkeys = nested;
     }
     keys.push(_.omit(extracted, _.isUndefined));
   }
   return keys;
+}
+
+
+/**
+ * The OS versions something was introduced, deprecated, and removed in, by platform.
+ *
+ * `introduced: n/a` is kept rather than dropped: on a key, it is how Apple says the key does not exist on a
+ * platform its payload does.  Versions are kept as strings, which cannot repair one YAML read as a number: an
+ * unquoted 26.0 has already become 26 by the time it gets here.
+ *
+ * @param  {Dictionary} supportedOS  Apple's supportedOS, e.g. {macOS: {introduced: '11.3', deprecated: '26.0', removed: '27.0', userenrollment: {...}}}
+ * @returns {Dictionary|undefined}  e.g. {macOS: {introduced: '11.3', deprecated: '26.0', removed: '27.0'}}
+ */
+function lifecycleBySupportedOS(supportedOS) {
+  if(!_.isObject(supportedOS)) {
+    return undefined;
+  }
+  let lifecycle = {};
+  for (let platformName of Object.keys(supportedOS)) {
+    let versions = _.pick(supportedOS[platformName] || {}, ['introduced', 'deprecated', 'removed']);
+    if(!_.isEmpty(versions)) {
+      lifecycle[platformName] = _.mapValues(versions, String);
+    }
+  }
+  return _.isEmpty(lifecycle) ? undefined : lifecycle;
 }
 
 
@@ -301,6 +365,22 @@ function supportedPlatforms(doc) {
     ]);
     platforms.push(lifecycle.length > 0 ? `${platformName} (${lifecycle.join(', ')})` : platformName);
   }
+  return platforms.length > 0 ? platforms : undefined;
+}
+
+
+/**
+ * List the platforms where Apple only accepts a payload on the user channel.
+ *
+ * @param  {Dictionary} doc
+ * @returns {Array|undefined}  e.g. ['macOS']
+ */
+function userChannelOnlyPlatforms(doc) {
+  let supportedOS = (doc.payload && doc.payload.supportedOS) || {};
+  let platforms = _.filter(Object.keys(supportedOS), (platformName)=>{
+    let support = supportedOS[platformName] || {};
+    return support.introduced && support.introduced !== 'n/a' && _.isEqual(support['allowed-scopes'], ['user']);
+  });
   return platforms.length > 0 ? platforms : undefined;
 }
 

@@ -207,7 +207,8 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 
 	body, err := fetchManifestFile(ctx, fmt.Sprintf("/%s.json", app.Slug))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetch app manifest")
+		unreachableErr := fleet.NewBadGatewayError(fmt.Sprintf(fleet.FleetMaintainedAppManifestUnreachableMessage, app.Name), nil)
+		return nil, ctxerr.Wrapf(ctx, unreachableErr, "fetch app manifest: %v", err)
 	}
 
 	var manifest ma.FMAManifestFile

@@ -382,4 +382,4 @@ To learn more about Fleet's software deployment and script execution capabilitie
 <meta name="authorFullName" value="Mitch Francese">
 <meta name="publishedOn" value="2026-02-06">
 <meta name="articleTitle" value="Deploying Okta Desktop MFA for Windows">
-<meta name="description" value="Learn how to deploy Okta Desktop MFA to Windows devices using Fleet MDM">
+<meta name="description" value="Learn how to deploy Okta Desktop MFA to Windows devices using Fleet">

@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -225,6 +227,13 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumMDMAppleDeclarations = numMDMAppleDeclarations
 		stats.NumMDMAndroidProfiles = numMDMAndroidProfiles
 
+		aiGeneratedProfiles, err := aiGeneratedProfileCountsDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "AI generated profile counts")
+		}
+		stats.NumAppleAiGeneratedProfiles = aiGeneratedProfiles.Apple
+		stats.NumWindowsAiGeneratedProfiles = aiGeneratedProfiles.Windows
+
 		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "conditional access enabled on a team")
@@ -238,6 +247,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.EntraConditionalAccessConfigured, err = ds.entraConditionalAccessConfigured(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
+		}
+
+		stats.GoogleConditionalAccessConfigured, err = ds.googleConditionalAccessConfigured(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "google conditional access configured")
 		}
 
 		stats.ResultLogDestination = config.Osquery.ResultLogPlugin
@@ -432,6 +446,22 @@ func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context) (bool
 	return integration.SetupDone, nil
 }
 
+func (ds *Datastore) googleConditionalAccessConfigured(ctx context.Context) (bool, error) {
+	// Gated on the current license tier, like the Entra integration, so a row left over
+	// from a previous Premium license isn't reported as configured.
+	if !license.IsPremium(ctx) {
+		return false, nil
+	}
+	integration, err := ds.GetGoogleConditionalAccessIntegration(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	return integration.State == fleet.ConditionalAccessGoogleStateConnected, nil
+}
+
 // gitOpsExceptionsList returns the names of enabled GitOps mode exceptions, in a stable order.
 // Always returns a non-nil slice so the payload serializes as [] when empty.
 func gitOpsExceptionsList(e fleet.GitOpsExceptions) []string {
@@ -465,4 +495,47 @@ func (ds *Datastore) conditionalAccessEnabledOnATeam(ctx context.Context, teams 
 		}
 	}
 	return false, nil
+}
+
+// aiGeneratedProfileCounts is the json_value of the aggregated_stats row that counts generated profiles.
+type aiGeneratedProfileCounts struct {
+	Apple   int `json:"apple"`
+	Windows int `json:"windows"`
+}
+
+func (ds *Datastore) IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error {
+	if platform != fleet.AutofillConfigProfilePlatformApple && platform != fleet.AutofillConfigProfilePlatformWindows {
+		return ctxerr.Errorf(ctx, "unsupported platform for AI generated profile count: %q", platform)
+	}
+
+	// One statement, so concurrent generations each add one instead of overwriting each other's read.  The CAST
+	// keeps the count an integer: JSON arithmetic would store 2.0.
+	const stmt = `
+		INSERT INTO aggregated_stats (id, global_stats, type, json_value)
+		VALUES (0, 1, ?, JSON_OBJECT(?, 1))
+		ON DUPLICATE KEY UPDATE
+			json_value = JSON_SET(json_value, ?, COALESCE(CAST(JSON_EXTRACT(json_value, ?) AS UNSIGNED), 0) + 1)`
+	path := "$." + platform
+	// Every generation updates this one row, so retry the lock errors the retry helper covers rather than lose a count.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, aggregatedStatsTypeAIGeneratedProfiles, platform, path, path)
+		return ctxerr.Wrap(ctx, err, "increment AI generated profile count")
+	})
+}
+
+func aiGeneratedProfileCountsDB(ctx context.Context, db sqlx.QueryerContext) (aiGeneratedProfileCounts, error) {
+	var counts aiGeneratedProfileCounts
+	var raw json.RawMessage
+	err := sqlx.GetContext(ctx, db, &raw, `SELECT json_value FROM aggregated_stats WHERE id = 0 AND global_stats = 1 AND type = ?`,
+		aggregatedStatsTypeAIGeneratedProfiles)
+	if errors.Is(err, sql.ErrNoRows) {
+		return counts, nil
+	}
+	if err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "get AI generated profile counts")
+	}
+	if err := json.Unmarshal(raw, &counts); err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "unmarshal AI generated profile counts")
+	}
+	return counts, nil
 }

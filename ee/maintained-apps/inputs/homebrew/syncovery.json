@@ -6,5 +6,6 @@
   "slug": "syncovery/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

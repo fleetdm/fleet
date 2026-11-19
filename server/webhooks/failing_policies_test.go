@@ -45,6 +45,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 					Platform:    "darwin",
 					Critical:    true,
 					Type:        "dynamic",
+
+					WebhooksAndTicketsEnabled: true,
 				},
 			}, nil
 		}
@@ -67,7 +69,6 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:         true,
 				DestinationURL: ts.URL,
-				PolicyIDs:      []uint{1, 3},
 			},
 		},
 		ServerSettings: fleet.ServerSettings{
@@ -117,7 +118,6 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "author_id": 1,
         "author_name": "Alice",
         "author_email": "alice@example.com",
-        "team_id": null,
 		"fleet_id": null,
         "resolution": "policy1 resolution",
         "platform": "darwin",
@@ -133,7 +133,9 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		"continuous_automations_enabled": false,
 		"patch_when_closed": false,
 		"notify_before_patching": false,
-		"type": "dynamic"
+		"patch_deadline": false,
+		"type": "dynamic",
+		"automation_type": "webhook_or_ticket"
     },
     "hosts": [
         {
@@ -204,6 +206,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Platform:              "darwin",
 				CalendarEventsEnabled: true,
 				Type:                  "dynamic",
+
+				WebhooksAndTicketsEnabled: true,
 			},
 		},
 		2: {
@@ -254,7 +258,6 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:         true,
 							DestinationURL: ts.URL,
-							PolicyIDs:      []uint{1},
 						},
 					},
 				},
@@ -314,7 +317,6 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "author_id": 1,
         "author_name": "Alice",
         "author_email": "alice@example.com",
-        "team_id": 1,
 		"fleet_id": 1,
         "resolution": "policy1 resolution",
         "platform": "darwin",
@@ -330,7 +332,9 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		"continuous_automations_enabled": false,
 		"patch_when_closed": false,
 		"notify_before_patching": false,
-		"type": "dynamic"
+		"patch_deadline": false,
+		"type": "dynamic",
+		"automation_type": "calendar"
     },
     "hosts": [
         {

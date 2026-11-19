@@ -31,7 +31,7 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
  
 | | Fleet | Jamf Pro |
 | --- | --- | --- |
-| **Zero-touch deployment (ABM/ASM)** | ✅ ABM/ASM + Autopilot | ✅ ABM/ASM; deep Apple integration |
+| **Zero-touch deployment (ABM/ASM)** | ✅ ABM/ASM + OEM service or Autopilot for Windows | ✅ ABM/ASM; deep Apple integration |
 | **End-user IdP auth at Setup Assistant** | ✅ SAML SSO during OOBE; local account pre-filled from IdP | ⚠️ Platform SSO available but less integrated |
 | **Bootstrap apps & scripts during Setup Assistant** | ✅ Configure required apps and scripts before device release | ⚠️ PreStage enrollment triggers policies, less granular gating |
 | **BYOD enrollment** | ✅ Incl. Android work profiles | ✅ User-initiated enrollment |

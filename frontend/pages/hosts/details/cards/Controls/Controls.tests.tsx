@@ -314,7 +314,7 @@ describe("Controls card", () => {
 
     it.each([
       ["a fleet", 3, "fleet_id=3"],
-      // A no-team host reports team_id: null. Dropping the param entirely
+      // A no-team host reports fleet_id: null. Dropping the param entirely
       // would land the user on whatever fleet they were last viewing.
       ["no team", null, "fleet_id=0"],
     ])("links to the Controls page for %s", (_label, teamId, expected) => {
@@ -549,7 +549,7 @@ describe("Controls card", () => {
         ...selfServiceProps,
         isDeviceUser: true,
         isPremiumTier: true,
-        controls: [installed],
+        controls: [{ ...installed, hidden: true }],
       });
       await user.hover(screen.getByText("Show hidden profiles"));
       expect(
@@ -619,10 +619,24 @@ describe("Controls card", () => {
       isDeviceUser: true,
       isPremiumTier: true,
       isMacOSHost: false,
-      controls: [control({ profile_uuid: "w", status: "verified" })],
+      controls: [
+        control({ profile_uuid: "w", status: "verified", hidden: true }),
+      ],
     });
     expect(
       screen.queryByRole("switch", { name: "Show hidden profiles" })
     ).toBeInTheDocument();
+  });
+
+  it("hides the hidden profile toggle when no profiles are hidden", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: true,
+      isMacOSHost: true,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
   });
 });

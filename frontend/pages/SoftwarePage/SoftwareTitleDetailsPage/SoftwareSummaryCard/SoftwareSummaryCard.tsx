@@ -132,10 +132,11 @@ const SoftwareSummaryCard = ({
   // when both are nullish — `?? []` would mint a fresh array literal each
   // render and bust the cache (and cascade into `headerPills` below).
   const packageAutoInstallPolicies =
-    softwareTitle.software_package?.automatic_install_policies;
+    softwareTitle.packages?.[0]?.automatic_install_policies;
+  const firstAppStoreApp = softwareTitle.app_store_apps?.[0];
   const appStoreAutoInstallPolicies =
-    softwareTitle.app_store_app?.automatic_install_policies;
-  const patchPolicy = softwareTitle.software_package?.patch_policy;
+    firstAppStoreApp?.automatic_install_policies;
+  const patchPolicy = softwareTitle.packages?.[0]?.patch_policy;
   const mergedPolicies = useMemo(
     () =>
       mergePolicies({
@@ -146,10 +147,10 @@ const SoftwareSummaryCard = ({
     [packageAutoInstallPolicies, appStoreAutoInstallPolicies, patchPolicy]
   );
   const isSelfService =
-    !!softwareTitle.software_package?.self_service ||
-    !!softwareTitle.app_store_app?.self_service;
+    !!softwareTitle.packages?.[0]?.self_service ||
+    !!firstAppStoreApp?.self_service;
   // Show the Auto install pill whenever the title has any linked policy —
-  // patch-only policies live under `software_package.patch_policy` (not in
+  // patch-only policies live under `packages[0].patch_policy` (not in
   // `automatic_install_policies`), so we key off the merged set.
   const hasLinkedPolicies = mergedPolicies.length > 0;
   // If every linked policy is patch-only, surface a "Patch policy" pill
@@ -182,7 +183,6 @@ const SoftwareSummaryCard = ({
     ? ([
         [isFleetMaintainedApp, "Fleet-maintained"],
         [isAppleVpp, "App Store (VPP)"],
-        [isAndroidPlayStoreApp, "Play Store"],
         [isCustomPackage, customPackageChipLabel],
       ] as const).find(([flag]) => flag)?.[1]
     : undefined;
@@ -202,19 +202,20 @@ const SoftwareSummaryCard = ({
     !canActivateMultipleVersions;
   const showAutoInstallChip =
     hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
-  // Gates on `app_store_app` directly since `isAppleVpp` flips false when
+  // Gates on `app_store_apps` directly since `isAppleVpp` flips false when
   // a co-existing custom package hides the VPP installer. Suppressed on
   // multi-version titles because auto-update is a per-version setting there.
+  const hasAppStoreApp = !!softwareTitle.app_store_apps?.length;
   const showAutoUpdateChip =
     hasValidTeamId &&
-    !!softwareTitle.app_store_app &&
+    hasAppStoreApp &&
     isIosOrIpadosApp &&
     !canActivateMultipleVersions &&
     !!softwareTitle.auto_update_enabled &&
     !!softwareTitle.auto_update_window_start &&
     !!softwareTitle.auto_update_window_end;
   const canEditAutoUpdateConfig =
-    !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
+    hasAppStoreApp && isIosOrIpadosApp && canManageSoftware;
 
   const showHeaderPills =
     !!installerKindLabel ||
@@ -231,7 +232,7 @@ const SoftwareSummaryCard = ({
         {installerKindLabel && <Chip text={installerKindLabel} />}
         {showSelfServiceChip && (
           <Chip
-            icon="user"
+            icon="self-service"
             text="Self service"
             tooltip={getSelfServiceTooltip(
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
@@ -242,7 +243,7 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoInstallChip && (
           <Chip
-            icon={isPatchPolicyOnly ? undefined : "refresh"}
+            icon={isPatchPolicyOnly ? undefined : "install-auto"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
@@ -266,7 +267,7 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoUpdateChip && (
           <Chip
-            icon="refresh"
+            icon="install-auto"
             text="Auto updates"
             onClick={
               canEditAutoUpdateConfig
@@ -307,11 +308,9 @@ const SoftwareSummaryCard = ({
 
   // Multi-version App Store titles show the admin-added version count (the
   // number of versions on the title's `app_store_apps` array) rather than
-  // the inventory version count. The `app_store_app ? 1 : 0` fallback keeps
-  // the count accurate on titles that pre-date the array in the response.
+  // the inventory version count.
   const versionsCount = canActivateMultipleVersions
-    ? softwareTitle.app_store_apps?.length ??
-      (softwareTitle.app_store_app ? 1 : 0)
+    ? softwareTitle.app_store_apps?.length ?? 0
     : softwareTitle.versions?.length ?? 0;
 
   if (!installerResult) {
@@ -337,7 +336,24 @@ const SoftwareSummaryCard = ({
     );
   }
 
-  const { softwareInstaller, isAndroidPlayStoreWebApp } = installerResult.meta;
+  const {
+    softwareInstaller,
+    isAndroidPlayStoreWebApp,
+    androidPlayStoreId,
+  } = installerResult.meta;
+
+  const fleetMaintainedAppSlug =
+    isPremiumTier &&
+    isFleetMaintainedApp &&
+    "fleet_maintained_app_slug" in softwareInstaller
+      ? softwareInstaller.fleet_maintained_app_slug
+      : undefined;
+  const appStoreId =
+    isPremiumTier && isAppleVpp && "app_store_id" in softwareInstaller
+      ? softwareInstaller.app_store_id
+      : undefined;
+  const googlePlayId =
+    isPremiumTier && !isAndroidPlayStoreWebApp ? androidPlayStoreId : undefined;
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
@@ -407,7 +423,14 @@ const SoftwareSummaryCard = ({
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
           headerPills={headerPills}
-          isAppleVpp={isAppleVpp}
+          fleetMaintainedAppSlug={fleetMaintainedAppSlug}
+          appStoreId={appStoreId}
+          vppToken={
+            isPremiumTier && isAppleVpp
+              ? firstAppStoreApp?.vpp_token ?? undefined
+              : undefined
+          }
+          googlePlayId={googlePlayId}
         />
       </Card>
       {showEditIconModal && softwareInstallerOnTeam && (
@@ -447,7 +470,7 @@ const SoftwareSummaryCard = ({
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
           preInstallQueryLocked={
-            softwareTitle.software_package?.patch_policy?.patch_when_closed
+            softwareTitle.packages?.[0]?.patch_policy?.patch_when_closed
           }
         />
       )}

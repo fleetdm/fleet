@@ -214,3 +214,65 @@ func TestQueryResultsStore(t *testing.T) {
 		runTest(t, store)
 	})
 }
+
+func TestQueryResultsStoreReleasesSubscriptionOnCancel(t *testing.T) {
+	hasSubscribers := func(store *redisQueryResults, channel string) (bool, error) {
+		var count int
+		// subscribers can be on primaries or replicas in cluster mode (standalone visits its node twice)
+		for _, replicas := range []bool{true, false} {
+			err := redis.EachNode(store.pool, replicas, func(conn redigo.Conn) error {
+				res, err := redigo.Values(conn.Do("PUBSUB", "NUMSUB", channel))
+				if err != nil {
+					return err
+				}
+				var (
+					name string
+					n    int
+				)
+				if _, err := redigo.Scan(res, &name, &n); err != nil {
+					return err
+				}
+				count += n
+				return nil
+			})
+			if err != nil {
+				return false, err
+			}
+		}
+		return count > 0, nil
+	}
+
+	runTest := func(t *testing.T, store *redisQueryResults) {
+		// pub/sub channels aren't scoped by Redis DB, so avoid IDs a dev server may be using
+		campaign := fleet.DistributedQueryCampaign{ID: 424242}
+		channelName := pubSubForID(campaign.ID)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		_, err := store.ReadChannel(ctx, campaign)
+		require.NoError(t, err)
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			subscribed, err := hasSubscribers(store, channelName)
+			assert.NoError(c, err)
+			assert.True(c, subscribed)
+		}, 5*time.Second, 50*time.Millisecond)
+
+		// Nothing is published after the cancel, as for a closed campaign, so
+		// only the cancel itself can release the subscription.
+		cancel()
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			subscribed, err := hasSubscribers(store, channelName)
+			assert.NoError(c, err)
+			assert.False(c, subscribed)
+		}, 5*time.Second, 50*time.Millisecond)
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		store := setupRedisForTest(t, false, false)
+		runTest(t, store)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		store := setupRedisForTest(t, true, true)
+		runTest(t, store)
+	})
+}

@@ -19,7 +19,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 
-import MdmMigrationVideo from "../../../../../../../../assets/videos/mdm-migration-video.mp4";
+import MdmMigrationVideo from "../../../../../../../assets/videos/mdm-migration-video.mp4";
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
 const baseClass = "end-user-migration-section";
@@ -143,7 +143,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     );
   }
 
-  if (!config?.mdm.apple_bm_enabled_and_configured) {
+  if (!config?.mdm.apple_business_enabled_and_configured) {
     return (
       <div className={baseClass}>
         <SectionHeader title="End user migration workflow" />

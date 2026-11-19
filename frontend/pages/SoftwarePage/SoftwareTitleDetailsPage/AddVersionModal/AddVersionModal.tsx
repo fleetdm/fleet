@@ -1,12 +1,15 @@
+import classnames from "classnames";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
-import { IAppStoreApp } from "interfaces/software";
+import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import {
   buildLabelsForPayload,
@@ -27,9 +30,11 @@ const baseClass = "add-version-modal";
 
 interface IAddVersionModalProps {
   teamId: number;
-  /** The title's back-compat `app_store_app` envelope. The new version
-   * inherits `app_store_id` and `platform` from this. */
-  appStore: IAppStoreApp;
+  /** The title's first `app_store_apps` entry. The new version inherits
+   * `app_store_id`, `platform`, and `vpp_token` from this. */
+  appStore: IAppStoreAppVersion;
+  /** Title name / display name, shown in form microcopy. */
+  titleDisplayName: string;
   /** Existing version names on this title, used for client-side uniqueness
    * validation before the request hits the backend. */
   existingVersionNames: string[];
@@ -52,6 +57,7 @@ interface IAddVersionModalProps {
 const AddVersionModal = ({
   teamId,
   appStore,
+  titleDisplayName,
   existingVersionNames,
   defaultTargetCustom = false,
   defaultAutoUpdate,
@@ -59,6 +65,7 @@ const AddVersionModal = ({
   onSuccess,
 }: IAddVersionModalProps) => {
   const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   // Submitting an unmodified scaffold is treated as "no configuration".
   const emptyScaffold = getEmptyConfigScaffold(appStore.platform);
@@ -82,11 +89,9 @@ const AddVersionModal = ({
 
   const {
     formData,
-    setField,
+    getTextFieldProps,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IVersionFormData>({
@@ -129,6 +134,7 @@ const AddVersionModal = ({
       await softwareAPI.addAppStoreAppVersion(teamId, {
         app_store_id: appStore.app_store_id,
         platform: appStore.platform,
+        vpp_token_id: appStore.vpp_token?.id,
         name: data.name,
         self_service: data.selfService,
         categories: data.categories.length ? data.categories : undefined,
@@ -178,30 +184,42 @@ const AddVersionModal = ({
           className={`${baseClass}__form`}
           onSubmit={handleSubmit(onValidSubmit)}
         >
-          <VersionFormFields
-            formData={formData}
-            setField={setField}
-            commitFields={commitFields}
-            getError={getError}
-            clearFieldError={clearFieldError}
-            validateField={validateField}
-            platform={appStore.platform}
-            appDisplayName={appStore.display_name || appStore.name}
-            labels={labels ?? []}
-            teamId={teamId}
-            onClickPreviewEndUserExperience={() =>
-              setShowPreviewEndUserExperience(true)
-            }
-          />
+          <div
+            className={classnames(`${baseClass}__form-content`, {
+              [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+            })}
+          >
+            <VersionFormFields
+              formData={formData}
+              getTextFieldProps={getTextFieldProps}
+              commitFields={commitFields}
+              getError={getError}
+              platform={appStore.platform}
+              appDisplayName={titleDisplayName}
+              labels={labels ?? []}
+              teamId={teamId}
+              onClickPreviewEndUserExperience={() =>
+                setShowPreviewEndUserExperience(true)
+              }
+              disabled={gitOpsModeEnabled}
+            />
+          </div>
 
           <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-            >
-              Add
-            </Button>
+            <GitOpsModeTooltipWrapper
+              position="top"
+              tipOffset={8}
+              entityType="software"
+              renderChildren={(gitOpsDisabled) => (
+                <Button
+                  type="submit"
+                  isLoading={isSubmitting}
+                  disabled={isSubmitting || !!gitOpsDisabled}
+                >
+                  Add
+                </Button>
+              )}
+            />
             <Button
               onClick={onExit}
               variant="secondary"

@@ -1,0 +1,11 @@
+{
+  "name": "WireGuard",
+  "slug": "wireguard/windows",
+  "package_identifier": "WireGuard.WireGuard",
+  "unique_identifier": "WireGuard",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/wireguard_install.ps1",
+  "default_categories": ["Productivity"]
+}

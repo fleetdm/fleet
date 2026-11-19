@@ -1,8 +1,10 @@
 import classnames from "classnames";
-import React from "react";
+import React, { useContext } from "react";
 
 import Icon from "components/Icon";
 import { Colors } from "styles/var/colors";
+
+import CustomLinkSizeContext from "./CustomLinkSizeContext";
 
 interface ICustomLinkProps {
   url?: string;
@@ -43,6 +45,9 @@ const CustomLink = ({
   disableKeyboardNavigation = false,
   variant = "default",
 }: ICustomLinkProps): JSX.Element => {
+  const iconSize =
+    useContext(CustomLinkSizeContext) === "small" ? "small" : "medium";
+
   const getIconColor = (): Colors => {
     switch (variant) {
       case "tooltip-link":
@@ -81,6 +86,7 @@ const CustomLink = ({
         {newTab && (
           <Icon
             name="external-link"
+            size={iconSize}
             className={`${baseClass}__external-icon`}
             color={getIconColor()}
           />
@@ -93,6 +99,7 @@ const CustomLink = ({
       {newTab && variant !== "button" && (
         <Icon
           name="external-link"
+          size={iconSize}
           className={`${baseClass}__external-icon`}
           color={getIconColor()}
         />

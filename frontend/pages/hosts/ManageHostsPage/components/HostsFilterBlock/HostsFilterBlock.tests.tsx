@@ -3,6 +3,7 @@ import { noop } from "lodash";
 import React from "react";
 
 import { createMockLabel } from "__mocks__/labelsMock";
+import { createMockOSVersion } from "__mocks__/operatingSystemsMock";
 import { createMockSoftware } from "__mocks__/softwareMock";
 import { createCustomRenderer } from "test/test-utils";
 import { PolicyResponse } from "utilities/constants";
@@ -78,6 +79,43 @@ describe("HostsFilterBlock", () => {
       );
 
       expect(screen.getByText("openssl 1.1.1k")).toBeInTheDocument();
+    });
+  });
+
+  describe("operating system pill", () => {
+    const osVersions = [
+      createMockOSVersion({
+        os_name: "Windows 11 Pro 24H2",
+        os_version: "10.0.26100.1742",
+        platform: "windows",
+      }),
+    ];
+
+    it.each([
+      // Matches the OS version entry, whatever the URL's case: the label keeps
+      // the entry's.
+      [
+        "windows 11 pro 24h2",
+        "10.0.26100.1742",
+        "Windows 11 Pro 24H2 10.0.26100.1742",
+      ],
+      // No entry: Arch Linux ARM, which the OS inventory groups under "Arch
+      // Linux", and a saved link with the older Windows name.
+      ["Arch Linux ARM", "rolling", "Arch Linux ARM rolling"],
+      [
+        "Microsoft Windows 11 Pro 24H2",
+        "10.0.26100.1742",
+        "Microsoft Windows 11 Pro 24H2 10.0.26100.1742",
+      ],
+    ])("labels the %p %p filter as %p", (osName, osVersion, expected) => {
+      render(
+        <HostsFilterBlock
+          {...baseProps}
+          params={{ ...baseParams, osName, osVersion, osVersions }}
+        />
+      );
+
+      expect(screen.getByText(expected)).toBeInTheDocument();
     });
   });
 
