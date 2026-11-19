@@ -229,7 +229,9 @@ const GoogleWorkspaceSection = ({
         listItems={savedAdditionalDomains}
         HeadingComponent={() => (
           <div className={`${baseClass}__domains-header`}>
-            <span className={`${baseClass}__domains-header-name`}>Domains</span>
+            <span className={`${baseClass}__domains-header-name`}>
+              Additional domains
+            </span>
             {renderAddButton("secondary")}
           </div>
         )}
@@ -331,7 +333,6 @@ const GoogleWorkspaceSection = ({
       </form>
       {savedIntegration && (
         <section className={`${baseClass}__additional-domains`}>
-          <h3>Additional domains</h3>
           {renderAdditionalDomains()}
         </section>
       )}

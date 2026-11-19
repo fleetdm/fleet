@@ -81,7 +81,6 @@ describe("GoogleWorkspaceSection", () => {
     const render = renderWith();
     render(<GoogleWorkspaceSection appConfig={configuredConfig()} />);
 
-    expect(screen.getByText("Additional domains")).toBeInTheDocument();
     expect(screen.getByText("No additional domains")).toBeInTheDocument();
   });
 
@@ -93,6 +92,7 @@ describe("GoogleWorkspaceSection", () => {
       />
     );
 
+    expect(screen.getByText("Additional domains")).toBeInTheDocument();
     expect(screen.getByText("example.org")).toBeInTheDocument();
     expect(screen.getByText("example.net")).toBeInTheDocument();
   });
