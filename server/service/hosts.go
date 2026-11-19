@@ -617,7 +617,7 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[string]interface{}) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsListError(ctx, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 
 	opts, lid, err := hostListOptionsFromFilters(filter)
@@ -837,7 +837,7 @@ type searchHostsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID *uint `json:"query_id" renameto:"report_id"`
+	QueryID *uint `json:"report_id" removedkey:"query_id"`
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
@@ -975,7 +975,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	if !alreadyAuthd {
 		// Authorize again with team loaded now that we have team_id
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-			return nil, err
+			return nil, authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 		}
 	}
 
@@ -996,7 +996,7 @@ func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
-			return err
+			return authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsDeleteHostErrorMessage, err)
 		}
 		if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 			return err
@@ -1131,7 +1131,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. GetHost checks team access.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
+		return nil, authz.GitOpsListError(ctx, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 	}
 
 	var host *fleet.HostLite
@@ -1178,7 +1178,7 @@ func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsListError(ctx, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, id)
@@ -1193,7 +1193,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 	if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 		return err
@@ -1340,15 +1340,28 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(h.ID), "get host for transfer")
 		if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionTransferHost, notFoundErr); err != nil {
-			return err
+			return authz.GitOpsFleetError(ctx, h.TeamID, fleet.GitOpsTransferHostErrorMessage, err)
 		}
 	}
 	return nil
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
-	// Authorize transfer access to the destination team.
+// authorizeHostTransferDestination checks that the caller can transfer hosts
+// into teamID (nil for "Unassigned"). Every role that can transfer hosts can
+// also list them, so the list check only stops GitOps users, before any host
+// is looked up.
+func (svc *Service) authorizeHostTransferDestination(ctx context.Context, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsListError(ctx, fleet.GitOpsTransferHostErrorMessage, err)
+	}
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
+		return authz.GitOpsFleetError(ctx, teamID, fleet.GitOpsTransferHostErrorMessage, err)
+	}
+	return nil
+}
+
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	if err := svc.authorizeHostTransferDestination(ctx, teamID); err != nil {
 		return err
 	}
 
@@ -1526,8 +1539,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// Authorize transfer access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
+	if err := svc.authorizeHostTransferDestination(ctx, teamID); err != nil {
 		return err
 	}
 
@@ -2371,7 +2383,7 @@ type getHostQueryReportRequest struct {
 }
 
 type getHostQueryReportResponse struct {
-	QueryID       uint                          `json:"query_id" renameto:"report_id"`
+	QueryID       uint                          `json:"report_id"`
 	HostID        uint                          `json:"host_id"`
 	HostName      string                        `json:"host_name"`
 	LastFetched   *time.Time                    `json:"last_fetched"`
@@ -3940,7 +3952,7 @@ func (svc *Service) OSVersions(
 			if err != nil {
 				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, count, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, count, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -4256,7 +4268,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+			return nil, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -4714,6 +4726,10 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			opt.MatchQuery = query
 
 		default:
+			// team_id is the only old name filters took.
+			if k == "team_id" {
+				return nil, nil, &endpointer.RemovedKeyError{Key: k}
+			}
 			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
 		}
 	}
@@ -4903,7 +4919,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		})
 		return nil, &fleet.BadRequestError{
 			Message: fmt.Sprintf(
-				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same team as the host.",
+				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same fleet as the host.",
 				action,
 				strings.Join(labelsNotFound, ", "),
 			),
@@ -5266,12 +5282,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+		fleet.ActivityTypeReadHostRecoveryLockPassword{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		},
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
 	}
 
 	// Schedule auto-rotation by marking the password as viewed.

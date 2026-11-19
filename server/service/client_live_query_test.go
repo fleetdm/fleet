@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -160,4 +161,84 @@ func TestLiveQueryErrorFrame(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("no error from the live query")
 	}
+}
+
+func TestLiveQueryConnectionCloseDoesNotPanic(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/latest/fleet/reports/run_by_identifiers":
+			resp := createDistributedQueryCampaignResponse{
+				Campaign: &fleet.DistributedQueryCampaign{
+					ID: 99,
+				},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+		case "/api/latest/fleet/results/websocket":
+			ws, err := upgrader.Upgrade(w, r, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer ws.Close()
+			for {
+				_, msg, err := ws.ReadMessage()
+				if err != nil {
+					return
+				}
+				if strings.Contains(string(msg), "select_campaign") {
+					// Client finished handshake and entered the streaming read loop.
+					// Close the connection abruptly to simulate campaign deletion.
+					return
+				}
+			}
+		}
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	client := &Client{
+		baseClient: &baseClient{
+			BaseURL: baseURL,
+			HTTP:    fleethttp.NewClient(),
+		},
+		token: "1234",
+	}
+
+	t.Run("publishes error and closes Done", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+
+		res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})
+		require.NoError(t, err)
+
+		select {
+		case err := <-res.Errors():
+			require.Error(t, err)
+			require.ErrorContains(t, err, "receive ws message")
+		case <-time.After(3 * time.Second):
+			t.Fatal("expected error on websocket close, timed out")
+		}
+
+		select {
+		case <-res.Done():
+		case <-time.After(3 * time.Second):
+			t.Fatal("expected Done channel to close after websocket disconnect")
+		}
+	})
+
+	t.Run("closes Done without draining Errors", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+
+		res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})
+		require.NoError(t, err)
+
+		// Wait only on Done() without reading Errors() or cancelling ctx.
+		select {
+		case <-res.Done():
+		case <-time.After(3 * time.Second):
+			t.Fatal("expected Done channel to close without draining Errors")
+		}
+	})
 }

@@ -597,18 +597,6 @@ type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, 
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
 
-type UploadMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error)
-
-type GetMDMAppleInstallerByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
-
-type DeleteMDMAppleInstallerFunc func(ctx context.Context, id uint) error
-
-type GetMDMAppleInstallerByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
-
-type GetMDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
-
-type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
-
 type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type GenerateABMKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
@@ -1861,24 +1849,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	UploadMDMAppleInstallerFunc        UploadMDMAppleInstallerFunc
-	UploadMDMAppleInstallerFuncInvoked bool
-
-	GetMDMAppleInstallerByIDFunc        GetMDMAppleInstallerByIDFunc
-	GetMDMAppleInstallerByIDFuncInvoked bool
-
-	DeleteMDMAppleInstallerFunc        DeleteMDMAppleInstallerFunc
-	DeleteMDMAppleInstallerFuncInvoked bool
-
-	GetMDMAppleInstallerByTokenFunc        GetMDMAppleInstallerByTokenFunc
-	GetMDMAppleInstallerByTokenFuncInvoked bool
-
-	GetMDMAppleInstallerDetailsByTokenFunc        GetMDMAppleInstallerDetailsByTokenFunc
-	GetMDMAppleInstallerDetailsByTokenFuncInvoked bool
-
-	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
-	ListMDMAppleInstallersFuncInvoked bool
 
 	ListMDMAppleDevicesFunc        ListMDMAppleDevicesFunc
 	ListMDMAppleDevicesFuncInvoked bool
@@ -4479,48 +4449,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.UploadMDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.UploadMDMAppleInstallerFunc(ctx, name, size, installer)
-}
-
-func (s *Service) GetMDMAppleInstallerByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.GetMDMAppleInstallerByIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleInstallerByIDFunc(ctx, id)
-}
-
-func (s *Service) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleInstallerFunc(ctx, id)
-}
-
-func (s *Service) GetMDMAppleInstallerByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.GetMDMAppleInstallerByTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleInstallerByTokenFunc(ctx, token)
-}
-
-func (s *Service) GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.GetMDMAppleInstallerDetailsByTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleInstallerDetailsByTokenFunc(ctx, token)
-}
-
-func (s *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.ListMDMAppleInstallersFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleInstallersFunc(ctx)
 }
 
 func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {

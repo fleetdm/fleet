@@ -17,11 +17,22 @@ parasails.registerPage('homepage', {
       emailAddress: {isEmail: true, required: true},
     },
 
+    // For the newsletter signup form. Separate syncing state, so submitting one form doesn't spin the other's button.
+    newsletterSyncing: false,
+    newsletterFormData: {},
+    newsletterFormErrors: {},
+    newsletterCloudError: '',
+    newsletterCloudSuccess: false,
+    newsletterSuccessTimeout: undefined,
+    newsletterFormRules: {
+      emailAddress: {isEmail: true, required: true},
+    },
+
     // For the testimonials veil
     testimonialsVisibleHeight: 600,
     testimonialsHeightIncrement: 560,// « Roughly one to two rows of cards.
     allTestimonialsVisible: false,
-
+    animationDelayInMs: 2000,
     // For MDM comparison table
     comparisonModeForIt: 'intune',
     comparisonModeFriendlyNames: {
@@ -58,14 +69,19 @@ parasails.registerPage('homepage', {
     }
   },
   mounted: async function() {
+    this.animateTicker('bottom-cta-ticker-option');
     $('[data-toggle="tooltip"]').tooltip({
       container: '#homepage',
-      trigger: 'hover',
+      trigger: 'hover focus',
     });
     // If every testimonial already fits, skip the veil and the "Show more" button.
     let masonry = this.$el.querySelector('[purpose="testimonials-masonry"]');
     if(masonry && masonry.scrollHeight <= this.testimonialsVisibleHeight) {
       this.allTestimonialsVisible = true;
+    }
+    // Vue replaces the page's DOM on mount, so a browser that already tried the /#newsletter jump (e.g. Firefox) can be left at the top.
+    if(window.location.hash === '#newsletter') {
+      this.$el.querySelector('#newsletter').scrollIntoView();
     }
   },
 
@@ -96,6 +112,35 @@ parasails.registerPage('homepage', {
       }
       this.goto(report.eventUrl);
     },
+    submittedNewsletterForm: function() {
+      this.newsletterCloudSuccess = true;
+      this.newsletterFormData = {};
+      clearTimeout(this.newsletterSuccessTimeout);
+      this.newsletterSuccessTimeout = setTimeout(()=>{
+        this.newsletterCloudSuccess = false;
+      }, 10000);
+    },
+    animateTicker: function(tickerOptionPurpose) {
+      let tickerOptionSelector = `[purpose="${tickerOptionPurpose}"]`;
+      setInterval(()=>{
+        let currentTickerOption = $(`${tickerOptionSelector}.visible`);
+        if (currentTickerOption.length === 0) {
+          $(tickerOptionSelector).first().addClass('visible');
+          return;
+        }
+        // [?]:https://api.jquery.com/nextAll/#nextAll-selector
+        let nextTickerOption = currentTickerOption.nextAll(tickerOptionSelector).first();
+        // If we've reached the end of the list, pick the first option to be the next ticker option
+        if (nextTickerOption.length === 0) {
+          nextTickerOption = $(tickerOptionSelector).first();
+        }
+        currentTickerOption.removeClass('visible').addClass('animating-out');
+        nextTickerOption.addClass('visible');
+        setTimeout(()=>{
+          currentTickerOption.removeClass('animating-out');
+        }, 1000);
+      }, this.animationDelayInMs);
+    },
     clickShowMoreTestimonials: function() {
       // Measured on each click, since the masonry's height changes with the viewport width.
       let fullHeight = this.$el.querySelector('[purpose="testimonials-masonry"]').scrollHeight;
@@ -118,7 +163,7 @@ parasails.registerPage('homepage', {
       await setTimeout(()=>{
         $('[data-toggle="tooltip"]').tooltip({
           container: '#homepage',
-          trigger: 'hover',
+          trigger: 'hover focus',
         });
       }, 250);
     },

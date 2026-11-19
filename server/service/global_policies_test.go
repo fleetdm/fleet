@@ -903,25 +903,25 @@ func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
 		wantErr         bool
 	}{
 		{
-			name:            "global admin from query_id loads and authorizes the query",
+			name:            "global admin from report_id loads and authorizes the query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
 			wantQueryLoaded: true,
 		},
 		{
-			name:            "global maintainer from query_id loads and authorizes the query",
+			name:            "global maintainer from report_id loads and authorizes the query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleMaintainer)},
 			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
 			wantQueryLoaded: true,
 		},
 		{
-			name:            "global gitops from query_id loads and authorizes the query",
+			name:            "global gitops from report_id loads and authorizes the query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)},
 			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
 			wantQueryLoaded: true,
 		},
 		{
-			name:            "no query_id does not load any query",
+			name:            "no report_id does not load any query",
 			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 			payload:         fleet.PolicyPayload{Name: "inline", Query: "SELECT 1;"},
 			wantQueryLoaded: false,
@@ -1023,6 +1023,32 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		require.NoError(t, err)
 		err = svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{spec("team1", new(uint(1)))})
 		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	t.Run("global spec rejects software_title_id", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		s := spec("", nil)
+		s.SoftwareTitleID = new(uint(1))
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s})
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.ErrorContains(t, err, errPolicyAllFleetsForSoftware)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+
+		s.SoftwareTitleID = new(uint(0))
+		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+
+		// "No team" is not "All fleets", so it keeps its automations.
+		noTeam := spec("No team", new(uint(1)))
+		noTeam.SoftwareTitleID = new(uint(1))
+		ds.ApplyPolicySpecsFuncInvoked = false
+		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
 }

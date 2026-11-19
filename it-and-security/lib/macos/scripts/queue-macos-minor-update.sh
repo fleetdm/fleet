@@ -18,14 +18,25 @@ read_list() {
     done
 }
 
+all_scheduled() {
+    local existing key
+    existing=$(read_list AutoInstallProductKeys)
+    for key in "${keys[@]}"; do
+        /usr/bin/grep -qxF -- "$key" <<< "$existing" || return 1
+    done
+}
+
 keys=()
 builds=" "
 while IFS= read -r key; do
-    [[ "$key" =~ ^MSU_UPDATE_([^_]+)_(patch|full)_([0-9.]+)_(minor|major)$ ]] || continue
-    builds+="${BASH_REMATCH[1]} "
+    [[ "$key" =~ ^MSU_UPDATE_([^_]+)_ ]] && builds+="${BASH_REMATCH[1]} "
+    [[ "$key" == MSU_UPDATE_*_minor ]] || continue
     # Both payload keys are queued; Software Update ignores the one that doesn't apply.
-    if [[ "${BASH_REMATCH[4]}" == minor ]]; then
+    # A key in any other format is queued as Apple offers it.
+    if [[ "$key" =~ ^MSU_UPDATE_([^_]+)_(patch|full)_([^_]+)_minor$ ]]; then
         keys+=("MSU_UPDATE_${BASH_REMATCH[1]}_patch_${BASH_REMATCH[3]}_minor" "MSU_UPDATE_${BASH_REMATCH[1]}_full_${BASH_REMATCH[3]}_minor")
+    else
+        keys+=("$key")
     fi
 done < <(read_list RecommendedUpdates ".Product Key")
 
@@ -34,12 +45,7 @@ if (( ${#keys[@]} == 0 )); then
     exit 0
 fi
 
-existing=$(read_list AutoInstallProductKeys)
-missing=0
-for key in "${keys[@]}"; do
-    /usr/bin/grep -qxF -- "$key" <<< "$existing" || missing=1
-done
-if (( missing == 0 )); then
+if all_scheduled; then
     echo "Already scheduled: ${keys[*]}"
     exit 0
 fi
@@ -48,8 +54,17 @@ while IFS= read -r key; do
     if [[ "$key" =~ ^MSU_UPDATE_([^_]+)_.*_major$ && "$builds" == *" ${BASH_REMATCH[1]} "* ]]; then
         keys+=("$key")
     fi
-done <<< "$existing"
+done < <(read_list AutoInstallProductKeys)
 
-/usr/bin/defaults write "$PREFS" AutoInstallProductKeys -array "${keys[@]}" || exit 1
+# defaults parses -array elements as plist values; quoting keeps any key text intact.
+quoted=()
+for key in "${keys[@]}"; do
+    quoted+=("\"$key\"")
+done
+/usr/bin/defaults write "$PREFS" AutoInstallProductKeys -array "${quoted[@]}" || exit 1
+if ! all_scheduled; then
+    echo "Couldn't schedule: ${keys[*]}"
+    exit 1
+fi
 /usr/bin/notifyutil -p com.apple.SoftwareUpdate.TriggerBackgroundCheck
 echo "Scheduled for overnight install: ${keys[*]}"

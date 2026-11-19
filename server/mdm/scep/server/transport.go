@@ -25,21 +25,22 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handle
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
-	r := http.NewServeMux()
-	r.Handle("GET /", kithttp.NewServer(
-		e.GetEndpoint,
-		decodeSCEPRequest,
-		encodeSCEPResponse,
-		opts...,
-	))
-	r.Handle("POST /", kithttp.NewServer(
-		e.PostEndpoint,
-		decodeSCEPRequest,
-		encodeSCEPResponse,
-		opts...,
-	))
+	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequest, encodeSCEPResponse, opts...)
+	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequest, encodeSCEPResponse, opts...)
 
-	return r
+	// A method switch rather than a ServeMux: a nested ServeMux overwrites r.Pattern, which otelhttp reads after the handler
+	// returns to set http.route on metrics.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead:
+			getHandler.ServeHTTP(w, r)
+		case http.MethodPost:
+			postHandler.ServeHTTP(w, r)
+		default:
+			w.Header().Set("Allow", "GET, HEAD, POST")
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	})
 }
 
 func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.Logger) http.Handler {

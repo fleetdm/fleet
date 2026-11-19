@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.46.0",
+      "version": "1.46.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Read AI' AND publisher = 'readai';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Read AI' AND publisher = 'readai' AND version_compare(version, '1.46.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Read AI' AND publisher = 'readai' AND version_compare(version, '1.46.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'read_ai_desktop.exe');"
       },
-      "installer_url": "https://desktop.read.ai/updates/windows/x86_64/1.46.0/Read%20AI_1.46.0_x64-setup.exe",
+      "installer_url": "https://desktop.read.ai/updates/windows/x86_64/1.46.1/Read%20AI_1.46.1_x64-setup.exe",
       "install_script_ref": "305d1dbe",
       "uninstall_script_ref": "6e84643d",
-      "sha256": "bac1dd63eb4f705c50cfb239b3f179363471083f0e01829b8f7c43f86f81708e",
+      "sha256": "d519c3ae784a69f49f569f65baa45089f3a2c6d7bd157f5dc4895140704e00c1",
       "default_categories": [
         "Productivity"
       ]

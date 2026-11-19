@@ -41,8 +41,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Auto Patching](#auto-patching-group)      | Reduce the amount of time before software is patched after vulnerabilities are discovered. Measured by number of policies with software automations enabled. |
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
 | [BYOD](#byod-group)                        | The goal of BYOD product group is to increase enrollment of Android devices in Fleet. Measured by Android devices enrolled. |
-| [Website](#website-group)                  | Increase and exceed Fleet's product maturity goals for fleetdm.com. |
-| [First Impressions](#first-impressions-group) | Improve first impressions of Fleet. Primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements. |
+| [First impressions](#first-impressions) | Improve first impressions of Fleet and increase and exceed Fleet's product maturity goals for fleetdm.com. Measured by new ICP logo opportunities created. |
 
 
 ### Orchestration group
@@ -77,6 +76,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_
 | Quality Assurance                 | [Marcus Allen](https://www.linkedin.com/in/marcus-a-785b3b7/) _([@MarcusAllen](https://github.com/marcusallen97))_
+| Software Engineer                 | [Arend Peter Castelein](https://www.linkedin.com/in/arend-peter-castelein-530a5070/) _([@ArendPeter](https://github.com/ArendPeter))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-supply-chain) for this product group is `#g-supply-chain`.
 
@@ -174,30 +174,19 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 > The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
 
 
-### Website group
+### First impressions
 
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
-
-
-### First Impressions group
-
-The goal of the First Impressions product group is to improve first impressions of Fleet. The primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements.
+The goal of the First impressions product group is to improve first impressions of Fleet and to increase and exceed Fleet's product maturity goals for fleetdm.com. The primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Quality Assurance                 | [Quality Assurance Engineer, First Impressions](https://fleetdm.com/handbook/company/open-positions/quality-assurance-engineer-first-impressions) _(open position)_
+| Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_ [Quality Assurance Engineer, First Impressions](https://fleetdm.com/handbook/company/open-positions/quality-assurance-engineer-first-impressions) _(open position)_
+| Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/105), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/105), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`. Website requests and bugs use the [`#g-website`](https://github.com/fleetdm/fleet/labels?q=%23g-website) label and [kanban board](https://github.com/orgs/fleetdm/projects/92).
 
 
 <!--
@@ -364,7 +353,7 @@ If there are design changes, the user story stays in drafting to address the gap
 
 ### Release demo (every 3 weeks)
 
-On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
+On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://github.com/fleetdm/confidential/labels?q=customer-).)
 
 ### Release retro (30 minutes, every 3 weeks)
 
@@ -783,7 +772,7 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
-Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
+Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [First impressions group](https://fleetdm.com/handbook/company/product-groups#first-impressions).
 
 At this state, the QA Manager is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
 

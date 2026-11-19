@@ -192,7 +192,7 @@ const makeVersionSuffix = (
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
-    const { targets_count: count, query_name: queryName, stats } =
+    const { targets_count: count, report_name: queryName, stats } =
       activity.details || {};
 
     const impactDescription = stats
@@ -1055,9 +1055,7 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type)
-      .replace(" saved", "")
-      .replace("team", "fleet");
+    const activityType = lowerCase(activity.type).replace(" saved", "");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
@@ -2124,7 +2122,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a report <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2146,7 +2144,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the report <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2168,7 +2166,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the report <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2791,7 +2789,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RetrievedHostMyDeviceURL: {
       return TAGGED_TEMPLATES.retrievedHostMyDeviceURL(activity);
     }
-    case ActivityType.ViewedHostRecoveryLockPassword: {
+    case ActivityType.ReadHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);
     }
     case ActivityType.SetHostRecoveryLockPassword: {

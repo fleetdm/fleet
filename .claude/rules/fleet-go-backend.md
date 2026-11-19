@@ -80,7 +80,7 @@ paths:
 - Flexible JSON: use `json.RawMessage` for configs stored as JSON blobs
 
 ## Context Utilities
-- `ctxdb.RequirePrimary(ctx, true)` — force reads on primary DB (use before read-then-write)
+- `ctxdb.RequirePrimary(ctx, true)` — force reads on primary DB
 - `ctxdb.BypassCachedMysql(ctx, true)` — disable MySQL cache layer
 - `ctxerr.Wrap(ctx, err, "msg")` — ALWAYS use for error wrapping
 

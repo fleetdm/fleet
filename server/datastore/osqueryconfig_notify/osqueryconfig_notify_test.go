@@ -372,8 +372,6 @@ func TestCoversETagInvalidation(t *testing.T) {
 		"AddLabelsToHost":                     "label membership",
 		"RemoveLabelsFromHost":                "label membership",
 		"RecordLabelQueryExecutions":          "label membership",
-		"AsyncBatchInsertLabelMembership":     "label membership",
-		"AsyncBatchDeleteLabelMembership":     "label membership",
 	}
 	ours := map[string]struct{}{}
 	for _, m := range declaredMethods(t, ".") {

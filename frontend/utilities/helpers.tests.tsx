@@ -9,6 +9,7 @@ import helpers, {
   compareVersions,
   willExpireWithinXDays,
   humanLastSeen,
+  humanHostMemory,
   internationalTimeOnlyFormat,
   formatSelectedTargetsForApi,
   formatFleet5RemovalMessage,
@@ -116,6 +117,18 @@ describe("helpers utilities", () => {
     it("uses months at or beyond 90 days", () => {
       expect(humanLastSeen(getPastDate(90))).toEqual("3 months ago");
       expect(humanLastSeen(getPastDate(100))).toEqual("3 months ago");
+    });
+  });
+
+  describe("humanHostMemory function", () => {
+    it("returns --- when the memory is unavailable", () => {
+      expect(humanHostMemory(-1)).toEqual("---");
+      expect(humanHostMemory(-1024)).toEqual("---");
+    });
+
+    it("formats bytes in GB", () => {
+      expect(humanHostMemory(8589934592)).toEqual("8.0 GB");
+      expect(humanHostMemory(0)).toEqual("0.0 GB");
     });
   });
 

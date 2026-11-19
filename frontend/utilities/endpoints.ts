@@ -194,7 +194,6 @@ export default {
   MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints

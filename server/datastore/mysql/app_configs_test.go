@@ -47,8 +47,8 @@ func TestAppConfig(t *testing.T) {
 func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 	info := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
-			OrgName:    "Test",
-			OrgLogoURL: "localhost:8080/logo.png",
+			OrgName:            "Test",
+			OrgLogoURLDarkMode: "localhost:8080/logo.png",
 		},
 	}
 
@@ -124,8 +124,8 @@ func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
 	additional := ptr.RawMessage(json.RawMessage("not valid json"))
 	info := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
-			OrgName:    "Test",
-			OrgLogoURL: "localhost:8080/logo.png",
+			OrgName:            "Test",
+			OrgLogoURLDarkMode: "localhost:8080/logo.png",
 		},
 		Features: fleet.Features{
 			AdditionalQueries: additional,
