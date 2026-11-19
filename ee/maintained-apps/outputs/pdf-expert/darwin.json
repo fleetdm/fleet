@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.13.5",
+      "version": "3.13.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.readdle.PDFExpert-Mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.readdle.PDFExpert-Mac' AND version_compare(bundle_short_version, '3.13.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.readdle.PDFExpert-Mac' AND version_compare(bundle_short_version, '3.13.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.readdle.PDFExpert-Mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.pdfexpert.com/pem3/versions/1184/PDFExpert.zip",
+      "installer_url": "https://downloads.pdfexpert.com/pem3/versions/1187/PDFExpert.zip",
       "install_script_ref": "a46c92e8",
       "uninstall_script_ref": "1263f7ba",
-      "sha256": "74cd11bc32169333c8a95aaa10ef421d674b1df0d385d68702585961d73389ed",
+      "sha256": "1e3f14f1d62d0e508d35acebfec9b0e8cf5a176fd2b8caf3da911d80441f3c20",
       "default_categories": [
         "Productivity"
       ]

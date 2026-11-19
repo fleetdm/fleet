@@ -84,6 +84,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
         <InputField
           label="Share this link with your end users:"
           enableCopy
+          enableOpenInNewTab
           readOnly
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
