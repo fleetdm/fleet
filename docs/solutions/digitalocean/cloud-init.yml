@@ -1,0 +1,155 @@
+#cloud-config
+# Deploys Fleet, MySQL, Redis, and Caddy (automatic HTTPS) on a single Ubuntu 24.04 Droplet.
+# Paste this file into the "User data" box when you create the Droplet.
+#
+# Optional: set FLEET_DOMAIN below to a domain whose A record points at the Droplet.
+# If you leave it empty, Fleet uses <droplet-ip>.sslip.io, which is fine for trials.
+
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - ufw
+  - fail2ban
+  - openssl
+
+write_files:
+  - path: /opt/fleet/config
+    permissions: "0644"
+    content: |
+      FLEET_DOMAIN=
+
+  - path: /opt/fleet/Caddyfile
+    permissions: "0644"
+    content: |
+      {$FLEET_DOMAIN} {
+        reverse_proxy fleet:8080
+      }
+
+  - path: /opt/fleet/docker-compose.yml
+    permissions: "0644"
+    content: |
+      volumes:
+        mysql:
+        redis:
+        vulndb:
+        installers:
+        caddy_data:
+        caddy_config:
+
+      services:
+        mysql:
+          image: mysql:8.4
+          environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            MYSQL_DATABASE: fleet
+            MYSQL_USER: fleet
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+          volumes:
+            - mysql:/var/lib/mysql
+          cap_add:
+            - SYS_NICE
+          healthcheck:
+            test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
+          restart: unless-stopped
+
+        redis:
+          image: redis:7
+          command: ["redis-server", "--appendonly", "yes"]
+          volumes:
+            - redis:/data
+          healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
+          restart: unless-stopped
+
+        fleet-init:
+          image: alpine:3
+          volumes:
+            - vulndb:/vulndb
+            - installers:/installers
+          command: chown -R 100:101 /vulndb /installers
+
+        fleet:
+          image: fleetdm/fleet:${FLEET_VERSION:-latest}
+          depends_on:
+            mysql:
+              condition: service_healthy
+            redis:
+              condition: service_healthy
+            fleet-init:
+              condition: service_completed_successfully
+          command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
+          environment:
+            FLEET_MYSQL_ADDRESS: mysql:3306
+            FLEET_MYSQL_DATABASE: fleet
+            FLEET_MYSQL_USERNAME: fleet
+            FLEET_MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+            FLEET_REDIS_ADDRESS: redis:6379
+            FLEET_SERVER_ADDRESS: 0.0.0.0:8080
+            FLEET_SERVER_TLS: "false"
+            FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
+            FLEET_LICENSE_KEY: ${FLEET_LICENSE_KEY:-}
+            FLEET_VULNERABILITIES_DATABASES_PATH: /vulndb
+            FLEET_SOFTWARE_INSTALLER_STORE_DIR: /installers
+          volumes:
+            - vulndb:/vulndb
+            - installers:/installers
+          restart: unless-stopped
+
+        caddy:
+          image: caddy:2
+          environment:
+            FLEET_DOMAIN: ${FLEET_DOMAIN}
+          ports:
+            - "80:80"
+            - "443:443"
+            - "443:443/udp"
+          volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+          depends_on:
+            - fleet
+          restart: unless-stopped
+
+  - path: /opt/fleet/setup.sh
+    permissions: "0700"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      cd /opt/fleet
+
+      source ./config
+      if [ -z "${FLEET_DOMAIN}" ]; then
+        ip="$(curl -fsS http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)"
+        FLEET_DOMAIN="${ip//./-}.sslip.io"
+      fi
+
+      # Generate secrets once so re-running this script never rotates them.
+      if [ ! -f .env ]; then
+        umask 077
+        cat > .env <<ENV
+      FLEET_DOMAIN=${FLEET_DOMAIN}
+      MYSQL_ROOT_PASSWORD=$(openssl rand -hex 24)
+      MYSQL_PASSWORD=$(openssl rand -hex 24)
+      FLEET_SERVER_PRIVATE_KEY=$(openssl rand -base64 32)
+      FLEET_LICENSE_KEY=
+      ENV
+      fi
+
+      ufw allow OpenSSH
+      ufw allow 80/tcp
+      ufw allow 443
+      ufw --force enable
+
+      docker compose up -d
+      echo "Fleet is starting at https://${FLEET_DOMAIN}" | tee /opt/fleet/READY
+
+runcmd:
+  - [bash, /opt/fleet/setup.sh]
