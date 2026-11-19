@@ -114,6 +114,7 @@ github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarApiKey	Values	map[string]
 github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarApiKey	masked	bool
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleWorkspace	[]*fleet.GoogleWorkspaceIntegration
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	Domain	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	AdditionalDomains	[]string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ImpersonatedUserEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet.GoogleCalendarApiKey
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleConditionalAccess	*fleet.GoogleConditionalAccessIntegration
