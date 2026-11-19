@@ -459,6 +459,10 @@ var hostRefs = []string{
 // authenticating token requests. ADE re-enrollment clears them via
 // MDMAppleResetOnReenrollment.
 
+// - host_ai_sessions (and host_ai_session_events, by its foreign key): a host can have too many events
+// to delete with it, so the cleanups cron deletes the sessions of deleted hosts in batches
+// (CleanupHostAISessions).
+
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
 // the host.uuid is not always named the same, so the map key is the table name
