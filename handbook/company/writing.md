@@ -479,7 +479,7 @@ Output: valid Markdown.
 
 ## Writing mechanics
 
-Writing mechanics cover everything from capitalization and punctuation to list formatting and SQL examples. Following them keeps our content consistent and easy to read. For Markdown-specific rules, see [Writing in Fleet-flavored Markdown](#writing-in-fleet-flavored-markdown).
+Writing mechanics cover everything from capitalization and punctuation to list formatting and SQL examples. Following them keeps our content consistent and easy to read. For Markdown-specific rules, see [Line breaks and new lines](https://fleetdm.com/handbook/company/writing#line-breaks-and-new-lines), [Links and anchors](https://fleetdm.com/handbook/company/writing#links-and-anchors), [Lists](https://fleetdm.com/handbook/company/writing#lists), [Tables](https://fleetdm.com/handbook/company/writing#tables), and [Blockquotes](https://fleetdm.com/handbook/company/writing#blockquotes).
 
 
 ### Sentence case
