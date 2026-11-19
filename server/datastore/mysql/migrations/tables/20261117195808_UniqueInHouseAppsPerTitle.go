@@ -17,8 +17,8 @@ const hostInHouseInstallsBatchSize = 1000
 func Up_20261117195808(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
-	// Keep the first row of each title by filename, which is the row the UI and installs use
-	// because their lookup reads through the (global_or_team_id, filename, platform) unique index.
+	// Keep the first added row of each title. The UI and installs look up the row without an ORDER BY,
+	// so which duplicate they used depends on the index MySQL picked.
 	var duplicateInHouseApps []struct {
 		ID               uint   `db:"id"`
 		GlobalOrTeamID   uint   `db:"global_or_team_id"`
@@ -39,8 +39,8 @@ func Up_20261117195808(tx *sql.Tx) error {
 				filename,
 				version,
 				storage_id,
-				FIRST_VALUE(id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY filename, id) AS keep_in_house_app_id,
-				FIRST_VALUE(storage_id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY filename, id) AS keep_storage_id
+				FIRST_VALUE(id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY id) AS keep_in_house_app_id,
+				FIRST_VALUE(storage_id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY id) AS keep_storage_id
 			FROM in_house_apps
 			WHERE title_id IS NOT NULL
 		) in_house_apps_with_keep_id
