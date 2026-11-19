@@ -75,6 +75,7 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 		return nil
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return nil }
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{}, nil
 	}

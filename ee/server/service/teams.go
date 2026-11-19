@@ -1211,6 +1211,13 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
+	// The fleet is already deleted, so failing to queue the cleanup of its label membership must not fail the
+	// request: the hourly cleanup removes those rows too.
+	if err := worker.QueueLabelMembershipCleanupJob(ctx, svc.ds); err != nil {
+		svc.logger.ErrorContext(ctx, "queue label membership cleanup job", "err", err)
+		ctxerr.Handle(ctx, err)
+	}
+
 	if len(hostIDs) > 0 {
 		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")

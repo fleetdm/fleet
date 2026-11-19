@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -22,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -137,6 +139,9 @@ func TestLabelsAuth(t *testing.T) {
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 		return nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
 	}
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
 		return nil
@@ -548,6 +553,9 @@ func TestBuiltInLabelNameCaseVariants(t *testing.T) {
 	}
 	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 		return nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
 	}
 	ds.SaveLabelFunc = func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *label}, nil, nil
@@ -1069,6 +1077,9 @@ func TestDeleteLabelWithSharedNames(t *testing.T) {
 	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 		deletedID = id
 		return nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
 	}
 
 	t.Run("by ID deletes the requested label, not a label found by its name", func(t *testing.T) {
@@ -1670,8 +1681,14 @@ func TestLabelActivities(t *testing.T) {
 		ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
+		var queuedJobNames []string
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			queuedJobNames = append(queuedJobNames, job.Name)
+			return job, nil
+		}
 		err := svc.DeleteLabelByID(ctx, 300)
 		require.NoError(t, err)
+		require.Equal(t, []string{worker.LabelMembershipCleanupJobName}, queuedJobNames)
 		require.Len(t, activities, 1)
 		got, ok := activities[0].(fleet.ActivityTypeDeletedLabel)
 		require.True(t, ok)
@@ -1681,6 +1698,24 @@ func TestLabelActivities(t *testing.T) {
 		require.Equal(t, teamID, *got.FleetID)
 		require.NotNil(t, got.FleetName)
 		require.Equal(t, teamName, *got.FleetName)
+	})
+
+	t.Run("delete label succeeds when its membership cleanup cannot be queued", func(t *testing.T) {
+		activities = activities[:0]
+		ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			return &fleet.LabelWithTeamName{ID: lid, Name: "delete-without-job"}, nil, nil
+		}
+		ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return nil, errors.New("jobs table unavailable")
+		}
+		require.NoError(t, svc.DeleteLabelByID(ctx, 301))
+		require.Len(t, activities, 1)
+		got, ok := activities[0].(fleet.ActivityTypeDeletedLabel)
+		require.True(t, ok)
+		require.Equal(t, uint(301), got.ID)
 	})
 
 	t.Run("apply specs emits per-label created/edited/no-op", func(t *testing.T) {

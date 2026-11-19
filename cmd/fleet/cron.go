@@ -1207,7 +1207,8 @@ func newWorkerIntegrationsSchedule(
 		ChartService: chartSvc,
 		Log:          logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet)
+	labelMembershipCleanup := &worker.LabelMembershipCleanup{Datastore: ds}
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet, labelMembershipCleanup)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL

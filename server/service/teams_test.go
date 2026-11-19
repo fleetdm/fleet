@@ -50,6 +50,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.DeleteTeamFunc = func(ctx context.Context, tid uint) error {
 		return nil
 	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
 	ds.TeamEnrollSecretsFunc = func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}

@@ -1654,8 +1654,8 @@ func testDeleteLabelMembership(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
 
-	assert.Zero(t, membershipCount(deleted.ID))
-	assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	// The rows outlive the label until the orphan cleanup runs, but nothing below can see them.
+	assert.Equal(t, len(hosts), membershipCount(deleted.ID))
 
 	_, _, err := ds.Label(ctx, deleted.ID, adminFilter)
 	require.True(t, fleet.IsNotFound(err))
@@ -1670,6 +1670,10 @@ func testDeleteLabelMembership(t *testing.T, ds *Datastore) {
 		require.Len(t, hostLabels, 1)
 		assert.Equal(t, kept.ID, hostLabels[0].ID)
 	}
+
+	require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+	assert.Zero(t, membershipCount(deleted.ID))
+	assert.Equal(t, len(hosts), membershipCount(kept.ID))
 
 	// A delete that fails, here on the software installer's foreign key, keeps the label's membership.
 	user := test.NewUser(t, ds, "delete-membership-user", "delete-membership@example.com", false)
@@ -1693,6 +1697,7 @@ func testDeleteLabelMembership(t *testing.T, ds *Datastore) {
 	})
 	err = ds.DeleteLabel(ctx, kept.ID)
 	require.True(t, fleet.IsForeignKey(err))
+	require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
 	assert.Equal(t, len(hosts), membershipCount(kept.ID))
 }
 
@@ -1731,7 +1736,7 @@ func testCleanupOrphanedLabelMembership(t *testing.T, ds *Datastore) {
 		assert.Equal(t, len(hosts), membershipCount(kept.ID))
 	})
 
-	t.Run("label deletion interrupted after its first batch", func(t *testing.T) {
+	t.Run("cleanup interrupted after its first batch", func(t *testing.T) {
 		interrupted := newLabelWithAllHosts("orphaned-membership-interrupted")
 		neverStarted := newLabelWithAllHosts("orphaned-membership-never-started")
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1757,6 +1762,7 @@ func testCleanupOrphanedLabelMembership(t *testing.T, ds *Datastore) {
 	t.Run("host reports a label after its deletion", func(t *testing.T) {
 		deleted := newLabelWithAllHosts("orphaned-membership-reported-late")
 		require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
 		require.Zero(t, membershipCount(deleted.ID))
 		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{deleted.ID: new(true)}, time.Now(), false))
 		require.Equal(t, 1, membershipCount(deleted.ID))

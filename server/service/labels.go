@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -592,6 +593,13 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 
 	if err := svc.ds.DeleteLabel(ctx, label.ID); err != nil {
 		return err
+	}
+
+	// The label is already deleted, so failing to queue the cleanup of its label membership must not fail the
+	// request: the hourly cleanup removes those rows too.
+	if err := worker.QueueLabelMembershipCleanupJob(ctx, svc.ds); err != nil {
+		svc.logger.ErrorContext(ctx, "queue label membership cleanup job", "err", err)
+		ctxerr.Handle(ctx, err)
 	}
 
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedLabel{
