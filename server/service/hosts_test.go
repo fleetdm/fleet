@@ -2660,12 +2660,12 @@ func TestGetHostSummary(t *testing.T) {
 
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
-			OnlineCount:      1,
-			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
-			MIACount:         3,
-			NewCount:         4,
-			TotalsHostsCount: 5,
-			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
+			OnlineCount:        1,
+			OfflineCount:       5, // offline hosts also includes mia hosts as of Fleet 4.15
+			Missing30DaysCount: 3,
+			NewCount:           4,
+			TotalsHostsCount:   5,
+			Platforms:          []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
 	}
 	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
@@ -2677,7 +2677,7 @@ func TestGetHostSummary(t *testing.T) {
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
 	require.Equal(t, uint(5), summary.OfflineCount)
-	require.Equal(t, uint(3), summary.MIACount)
+	require.Equal(t, uint(3), summary.Missing30DaysCount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
 	require.Len(t, summary.Platforms, 4)

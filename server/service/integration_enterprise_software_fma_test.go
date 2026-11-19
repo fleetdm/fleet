@@ -2565,7 +2565,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}
 		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for team ID 0", titleID))
+		require.Contains(t, errMsg, fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for fleet ID 0", titleID))
 		res.Body.Close()
 
 		// add a fleet maintained app and associate the installer with it

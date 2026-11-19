@@ -150,7 +150,7 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 		"ipados_updates":   reflect.TypeFor[fleet.AppleOSUpdateSettings](),
 		"macos_migration":  reflect.TypeFor[fleet.MacOSMigration](),
 		"windows_updates":  reflect.TypeFor[fleet.WindowsUpdates](),
-		"macos_settings":   reflect.TypeFor[fleet.GitOpsMacOSSettings](),
+		"apple_settings":   reflect.TypeFor[fleet.GitOpsMacOSSettings](),
 		"windows_settings": reflect.TypeFor[fleet.GitOpsWindowsSettings](),
 		"android_settings": reflect.TypeFor[fleet.GitOpsAndroidSettings](),
 	},

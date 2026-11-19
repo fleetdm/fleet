@@ -2082,7 +2082,7 @@ const HostDetailsPage = ({
                     router={router}
                     location={location}
                     saveReportsDisabledInConfig={
-                      config?.server_settings?.query_reports_disabled
+                      config?.server_settings?.discard_reports_data
                     }
                     showReportsEmptyState={showReportsEmptyState}
                     canScheduleReport={canScheduleReport}

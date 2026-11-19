@@ -253,7 +253,7 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings                  MacOSSettings            `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup                     MacOSSetup               `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
 	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
@@ -871,7 +871,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_disk_encryption",
+				Field: "apple_settings.enable_disk_encryption",
 			}
 		}
 		s.EnableDiskEncryption = optjson.SetBool(b)
@@ -885,7 +885,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_escrow_disk_encryption_key",
+				Field: "apple_settings.enable_escrow_disk_encryption_key",
 			}
 		}
 		s.EnableEscrowDiskEncryptionKey = optjson.SetBool(b)
@@ -1669,14 +1669,14 @@ const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
 	ServerURL            string `json:"server_url"`
-	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_reporting_disabled"`
+	LiveQueryDisabled    bool   `json:"live_reporting_disabled" removedkey:"live_query_disabled" renamescope:"server_settings"`
 	EnableAnalytics      bool   `json:"enable_analytics"`
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
-	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
+	QueryReportsDisabled bool   `json:"discard_reports_data" removedkey:"query_reports_disabled" renamescope:"server_settings"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 	MCPDisabled          bool   `json:"mcp_disabled"`
-	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
+	QueryReportCap       int    `json:"report_cap" removedkey:"query_report_cap" renamescope:"server_settings"`
 }
 
 const DefaultMaxQueryReportRows int = 1000

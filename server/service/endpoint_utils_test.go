@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +35,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
-	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
+	req.SetPathValue("some-id", "999")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -61,7 +60,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
+	req.SetPathValue("some-id", "999")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -84,7 +83,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
+	req.SetPathValue("some-id", "999")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -105,7 +104,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -131,7 +130,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -152,7 +151,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	decoded, err := decoder(context.Background(), req)
 	require.NoError(t, err)
@@ -267,7 +266,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	// Body larger than the limit should return PayloadTooLargeError.
 	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	_, err := decoder(context.Background(), req)
 	require.Error(t, err)
@@ -276,7 +275,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	// Body within the limit but with broken JSON
 	incompleteBody := `{"key": "` + strings.Repeat("A", 100) // missing closing "}
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(incompleteBody))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	_, err = decoder(context.Background(), req)
 	require.Error(t, err)
@@ -288,7 +287,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 
 	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
-	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+	req.SetPathValue("some-id", "123")
 
 	_, err = decoder(context.Background(), req)
 	require.NoError(t, err)

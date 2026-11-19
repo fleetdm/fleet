@@ -359,8 +359,7 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus =
-    queryParams?.apple_settings ?? queryParams?.macos_settings;
+  const macSettingsStatus = queryParams?.apple_settings;
   const softwareVersionId =
     queryParams?.software_version_id !== undefined
       ? parseInt(queryParams.software_version_id, 10)
@@ -407,7 +406,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =

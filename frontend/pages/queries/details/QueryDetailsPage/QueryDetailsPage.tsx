@@ -131,7 +131,7 @@ const QueryDetailsPage = ({
 
   useEffect(() => {
     if (config) {
-      setDisabledCachingGlobally(config.server_settings.query_reports_disabled);
+      setDisabledCachingGlobally(config.server_settings.discard_reports_data);
     }
   }, [config]);
 
@@ -144,7 +144,7 @@ const QueryDetailsPage = ({
     () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
-      select: (data) => data.query,
+      select: (data) => data.report,
       onError: (error) => handlePageError(error),
     }
   );
@@ -285,7 +285,7 @@ const QueryDetailsPage = ({
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped = queryReport?.report_clipped;
-  const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
+  const isLiveQueryDisabled = config?.server_settings.live_reporting_disabled;
 
   const canLiveQuery =
     storedQuery?.observer_can_run ||

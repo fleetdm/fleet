@@ -17,7 +17,7 @@ const row = (hostId: number) => ({
 });
 
 const page = (hostIds: number[], hasNext: boolean) => ({
-  query_id: 1,
+  report_id: 1,
   results: hostIds.map(row),
   report_clipped: false,
   count: 3,

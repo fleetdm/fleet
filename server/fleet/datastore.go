@@ -765,9 +765,11 @@ type Datastore interface {
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
 	TeamByFilename(ctx context.Context, filename string) (*Team, error)
-	// TeamConflictsWithName returns a team whose collation-equal name conflicts
-	// with the provided name and whose id != excludeID, or (nil, nil) when
-	// no such team exists. Pass excludeID=0 to check against all teams.
+	// TeamConflictsWithName returns a team whose id != excludeID and whose name
+	// conflicts with the provided name, either because the names are equal
+	// under the teams.name collation or because they have the same
+	// TeamNameKey. It returns (nil, nil) when no such team exists. Pass
+	// excludeID=0 to check against all teams.
 	TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
@@ -1921,6 +1923,27 @@ type Datastore interface {
 	// MDM protocol seen time, and whether the enrollment is hardware attested for the host with the given UUID
 	GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*NanoMDMEnrollmentDetails, error)
 
+	// FilterWebhooksAndTicketsPolicies returns the policies among policyIDs that have the webhook or ticket automation on.
+	FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]PolicyIDAndTeam, error)
+	// WebhooksAndTicketsPolicyIDs returns the IDs of the policies in the scope that have the webhook or ticket automation
+	// on. A nil teamID is "All fleets", and 0 is "Unassigned".
+	WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error)
+	// WebhooksAndTicketsPolicyIDsByTeam is WebhooksAndTicketsPolicyIDs for several fleets at once, keyed by fleet ID.
+	WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
+	// PoliciesWithOtherAutomations returns the scope's policies among policyIDs that have the webhook or ticket
+	// automation off and another automation on. IDs of other scopes and deleted policies are ignored.
+	PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*Policy, error)
+	// WebhooksAndTicketsByPolicyName returns whether each named policy of the scope has the webhook or ticket automation
+	// on. Names without a policy are left out.
+	WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
+	// WebhooksAndTicketsByPatchPolicySlug returns whether the fleet's patch policy for each Fleet-maintained app slug has
+	// the webhook or ticket automation on. Spec apply matches patch policies by app rather than by name. Slugs without a
+	// patch policy are left out.
+	WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
+	// SetWebhooksAndTicketsPolicies turns the webhook or ticket automation on for exactly the policies in policyIDs that
+	// belong to the scope, and off for the scope's other policies.
+	SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error
+
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
 
@@ -2474,9 +2497,6 @@ type Datastore interface {
 	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
 	// for the host with the given serial number alongside the host's platform. The host must be DEP assigned to Fleet.
 	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (string, *AppleOSUpdateSettings, error)
-	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
-	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
-	DeleteCAConfigAssets(ctx context.Context, names []string) error
 
 	// GetABMTokenByOrgName retrieves the Apple Business token identified by
 	// its unique name (the organization name).
@@ -4102,6 +4122,28 @@ type Datastore interface {
 	// the Android MDM reconciliation cron. See GetMDMAndroidReconcileCursor.
 	SetMDMAndroidReconcileCursor(ctx context.Context, cursor string) error
 
+	// ListAndroidFleetDefaultPolicyProfiles returns the label-less Android profiles that set a passcode key or
+	// policyEnforcementRules, which are the profiles a fleet's default policy is built from. A nil teamID lists
+	// every fleet's; otherwise only that fleet's (0 is Unassigned).
+	ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*MDMAndroidConfigProfile, error)
+
+	// GetAndroidFleetDefaultPolicyChecksums returns, keyed by team ID (0 is Unassigned), the checksum of the
+	// default policy last sent to AMAPI for each fleet.
+	GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error)
+
+	// ListAndroidFleetDefaultPolicyDeletedFleets returns the IDs of deleted fleets that still have a default
+	// policy. Zero-touch tokens can't be deleted, so their policies are kept in line with Unassigned's.
+	ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error)
+
+	// SetAndroidFleetDefaultPolicyChecksum records the checksum of the default policy last sent for a fleet,
+	// only if the stored checksum is still previous (nil: only if there's none), so a concurrent writer's
+	// record isn't overwritten.
+	SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error
+
+	// MarkAndroidFleetDefaultPolicyUnverified records that a fleet's default policy exists without vouching
+	// for its content, so the next reconcile sends it again.
+	MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error
+
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.
 	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
@@ -4537,6 +4579,14 @@ type Datastore interface {
 	NewAppleSCEPChallenge(ctx context.Context, info AppleSCEPChallengeInfo, ttl time.Duration) (string, error)
 	// ConsumeAppleSCEPChallenge marks the given SCEP challenge as consumed and returns its associated info if found.
 	ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*AppleSCEPChallengeInfo, error)
+	// FindOrCreateWindowsConditionalAccessSCEPChallenge returns the unconsumed, unexpired single-use challenge for
+	// Fleet's conditional access SCEP server bound to the Windows MDM enrollment's host, creating one valid for
+	// ConditionalAccessSCEPChallengeTTL if there's none. Apple hosts get theirs through ExpandHostSecrets.
+	FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx context.Context, enrollmentID uint) (string, error)
+	// ConsumeConditionalAccessSCEPChallenge marks the host's conditional access SCEP challenge as consumed. It returns a
+	// not found error, and leaves the challenge untouched, if it doesn't exist, is expired or consumed, or belongs to
+	// another host.
+	ConsumeConditionalAccessSCEPChallenge(ctx context.Context, challenge, hostUUID string) error
 	// SetAppleSCEPChallengeIssuedCert records the issued certificate serial number for the given SCEP challenge.
 	// It will only have an effect on rows without a cert serial and for challenges that is already consumed.
 	SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error
@@ -4929,8 +4979,6 @@ type AccessesMDMConfigAssets interface {
 	// generated ones.
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
-	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 }
 type GetsAppConfig interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)

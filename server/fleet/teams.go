@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -46,6 +48,52 @@ func IsReservedTeamName(name string) bool {
 	normalizedName := strings.ToLower(norm.NFC.String(name))
 	return normalizedName == "no team" || normalizedName == "all teams" ||
 		normalizedName == "unassigned" || normalizedName == "all fleets"
+}
+
+// TeamNameNoLetterOrNumberReason is the validation reason for a fleet name
+// whose TeamNameKey is empty.
+const TeamNameNoLetterOrNumberReason = "must include at least one letter or number"
+
+// TeamNameConflictHint ends every fleet name conflict error.
+const TeamNameConflictHint = "Choose a fleet name distinct from other fleets."
+
+// TeamNameKey returns the form of a fleet name that must be unique across
+// fleets: compatibility-decomposed, case-folded, and reduced to letters and
+// numbers. It ignores letter case, accents on Latin letters, whitespace,
+// punctuation, symbols, and emoji. It is empty for a name with no letter or
+// number.
+//
+// It does not reproduce every equality of the teams.name collation (for
+// example, the collation treats all characters outside the Basic Multilingual
+// Plane as equal), so it complements the collation comparison rather than
+// replacing it.
+func TeamNameKey(name string) string {
+	// Folding can produce characters that decompose further, so decompose again.
+	folded := norm.NFKD.String(cases.Fold().String(norm.NFKD.String(name)))
+	var key strings.Builder
+	// Combining marks are ignored after a Latin letter, so "é" matches "e". After
+	// a letter of any other script they are kept, because there a mark can make
+	// a different letter or word ("й" and "и", "राम" and "रम"). Pairs the
+	// teams.name collation treats as equal ("ё" and "е", "ガ" and "カ") still
+	// conflict through the collation check.
+	var keepMarks bool
+	for _, r := range folded {
+		switch {
+		case unicode.IsLetter(r):
+			key.WriteRune(r)
+			keepMarks = !unicode.Is(unicode.Latin, r)
+		case unicode.IsNumber(r):
+			key.WriteRune(r)
+			keepMarks = false
+		case unicode.IsMark(r):
+			if keepMarks {
+				key.WriteRune(r)
+			}
+		default:
+			keepMarks = false
+		}
+	}
+	return key.String()
 }
 
 // IsUnassignedFleetName checks if the name provided is the display name of the "Unassigned" pseudo-fleet, i.e. hosts with no fleet (case-insensitive).
@@ -113,7 +161,7 @@ type TeamPayloadMDM struct {
 
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
-	MacOSSettings *TeamPayloadMacOSSettings `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings *TeamPayloadMacOSSettings `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	// WindowsSettings exposes only the disk encryption surfaces
 	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
@@ -127,7 +175,7 @@ type TeamPayloadMacOSSetup struct {
 	EnableEndUserAuthentication optjson.Bool `json:"enable_end_user_authentication"`
 }
 
-// TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields
+// TeamPayloadMacOSSettings is the subset of apple_settings fields
 // settable via the team PATCH endpoint.
 type TeamPayloadMacOSSettings struct {
 	EnableDiskEncryption          optjson.Bool `json:"enable_disk_encryption"`
@@ -519,7 +567,7 @@ type TeamMDM struct {
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings              MacOSSettings         `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup                 MacOSSetup            `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
@@ -663,7 +711,7 @@ type TeamSpecMDM struct {
 	// A map is used for the macos settings so that we can easily detect if its
 	// sub-keys were provided or not in an "apply" call, and leave the existing
 	// value unmodified when they aren't.
-	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings map[string]any `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
 	MacOSSetup    MacOSSetupSpec `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`

@@ -350,9 +350,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label={label}
-          onClear={() =>
-            handleClearFilter(["macos_settings", "apple_settings"])
-          }
+          onClear={() => handleClearFilter(["apple_settings"])}
         />
       </>
     );
@@ -511,9 +509,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="macOS settings: bootstrap package"
-          onClear={() =>
-            handleClearFilter(["macos_bootstrap_package", "bootstrap_package"])
-          }
+          onClear={() => handleClearFilter(["macos_bootstrap_package"])}
         />
       </>
     );

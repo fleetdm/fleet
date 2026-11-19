@@ -10,10 +10,7 @@
     },
     "server_settings": {
       "server_url": "",
-      "live_query_disabled": false,
       "live_reporting_disabled": false,
-      "query_report_cap": 0,
-      "query_reports_disabled": false,
       "report_cap": 0,
       "discard_reports_data": false,
       "enable_analytics": false,
@@ -116,10 +113,6 @@
         "webhook_url": ""
       },
       "apple_settings": {
-        "enable_disk_encryption": false,
-        "enable_escrow_disk_encryption_key": false
-      },
-      "macos_settings": {
         "enable_disk_encryption": false,
         "enable_escrow_disk_encryption_key": false
       },

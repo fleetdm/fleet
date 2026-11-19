@@ -410,7 +410,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": false,
 					},
 				},
@@ -428,7 +428,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_settings": map[string]any{
+					"apple_settings": map[string]any{
 						"enable_disk_encryption": true,
 					},
 				},
@@ -686,7 +686,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	require.NoError(t, err)
 
 	spec := func(macOSSettings map[string]any) map[string]any {
-		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"macos_settings": macOSSettings}}}}
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"apple_settings": macOSSettings}}}}
 	}
 
 	var applyResp applyTeamSpecsResponse
@@ -1133,14 +1133,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("POST", "/api/latest/fleet/fleets", team2, http.StatusConflict, &tmResp)
 
 	// create a team whose name only differs by case — must also 409 with the
-	// canonical "must differ" message.
+	// canonical conflict message.
 	teamCaseVariant := &fleet.Team{
 		Name:        strings.ToLower(name),
 		Description: "case variant",
 		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
 	}
 	r := s.Do("POST", "/api/latest/fleet/fleets", teamCaseVariant, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.TeamNameConflictHint)
 
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
@@ -1187,7 +1187,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// renaming into another team's name (the original team created above)
 	// using only case differences must return 409 with the canonical message.
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", paddedTeamID), fleet.TeamPayload{Name: new(strings.ToUpper(name))}, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.TeamNameConflictHint)
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", paddedTeamID), nil, http.StatusOK)
@@ -1526,6 +1526,172 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm1ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetNameRules() {
+	t := s.T()
+
+	var created []uint
+	defer func() {
+		for _, id := range created {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", id), nil, http.StatusOK)
+		}
+	}()
+	createFleet := func(name string) uint {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusOK, &resp)
+		require.Equal(t, name, resp.Team.Name)
+		created = append(created, resp.Team.ID)
+		return resp.Team.ID
+	}
+	fleetNames := func() map[uint]string {
+		var resp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &resp)
+		names := make(map[uint]string, len(resp.Teams))
+		for _, tm := range resp.Teams {
+			names[tm.ID] = tm.Name
+		}
+		return names
+	}
+	applySpecs := func(expectedStatus int, dryRun bool, specs ...map[string]any) *http.Response {
+		return s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": specs}, expectedStatus,
+			"dry_run", fmt.Sprint(dryRun))
+	}
+	requireError := func(res *http.Response, wantName, wantReason string, msgAndArgs ...any) {
+		names, reasons := extractServerErrorNameReasons(res.Body)
+		require.Equal(t, []string{wantName}, names, msgAndArgs...)
+		require.Equal(t, []string{wantReason}, reasons, msgAndArgs...)
+	}
+	conflictReason := func(existing string) string {
+		return fmt.Sprintf("A fleet named %q already exists. Choose a fleet name distinct from other fleets.", existing)
+	}
+	specConflictReason := func(name, existing string) string {
+		return fmt.Sprintf("fleet name %q conflicts with existing fleet %q. Choose a fleet name distinct from other fleets.", name, existing)
+	}
+
+	workstations := createFleet("Workstations")
+	other := createFleet("Other fleet")
+	before := fleetNames()
+
+	// Rule 1: at least one letter or number.
+	const noLetterOrNumber = "must include at least one letter or number"
+	for _, name := range []string{"🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "「」", "・・・", "  ---  ", "\u093e"} {
+		res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
+		requireError(res, "name", noLetterOrNumber, name)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusUnprocessableEntity)
+		requireError(res, "name", noLetterOrNumber, name)
+		for _, dryRun := range []bool{true, false} {
+			res = applySpecs(http.StatusUnprocessableEntity, dryRun, map[string]any{"name": name})
+			requireError(res, "name", noLetterOrNumber, name)
+			res = applySpecs(http.StatusUnprocessableEntity, dryRun, map[string]any{"name": name, "gitops_filename": "rule1.yml"})
+			requireError(res, "name", noLetterOrNumber, name)
+		}
+	}
+	require.Equal(t, before, fleetNames())
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀"} {
+		createFleet(name)
+	}
+
+	// Rule 2: distinct from other fleets by name key or under the collation.
+	conflicts := []struct {
+		existing string
+		names    []string
+	}{
+		{"Workstations", []string{"Work-stations", "Work stations", "workstations!", "WORK_STATIONS", "Workstations 💻", "workstations", "Wörkstations"}},
+		{"Laptops 💻", []string{"Laptops", "Laptops 🚀", "laptops"}},
+		{"ABC", []string{"abc", "ＡＢＣ", "a.b.c"}},
+		{"Renee", []string{"Reneé", "RENEE"}},
+		{"straße", []string{"strasse", "Strasse!"}},
+		{"Team 𝐀", []string{"Team 𝐁", "Team A"}},
+		{"開発チーム", []string{"開発・チーム", "開発チーム。"}},
+		{"はは", []string{"ハハ", "パパ"}},
+		{"राम", []string{"राम!", "रा-म"}},
+		{"กิน", []string{"กิน 🚀"}},
+		{"мой", []string{"МОЙ", "Мой!"}},
+	}
+	for _, c := range conflicts {
+		id := workstations
+		if c.existing != "Workstations" {
+			id = createFleet(c.existing)
+		}
+		before := fleetNames()
+		for _, name := range c.names {
+			res := s.Do("POST", "/api/latest/fleet/fleets", fleet.TeamPayload{Name: &name}, http.StatusConflict)
+			requireError(res, "base", conflictReason(c.existing), name)
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", other), fleet.TeamPayload{Name: &name}, http.StatusConflict)
+			requireError(res, "base", conflictReason(c.existing), name)
+
+			// A new GitOps file with a name that matches under the collation adopts the existing fleet, as before.
+			// A name that only matches by name key doesn't, and must not create a second fleet.
+			var byCollation *fleet.Team
+			if tm, err := s.ds.TeamByName(t.Context(), name); err == nil {
+				byCollation = tm
+			}
+			if byCollation == nil {
+				for _, dryRun := range []bool{true, false} {
+					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name, "gitops_filename": "new.yml"})
+					requireError(res, "base", specConflictReason(name, c.existing), name)
+					res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": name})
+					requireError(res, "base", specConflictReason(name, c.existing), name)
+				}
+			} else {
+				require.Equal(t, id, byCollation.ID, name)
+			}
+		}
+		require.Equal(t, before, fleetNames(), c.existing)
+	}
+	// The collation alone covers some of these and the name key alone covers others, so the loop above must have
+	// exercised the spec create path.
+	_, err := s.ds.TeamByName(t.Context(), "Work-stations")
+	require.True(t, fleet.IsNotFound(err))
+	_, err = s.ds.TeamByName(t.Context(), "Team 𝐁")
+	require.NoError(t, err)
+
+	// A fleet can be renamed to a variant of its own name.
+	var tmResp teamResponse
+	for _, name := range []string{"work-stations", "WORKSTATIONS!", "Workstations"} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", workstations), fleet.TeamPayload{Name: &name}, http.StatusOK, &tmResp)
+		require.Equal(t, name, tmResp.Team.Name)
+	}
+	// A number makes the name distinct.
+	createFleet("Workstations 2")
+	// Outside Latin script a combining mark can make a different word, so these don't conflict with "राम", "กิน",
+	// and "мой".
+	for _, name := range []string{"रम", "กัน", "мои"} {
+		createFleet(name)
+	}
+
+	// Two specs in one request.
+	res := applySpecs(http.StatusConflict, false, map[string]any{"name": "Work Stations"}, map[string]any{"name": "work-stations"})
+	requireError(res, "base", `duplicate fleet names in request: "Work Stations" (filename "") and "work-stations" (filename ""). `+
+		"Choose a fleet name distinct from other fleets.")
+	res = applySpecs(http.StatusConflict, true,
+		map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"},
+		map[string]any{"name": "kiosks!", "gitops_filename": "kiosks2.yml"})
+	requireError(res, "base", `duplicate fleet names in request: "Kiosks" (filename "kiosks.yml") and "kiosks!" (filename "kiosks2.yml"). `+
+		"Choose a fleet name distinct from other fleets.")
+
+	// A fleet matched by its GitOps filename.
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		map[string]any{"specs": []any{map[string]any{"name": "Kiosks", "gitops_filename": "kiosks.yml"}}}, http.StatusOK, &applyResp)
+	kiosks := applyResp.TeamIDsByName["Kiosks"]
+	require.NotZero(t, kiosks)
+	created = append(created, kiosks)
+	before = fleetNames()
+	for _, dryRun := range []bool{true, false} {
+		res = applySpecs(http.StatusConflict, dryRun, map[string]any{"name": "work stations", "gitops_filename": "kiosks.yml"})
+		requireError(res, "base", specConflictReason("work stations", "Workstations"))
+	}
+	require.Equal(t, before, fleetNames())
+	applySpecs(http.StatusOK, false, map[string]any{"name": "KIOSKS!", "gitops_filename": "kiosks.yml"})
+	require.Equal(t, "KIOSKS!", fleetNames()[kiosks])
+
+	// Without a filename, a spec whose name matches under the collation still applies to the existing fleet and
+	// keeps its name.
+	before = fleetNames()
+	applySpecs(http.StatusOK, false, map[string]any{"name": "workstations"})
+	require.Equal(t, before, fleetNames())
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
@@ -2486,6 +2652,18 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 
+	// policy_ids only keeps "No Team" policies, so create real ones to list.
+	pols := make([]uint, 0, 5)
+	for i := range 5 {
+		p, err := s.ds.NewTeamPolicy(t.Context(), 0, nil, fleet.PolicyPayload{Name: fmt.Sprintf("no team webhook config %d", i), Query: "SELECT 1"})
+		require.NoError(t, err)
+		pols = append(pols, p.ID)
+	}
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteTeamPolicies(context.Background(), 0, pols)
+		require.NoError(t, err)
+	})
+
 	// First clear any existing webhook configuration for "No Team"
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
@@ -2504,7 +2682,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/no-team-webhook",
-			PolicyIDs:      []uint{1, 2, 3},
+			PolicyIDs:      pols[:3],
 			HostBatchSize:  100,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
@@ -2512,7 +2690,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, []uint{1, 2, 3}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, pols[:3], defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Get the config again to verify it persisted
@@ -2524,7 +2702,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, []uint{1, 2, 3}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, pols[:3], defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Update the webhook settings
@@ -2532,14 +2710,33 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         false,
 			DestinationURL: "https://example.com/updated",
-			PolicyIDs:      []uint{4, 5},
+			PolicyIDs:      pols[3:],
 			HostBatchSize:  200,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
 	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/updated", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, []uint{4, 5}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, pols[3:], defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	require.Equal(t, 200, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// IDs that aren't "No Team" policies are dropped, and the change is what a later read returns.
+	globalPol, err := s.ds.NewGlobalPolicy(t.Context(), nil, fleet.PolicyPayload{Name: "no team webhook config global", Query: "SELECT 1"})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{globalPol.ID})
+		require.NoError(t, err)
+	})
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
+			PolicyIDs: []uint{pols[0], globalPol.ID, 999999},
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, []uint{pols[0]}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, []uint{pols[0]}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	gp, err := s.ds.Policy(t.Context(), globalPol.ID)
+	require.NoError(t, err)
+	require.False(t, gp.WebhooksAndTicketsEnabled)
 
 	// Clear the webhook settings
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{

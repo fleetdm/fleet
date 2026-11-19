@@ -5,9 +5,9 @@ import ILegacySchedulableQueryStats, {
 } from "./schedulable_query";
 
 export default PropTypes.shape({
-  scheduled_query_name: PropTypes.string,
-  scheduled_query_id: PropTypes.number,
-  query_name: PropTypes.string,
+  scheduled_report_name: PropTypes.string,
+  scheduled_report_id: PropTypes.number,
+  report_name: PropTypes.string,
   description: PropTypes.string,
   pack_name: PropTypes.string,
   pack_id: PropTypes.number,
@@ -24,9 +24,9 @@ export default PropTypes.shape({
 });
 
 export interface IQueryStats {
-  scheduled_query_name: string;
-  scheduled_query_id: number;
-  query_name: string;
+  scheduled_report_name: string;
+  scheduled_report_id: number;
+  report_name: string;
   discard_data: boolean;
   last_fetched: string | null; // timestamp
   automations_enabled: boolean;

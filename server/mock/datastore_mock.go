@@ -44,8 +44,6 @@ type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMA
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
-type GetAllCAConfigAssetsByTypeFunc func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error)
-
 type HealthCheckFunc func() error
 
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
@@ -1184,6 +1182,20 @@ type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID 
 
 type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
 
+type FilterWebhooksAndTicketsPoliciesFunc func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error)
+
+type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]uint, error)
+
+type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
+
+type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error)
+
+type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
+
+type WebhooksAndTicketsByPatchPolicySlugFunc func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
+
+type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
+
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
@@ -1411,12 +1423,6 @@ type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID str
 type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 
 type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (string, *fleet.AppleOSUpdateSettings, error)
-
-type GetCAConfigAssetFunc func(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error)
-
-type SaveCAConfigAssetsFunc func(ctx context.Context, assets []fleet.CAConfigAsset) error
-
-type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
 
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
@@ -2186,6 +2192,8 @@ type GetZeroTouchEnrollmentTokenFunc func(ctx context.Context, teamID *uint) (*a
 
 type CreateZeroTouchEnrollmentTokenFunc func(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error)
 
+type ReplaceZeroTouchEnrollmentTokenFunc func(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error)
+
 type DeleteZeroTouchEnrollmentTokensFunc func(ctx context.Context) error
 
 type GetAndroidDeviceLastTeamIDFunc func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error)
@@ -2299,6 +2307,16 @@ type ListMDMAndroidProfilesToSendFunc func(ctx context.Context, cursor string, b
 type GetMDMAndroidReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMAndroidReconcileCursorFunc func(ctx context.Context, cursor string) error
+
+type ListAndroidFleetDefaultPolicyProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error)
+
+type GetAndroidFleetDefaultPolicyChecksumsFunc func(ctx context.Context) (map[uint][]byte, error)
+
+type ListAndroidFleetDefaultPolicyDeletedFleetsFunc func(ctx context.Context) ([]uint, error)
+
+type SetAndroidFleetDefaultPolicyChecksumFunc func(ctx context.Context, teamID uint, checksum []byte, previous []byte) error
+
+type MarkAndroidFleetDefaultPolicyUnverifiedFunc func(ctx context.Context, teamID uint) error
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
@@ -2580,6 +2598,10 @@ type NewAppleSCEPChallengeFunc func(ctx context.Context, info fleet.AppleSCEPCha
 
 type ConsumeAppleSCEPChallengeFunc func(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error)
 
+type FindOrCreateWindowsConditionalAccessSCEPChallengeFunc func(ctx context.Context, enrollmentID uint) (string, error)
+
+type ConsumeConditionalAccessSCEPChallengeFunc func(ctx context.Context, challenge string, hostUUID string) error
+
 type SetAppleSCEPChallengeIssuedCertFunc func(ctx context.Context, challenge string, certSerial int64) error
 
 type CleanupAppleSCEPChallengesFunc func(ctx context.Context) error
@@ -2614,9 +2636,6 @@ type DataStore struct {
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
-
-	GetAllCAConfigAssetsByTypeFunc        GetAllCAConfigAssetsByTypeFunc
-	GetAllCAConfigAssetsByTypeFuncInvoked bool
 
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -4325,6 +4344,27 @@ type DataStore struct {
 	GetNanoMDMEnrollmentDetailsFunc        GetNanoMDMEnrollmentDetailsFunc
 	GetNanoMDMEnrollmentDetailsFuncInvoked bool
 
+	FilterWebhooksAndTicketsPoliciesFunc        FilterWebhooksAndTicketsPoliciesFunc
+	FilterWebhooksAndTicketsPoliciesFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsFunc        WebhooksAndTicketsPolicyIDsFunc
+	WebhooksAndTicketsPolicyIDsFuncInvoked bool
+
+	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
+	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
+
+	PoliciesWithOtherAutomationsFunc        PoliciesWithOtherAutomationsFunc
+	PoliciesWithOtherAutomationsFuncInvoked bool
+
+	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
+	WebhooksAndTicketsByPolicyNameFuncInvoked bool
+
+	WebhooksAndTicketsByPatchPolicySlugFunc        WebhooksAndTicketsByPatchPolicySlugFunc
+	WebhooksAndTicketsByPatchPolicySlugFuncInvoked bool
+
+	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
+	SetWebhooksAndTicketsPoliciesFuncInvoked bool
+
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
 
@@ -4666,15 +4706,6 @@ type DataStore struct {
 
 	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
 	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
-
-	GetCAConfigAssetFunc        GetCAConfigAssetFunc
-	GetCAConfigAssetFuncInvoked bool
-
-	SaveCAConfigAssetsFunc        SaveCAConfigAssetsFunc
-	SaveCAConfigAssetsFuncInvoked bool
-
-	DeleteCAConfigAssetsFunc        DeleteCAConfigAssetsFunc
-	DeleteCAConfigAssetsFuncInvoked bool
 
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
@@ -5828,6 +5859,9 @@ type DataStore struct {
 	CreateZeroTouchEnrollmentTokenFunc        CreateZeroTouchEnrollmentTokenFunc
 	CreateZeroTouchEnrollmentTokenFuncInvoked bool
 
+	ReplaceZeroTouchEnrollmentTokenFunc        ReplaceZeroTouchEnrollmentTokenFunc
+	ReplaceZeroTouchEnrollmentTokenFuncInvoked bool
+
 	DeleteZeroTouchEnrollmentTokensFunc        DeleteZeroTouchEnrollmentTokensFunc
 	DeleteZeroTouchEnrollmentTokensFuncInvoked bool
 
@@ -5998,6 +6032,21 @@ type DataStore struct {
 
 	SetMDMAndroidReconcileCursorFunc        SetMDMAndroidReconcileCursorFunc
 	SetMDMAndroidReconcileCursorFuncInvoked bool
+
+	ListAndroidFleetDefaultPolicyProfilesFunc        ListAndroidFleetDefaultPolicyProfilesFunc
+	ListAndroidFleetDefaultPolicyProfilesFuncInvoked bool
+
+	GetAndroidFleetDefaultPolicyChecksumsFunc        GetAndroidFleetDefaultPolicyChecksumsFunc
+	GetAndroidFleetDefaultPolicyChecksumsFuncInvoked bool
+
+	ListAndroidFleetDefaultPolicyDeletedFleetsFunc        ListAndroidFleetDefaultPolicyDeletedFleetsFunc
+	ListAndroidFleetDefaultPolicyDeletedFleetsFuncInvoked bool
+
+	SetAndroidFleetDefaultPolicyChecksumFunc        SetAndroidFleetDefaultPolicyChecksumFunc
+	SetAndroidFleetDefaultPolicyChecksumFuncInvoked bool
+
+	MarkAndroidFleetDefaultPolicyUnverifiedFunc        MarkAndroidFleetDefaultPolicyUnverifiedFunc
+	MarkAndroidFleetDefaultPolicyUnverifiedFuncInvoked bool
 
 	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
 	GetMDMAndroidProfilesContentsFuncInvoked bool
@@ -6419,6 +6468,12 @@ type DataStore struct {
 	ConsumeAppleSCEPChallengeFunc        ConsumeAppleSCEPChallengeFunc
 	ConsumeAppleSCEPChallengeFuncInvoked bool
 
+	FindOrCreateWindowsConditionalAccessSCEPChallengeFunc        FindOrCreateWindowsConditionalAccessSCEPChallengeFunc
+	FindOrCreateWindowsConditionalAccessSCEPChallengeFuncInvoked bool
+
+	ConsumeConditionalAccessSCEPChallengeFunc        ConsumeConditionalAccessSCEPChallengeFunc
+	ConsumeConditionalAccessSCEPChallengeFuncInvoked bool
+
 	SetAppleSCEPChallengeIssuedCertFunc        SetAppleSCEPChallengeIssuedCertFunc
 	SetAppleSCEPChallengeIssuedCertFuncInvoked bool
 
@@ -6496,13 +6551,6 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets, tx)
-}
-
-func (s *DataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-	s.mu.Lock()
-	s.GetAllCAConfigAssetsByTypeFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAllCAConfigAssetsByTypeFunc(ctx, assetType)
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -10488,6 +10536,55 @@ func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID st
 	return s.GetNanoMDMEnrollmentDetailsFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+	s.mu.Lock()
+	s.FilterWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.FilterWebhooksAndTicketsPoliciesFunc(ctx, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsFunc(ctx, teamID)
+}
+
+func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
+}
+
+func (s *DataStore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PoliciesWithOtherAutomationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.PoliciesWithOtherAutomationsFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPolicyNameFunc(ctx, teamID, names)
+}
+
+func (s *DataStore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+	s.mu.Lock()
+	s.WebhooksAndTicketsByPatchPolicySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.WebhooksAndTicketsByPatchPolicySlugFunc(ctx, teamID, slugs)
+}
+
+func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.SetWebhooksAndTicketsPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetWebhooksAndTicketsPoliciesFunc(ctx, teamID, policyIDs)
+}
+
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
 	s.mu.Lock()
 	s.IncreasePolicyAutomationIterationFuncInvoked = true
@@ -11284,27 +11381,6 @@ func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context
 	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
-}
-
-func (s *DataStore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
-	s.mu.Lock()
-	s.GetCAConfigAssetFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetCAConfigAssetFunc(ctx, name, assetType)
-}
-
-func (s *DataStore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
-	s.mu.Lock()
-	s.SaveCAConfigAssetsFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveCAConfigAssetsFunc(ctx, assets)
-}
-
-func (s *DataStore) DeleteCAConfigAssets(ctx context.Context, names []string) error {
-	s.mu.Lock()
-	s.DeleteCAConfigAssetsFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteCAConfigAssetsFunc(ctx, names)
 }
 
 func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
@@ -13995,6 +14071,13 @@ func (s *DataStore) CreateZeroTouchEnrollmentToken(ctx context.Context, token *a
 	return s.CreateZeroTouchEnrollmentTokenFunc(ctx, token)
 }
 
+func (s *DataStore) ReplaceZeroTouchEnrollmentToken(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	s.mu.Lock()
+	s.ReplaceZeroTouchEnrollmentTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceZeroTouchEnrollmentTokenFunc(ctx, oldTokenName, token)
+}
+
 func (s *DataStore) DeleteZeroTouchEnrollmentTokens(ctx context.Context) error {
 	s.mu.Lock()
 	s.DeleteZeroTouchEnrollmentTokensFuncInvoked = true
@@ -14392,6 +14475,41 @@ func (s *DataStore) SetMDMAndroidReconcileCursor(ctx context.Context, cursor str
 	s.SetMDMAndroidReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMAndroidReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.ListAndroidFleetDefaultPolicyProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidFleetDefaultPolicyProfilesFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	s.mu.Lock()
+	s.GetAndroidFleetDefaultPolicyChecksumsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidFleetDefaultPolicyChecksumsFunc(ctx)
+}
+
+func (s *DataStore) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	s.mu.Lock()
+	s.ListAndroidFleetDefaultPolicyDeletedFleetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidFleetDefaultPolicyDeletedFleetsFunc(ctx)
+}
+
+func (s *DataStore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte, previous []byte) error {
+	s.mu.Lock()
+	s.SetAndroidFleetDefaultPolicyChecksumFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidFleetDefaultPolicyChecksumFunc(ctx, teamID, checksum, previous)
+}
+
+func (s *DataStore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.MarkAndroidFleetDefaultPolicyUnverifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAndroidFleetDefaultPolicyUnverifiedFunc(ctx, teamID)
 }
 
 func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
@@ -15372,6 +15490,20 @@ func (s *DataStore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge str
 	s.ConsumeAppleSCEPChallengeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConsumeAppleSCEPChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx context.Context, enrollmentID uint) (string, error) {
+	s.mu.Lock()
+	s.FindOrCreateWindowsConditionalAccessSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.FindOrCreateWindowsConditionalAccessSCEPChallengeFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) ConsumeConditionalAccessSCEPChallenge(ctx context.Context, challenge string, hostUUID string) error {
+	s.mu.Lock()
+	s.ConsumeConditionalAccessSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeConditionalAccessSCEPChallengeFunc(ctx, challenge, hostUUID)
 }
 
 func (s *DataStore) SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error {
