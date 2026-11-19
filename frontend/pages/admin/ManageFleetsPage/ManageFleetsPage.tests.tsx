@@ -24,7 +24,8 @@ jest.mock("components/ToastNotification", () => ({
   },
 }));
 
-const CONFLICT_ERROR = "Choose a fleet name distinct from other fleets.";
+const CONFLICT_ERROR =
+  "Name is too similar to another fleet name. Please try another name.";
 const NO_LETTER_OR_NUMBER_ERROR =
   "Fleet name must include at least one letter or number.";
 
@@ -36,7 +37,7 @@ const conflictResponse = () =>
         {
           name: "base",
           reason:
-            'A fleet named "Workstations" already exists. Choose a fleet name distinct from other fleets.',
+            '"work-stations" is too similar to the fleet name "Workstations". Please try another name.',
         },
       ],
     },
