@@ -99,7 +99,7 @@ New-ItemProperty -Path $key -Name 'TelemetryLevel' -PropertyType String -Value '
 
 Devin Desktop reads policy from `/etc/vscode/policy.json`, the same file VS Code reads. `AllowedExtensions` is a JSON string with escaped quotes, as in Devin's docs.
 
-> **Warning:** Because both editors read this file, every policy in it applies to VS Code and Devin Desktop alike, and a script for one overwrites the other's policies. If you also [manage VS Code settings with Fleet](https://fleetdm.com/guides/manage-vs-code-settings-with-fleet), keep one `policy.json` with both sets of policies, deployed by one script and checked by one policy.
+> **Warning:** Every policy in this file applies to both VS Code and Devin Desktop. If you also [manage VS Code settings with Fleet](https://fleetdm.com/guides/manage-vs-code-settings-with-fleet), don't deploy `windsurf-settings.sh`. Add `TelemetryLevel` and any extensions Devin Desktop users need to `vscode-settings.sh` from that guide, and skip the Linux policy below. Two scripts that write the same file overwrite each other, so their hash policies never both pass.
 
 Save this as `windsurf-settings.sh`:
 
@@ -255,9 +255,9 @@ Check that the values are under `HKLM\SOFTWARE\Policies\Windsurf\Devin`, not `HK
 
 The **Extension policy** team setting is set, and it replaces `AllowedExtensions` on the host. Clear the team setting or manage the allowlist there.
 
-**VS Code picked up the Devin Desktop policies on Linux, or the other way around**
+**The Linux policy fails on every check, and Fleet keeps rerunning the script**
 
-Both editors read `/etc/vscode/policy.json`. Merge both sets of policies into one file, as described in the Linux warning above.
+Two scripts write `/etc/vscode/policy.json`, for example this guide's and the one in the VS Code guide. Each overwrites the other, so one hash policy always fails. Keep one script with every policy for both editors, and delete the other script and its policy.
 
 **The extensions report is missing extensions on some hosts**
 
