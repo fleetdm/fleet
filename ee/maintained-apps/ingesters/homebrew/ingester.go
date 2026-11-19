@@ -381,22 +381,20 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		}
 	}
 	if input.Token == "munki" {
-		// Managed Software Center.app's own CFBundleShortVersionString isn't always
-		// rebuilt when the overall munkitools version bumps (see fleetdm/fleet#59183
-		// for version drift measured across several releases: 7.4.0 and 7.4.1 both
-		// ship the app at "7.4.0.5891"), so it can't distinguish an outdated install
-		// from the current release. The munkitools_core pkg receipt's declared
-		// version does track every release exactly; compare against that, read from
-		// the real installer rather than assumed to equal the cask version. A failed
-		// read aborts ingestion rather than falling back to the version that this
-		// special case exists to avoid.
-		coreVersion, err := external_refs.MunkiCorePackageVersion(out.InstallerURL)
+		// Managed Software Center.app isn't rebuilt on every munkitools release
+		// (7.4.0 and 7.4.1 both ship it as 7.4.0.5891), so its version usually lags
+		// the cask's. The version must be the app's: Fleet flags "Update available"
+		// when inventory reports less than the installer version, which would stick
+		// on up-to-date hosts. The patched query compares the core receipt instead,
+		// which changes every release. Both come from the installer itself.
+		versions, err := external_refs.MunkiPackageVersions(out.InstallerURL)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "reading Munki core package version")
+			return nil, ctxerr.Wrap(ctx, err, "reading Munki versions from installer")
 		}
+		out.Version = versions.App
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core' AND version_compare(version, '%s') < 0);",
-			coreVersion,
+			versions.Core,
 		)
 	}
 	switch input.Token {

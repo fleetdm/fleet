@@ -2,9 +2,11 @@ package externalrefs
 
 import (
 	"bytes"
+	"cmp"
 	"compress/zlib"
 	"encoding/binary"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,12 +31,13 @@ const maxTOCLen = 10 << 20 // 10MiB
 // corrupt or adversarial stream can't be used as a decompression bomb.
 const maxDecompressedLen = 10 << 20 // 10MiB
 
-// munkiCorePackageID is the pkg receipt that carries Munki's actual release
-// version on every release. Unlike Managed Software Center.app's own bundle
-// version (which isn't always rebuilt when the overall version bumps - see
-// fleetdm/fleet#59183), this component's declared version tracks the release
-// exactly, so it's what the patched query should compare against.
+// munkiCorePackageID is the component rebuilt on every munkitools release, so
+// its receipt version tells consecutive releases apart.
 const munkiCorePackageID = "com.googlecode.munki.core"
+
+// munkiAppBundleID is Managed Software Center.app, the bundle Fleet inventories.
+// It isn't rebuilt on every release, so its version can repeat across releases.
+const munkiAppBundleID = "com.googlecode.munki.ManagedSoftwareCenter"
 
 type xarTOC struct {
 	Files []xarTOCFile `xml:"toc>file"`
@@ -51,55 +54,68 @@ type xarTOCFileData struct {
 	Length int64 `xml:"length"`
 }
 
-// distributionPkgRefs is a minimal parse of a flat pkg's Distribution file,
-// picking out each <pkg-ref id="..." version="...">. The same id appears
-// multiple times in a real Distribution (an unversioned reference in
-// <choices-outline>, the versioned declaration, and a <bundle-version>
-// wrapper), so callers must select by id AND a non-empty version rather than
-// assuming position or order.
+// distributionPkgRefs is a minimal parse of a flat pkg's Distribution file:
+// each top-level <pkg-ref id="..." version="...">, plus the app bundles listed
+// in its <bundle-version>. The same id appears several times in a real
+// Distribution, so callers select by id and a non-empty value rather than by
+// position.
 type distributionPkgRefs struct {
 	PkgRefs []struct {
 		ID      string `xml:"id,attr"`
 		Version string `xml:"version,attr"`
+		Bundles []struct {
+			ID                 string `xml:"id,attr"`
+			ShortVersionString string `xml:"CFBundleShortVersionString,attr"`
+			BundleVersion      string `xml:"CFBundleVersion,attr"`
+		} `xml:"bundle-version>bundle"`
 	} `xml:"pkg-ref"`
 }
 
-// MunkiCorePackageVersion reads the real version of the munkitools_core
-// receipt straight from the installer at installerURL, via small HTTP range
-// requests against the pkg's xar structure (header, table of contents, and
-// the Distribution file) rather than downloading the ~20MB installer.
-func MunkiCorePackageVersion(installerURL string) (string, error) {
-	return munkiCorePackageVersion(func(start, end int64) ([]byte, error) {
+// MunkiVersions are the versions a munkitools installer declares.
+type MunkiVersions struct {
+	// Core is the munkitools_core receipt version, which package_receipts reports.
+	Core string
+	// App is Managed Software Center.app's version as the apps table (and Fleet's
+	// software inventory) reports it: CFBundleShortVersionString, else CFBundleVersion.
+	App string
+}
+
+// MunkiPackageVersions reads the core receipt and app versions straight from the
+// installer at installerURL, via small HTTP range requests against the pkg's xar
+// structure (header, table of contents, and the Distribution file) rather than
+// downloading the ~20MB installer.
+func MunkiPackageVersions(installerURL string) (MunkiVersions, error) {
+	return munkiPackageVersions(func(start, end int64) ([]byte, error) {
 		return rangeGet(installerURL, start, end)
 	})
 }
 
-func munkiCorePackageVersion(fetch func(start, end int64) ([]byte, error)) (string, error) {
+func munkiPackageVersions(fetch func(start, end int64) ([]byte, error)) (MunkiVersions, error) {
 	header, err := fetch(0, xarHeaderSize-1)
 	if err != nil {
-		return "", fmt.Errorf("fetching xar header: %w", err)
+		return MunkiVersions{}, fmt.Errorf("fetching xar header: %w", err)
 	}
 	if len(header) != xarHeaderSize || string(header[0:4]) != "xar!" {
-		return "", fmt.Errorf("unexpected xar header (got %d bytes)", len(header))
+		return MunkiVersions{}, fmt.Errorf("unexpected xar header (got %d bytes)", len(header))
 	}
 	rawTOCLen := binary.BigEndian.Uint64(header[8:16])
 	if rawTOCLen == 0 || rawTOCLen > maxTOCLen {
-		return "", fmt.Errorf("implausible xar table of contents length: %d bytes", rawTOCLen)
+		return MunkiVersions{}, fmt.Errorf("implausible xar table of contents length: %d bytes", rawTOCLen)
 	}
 	tocLenCompressed := int64(rawTOCLen) //nolint:gosec // G115: bounds-checked above against maxTOCLen
 
 	tocCompressed, err := fetch(xarHeaderSize, xarHeaderSize+tocLenCompressed-1)
 	if err != nil {
-		return "", fmt.Errorf("fetching xar table of contents: %w", err)
+		return MunkiVersions{}, fmt.Errorf("fetching xar table of contents: %w", err)
 	}
 	tocXML, err := zlibInflate(tocCompressed)
 	if err != nil {
-		return "", fmt.Errorf("inflating xar table of contents: %w", err)
+		return MunkiVersions{}, fmt.Errorf("inflating xar table of contents: %w", err)
 	}
 
 	var toc xarTOC
 	if err := xml.Unmarshal(tocXML, &toc); err != nil {
-		return "", fmt.Errorf("parsing xar table of contents: %w", err)
+		return MunkiVersions{}, fmt.Errorf("parsing xar table of contents: %w", err)
 	}
 
 	var dist *xarTOCFileData
@@ -110,30 +126,43 @@ func munkiCorePackageVersion(fetch func(start, end int64) ([]byte, error)) (stri
 		}
 	}
 	if dist == nil {
-		return "", fmt.Errorf("no top-level Distribution file in xar table of contents")
+		return MunkiVersions{}, errors.New("no top-level Distribution file in xar table of contents")
 	}
 
 	heapStart := int64(xarHeaderSize) + tocLenCompressed
 	distCompressed, err := fetch(heapStart+dist.Offset, heapStart+dist.Offset+dist.Length-1)
 	if err != nil {
-		return "", fmt.Errorf("fetching Distribution file: %w", err)
+		return MunkiVersions{}, fmt.Errorf("fetching Distribution file: %w", err)
 	}
 	distXML, err := zlibInflate(distCompressed)
 	if err != nil {
-		return "", fmt.Errorf("inflating Distribution file: %w", err)
+		return MunkiVersions{}, fmt.Errorf("inflating Distribution file: %w", err)
 	}
 
 	var dpr distributionPkgRefs
 	if err := xml.Unmarshal(distXML, &dpr); err != nil {
-		return "", fmt.Errorf("parsing Distribution file: %w", err)
-	}
-	for _, ref := range dpr.PkgRefs {
-		if ref.ID == munkiCorePackageID && ref.Version != "" {
-			return ref.Version, nil
-		}
+		return MunkiVersions{}, fmt.Errorf("parsing Distribution file: %w", err)
 	}
 
-	return "", fmt.Errorf("no versioned pkg-ref %q in Distribution file", munkiCorePackageID)
+	var v MunkiVersions
+	for _, ref := range dpr.PkgRefs {
+		if v.Core == "" && ref.ID == munkiCorePackageID && ref.Version != "" {
+			v.Core = ref.Version
+		}
+		for _, b := range ref.Bundles {
+			if v.App == "" && b.ID == munkiAppBundleID {
+				v.App = cmp.Or(b.ShortVersionString, b.BundleVersion)
+			}
+		}
+	}
+	if v.Core == "" {
+		return MunkiVersions{}, fmt.Errorf("no versioned pkg-ref %q in Distribution file", munkiCorePackageID)
+	}
+	if v.App == "" {
+		return MunkiVersions{}, fmt.Errorf("no versioned bundle %q in Distribution file", munkiAppBundleID)
+	}
+
+	return v, nil
 }
 
 // munkiRangeClient has a short timeout and a response cap: every request it
