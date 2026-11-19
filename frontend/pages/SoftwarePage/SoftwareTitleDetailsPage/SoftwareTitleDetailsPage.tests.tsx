@@ -31,20 +31,20 @@ const renderPage = (titleId: number) => {
       },
     },
   });
-  return render(
-    <SoftwareTitleDetailsPage
-      router={createMockRouter()}
-      routeParams={{ id: String(titleId) }}
-      location={
-        ({
-          pathname: `/software/titles/${titleId}`,
-          search: "?fleet_id=3",
-          query: { fleet_id: "3" },
-          hash: "",
-        } as unknown) as IPageProps["location"]
-      }
-    />
-  );
+  const pageProps = ({
+    router: createMockRouter(),
+    routeParams: { id: String(titleId) },
+    params: { id: String(titleId) },
+    route: {},
+    routes: [],
+    location: {
+      pathname: `/software/titles/${titleId}`,
+      search: "?fleet_id=3",
+      query: { fleet_id: "3" },
+      hash: "",
+    },
+  } as unknown) as IPageProps;
+  return render(<SoftwareTitleDetailsPage {...pageProps} />);
 };
 
 describe("SoftwareTitleDetailsPage", () => {
@@ -56,18 +56,17 @@ describe("SoftwareTitleDetailsPage", () => {
 
   it("deletes the in-house app of an iOS title without sending installer_id", async () => {
     const inHouseApp = createMockSoftwarePackage({
-      installer_id: 182,
+      installer_id: 10,
       name: "HelloWorld.ipa",
     });
     jest.spyOn(softwareAPI, "getSoftwareTitle").mockResolvedValue({
       software_title: createMockSoftwareTitleDetails({
-        id: 2295,
+        id: 1,
         source: "ios_apps",
-        software_package: inHouseApp,
         packages: [inHouseApp],
       }),
     });
-    const { user } = renderPage(2295);
+    const { user } = renderPage(1);
 
     await user.click(await screen.findByText("HelloWorld.ipa"));
     await user.click(screen.getByRole("button", { name: "Delete software" }));
@@ -75,7 +74,7 @@ describe("SoftwareTitleDetailsPage", () => {
 
     await waitFor(() =>
       expect(softwareAPI.deleteSoftwareInstaller).toHaveBeenCalledWith(
-        2295,
+        1,
         3,
         undefined,
         undefined
@@ -85,18 +84,17 @@ describe("SoftwareTitleDetailsPage", () => {
 
   it("deletes a custom package of a macOS title with its installer_id", async () => {
     const customPackage = createMockSoftwarePackage({
-      installer_id: 3248,
+      installer_id: 20,
       name: "Package.pkg",
     });
     jest.spyOn(softwareAPI, "getSoftwareTitle").mockResolvedValue({
       software_title: createMockSoftwareTitleDetails({
-        id: 6809,
+        id: 2,
         source: "apps",
-        software_package: customPackage,
         packages: [customPackage],
       }),
     });
-    const { user } = renderPage(6809);
+    const { user } = renderPage(2);
 
     await user.click(await screen.findByText("Package.pkg"));
     await user.click(screen.getByRole("button", { name: "Delete version" }));
@@ -104,9 +102,9 @@ describe("SoftwareTitleDetailsPage", () => {
 
     await waitFor(() =>
       expect(softwareAPI.deleteSoftwareInstaller).toHaveBeenCalledWith(
-        6809,
+        2,
         3,
-        3248,
+        20,
         undefined
       )
     );
