@@ -2315,7 +2315,7 @@ Modifies the Fleet's configuration with the supplied information.
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
-| overwrite                | boolean | query | Whether to replace, instead of merge, `host_data_collection`, `historical_data`, `sso_settings`, `mdm.end_user_authentication`, `mdm.apple_account_provisioning`, and `fleet_desktop.sso_enabled`. If `true`, settings in these objects that are missing from the request are reset to their defaults. If SSO is enabled, `sso_settings` must also include `entity_id`, `idp_name`, and `metadata` or `metadata_url`, even if they're already saved. `fleetctl gitops` sets this to `true`. (Default: `false`) |
+| overwrite                | boolean | query | Whether to replace, instead of merge, `features`, `sso_settings`, `mdm.end_user_authentication`, `mdm.apple_account_provisioning`, and `fleet_desktop.sso_enabled`. If `true`, settings in these objects that are missing from the request are reset to their defaults, and `mdm.enable_profile_validation` is set to `true` if it's missing. If SSO is enabled, `sso_settings` must also include `entity_id`, `idp_name`, and `metadata` or `metadata_url`, even if they're already saved. `fleetctl gitops` sets this to `true`. (Default: `false`) |
 
 
 #### Example
@@ -19237,7 +19237,7 @@ If `api_endpoints` is specified, these do not grant additional permissions other
   "api_endpoints": [
     {
       "method": "GET",
-      "path": "/api/v1/fleet/hosts/identifier/:identifier"
+      "path": "/api/v1/fleet/hosts/:id"
     }
   ]
 }
@@ -19267,7 +19267,7 @@ If `api_endpoints` is specified, these do not grant additional permissions other
     "api_endpoints": [
       {
         "method": "GET",
-        "path": "/api/v1/fleet/hosts/identifier/:identifier"
+        "path": "/api/v1/fleet/hosts/:id"
       }
     ]
   }
