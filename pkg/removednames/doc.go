@@ -32,7 +32,7 @@
 //     ScopeActivityDetails for keys inside the stored details of activities. Combine them with |. Consumers load only the scopes they
 //     need, so a request check does not reject a name that only appears in a response.
 //   - Old is the removed name. A KindPath entry is a full path template that starts with /api/_version_/fleet and writes path
-//     parameters as {name}, except a device-facing path outside the Fleet API, which keeps its own full path. A KindYAMLKey entry is a
+//     parameters as {name}, except a path outside the Fleet API, which keeps its own full path. A KindYAMLKey entry is a
 //     dotted path where [] marks an array element.
 //   - New is the replacement. Leave it empty when there is none.
 //   - Context narrows the entry. For a flag, env var, or command it is the fleetctl command (for example "fleetctl get hosts"), so the

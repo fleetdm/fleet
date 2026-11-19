@@ -35,6 +35,8 @@ func TestRemovedPaths(t *testing.T) {
 	for _, template := range removedPathTemplates {
 		served[shape(template)] = struct{}{}
 	}
+	// cmd/fleet/serve.go serves /version on the root mux, outside the API router. TestRemovedRootPath covers it.
+	served["/version"] = struct{}{}
 	for _, entry := range removednames.Filter(removednames.KindPath, 0) {
 		assert.Contains(t, served, shape(entry.Old))
 	}
@@ -151,6 +153,23 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/mdm/apple/installer", nil))
 		require.Equal(t, http.StatusGone, rec.Code)
 	})
+}
+
+// TestRemovedRootPath covers /version, which the root mux serves next to /healthz instead of the API router.
+func TestRemovedRootPath(t *testing.T) {
+	t.Parallel()
+
+	handler := RemovedRootPathHandler("/version", slog.New(slog.DiscardHandler))
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(method, "/version", nil))
+			require.Equal(t, http.StatusGone, rec.Code)
+			// The error only, without the version details the endpoint used to return.
+			reason := fmt.Sprintf(`The "%s /version" endpoint is not available anymore. What to use instead: %s`, method, removednames.GuideURL)
+			assert.JSONEq(t, fmt.Sprintf(`{"message": "Gone", "errors": [{"name": "base", "reason": %q}]}`, reason), rec.Body.String())
+		})
+	}
 }
 
 // TestRemovedPathOverlaps covers the requests that the wildcard of an overlap catches without being requests to the removed path.
