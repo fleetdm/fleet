@@ -165,8 +165,9 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	// Only paginate when the caller asks for a page size; otherwise return every row,
-	// which is what existing API consumers expect.
+	// HTTP requests always arrive with a bounded PerPage (v5 pagination
+	// contract); PerPage == 0 is only possible for internal callers that want
+	// every row and no metadata.
 	opts.IncludeMetadata = opts.PerPage > 0
 	if opts.OrderKey == "" {
 		opts.OrderKey = "last_fetched"

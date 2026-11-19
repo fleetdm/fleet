@@ -830,20 +830,24 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	req := request.(*fleet.BatchScriptExecutionListRequest)
 
 	page := 0
-	pageSize := 0
 	if req.Page != nil {
 		page = int(*req.Page) //nolint:gosec // dismiss G115
 	}
-	if req.PerPage != nil {
-		pageSize = int(*req.PerPage) //nolint:gosec // dismiss G115
+	// Omitted per_page used to mean "no limit" (and made page a silent no-op
+	// because the offset was computed as page × 0); as of v5 it gets the
+	// standard default, clamped to the standard maximum.
+	perPage := fleet.DefaultListPerPage
+	if req.PerPage != nil && *req.PerPage > 0 {
+		perPage = min(*req.PerPage, fleet.MaxListPerPage)
 	}
+	pageSize := int(perPage) //nolint:gosec // dismiss G115
 	// Set query offset based on the specified page and page size.
 	offset := uint(page * pageSize) //nolint:gosec // dismiss G115
 	filter := fleet.BatchExecutionStatusFilter{
 		TeamID: &req.TeamID,
 		Status: req.Status,
 		Offset: &offset,
-		Limit:  req.PerPage,
+		Limit:  &perPage,
 	}
 	list, count, err := svc.BatchScriptExecutionList(ctx, filter)
 	if err != nil {

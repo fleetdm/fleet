@@ -41,8 +41,6 @@ func uint32FromRequest(r *http.Request, name string) (uint32, error) {
 	return uint32(u), nil
 }
 
-// default number of items to include per page
-const defaultPerPage = 20
 
 // listOptionsFromRequest parses the list options from the request parameters
 func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
@@ -65,9 +63,9 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		}
 	}
 
-	// We default to 0 for per_page so that not specifying any paging
-	// information gets all results
-	var perPage int
+	// Omitting per_page never means "all results": every list endpoint returns
+	// bounded pages as of v5.0.0.
+	perPage := int(fleet.DefaultListPerPage)
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
@@ -76,13 +74,9 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		if perPage <= 0 {
 			return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("invalid per_page value"))
 		}
-	}
-
-	if perPage == 0 && pageString != "" {
-		// We explicitly set a non-zero default if a page is specified
-		// (because the client probably intended for paging, and
-		// leaving the 0 would turn that off)
-		perPage = defaultPerPage
+		if perPage > int(fleet.MaxListPerPage) {
+			perPage = int(fleet.MaxListPerPage)
+		}
 	}
 
 	if orderKey == "" && orderDirectionString != "" {

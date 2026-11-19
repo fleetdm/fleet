@@ -2180,8 +2180,23 @@ func (l ListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
 
-// DefaultPerPage is the default limit for list queries when no limit is specified.
-const DefaultPerPage = 1000000
+const (
+	// DefaultListPerPage is the page size applied to list endpoints when the
+	// request doesn't specify per_page. As of v5.0.0 no list endpoint returns
+	// an unbounded collection: omitting paging params returns the first page.
+	DefaultListPerPage uint = 100
+
+	// MaxListPerPage is the largest per_page a list endpoint accepts; larger
+	// values are clamped to it at the request-decoding layer.
+	MaxListPerPage uint = 1000
+
+	// DefaultPerPage is the fallback limit applied at the datastore layer when
+	// ListOptions.PerPage == 0. Only internal (non-HTTP) callers can reach it
+	// now that HTTP requests are bounded at the decode layer; it is slated for
+	// removal once internal callers are migrated to explicit bounds or
+	// paginating iterators (#59263).
+	DefaultPerPage = 1000000
+)
 
 // Interface methods for common_mysql.ListOptions
 
