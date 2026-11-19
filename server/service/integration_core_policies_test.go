@@ -296,7 +296,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		"description": "Some description updated",
 		"resolution": "some global resolution updated"
 	}`), http.StatusOK)
-	var mgpResp fleet.ModifyGlobalPolicyResponse
+	var mgpResp fleet.ModifyPolicyResponse
 	responseBody, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(responseBody, &mgpResp)
@@ -721,13 +721,13 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			require.Nil(t, tpResp.Policy)
 
 			if testUpdate {
-				gpReq := fleet.ModifyGlobalPolicyRequest{
+				gpReq := fleet.ModifyPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  new(tc.name),
 						Query: new(tc.query),
 					},
 				}
-				gpResp := fleet.ModifyGlobalPolicyResponse{}
+				gpResp := fleet.ModifyPolicyResponse{}
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), gpReq, http.StatusBadRequest, &gpResp)
 				require.Nil(t, tpResp.Policy)
 			}
@@ -1247,4 +1247,77 @@ func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
 	require.Contains(t, raw.Host.Issues, "failing_policies_count")
 	require.NotContains(t, raw.Host.Issues, "failing_unhidden_policies_count")
 	require.NotContains(t, raw.Host.Issues, "hidden_policies_count")
+}
+
+func (s *integrationTestSuite) TestGlobalPolicyAutomationTypeFree() {
+	t := s.T()
+
+	// Fleet Free keeps webhook or ticket on "All fleets" policies.
+	var resp fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "automation_type": "webhook_or_ticket"}`, t.Name())), http.StatusOK, &resp)
+	require.NotNil(t, resp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *resp.Policy.AutomationType)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{resp.Policy.ID})
+		require.NoError(t, err)
+	})
+
+	var modResp fleet.ModifyPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": null}`),
+		http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": "webhook_or_ticket"}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modResp.Policy.AutomationType)
+
+	// Other automation types are Premium, checked before the "All fleets" rule (covered in the Premium tests).
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", resp.Policy.ID), json.RawMessage(`{"automation_type": "script"}`),
+		http.StatusPaymentRequired)
+	// On "Unassigned" policies, the other automation types are Premium, as are the fields they stand for.
+	var unassigned fleet.TeamPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "platform": "darwin"}`, t.Name()+" unassigned")), http.StatusOK, &unassigned)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteTeamPolicies(context.Background(), 0, []uint{unassigned.Policy.ID})
+		require.NoError(t, err)
+	})
+	s.Do("POST", "/api/latest/fleet/fleets/0/policies", json.RawMessage(fmt.Sprintf(
+		`{"name": %q, "query": "SELECT 1", "platform": "darwin", "automation_type": "conditional_access"}`, t.Name()+" ca")), http.StatusPaymentRequired)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", unassigned.Policy.ID),
+		json.RawMessage(`{"automation_type": "conditional_access"}`), http.StatusPaymentRequired)
+	var modTeamResp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", unassigned.Policy.ID),
+		json.RawMessage(`{"automation_type": "webhook_or_ticket"}`), http.StatusOK, &modTeamResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modTeamResp.Policy.AutomationType)
+	p, err := s.ds.Policy(context.Background(), unassigned.Policy.ID)
+	require.NoError(t, err)
+	require.False(t, p.ConditionalAccessEnabled)
+}
+
+func (s *integrationTestSuite) TestCombinedPolicyEndpointsFree() {
+	t := s.T()
+
+	// Without fleet_id, the endpoints serve "All fleets" policies on Fleet Free, on every API version.
+	var created fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/v1/fleet/policies", json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1"}`, t.Name())), http.StatusOK, &created)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{created.Policy.ID})
+		require.NoError(t, err)
+	})
+	var listResp fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/v1/fleet/policies", nil, http.StatusOK, &listResp, "query", t.Name())
+	require.Len(t, listResp.Policies, 1)
+	var countResp fleet.CountPoliciesResponse
+	s.DoJSON("GET", "/api/v1/fleet/policies/count", nil, http.StatusOK, &countResp, "query", t.Name())
+	require.Equal(t, 1, countResp.Count)
+	var getResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/policies/%d", created.Policy.ID), nil, http.StatusOK, &getResp)
+	s.Do("PATCH", fmt.Sprintf("/api/v1/fleet/policies/%d", created.Policy.ID), json.RawMessage(`{"description": "x"}`), http.StatusOK)
+
+	// fleet_id is Premium.
+	s.Do("GET", "/api/latest/fleet/policies", nil, http.StatusPaymentRequired, "fleet_id", "0")
+	s.Do("GET", "/api/latest/fleet/policies/count", nil, http.StatusPaymentRequired, "fleet_id", "0")
+	s.Do("POST", "/api/latest/fleet/policies", json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "fleet_id": 0}`, t.Name()+" x")),
+		http.StatusPaymentRequired)
 }

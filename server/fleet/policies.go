@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -67,6 +69,12 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or Zendesk
+	// destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool
+	// AutomationType is the policy's one automation, from the create request. The service turns it into the automation
+	// fields above; the datastore doesn't read it.
+	AutomationType *PolicyAutomation
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden bool
 
@@ -136,6 +144,8 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
+	// AutomationType is the policy's one automation. Without it, the automation fields above are used as is.
+	AutomationType *PolicyAutomation
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden bool
 
@@ -446,6 +456,9 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	// AutomationType replaces the policy's automation, or removes it when null. When it's not set, the automation fields
+	// above are applied as is.
+	AutomationType optjson.Any[PolicyAutomation] `json:"automation_type,omitzero"`
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden *bool `json:"hidden" premium:"true"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
@@ -556,6 +569,9 @@ type PolicyData struct {
 	ScriptID                 *uint   `json:"-" db:"script_id"`
 	ResendAppleProfileUUID   *string `json:"-" db:"resend_apple_profile_uuid"`
 	ResendWindowsProfileUUID *string `json:"-" db:"resend_windows_profile_uuid"`
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or
+	// Zendesk destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool `json:"-" db:"webhooks_and_tickets_enabled"`
 
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
@@ -672,6 +688,19 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.ResendAppleProfileUUID and PolicyData.ResendWindowsProfileUUID
 	ResendConfigurationProfile *PolicyProfile `json:"resend_configuration_profile,omitempty"`
+
+	// AutomationType is the policy's automation, nil when it has none. It's derived from the automation fields when
+	// the policy is marshaled.
+	AutomationType *PolicyAutomation `json:"automation_type"`
+}
+
+func (p Policy) MarshalJSON() ([]byte, error) {
+	type policy Policy
+	p.AutomationType = nil
+	if automations := p.Automations(); len(automations) > 0 {
+		p.AutomationType = &automations[0]
+	}
+	return json.Marshal(policy(p))
 }
 
 type PolicyCalendarData struct {
@@ -715,6 +744,12 @@ type PolicyLite struct {
 	Description string `db:"description"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `db:"resolution"`
+}
+
+// PolicyIDAndTeam identifies a policy and its fleet. TeamID is nil for "All fleets" policies and 0 for "Unassigned".
+type PolicyIDAndTeam struct {
+	ID     uint  `db:"id"`
+	TeamID *uint `db:"team_id"`
 }
 
 func (p Policy) AuthzType() string {
@@ -842,6 +877,9 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or Zendesk
+	// destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool `json:"webhooks_and_tickets_enabled"`
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden bool `json:"hidden"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
@@ -1012,6 +1050,101 @@ const (
 	PolicyAutomationTypeOther             PolicyAutomationType = "other"
 	PolicyAutomationTypeNone              PolicyAutomationType = ""
 )
+
+// CheckWebhookOrTicketPolicyIDs checks that the settings policy_ids list doesn't turn the webhook or ticket automation
+// on for a policy of the scope that has another automation.
+//
+// TODO(#58577): remove with policy_ids.
+func CheckWebhookOrTicketPolicyIDs(ctx context.Context, ds Datastore, teamID *uint, policyIDs []uint) error {
+	policies, err := ds.PoliciesWithOtherAutomations(ctx, teamID, policyIDs)
+	if err != nil {
+		return err
+	}
+	if len(policies) > 0 {
+		return NewInvalidArgumentError("webhook_settings.failing_policies_webhook.policy_ids", fmt.Sprintf(
+			"policy %q already has an automation. Each policy can only have one automation.", policies[0].Name))
+	}
+	return nil
+}
+
+// PolicyListFilter narrows a list or count of policies. Empty fields don't filter.
+type PolicyListFilter struct {
+	AutomationType PolicyAutomation
+	Type           string
+	Platform       string
+}
+
+func (f PolicyListFilter) Validate() error {
+	if f.AutomationType != "" && !f.AutomationType.IsValid() {
+		return NewInvalidArgumentError("automation_type", fmt.Sprintf("unknown automation_type %q", f.AutomationType))
+	}
+	if f.Type != "" && f.Type != PolicyTypeDynamic && f.Type != PolicyTypePatch {
+		return NewInvalidArgumentError("type", fmt.Sprintf("type must be %q or %q", PolicyTypeDynamic, PolicyTypePatch))
+	}
+	return ValidatePolicyPlatformFilter(f.Platform)
+}
+
+// PolicyAutomation is what Fleet does when a host fails a policy. A policy has at most one.
+type PolicyAutomation string
+
+// Listed in the order that decides which automation a policy with more than one shows.
+const (
+	PolicyAutomationConditionalAccess    PolicyAutomation = "conditional_access"
+	PolicyAutomationSoftware             PolicyAutomation = "software"
+	PolicyAutomationScript               PolicyAutomation = "script"
+	PolicyAutomationConfigurationProfile PolicyAutomation = "configuration_profile"
+	PolicyAutomationCalendar             PolicyAutomation = "calendar"
+	PolicyAutomationWebhookOrTicket      PolicyAutomation = "webhook_or_ticket"
+)
+
+func (a PolicyAutomation) IsValid() bool {
+	switch a {
+	case PolicyAutomationConditionalAccess, PolicyAutomationSoftware, PolicyAutomationScript,
+		PolicyAutomationConfigurationProfile, PolicyAutomationCalendar, PolicyAutomationWebhookOrTicket:
+		return true
+	}
+	return false
+}
+
+// Automations returns the policy's automations. Policies saved before the one-automation rule can have more than one.
+func (p PolicyData) Automations() []PolicyAutomation {
+	return policyAutomations(p.ConditionalAccessEnabled, p.SoftwareInstallerID != nil || p.VPPAppsTeamsID != nil,
+		p.ScriptID != nil, p.ResendAppleProfileUUID != nil || p.ResendWindowsProfileUUID != nil,
+		p.CalendarEventsEnabled, p.WebhooksAndTicketsEnabled)
+}
+
+// Automations returns the automations the payload gives the new policy.
+func (p PolicyPayload) Automations() []PolicyAutomation {
+	return policyAutomations(p.ConditionalAccessEnabled, p.SoftwareInstallerID != nil || p.VPPAppsTeamsID != nil,
+		p.ScriptID != nil, p.ProfileUUID != nil && *p.ProfileUUID != "", p.CalendarEventsEnabled, p.WebhooksAndTicketsEnabled)
+}
+
+// Automations returns the automations the spec gives the policy.
+func (p PolicySpec) Automations() []PolicyAutomation {
+	return policyAutomations(p.ConditionalAccessEnabled, p.SoftwareTitleID != nil && *p.SoftwareTitleID != 0,
+		p.ScriptID != nil && *p.ScriptID != 0, p.ProfileUUID != nil && *p.ProfileUUID != "", p.CalendarEventsEnabled,
+		p.WebhooksAndTicketsEnabled)
+}
+
+func policyAutomations(conditionalAccess, software, script, profile, calendar, webhookOrTicket bool) []PolicyAutomation {
+	var automations []PolicyAutomation
+	for _, a := range []struct {
+		on         bool
+		automation PolicyAutomation
+	}{
+		{conditionalAccess, PolicyAutomationConditionalAccess},
+		{software, PolicyAutomationSoftware},
+		{script, PolicyAutomationScript},
+		{profile, PolicyAutomationConfigurationProfile},
+		{calendar, PolicyAutomationCalendar},
+		{webhookOrTicket, PolicyAutomationWebhookOrTicket},
+	} {
+		if a.on {
+			automations = append(automations, a.automation)
+		}
+	}
+	return automations
+}
 
 // resendProfile holds the resolved values for a policy's
 // resend_apple_profile_uuid / resend_windows_profile_uuid columns. At most one of
