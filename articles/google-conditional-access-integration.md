@@ -99,6 +99,8 @@ Fleet checks the delegation with Google before it saves anything. When it works,
 
 To change the customer ID or the admin email later, or to replace the key, select **Edit** on the card. You don't need to delete the integration.
 
+> **Warning:** Fleet gives fleetdm.com your Fleet server URL when it connects, and iPhone and iPad sign-ins are sent back to that URL. If you change your Fleet server URL, delete the integration and connect again with the same settings. Hosts that are already registered stay managed, and Android hosts aren't affected.
+
 You can also connect with [GitOps](#gitops) or the [API](https://fleetdm.com/docs/rest-api/rest-api#connect-google).
 
 ## Step 5: Set up iPhones and iPads
@@ -254,9 +256,10 @@ Deleting the integration in Fleet doesn't unmark devices. They stay marked as ma
 - **"Couldn't connect to Google"** with a 403 or "permission denied": The user from Step 1 is missing the **Mobile Device Management** privilege, the customer ID is wrong, or the Cloud Identity API from Step 2 isn't enabled.
 - **"Missing required private key"**: Configure the [server private key](https://fleetdm.com/learn-more-about/fleet-server-private-key), restart Fleet, and connect again.
 - **"Couldn't register with fleetdm.com"**: Your Fleet server can't reach fleetdm.com, or your customer ID is already connected to another Fleet server. Delete the integration on the other server first.
-- **The Google card shows an error after it was connected**: Fleet checks the delegation every 5 minutes. The key was deleted in Google Cloud, the delegation was removed, or the admin user lost its role. Fix it in Google, or select **Edit** to upload a new key. Devices stay managed in the meantime.
+- **The Google card shows an error after it was connected**: Google refused Fleet's service account when Fleet last had a device to mark or unmark. The key was deleted in Google Cloud, the delegation was removed, or the admin user lost its role. Fix it in Google, or select **Edit** to upload a new key. Fleet checks again every 5 minutes and clears the error once Google accepts the service account. Devices stay managed in the meantime.
 - **iPhone or iPad: "Sign in to Gmail on this device, then open this page again."** although Gmail is signed in: Gmail doesn't have the configuration from Step 5. Check that Fleet installed Gmail, that `partner` is spelled as shown, and ask the end user to quit and reopen Gmail.
 - **iPhone or iPad: Self-service opens with no sign-in**: The host is already registered, isn't **On (automatic)**, or the end user closed the Google page 3 times in 24 hours. A company iPhone or iPad enrolled without Apple Business shows as **On (manual)**, and Fleet doesn't register it.
+- **iPhone or iPad: "Something went wrong. Try again." after you changed your Fleet server URL**: fleetdm.com still sends sign-ins to the old URL. In Fleet, head to **Settings > Integrations > Conditional access**, select **Delete** on the **Google** card, and connect again as described in Step 4. With GitOps, remove `google_conditional_access` from the YAML, run GitOps, then add it back with `api_key_json` and run GitOps again. Devices stay managed in the meantime.
 - **iPhone or iPad: "This device isn't allowed to access company data."**: The device may be registered to another host, for example when someone opened another host's sign-in link on it. To find that host, list the activities that saved a Google device ID and look for the device's ID in `details.google_device_id`:
 
   ```sh

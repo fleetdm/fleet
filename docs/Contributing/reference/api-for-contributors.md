@@ -2977,7 +2977,7 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
-- [Get device's Google conditional access status](#get-devices-google-conditional-access-status) (`GET /api/v1/fleet/device/{token}/conditional_access/google`) — *exempt during setup experience*
+- [Get device's Google conditional access status](#get-devices-google-conditional-access-status) (`POST /api/v1/fleet/device/{token}/conditional_access/google`) — *exempt during setup experience*
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
@@ -5177,7 +5177,7 @@ Used by the **Self-service** web clip on iOS and iPadOS hosts. The web clip call
 
 Each call that returns a `sign_in_url` creates a new single-use token, valid for 15 minutes, and counts as a sign-in attempt. After 3 attempts in 24 hours with no completed sign-in, the response has no `sign_in_url`.
 
-`GET /api/v1/fleet/device/{token}/conditional_access/google`
+`POST /api/v1/fleet/device/{token}/conditional_access/google`
 
 #### Parameters
 
