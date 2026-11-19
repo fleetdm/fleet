@@ -103,11 +103,10 @@ function hostLink(id, name) {
   return h("a", { href: hostUrl(id), target: "_blank", rel: "noopener", class: "cell-main", onclick: (e) => e.stopPropagation() }, name);
 }
 
-// Artifact links are claude.ai URLs and open in a new tab, since each artifact runs in
-// its own sandboxed frame. A static copy links by relative path, in the same tab.
-const isExternal = (href) => /^https?:/i.test(href || "");
+// Artifact links are full claude.ai URLs. Each artifact runs in its own frame, so _top
+// replaces the whole tab instead of loading claude.ai inside the frame, which it refuses.
 function pageLink(href, attrs, ...kids) {
-  return h("a", { href, ...(isExternal(href) ? { target: "_blank", rel: "noopener" } : {}), ...attrs }, ...kids);
+  return h("a", { href, ...(/^https?:/i.test(href || "") ? { target: "_top" } : {}), ...attrs }, ...kids);
 }
 const NAV = [["overview", "Overview"], ["ai", "AI governance"], ["connectivity", "Connectivity"], ["lifecycle", "Hardware lifecycle"],
   ["patch", "Patch velocity"], ["software", "Software usage"], ["sustainability", "Sustainability"], ["policies", "Policies"], ["analytics", "Analytics"]];

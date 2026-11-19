@@ -40,7 +40,7 @@
   <section class="sec" aria-labelledby="dash-h">
     <div class="sec-head">
       <h2 id="dash-h">Dashboards</h2>
-      <span class="hint" id="dash-hint">Today's numbers, with the last 30 days under each.</span>
+      <span class="hint">Today's numbers, with the last 30 days under each.</span>
     </div>
     <div class="dashes" id="dashes"></div>
   </section>
@@ -212,7 +212,7 @@ function render() {
     const details = h("div", { class: "rail" }, last ? c.rows(last, rows).map(([label, value, bad]) =>
       h("div", { class: "rail-row" }, h("span", {}, label), h("b", { class: bad ? "hl-bad" : null }, value))) : null);
     return h("div", { class: `panel dash${c.wide ? " wide" : ""}` },
-      h("div", {}, h("h3", {}, pageLink(DATA.links[c.page], {}, c.title, isExternal(DATA.links[c.page]) ? h("span", { "aria-hidden": "true" }, "↗") : null)),
+      h("div", {}, h("h3", {}, pageLink(DATA.links[c.page], {}, c.title)),
         h("p", { class: "about" }, c.about)),
       main, details);
   }));
@@ -220,7 +220,6 @@ function render() {
   document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API, from the same daily counts as each dashboard's Over time charts. Rebuilt daily.`;
 }
 
-if (Object.values(DATA.links).some(isExternal)) document.getElementById("dash-hint").append(" Dashboards open in a new tab.");
 renderTop(fleets, render, platformCounts);
 render();
 </script>

@@ -1,6 +1,6 @@
 # Build DEX dashboards with GitHub Actions
 
-The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude) turn Fleet data into eight digital employee experience dashboards and an overview. That guide runs them as a Claude Code routine and publishes Claude artifacts. This guide runs the same scripts in a GitHub Actions workflow instead, keeps each dashboard's history on a branch in your repository, and serves the pages with GitHub Pages. You don't need a Claude account, and the pages link to each other in the same browser tab.
+The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude) turn Fleet data into eight digital employee experience dashboards and an overview. That guide runs them as a Claude Code routine and publishes Claude artifacts. This guide runs the same scripts in a GitHub Actions workflow instead, keeps each dashboard's history on a branch in your repository, and serves the pages with GitHub Pages. You don't need a Claude account.
 
 ## How it works
 
