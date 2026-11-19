@@ -296,8 +296,7 @@ type OsqueryConfig struct {
 	AISessionMaxToolCalls int `yaml:"ai_session_max_tool_calls"`
 	// AISessionMaxToolCallsPerRefresh is how many new tool calls Fleet asks a host for per AI agent session at each
 	// refresh; 0 leaves it to what fits in the host's result.
-	AISessionMaxToolCallsPerRefresh int           `yaml:"ai_session_max_tool_calls_per_refresh"`
-	MinSoftwareLastOpenedAtDiff     time.Duration `yaml:"min_software_last_opened_at_diff"`
+	AISessionMaxToolCallsPerRefresh int `yaml:"ai_session_max_tool_calls_per_refresh"`
 
 	// MaxLogWriteBodySize overrides the default request body size limit
 	// for the /api/osquery/log endpoint. A value of 0 means use the
@@ -1963,8 +1962,6 @@ func (man Manager) addConfigs() {
 		"Maximum number of tool calls stored per host AI agent session (the first ones are kept)")
 	man.addConfigInt("osquery.ai_session_max_tool_calls_per_refresh", 0,
 		"Maximum number of new tool calls requested per host AI agent session at each detail refresh (0 for no limit)")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
-		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
