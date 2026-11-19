@@ -39,7 +39,7 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "host",
-				Usage:    "The host, specified by hostname, UUID, or serial number.",
+				Usage:    "The host, specified by host ID, hostname, UUID, or serial number.",
 				Required: true,
 			},
 			&cli.StringFlag{
