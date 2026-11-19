@@ -24,7 +24,7 @@ Copilot accepts managed settings through three delivery methods. This guide uses
 | Windows | MDM (registry) | String values under `HKLM\SOFTWARE\Policies\GitHubCopilot` |
 | Linux | File | `/etc/github-copilot/managed-settings.json` |
 
-GitHub doesn't support MDM delivery on Linux, so Linux uses the file. Clients check MDM settings every hour without a restart, but they read the file only when they start.
+GitHub doesn't support MDM delivery on Linux, so Linux uses the file. Clients check MDM settings every hour without a restart. After a file change, GitHub says to restart clients so they load it.
 
 The examples below set three keys:
 
@@ -212,7 +212,7 @@ Each policy below passes when the host has your settings. A host that fails gets
 
 To do the same in the Fleet UI, go to **Policies**, select your fleet, and select **Add policy** for each query. Then select **Manage automations > Run script**, check each policy, and pick its script.
 
-> **Note:** The Windows policy checks that each value exists as a string, not what it holds. When you change a value in `copilot-settings.ps1`, run the script on your Windows hosts with batch execution. On Linux, update `<sha256>` at the same time as the script, and hosts pick up the new file on their own. Fleet runs the script when a policy newly fails and retries it up to three times. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+> **Note:** The Windows policy checks that each value exists as a string, not what it holds. When you change a value in `copilot-settings.ps1`, run the script on your Windows hosts with batch execution. On Linux, update `<sha256>` at the same time as the script, and hosts pick up the new file on their own. Fleet runs the script when a policy newly fails and tries it up to three times in total. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
 ## What your users see
 
@@ -229,7 +229,7 @@ Tell your users before you roll out a new restriction, so a blocked MCP server o
 ## Verify
 
 1. On a test host, open VS Code. Open the Command Palette and run **Developer: Sync Account Policy** to load MDM settings now. On Linux, quit and reopen VS Code instead.
-2. Run **Developer: Policy Diagnostics**. Confirm your keys are listed and their source is **Managed Settings: Native MDM** on macOS and Windows, or **Managed Settings: File** on Linux.
+2. Run **Developer: Policy Diagnostics**. Under **Effective Resolution**, confirm your keys are listed and their **Winning Source** is **Native MDM** on macOS and Windows, or **File** on Linux.
 3. In Copilot CLI, run `/yolo`. Confirm that Copilot CLI doesn't turn on allow-all mode.
 4. In Fleet, open the host's details page and confirm the macOS profile shows as **Verified** or the Windows or Linux policy passes.
 
@@ -274,7 +274,7 @@ Then review the results on a schedule:
 1. Open each report and look for MCP servers you haven't decided on. For servers configured in VS Code, check `endpoint`, `command`, and `risk_flags` first.
 2. Add a server you approve to `allowedMcpServers`, using its URL or its exact command and arguments.
 3. Add a server you reject to `deniedMcpServers`.
-4. Look for `denied` calls in the Copilot CLI report. A spike after a rollout points to a server your users need that isn't on your allowlist.
+4. Look for `denied` calls in the Copilot CLI report. A spike after a rollout can point to something your users need that your settings now block.
 5. Update the profile, the scripts, and the Linux hash, then open a pull request.
 
 ## Troubleshoot
