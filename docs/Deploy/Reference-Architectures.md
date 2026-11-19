@@ -703,7 +703,7 @@ Tracing every request on a large fleet would emit an unsustainable volume of spa
 
 | Tier | Default sample rate | Routes |
 | ---- | ------------------- | ------ |
-| Never | 0% | Liveness and infrastructure paths (`/healthz`, `/version`, `/metrics`). |
+| Never | 0% | Liveness and infrastructure paths (`/healthz`, `/metrics`). |
 | High volume | 0.1% | Agent endpoints (osquery distributed read/write, config, log uploads; orbit config and pings; device ping and desktop). |
 | Standard | 2% | Admin and UI read endpoints (hosts, software, policies, dashboard, etc.). |
 | Always | 100% | Everything else: enrollment, MDM command flows, SCEP, GitOps applies, and cron jobs. These are low-volume and load-bearing, so they are never down-sampled. |
