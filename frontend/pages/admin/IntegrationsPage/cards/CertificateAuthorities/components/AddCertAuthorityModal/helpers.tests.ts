@@ -52,7 +52,7 @@ describe("AddCertAuthorityModal helpers", () => {
           null,
           getDisplayErrMessage(
             apiError(
-              'Couldn\'t add certificate authority. The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration'
+              'Couldn\'t add certificate authority. The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade'
             )
           )
         )
@@ -62,7 +62,7 @@ describe("AddCertAuthorityModal helpers", () => {
         screen.getByText(/variable is not available anymore/)
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("link", { name: /fleet-5-migration/ })
+        screen.getByRole("link", { name: /fleet-5-upgrade/ })
       ).toBeInTheDocument();
     });
 
@@ -308,7 +308,7 @@ describe("EJBCA server errors", () => {
     const setFieldErrors = jest.fn();
     const notifyError = jest.spyOn(notify, "error").mockImplementation();
     const removed =
-      'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration';
+      'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade';
 
     handleEJBCAServerError(
       {

@@ -1553,7 +1553,7 @@ settings:
 	require.NoError(t, os.WriteFile(policyIDsFilePath, []byte(noTeamTemplateWithWebhook+"      policy_ids: [1]\n"), 0o644))
 	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", policyIDsFilePath},
 		policyIDsFilePath+`: The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore. `+
-			"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration")
+			"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
 
 	// Test dry-run first
 	output := fleetctltest.RunAppForTest(t,
