@@ -574,6 +574,32 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.InstallSoftware.Name, policies[0].InstallSoftware.Name)
 	require.Equal(t, tpResp.Policy.InstallSoftware.SoftwareTitleID, policies[0].InstallSoftware.SoftwareTitleID)
 
+	for _, tc := range []struct {
+		name      string
+		teamID    uint
+		wantFleet string
+	}{
+		{name: "fleet", teamID: team.ID, wantFleet: fmt.Sprintf(`"fleet_id":%d, "fleet_name":%q`, team.ID, team.Name)},
+		{name: "no fleet", teamID: fleet.PolicyNoTeamID, wantFleet: `"fleet_id":0`},
+	} {
+		addMAResp = addFleetMaintainedAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{
+			AppID:            8,
+			TeamID:           &tc.teamID,
+			AutomaticInstall: true,
+		}, http.StatusOK, &addMAResp)
+		require.NoError(t, addMAResp.Err, tc.name)
+
+		titleResp = getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID), getSoftwareTitleRequest{},
+			http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(tc.teamID))
+		require.NotEmpty(t, titleResp.SoftwareTitle.Packages, tc.name)
+		require.Len(t, titleResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1, tc.name)
+		autoPolicy := titleResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0]
+		s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
+			fmt.Sprintf(`{%s, "policy_id":%d, "policy_name":%q}`, tc.wantFleet, autoPolicy.ID, autoPolicy.Name), 0)
+	}
+
 	// ===========================================================================================
 	// Adding label-scoped FMA
 	// ===========================================================================================
@@ -3582,12 +3608,22 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
-	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
-	patchVersion("^9")
-	requireLastPinActivity(new("^9"))
+	// Pin the older 1.0, then pin a caret with no cached installer in that major, the PATCH should be rejected
+	// and the pin and active version left on 1.0.
+	patchVersion("1.0")
+	requireLastPinActivity(new("1.0"))
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"fleet_id": {fmt.Sprint(team.ID)},
+		"version":  {"^9"},
+	})
+	resp := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusNotFound, headers)
+	errMessage := extractServerErrorText(resp.Body)
+	resp.Body.Close()
+	require.Contains(t, errMessage, "specified major version is not available")
+	requireLastPinActivity(new("1.0"))
 	p = getPkg()
-	require.Equal(t, "2.0", p.Version)
-	require.Equal(t, new("^9"), p.PinnedVersion)
+	require.Equal(t, "1.0", p.Version)
+	require.Equal(t, new("1.0"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 
 	// Empty clears the pin row, back to Latest.
@@ -3711,7 +3747,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	// --- Validation ---
 
 	// "version" can't be changed in the same PATCH as another field.
-	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 		"fleet_id":       {fmt.Sprint(team.ID)},
 		"version":        {"2.0"},
 		"install_script": {"echo changed"},

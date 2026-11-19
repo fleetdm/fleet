@@ -1,4 +1,5 @@
 import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -844,6 +845,9 @@ describe("Device User Page", () => {
     let refetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      // Fake from before the render, since the refetch poll is scheduled on
+      // first load. Date stays real: these tests move the clock through the spy.
+      jest.useFakeTimers({ doNotFake: ["Date"] });
       mockNow = REAL_NOW;
       dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockNow);
       refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
@@ -852,6 +856,7 @@ describe("Device User Page", () => {
     });
 
     afterEach(() => {
+      jest.useRealTimers();
       dateNowSpy.mockRestore();
       refetchSpy.mockRestore();
     });
@@ -905,31 +910,27 @@ describe("Device User Page", () => {
         detailUpdatedAt: NEVER_REPORTED,
         expectedErrors: [],
       },
-    ])(
-      "$name",
-      async ({ detailUpdatedAt, expectedErrors }) => {
-        renderWithHost(
-          mockHost({
-            refetch_requested: true,
-            status: "online",
-            detail_updated_at: detailUpdatedAt,
-          })
-        );
-        // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
-        await screen.findByText(/refetching\.\.\./i);
-        // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
-        mockNow += 200000;
-        await waitFor(
-          () =>
-            expect(
-              screen.queryByText(/refetching\.\.\./i)
-            ).not.toBeInTheDocument(),
-          { timeout: 4000 }
-        );
-        expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
-      },
-      10000
-    );
+    ])("$name", async ({ detailUpdatedAt, expectedErrors }) => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "online",
+          detail_updated_at: detailUpdatedAt,
+        })
+      );
+      // The first load starts the refetch timer and schedules the next poll.
+      await screen.findByText(/refetching\.\.\./i);
+      // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
+      mockNow += 200000;
+      await waitFor(
+        () =>
+          expect(
+            screen.queryByText(/refetching\.\.\./i)
+          ).not.toBeInTheDocument(),
+        { timeout: 4000 }
+      );
+      expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+    });
 
     it.each([
       { status: "offline" as const, elapsed: 0, message: OFFLINE_MESSAGE },
@@ -937,9 +938,12 @@ describe("Device User Page", () => {
     ])(
       "shows '$message' for a refetch the user asked for",
       async ({ status, elapsed, message }) => {
-        const { user } = renderWithHost(
+        renderWithHost(
           mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
         );
+        const user = userEvent.setup({
+          advanceTimers: jest.advanceTimersByTime,
+        });
 
         await user.click(
           await screen.findByRole("button", { name: /refetch/i })
@@ -962,8 +966,7 @@ describe("Device User Page", () => {
           () => expect(notify.error).toHaveBeenCalledWith(message),
           { timeout: 5000 }
         );
-      },
-      10000
+      }
     );
   });
 });
