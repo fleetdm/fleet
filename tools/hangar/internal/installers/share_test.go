@@ -1,13 +1,11 @@
 package installers
 
 import (
-	"io"
-	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -22,113 +20,6 @@ func writeFiles(t *testing.T, root string, files map[string]string) {
 		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
-	}
-}
-
-func TestShareServesReadOnly(t *testing.T) {
-	root := t.TempDir()
-	writeFiles(t, root, map[string]string{
-		"rc/fleetd-rc-macos-desktop.pkg": "pkg-bytes",
-		"rc/manifest.json":               "{}",
-		"rc/.manifest.json.123":          "temp",
-	})
-	port, err := FreePort(18000, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var s Share
-	if err := s.Start(root, port); err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-	if err := s.Start(root, port); err == nil {
-		t.Error("second Start should fail")
-	}
-	base := "http://127.0.0.1:" + strconv.Itoa(int(port)) + "/"
-
-	get := func(p string) (int, string) {
-		resp, err := http.Get(base + p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer resp.Body.Close()
-		b, _ := io.ReadAll(resp.Body)
-		return resp.StatusCode, string(b)
-	}
-	if code, body := get("rc/fleetd-rc-macos-desktop.pkg"); code != 200 || body != "pkg-bytes" {
-		t.Errorf("pkg: %d %q", code, body)
-	}
-	if code, body := get("rc/"); code != 200 || !strings.Contains(body, "fleetd-rc-macos-desktop.pkg") || strings.Contains(body, ".manifest.json.123") {
-		t.Errorf("listing: %d %q", code, body)
-	}
-	if code, _ := get("rc/.manifest.json.123"); code != 404 {
-		t.Errorf("dotfile served: %d", code)
-	}
-	if code, _ := get("../../etc/passwd"); code == 200 {
-		t.Error("path traversal served a file")
-	}
-	resp, err := http.Post(base+"rc/x", "text/plain", strings.NewReader("x"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusMethodNotAllowed {
-		t.Errorf("POST = %d", resp.StatusCode)
-	}
-
-	st := s.Status("10.0.0.5")
-	if !st.Running || st.URL != "http://10.0.0.5:"+strconv.Itoa(int(port))+"/" {
-		t.Errorf("status = %+v", st)
-	}
-	// Only the installer download is recorded (not listings or manifests).
-	if len(st.Recent) != 1 || st.Recent[0].Path != "rc/fleetd-rc-macos-desktop.pkg" || st.Recent[0].Client != "127.0.0.1" {
-		t.Errorf("recent = %+v", st.Recent)
-	}
-
-	if err := s.Stop(); err != nil {
-		t.Fatal(err)
-	}
-	if s.Status("").Running {
-		t.Error("still running after Stop")
-	}
-	// The port is free again.
-	ln, err := net.Listen("tcp", ":"+strconv.Itoa(int(port)))
-	if err != nil {
-		t.Fatalf("port not released: %v", err)
-	}
-	ln.Close()
-}
-
-func TestShareStartErrors(t *testing.T) {
-	var s Share
-	if err := s.Start(filepath.Join(t.TempDir(), "missing"), 18000); err == nil {
-		t.Error("missing root should fail")
-	}
-	ln, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	busy := uint16(ln.Addr().(*net.TCPAddr).Port)
-	if err := s.Start(t.TempDir(), busy); err == nil {
-		s.Stop()
-		t.Error("busy port should fail")
-	}
-}
-
-func TestFreePortSkipsReservedAndBusy(t *testing.T) {
-	ln, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	busy := uint16(ln.Addr().(*net.TCPAddr).Port)
-	got, err := FreePort(busy, map[uint16]bool{busy + 1: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got == busy || got == busy+1 {
-		t.Errorf("FreePort returned %d (busy %d, reserved %d)", got, busy, busy+1)
 	}
 }
 
@@ -209,16 +100,10 @@ func TestInstallCommandRuns(t *testing.T) {
 		"rc/fleetd-rc-linux-arm64.deb":         "deb-bytes",
 		"rc/fleetd-rc-linux-arm64.pkg.tar.zst": "arch-bytes",
 	})
-	port, err := FreePort(18100, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var s Share
-	if err := s.Start(root, port); err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-	files, err := ListShared(root, BaseURL("127.0.0.1", port))
+	// Stands in for python http.server serving the folder.
+	srv := httptest.NewServer(http.FileServer(http.Dir(root)))
+	defer srv.Close()
+	files, err := ListShared(root, srv.URL+"/")
 	if err != nil || len(files) != 2 {
 		t.Fatalf("files %v %v", files, err)
 	}
@@ -241,99 +126,22 @@ func TestInstallCommandRuns(t *testing.T) {
 	}
 }
 
-func TestShareRefusesSymlinksOutOfRoot(t *testing.T) {
-	root := t.TempDir()
-	secret := filepath.Join(t.TempDir(), "secret.txt")
-	writeFiles(t, root, map[string]string{"rc/fleetd-rc-macos.pkg": "ok"})
-	if err := os.WriteFile(secret, []byte("private"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(secret, filepath.Join(root, "rc", "leak.pkg")); err != nil {
-		t.Fatal(err)
-	}
-	port, err := FreePort(18200, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var s Share
-	if err := s.Start(root, port); err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-	resp, err := http.Get(BaseURL("127.0.0.1", port) + "rc/leak.pkg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if resp.StatusCode == 200 || strings.Contains(string(b), "private") {
-		t.Errorf("symlink out of root served: %d %q", resp.StatusCode, b)
-	}
-	files, _ := ListShared(root, "http://x/")
-	if len(files) != 1 || files[0].Path != "rc/fleetd-rc-macos.pkg" {
-		t.Errorf("listed = %+v", files)
-	}
-}
-
-// A port held on loopback only counts as busy (macOS lets the wildcard bind).
-func TestFreePortSkipsLoopbackOnly(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	busy := uint16(ln.Addr().(*net.TCPAddr).Port)
-	got, err := FreePort(busy, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got == busy {
-		t.Errorf("FreePort returned loopback-held port %d", busy)
-	}
-}
-
-// Every installer type downloads, including ones Go has to sniff (.rpm has no
-// registered MIME type on macOS), and byte ranges work for resumed downloads.
-func TestShareServesAllTypesAndRanges(t *testing.T) {
-	root := t.TempDir()
-	writeFiles(t, root, map[string]string{
-		"rc/a.rpm":         "rpm-bytes",
-		"rc/a.deb":         "deb-bytes",
-		"rc/a.pkg":         "pkg-bytes",
-		"rc/a.msi":         "msi-bytes",
-		"rc/a.pkg.tar.zst": "pkg.tar.zst-bytes",
-	})
-	port, err := FreePort(18300, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var s Share
-	if err := s.Start(root, port); err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-	base := BaseURL("127.0.0.1", port)
-	for _, ext := range []string{"rpm", "deb", "pkg", "msi", "pkg.tar.zst"} {
-		resp, err := http.Get(base + "rc/a." + ext)
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if resp.StatusCode != 200 || string(b) != ext+"-bytes" {
-			t.Errorf(".%s: %d %q", ext, resp.StatusCode, b)
-		}
-
-		req, _ := http.NewRequest(http.MethodGet, base+"rc/a."+ext, nil)
-		req.Header.Set("Range", "bytes=4-")
-		resp, err = http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, _ = io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusPartialContent || string(b) != (ext + "-bytes")[4:] {
-			t.Errorf(".%s range: %d %q", ext, resp.StatusCode, b)
+func TestPythonServedURL(t *testing.T) {
+	const cmd = "python3 -m http.server 8000 --directory /Users/me/sharing"
+	for _, c := range []struct {
+		name, command, cwd, root, want string
+	}{
+		{"inside", cmd, "/repo", "/Users/me/sharing/packages", "http://10.0.0.5:8000/packages/"},
+		{"the served folder itself", cmd, "/repo", "/Users/me/sharing", "http://10.0.0.5:8000/"},
+		{"outside", cmd, "/repo", "/Users/me/other/packages", ""},
+		// A sibling whose name starts the same isn't inside.
+		{"sibling prefix", cmd, "/repo", "/Users/me/sharing2/packages", ""},
+		{"relative dir", "python3 -m http.server 8000 --directory .", "/repo", "/repo/packages", "http://10.0.0.5:8000/packages/"},
+		{"folder name escaped", cmd, "/repo", "/Users/me/sharing/my packages", "http://10.0.0.5:8000/my%20packages/"},
+		{"not http.server", "python3 -m something", "/repo", "/Users/me/sharing/packages", ""},
+	} {
+		if got := PythonServedURL(c.command, c.cwd, c.root, "10.0.0.5"); got != c.want {
+			t.Errorf("%s: PythonServedURL = %q, want %q", c.name, got, c.want)
 		}
 	}
 }

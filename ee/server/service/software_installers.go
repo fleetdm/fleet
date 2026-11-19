@@ -248,10 +248,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.AutomaticInstall && payload.AddedAutomaticInstallPolicy != nil {
-		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   payload.AddedAutomaticInstallPolicy.ID,
-			Name: payload.AddedAutomaticInstallPolicy.Name,
-		}
+		policyAct := createdAutomaticInstallPolicyActivity(payload.AddedAutomaticInstallPolicy, teamName)
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for custom package")
@@ -259,6 +256,18 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	return addedInstaller, nil
+}
+
+func createdAutomaticInstallPolicyActivity(policy *fleet.Policy, teamName *string) fleet.ActivityTypeCreatedPolicy {
+	act := fleet.ActivityTypeCreatedPolicy{
+		ID:     policy.ID,
+		Name:   policy.Name,
+		TeamID: new(int64(ptr.ValOrZero(policy.TeamID))), //nolint:gosec // dismiss G115
+	}
+	if *act.TeamID != 0 {
+		act.TeamName = teamName
+	}
+	return act
 }
 
 func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll []string) (*fleet.LabelIdentsWithScope, error) {
