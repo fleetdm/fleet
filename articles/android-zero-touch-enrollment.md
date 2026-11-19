@@ -61,8 +61,8 @@ To make sure only company-owned devices you bought can enroll, turn on **Allow o
 When it's on:
 
 - Devices can only enroll through zero-touch.
-- The enrollment page doesn't show a QR code for company-owned devices or a link to add a work profile on personal devices. End users see a message to contact their IT admin instead.
 - Hosts that are already enrolled stay enrolled.
+- The enrollment page doesn't show a QR code for company-owned devices or a link to add a work profile on personal devices.
 
 If someone wipes a company-owned device that isn't registered in the zero-touch portal, they can't re-enroll it with a QR code. To enroll it, register the device in the zero-touch portal or turn the setting off.
 
