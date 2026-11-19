@@ -7177,6 +7177,13 @@
       "description": "Proton Pass is a desktop client for Proton Pass."
     },
     {
+      "name": "Proton Pass",
+      "slug": "proton-pass/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Pass",
+      "description": "Proton Pass is an open-source, end-to-end encrypted password manager."
+    },
+    {
       "name": "ProtonVPN",
       "slug": "protonvpn/darwin",
       "platform": "darwin",

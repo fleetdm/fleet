@@ -3857,6 +3857,7 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
@@ -3871,6 +3872,7 @@ This activity contains the following fields:
 ```json
 {
   "software_title": "Slack",
+  "software_display_name": "Slack (work)",
   "app_store_id": "618783545",
   "platform": "ios",
   "team_name": "Workstations",
