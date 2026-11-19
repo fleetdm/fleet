@@ -173,6 +173,10 @@
         margin-top: 8px;
       }
 
+      .qr-subtext--centered {
+        text-align: center;
+      }
+
       .qr-container .qr-code:not(:first-child) {
         margin-top: 24px;
       }
@@ -404,6 +408,7 @@
             </p>
             <div class="qr-container">
               <canvas class="qr-code"></canvas>
+              <p class="qr-subtext qr-subtext--centered qr-expiry"></p>
             </div>
           </li>
           <li>
@@ -415,7 +420,7 @@
             </p>
           </li>
         </ol>
-        <p>QR code invalid? Refresh the page.</p>
+        <p>QR code not working? Refresh the page.</p>
       </section>
     </template>
 
@@ -1037,6 +1042,14 @@
               document.querySelector(".qr-code"),
               { width: 245, color: { dark: "#515774", light: "#fff" } }
             );
+            // Google issues enrollment tokens with a 1-hour lifetime by default.
+            const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+            document.querySelector(
+              ".qr-expiry"
+            ).textContent = `Expires ${expiresAt.toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            })}`;
           } catch (error) {
             renderError(
               "Couldn't get Android enrollment token.",
