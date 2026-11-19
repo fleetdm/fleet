@@ -35,10 +35,13 @@ export const DROPDOWN_OPTIONS = [
 const createOnlyInstallableOnMacOSMessage = (reason: string) =>
   `Couldn't install. ${reason.replace("darwin", "macOS")}.`;
 
-const createVPPTokenExpiredMessage = (tokenName: string) => (
+// Pass the backend reason through verbatim so any token name format (including
+// one with embedded quotes that Go's %q escapes as \") renders unambiguously.
+// Extracting the name with a regex misses escaped quotes and silently falls
+// back to the generic install error.
+const createVPPTokenExpiredMessage = (apiReason: string) => (
   <>
-    {INSTALL_SOFTWARE_ERROR_PREFIX} VPP token &quot;{tokenName}&quot; expired.
-    Go to{" "}
+    {apiReason.replace(/\s*Please renew it and try again\.?$/, "")}. Go to{" "}
     <b>
       Settings {">"} Integration {">"} Volume Purchasing Program
     </b>{" "}
@@ -46,8 +49,8 @@ const createVPPTokenExpiredMessage = (tokenName: string) => (
   </>
 );
 
-// Matches the install-time expired-token error from ee/server/service/vpp.go.
-const VPP_TOKEN_EXPIRED_RE = /VPP token "([^"]+)" is expired/;
+const isVPPTokenExpiredReason = (reason: string) =>
+  reason.includes("VPP token") && reason.includes("is expired");
 
 // determines if we want to show the API message as is to the user.
 const showAPIMessage = (message: string) => {
@@ -69,9 +72,8 @@ export const getInstallErrorMessage = (e: unknown) => {
   if (reason.includes("can be installed only on")) {
     return createOnlyInstallableOnMacOSMessage(reason);
   }
-  const vppExpiredMatch = reason.match(VPP_TOKEN_EXPIRED_RE);
-  if (vppExpiredMatch) {
-    return createVPPTokenExpiredMessage(vppExpiredMatch[1]);
+  if (isVPPTokenExpiredReason(reason)) {
+    return createVPPTokenExpiredMessage(reason);
   }
   if (
     reason.includes("unresolvable Fleet variable in managed app configuration")

@@ -67,9 +67,31 @@ describe("getInstallErrorMessage", () => {
       )
     );
     const { container } = render(<>{result}</>);
-    expect(container.textContent).toContain(`VPP token "Acme US" expired`);
+    expect(container.textContent).toContain(`VPP token "Acme US" is expired`);
     expect(container.textContent).toContain(
       "Settings > Integration > Volume Purchasing Program"
+    );
+    expect(container.textContent).not.toContain(
+      "Please renew it and try again"
+    );
+  });
+
+  it("surfaces an expired VPP token whose name contains quotes", () => {
+    // Go's %q escapes embedded quotes as \", which arrives verbatim in the
+    // JSON response reason. The UI shouldn't silently fall back to the
+    // generic install error.
+    const result = getInstallErrorMessage(
+      makeErr(
+        `Couldn't install. VPP token "Acme \\"US\\"" is expired. Please renew it and try again.`
+      )
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("is expired");
+    expect(container.textContent).toContain(
+      "Settings > Integration > Volume Purchasing Program"
+    );
+    expect(container.textContent).not.toBe(
+      "Couldn't install. Please try again."
     );
   });
 
