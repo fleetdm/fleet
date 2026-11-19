@@ -6,6 +6,38 @@ This page includes a list of available resources and their API routes.
 
 Unless otherwise specified, endpoints that accept a request body limit its size to the configured `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE` (default 1MiB).
 
+## Pagination
+
+As of Fleet v5.0.0, every list endpoint that accepts `page` and `per_page` parameters returns bounded pages:
+
+- If `per_page` is not specified, the endpoint returns the first page with a default of 100 results. Omitting pagination parameters no longer returns all results.
+- The maximum `per_page` is 1,000. Higher values are silently clamped to 1,000.
+- `page` is 0-indexed. Requesting a page beyond the last one returns an empty list, not an error.
+- Paginated responses include `meta` pagination metadata:
+
+```json
+{
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
+}
+```
+
+There are two exceptions. [Get hosts report in CSV](#get-hosts-report-in-csv) (`GET /api/v1/fleet/hosts/report`) is a full export and returns all matching hosts. The [activities](#activities) endpoints keep their documented maximum of 10,000 results per page.
+
+If your integration expects every row, add a paging loop: request pages with `per_page=1000` and increment `page` until `meta.has_next_results` is `false` (or a page comes back with fewer than `per_page` rows). For example:
+
+```sh
+page=0
+while : ; do
+  curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://fleet.example.com/api/v1/fleet/hosts?per_page=1000&page=$page" > "hosts-$page.json"
+  grep -q '"has_next_results": *true' "hosts-$page.json" || break
+  page=$((page + 1))
+done
+```
+
 ## Authentication
 
 - [Retrieve your API token](#retrieve-your-api-token)
@@ -1241,7 +1273,7 @@ List certificates added to Fleet.
 | ----------| ------- | ---- | -------------------------------------------------------------- |
 | fleet_id   | integer | query | _Available in Fleet Premium_. The fleet ID to filter certificate templates. If not specified, this defaults to "Unassigned". |
 | page      | integer | query | Page number of the results to fetch.                          |
-| per_page  | integer | query | Results per page.                                             |
+| per_page  | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key | string  | query | What to order results by. Allowed field is `id`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -1780,7 +1812,7 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 | Name            | Type    | In    | Description                                                                                                                    |
 |-----------------|---------|-------|--------------------------------------------------------------------------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                           |
-| per_page        | integer | query | Results per page.                                                                                                              |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                        |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Valid options are `"asc"` or `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                       |
@@ -1826,7 +1858,11 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
       "max_block": 1,
       "error": "S3 multipart carve upload: EntityTooSmall: Your proposed upload is smaller than the minimum allowed object size"
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -3697,7 +3733,7 @@ the `software` table.
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. **Note:** Use `page` instead of `after`                                                                                                                                                                                                                                    |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                                                                                                                                               |
@@ -6177,7 +6213,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
 | vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key | string | query | What to order results by. Options include `"name"`. Default is `"name"`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
@@ -6394,7 +6430,7 @@ For App Store apps, `app_store_app.version_id` is the ID of the version of the a
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
 | vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key | string | query | What to order results by. Options include `"name"`. Default is `"name"`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
@@ -6555,6 +6591,8 @@ Returns the list of hosts corresponding to the search criteria in CSV format, re
 requested by a web browser.
 
 Some cell values are escaped so that spreadsheet applications treat them as text. Numbers are not modified.
+
+This endpoint is a full export and is exempt from [pagination](#pagination): it returns all hosts matching the filters.
 
 `GET /api/v1/fleet/hosts/report`
 
@@ -6780,7 +6818,7 @@ For macOS hosts, certificates from MDM-delivered profiles containing an ACME pay
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's id. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key | string | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name` |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -6845,6 +6883,10 @@ Retrieves a list of the configuration profiles assigned to a host.
 | Name | Type    | In   | Description                      |
 | ---- | ------- | ---- | -------------------------------- |
 | id   | integer | path | **Required**. The ID of the host  |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
+| order_key | string | query | What to order results by. Options include `name`, `identifier`, `created_at`, and `uploaded_at`. Default is `name`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 
 #### Example
@@ -6870,7 +6912,11 @@ Retrieves a list of the configuration profiles assigned to a host.
       "self_service": true,
       "hidden": false
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -7140,7 +7186,7 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's id. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 
 #### Example
 
@@ -8110,6 +8156,8 @@ Returns a list of labels.
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
 | include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -8226,7 +8274,11 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "author_id": 1,
       "fleet_id": null
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -8244,7 +8296,7 @@ Returns a list of the hosts that belong to the specified label.
 | ---------------          | ------- | ----- | -----------------------------------------------------------------------------------------------------------------------------                                                                                              |
 | id                       | integer | path  | **Required**. The label's id.                                                                                                                                                                                              |
 | page                     | integer | query | Page number of the results to fetch.                                                                                                                                                                                       |
-| per_page                 | integer | query | Results per page.                                                                                                                                                                                                          |
+| per_page                 | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key                | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                            |
 | order_direction          | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                                                                              |
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
@@ -8537,7 +8589,7 @@ results (i.e., only profiles that are associated with "Unassigned" are listed).
 | ------------------------- | ------  | -----  | ------------------------------------------------------------------------- |
 | fleet_id                  | string  | query  | _Available in Fleet Premium_. The fleet id to filter profiles.              |
 | page                      | integer | query  | Page number of the results to fetch.                                     |
-| per_page                  | integer | query  | Results per page.                                                        |
+| per_page                  | integer | query  | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key                 | string  | query  | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |
 | order_direction           | string  | query  | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                     | string  | query  | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -10404,7 +10456,7 @@ List software that can be automatically installed during setup. If `install_duri
 | platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
 | fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
 | page | integer | query | Page number of the results to fetch. |
-| per_page | integer | query | Results per page. |
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key | string | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending). |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
@@ -10621,6 +10673,10 @@ The possible `status` values for Android hosts are the following:
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
 | command_uuid              | string  | query | The unique identifier of the command.                                     |
 | host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only results for the specified host. |
+| page                      | integer | query | Page number of the results to fetch.                                      |
+| per_page                  | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
+
+Pages are ordered by host UUID. When no `host_identifier` is specified, a page may contain fewer than `per_page` results after fleet-visibility filtering; use `meta.has_next_results` to determine whether to keep paging.
 
 #### Example
 
@@ -10643,7 +10699,11 @@ The possible `status` values for Android hosts are the following:
       "payload": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPg0KPHBsaXN0IHZlcnNpb249IjEuMCI+DQo8ZGljdD4NCg0KCTxrZXk+UGF5bG9hZERlc2NyaXB0aW9uPC9rZXk+DQoJPHN0cmluZz5UaGlzIHByb2ZpbGUgY29uZmlndXJhdGlvbiBpcyBkZXNpZ25lZCB0byBhcHBseSB0aGUgQ0lTIEJlbmNobWFyayBmb3IgbWFjT1MgMTAuMTQgKHYyLjAuMCksIDEwLjE1ICh2Mi4wLjApLCAxMS4wICh2Mi4wLjApLCBhbmQgMTIuMCAodjEuMC4wKTwvc3RyaW5nPg0KCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+DQoJPHN0cmluZz5EaXNhYmxlIEJsdWV0b290aCBzaGFyaW5nPC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkRW5hYmxlZDwva2V5Pg0KCTx0cnVlLz4NCgk8a2V5PlBheWxvYWRJZGVudGlmaWVyPC9rZXk+DQoJPHN0cmluZz5jaXMubWFjT1NCZW5jaG1hcmsuc2VjdGlvbjIuQmx1ZXRvb3RoU2hhcmluZzwvc3RyaW5nPg0KCTxrZXk+UGF5bG9hZFNjb3BlPC9rZXk+DQoJPHN0cmluZz5TeXN0ZW08L3N0cmluZz4NCgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+DQoJPHN0cmluZz5Db25maWd1cmF0aW9uPC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkVVVJRDwva2V5Pg0KCTxzdHJpbmc+NUNFQkQ3MTItMjhFQi00MzJCLTg0QzctQUEyOEE1QTM4M0Q4PC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkVmVyc2lvbjwva2V5Pg0KCTxpbnRlZ2VyPjE8L2ludGVnZXI+DQogICAgPGtleT5QYXlsb2FkUmVtb3ZhbERpc2FsbG93ZWQ8L2tleT4NCiAgICA8dHJ1ZS8+DQoJPGtleT5QYXlsb2FkQ29udGVudDwva2V5Pg0KCTxhcnJheT4NCgkJPGRpY3Q+DQoJCQk8a2V5PlBheWxvYWRDb250ZW50PC9rZXk+DQoJCQk8ZGljdD4NCgkJCQk8a2V5PmNvbS5hcHBsZS5CbHVldG9vdGg8L2tleT4NCgkJCQk8ZGljdD4NCgkJCQkJPGtleT5Gb3JjZWQ8L2tleT4NCgkJCQkJPGFycmF5Pg0KCQkJCQkJPGRpY3Q+DQoJCQkJCQkJPGtleT5tY3hfcHJlZmVyZW5jZV9zZXR0aW5nczwva2V5Pg0KCQkJCQkJCTxkaWN0Pg0KCQkJCQkJCQk8a2V5PlByZWZLZXlTZXJ2aWNlc0VuYWJsZWQ8L2tleT4NCgkJCQkJCQkJPGZhbHNlLz4NCgkJCQkJCQk8L2RpY3Q+DQoJCQkJCQk8L2RpY3Q+DQoJCQkJCTwvYXJyYXk+DQoJCQkJPC9kaWN0Pg0KCQkJPC9kaWN0Pg0KCQkJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4NCgkJCTxzdHJpbmc+RGlzYWJsZXMgQmx1ZXRvb3RoIFNoYXJpbmc8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+DQoJCQk8c3RyaW5nPkN1c3RvbTwvc3RyaW5nPg0KCQkJPGtleT5QYXlsb2FkRW5hYmxlZDwva2V5Pg0KCQkJPHRydWUvPg0KCQkJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5Pg0KCQkJPHN0cmluZz4wMjQwREQxQy03MERDLTQ3NjYtOTAxOC0wNDMyMkJGRUVBRDE8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZFR5cGU8L2tleT4NCgkJCTxzdHJpbmc+Y29tLmFwcGxlLk1hbmFnZWRDbGllbnQucHJlZmVyZW5jZXM8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4NCgkJCTxzdHJpbmc+MDI0MEREMUMtNzBEQy00NzY2LTkwMTgtMDQzMjJCRkVFQUQxPC9zdHJpbmc+DQoJCQk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+DQoJCQk8aW50ZWdlcj4xPC9pbnRlZ2VyPg0KCQk8L2RpY3Q+DQoJPC9hcnJheT4NCjwvZGljdD4NCjwvcGxpc3Q+",
       "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPg0KPHBsaXN0IHZlcnNpb249IjEuMCI+DQo8ZGljdD4NCiAgICA8a2V5PkNvbW1hbmRVVUlEPC9rZXk+DQogICAgPHN0cmluZz4wMDAxX0luc3RhbGxQcm9maWxlPC9zdHJpbmc+DQogICAgPGtleT5TdGF0dXM8L2tleT4NCiAgICA8c3RyaW5nPkFja25vd2xlZGdlZDwvc3RyaW5nPg0KICAgIDxrZXk+VURJRDwva2V5Pg0KICAgIDxzdHJpbmc+MDAwMDgwMjAtMDAwOTE1MDgzQzgwMDEyRTwvc3RyaW5nPg0KPC9kaWN0Pg0KPC9wbGlzdD4="
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -10689,7 +10749,7 @@ Fleet deletes old MDM command history on a schedule, so older commands may not b
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
 | host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
 | page                      | integer | query | Page number of the results to fetch. Maximum is `100`. |
-| per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
+| per_page                  | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | request_type              | string  | query | The request type to filter commands by. |
@@ -12125,7 +12185,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 | automation_type         | string  | query | Filters by automation type. Supported values are `"software"`, `"script"`, `"calendar"`, `"configuration_profile"`, `"conditional_access"`, and `"webhook_or_ticket"`. |
 | type                    | string  | query | Filters by policy type. Supported values are `"dynamic"` and `"patch"`. |
 | page                    | integer | query | Page number of the results to fetch. |
-| per_page                | integer | query | Results per page. |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `fleet_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -12658,7 +12718,7 @@ Returns a list of reports. To see each report's data, use the [get report data](
 | merge_inherited | boolean | query | _Available in Fleet Premium_. If `true`, will include global reports in addition to fleet-level reports when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
 | platform        | string  | query | Return reports that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since reports cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
 | page                    | integer | query | Page number of the results to fetch. |
-| per_page                | integer | query | Results per page. |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
@@ -12775,7 +12835,7 @@ Lists the saved reports that run on a host, along with the first result for each
 | query              | string  | query | Search query keywords. Searchable fields include `name`.                                                      |
 | exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
 | page               | integer | query | Page number of the results to fetch.                                                                          |
-| per_page           | integer | query | Results per page.                                                                                             |
+| per_page           | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key          | string  | query | What to order results by. Valid options are `"name"` and `"last_fetched"`. Default is `"name"`.               |
 | order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
@@ -12925,8 +12985,8 @@ Returns a specific report's data.
 | id              | integer | path  | **Required**. The ID of the desired report.                                               |
 | fleet_id        | integer | query | Filter the report to only include hosts that are associated with the fleet specified.     |
 | query           | string  | query | Search query keywords. Matches the host's display name and any result column value.       |
-| page            | integer | query | Page number of the results to fetch. Only applies when `per_page` is set.                 |
-| per_page        | integer | query | Results per page. If omitted, all results are returned and `meta` is not included.        |
+| page            | integer | query | Page number of the results to fetch.                                                      |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Valid options are `"last_fetched"`, `"host_name"`, `"host_id"`, or the name of a result column. Result column values are sorted as strings, and the built-in options take precedence over a result column with the same name. Default is `"last_fetched"`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
 
@@ -13008,7 +13068,11 @@ If a report has no results stored, then `results` will be an empty array:
   "report_id": 32,
   "report_clipped": false,
   "count": 0,
-  "results": []
+  "results": [],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -13028,6 +13092,10 @@ Returns a specific report's data for a single host.
 | --------- | ------- | ----- | ------------------------------------------ |
 | id        | integer | path  | **Required**. The ID of the desired host.          |
 | report_id  | integer | path  | **Required**. The ID of the desired report.         |
+| page      | integer | query | Page number of the results to fetch.       |
+| per_page  | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
+
+Result rows are returned in insertion order.
 
 #### Example
 
@@ -13063,7 +13131,11 @@ Returns a specific report's data for a single host.
         "vendor": "Logitech"
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -13078,7 +13150,11 @@ If a report has no results stored for the specified host, then `results` will be
   "host_name": "foo",
   "last_fetched": "2021-01-19T17:08:31Z",
   "report_clipped": false,
-  "results": []
+  "results": [],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -14107,7 +14183,7 @@ Returns a list of batch script executions.
 | fleet_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified fleet. |
 | status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or `"finished"`. |
 | page            | integer | query | Page number of the results to fetch. |
-| per_page        | integer | query | Results per page. |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 
 
 #### Example
@@ -14218,7 +14294,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 | batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
 | status              | string  | query | **Required**. Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
 | page                | integer | query | Page number of the results to fetch. |
-| per_page            | integer | query | Results per page. |
+| per_page            | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key           | string  | query | What to order results by. Allowed fields are `display_name`, `hostname`, and `updated_at`. |
 | order_direction     | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after               | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -14386,7 +14462,7 @@ Deletes an existing script.
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter scripts by. If not specified, it will filter only scripts that are available for "Unassigned" hosts. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Can be ordered by `id`, `name`, `created_at`, or `updated_at`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -14437,7 +14513,7 @@ Deletes an existing script.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's id. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key | string | query | What to order results by. Can be ordered by `name` or `executed_at`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -14639,7 +14715,7 @@ Get a list of all software.
 | Name                    | Type    | In    | Description                                                                                                                                                                |
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).                                                              |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                                        |
@@ -14819,7 +14895,7 @@ A software title can have more than one App Store app version. The `app_store_ap
 
 > For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
-> A request without pagination parameters returns at most 10,000 versions. Use `page` and `per_page` to retrieve the rest; `count` in the response is the total number of versions matching the request.
+> A request returns at most 1,000 versions per page. Use `page` and `per_page` to retrieve the rest; `count` in the response is the total number of versions matching the request.
 
 Get a list of all software versions.
 
@@ -14830,7 +14906,7 @@ Get a list of all software versions.
 | Name                    | Type    | In    | Description                                                                                                                                                                |
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page. If no pagination parameters are specified, defaults to 10,000.                                                                                            |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. In Fleet Premium, `cve_published`, `cvss_score`, `epss_probability`, and `cisa_known_exploit` are also allowed unless `without_vulnerability_details` is `true`. Default is `hosts_count` (descending). |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
@@ -14962,7 +15038,7 @@ Returns a list of all operating systems.
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 | max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page. Default is `20`. |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count` and `os_version`. Default is `hosts_count` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
@@ -16076,7 +16152,7 @@ List available Fleet-maintained apps.
 | order_key | string | query | What to order results by. Currently only `name` is supported. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order. Options are `"asc"` and `"desc"`. Default is `"asc"`. |
 | page     | integer | query | Page number of the results to fetch. Pagination is by app: an app's macOS and Windows entries are counted as one result and always returned on the same page.  |
-| per_page | integer | query | Results (apps) per page.  |
+| per_page | integer | query | Results (apps) per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | platform | string | query | Filter to apps available on a platform. Options are `"darwin"` (macOS) and `"windows"`. |
 | available | boolean | query | If `true`, only return apps that have not yet been added to the fleet. Requires `fleet_id`. |
 
@@ -16621,7 +16697,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | fleet_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| per_page                | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `hosts_count`. Default is `created_at` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
@@ -16922,7 +16998,7 @@ _Available in Fleet Premium_
 | Name            | Type    | In    | Description                                                                                                                   |
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Can be any column in the `fleets` table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
@@ -17013,7 +17089,11 @@ _Available in Fleet Premium_
         ]
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -18099,7 +18179,7 @@ Returns a list of all enabled users
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | fleet_id         | integer | query | _Available in Fleet Premium_. Filters the users to only include users in the specified fleet.                                   |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
@@ -18144,7 +18224,11 @@ None.
         }
       ]
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -18779,7 +18863,7 @@ Returns a list of the active invitations in Fleet.
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | page            | integer | query | Page number of the results to fetch. |
-| per_page        | integer | query | Results per page. |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
@@ -18815,7 +18899,11 @@ Returns a list of the active invitations in Fleet.
       "global_role": "admin",
       "fleets": []
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -19318,7 +19406,7 @@ Lists all custom variables that can be used in scripts, configuration profiles, 
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.  |
-| per_page        | integer | query | Results per page. |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -19433,7 +19521,7 @@ Lists all [custom host vitals](https://fleetdm.com/guides/custom-host-vitals), w
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | query           | string  | query | Search query. Matches against the vital's name or its `$FLEET_HOST_VITAL_<id>` variable. |
 | page            | integer | query | Page number of the results to fetch.  |
-| per_page        | integer | query | Results per page. |
+| per_page        | integer | query | Results per page. Defaults to 100 if not specified. Maximum is 1,000 (higher values are clamped). |
 | order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. Default is `name`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
