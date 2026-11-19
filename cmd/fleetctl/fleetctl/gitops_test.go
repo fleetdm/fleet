@@ -9098,6 +9098,27 @@ software:
 			"-f", writeFleet(t, dir, "ram2.yml", "रम"),
 		})
 		require.NoError(t, err)
+
+		// Unassigned is fleet 0, so a fleet whose name only differs from it by ignored characters is not a duplicate.
+		globalFile := filepath.Join(dir, "default.yml")
+		require.NoError(t, os.WriteFile(globalFile, []byte(`
+controls:
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+labels:
+`), 0o600))
+		unassignedFile := filepath.Join(dir, "unassigned.yml")
+		require.NoError(t, os.WriteFile(unassignedFile, []byte("name: Unassigned\npolicies:\ncontrols:\nsoftware:\n"), 0o600))
+		_, err = runAppNoChecks([]string{"gitops", "--dry-run", "-f", globalFile, "-f", unassignedFile,
+			"-f", writeFleet(t, dir, "un-assigned.yml", "Un-assigned")})
+		require.NoError(t, err)
 	})
 }
 
