@@ -20,11 +20,13 @@ func (c *Client) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProf
 	if teamID != nil {
 		query.Add("fleet_id", strconv.FormatUint(uint64(*teamID), 10))
 	}
-	var responseBody listMDMConfigProfilesResponse
-	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
-		return nil, err
-	}
-	return responseBody.Profiles, nil
+	return listAllPages(query.Encode(), "name", func(query string) ([]*fleet.MDMConfigProfilePayload, error) {
+		var responseBody listMDMConfigProfilesResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Profiles, nil
+	})
 }
 
 // windowsProfileDeletionWarning checks, before a profile batch runs, whether

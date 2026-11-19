@@ -13,12 +13,13 @@ import (
 // ListTeams retrieves the list of teams.
 func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
 	verb, path := "GET", "/api/latest/fleet/fleets"
-	var responseBody listTeamsResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Teams, nil
+	return listAllPages(query, "name", func(query string) ([]fleet.Team, error) {
+		var responseBody listTeamsResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Teams, nil
+	})
 }
 
 // CreateTeam creates a new team.

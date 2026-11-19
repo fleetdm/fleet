@@ -92,7 +92,7 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) TestApplyStarterLibraryPr
 	assert.Equal(t, "Test Org", appConfig.OrgInfo.OrgName)
 
 	// Verify that the teams from the starter templates were created.
-	teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.ListOptions{})
+	teams, _, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.ListOptions{})
 	require.NoError(t, err)
 
 	teamNames := make([]string, len(teams))

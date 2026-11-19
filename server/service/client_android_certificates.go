@@ -7,13 +7,15 @@ import (
 // GetCertificateTemplates retrieves the list of Certificate Templates for a team.
 func (c *Client) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error) {
 	verb, path := "GET", "/api/latest/fleet/certificates"
-	var responseBody listCertificateTemplatesResponse
 	query := "fleet_id=" + teamID
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Certificates, nil
+	// "id" is the only order key the endpoint allows.
+	return listAllPages(query, "id", func(query string) ([]*fleet.CertificateTemplateResponseSummary, error) {
+		var responseBody listCertificateTemplatesResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Certificates, nil
+	})
 }
 
 // ApplyCertificateSpecs sends a list of certificate specs to the fleet instance to be added/updated.

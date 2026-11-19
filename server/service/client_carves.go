@@ -16,31 +16,36 @@ func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata,
 	if opt.Expired {
 		rawQuery = "expired=1"
 	}
-	response, err := c.AuthenticatedDo("GET", endpoint, rawQuery, nil)
-	if err != nil {
-		return nil, fmt.Errorf("GET /api/latest/fleet/carves: %w", err)
-	}
-	defer response.Body.Close()
+	all, err := listAllPages(rawQuery, "id", func(query string) ([]fleet.CarveMetadata, error) {
+		response, err := c.AuthenticatedDo("GET", endpoint, query, nil)
+		if err != nil {
+			return nil, fmt.Errorf("GET /api/latest/fleet/carves: %w", err)
+		}
+		defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(
-			"list carves received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf(
+				"list carves received status %d %s",
+				response.StatusCode,
+				extractServerErrorText(response.Body),
+			)
+		}
 
-	var responseBody fleet.ListCarvesResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
+		var responseBody fleet.ListCarvesResponse
+		if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+			return nil, fmt.Errorf("decode get carves response: %w", err)
+		}
+		if responseBody.Err != nil {
+			return nil, fmt.Errorf("get carves: %s", responseBody.Err)
+		}
+		return responseBody.Carves, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("decode get carves response: %w", err)
-	}
-	if responseBody.Err != nil {
-		return nil, fmt.Errorf("get carves: %s", responseBody.Err)
+		return nil, err
 	}
 
 	carves := []*fleet.CarveMetadata{}
-	for _, carve := range responseBody.Carves {
+	for _, carve := range all {
 		c := carve
 		carves = append(carves, &c)
 	}

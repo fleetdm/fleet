@@ -170,7 +170,7 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	assert.Equal(t, expected, script)
 
 	// Check Apple profiles
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, _, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	assert.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_"+secretName1)

@@ -642,8 +642,8 @@ func TestApplyAppConfig(t *testing.T) {
 	// Mock Apple GDMF API (required for validating OS update minimum version settings)
 	mdmtest.StartNewAppleGDMFTestServer(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleSpecList, nil, nil
 	}
 
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
@@ -869,8 +869,8 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	// reproduces the bug fixed by https://github.com/fleetdm/fleet/pull/8194
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleSpecList, nil, nil
 	}
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -980,8 +980,8 @@ spec:
 func TestApplyAppConfigUnknownFields(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleSpecList, nil, nil
 	}
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -1019,8 +1019,8 @@ spec:
 func TestApplyAppConfigDeprecatedFields(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleSpecList, nil, nil
 	}
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -1993,8 +1993,8 @@ func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	// Stubs
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleSpecList, nil, nil
 	}
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
@@ -2040,8 +2040,8 @@ func TestCanApplyIntervalsUsingDurations(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	// Stubs
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleSpecList, nil, nil
 	}
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
@@ -2145,7 +2145,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			return &clone, nil
 		}
 
-		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 			tms := make([]*fleet.Team, 0, len(teamsByName))
 			for _, tm := range teamsByName {
 				clone := *tm
@@ -2155,7 +2155,7 @@ func TestApplyMacosSetup(t *testing.T) {
 				l, r := tms[i], tms[j]
 				return l.Name < r.Name
 			})
-			return tms, nil
+			return tms, nil, nil
 		}
 
 		// initialize mockConfig
@@ -3050,8 +3050,8 @@ func TestApplySpecs(t *testing.T) {
 		}
 
 		// app config
-		ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-			return userRoleSpecList, nil
+		ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+			return userRoleSpecList, nil, nil
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {

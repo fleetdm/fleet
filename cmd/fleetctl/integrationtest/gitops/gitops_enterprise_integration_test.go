@@ -168,7 +168,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		return err
 	})
 
-	teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	teams, _, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, tm := range teams {
 		err := s.DS.DeleteTeam(ctx, tm.ID)
@@ -202,7 +202,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		return err
 	})
 
-	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
+	lbls, _, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
@@ -777,7 +777,7 @@ software:
 	require.Equal(t, "TestSCEP", groupedCAs.CustomScepProxy[0].Name)
 
 	// Verify the team was created and the certificate template exists.
-	teams, err := s.DS.ListTeams(t.Context(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	teams, _, err := s.DS.ListTeams(t.Context(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
 	require.NoError(t, err)
 	var teamID uint
 	for _, tm := range teams {
@@ -1792,7 +1792,7 @@ reports:
 	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
 
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, _, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(profiles))
 
@@ -1823,7 +1823,7 @@ reports:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
 
 	// Check profile does not exist
-	profiles, err = s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, _, err = s.DS.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(profiles))
 }
@@ -2237,7 +2237,7 @@ policies: []
 	// Verify that the profile content has the expected substitutions:
 	// - $FLEET_SECRET_* variables should remain as-is (substituted at delivery time)
 	// - Other env vars should be expanded during GitOps
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, _, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 
 	foundProfile := false
@@ -2356,7 +2356,7 @@ software:
 	require.NoError(t, err, "GitOps should succeed with the fix")
 
 	// Verify that the profile stored on the server still has the unexpanded variable
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, &team.ID)
+	profiles, _, err := s.DS.ListMDMAppleConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	// The stored profile should still contain the unexpanded variable, not the actual secret
@@ -5891,7 +5891,7 @@ reports:
 	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
 
 	// Verify the stored profile in the DB, based on my testing these vars are okay as they are not host-specific and we can avoid enrolling a host and checking the host specific payload.
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, _, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 
 	var storedProfile *fleet.MDMAppleConfigProfile

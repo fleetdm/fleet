@@ -229,8 +229,8 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 				return nil, nil
 			}
-			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-				return nil, nil
+			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+				return nil, nil, nil
 			}
 			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 				return nil, nil
@@ -1558,8 +1558,8 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-		return nil, nil
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil

@@ -653,7 +653,7 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 			return &clone, nil
 		}
 
-		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 			tms := make([]*fleet.Team, 0, len(teamsByName))
 			for _, tm := range teamsByName {
 				clone := *tm
@@ -663,7 +663,7 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 				l, r := tms[i], tms[j]
 				return l.Name < r.Name
 			})
-			return tms, nil
+			return tms, nil, nil
 		}
 
 		// initialize mockConfig
@@ -1482,8 +1482,8 @@ func TestApplySpecsDeprecatedKeys(t *testing.T) {
 		}
 
 		// app config
-		ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-			return userRoleSpecList, nil
+		ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+			return userRoleSpecList, nil, nil
 		}
 
 		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {

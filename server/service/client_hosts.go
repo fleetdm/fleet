@@ -13,9 +13,13 @@ import (
 // GetHosts retrieves the list of all Hosts
 func (c *Client) GetHosts(query string) ([]fleet.HostResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/hosts"
-	var responseBody listHostsResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	return responseBody.Hosts, err
+	return listAllPages(query, "id", func(query string) ([]fleet.HostResponse, error) {
+		var responseBody listHostsResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Hosts, nil
+	})
 }
 
 func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {

@@ -38,13 +38,13 @@ func (c *Client) CreateUser(p fleet.UserPayload) (*string, error) {
 // ListUsers retrieves the list of users.
 func (c *Client) ListUsers() ([]fleet.User, error) {
 	verb, path := "GET", "/api/latest/fleet/users"
-	var responseBody listUsersResponse
-
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Users, nil
+	return listAllPages("", "id", func(query string) ([]fleet.User, error) {
+		var responseBody listUsersResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Users, nil
+	})
 }
 
 func (c *Client) userIdFromEmail(email string) (uint, error) {

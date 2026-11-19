@@ -24,12 +24,12 @@ func TestFleetNameForPackage(t *testing.T) {
 	premium, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 	})
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		return []*fleet.Team{
 			{ID: 1, Name: "Servers", Secrets: []*fleet.EnrollSecret{{Secret: "servers-secret"}}},
 			{ID: 2, Name: "\U0001F4BB Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "old-secret"}, {Secret: "workstations-secret"}}},
 			{ID: 3, Name: "Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "other-workstations-secret"}}},
-		}, nil
+		}, nil, nil
 	}
 	// Tokens for an observer, whose view of enroll secrets Fleet masks, and for an expired session.
 	observer := &fleet.User{ID: 9999, Name: "observer", Email: "observer@example.com", GlobalRole: new(fleet.RoleObserver)}

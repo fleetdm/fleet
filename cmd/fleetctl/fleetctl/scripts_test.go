@@ -39,8 +39,8 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-		return nil, nil
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil

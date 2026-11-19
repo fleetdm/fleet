@@ -38,12 +38,13 @@ func (c *Client) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
 	if name != nil {
 		query.Set("query", *name)
 	}
-	var responseBody fleet.ListQueriesResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Queries, nil
+	return listAllPages(query.Encode(), "name", func(query string) ([]fleet.Query, error) {
+		var responseBody fleet.ListQueriesResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Queries, nil
+	})
 }
 
 // DeleteQueries deletes several queries.

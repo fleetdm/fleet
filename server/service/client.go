@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -300,6 +301,42 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 
 func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
+}
+
+// listAllPages fetches every row of a list endpoint. The server caps page
+// sizes, so a single unpaginated request only returns the first page;
+// fetchPage is called with increasing page numbers until a page comes back
+// shorter than the page size. A rawQuery that already pages (per_page or
+// page) is passed through as a single request, preserving callers that
+// paginate themselves. orderKey pins a stable sort — the default order of
+// some endpoints shifts as data changes (e.g. hosts_count), which can skip
+// or duplicate rows across pages — and is only applied when rawQuery doesn't
+// set one.
+func listAllPages[T any](rawQuery, orderKey string, fetchPage func(query string) ([]T, error)) ([]T, error) {
+	query, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return nil, fmt.Errorf("parse list query: %w", err)
+	}
+	if query.Has("per_page") || query.Has("page") {
+		return fetchPage(rawQuery)
+	}
+	perPage := int(fleet.MaxListPerPage)
+	query.Set("per_page", strconv.Itoa(perPage))
+	if !query.Has("order_key") {
+		query.Set("order_key", orderKey)
+	}
+	var all []T
+	for page := 0; ; page++ {
+		query.Set("page", strconv.Itoa(page))
+		rows, err := fetchPage(query.Encode())
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, rows...)
+		if len(rows) < perPage {
+			return all, nil
+		}
+	}
 }
 
 func (c *Client) CheckAnyMDMEnabled() error {

@@ -232,12 +232,13 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 // ListScripts retrieves the saved scripts.
 func (c *Client) ListScripts(query string) ([]*fleet.Script, error) {
 	verb, path := "GET", "/api/latest/fleet/scripts"
-	var responseBody fleet.ListScriptsResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Scripts, nil
+	return listAllPages(query, "name", func(query string) ([]*fleet.Script, error) {
+		var responseBody fleet.ListScriptsResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Scripts, nil
+	})
 }
 
 // Get the contents of a saved script.

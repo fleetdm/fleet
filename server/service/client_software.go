@@ -16,39 +16,50 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// ListSoftwareVersions returns the software versions in one page of results, and the total number
-// of versions matching the query.
+// ListSoftwareVersions returns the software versions matching the query, and the total number
+// of versions matching the query. A query that doesn't page fetches every version.
 func (c *Client) ListSoftwareVersions(query string) ([]fleet.Software, int, error) {
 	verb, path := "GET", "/api/latest/fleet/software/versions"
-	var responseBody listSoftwareVersionsResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	var count int
+	software, err := listAllPages(query, "name", func(query string) ([]fleet.Software, error) {
+		var responseBody listSoftwareVersionsResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		count = responseBody.Count
+		return responseBody.Software, nil
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	return responseBody.Software, responseBody.Count, nil
+	return software, count, nil
 }
 
 // ListSoftwareTitles retrieves the software titles installed on hosts.
 func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/software/titles"
-	var responseBody listSoftwareTitlesResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.SoftwareTitles, nil
+	return listAllPages(query, "name", func(query string) ([]fleet.SoftwareTitleListResult, error) {
+		var responseBody listSoftwareTitlesResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.SoftwareTitles, nil
+	})
 }
 
 // Get the software titles available for the setup experience.
 func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
-	var responseBody getSetupExperienceSoftwareResponse
-	query := fmt.Sprintf("platform=%s&fleet_id=%d", platform, teamID)
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.SoftwareTitles, nil
+	query := url.Values{}
+	query.Set("platform", platform)
+	query.Set("fleet_id", fmt.Sprint(teamID))
+	return listAllPages(query.Encode(), "name", func(query string) ([]fleet.SoftwareTitleListResult, error) {
+		var responseBody getSetupExperienceSoftwareResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.SoftwareTitles, nil
+	})
 }
 
 // GetSoftwareTitleByID retrieves a software title by ID.
@@ -391,11 +402,11 @@ func (c *Client) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 func (c *Client) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
 	verb, path := "GET", "/api/latest/fleet/software/fleet_maintained_apps"
 	query := fmt.Sprintf("fleet_id=%d", teamID)
-
-	var responseBody listFleetMaintainedAppsResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.FleetMaintainedApps, nil
+	return listAllPages(query, "name", func(query string) ([]fleet.MaintainedApp, error) {
+		var responseBody listFleetMaintainedAppsResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.FleetMaintainedApps, nil
+	})
 }

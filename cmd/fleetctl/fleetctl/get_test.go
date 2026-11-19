@@ -127,8 +127,8 @@ var setCurrentUserSession = func(t *testing.T, ds *mock.Store, user *fleet.User)
 func TestGetUserRoles(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleList, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return userRoleList, nil, nil
 	}
 
 	expectedText := `+-------------------------------+-------------+
@@ -192,7 +192,7 @@ func TestGetTeams(t *testing.T) {
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 			additionalQueries := json.RawMessage(`{"foo":"bar"}`)
-			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 				created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 				require.NoError(t, err)
 				return []*fleet.Team{
@@ -255,7 +255,7 @@ func TestGetTeams(t *testing.T) {
 							},
 						},
 					},
-				}, nil
+				}, nil, nil
 			}
 			mockEmptyTeamSoftware(ds)
 
@@ -331,7 +331,7 @@ func TestGetTeamsByName(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t,
 		&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
 
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		require.Equal(t, "test1", opt.MatchQuery)
 
 		created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
@@ -345,7 +345,7 @@ func TestGetTeamsByName(t *testing.T) {
 				UserCount:   99,
 				HostCount:   43,
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	expectedText := `+------------+----------+------------+------------+
@@ -366,7 +366,7 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t,
 		&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
 
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		return []*fleet.Team{
 			{
 				ID:   1,
@@ -374,7 +374,7 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 				// The team config carries no (or stale) software; it must be ignored.
 				Config: fleet.TeamConfig{},
 			},
-		}, nil
+		}, nil, nil
 	}
 	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
 		return true, nil
@@ -572,7 +572,7 @@ func TestGetHosts(t *testing.T) {
 		return nil, nil
 	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
 		return []*fleet.HostPolicy{
 			{
 				PolicyData: fleet.PolicyData{
@@ -606,7 +606,7 @@ func TestGetHosts(t *testing.T) {
 				},
 				Response: "fails",
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -791,8 +791,8 @@ func TestGetHostsMDM(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-		return nil, nil
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
@@ -2470,7 +2470,7 @@ func TestGetCarves(t *testing.T) {
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
-	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 		return []*fleet.CarveMetadata{
 			{
 				HostId:     1,
@@ -2495,7 +2495,7 @@ func TestGetCarves(t *testing.T) {
 				CreatedAt:  createdAt,
 				Error:      ptr.String("test error"),
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	expected := `+----+--------------------------------+--------------+------------+------------+---------+
@@ -2637,8 +2637,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			},
 		},
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{team1, team2}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{team1, team2}, nil, nil
 	}
 	mockEmptyTeamSoftware(ds)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2830,12 +2830,12 @@ func TestGetMDMCommandResults(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 		switch commandUUID {
 		case "empty-cmd":
-			return nil, nil
+			return nil, nil, nil
 		case "fail-cmd":
-			return nil, io.EOF
+			return nil, nil, io.EOF
 		default:
 			return []*fleet.MDMCommandResult{
 				{
@@ -2856,15 +2856,15 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Payload:     []byte(applePayloadXML),
 					Result:      []byte(appleResultXML),
 				},
-			}, nil
+			}, nil, nil
 		}
 	}
-	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 		switch commandUUID {
 		case "empty-cmd":
-			return nil, nil
+			return nil, nil, nil
 		case "fail-cmd":
-			return nil, io.EOF
+			return nil, nil, io.EOF
 		default:
 			return []*fleet.MDMCommandResult{
 				{
@@ -2883,15 +2883,15 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Payload:     []byte(winPayloadXML),
 					Result:      []byte(winResultXML),
 				},
-			}, nil
+			}, nil, nil
 		}
 	}
-	ds.GetMDMAndroidCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMAndroidCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 		switch commandUUID {
 		case "empty-cmd":
-			return nil, nil
+			return nil, nil, nil
 		case "fail-cmd":
-			return nil, io.EOF
+			return nil, nil, io.EOF
 		case "pending-cmd":
 			// a command that hasn't reached a terminal state yet has no raw_result,
 			// and a result that isn't valid JSON must be printed as-is
@@ -2914,7 +2914,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Payload:     nil,
 					Result:      []byte(`{"done":true,`),
 				},
-			}, nil
+			}, nil, nil
 		default:
 			return []*fleet.MDMCommandResult{
 				{
@@ -2935,7 +2935,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Payload:     []byte(androidPayloadJSON),
 					Result:      []byte(androidResultJSON),
 				},
-			}, nil
+			}, nil, nil
 		}
 	}
 	var platform string
@@ -3953,40 +3953,39 @@ func TestFormatCommandOutput(t *testing.T) {
 	})
 }
 
-func TestGetSoftwareVersionsTruncated(t *testing.T) {
+func TestGetSoftwareVersionsFetchesAllPages(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	listed := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "apps"},
-		{Name: "foo", Version: "0.0.2", Source: "apps"},
+	// A full first page followed by a short second one: the client must page
+	// through both instead of truncating at the server's page size.
+	perPage := int(fleet.MaxListPerPage)
+	page0 := make([]fleet.Software, 0, perPage)
+	for i := 0; i < perPage; i++ {
+		page0 = append(page0, fleet.Software{Name: fmt.Sprintf("app%04d", i), Version: "0.0.1", Source: "apps"})
 	}
-	total := len(listed)
+	page1 := []fleet.Software{{Name: "zzz-last", Version: "0.0.2", Source: "apps"}}
+	total := len(page0) + len(page1)
 	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
-		return listed, &fleet.PaginationMetadata{HasNextResults: total > len(listed)}, nil
+		if opt.ListOptions.Page == 0 {
+			return page0, &fleet.PaginationMetadata{HasNextResults: true}, nil
+		}
+		return page1, &fleet.PaginationMetadata{HasPreviousResults: true}, nil
 	}
 	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
 		return total, nil
 	}
 
-	var stderr bytes.Buffer
-	out, err := runWithErrWriter([]string{"get", "software", "--versions"}, &stderr)
-	require.NoError(t, err)
-	require.Contains(t, out.String(), "0.0.2")
-	require.Empty(t, stderr.String())
-
-	total = 12345
 	for _, args := range [][]string{
 		{"get", "software", "--versions"},
 		{"get", "software", "--versions", "--json"},
 		{"get", "software", "--versions", "--yaml"},
 	} {
-		stderr.Reset()
+		var stderr bytes.Buffer
 		out, err := runWithErrWriter(args, &stderr)
 		require.NoError(t, err)
-		require.Contains(t, out.String(), "0.0.2")
-		// On stderr only, so --json and --yaml output stays parseable.
+		require.Contains(t, out.String(), "app0000")
+		require.Contains(t, out.String(), "zzz-last")
 		require.NotContains(t, out.String(), "Showing")
-		require.Contains(t, stderr.String(), "Showing 2 of 12345 software versions")
-		require.Contains(t, stderr.String(), "per_page")
+		require.Empty(t, stderr.String())
 	}
 }

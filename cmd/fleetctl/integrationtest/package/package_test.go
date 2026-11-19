@@ -69,12 +69,12 @@ func TestPackage(t *testing.T) {
 		server, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 			License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		})
-		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 			return []*fleet.Team{
 				{ID: 1, Name: "Workstations (Canary)", Secrets: []*fleet.EnrollSecret{{Secret: "canary-secret"}}},
 				// Cleans up to the same name, so the fleet ID tells the two packages apart.
 				{ID: 2, Name: "workstations canary", Secrets: []*fleet.EnrollSecret{{Secret: "other-secret"}}},
-			}, nil
+			}, nil, nil
 		}
 		config := fmt.Sprintf("contexts:\n  default:\n    address: %s\n    token: admin-token\n    tls-skip-verify: true\n", server.URL)
 		require.NoError(t, os.MkdirAll(filepath.Join(home, ".fleet"), 0o700))

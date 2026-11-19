@@ -29,7 +29,7 @@ func TestSavedLiveQuery(t *testing.T) {
 		Logger: logger,
 	})
 
-	users, err := ds.ListUsersFunc(context.Background(), fleet.UserListOptions{})
+	users, _, err := ds.ListUsersFunc(context.Background(), fleet.UserListOptions{})
 	require.NoError(t, err)
 	var admin *fleet.User
 	for _, user := range users {
@@ -204,7 +204,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		},
 	)
 
-	users, err := ds.ListUsersFunc(context.Background(), fleet.UserListOptions{})
+	users, _, err := ds.ListUsersFunc(context.Background(), fleet.UserListOptions{})
 	require.NoError(t, err)
 	var admin *fleet.User
 	for _, user := range users {
@@ -322,7 +322,7 @@ func TestLiveQueryLabelsWithoutHosts(t *testing.T) {
 		Logger: slog.New(slog.DiscardHandler),
 	})
 
-	users, err := ds.ListUsersFunc(t.Context(), fleet.UserListOptions{})
+	users, _, err := ds.ListUsersFunc(t.Context(), fleet.UserListOptions{})
 	require.NoError(t, err)
 	var admin *fleet.User
 	for _, user := range users {

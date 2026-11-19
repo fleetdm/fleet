@@ -1364,16 +1364,10 @@ func getSoftwareCommand() *cli.Command {
 }
 
 func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
-	// The request carries no pagination, so the server returns at most its
-	// maximum page size. An inventory larger than that is truncated here.
-	software, total, err := client.ListSoftwareVersions(query.Encode())
+	// The client pages through the endpoint, so this returns every version.
+	software, _, err := client.ListSoftwareVersions(query.Encode())
 	if err != nil {
 		return fmt.Errorf("could not list software versions: %w", err)
-	}
-	if total > len(software) {
-		fmt.Fprintf(c.App.ErrWriter,
-			"[!] Showing %d of %d software versions. To list them all, use the API's page and per_page parameters: GET /api/v1/fleet/software/versions\n",
-			len(software), total)
 	}
 
 	if len(software) == 0 {

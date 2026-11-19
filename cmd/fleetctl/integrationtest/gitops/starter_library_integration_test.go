@@ -89,7 +89,7 @@ func (s *starterLibraryIntegrationTestSuite) TestApplyStarterLibraryFree() {
 	assert.Equal(t, "Test Org", appConfig.OrgInfo.OrgName)
 
 	// Verify that no teams were created for a free license.
-	teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.ListOptions{})
+	teams, _, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Empty(t, teams)
 

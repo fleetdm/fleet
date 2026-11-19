@@ -36,13 +36,14 @@ func (c *Client) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	} else {
 		path = "/api/latest/fleet/policies"
 	}
-	// The response body also works for listTeamPoliciesResponse because they contain some of the same members.
-	var responseBody fleet.ListGlobalPoliciesResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Policies, nil
+	return listAllPages("", "name", func(query string) ([]*fleet.Policy, error) {
+		// The response body also works for listTeamPoliciesResponse because they contain some of the same members.
+		var responseBody fleet.ListGlobalPoliciesResponse
+		if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+			return nil, err
+		}
+		return responseBody.Policies, nil
+	})
 }
 
 // DeletePolicies deletes several policies.

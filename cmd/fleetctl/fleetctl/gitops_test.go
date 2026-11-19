@@ -1121,8 +1121,8 @@ agent_options:
 	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Same, with a fleet that has a label of that name: the exception error still comes first, not a name conflict.
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{{ID: 1, Name: "team1"}}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{{ID: 1, Name: "team1"}}, nil, nil
 	}
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		if filter.TeamID != nil && *filter.TeamID == 1 {
@@ -1136,8 +1136,8 @@ agent_options:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
 	assert.NotContains(t, err.Error(), fleet.LabelNameInUseByFleetsErrMsg)
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return nil, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return nil, nil
@@ -1531,8 +1531,8 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil, nil
 	}
 	setupDefaultTeamConfigMocks(ds)
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -1740,8 +1740,8 @@ func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{savedTeam}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{savedTeam}, nil, nil
 	}
 	existingLabel := &fleet.LabelSpec{ID: 1, Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"}
 	existingTeamLabel := &fleet.LabelSpec{ID: 2, Name: "existing-team-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1", TeamID: new(uint(1))}
@@ -3030,11 +3030,11 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		if savedTeam != nil {
-			return []*fleet.Team{savedTeam}, nil
+			return []*fleet.Team{savedTeam}, nil, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
@@ -3285,8 +3285,8 @@ software:
 		Name:      "Team to delete",
 	}
 	ds.ListTeamsFuncInvoked = false
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{teamToDelete, team}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{teamToDelete, team}, nil, nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		switch tid {
@@ -5922,11 +5922,11 @@ settings:
 		return team, nil
 	}
 
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		if savedTeam != nil {
-			return []*fleet.Team{savedTeam}, nil
+			return []*fleet.Team{savedTeam}, nil, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
@@ -8090,11 +8090,11 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		if savedTeam != nil {
-			return []*fleet.Team{savedTeam}, nil
+			return []*fleet.Team{savedTeam}, nil, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		// Return a software title that matches the app_store_id we're testing (app_store_id "2" is defined in the mock VPP server)
@@ -9632,8 +9632,8 @@ func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: exceptions}}, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Test Fleet" {
@@ -9805,8 +9805,8 @@ func TestSelfServiceCategoriesPruneSkipped(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: fleet.GitOpsExceptions{Software: true}}}, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, error) {
-		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Test Fleet" {
