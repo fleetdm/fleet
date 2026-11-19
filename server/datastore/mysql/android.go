@@ -1445,7 +1445,7 @@ func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *f
 
 // GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
 // If hostUUID is non-empty, results are filtered to that host.
-func (ds *Datastore) GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 	query := `
 		SELECT
 			c.host_uuid,
@@ -1464,11 +1464,31 @@ func (ds *Datastore) GetMDMAndroidCommandResults(ctx context.Context, commandUUI
 		args = append(args, hostUUID)
 	}
 
+	// One row per targeted host; the host UUID gives pages a deterministic
+	// order.
+	query += ` ORDER BY c.host_uuid`
+	if opt.PerPage > 0 {
+		limit := opt.PerPage
+		if opt.IncludeMetadata {
+			limit++
+		}
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, opt.PerPage*opt.Page)
+	}
+
 	var results []*fleet.MDMCommandResult
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get android command results")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get android command results")
 	}
-	return results, nil
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata && opt.PerPage > 0 {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(results) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+	return results, metaData, nil
 }
 
 // InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.

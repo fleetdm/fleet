@@ -181,7 +181,7 @@ type GetQueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
 type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) (results []fleet.HostQueryResultRow, count int, meta *fleet.PaginationMetadata, reportClipped bool, err error)
 
-type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error)
+type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID uint, opt fleet.ListOptions) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, meta *fleet.PaginationMetadata, err error)
 
 type QueryReportIsClippedFunc func(ctx context.Context, queryID uint) (bool, error)
 
@@ -255,7 +255,7 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
-type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error)
+type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host, includeHidden bool, opt fleet.ListOptions) ([]*fleet.DevicePolicy, *fleet.PaginationMetadata, error)
 
 type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -581,7 +581,7 @@ type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID strin
 
 type DeleteMDMAppleDeclarationFunc func(ctx context.Context, declarationUUID string) error
 
-type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error)
+type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error)
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
@@ -609,7 +609,7 @@ type GetMDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token stri
 
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
-type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
+type ListMDMAppleDevicesFunc func(ctx context.Context, opt fleet.ListOptions) ([]fleet.MDMAppleDevice, *fleet.PaginationMetadata, error)
 
 type GenerateABMKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
 
@@ -627,7 +627,7 @@ type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error)
 
-type MDMListHostConfigurationProfilesFunc func(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error)
+type MDMListHostConfigurationProfilesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error)
 
 type MDMAppleReconcileFileVaultProfileFunc func(ctx context.Context, teamID *uint) error
 
@@ -713,7 +713,7 @@ type GetMDMWindowsTOSContentFunc func(ctx context.Context, redirectUri string, r
 
 type RunMDMCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error)
+type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string, hostIdentifier string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error)
 
 type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error)
 
@@ -3025,11 +3025,11 @@ func (s *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *ui
 	return s.GetQueryReportResultsFunc(ctx, id, teamID, opts)
 }
 
-func (s *Service) GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error) {
+func (s *Service) GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint, opt fleet.ListOptions) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, meta *fleet.PaginationMetadata, err error) {
 	s.mu.Lock()
 	s.GetHostQueryReportResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostQueryReportResultsFunc(ctx, hid, queryID)
+	return s.GetHostQueryReportResultsFunc(ctx, hid, queryID, opt)
 }
 
 func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
@@ -3284,11 +3284,11 @@ func (s *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, e
 	return s.HostLiteByIDFunc(ctx, id)
 }
 
-func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
+func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool, opt fleet.ListOptions) ([]*fleet.DevicePolicy, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListDevicePoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListDevicePoliciesFunc(ctx, host, includeHidden)
+	return s.ListDevicePoliciesFunc(ctx, host, includeHidden, opt)
 }
 
 func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
@@ -4425,11 +4425,11 @@ func (s *Service) DeleteMDMAppleDeclaration(ctx context.Context, declarationUUID
 	return s.DeleteMDMAppleDeclarationFunc(ctx, declarationUUID)
 }
 
-func (s *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (s *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
+	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID, opt)
 }
 
 func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -4523,11 +4523,11 @@ func (s *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleI
 	return s.ListMDMAppleInstallersFunc(ctx)
 }
 
-func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
+func (s *Service) ListMDMAppleDevices(ctx context.Context, opt fleet.ListOptions) ([]fleet.MDMAppleDevice, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMAppleDevicesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMAppleDevicesFunc(ctx)
+	return s.ListMDMAppleDevicesFunc(ctx, opt)
 }
 
 func (s *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
@@ -4586,11 +4586,11 @@ func (s *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID ui
 	return s.RenewABMTokenFunc(ctx, token, tokenID)
 }
 
-func (s *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (s *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.MDMListHostConfigurationProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMListHostConfigurationProfilesFunc(ctx, hostID)
+	return s.MDMListHostConfigurationProfilesFunc(ctx, hostID, opt)
 }
 
 func (s *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
@@ -4887,11 +4887,11 @@ func (s *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, device
 	return s.RunMDMCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
+func (s *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.GetMDMCommandResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMCommandResultsFunc(ctx, commandUUID, hostIdentifier)
+	return s.GetMDMCommandResultsFunc(ctx, commandUUID, hostIdentifier, opt)
 }
 
 func (s *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {

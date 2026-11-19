@@ -43,14 +43,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "find host to list profiles")
+		return nil, nil, ctxerr.Wrap(ctx, err, "find host to list profiles")
 	}
 
 	var tmID uint
@@ -59,12 +59,12 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 	}
 
 	// NOTE: the service method also does all the right authorization checks
-	sums, err := svc.ListMDMAppleConfigProfiles(ctx, tmID)
+	sums, meta, err := svc.ListMDMAppleConfigProfiles(ctx, tmID, opt)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list config profiles")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list config profiles")
 	}
 
-	return sums, nil
+	return sums, meta, nil
 }
 
 // MDMAppleReconcileFileVaultProfile brings the FileVault profile in line with

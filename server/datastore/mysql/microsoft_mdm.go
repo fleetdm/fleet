@@ -2163,7 +2163,7 @@ func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, ho
 	})
 }
 
-func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 	// The enrollments come from the command's results, plus the ones still waiting in its queue (acked_at IS NULL), which report as
 	// pending even when other enrollments already replied. Every join after that is on the full (enrollment_id, command_uuid) key.
 	const hostFilter = ` JOIN mdm_windows_enrollments mwe_filter ON mwe_filter.id = %s.enrollment_id AND mwe_filter.host_uuid = ?`
@@ -2204,6 +2204,18 @@ FROM
 WHERE
     wmc.command_uuid = ?`, queueHostFilter, resultsHostFilter)
 
+	// One row per targeted enrollment; the host UUID gives pages a
+	// deterministic order.
+	query += " ORDER BY mwe.host_uuid"
+	if opt.PerPage > 0 {
+		limit := opt.PerPage
+		if opt.IncludeMetadata {
+			limit++
+		}
+		query += " LIMIT ? OFFSET ?"
+		args = append(args, limit, opt.PerPage*opt.Page)
+	}
+
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
 		ctx,
@@ -2213,19 +2225,29 @@ WHERE
 		args...,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get command results")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get command results")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata && opt.PerPage > 0 {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		// Drop the sentinel row before the per-row decompression below.
+		if len(results) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
 	}
 
 	// raw_response_gz is stored gzip-compressed; restore the original envelope for the API response.
 	for _, r := range results {
 		decompressed, err := decompressWindowsMDMResponse(r.Result)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "decompressing windows mdm response")
+			return nil, nil, ctxerr.Wrap(ctx, err, "decompressing windows mdm response")
 		}
 		r.Result = decompressed
 	}
 
-	return results, nil
+	return results, metaData, nil
 }
 
 func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {

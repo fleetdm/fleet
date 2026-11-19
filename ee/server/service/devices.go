@@ -9,7 +9,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -23,17 +22,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
-	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool, opt fleet.ListOptions) ([]*fleet.DevicePolicy, *fleet.PaginationMetadata, error) {
+	opt.IncludeMetadata = true
+	policies, meta, err := svc.ds.ListPoliciesForHost(ctx, host, opt, !includeHidden)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list policies for host")
-	}
-	if !includeHidden {
-		policies = slices.DeleteFunc(policies, func(p *fleet.HostPolicy) bool { return p.Hidden })
+		return nil, nil, ctxerr.Wrap(ctx, err, "list policies for host")
 	}
 	// return the device-safe representation of the policies, which excludes
 	// the policy author's identity and the raw SQL query.
-	return fleet.HostPoliciesToDevicePolicies(policies), nil
+	return fleet.HostPoliciesToDevicePolicies(policies), meta, nil
 }
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM

@@ -377,21 +377,59 @@ func (ds *Datastore) ResultCountsForQueries(ctx context.Context, queryIDs []uint
 	return counts, nil
 }
 
-// QueryResultRowsForHost returns the query result rows for a given query and host
-// including rows with null data
-func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
-	selectStmt := `
-		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data FROM query_results qr
+// QueryResultRowsForHost returns a page of query result rows for a given query
+// and host, including rows with null data, in insert (qr.id) order. PerPage ==
+// 0 returns every row.
+func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint, opt fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, *fleet.PaginationMetadata, error) {
+	// Page on IDs first and fetch qr.data by ID: sorting rows that carry qr.data
+	// can exceed sort_buffer_size ("Out of sort memory"), see QueryResultRows.
+	pageStmt := `
+		SELECT qr.id FROM query_results qr
 		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
 		WHERE qr.query_id = ? AND qr.host_id = ?
-	`
-	results := []*fleet.ScheduledQueryResultRow{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+		ORDER BY qr.id`
+	args := []any{queryID, hostID}
+	if opt.PerPage > 0 {
+		limit := opt.PerPage
+		if opt.IncludeMetadata {
+			limit++
+		}
+		pageStmt += " LIMIT ? OFFSET ?"
+		args = append(args, limit, opt.PerPage*opt.Page)
 	}
 
-	return results, nil
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, pageStmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting query result row ids for host")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata && opt.PerPage > 0 {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(ids) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			ids = ids[:len(ids)-1]
+		}
+	}
+
+	results := []*fleet.ScheduledQueryResultRow{}
+	if len(ids) == 0 {
+		return results, metaData, nil
+	}
+
+	dataStmt, dataArgs, err := sqlx.In(`
+		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data
+		FROM query_results qr
+		WHERE qr.id IN (?)
+		ORDER BY qr.id`, ids)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "building query result rows for host statement")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, dataStmt, dataArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+
+	return results, metaData, nil
 }
 
 // QueryResultRowsForHostByQuery returns a host's stored rows for each of the given queries,

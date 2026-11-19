@@ -377,8 +377,8 @@ type Service interface {
 	// opts.PerPage is set.
 	// Returns a boolean indicating whether the report is clipped.
 	GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts ListOptions) (results []HostQueryResultRow, count int, meta *PaginationMetadata, reportClipped bool, err error)
-	// GetHostQueryReportResults returns all stored results of a query for a specific host
-	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
+	// GetHostQueryReportResults returns a page of stored results of a query for a specific host
+	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint, opt ListOptions) (rows []HostQueryReportResult, lastFetched *time.Time, meta *PaginationMetadata, err error)
 	// QueryReportIsClipped returns true if a host's results for the report were recently rejected
 	// because storing them would have exceeded the effective report cap (see
 	// ServerSettings.GetEffectiveQueryReportCap). Merely reaching the cap does not clip a report.
@@ -489,7 +489,7 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host in their
 	// device-safe representation (which excludes the policy author's identity
 	// and the raw SQL query), including passing / failing responses.
-	ListDevicePolicies(ctx context.Context, host *Host, includeHidden bool) ([]*DevicePolicy, error)
+	ListDevicePolicies(ctx context.Context, host *Host, includeHidden bool, opt ListOptions) ([]*DevicePolicy, *PaginationMetadata, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
@@ -994,7 +994,7 @@ type Service interface {
 
 	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
 	// specified team.
-	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint, opt ListOptions) ([]*MDMAppleConfigProfile, *PaginationMetadata, error)
 
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1051,8 +1051,8 @@ type Service interface {
 	// ListMDMAppleInstallers lists all the uploaded installers.
 	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
-	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
-	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
+	// ListMDMAppleDevices lists a page of MDM enrolled Apple devices.
+	ListMDMAppleDevices(ctx context.Context, opt ListOptions) ([]MDMAppleDevice, *PaginationMetadata, error)
 
 	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
@@ -1083,7 +1083,7 @@ type Service interface {
 	RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*ABMToken, error)
 
 	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
-	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
+	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint, opt ListOptions) ([]*MDMAppleConfigProfile, *PaginationMetadata, error)
 
 	// MDMAppleReconcileFileVaultProfile brings the FileVault configuration
 	// profile for the given team in line with its two macOS disk encryption
@@ -1243,7 +1243,7 @@ type Service interface {
 	RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
 
 	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*MDMCommandResult, error)
+	GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string, opt ListOptions) ([]*MDMCommandResult, *PaginationMetadata, error)
 
 	// ListMDMCommands returns MDM commands based on the provided options.
 	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)

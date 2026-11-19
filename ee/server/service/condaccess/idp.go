@@ -452,7 +452,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 	}
 
 	// Get all policies for the host
-	policies, err := p.ds.ListPoliciesForHost(ctx, host)
+	policies, _, err := p.ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	if err != nil {
 		handleInternalServerError(ctx, w, p.logger, "failed to list policies for host", err, "host_id", p.hostID)
 		return nil

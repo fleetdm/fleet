@@ -480,8 +480,9 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 ////////////////////////////////////////////////////////////////////////////////
 
 type listDevicePoliciesRequest struct {
-	Token                 string `url:"token"`
-	IncludeHiddenPolicies bool   `query:"include_hidden_policies,optional" premium:"true"`
+	Token                 string            `url:"token"`
+	IncludeHiddenPolicies bool              `query:"include_hidden_policies,optional" premium:"true"`
+	ListOptions           fleet.ListOptions `url:"list_options"`
 }
 
 func (r *listDevicePoliciesRequest) deviceAuthToken() string {
@@ -489,8 +490,9 @@ func (r *listDevicePoliciesRequest) deviceAuthToken() string {
 }
 
 type listDevicePoliciesResponse struct {
-	Err      error                 `json:"error,omitempty"`
-	Policies []*fleet.DevicePolicy `json:"policies"`
+	Err      error                     `json:"error,omitempty"`
+	Policies []*fleet.DevicePolicy     `json:"policies"`
+	Meta     *fleet.PaginationMetadata `json:"meta,omitempty"`
 }
 
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
@@ -503,20 +505,20 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
-	data, err := svc.ListDevicePolicies(ctx, host, req.IncludeHiddenPolicies)
+	data, meta, err := svc.ListDevicePolicies(ctx, host, req.IncludeHiddenPolicies, req.ListOptions)
 	if err != nil {
 		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
-	return listDevicePoliciesResponse{Policies: data}, nil
+	return listDevicePoliciesResponse{Policies: data, Meta: meta}, nil
 }
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool, opt fleet.ListOptions) ([]*fleet.DevicePolicy, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -619,7 +621,7 @@ func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}
 	}
 
 	req := request.(*getDeviceMDMCommandResultsRequest)
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, "")
+	results, _, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, "", fleet.ListOptions{})
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,

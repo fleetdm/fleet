@@ -1652,24 +1652,25 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 	return profLabels, nil
 }
 
-func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	if teamID >= 1 {
 		// confirm that team exists
 		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
-			return nil, ctxerr.Wrap(ctx, err)
+			return nil, nil, ctxerr.Wrap(ctx, err)
 		}
 	}
 
-	cps, err := svc.ds.ListMDMAppleConfigProfiles(ctx, &teamID)
+	opt.IncludeMetadata = true
+	cps, meta, err := svc.ds.ListMDMAppleConfigProfiles(ctx, &teamID, opt)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
-	return cps, nil
+	return cps, meta, nil
 }
 
 type getMDMAppleConfigProfileResponse struct {
@@ -2180,31 +2181,37 @@ func (svc *Service) DeleteMDMAppleInstaller(ctx context.Context, id uint) error 
 	return nil
 }
 
-type listMDMAppleDevicesRequest struct{}
+type listMDMAppleDevicesRequest struct {
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
 
 type listMDMAppleDevicesResponse struct {
-	Devices []fleet.MDMAppleDevice `json:"devices"`
-	Err     error                  `json:"error,omitempty"`
+	Devices []fleet.MDMAppleDevice    `json:"devices"`
+	Meta    *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listMDMAppleDevicesResponse) Error() error { return r.Err }
 
 func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	devices, err := svc.ListMDMAppleDevices(ctx)
+	req := request.(*listMDMAppleDevicesRequest)
+	devices, meta, err := svc.ListMDMAppleDevices(ctx, req.ListOptions)
 	if err != nil {
 		return listMDMAppleDevicesResponse{Err: err}, nil
 	}
 	return &listMDMAppleDevicesResponse{
 		Devices: devices,
+		Meta:    meta,
 	}, nil
 }
 
-func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
+func (svc *Service) ListMDMAppleDevices(ctx context.Context, opt fleet.ListOptions) ([]fleet.MDMAppleDevice, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDevice{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
-	return svc.ds.MDMAppleListDevices(ctx)
+	opt.IncludeMetadata = true
+	return svc.ds.MDMAppleListDevices(ctx, opt)
 }
 
 type mdmAppleEnrollRequest struct {
@@ -3329,12 +3336,14 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostProfilesRequest struct {
-	ID uint `url:"id"`
+	ID          uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
 type getHostProfilesResponse struct {
 	HostID   uint                           `json:"host_id"`
 	Profiles []*fleet.MDMAppleConfigProfile `json:"profiles"`
+	Meta     *fleet.PaginationMetadata      `json:"meta,omitempty"`
 	Err      error                          `json:"error,omitempty"`
 }
 
@@ -3342,23 +3351,23 @@ func (r getHostProfilesResponse) Error() error { return r.Err }
 
 func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostProfilesRequest)
-	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
+	sums, meta, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID, req.ListOptions)
 	if err != nil {
 		return getHostProfilesResponse{Err: err}, nil
 	}
-	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID}
+	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID, Meta: meta}
 	if res.Profiles == nil {
 		res.Profiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
 	}
 	return res, nil
 }
 
-func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

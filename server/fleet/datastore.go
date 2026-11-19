@@ -451,8 +451,10 @@ type Datastore interface {
 	// excluding hidden policies.
 	FailingPoliciesCount(ctx context.Context, host *Host) (total uint, unhidden uint, err error)
 
-	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
-	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
+	// ListPoliciesForHost lists the policies that a host will check and whether
+	// they are passing. A zero-value opt returns every policy; excludeHidden
+	// filters hidden policies in SQL so pages stay exact.
+	ListPoliciesForHost(ctx context.Context, host *Host, opt ListOptions, excludeHidden bool) ([]*HostPolicy, *PaginationMetadata, error)
 
 	GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
@@ -704,7 +706,7 @@ type Datastore interface {
 	// opts.MatchQuery matches the host display name and any result column value.
 	// Pagination metadata is returned only when opts.IncludeMetadata is set.
 	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter, opts ListOptions) ([]*ScheduledQueryResultRow, int, *PaginationMetadata, error)
-	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
+	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint, opt ListOptions) ([]*ScheduledQueryResultRow, *PaginationMetadata, error)
 	// QueryResultRowsForHostByQuery returns a host's stored rows (including rows with null data) for
 	// each of the given queries, read from the replica. Queries with no rows are absent from the result.
 	QueryResultRowsForHostByQuery(ctx context.Context, hostID uint, queryIDs []uint) (map[uint][]*StoredQueryResultRow, error)
@@ -1752,7 +1754,7 @@ type Datastore interface {
 
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
-	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMAppleConfigProfile, *PaginationMetadata, error)
 
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile uuid.
@@ -1811,7 +1813,7 @@ type Datastore interface {
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a
 	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt ListOptions) ([]*MDMCommandResult, *PaginationMetadata, error)
 
 	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
@@ -1837,8 +1839,8 @@ type Datastore interface {
 	// ListMDMAppleInstallers list all the uploaded installers.
 	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
-	// MDMAppleListDevices lists all the MDM enrolled devices.
-	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
+	// MDMAppleListDevices lists a page of MDM enrolled devices.
+	MDMAppleListDevices(ctx context.Context, opt ListOptions) ([]MDMAppleDevice, *PaginationMetadata, error)
 
 	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
 	// `host_dep_assignments` for all the provided hosts. mdmMigrationDeadlinesByHostID
@@ -2795,7 +2797,7 @@ type Datastore interface {
 	MDMWindowsFailUndeliverableCommand(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, commandUUID, reason string) error
 
 	// GetMDMWindowsCommands returns the results of command
-	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
+	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt ListOptions) ([]*MDMCommandResult, *PaginationMetadata, error)
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID. It returns true when the host UUID
 	// changed, or when the enrollment's host was deleted and this is its first link since.
@@ -4688,7 +4690,7 @@ type AndroidDatastore interface {
 
 	// GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
 	// If hostUUID is non-empty, results are filtered to that host.
-	GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
+	GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt ListOptions) ([]*MDMCommandResult, *PaginationMetadata, error)
 
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.

@@ -510,7 +510,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 				}
 
 				if opt.PopulatePolicies {
-					hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+					hp, _, err := svc.ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 					if err != nil {
 						yield(nil, ctxerr.Wrapf(ctx, err, "get policies for host %d", host.ID))
 						return
@@ -1914,7 +1914,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	var policies *[]*fleet.HostPolicy
 	if opts.IncludePolicies {
-		hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+		hp, _, err := svc.ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 		}
@@ -2366,8 +2366,9 @@ func (svc *Service) populateManagedLocalAccountStatus(ctx context.Context, host 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostQueryReportRequest struct {
-	ID      uint `url:"id"`
-	QueryID uint `url:"report_id"`
+	ID          uint              `url:"id"`
+	QueryID     uint              `url:"report_id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
 type getHostQueryReportResponse struct {
@@ -2377,6 +2378,7 @@ type getHostQueryReportResponse struct {
 	LastFetched   *time.Time                    `json:"last_fetched"`
 	ReportClipped bool                          `json:"report_clipped"`
 	Results       []fleet.HostQueryReportResult `json:"results"`
+	Meta          *fleet.PaginationMetadata     `json:"meta,omitempty"`
 	Err           error                         `json:"error,omitempty"`
 }
 
@@ -2391,7 +2393,7 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID)
+	reportResults, lastFetched, meta, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID, req.ListOptions)
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -2408,26 +2410,28 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		LastFetched:   lastFetched,
 		ReportClipped: isClipped,
 		Results:       reportResults,
+		Meta:          meta,
 	}, nil
 }
 
-func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, queryID uint) ([]fleet.HostQueryReportResult, *time.Time, error) {
+func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, queryID uint, opt fleet.ListOptions) ([]fleet.HostQueryReportResult, *time.Time, *fleet.PaginationMetadata, error) {
 	query, err := svc.ds.Query(ctx, queryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, nil, ctxerr.Wrap(ctx, err, "get query from datastore")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get query from datastore")
 	}
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	rows, err := svc.ds.QueryResultRowsForHost(ctx, queryID, hostID)
+	opt.IncludeMetadata = true
+	rows, meta, err := svc.ds.QueryResultRowsForHost(ctx, queryID, hostID, opt)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get query result rows for host")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get query result rows for host")
 	}
 
 	if len(rows) == 0 {
-		return []fleet.HostQueryReportResult{}, nil, nil
+		return []fleet.HostQueryReportResult{}, nil, meta, nil
 	}
 
 	var lastFetched *time.Time
@@ -2439,13 +2443,13 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 		if row.Data != nil {
 			columns := map[string]string{}
 			if err := json.Unmarshal(*row.Data, &columns); err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
+				return nil, nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
 			}
 			result = append(result, fleet.HostQueryReportResult{Columns: columns})
 		}
 	}
 
-	return result, lastFetched, nil
+	return result, lastFetched, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -802,12 +802,14 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMCommandResultsRequest struct {
-	CommandUUID    string `query:"command_uuid,optional"`
-	HostIdentifier string `query:"host_identifier,optional"`
+	CommandUUID    string            `query:"command_uuid,optional"`
+	HostIdentifier string            `query:"host_identifier,optional"`
+	ListOptions    fleet.ListOptions `url:"list_options"`
 }
 
 type getMDMCommandResultsResponse struct {
 	Results []*fleet.MDMCommandResult `json:"results,omitempty"`
+	Meta    *fleet.PaginationMetadata `json:"meta,omitempty"`
 	Err     error                     `json:"error,omitempty"`
 }
 
@@ -816,7 +818,7 @@ func (r getMDMCommandResultsResponse) Error() error { return r.Err }
 func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMCommandResultsRequest)
 
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, req.HostIdentifier)
+	results, meta, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, req.HostIdentifier, req.ListOptions)
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,
@@ -825,31 +827,41 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 
 	return getMDMCommandResultsResponse{
 		Results: results,
+		Meta:    meta,
 	}, nil
 }
 
-func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
+func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
-		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
+		// single host + single command: the result set is naturally tiny, no
+		// paging needed.
+		results, err := svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
+		return results, nil, err
 	}
 
 	svc.logger.DebugContext(ctx, "GetMDMCommandResults called with user authentication", "command_uuid", commandUUID, "host_identifier", hostIdentifier)
 
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// branch if host identifier is provided to target results for a specific host
 	if hostIdentifier != "" {
-		return svc.getHostIdentifierMDMCommandResults(ctx, commandUUID, hostIdentifier)
+		// single host + single command: no paging needed.
+		results, err := svc.getHostIdentifierMDMCommandResults(ctx, commandUUID, hostIdentifier)
+		return results, nil, err
 	}
 
-	// otherwise, load all command results for the command UUID without any host filtering
-	results, err := svc.getMDMCommandResults(ctx, commandUUID, "")
+	// otherwise, load a page of command results for the command UUID without
+	// any host filtering. NOTE: the team-visibility filtering below happens
+	// after the SQL page is fetched, so a page may contain fewer than per_page
+	// results; meta.has_next_results remains the paging signal.
+	opt.IncludeMetadata = true
+	results, meta, err := svc.getMDMCommandResults(ctx, commandUUID, "", opt)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get mdm command results with authz")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get mdm command results with authz")
 	}
 
 	// now we can load the hosts (lite) corresponding to those command results,
@@ -863,18 +875,18 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 	// build team filter for the user from context
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true} // observers can view command results for their teams
 
 	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(hosts) == 0 {
 		// do not return 404 here, as it's possible for a command to not have
 		// results yet
-		return nil, nil
+		return nil, meta, nil
 	}
 
 	// collect the team IDs and verify that the user has access to view commands
@@ -899,7 +911,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		}
 
 		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionRead); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
+			return nil, nil, ctxerr.Wrap(ctx, err)
 		}
 	}
 
@@ -941,35 +953,36 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		}
 	}
 
-	return results, nil
+	return results, meta, nil
 }
 
-func (svc *Service) getMDMCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+func (svc *Service) getMDMCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 	// check that command exists first, to return 404 on invalid commands
 	// (the command may exist but have no results yet).
 	p, err := svc.ds.GetMDMCommandPlatform(ctx, commandUUID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	var results []*fleet.MDMCommandResult
+	var meta *fleet.PaginationMetadata
 	switch p {
 	case "darwin":
-		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, hostUUID)
+		results, meta, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, hostUUID, opt)
 	case "windows":
-		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID, hostUUID)
+		results, meta, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID, hostUUID, opt)
 	case "android":
-		results, err = svc.ds.GetMDMAndroidCommandResults(ctx, commandUUID, hostUUID)
+		results, meta, err = svc.ds.GetMDMAndroidCommandResults(ctx, commandUUID, hostUUID, opt)
 	default:
 		// this should never happen, but just in case
 		svc.logger.DebugContext(ctx, "unknown MDM command platform", "platform", p)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return results, nil
+	return results, meta, nil
 }
 
 func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
@@ -1048,7 +1061,7 @@ func (svc *Service) getHostIdentifierMDMCommandResults(ctx context.Context, comm
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	results, err := svc.getMDMCommandResults(ctx, commandUUID, hi[0].UUID)
+	results, _, err := svc.getMDMCommandResults(ctx, commandUUID, hi[0].UUID, fleet.ListOptions{})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm command results by platform")
 	}

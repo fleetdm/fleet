@@ -497,7 +497,14 @@ func formatErrorDuplicateDeclaration(err error, decl *fleet.MDMAppleDeclaration)
 	}
 }
 
-func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
+var mdmAppleConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":        "name",
+	"identifier":  "identifier",
+	"created_at":  "created_at",
+	"uploaded_at": "uploaded_at",
+}
+
+func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
 	stmt := `
 SELECT
 	profile_uuid,
@@ -514,8 +521,7 @@ SELECT
 FROM
 	mdm_apple_configuration_profiles
 WHERE
-	team_id=? AND identifier NOT IN (?)
-ORDER BY name`
+	team_id=? AND identifier NOT IN (?)`
 
 	if teamID == nil {
 		teamID = ptr.Uint(0)
@@ -527,14 +533,30 @@ ORDER BY name`
 	}
 	stmt, args, err := sqlx.In(stmt, teamID, fleetIdentifiers)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMAppleConfigProfiles")
+		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMAppleConfigProfiles")
+	}
+
+	if opt.OrderKey == "" {
+		opt.OrderKey = "name"
+	}
+	stmt, args, err = appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, mdmAppleConfigProfilesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list mdm apple config profiles")
 	}
 
 	var res []*fleet.MDMAppleConfigProfile
 	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return res, nil
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(res) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			res = res[:len(res)-1]
+		}
+	}
+	return res, metaData, nil
 }
 
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
@@ -1468,7 +1490,7 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 	query := `
 SELECT
 	nq.id AS host_uuid,
@@ -1494,6 +1516,18 @@ WHERE
 		args = append(args, hostUUID)
 	}
 
+	// One row per targeted host; nq.id (the host UUID) gives pages a
+	// deterministic order.
+	query += " ORDER BY nq.id"
+	if opt.PerPage > 0 {
+		limit := opt.PerPage
+		if opt.IncludeMetadata {
+			limit++
+		}
+		query += " LIMIT ? OFFSET ?"
+		args = append(args, limit, opt.PerPage*opt.Page)
+	}
+
 	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
 		ctx,
@@ -1503,9 +1537,17 @@ WHERE
 		args...,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get command results")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
-	return results, nil
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata && opt.PerPage > 0 {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(results) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+	return results, metaData, nil
 }
 
 func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
@@ -1598,13 +1640,13 @@ func (ds *Datastore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMApp
 	return installers, nil
 }
 
-func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	var devices []fleet.MDMAppleDevice
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&devices,
-		`
+var mdmAppleDevicesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":            "d.id",
+	"serial_number": "d.serial_number",
+}
+
+func (ds *Datastore) MDMAppleListDevices(ctx context.Context, opt fleet.ListOptions) ([]fleet.MDMAppleDevice, *fleet.PaginationMetadata, error) {
+	stmt := `
 SELECT
     d.id,
     d.serial_number,
@@ -1614,11 +1656,28 @@ FROM
     JOIN nano_enrollments e ON d.id = e.device_id
 WHERE
     type = "Device"
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list devices")
+`
+	// Pages need a deterministic order; d.id is the nano device UUID.
+	if opt.OrderKey == "" {
+		opt.OrderKey = "id"
 	}
-	return devices, nil
+	stmt, params, err := appendListOptionsWithCursorToSQLSecure(stmt, nil, &opt, mdmAppleDevicesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list devices")
+	}
+	var devices []fleet.MDMAppleDevice
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, params...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list devices")
+	}
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(devices) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			devices = devices[:len(devices)-1]
+		}
+	}
+	return devices, metaData, nil
 }
 
 func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {

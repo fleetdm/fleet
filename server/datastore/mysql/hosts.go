@@ -4199,7 +4199,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 	return r.Total, r.Unhidden, nil
 }
 
-func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
@@ -4220,16 +4220,43 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	) pl_agg ON pl_agg.policy_id = p.id
 	WHERE (p.team_id IS NULL OR p.team_id = COALESCE((SELECT team_id FROM hosts WHERE id = ?), 0))
 	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
-	AND` + policyLabelScopeWhere + `
-	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
+	AND` + policyLabelScopeWhere
 
-	var policies []*fleet.HostPolicy
+	// Filtering hidden policies here (not post-query) keeps pages exact when
+	// paginating.
+	if excludeHidden {
+		query += ` AND NOT p.hidden`
+	}
+	query += ` ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
+
 	args := append([]any{host.ID}, policyLabelScopeArgs(host)...)
 	args = append(args, host.ID, host.FleetPlatform())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host policies")
+
+	// The ORDER BY above is a computed expression, so the standard list-options
+	// helper (which validates order keys against column allowlists) doesn't
+	// apply; append LIMIT/OFFSET directly. PerPage == 0 returns every row.
+	if opt.PerPage > 0 {
+		limit := opt.PerPage
+		if opt.IncludeMetadata {
+			limit++
+		}
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, limit, opt.PerPage*opt.Page)
 	}
-	return policies, nil
+
+	var policies []*fleet.HostPolicy
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host policies")
+	}
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata && opt.PerPage > 0 {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(policies) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			policies = policies[:len(policies)-1]
+		}
+	}
+	return policies, metaData, nil
 }
 
 func (ds *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
@@ -7322,7 +7349,7 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 	}
 
 	host := &fleet.Host{ID: id, Platform: hh.Platform}
-	policies, err := ds.ListPoliciesForHost(ctx, host)
+	policies, _, err := ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	if err != nil {
 		return nil, err
 	}
