@@ -583,6 +583,7 @@ software:
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: zoom/windows # Zoom for Windows (x86)
+      display_name: "Zoom"
       self_service: true
       setup_experience: true
       categories:

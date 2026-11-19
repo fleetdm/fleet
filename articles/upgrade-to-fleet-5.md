@@ -66,6 +66,11 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 | `team` as a target type | `fleet` |
 | `team_id` and `team_name` columns in the hosts CSV | `fleet_id` and `fleet_name` columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
 | `macos_team_id`, `ios_team_id`, `ipados_team_id`, and `byod_team_id` when you assign fleets to an Apple Business token | `macos_fleet_id`, `ios_fleet_id`, `ipados_fleet_id`, and `byod_fleet_id` |
+| `"No team"` and `"All teams"` as fleet names in `POST /spec/policies`, `POST /spec/certificates`, and the `apple_business` and `volume_purchasing_program` settings in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `"Unassigned"` and `"All fleets"` |
+| `"No team"` as the name of hosts that aren't in a fleet (fleet `0`) in responses, like `GET /fleets/0`, `GET /ab_tokens`, `GET /vpp_tokens`, and `fleet_name` in activity details | `"Unassigned"` |
+| `team_id` under `data` in the host status webhook | `fleet_id` |
+
+Fleet 5 returns a `410` error for the removed endpoints and a `422` error for the removed names. Both errors link to this guide.
 
 #### What to do
 
@@ -73,9 +78,11 @@ Fleet 4 already supports the `/fleets` endpoints and `fleet_id`, so change them 
 
 1. Search your scripts and integrations for the old names:
    ```sh
-   grep -rnE '/fleet/teams|/teams\b|team_ids?\b|team_name|available_teams|(macos|ios|ipados|byod)_team_id' .
+   grep -rnE '/fleet/teams|/teams\b|team_ids?\b|team_name|available_teams|(macos|ios|ipados|byod)_team_id|No team|All teams' .
    ```
 2. Replace each match with its Fleet 5 name.
+   - Fleet 4 doesn't accept `"Unassigned"` in these requests, so change `"No team"` after you upgrade.
+3. If your host status webhook receiver reads `team_id`, change it to read `fleet_id`.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -84,21 +91,32 @@ GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `GET /global/policies` and `GET /fleets/:id/policies` | [`GET /policies`](https://fleetdm.com/docs/rest-api/rest-api#list-policies), with `fleet_id` for a fleet's policies |
+| `GET /fleets/:id/policies/count` | [`GET /policies/count`](https://fleetdm.com/docs/rest-api/rest-api#get-policies-count), with `fleet_id` for a fleet's policies |
 | `GET /global/policies/:id` and `GET /fleets/:fleet_id/policies/:policy_id` | [`GET /policies/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-policy) |
 | `POST /global/policies` and `POST /fleets/:id/policies` | [`POST /policies`](https://fleetdm.com/docs/rest-api/rest-api#create-policy), with `fleet_id` in the request body for a fleet policy |
 | `PATCH /global/policies/:id` and `PATCH /fleets/:fleet_id/policies/:policy_id` | [`PATCH /policies/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-policy) |
 | `POST /global/policies/delete` and `POST /fleets/:fleet_id/policies/delete` | [`POST /policies/delete`](https://fleetdm.com/docs/rest-api/rest-api#delete-policies) |
-| `failing_policies_webhook.policy_ids` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `webhooks_and_tickets_enabled` on each policy |
+| `inherited_policies` in a fleet's policy list, with its `inherited_page`, `inherited_per_page`, `inherited_order_key`, and `inherited_order_direction` parameters | `GET /policies` with `fleet_id` returns only that fleet's policies. Add `merge_inherited=true` to get global policies in the same list. |
+| `inherited_policy_count` in a fleet's policy count | `GET /policies/count` with `fleet_id` counts only that fleet's policies. Add `merge_inherited=true` to count global policies too. |
+| `scripts`, `profiles`, and `other` as `automation_type` filter values | `script`, `configuration_profile`, and `webhook_or_ticket`. A value Fleet doesn't recognize returns an error. |
+| `automation_type=patch` to list patch policies | `type=patch` |
+| `patch_software_title_id` in [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) | `software_title_id` |
+| `failing_policies_webhook.policy_ids` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `automation_type: "webhook_or_ticket"` on each policy, in [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) |
 
 The `/team/...` and `/teams/...` policy paths are also removed.
 
+When you upgrade, Fleet turns on the webhook or ticket automation for the policies listed in `policy_ids`. A policy that also has another automation keeps that one instead. See [One automation per policy](#one-automation-per-policy).
+
 #### What to do
 
-Fleet 4 already supports `/policies`, so change them before you upgrade.
+Fleet 4 doesn't support `fleet_id` on `/policies` or the new parameter names, so you can't change these before you upgrade.
 
-1. Search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
-2. Use `/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
-3. Move the IDs in `failing_policies_webhook.policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
+1. Right after you upgrade, search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
+2. Use `/policies`. To work with a fleet's policies, pass `fleet_id` (`0` for "Unassigned"). Without it, you get global policies.
+3. If you show a fleet's policies and its inherited policies as separate lists, make two calls: one with `fleet_id` and one without.
+4. Where you filter policies by `automation_type`, change `scripts`, `profiles`, and `other` to `script`, `configuration_profile`, and `webhook_or_ticket`. To list patch policies, use `type=patch` instead of `automation_type=patch`.
+5. Set `automation_type` to `"webhook_or_ticket"` on a policy instead of adding its ID to `policy_ids`.
+6. Send `software_title_id` instead of `patch_software_title_id` when you create a patch policy.
 
 GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
@@ -106,13 +124,21 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| A policy can have more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, and `webhooks_and_tickets_enabled` | One automation per policy in [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) |
+| A policy can have more than one automation | One automation per policy, set with `automation_type` in [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) |
+| `calendar_events_enabled: true` | `automation_type: "calendar"` |
+| `conditional_access_enabled: true` | `automation_type: "conditional_access"` |
+| `software_title_id` on its own | `automation_type: "software"` with `software_title_id` |
+| `script_id` on its own | `automation_type: "script"` with `script_id` |
+| `profile_uuid` on its own | `automation_type: "configuration_profile"` with `profile_uuid` |
+| `calendar_events_enabled` and `conditional_access_enabled` in responses | `automation_type` |
+
+When you upgrade, Fleet keeps one automation on each policy that has more than one and removes the rest. It keeps the first one the policy has in this order: conditional access, software, script, configuration profile, calendar, webhook or ticket.
 
 #### What to do
 
-Change these before you upgrade.
-
-Find policies with more than one automation and move the extra automations to new policies.
+1. Before you upgrade, find policies with more than one automation and move the extra automations to new policies.
+2. After you upgrade, set `automation_type` wherever you create or update a policy with an automation.
+3. After you upgrade, read `automation_type` wherever you read `calendar_events_enabled` or `conditional_access_enabled`.
 
 GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
@@ -736,7 +762,9 @@ Change these before you upgrade, so Fleet doesn't rename your fleets.
 
 If you upgrade first, update your YAML to use the new names: `name` in each renamed fleet's file, and any other YAML that refers to those fleets by name, like Apple Business, VPP, and Windows automatic enrollment settings in `default.yml`. Otherwise, your GitOps runs fail.
 
-GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
+Fleet doesn't rename a fleet called "Unassigned" (in any letter case), which older Fleet versions allowed. In Fleet 5, "Unassigned" means hosts that aren't in a fleet, so rename that fleet before you upgrade. Until you do, Fleet 5 rejects "Unassigned" in Apple Business and VPP settings, and policies and certificates that name "Unassigned" apply to hosts that aren't in a fleet instead of that fleet.
+
+GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 ### $FLEET_VAR_HOST_END_USER_EMAIL_IDP removed
 
@@ -839,12 +867,16 @@ GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
 |:--|:--|
 | `team_settings` in a fleet's YAML file | `settings` |
 | `teams` under `org_settings.mdm.volume_purchasing_program` | `fleets` |
+| `no-team.yml` with `name: No team` | `unassigned.yml` with `name: Unassigned` |
+| `"No team"` and `"All teams"` as fleet names under `apple_business` and `volume_purchasing_program` | `"Unassigned"` and `"All fleets"` |
+| `kind: team`, and the `team` key in a fleet spec, in `fleetctl apply` files | `kind: fleet` and `fleet` |
 
 #### What to do
 
-Fleet 4 already supports the new names, so change them before you upgrade.
+Fleet 4 already supports most of the new names, so change them before you upgrade.
 
-Rename these keys in your YAML files.
+1. Rename these keys and files in your YAML.
+2. Right after you upgrade, before your next GitOps run, change `"No team"` to `"Unassigned"` under `apple_business` and `volume_purchasing_program`. Fleet 4 doesn't accept `"Unassigned"` there, and Fleet 5 doesn't accept `"No team"`.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -1016,6 +1048,8 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 |:--|:--|
 | A policy can have more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, and `webhooks_and_tickets_enabled` | One automation per policy ([docs](https://fleetdm.com/docs/configuration/yaml-files#automations)). `fleetctl gitops` fails if a policy has more than one. |
 
+When you upgrade, Fleet keeps one automation on each policy that has more than one and removes the rest. See [One automation per policy](#one-automation-per-policy) for the order.
+
 #### What to do
 
 Change these before you upgrade.
@@ -1164,11 +1198,13 @@ GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 | `--team` on `fleetctl report`, `user create`, `hosts transfer`, `run-script`, `get reports`, `get labels`, `get hosts`, and `get software` | `--fleet` on the same commands |
 | `-t` on `fleetctl user create` | `--fleet` |
 | `fleetctl generate-gitops --team no-team`, and `no-team` as the value of `--fleet` or `--key` | `--fleet unassigned` and `--key unassigned` |
+| `team` column in `fleetctl get reports` | `fleet` column, which shows "All fleets" for global reports |
 
 #### What to do
 
 1. Search your scripts and CI for `--team`, `-t`, `--policies-team`, `--delete-other-teams`, `DELETE_OTHER_TEAMS`, `no-team`, and `get teams`, and replace each match.
    - The new flags already work in Fleet 4.
+2. If a script reads the output of `fleetctl get reports`, update it for the `fleet` column.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -1408,6 +1444,21 @@ This only applies if you send Fleet server performance data (traces) to a monito
 
 GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
 
+### Server log fields renamed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `team_id` and `teamID` in Fleet server logs | `fleet_id` |
+| `team_name`, `teams`, and `team_count` in Fleet server logs | `fleet_name`, `fleets`, and `fleet_count` |
+
+Log messages, error messages, and `fleet serve --help` also say "fleet" instead of "team".
+
+#### What to do
+
+Update any log alerts, dashboards, or queries that filter on the old fields.
+
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
+
 
 ## Single sign-on (SSO)
 
@@ -1511,6 +1562,19 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 To keep scripts off, deploy fleetd without `--enable-scripts`.
 
 GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
+
+### Team page links removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Links to `/settings/teams` pages redirect to `/settings/fleets` | Removed. They show a "not found" page. |
+| `team_id` in a Fleet UI link selects a fleet | Removed. Use `fleet_id`. |
+
+#### What to do
+
+Update bookmarks, wiki pages, and runbooks that link to `/settings/teams` or use `team_id` in a Fleet UI link.
+
+GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 
 ## Deprecated
