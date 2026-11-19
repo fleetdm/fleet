@@ -59,6 +59,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -121,6 +122,39 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
 			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				return nil, "", nil
+			}
+		}
+		// Config reads and writes keep failing_policies_webhook.policy_ids in sync with the per-policy webhook and
+		// ticket flag. Default to no such policies.
+		if mockDS.WebhooksAndTicketsPolicyIDsFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) { return nil, nil }
+		}
+		if mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.SetWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
+		}
+		if mockDS.PoliciesWithOtherAutomationsFunc == nil {
+			mockDS.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
+			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPolicyNameFunc == nil {
+			mockDS.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.FilterWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+				return nil, nil
 			}
 		}
 		// Default to none configured so tests that don't care don't panic on a nil mock.
@@ -192,7 +226,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// pool when one is provided (integration tests), nil otherwise.
 	var pssoNonceStore fleet.PSSONonceStore
 
-	task := async.NewTask(ds, nil, c, nil)
+	task := async.NewTask(ds, false)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
 			task = opts[0].Task
@@ -281,6 +315,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
+	var googleConditionalAccess *GoogleConditionalAccessClient
+	if len(opts) > 0 {
+		googleConditionalAccess = opts[0].ConditionalAccessGoogleClient
+	}
+
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
 		androidService = opts[0].AndroidModule
 	}
@@ -330,6 +369,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,
@@ -751,7 +791,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	apiHandler, err := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
-	// that gorilla/mux can't introspect, so surface their routes to the validator
+	// that the API router's route table doesn't list, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
 	extraInitFeatureRoutes = append(extraInitFeatureRoutes, scim.RegisterValidationRoutes)
 	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {
@@ -961,6 +1001,16 @@ func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push
 	return res, nil
 }
 
+// appleProfilesBatchRequest is a POST /mdm/profiles/batch body for .mobileconfig files, each named after its PayloadDisplayName. The
+// batch replaces every profile of the fleet, not only its Apple profiles.
+func appleProfilesBatchRequest(profiles [][]byte) batchSetMDMProfilesRequest {
+	payloads := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
+	for _, p := range profiles {
+		payloads = append(payloads, fleet.MDMProfileBatchPayload{Contents: p})
+	}
+	return batchSetMDMProfilesRequest{Profiles: payloads}
+}
+
 func mdmConfigurationRequiredEndpoints() []struct {
 	method, path        string
 	deviceAuthenticated bool
@@ -971,79 +1021,40 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		deviceAuthenticated bool
 		premiumOnly         bool
 	}{
-		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
-		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
-		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple", false, false},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
-		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
-		{"DELETE", "/api/latest/fleet/mdm/setup/eula/token", false, true},
 		{"DELETE", "/api/latest/fleet/setup_experience/eula/token", false, true},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/metadata", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/metadata", false, true},
-		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
 		// The Windows EULA upload is absent for the same reason as the other EULA uploads.
 		{"GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", false, true},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"GET", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
-		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"POST", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
-		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
 		{"POST", "/api/latest/fleet/commands/run", false, false},
-		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
 		{"GET", "/api/latest/fleet/commands/results", false, false},
-		{"GET", "/api/latest/fleet/mdm/commands?host_identifier=some-host", false, false},
 		{"GET", "/api/latest/fleet/commands?host_identifier=some-host", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_protection", false, false},
-		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
 		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
 		// {"POST", "/api/latest/fleet/setup_experience/eula"},
-		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
 		// {"POST", "/api/latest/fleet/bootstrap", false, true},
-		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
-		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},
 		{"GET", "/api/latest/fleet/enrollment_profiles/manual", false, true},
-		{"GET", "/api/latest/fleet/mdm/bootstrap/1/metadata", false, true},
 		{"GET", "/api/latest/fleet/bootstrap/1/metadata", false, true},
-		{"DELETE", "/api/latest/fleet/mdm/bootstrap/1", false, true},
 		{"DELETE", "/api/latest/fleet/bootstrap/1", false, true},
 		{"GET", "/api/latest/fleet/mdm/bootstrap?token=1", false, true},
 		{"GET", "/api/latest/fleet/bootstrap?token=1", false, true},
-		{"GET", "/api/latest/fleet/mdm/bootstrap/summary", false, true},
-		{"GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", false, true},
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
-		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
@@ -1448,8 +1459,12 @@ func getURISchemas() []string {
 	}
 }
 
+// androidTestEnterpriseID is the enterprise enableAndroidMDM creates. Device names must be under it,
+// as AMAPI's are, because Fleet checks a notification's device against its own enterprise.
+const androidTestEnterpriseID = "LC02k5wxw7"
+
 func createAndroidDeviceID(name string) string {
-	return "enterprises/mock-enterprise-id/devices/" + name
+	return "enterprises/" + androidTestEnterpriseID + "/devices/" + name
 }
 
 func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
@@ -1513,6 +1528,7 @@ func messageWithAndroidIdentifiers(t *testing.T, notificationType android.Notifi
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 

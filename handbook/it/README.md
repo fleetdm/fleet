@@ -10,6 +10,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | VP of IT Strategy                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
+| Windows Technical Marketing Engineer | [Deelan Sabido](https://www.linkedin.com/in/deelansabido/) _([@d-sabido](https://github.com/d-sabido))_
 
 
 
@@ -111,6 +112,11 @@ When a Fleetie is blocked from connecting a third-party app to their Google Work
 3. Review the OAuth scopes the app is requesting. Check whether the same app is already trusted under a different client ID — if it is, investigate why this request came in under a new one before approving.
 4. Approve the app with the least privilege that meets the use case, limited to the services it actually needs. Deny apps that aren't business-critical or that duplicate a tool Fleet already supports.
 5. Comment on the issue with the decision, the scopes granted, and the reason, then close the issue. This comment is the audit trail for future access reviews.
+
+
+### Schedule access reviews
+
+IT schedules quarterly and annual access reviews directly in [Vanta](https://www.vanta.com/) using its built-in access review scheduling. These reviews meet the [access authorization and termination policy](https://fleetdm.com/handbook/it/security#access-authorization-and-termination).
 
 
 ### Exclude a host from a screen lock policy

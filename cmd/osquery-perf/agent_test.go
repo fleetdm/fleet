@@ -299,13 +299,14 @@ func TestHomebrewExecutableHashes(t *testing.T) {
 }
 
 func TestSoftwareAITools(t *testing.T) {
+	// a.os is the OS from the template name ("macos"), not the osquery platform ("darwin").
 	newAgent := func(os string, c softwareAIToolsCount) *agent {
 		return &agent{os: os, softwareAIToolsCount: c, strings: map[string]string{}, softwareVersionMap: map[rune]int{}}
 	}
 
-	require.Nil(t, newAgent("darwin", softwareAIToolsCount{}).softwareAITools())
+	require.Nil(t, newAgent("macos", softwareAIToolsCount{}).softwareAITools())
 
-	rows := newAgent("darwin", softwareAIToolsCount{common: 2, unique: 1, markedApps: 2}).softwareAITools()
+	rows := newAgent("macos", softwareAIToolsCount{common: 2, unique: 1, markedApps: 2}).softwareAITools()
 	bySource := make(map[string][]map[string]string)
 	for _, r := range rows {
 		// The rows have the shape of the software_ai_tools detail query.
@@ -322,6 +323,7 @@ func TestSoftwareAITools(t *testing.T) {
 	require.Len(t, bySource["ai_skills"], 3)
 	for _, r := range bySource["ai_skills"] {
 		require.Equal(t, "CLAUDE.md", r["name"])
+		require.True(t, strings.HasPrefix(r["installed_path"], "/Users/fleet/"), r["installed_path"])
 	}
 
 	// Marker rows point at template apps the host reports.

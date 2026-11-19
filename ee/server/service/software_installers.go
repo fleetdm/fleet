@@ -468,7 +468,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if software.SoftwareInstallersCount < 1 {
 		return nil, &fleet.BadRequestError{
-			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
+			Message: "There are no software installers defined yet for this title and fleet. Please add an installer instead of attempting to edit.",
 		}
 	}
 
@@ -1369,15 +1369,10 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 
-	var softwareDisplayName *string
-	if meta.DisplayName != "" {
-		softwareDisplayName = new(meta.DisplayName)
-	}
-
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
 		AppStoreID:          meta.AdamID,
 		SoftwareTitle:       meta.Name,
-		SoftwareDisplayName: softwareDisplayName,
+		SoftwareDisplayName: meta.DisplayName,
 		TeamName:            teamName,
 		TeamID:              teamID,
 		Platform:            meta.Platform,
@@ -1881,7 +1876,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 						map[string]any{
 							"host_id":               host.ID,
 							"software_installer_id": installer.InstallerID,
-							"team_id":               host.TeamID,
+							"fleet_id":              host.TeamID,
 							"title_id":              softwareTitleID,
 						},
 					),
@@ -1907,7 +1902,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "couldn't find an installer or VPP app for software title",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 			),
 		}
 	}
@@ -1938,7 +1933,7 @@ func (svc *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID},
+				map[string]any{"host_id": host.ID, "fleet_id": host.TeamID},
 			),
 		}
 	}
@@ -1962,7 +1957,7 @@ func (svc *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool
 			Message: "Error: Couldn't install. To install App Store app, turn on MDM for this host.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID},
+				map[string]any{"host_id": host.ID, "fleet_id": host.TeamID},
 			),
 		}
 	}
@@ -2220,10 +2215,10 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 				InternalErr: ctxerr.NewWithData(
 					ctx, "license available count <= 0",
 					map[string]any{
-						"host_id": host.ID,
-						"team_id": host.TeamID,
-						"adam_id": vppApp.AdamID,
-						"count":   assets[0].AvailableCount,
+						"host_id":  host.ID,
+						"fleet_id": host.TeamID,
+						"adam_id":  vppApp.AdamID,
+						"count":    assets[0].AvailableCount,
 					},
 				),
 			}
@@ -2249,7 +2244,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			if vpp.IsMaxDevicesPerUserError(err) {
 				return "", &fleet.BadRequestError{
 					Message:     "Couldn't install. This user has reached the maximum number of devices for this app license.",
-					InternalErr: ctxerr.WrapWithData(ctx, err, "associate asset rejected by Apple per-user device cap", map[string]any{"host_id": host.ID, "team_id": host.TeamID, "adam_id": vppApp.AdamID}),
+					InternalErr: ctxerr.WrapWithData(ctx, err, "associate asset rejected by Apple per-user device cap", map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "adam_id": vppApp.AdamID}),
 				}
 			}
 
@@ -2300,7 +2295,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 				InternalErr: ctxerr.NewWithData(
 					ctx, "invalid host platform for requested installer",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+					map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": installer.TitleID},
 				),
 			}
 		}
@@ -2387,7 +2382,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 					Message: "Couldn't uninstall software. Software title is not available through self-service",
 					InternalErr: ctxerr.NewWithData(
 						ctx, "software title not available through self-service",
-						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+						map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 					),
 				}
 			}
@@ -2399,7 +2394,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 				Message: notAvailableMsg,
 				InternalErr: ctxerr.NewWithData(
 					ctx, "couldn't find an installer for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 				),
 			}
 		}
@@ -2411,7 +2406,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 					Message: notAvailableMsg,
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "couldn't find an installer for software title",
-						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+						map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 					),
 				}
 			}
@@ -2432,7 +2427,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 				map[string]any{
 					"host_id":               host.ID,
 					"software_installer_id": installer.InstallerID,
-					"team_id":               host.TeamID,
+					"fleet_id":              host.TeamID,
 					"title_id":              softwareTitleID,
 					"status":                *lastInstallRequest.Status,
 				},
@@ -2455,7 +2450,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested uninstall",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+				map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": installer.TitleID},
 			),
 		}
 	}
@@ -3004,28 +2999,30 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var teamID *uint
+	var newFleet bool
 	if tmName != "" {
 		tm, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return "", nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil, which means Unassigned, so only the payload checks run.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return "", err
 			}
-			return "", err
+			newFleet = true
+		} else {
+			teamID = &tm.ID
 		}
-		teamID = &tm.ID
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	// Same pattern as the dry-run + team-not-found short-circuit above. Empty payload
-	// + dry-run has nothing to validate or stage, so skip the async round-trip — but
-	// only when the team also has no installers: an empty payload deletes every
-	// existing package, and the dry run must report each one. The client handles an
-	// empty UUID response gracefully.
-	if dryRun && len(payloads) == 0 {
+	// Empty payload + dry-run has nothing to validate or stage, so skip the async
+	// round-trip — but only when the team also has no installers: an empty payload
+	// deletes every existing package, and the dry run must report each one. The
+	// client handles an empty UUID response gracefully.
+	if dryRun && len(payloads) == 0 && !newFleet {
 		pendingDeletion, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, nil)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
@@ -3033,7 +3030,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if len(pendingDeletion) == 0 {
 			svc.logger.DebugContext(
 				ctx, "software batch dry-run skipped: empty payload and no existing installers",
-				"team_id", teamID,
+				"fleet_id", teamIDForLog(teamID),
 			)
 			return "", nil
 		}
@@ -3099,6 +3096,10 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 	}
 
+	if newFleet {
+		return "", nil
+	}
+
 	if !dryRun {
 		// presence of these secrets are validated on the gitops side,
 		// we only want to ensure that secrets are in the database on the
@@ -3122,7 +3123,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	svc.logger.InfoContext(
 		ctx, "software batch start",
 		"request_uuid", requestUUID,
-		"team_id", teamID,
+		"fleet_id", teamIDForLog(teamID),
 		"payloads", len(payloads),
 	)
 
@@ -3437,7 +3438,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 		logger := svc.logger.With(
 			"request_uuid", requestUUID,
-			"team_id", teamID,
+			"fleet_id", teamIDForLog(teamID),
 			"payloads", len(payloads),
 			"status", status,
 			"took", time.Since(start),
@@ -3528,7 +3529,7 @@ func (svc *Service) softwareBatchUpload(
 	} else {
 		team, err := svc.ds.TeamLite(ctx, tmID)
 		if err != nil {
-			batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+			batchErr = fmt.Errorf("Couldn't get fleet for fleet ID %d: %w", tmID, err)
 			return
 		}
 		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
@@ -3647,7 +3648,6 @@ func (svc *Service) softwareBatchUpload(
 				Categories:               p.Categories.Value,
 				DisplayName:              p.DisplayName,
 				RollbackVersion:          p.RollbackVersion,
-				AlwaysDownload:           p.AlwaysDownload,
 				Configuration:            p.Configuration,
 			}
 
@@ -3837,7 +3837,7 @@ func (svc *Service) softwareBatchUpload(
 							// Cross-team fallback: another team may already have this URL cached.
 							existing, lookupErr = svc.ds.GetInstallerByTeamAndURL(ctx, nil, p.URL)
 							if lookupErr != nil {
-								svc.logger.WarnContext(ctx, "cross-team conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+								svc.logger.WarnContext(ctx, "cross-fleet conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
 							}
 						}
 						if lookupErr == nil && existing != nil && existing.StorageID != "" &&
@@ -4303,7 +4303,7 @@ func (svc *Service) softwareBatchUpload(
 		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
 			svc.logger.WarnContext(
 				ctx, "reconciling Windows software titles after a software batch",
-				"team_id", teamID,
+				"fleet_id", teamIDForLog(teamID),
 				"err", err,
 			)
 		}
@@ -4608,7 +4608,7 @@ func (svc *Service) selfServiceInstallSoftwareTitle(ctx context.Context, host *f
 				Message: "Software title is not available through self-service",
 				InternalErr: ctxerr.NewWithData(
 					ctx, "software title not available through self-service",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 				),
 			}
 		}
@@ -4631,7 +4631,7 @@ func (svc *Service) selfServiceInstallSoftwareTitle(ctx context.Context, host *f
 					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "invalid host platform for requested installer",
-						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+						map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 					),
 				}
 			}
@@ -4669,7 +4669,7 @@ func (svc *Service) selfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			Message: "Software title is not available through self-service",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "software title not available through self-service",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 			),
 		}
 	}
@@ -4734,7 +4734,7 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
 				InternalErr: ctxerr.WrapWithData(
 					ctx, err, "couldn't find an installer, VPP app or in-house app for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 				),
 			}
 		}
@@ -4746,7 +4746,7 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 			Message: "Software title is not available through self-service",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "software title not available through self-service",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				map[string]any{"host_id": host.ID, "fleet_id": host.TeamID, "title_id": softwareTitleID},
 			),
 		}
 	}

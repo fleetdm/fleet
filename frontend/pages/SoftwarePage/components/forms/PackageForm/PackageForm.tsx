@@ -85,6 +85,19 @@ const getGraphicName = (ext: string) => {
   return "file-pkg";
 };
 
+export const IPA_DUAL_PLATFORM_BANNER_COPY =
+  "Fleet adds this app for both iOS and iPadOS. Edit each platform separately. Changes to one don't apply to the other.";
+
+const renderIpaDualPlatformBanner = () => (
+  <InfoBanner
+    icon="info"
+    iconColor="ui-fleet-black-50"
+    className={`${baseClass}__ipa-dual-platform-banner`}
+  >
+    {IPA_DUAL_PLATFORM_BANNER_COPY}
+  </InfoBanner>
+);
+
 const renderSoftwareDeployWarningBanner = () => (
   <InfoBanner
     color="yellow"
@@ -551,16 +564,26 @@ const PackageForm = ({
 
   const renderTargetLabelSelector = () => (
     <>
-      {!isEditingSoftware && (
-        <InfoBanner
-          icon="info"
-          iconColor="ui-fleet-black-50"
-          className={`${baseClass}__multi-package-banner`}
-        >
-          If multiple versions target the same host, Fleet will deploy the one
-          that was added first.
-        </InfoBanner>
-      )}
+      {/* Fleet-maintained apps and .ipa titles can't have multiple versions. */}
+      {(isEditingSoftware || multiPackageContext) &&
+        !isIpaPackage &&
+        !isFleetMaintainedApp && (
+          <InfoBanner
+            icon="info"
+            iconColor="ui-fleet-black-50"
+            className={`${baseClass}__multi-package-banner`}
+          >
+            If multiple versions target the same host, Fleet will deploy the one
+            that was added first.
+            <br />
+            Want to roll out a new version to multiple hosts?{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
+              text="Learn how"
+              newTab
+            />
+          </InfoBanner>
+        )}
       <DropdownTargetLabelSelector
         selectedTargetType={formData.targetType}
         selectedCustomTarget={formData.customTarget}
@@ -606,6 +629,13 @@ const PackageForm = ({
         {multiPackageContext && gitOpsModeEnabled && (
           <GitOpsCustomPackageBanner />
         )}
+        {/* One .ipa upload creates separate iOS and iPadOS titles that must be
+            edited independently. Warn on Add; hide in GitOps mode (read-only)
+            and on Edit (the user is already inside a single-platform title). */}
+        {isIpaPackage &&
+          !isEditingSoftware &&
+          !gitOpsModeEnabled &&
+          renderIpaDualPlatformBanner()}
         {(showDeploySoftwareSlider ||
           showSoftwareOptionsSelector ||
           showTargetLabelSelector) && ( // Only show container if any one component will render — avoids stray gap spacing

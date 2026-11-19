@@ -1,0 +1,3 @@
+- Fleet Premium now collects AI coding agent sessions and their tool calls from hosts running fleetd, and shows them in a new "AI sessions" card on the Host details page (admins and maintainers only).
+- Added REST API endpoints to list a host's AI sessions, get one session, and list a session's tool calls.
+- Added a "Store host AI sessions" option under **Settings > Organization settings > Advanced options** (`server_settings.ai_sessions_disabled`) and the `osquery.ai_session_max_tool_calls` and `osquery.ai_session_max_tool_calls_per_refresh` server options.

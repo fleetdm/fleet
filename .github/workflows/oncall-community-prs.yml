@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -54,7 +54,8 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
         run: |
-          count=$(grep -c . "$RUNNER_TEMP/prs.txt" || true)
+          # Only count pr lines, not the section headers.
+          count=$(grep -c '^<https://github.com/fleetdm/fleet/pull/' "$RUNNER_TEMP/prs.txt" || true)
           if [ "$count" -eq 0 ]; then
             text=":tada: No open PRs from outside contributors this week."
           else

@@ -137,7 +137,11 @@ const OtherWorkflowsModal = forwardRef<
             z.group_id === selectedIntegration?.group_id,
         })) || null;
 
-      // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
+      // Each policy's automation_type decides whether it sends webhooks or
+      // tickets. Until the server stops reading policy_ids from settings, a
+      // fleet settings save without it turns that automation off on every
+      // policy in the fleet, so the list the server returned is sent back.
+      // TODO(#58577): stop sending policy_ids.
       const newWebhook = {
         failing_policies_webhook: {
           destination_url: destinationUrl,

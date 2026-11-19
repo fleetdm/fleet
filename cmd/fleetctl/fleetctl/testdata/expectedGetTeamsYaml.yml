@@ -18,13 +18,10 @@ spec:
     mdm:
       android_settings:
         certificates: null
-        configuration_profiles: null
       apple_settings:
-        configuration_profiles: null
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
-      enable_recovery_lock_password: false
       ios_updates:
         deadline: null
         deadline_days: null
@@ -37,6 +34,7 @@ spec:
         update_new_hosts: null
       linux_settings:
         enable_escrow_disk_encryption_key: false
+      macos_recovery_lock_password_enabled: false
       macos_updates:
         deadline: null
         deadline_days: null
@@ -45,30 +43,25 @@ spec:
       name_template: null
       setup_experience:
         apple_enable_release_device_manually: false
-        apple_setup_assistant: null
-        enable_create_local_admin_account: false
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
         enable_end_user_authentication: false
-        end_user_local_account_type: admin
+        macos_end_user_local_account_type: admin
         lock_end_user_info: false
-        macos_bootstrap_package: null
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
         macos_manual_agent_install: null
-        macos_script: null
-        require_all_software_macos: false
-        require_all_software_windows: false
+        macos_require_all_software: false
         software: null
+        windows_require_all_software: false
       windows_require_bitlocker_pin: null
       windows_settings:
-        configuration_profiles: null
         enable_disk_encryption: false
-        enable_managed_local_account: false
         require_bitlocker_pin: false
       windows_updates:
         deadline_days: null
         grace_period_days: null
     name: team1
-    scripts: null
     secrets: null
     webhook_settings:
       failing_policies_webhook: null
@@ -103,13 +96,10 @@ spec:
     mdm:
       android_settings:
         certificates: null
-        configuration_profiles: null
       apple_settings:
-        configuration_profiles: null
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
-      enable_recovery_lock_password: true
       ios_updates:
         deadline: null
         deadline_days: null
@@ -122,6 +112,7 @@ spec:
         update_new_hosts: null
       linux_settings:
         enable_escrow_disk_encryption_key: false
+      macos_recovery_lock_password_enabled: true
       macos_updates:
         deadline: "2021-12-14"
         deadline_days: null
@@ -130,30 +121,25 @@ spec:
       name_template: null
       setup_experience:
         apple_enable_release_device_manually: false
-        apple_setup_assistant: null
-        enable_create_local_admin_account: false
+        macos_managed_local_account_enabled: false
+        windows_managed_local_account_enabled: false
         enable_end_user_authentication: false
-        end_user_local_account_type: admin
+        macos_end_user_local_account_type: admin
         lock_end_user_info: false
-        macos_bootstrap_package: null
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
         macos_manual_agent_install: null
-        macos_script: null
-        require_all_software_macos: false
-        require_all_software_windows: false
+        macos_require_all_software: false
         software: null
+        windows_require_all_software: false
       windows_require_bitlocker_pin: null
       windows_settings:
-        configuration_profiles: null
         enable_disk_encryption: false
-        enable_managed_local_account: false
         require_bitlocker_pin: false
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
     name: team2
-    scripts: null
     secrets: null
     webhook_settings:
       failing_policies_webhook: null

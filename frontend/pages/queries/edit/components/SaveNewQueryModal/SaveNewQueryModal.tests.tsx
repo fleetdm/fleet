@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
@@ -143,6 +143,26 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
+  it("does not display name error when blurring the autofocused name without typing", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
+
+    screen.getByLabelText("Name").focus();
+    await user.tab();
+
+    expect(screen.queryByText("Enter a report name")).not.toBeInTheDocument();
+  });
+
   it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -209,7 +229,7 @@ describe("SaveNewQueryModal", () => {
         getSelectedPlatforms: () => [] as QueryablePlatform[],
         setSelectedPlatforms: jest.fn(),
         isAnyPlatformSelected: false,
-        render: () => <></>,
+        render: (error?: string | null) => <>{error}</>,
       },
     };
 
@@ -220,6 +240,9 @@ describe("SaveNewQueryModal", () => {
     await user.type(nameInput, "name");
     await user.click(saveButton);
     expect(saveQuery).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Select at least one platform")
+    ).toBeInTheDocument();
   });
 
   it("should send platforms when saving a new query", async () => {
@@ -282,6 +305,19 @@ describe("SaveNewQueryModal", () => {
       mockServer.use(labelSummariesHandler);
     });
 
+    it("keeps Save enabled while labels are being fetched", async () => {
+      mockServer.use(
+        http.get(baseUrl("/labels/summary"), async () => {
+          await delay(500);
+          return HttpResponse.json({ labels: mockLabels });
+        })
+      );
+      render(<SaveNewQueryModal {...defaultProps} />);
+      // Before the labels request resolves, Save must stay enabled so name
+      // and platform errors can surface on click.
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    });
+
     it("should show the target selector in All hosts target mode when the query has no labels", async () => {
       render(<SaveNewQueryModal {...defaultProps} />);
       await waitFor(() => {
@@ -296,17 +332,14 @@ describe("SaveNewQueryModal", () => {
       const { user } = render(
         <SaveNewQueryModal {...defaultProps} saveQuery={saveQuery} />
       );
-      let allHosts;
-      let custom;
       await waitFor(() => {
-        allHosts = screen.getByLabelText("All hosts");
-        custom = screen.getByLabelText("Custom");
-        expect(allHosts).toBeInTheDocument();
-        expect(custom).toBeInTheDocument();
+        expect(screen.getByLabelText("Name")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
       });
-      custom && (await user.click(custom));
-
+      // Set the name first so blurring Name to click Custom doesn't surface
+      // the required-name error (which would swap the "Name" label text).
       await user.type(screen.getByLabelText("Name"), "name");
+      await user.click(screen.getByLabelText("Custom"));
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await user.click(saveButton);

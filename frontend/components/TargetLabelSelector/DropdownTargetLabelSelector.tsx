@@ -12,6 +12,8 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { ILabelSummary } from "interfaces/label";
 import PATHS from "router/paths";
 
+import UserTargetingTip from "./UserTargetingTip";
+
 const baseClass = "target-label-selector";
 
 interface ITargetChooserProps {
@@ -108,18 +110,37 @@ const LabelChooser = ({
       ?.helpText;
   };
 
+  const errorBanner = !!labelsError && (
+    <div
+      className={`${baseClass}__description ${baseClass}__description--error`}
+    >
+      {labelsError}
+    </div>
+  );
+
   if (isLoading) {
-    return <Spinner centered={false} />;
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
   }
 
   if (isError) {
-    return <DataError />;
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
   }
 
   // Not using <EmptyState/> here as we want to include short string only
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>
+        {errorBanner}
         <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
         specific hosts.
       </div>
@@ -248,20 +269,23 @@ const DropdownTargetLabelSelector = ({
         error={error}
       />
       {selectedTargetType === "Custom" && (
-        <LabelChooser
-          selectedCustomTarget={selectedCustomTarget}
-          customTargetOptions={customTargetOptions}
-          isError={isErrorLabels}
-          isLoading={isLoadingLabels}
-          labels={labels || []}
-          selectedLabels={selectedLabels}
-          customHelpText={customHelpText}
-          dropdownHelpText={dropdownHelpText}
-          labelsError={labelsError}
-          onSelectCustomTarget={onSelectCustomTarget}
-          onSelectLabel={onSelectLabel}
-          disableOptions={disableOptions}
-        />
+        <>
+          <LabelChooser
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            isError={isErrorLabels}
+            isLoading={isLoadingLabels}
+            labels={labels || []}
+            selectedLabels={selectedLabels}
+            customHelpText={customHelpText}
+            dropdownHelpText={dropdownHelpText}
+            labelsError={labelsError}
+            onSelectCustomTarget={onSelectCustomTarget}
+            onSelectLabel={onSelectLabel}
+            disableOptions={disableOptions}
+          />
+          <UserTargetingTip />
+        </>
       )}
     </div>
   );

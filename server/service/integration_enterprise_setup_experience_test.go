@@ -58,7 +58,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 	var respGetSetupExperience getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience,
 		"platform", "linux",
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 	)
 	require.Empty(t, respGetSetupExperience.SoftwareTitles)
 
@@ -111,7 +111,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		http.StatusOK,
 		&respGetSetupExperience,
 		"platform", "linux",
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 		"order_key", "id",
 		"order_direction", "asc",
 	)
@@ -707,7 +707,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		http.StatusOK,
 		&respGetSetupExperience,
 		"platform", "linux",
-		"team_id", "0",
+		"fleet_id", "0",
 		"order_key", "id",
 		"order_direction", "asc",
 	)
@@ -970,7 +970,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 	var respGetSetupExperience getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience,
 		"platform", "windows",
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 	)
 	require.Empty(t, respGetSetupExperience.SoftwareTitles)
 
@@ -1031,7 +1031,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		http.StatusOK,
 		&respGetSetupExperience,
 		"platform", "windows",
-		"team_id", fmt.Sprint(team.ID),
+		"fleet_id", fmt.Sprint(team.ID),
 		"order_key", "id",
 		"order_direction", "asc",
 	)
@@ -1293,7 +1293,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 		http.StatusOK,
 		&respGetSetupExperience,
 		"platform", "windows",
-		"team_id", "0",
+		"fleet_id", "0",
 		"order_key", "id",
 		"order_direction", "asc",
 	)

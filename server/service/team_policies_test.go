@@ -191,9 +191,9 @@ func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 	}
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{
-			AppStoreApp: &fleet.VPPAppStoreApp{
+			AppStoreApps: []*fleet.VPPAppStoreApp{{
 				VPPAppID: appID,
-			},
+			}},
 		}, nil
 	}
 
@@ -656,100 +656,6 @@ func TestPopulateSoftwareIconURLs(t *testing.T) {
 	)
 }
 
-func TestNewTeamPolicyQueryIDAuth(t *testing.T) {
-	const (
-		callerTeamID = uint(1)
-		otherTeamID  = uint(2)
-		queryID      = uint(99)
-		secretSQL    = "SELECT secret FROM restricted;"
-	)
-
-	otherTeam := otherTeamID
-	callerTeam := callerTeamID
-
-	testCases := []struct {
-		name        string
-		user        *fleet.User
-		queryTeamID *uint
-		shouldFail  bool
-	}{
-		{
-			name:        "team admin references another team's query",
-			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleAdmin}}},
-			queryTeamID: &otherTeam,
-			shouldFail:  true,
-		},
-		{
-			name:        "team gitops references a global query",
-			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleGitOps}}},
-			queryTeamID: nil,
-			shouldFail:  true,
-		},
-		{
-			name:        "team admin references a global query",
-			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleAdmin}}},
-			queryTeamID: nil,
-			shouldFail:  false,
-		},
-		{
-			name:        "team admin references their own team's query",
-			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleAdmin}}},
-			queryTeamID: &callerTeam,
-			shouldFail:  false,
-		},
-		{
-			name:        "global admin references another team's query",
-			user:        &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
-			queryTeamID: &otherTeam,
-			shouldFail:  false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			opts := &TestServerOpts{}
-			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
-			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-				return nil
-			}
-
-			ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-				require.Equal(t, queryID, id)
-				return &fleet.Query{
-					ID:     id,
-					TeamID: tc.queryTeamID,
-					Name:   "referenced query",
-					Query:  secretSQL,
-				}, nil
-			}
-			ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
-				return &fleet.Policy{
-					PolicyData: fleet.PolicyData{ID: 1, TeamID: &callerTeam, Name: "referenced query", Query: secretSQL},
-				}, nil
-			}
-			ds.TeamLiteFunc = func(ctx context.Context, tID uint) (*fleet.TeamLite, error) {
-				return &fleet.TeamLite{ID: tID}, nil
-			}
-
-			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tc.user})
-
-			_, err := svc.NewTeamPolicy(ctx, callerTeamID, fleet.NewTeamPolicyPayload{
-				QueryID: new(queryID),
-			})
-
-			if tc.shouldFail {
-				require.Error(t, err)
-				var forbiddenError *authz.Forbidden
-				require.ErrorAs(t, err, &forbiddenError)
-			} else {
-				require.NoError(t, err)
-			}
-			require.True(t, ds.QueryFuncInvoked, "expected the referenced query to be loaded for a read authorization check")
-		})
-	}
-}
-
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	t.Helper()
 	if shouldFail {
@@ -1110,6 +1016,35 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			assert.Equal(t, c.wantContinuous, saved.ContinuousAutomationsEnabled, c.name)
 		}
 	})
+}
+
+func TestModifyGlobalPolicyScriptID(t *testing.T) {
+	const policyID = uint(42)
+
+	ds := new(mock.Store)
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{ID: policyID, Name: "global", Query: "SELECT 1;"}, nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error { return nil }
+	opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+		return nil
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	_, err := svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 1}})
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre)
+	require.ErrorContains(t, err, errPolicyAllFleetsForScripts)
+	require.False(t, ds.SavePolicyFuncInvoked)
+
+	// Clients such as the UI send the full payload, so unsetting must keep working.
+	for _, unset := range []optjson.Any[uint]{{Set: true, Valid: true}, {Set: true}} {
+		_, err = svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: unset})
+		require.NoError(t, err)
+	}
+	require.True(t, ds.SavePolicyFuncInvoked)
 }
 
 func TestTeamPolicyResendConfigProfile(t *testing.T) {

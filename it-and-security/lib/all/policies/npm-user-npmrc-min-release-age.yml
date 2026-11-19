@@ -69,7 +69,9 @@
     min-release-age as a number of at least 0.5 days (npm publish delay), and fails if the key is missing, unparseable,
     or set below 0.5. Values above 0.5 are left as-is. Other .npmrc lines are not evaluated by this policy.
   resolution: >-
-    Fleet can run the remediation script when this policy fails. If it still fails after a refetch, contact #help-it.
+    No action needed from you. Fleet runs a script that sets min-release-age in each user's .npmrc when this policy
+    fails. If it keeps failing, IT reviews the script output in the host's activity.
+  hidden: true
   platform: darwin
   labels_include_any:
     - Hosts with npm package inventory
@@ -146,7 +148,9 @@
     a number of at least 0.5 days (npm publish delay), and fails if the key is missing, unparseable, or set below 0.5.
     Values above 0.5 are left as-is. Other .npmrc lines are not evaluated by this policy.
   resolution: >-
-    Fleet can run the remediation script when this policy fails. If it still fails after a refetch, contact #help-it.
+    No action needed from you. Fleet runs a script that sets min-release-age in each user's .npmrc when this policy
+    fails. If it keeps failing, IT reviews the script output in the host's activity.
+  hidden: true
   platform: linux
   labels_include_any:
     - Hosts with npm package inventory
@@ -215,7 +219,9 @@
     .npmrc in that profile defining min-release-age as at least 0.5 days, and fails if the key is missing, unparseable,
     or set below 0.5. Values above 0.5 are left as-is. Other .npmrc lines are not evaluated by this policy.
   resolution: >-
-    Fleet can run the remediation script when this policy fails. If it still fails after a refetch, contact #help-it.
+    No action needed from you. Fleet runs a script that sets min-release-age in each user's .npmrc when this policy
+    fails. If it keeps failing, IT reviews the script output in the host's activity.
+  hidden: true
   platform: windows
   labels_include_any:
     - Hosts with npm package inventory

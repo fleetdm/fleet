@@ -6,7 +6,10 @@ import {
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-import { createMockSoftwarePackage } from "__mocks__/softwareMock";
+import {
+  createMockSoftwarePackage,
+  createMockSoftwarePackageIos,
+} from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
 import { AppContext, IAppContext } from "context/app";
 import { IConfig } from "interfaces/config";
@@ -59,6 +62,7 @@ const selectFileNamed = async (container: HTMLElement, name: string) => {
 };
 
 const TARGET_BANNER_COPY = /If multiple versions target the same host, Fleet will deploy the one that was added first\./i;
+const IPA_DUAL_PLATFORM_COPY = /Fleet adds this app for both iOS and iPadOS\. Edit each platform separately\. Changes to one don't apply to the other\./i;
 
 describe("PackageForm", () => {
   describe("Target section on the single-package Add flow", () => {
@@ -71,28 +75,45 @@ describe("PackageForm", () => {
       expect(screen.queryByText("Self service")).not.toBeInTheDocument();
     });
 
-    it("renders the Target section with the first-added banner once a file is selected", () => {
+    it("renders the Target section without the first-added banner once a file is selected", () => {
       // `defaultSoftware` seeds initialFormData.software (the form casts it to
       // File internally), which is the same signal the Add flow raises when
       // the user picks a file. Uses the ISoftwarePackage mock to satisfy the
       // prop's declared type.
       renderForm({ defaultSoftware: createMockSoftwarePackage() });
-      expect(screen.getByText(TARGET_BANNER_COPY)).toBeInTheDocument();
+      // A new title has no other version yet, so the install-order banner is hidden.
+      expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
       expect(screen.getByText("Self service")).toBeInTheDocument();
     });
 
-    it("omits the first-added banner on the Edit flow", () => {
+    it("shows the first-added banner on the Edit flow", () => {
       renderForm({
         isEditingSoftware: true,
         defaultSoftware: createMockSoftwarePackage(),
       });
-      // Target selector is present on Edit, but the banner is not — the
-      // install-order copy only applies to Add flows.
-      expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
+      expect(screen.getByText(TARGET_BANNER_COPY)).toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+    });
+
+    it("swaps in the iOS/iPadOS banner for .ipa and suppresses the first-added banner", () => {
+      // One .ipa creates two titles (iOS + iPadOS) that must be edited
+      // independently, so the first-added copy doesn't apply.
+      renderForm({ defaultSoftware: createMockSoftwarePackageIos() });
+      expect(screen.getByText(IPA_DUAL_PLATFORM_COPY)).toBeInTheDocument();
+      expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
+    });
+
+    it("omits the iOS/iPadOS banner on the Edit flow", () => {
+      renderForm({
+        isEditingSoftware: true,
+        defaultSoftware: createMockSoftwarePackageIos(),
+      });
+      expect(
+        screen.queryByText(IPA_DUAL_PLATFORM_COPY)
+      ).not.toBeInTheDocument();
     });
   });
 

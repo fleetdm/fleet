@@ -26,9 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
+
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
@@ -38,7 +45,7 @@ jobs:
 
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Pull metadata files

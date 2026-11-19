@@ -17,6 +17,8 @@ import { ILabelSummary } from "interfaces/label";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
+import UserTargetingTip from "./UserTargetingTip";
+
 const baseClass = "target-label-selector";
 
 export type LabelTargetMode = "any" | "all";
@@ -38,13 +40,20 @@ export interface ILabelConfig {
 interface INoLabelsEmptyStateProps {
   description: ReactNode;
   onAddLabel: () => void;
+  /** Validation error for the Custom-labels selection. Rendered above "No
+   * labels" so the user knows why Save was blocked when zero labels exist. */
+  labelsError?: ReactNode | null;
 }
 
 const NoLabelsEmptyState = ({
   description,
   onAddLabel,
+  labelsError,
 }: INoLabelsEmptyStateProps) => (
   <div className={`${baseClass}__empty-state`}>
+    {!!labelsError && (
+      <span className={`${baseClass}__empty-state--error`}>{labelsError}</span>
+    )}
     <span className={`${baseClass}__empty-state--title`}>No labels</span>
     <span className={`${baseClass}__empty-state--description`}>
       {description}
@@ -269,11 +278,27 @@ const CustomTargetTabs = ({
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [labelSearchQuery, setLabelSearchQuery] = useState("");
 
+  const errorBanner = !!labelsError && (
+    <div className={`form-field__label form-field__label--error`}>
+      {labelsError}
+    </div>
+  );
+
   if (isLoadingLabels) {
-    return <Spinner centered={false} />;
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
   }
   if (isErrorLabels) {
-    return <DataError />;
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
   }
 
   const hasLabels = !!labels.length;
@@ -326,6 +351,7 @@ const CustomTargetTabs = ({
             <NoLabelsEmptyState
               description={emptyStateDescription}
               onAddLabel={onAddLabel}
+              labelsError={labelsError}
             />
           )}
         </TabPanel>
@@ -344,6 +370,7 @@ const CustomTargetTabs = ({
             <NoLabelsEmptyState
               description={emptyStateDescription}
               onAddLabel={onAddLabel}
+              labelsError={labelsError}
             />
           )}
         </TabPanel>
@@ -433,17 +460,20 @@ const TargetLabelSelector = ({
         disableOptions={disableOptions}
       />
       {selectedTargetType === "Custom" && (
-        <CustomTargetTabs
-          labels={labels || []}
-          include={includeConfig}
-          exclude={excludeConfig}
-          emptyStateDescription={emptyStateDescription}
-          onAddLabel={onAddLabel}
-          isLoadingLabels={isLoadingLabels}
-          isErrorLabels={isErrorLabels}
-          disableOptions={disableOptions}
-          labelsError={labelsError}
-        />
+        <>
+          <CustomTargetTabs
+            labels={labels || []}
+            include={includeConfig}
+            exclude={excludeConfig}
+            emptyStateDescription={emptyStateDescription}
+            onAddLabel={onAddLabel}
+            isLoadingLabels={isLoadingLabels}
+            isErrorLabels={isErrorLabels}
+            disableOptions={disableOptions}
+            labelsError={labelsError}
+          />
+          <UserTargetingTip />
+        </>
       )}
     </div>
   );

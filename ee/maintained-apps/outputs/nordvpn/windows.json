@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.14.4.0",
+      "version": "8.16.1.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'NordVPN %' AND publisher = 'Nord Security';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NordVPN %' AND publisher = 'Nord Security' AND version_compare(version, '8.14.4.0') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'NordVPN' AND publisher = 'Nord Security';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordVPN' AND publisher = 'Nord Security' AND version_compare(version, '8.16.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nordvpn.exe');"
       },
-      "installer_url": "https://downloads.nordcdn.com/apps/windows/NordVPN/8.14.4.0/NordVPNInstall.exe",
+      "installer_url": "https://downloads.nordcdn.com/apps/windows/NordVPN/8.16.1.0/NordVPNInstall.exe",
       "install_script_ref": "61026ed8",
       "uninstall_script_ref": "b5dba69c",
-      "sha256": "ac41e6fb1d546c0b714222e98ba31ca70d0b813a14bb44567176cd7a165bc78b",
+      "sha256": "4efd0a60af586014762b0caa2e13f6ca5f5128cd6c0165b3621648bae3201d00",
       "default_categories": [
         "Productivity"
       ]
