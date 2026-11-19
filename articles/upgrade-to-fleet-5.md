@@ -816,6 +816,24 @@ Change these before you upgrade.
 
 GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
 
+
+### Public version endpoint removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /version` shows the Fleet server version to anyone, without logging in | Removed. Use [Get version](https://fleetdm.com/docs/rest-api/rest-api#get-version) (`GET /api/v1/fleet/version`), which needs an API token. |
+
+
+#### What to do
+
+Change these before you upgrade.
+
+1. If a script, monitoring tool, or load balancer calls `/version`, switch it to `GET /api/v1/fleet/version` with the token of an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+   - For health checks, use `/healthz`. It doesn't return the version.
+
+GitHub issue: [#59246](https://github.com/fleetdm/fleet/issues/59246)
+
+
 ### Puppet module removed
 
 | Fleet 4 | Fleet 5 |
