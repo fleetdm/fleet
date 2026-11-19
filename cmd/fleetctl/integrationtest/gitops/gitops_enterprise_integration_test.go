@@ -1460,12 +1460,17 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
-// Helper function to get No Team webhook settings from the database
+// Helper function to get No Team webhook settings from the database. policy_ids isn't stored in the settings; it's
+// built from the policies that have the webhook or ticket automation on.
 func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
 	cfg, err := ds.DefaultTeamConfig(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	return cfg.WebhookSettings.FailingPoliciesWebhook
+	settings := cfg.WebhookSettings.FailingPoliciesWebhook
+	require.Empty(t, settings.PolicyIDs)
+	settings.PolicyIDs, err = ds.WebhooksAndTicketsPolicyIDs(ctx, new(uint(0)))
+	require.NoError(t, err)
+	return settings
 }
 
 // Helper function to verify No Team webhook settings match expected values
@@ -1564,11 +1569,13 @@ settings:
 	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
 	// Verify webhook settings were actually applied by checking the database
+	// Each policy's webhooks_and_tickets_enabled decides its automation, so the deprecated policy_ids list turns none on
+	// (the YAML's policy leaves the key out, and IDs 1-3 aren't other "Unassigned" policies).
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
 		Enable:         true,
 		DestinationURL: "https://example.com/no-team-webhook",
 		HostBatchSize:  50,
-		PolicyIDs:      []uint{1, 2, 3},
+		PolicyIDs:      nil,
 	})
 
 	// Test updating webhook settings

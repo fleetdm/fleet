@@ -449,6 +449,16 @@ type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*flee
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error)
 
+type ListPoliciesFunc func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error)
+
+type CountPoliciesFunc func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error)
+
+type NewPolicyFunc func(ctx context.Context, req fleet.CreatePolicyRequest) (*fleet.Policy, error)
+
+type ModifyPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error)
+
+type DeletePoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
+
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error)
@@ -1627,6 +1637,21 @@ type Service struct {
 
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
+
+	ListPoliciesFunc        ListPoliciesFunc
+	ListPoliciesFuncInvoked bool
+
+	CountPoliciesFunc        CountPoliciesFunc
+	CountPoliciesFuncInvoked bool
+
+	NewPolicyFunc        NewPolicyFunc
+	NewPolicyFuncInvoked bool
+
+	ModifyPolicyFunc        ModifyPolicyFunc
+	ModifyPolicyFuncInvoked bool
+
+	DeletePoliciesFunc        DeletePoliciesFunc
+	DeletePoliciesFuncInvoked bool
 
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
@@ -3931,6 +3956,41 @@ func (s *Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions
 	s.ListGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListGlobalPoliciesFunc(ctx, opts, platform)
+}
+
+func (s *Service) ListPolicies(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPoliciesFunc(ctx, teamID, mergeInherited, opts, filter)
+}
+
+func (s *Service) CountPolicies(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesFunc(ctx, teamID, mergeInherited, matchQuery, filter)
+}
+
+func (s *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.NewPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewPolicyFunc(ctx, req)
+}
+
+func (s *Service) ModifyPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ModifyPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ModifyPolicyFunc(ctx, id, p)
+}
+
+func (s *Service) DeletePolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	s.mu.Lock()
+	s.DeletePoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePoliciesFunc(ctx, ids)
 }
 
 func (s *Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {

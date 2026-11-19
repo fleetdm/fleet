@@ -5358,7 +5358,11 @@ software:
 			expectedIDs = append(expectedIDs, p.ID)
 		}
 	}
-	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	// policy_ids isn't stored in the settings; it lives on the policies.
+	require.Empty(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), nil)
+	require.NoError(t, err)
+	require.ElementsMatch(t, expectedIDs, webhookPolicyIDs)
 }
 
 func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {

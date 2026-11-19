@@ -310,9 +310,6 @@ export default {
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
   STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,
   TARGETS: `/${API_VERSION}/fleet/targets`,
-  TEAM_POLICIES: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
-  },
   TEAMS: `/${API_VERSION}/fleet/fleets`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/agent_options`;
