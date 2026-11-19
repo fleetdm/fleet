@@ -153,7 +153,7 @@ func TestValidateUnknownKeys(t *testing.T) {
 		}
 		require.NotNil(t, removedErr)
 		assert.Equal(t, `in "default.yml": The "controls.setup_experience.require_all_software_macos" key is not available anymore. `+
-			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, removedErr.Error())
+			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, removedErr.Error())
 		require.NotNil(t, unknownErr)
 		assert.Empty(t, unknownErr.Suggestion, "the removed key is never suggested")
 
@@ -184,6 +184,20 @@ func TestValidateUnknownKeys(t *testing.T) {
 						"client_x509_cert_url":        "https://www.googleapis.com/robot/v1/metadata/x509/foo",
 						"universe_domain":             "googleapis.com",
 					},
+				},
+			},
+		}
+		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
+		assert.Empty(t, errs)
+	})
+
+	t.Run("google_conditional_access api_key_json keys are not validated", func(t *testing.T) {
+		data := map[string]any{
+			"google_conditional_access": map[string]any{
+				"customer_id": "C02cajzvg",
+				"admin_email": "admin@example.com",
+				"api_key_json": map[string]any{
+					"type": "service_account", "client_email": "test@example.com", "private_key": "some value",
 				},
 			},
 		}
@@ -351,11 +365,11 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		assert.Contains(t, errs[0].Error(), "grace_period_das")
 	})
 
-	t.Run("macos_settings any-field recursion", func(t *testing.T) {
+	t.Run("apple_settings any-field recursion", func(t *testing.T) {
 		data := map[string]any{
-			"macos_settings": map[string]any{
-				"custom_settings":  []any{},
-				"custom_settingss": "typo",
+			"apple_settings": map[string]any{
+				"configuration_profiles": []any{},
+				"custom_settingss":       "typo",
 			},
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsControls](), []string{"controls"}, "test.yml")
@@ -366,8 +380,8 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 	t.Run("android_settings any-field recursion", func(t *testing.T) {
 		data := map[string]any{
 			"android_settings": map[string]any{
-				"custom_settings": []any{},
-				"certificatess":   "typo",
+				"configuration_profiles": []any{},
+				"certificatess":          "typo",
 			},
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsControls](), []string{"controls"}, "test.yml")
@@ -383,7 +397,7 @@ func TestAnyFieldTypeRegistry(t *testing.T) {
 		assert.Contains(t, overrides, "ipados_updates")
 		assert.Contains(t, overrides, "macos_migration")
 		assert.Contains(t, overrides, "windows_updates")
-		assert.Contains(t, overrides, "macos_settings")
+		assert.Contains(t, overrides, "apple_settings")
 		assert.Contains(t, overrides, "windows_settings")
 		assert.Contains(t, overrides, "android_settings")
 	})

@@ -33,8 +33,8 @@ const getLocationMessage = (
   );
   const IOS_LOCK_REQUIRED_MESSAGE = (
     <>
-      To view location, Apple requires that iOS hosts are locked (Lost Mode)
-      first.
+      To view location, Apple requires that iOS/iPadOS hosts are locked (put in
+      Lost Mode) first.
     </>
   );
 
@@ -46,7 +46,14 @@ const getLocationMessage = (
 
   switch (hostMdmDeviceStatus) {
     case "unlocked":
-      return <div>{IOS_LOCK_REQUIRED_MESSAGE}</div>;
+      return (
+        <>
+          <p>{IOS_LOCK_REQUIRED_MESSAGE}</p>
+          <p>
+            To lock, go to <strong>Actions &gt; Lock</strong>.
+          </p>
+        </>
+      );
 
     case "locking":
       return (
@@ -103,7 +110,6 @@ const buildGoogleMapsLinkFromGeo = (loc: IGeoLocation): string | null => {
 interface ILocationModal {
   hostGeolocation?: IGeoLocation;
   onExit: () => void;
-  onClickLock: () => void;
   iosOrIpadosDetails?: IIosOrIpadosDetails;
   detailsUpdatedAt?: string;
 }
@@ -111,7 +117,6 @@ interface ILocationModal {
 const LocationModal = ({
   hostGeolocation,
   onExit,
-  onClickLock,
   iosOrIpadosDetails,
   detailsUpdatedAt,
 }: ILocationModal) => {
@@ -161,37 +166,15 @@ const LocationModal = ({
     );
   };
 
-  const renderFooter = () => {
-    const isIos = iosOrIpadosDetails?.isIosOrIpadosHost;
-    const status = iosOrIpadosDetails?.hostMdmDeviceStatus;
-
-    if (isIos && status === "unlocked") {
-      return (
-        <ModalFooter
-          primaryButtons={
-            <>
-              <Button type="button" onClick={onExit} variant="secondary">
-                Cancel
-              </Button>
-              <Button type="button" onClick={onClickLock}>
-                Lock
-              </Button>
-            </>
-          }
-        />
-      );
-    }
-
-    return (
-      <ModalFooter
-        primaryButtons={
-          <Button type="button" onClick={onExit}>
-            Close
-          </Button>
-        }
-      />
-    );
-  };
+  const renderFooter = () => (
+    <ModalFooter
+      primaryButtons={
+        <Button type="button" onClick={onExit}>
+          Close
+        </Button>
+      }
+    />
+  );
 
   return (
     <Modal title="Location" className={baseClass} onExit={onExit}>

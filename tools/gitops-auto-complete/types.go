@@ -44,7 +44,7 @@ type ControlsWithTypes struct {
 	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
 	Scripts                  []fleet.BaseItem                `json:"scripts"`
 
-	MacOSSettings   *fleet.MacOSSettings   `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings   *fleet.MacOSSettings   `json:"apple_settings"`
 	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
 	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
 	LinuxSettings   *fleet.LinuxSettings   `json:"linux_settings"`

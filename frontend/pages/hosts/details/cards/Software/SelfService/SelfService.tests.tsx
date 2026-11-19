@@ -13,6 +13,7 @@ import {
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
+import { emptyDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
@@ -58,6 +59,11 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
   mdmEnrollmentStatus: "Off",
 };
+
+// The card loads the device's self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptyDeviceSelfServiceCategoriesHandler);
+});
 
 describe("SelfService", () => {
   it("should render the self service items correctly", async () => {
@@ -296,7 +302,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             installed_versions: null,
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "1.1.0",
             }),
           }),
@@ -320,7 +326,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             installed_versions: [DEFAULT_INSTALLED_VERSION], // "1.0.0"
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "1.1.0",
             }),
           }),
@@ -392,7 +398,7 @@ describe("SelfService", () => {
         installed_versions: [
           { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
         ],
-        software_package: createMockHostSoftwarePackage({
+        package: createMockHostSoftwarePackage({
           version: "2.0.0",
           last_install: {
             install_uuid: "abc-123",

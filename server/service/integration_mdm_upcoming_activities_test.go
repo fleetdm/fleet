@@ -60,7 +60,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
@@ -183,7 +183,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// Associate no team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
@@ -393,12 +393,12 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// the SW install count only sees the failed install
 	titleResponse = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", swTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
-	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.FailedInstall)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.FailedUninstall)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingUninstall)
+	require.NotEmpty(t, titleResponse.SoftwareTitle.Packages)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.Installed)
+	require.Equal(t, uint(1), titleResponse.SoftwareTitle.Packages[0].Status.FailedInstall)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.FailedUninstall)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingUninstall)
 
 	// status of software is the one before cancellation
 	getHostSoftwareResp := getHostSoftwareResponse{}

@@ -28,9 +28,7 @@ describe("SoftwareUpdateModal", () => {
 
     expect(screen.getByText("Update details")).toBeVisible();
 
-    expect(
-      screen.queryByRole("button", { name: "Close" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Close")).not.toBeInTheDocument();
 
     // Click Update: both handlers called
     await user.click(screen.getByRole("button", { name: "Update" }));
@@ -62,7 +60,7 @@ describe("SoftwareUpdateModal", () => {
     expect(
       screen.queryByRole("button", { name: "Cancel" })
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.getByText("Close")).toBeInTheDocument();
   });
 
   it("shows 'Close' button and not update/cancel when status is pending_install", () => {
@@ -82,7 +80,7 @@ describe("SoftwareUpdateModal", () => {
     expect(
       screen.queryByRole("button", { name: "Update" })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByText("Close")).toBeInTheDocument();
   });
 
   it("renders correct status message for 'pending_install'", () => {
@@ -240,7 +238,7 @@ describe("SoftwareUpdateModal", () => {
           hostDisplayName="Test Host"
           software={createMockHostSoftware({
             display_name: "Slack",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "2.0.0",
             }),
             ...overrides,

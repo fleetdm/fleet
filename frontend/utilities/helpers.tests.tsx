@@ -228,7 +228,7 @@ describe("helpers utilities", () => {
   });
 
   describe("formatFleet5RemovalMessage function", () => {
-    const guideURL = "https://fleetdm.com/learn-more-about/fleet-5-migration";
+    const guideURL = "https://fleetdm.com/learn-more-about/fleet-5-upgrade";
 
     it("returns null for any other message", () => {
       expect(formatFleet5RemovalMessage("Couldn't add. Learn more")).toBeNull();

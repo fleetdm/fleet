@@ -572,6 +572,7 @@ import Kitty from "./png/Kitty.png";
 import Klokki from "./png/Klokki.png";
 import Knime from "./png/Knime.png";
 import Knockknock from "./png/Knockknock.png";
+import KopiaUI from "./png/KopiaUI.png";
 import Krisp from "./png/Krisp.png";
 import Krita from "./png/Krita.png";
 import Lapce from "./png/Lapce.png";
@@ -625,6 +626,7 @@ import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
 import Malwarebytes from "./png/Malwarebytes.png";
+import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
 import Markedit from "./png/Markedit.png";
 import Marsedit from "./png/Marsedit.png";
@@ -1747,6 +1749,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   klokki: Klokki,
   "knime analytics platform": Knime,
   knockknock: Knockknock,
+  kopiaui: KopiaUI,
   krisp: Krisp,
   krita: Krita,
   lapce: Lapce,
@@ -1800,6 +1803,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   magicquit: Magicquit,
   mailspring: Mailspring,
   "malwarebytes for mac": Malwarebytes,
+  "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
   markedit: Markedit,
   marsedit: Marsedit,
@@ -1876,6 +1880,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
   multitouch: Multitouch,
+  munki: ManagedSoftwareCenter,
   mural: Mural,
   museeks: Museeks,
   musescore: Musescore,

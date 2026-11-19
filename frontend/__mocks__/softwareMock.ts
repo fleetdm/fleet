@@ -113,9 +113,8 @@ export const createMockSoftwareVersionsResponse = (
 
 const DEFAULT_OS_VERSION_MOCK = {
   os_version_id: 1,
-  name: "macOS 14.6.1",
-  name_only: "macOS",
-  version: "14.6.1",
+  os_name: "macOS",
+  os_version: "14.6.1",
   platform: "darwin",
   hosts_count: 42,
   generated_cpes: [],
@@ -289,7 +288,6 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   id: 1,
   name: "test.app",
   icon_url: null,
-  software_package: null,
   packages: null,
   app_store_apps: null,
   source: "apps",
@@ -404,8 +402,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   hosts_count: 1,
   extension_for: "",
   versions: [createMockSoftwareTitleVersion()],
-  software_package: createMockSoftwarePackage(),
-  packages: null,
+  packages: [createMockSoftwarePackage()],
   app_store_apps: null,
 };
 

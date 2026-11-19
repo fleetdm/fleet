@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
@@ -559,7 +560,7 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) {
 		return "", nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
@@ -769,7 +770,7 @@ func mockHostDetailsDatastore(ds *mock.Store) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) {
 		return "", nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
@@ -1486,7 +1487,7 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) { return "", nil }
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) { return "", nil }
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -1624,7 +1625,7 @@ func TestHostDetailsOSUpdates(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) { return "", nil }
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) { return "", nil }
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -2659,12 +2660,12 @@ func TestGetHostSummary(t *testing.T) {
 
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
-			OnlineCount:      1,
-			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
-			MIACount:         3,
-			NewCount:         4,
-			TotalsHostsCount: 5,
-			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
+			OnlineCount:        1,
+			OfflineCount:       5, // offline hosts also includes mia hosts as of Fleet 4.15
+			Missing30DaysCount: 3,
+			NewCount:           4,
+			TotalsHostsCount:   5,
+			Platforms:          []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
 	}
 	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
@@ -2676,7 +2677,7 @@ func TestGetHostSummary(t *testing.T) {
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
 	require.Equal(t, uint(5), summary.OfflineCount)
-	require.Equal(t, uint(3), summary.MIACount)
+	require.Equal(t, uint(3), summary.Missing30DaysCount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
 	require.Len(t, summary.Platforms, 4)
@@ -4279,9 +4280,11 @@ func TestOSVersionsErrorHandling(t *testing.T) {
 	require.Contains(t, fmt.Sprint(err), "Invalid platform")
 	require.False(t, ds.OSVersionsFuncInvoked, "datastore should not be queried when the platform is invalid")
 
-	// A documented platform is still accepted.
-	_, _, _, err = svc.OSVersions(admin, nil, new("ios"), nil, nil, fleet.ListOptions{}, false, nil)
-	require.NoError(t, err)
+	// A documented platform is still accepted, and so is a Linux distribution's platform.
+	for _, platform := range []string{"ios", "linux", "cachyos", "archarm"} {
+		_, _, _, err = svc.OSVersions(admin, nil, new(platform), nil, nil, fleet.ListOptions{}, false, nil)
+		require.NoError(t, err, platform)
+	}
 
 	// A negative max_vulnerabilities returns a readable message with no ">"
 	// character (JSON encoding would otherwise escape it to ">").
@@ -4461,7 +4464,7 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 	wantDescending := []uint{4, 8, 9, 3, 2, 1, 6, 5, 7}
 	wantAscending := []uint{1, 2, 3, 4, 8, 9, 5, 6, 7}
 
-	opts := fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts := fleet.ListOptions{OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, vers.OSVersions, len(wantDescending))
@@ -4471,7 +4474,7 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 
 	// ascending version sort: reverse order, but the tied trio keeps the
 	// same relative (OSVersionID-ascending) order as in the descending case.
-	opts = fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderAscending}
+	opts = fleet.ListOptions{OrderKey: "os_version", OrderDirection: fleet.OrderAscending}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, vers.OSVersions, len(wantAscending))
@@ -4482,17 +4485,17 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 	// pagination + descending version sort stays deterministic across
 	// pages, including page 1, which straddles the windows/darwin platform
 	// group boundary (windows IDs 2, 1 followed by darwin IDs 6, 5).
-	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	page0, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, page0.OSVersions, 4)
 
-	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	page1, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, page1.OSVersions, 4)
 
-	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	page2, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, page2.OSVersions, 1)
@@ -5868,9 +5871,10 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 	// from `fleet.HostListOptions` and iterate to test that only a limited subset of filter (i.e.
 	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
-		name      string
-		filters   *map[string]interface{}
-		has400Err bool
+		name       string
+		filters    *map[string]any
+		has400Err  bool
+		removedKey string
 	}{
 		{
 			name: "valid status filter",
@@ -5911,7 +5915,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 			filters: &map[string]any{
 				"team_id": float64(1),
 			},
-			has400Err: true,
+			removedKey: "team_id",
 		},
 		{
 			name: "valid label_id filter",
@@ -5999,20 +6003,25 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 	}
 
-	checkErr := func(t *testing.T, err error, has400Err bool) {
-		if has400Err {
+	checkErr := func(t *testing.T, err error, has400Err bool, removedKey string) {
+		switch {
+		case removedKey != "":
+			rke, ok := errors.AsType[*endpointer.RemovedKeyError](err)
+			require.True(t, ok, "got %v", err)
+			require.Equal(t, removedKey, rke.Key)
+		case has400Err:
 			require.Error(t, err)
 			var be *fleet.BadRequestError
 			require.ErrorAs(t, err, &be)
-		} else {
+		default:
 			require.NoError(t, err)
 		}
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err)
-			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err)
+			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err, tt.removedKey)
+			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err, tt.removedKey)
 		})
 	}
 }
