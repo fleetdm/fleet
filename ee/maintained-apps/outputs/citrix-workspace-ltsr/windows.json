@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.7.0.269",
+      "version": "26.7.1.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name GLOB 'Citrix Workspace [0-9][0-9][0-9][0-9]*' AND publisher = 'Citrix Systems, Inc.' AND EXISTS (SELECT 1 FROM registry WHERE key IN ('HKEY_LOCAL_MACHINE\\SOFTWARE\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy') AND name = 'LTSROnly' AND data = 'true');",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name GLOB 'Citrix Workspace [0-9][0-9][0-9][0-9]*' AND publisher = 'Citrix Systems, Inc.' AND EXISTS (SELECT 1 FROM registry WHERE key IN ('HKEY_LOCAL_MACHINE\\SOFTWARE\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy') AND name = 'LTSROnly' AND data = 'true') AND version_compare(version, '26.7.0.269') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name GLOB 'Citrix Workspace [0-9][0-9][0-9][0-9]*' AND publisher = 'Citrix Systems, Inc.' AND EXISTS (SELECT 1 FROM registry WHERE key IN ('HKEY_LOCAL_MACHINE\\SOFTWARE\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Citrix\\ICA Client\\AutoUpdate\\Commandline Policy') AND name = 'LTSROnly' AND data = 'true') AND version_compare(version, '26.7.1.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('wfica32.exe','cdviewer.exe','citrix.desktopviewer.app.exe'));"
       },
-      "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Win/CitrixWorkspaceApp_x64_26.7.0.269.exe",
+      "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Win/CitrixWorkspaceApp_x64_26.7.1.4.exe",
       "install_script_ref": "b77f3578",
       "uninstall_script_ref": "3905569f",
-      "sha256": "c3804c4ad658b3d4661aa45b3ebaf0a6b361cf459cd5bfb2ee0f9bffc7d73c43",
+      "sha256": "d829b6228bee3e8352920e868da7d33d0617d1655a276255b719c878c5916e79",
       "default_categories": [
         "Productivity"
       ]
