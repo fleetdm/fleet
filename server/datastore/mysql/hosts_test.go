@@ -4986,7 +4986,9 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 
@@ -6381,11 +6383,15 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	q2 := test.NewQuery(t, ds, nil, "query2", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 	p2, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		Name:        q2.Name,
+		Query:       q2.Query,
+		Description: q2.Description,
 	})
 	require.NoError(t, err)
 
@@ -6476,7 +6482,9 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 
@@ -10981,9 +10989,9 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 			var p *fleet.Policy
 			var err error
 			if i == 2 || i == 5 {
-				p, err = ds.NewTeamPolicy(ctx, team.ID, &u.ID, fleet.PolicyPayload{QueryID: &q.ID, Hidden: true})
+				p, err = ds.NewTeamPolicy(ctx, team.ID, &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description, Hidden: true})
 			} else {
-				p, err = ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+				p, err = ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 			}
 			require.NoError(t, err)
 			policies = append(policies, p)
@@ -11267,7 +11275,9 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 		p, err := ds.NewGlobalPolicy(
 			context.Background(), &user1.ID, fleet.PolicyPayload{
-				QueryID: &q.ID,
+				Name:        q.Name,
+				Query:       q.Query,
+				Description: q.Description,
 			},
 		)
 		require.NoError(t, err)
@@ -13692,11 +13702,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	u := test.NewUser(t, ds, "Jack", "jack@example.com", true)
 
 	q := test.NewQuery(t, ds, nil, "passing_query", "select 1", 0, true)
-	passingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	passingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 	require.NoError(t, err)
 
 	q = test.NewQuery(t, ds, nil, "failing_query", "select 1", 0, true)
-	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 	require.NoError(t, err)
 
 	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
@@ -14231,7 +14241,9 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 		p, err := ds.NewGlobalPolicy(
 			context.Background(), &user1.ID, fleet.PolicyPayload{
-				QueryID: &q.ID,
+				Name:        q.Name,
+				Query:       q.Query,
+				Description: q.Description,
 			},
 		)
 		require.NoError(t, err)

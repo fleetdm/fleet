@@ -91,8 +91,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.NoError(t, err)
 
 	tpParams := fleet.TeamPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some team resolution",
+		Name:        qr.Name,
+		Query:       qr.Query,
+		Description: qr.Description,
+		Resolution:  "some team resolution",
 	}
 	r := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), tpParams, http.StatusOK, &r)
