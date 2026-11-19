@@ -110,7 +110,7 @@ The workflow already splits its permissions: only Build sees the Fleet token, an
 - **Allow only GitHub's actions.** The workflow uses only actions from the `actions` organization. Under **Settings > Actions > General**, select **Allow \<owner\>, and select non-\<owner\>, actions and reusable workflows**, then select **Allow actions created by GitHub**. Under **Workflow permissions**, select **Read repository contents and packages permissions**. The workflow asks for more where a job needs it.
 - **Keep the Fleet token read-only.** Use the API-only user from the Claude guide: the global Observer role, limited to five read endpoints.
 - **Rotate the token.** To replace it, create a new API-only user the same way, update `FLEET_API_TOKEN`, run the workflow once, then delete the old user in Fleet.
-- **Review updates before you copy them.** When the scripts change in Fleet's repository, read the diff before you copy them into yours. To keep the pinned actions current, turn on [Dependabot version updates](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot) for the `github-actions` ecosystem.
+- **Review updates before you merge them.** Read the diff of every update to the scripts before it reaches `main` (see "Update the dashboards"). To keep the pinned actions current, turn on [Dependabot version updates](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/keeping-your-actions-up-to-date-with-dependabot) for the `github-actions` ecosystem.
 
 ## Know the storage limits
 
@@ -168,6 +168,47 @@ aws s3 sync "$RUNNER_TEMP/site" s3://<bucket>/dex --delete
 
 Put the site behind your single sign-on, and give the upload credential access to that one site and nothing else. If you add an action from outside GitHub, allow it in **Settings > Actions > General**, and pin it to a commit SHA.
 
+## Update the dashboards
+
+The workflow runs the copy of the scripts in your repository. It never pulls changes from Fleet's repository, so nothing new runs with your Fleet token until you review it. To take an update, open a pull request with Fleet's latest scripts, review it, and merge it.
+
+### Get update pull requests automatically
+
+This is optional. An update check opens the pull request for you when Fleet's scripts change.
+
+1. Copy the update check into your workflows:
+
+```bash
+cp dex-dashboards/github-update-workflow.yml .github/workflows/dex-dashboards-update.yml
+```
+
+2. Go to **Settings > Actions > General**. Under **Workflow permissions**, select **Allow GitHub Actions to create and approve pull requests**.
+3. Commit and push the workflow to `main`.
+
+Every Monday at 15:23 UTC, the update check compares your `dex-dashboards/` folder with the latest copy in Fleet's repository. When they differ, it opens a pull request titled "Update DEX dashboard scripts to fleetdm/fleet@\<commit\>", or updates the one already open. It runs none of the scripts and never sees the Fleet token. To check now, go to **Actions**, select **DEX dashboards update check**, and click **Run workflow**.
+
+> **Note:** The update check replaces the whole folder with Fleet's copy. If you changed the scripts, the pull request undoes your changes. Add them back in the pull request before you merge.
+
+### Update by hand
+
+From your repository's folder, update the sparse copy from step 1, then sync it into `dex-dashboards/` on a new branch:
+
+```bash
+git -C ../fleet-dex pull
+```
+
+```bash
+rsync -a --delete ../fleet-dex/docs/solutions/dex-dashboards/ dex-dashboards/
+```
+
+If you deleted the sparse copy, clone it again as in step 1. Commit the changes and open a pull request.
+
+### Review and merge an update
+
+1. Read the diff the way you read the scripts in step 1. The workflow runs them every day with your Fleet token.
+2. If `dex-dashboards/github-workflow.yml` changed, copy it to `.github/workflows/dex-dashboards.yml` in the same pull request. If `dex-dashboards/github-update-workflow.yml` changed, copy it to `.github/workflows/dex-dashboards-update.yml`. The update check can't change files in `.github/workflows/`, so its pull request tells you when either one changed.
+3. Merge the pull request. The next scheduled run uses the new scripts. To update the site now, run **DEX dashboards** from **Actions** without **First run: start new histories**.
+
 ## What works differently from the Claude version
 
 - **AI governance policy decisions don't save.** The page shows the inventory and risk findings, but nobody can record a posture or decision, and there's no change log. Those need the artifact's shared store.
@@ -196,6 +237,10 @@ The branch doesn't exist. Create it in step 2.
 **The Deploy or Build job says the branch isn't allowed to deploy to the environment**
 
 The workflow ran from a branch other than `main`, and the environment's deployment branch rule stopped it. Run it from `main`.
+
+**The update check fails with "GitHub Actions is not permitted to create or approve pull requests"**
+
+The repository doesn't let workflows open pull requests. Under **Settings > Actions > General**, select **Allow GitHub Actions to create and approve pull requests**, then run the update check again.
 
 **Patch velocity says "Couldn't check the latest release"**
 
