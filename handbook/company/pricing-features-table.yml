@@ -276,6 +276,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/51528
     - description: Allow only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM, blocking manual and BYOD enrollment (4.93.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/51484
+    - description: Allow only company-owned Android hosts to turn on MDM through zero-touch enrollment, blocking QR code and work profile (BYOD) enrollment (5.3.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/56446
     - description: Create a local break-glass admin account during macOS DEP setup so IT teams have a fallback account for troubleshooting (4.85.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/37141
     - description: End users are prompted to authenticate only once during Windows enrollment when "End user authentication" is enabled, simplifying the setup experience (4.85.0).
