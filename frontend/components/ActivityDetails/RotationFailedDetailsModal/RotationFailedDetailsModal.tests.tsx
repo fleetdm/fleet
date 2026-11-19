@@ -82,7 +82,7 @@ describe("RotationFailedDetailsModal", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByText("Close"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
