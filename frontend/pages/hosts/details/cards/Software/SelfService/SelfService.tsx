@@ -92,6 +92,7 @@ export const parseSelfServiceQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   category_id?: string;
+  mobile?: string;
 }) => {
   const searchQuery =
     queryParams?.query ?? DEFAULT_SELF_SERVICE_CONFIG.ui.search_query;
@@ -115,6 +116,9 @@ export const parseSelfServiceQueryParams = (queryParams: {
     order_direction: sortDirection,
     per_page: pageSize,
     category_id: categoryId,
+    // DeviceUserPage dev override. Threaded through so SelfService
+    // navigations preserve it in the URL across refreshes and sharing.
+    mobile: queryParams?.mobile,
   };
 };
 
@@ -521,9 +525,9 @@ const SoftwareSelfService = ({
         softwareId: hostSW.id,
         softwareName: hostSW.name,
         softwareInstallerType: getExtensionFromFileName(
-          hostSW.software_package?.name || ""
+          hostSW.package?.name || ""
         ),
-        version: hostSW.software_package?.version || "",
+        version: hostSW.package?.version || "",
       };
       setShowUninstallSoftwareModal(true);
     },
@@ -796,8 +800,7 @@ const SoftwareSelfService = ({
           details={{
             host_display_name: hostDisplayName,
             install_uuid:
-              selectedHostSWInstallDetails.software_package?.last_install
-                ?.install_uuid,
+              selectedHostSWInstallDetails.package?.last_install?.install_uuid,
           }}
           onRetry={onClickInstallAction}
           onCancel={() => setSelectedHostSWInstallDetails(undefined)}
@@ -816,7 +819,7 @@ const SoftwareSelfService = ({
               selectedHostSWIpaInstallDetails.display_name
             ),
             commandUuid:
-              selectedHostSWIpaInstallDetails.software_package?.last_install
+              selectedHostSWIpaInstallDetails.package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
           }}
           onRetry={onClickInstallAction}
@@ -830,8 +833,7 @@ const SoftwareSelfService = ({
           details={{
             host_display_name: hostDisplayName,
             install_uuid:
-              selectedHostSWScriptDetails.software_package?.last_install
-                ?.install_uuid,
+              selectedHostSWScriptDetails.package?.last_install?.install_uuid,
           }}
           onRerun={onClickInstallAction}
           onCancel={() => setSelectedHostSWScriptDetails(undefined)}

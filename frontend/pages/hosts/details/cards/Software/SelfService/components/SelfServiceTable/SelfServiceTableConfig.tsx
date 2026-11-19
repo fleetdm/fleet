@@ -29,7 +29,7 @@ type IStatusCellProps = CellProps<
 >;
 type IAvailableVersionCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
-  | IDeviceSoftwareWithUiStatus["software_package"]
+  | IDeviceSoftwareWithUiStatus["package"]
   | IDeviceSoftwareWithUiStatus["app_store_app"]
 >;
 type IActionCellProps = CellProps<
@@ -142,11 +142,11 @@ export const generateSoftwareTableHeaders = ({
       id: "available_version",
       disableSortBy: true,
       accessor: (originalRow) =>
-        originalRow.software_package || originalRow.app_store_app,
+        originalRow.package || originalRow.app_store_app,
       Cell: (cellProps: IAvailableVersionCellProps) => {
         const softwareTitle = cellProps.row.original;
         const installerData =
-          softwareTitle.software_package ?? softwareTitle.app_store_app;
+          softwareTitle.package ?? softwareTitle.app_store_app;
         return (
           <VersionCell
             versions={[{ version: installerData?.version || "" }]}

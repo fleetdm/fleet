@@ -24,9 +24,9 @@ const FleetAvatar = ({ className }: IFleetAvatarProps) => {
       <circle
         cx="16"
         cy="16"
-        r="15.25"
+        r="15"
         stroke={COLORS["ui-fleet-black-25"]}
-        strokeWidth="1.5"
+        strokeWidth="2"
       />
       <path
         d="M10.75 12.5C11.7165 12.5 12.5 11.7165 12.5 10.75C12.5 9.7835 11.7165 9 10.75 9C9.7835 9 9 9.7835 9 10.75C9 11.7165 9.7835 12.5 10.75 12.5Z"
@@ -74,10 +74,10 @@ const APIOnlyAvatar = ({ className }: IAPIOnlyAvatar) => {
       <circle
         cx="16"
         cy="16"
-        r="15.25"
+        r="15"
         fill="none"
         stroke={COLORS["ui-fleet-black-25"]}
-        strokeWidth="1.5"
+        strokeWidth="2"
       />
       <path
         d="M11.5 12.75L8 16L11.5 19.25"
@@ -118,9 +118,9 @@ const DefaultAvatar = ({ className }: IAPIOnlyAvatar) => {
       <circle
         cx="16"
         cy="16"
-        r="15.25"
+        r="15"
         stroke={COLORS["ui-fleet-black-25"]}
-        strokeWidth="1.5"
+        strokeWidth="2"
       />
       <circle
         cx="16"

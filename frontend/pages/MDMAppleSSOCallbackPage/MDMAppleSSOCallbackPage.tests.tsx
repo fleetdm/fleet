@@ -11,7 +11,6 @@ const render = createCustomRenderer();
 interface ICallbackQuery {
   eula_token?: string;
   profile_token?: string;
-  enrollment_reference?: string;
   initiator?: string;
   error?: boolean;
   reason?: string;

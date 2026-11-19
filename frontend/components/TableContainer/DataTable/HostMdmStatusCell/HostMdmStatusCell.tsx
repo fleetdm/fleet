@@ -52,6 +52,7 @@ const HostMdmStatusCell = ({
       )}
       {mdm?.dep_profile_error && (
         <TooltipWrapper
+          className={`${baseClass}__error-tooltip`}
           tipContent={
             <span className="tooltip__tooltip-text">
               Migration or new Mac setup won&apos;t work. There&apos;s an issue
@@ -68,7 +69,7 @@ const HostMdmStatusCell = ({
           showArrow
           tipOffset={8}
         >
-          <Icon name="error-outline" color="status-error" size="medium" />
+          <Icon name="error" color="status-error" size="medium" />
         </TooltipWrapper>
       )}
     </span>

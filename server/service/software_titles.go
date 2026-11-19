@@ -44,13 +44,6 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
 		}
-		// we dont want to include the InstallDuringSetup field in the response
-		// for software titles list.
-		if sw.SoftwarePackage != nil {
-			sw.SoftwarePackage.InstallDuringSetup = nil
-		} else if sw.AppStoreApp != nil {
-			sw.AppStoreApp.InstallDuringSetup = nil
-		}
 	}
 	if len(titles) == 0 {
 		titles = []fleet.SoftwareTitleListResult{}
@@ -86,8 +79,13 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, 0, nil, err
 	}
 
 	// always include metadata for software titles
@@ -108,6 +106,15 @@ func (svc *Service) ListSoftwareTitles(
 	if err != nil {
 		return nil, 0, nil, err
 	}
+	if !lic.IsPremium() {
+		for i := range titles {
+			titles[i].AITool = nil
+		}
+	}
+	// Clear the deprecated software_package object from every response except setup experience
+	for i := range titles {
+		titles[i].SoftwarePackage = nil
+	}
 
 	return titles, count, meta, nil
 }
@@ -118,7 +125,7 @@ func (svc *Service) ListSoftwareTitles(
 
 type getSoftwareTitleRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getSoftwareTitleResponse struct {
@@ -154,7 +161,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -181,15 +188,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
-	// A nil teamID resolves to "no team" below, a scope the check above skips.
-	// Omit the installer data rather than failing, so this path doesn't turn the
-	// status code into a signal about titles the caller can't otherwise reach.
-	includeInstallers := license.IsPremium()
-	if includeInstallers && teamID == nil {
-		includeInstallers = svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead) == nil
-	}
-
-	if includeInstallers {
+	// Skip installer data when no fleet is given, packages, App Store apps and in-house apps are set per fleet
+	if license.IsPremium() && teamID != nil {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
 			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
@@ -215,7 +215,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 				// Key policies by installer_id so each package on a multi-package
 				// title only surfaces the ones actually bound to it. VPP-backed
-				// policies have nil InstallerID and dispatch via AppStoreApp.
+				// policies have nil InstallerID and carry a VPPAppsTeamsID instead.
 				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 				if titleMeta != nil {
 					for _, p := range titleMeta.AutomaticInstallPolicies {
@@ -262,35 +262,48 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						}
 						pkg.PatchPolicy = patchPolicy
 
-						// While patch_when_closed or notify_before_patching is on, the pre-install
-						// query is Fleet's managed app open query, shown read-only.
-						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching) {
+						// While patch_when_closed, notify_before_patching, or patch_deadline is on, the
+						// pre-install query is Fleet's managed app open query, shown read-only.
+						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching || patchPolicy.PatchDeadline) {
 							pkg.PreInstallQuery = pkg.AppOpenQuery
 						}
 					}
 				}
 
-				// software_package is kept for backwards compatibility and equals the first-added package.
 				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
 				for i, pkg := range pkgs {
 					software.Packages[i] = *pkg
 				}
-				software.SoftwarePackage = pkgs[0]
 			}
 		}
 
 		// add VPP app data if needed
 		if software.VPPAppsCount > 0 {
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+			summaries, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, versions)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+			}
+			vppTokensByID := make(map[uint]*fleet.VPPTokenSummary)
+			for _, meta := range versions {
+				meta.Status = summaries[meta.VPPAppsTeamsID]
+
+				if meta.VPPTokenID != nil {
+					if _, ok := vppTokensByID[*meta.VPPTokenID]; !ok {
+						var tok *fleet.VPPTokenDB
+						tok, err = svc.ds.GetVPPToken(ctx, *meta.VPPTokenID)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get vpp token for app store app")
+						}
+						if tok != nil {
+							vppTokensByID[*meta.VPPTokenID] = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
+						}
+					}
+					meta.VPPToken = vppTokensByID[*meta.VPPTokenID]
 				}
-				meta.Status = summary
 
 				// Wrap iOS / iPadOS plist as a JSON string for the response.
 				if len(meta.Configuration) > 0 {
@@ -304,7 +317,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 				}
 			}
-			software.AppStoreApp = meta
+			software.AppStoreApps = versions
 		}
 
 		// add in house app data if needed
@@ -332,12 +345,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 					meta.Configuration = wrapped
 				}
+				software.Packages = []fleet.SoftwareInstaller{*meta}
 			}
-			software.SoftwarePackage = meta
 		}
 	}
 
 	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+	if !license.IsPremium() {
+		software.AITool = nil
+	}
 
 	return software, nil
 }
@@ -362,15 +378,11 @@ func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *u
 		installer.Configuration = nil
 	}
 
-	// Packages holds copies while SoftwarePackage is a pointer, so filter both.
 	for i := range title.Packages {
 		filterInstaller(&title.Packages[i])
 	}
-	if title.SoftwarePackage != nil {
-		filterInstaller(title.SoftwarePackage)
-	}
-	if title.AppStoreApp != nil {
-		title.AppStoreApp.Configuration = nil
+	for i := range title.AppStoreApps {
+		title.AppStoreApps[i].Configuration = nil
 	}
 }
 
@@ -436,21 +448,4 @@ func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name s
 	}
 
 	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
-}
-
-func (svc *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
-	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// Coerce nil teamID to 0.
-	var tID uint
-	if teamID != nil {
-		tID = *teamID
-	}
-	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tID, config); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-
-	return nil
 }

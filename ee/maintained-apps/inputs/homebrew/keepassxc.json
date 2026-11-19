@@ -1,6 +1,6 @@
 {
   "name": "KeePassXC",
-  "unique_identifier": "org.keepassx.keepassxc",
+  "unique_identifier": "org.keepassxc.keepassxc",
   "token": "keepassxc",
   "installer_format": "dmg",
   "slug": "keepassxc/darwin",

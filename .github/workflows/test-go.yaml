@@ -17,6 +17,7 @@ on:
       - 'tools/osquery/in-a-box/docker-compose.yml'
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/api_endpoints/api_endpoints.yml'
+      - 'schema/osquery_fleet_schema.json'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
       - 'frontend/templates/enroll-ota.html'
@@ -34,6 +35,7 @@ on:
       - 'tools/osquery/in-a-box/docker-compose.yml'
       - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/api_endpoints/api_endpoints.yml'
+      - 'schema/osquery_fleet_schema.json'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
       - 'frontend/templates/enroll-ota.html'
@@ -158,7 +160,7 @@ jobs:
       GO_TEST_TIMEOUT: 20m
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -266,7 +268,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -293,7 +295,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

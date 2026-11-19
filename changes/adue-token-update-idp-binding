@@ -1,0 +1,1 @@
+- Fixed account-driven user enrollment (iOS/iPadOS) linking a host to an IdP account other than the one its enrollment certificate was issued for.

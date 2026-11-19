@@ -2,7 +2,7 @@ import React from "react";
 import { Column, Row } from "react-table";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
@@ -17,7 +17,10 @@ import {
   MdmProfileStatus,
   ProfilePlatform,
 } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
+import {
+  isAppleDevice,
+  LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS,
+} from "interfaces/platform";
 import { isDDMProfile } from "services/entities/mdm";
 
 import {
@@ -203,14 +206,21 @@ const generateTableConfig = ({
       id: "details",
       accessor: "detail",
       disableSortBy: true,
-      // TextCell defaults to `w250`, which would cap the cell at 202px.
-      // Truncation lives on the cell in _styles.scss instead.
       Cell: (cellProps: ITableStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} className="" />;
+        return (
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            tooltipBreakOnWord
+          />
+        );
       },
     },
     {
-      Header: <span className="sr-only">Actions</span>,
+      Header: isDeviceUser ? (
+        "Actions"
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
       id: "actions",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
@@ -375,17 +385,21 @@ export const generateTableData = (
   hostMDMData: IHostMdmData,
   platform: string
 ) => {
+  // rhel is Fedora here: the OS settings card is only shown for Fedora among rhel-like hosts
+  if (
+    platform === "rhel" ||
+    LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS.includes(
+      platform as typeof LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS[number]
+    )
+  ) {
+    return makeLinuxRows(hostMDMData);
+  }
+
   switch (platform) {
     case "windows":
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
-    case "ubuntu":
-      return makeLinuxRows(hostMDMData);
-    case "zorin":
-      return makeLinuxRows(hostMDMData);
-    case "rhel":
-      return makeLinuxRows(hostMDMData);
     case "ios":
     case "ipados":
       return makeAppleMobileRows(hostMDMData, platform);

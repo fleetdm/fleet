@@ -9,6 +9,8 @@
 				<string>test</string>
 				<key>PayloadType</key>
 				<string>com.apple.Safari</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
 				<key>PayloadIdentifier</key>
 				<string>com.fleetdm.cis-6.3.3.check</string>
 				<key>PayloadUUID</key>

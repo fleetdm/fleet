@@ -91,9 +91,7 @@ const ManageQueriesPage = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
-    isOnlyObserver,
     isObserverPlus,
-    isAnyTeamObserverPlus,
     isOnGlobalTeam,
     setFilteredQueriesPath,
     filteredQueriesPath,
@@ -171,12 +169,12 @@ const ManageQueriesPage = ({
 
   // Enhance the queries from the response when they are changed.
   const enhancedQueries = useMemo(() => {
-    return queriesResponse?.queries.map(enhanceQuery) || [];
+    return queriesResponse?.reports.map(enhanceQuery) || [];
   }, [queriesResponse]);
 
   const isManageAutomationsEnabled = isAnyTeamSelected
     ? (queriesResponse?.count ?? 0) >
-      (queriesResponse?.inherited_query_count ?? 0)
+      (queriesResponse?.inherited_report_count ?? 0)
     : (queriesResponse?.count ?? 0) > 0;
 
   // Open the Manage automations modal via deep-link (e.g. from the
@@ -191,7 +189,8 @@ const ManageQueriesPage = ({
     if (canManageAutomations && isManageAutomationsEnabled) {
       setShowManageAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,
@@ -314,16 +313,13 @@ const ManageQueriesPage = ({
         hasNextResults={!!queriesResponse?.meta.has_next_results}
         curTeamScopeQueriesPresent={
           teamIdForApi !== API_ALL_TEAMS_ID
-            ? enhancedQueries.some((q) => q.team_id === currentTeamId)
+            ? enhancedQueries.some((q) => q.fleet_id === currentTeamId)
             : enhancedQueries.length > 0
         }
         isLoading={isLoadingQueries || isFetchingQueries}
         onDeleteQueryClick={onDeleteQueryClick}
         onAddReportClick={onCreateQueryClick}
         canAddReport={canCustomQuery}
-        isOnlyObserver={isOnlyObserver}
-        isObserverPlus={isObserverPlus}
-        isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
         // changes in table state are propagated to the API call on this page via this router pushing to the URL
         router={router}
         queryParams={location.query}

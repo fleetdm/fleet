@@ -17,10 +17,7 @@ import {
   IMdmProfile,
   MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import {
   formatSoftwareVersion,
@@ -42,6 +39,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { dateAgo } from "utilities/date_format";
+import { getHostOSDisplayName } from "utilities/helpers";
 
 import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
@@ -67,7 +65,6 @@ interface IHostsFilterBlockProps {
     policyId?: string | number;
     policy?: IPolicy;
     macSettingsStatus?: MacSettingsStatusQueryParam;
-    softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
     mdmId?: number;
@@ -133,7 +130,6 @@ const HostsFilterBlock = ({
   params: {
     policyId,
     macSettingsStatus,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     mdmId,
@@ -269,32 +265,35 @@ const HostsFilterBlock = ({
       const vers: string = osVersion;
 
       os = osVersions?.find(
-        ({ name_only, version }) =>
-          name_only.toLowerCase() === name.toLowerCase() &&
-          version.toLowerCase() === vers.toLowerCase()
+        ({ os_name, os_version }) =>
+          os_name.toLowerCase() === name.toLowerCase() &&
+          os_version.toLowerCase() === vers.toLowerCase()
       );
     }
 
-    if (!os) return null;
+    // Some name and version filters match hosts but no OS version entry:
+    // Arch Linux ARM, which the OS inventory groups under "Arch Linux", and
+    // saved links with a Windows name that starts with "Microsoft". Label from
+    // the URL.
+    const fallback =
+      osName && osVersion
+        ? { os_name: osName, os_version: osVersion }
+        : undefined;
+    const match = os ?? fallback;
+    if (!match) return null;
 
-    const { name, name_only, version } = os;
-    // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(
-      name_only || version
-        ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`
-    );
+    const { os_name, os_version } = match;
     const TooltipDescription = (
       <span>
-        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
+        Hosts with {os_name},
         <br />
-        {version && `${version} installed`}
+        {os_version && `${os_version} installed`}
       </span>
     );
 
     return (
       <FilterPill
-        label={label}
+        label={getHostOSDisplayName(os_name, os_version)}
         tooltipDescription={TooltipDescription}
         onClear={() =>
           handleClearFilter(["os_version_id", "os_name", "os_version"])
@@ -341,13 +340,11 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
-          onClear={() =>
-            handleClearFilter(["macos_settings", "apple_settings"])
-          }
+          onClear={() => handleClearFilter(["apple_settings"])}
         />
       </>
     );
@@ -362,11 +359,7 @@ const HostsFilterBlock = ({
       label += ` ${formatSoftwareVersion({ ...softwareDetails, version })}`;
     }
 
-    const clearParams = [
-      "software_id",
-      "software_version_id",
-      "software_title_id",
-    ];
+    const clearParams = ["software_version_id", "software_title_id"];
 
     if (additionalClearParams?.length) {
       clearParams.push(...additionalClearParams);
@@ -470,7 +463,7 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
@@ -510,9 +503,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="macOS settings: bootstrap package"
-          onClear={() =>
-            handleClearFilter(["macos_bootstrap_package", "bootstrap_package"])
-          }
+          onClear={() => handleClearFilter(["macos_bootstrap_package"])}
         />
       </>
     );
@@ -533,7 +524,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>
@@ -555,7 +546,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeConfigProfileStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={`OS settings: ${configProfile?.name}`}
@@ -581,7 +572,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeScriptBatchStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {scriptBatchScriptName && (
           <FilterPill
@@ -677,11 +668,13 @@ const HostsFilterBlock = ({
     selectedLabel.type !== "all" &&
     selectedLabel.type !== "platform";
 
+  // The request only filters on "true" (see strToBool), so "false" must not show a pill.
+  const showDepProfileError = depProfileError === "true";
+
   if (
     showSelectedLabel ||
     policyId ||
     macSettingsStatus ||
-    softwareId ||
     softwareTitleId ||
     softwareVersionId ||
     softwareStatus ||
@@ -697,14 +690,15 @@ const HostsFilterBlock = ({
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
     (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
-    depProfileError ||
+    showDepProfileError ||
     depAssignProfileResponse
   ) {
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
         // (label + mdm solution) OR (label + mdm enrollment status) OR
-        // (label + os settings) OR (label + disk encryption)
+        // (label + os settings) OR (label + disk encryption) OR
+        // (label + DEP profile status)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -736,6 +730,18 @@ const HostsFilterBlock = ({
               {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
             </>
           );
+        case showSelectedLabel && showDepProfileError:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDepProfileError()}
+            </>
+          );
+        case showSelectedLabel && !!depAssignProfileResponse:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDepAssignProfileResponse()}
+            </>
+          );
         case showSelectedLabel:
           return renderLabelFilterPill();
         case !!policyId:
@@ -744,7 +750,7 @@ const HostsFilterBlock = ({
           return renderMacSettingsStatusFilterBlock();
         case !!softwareStatus:
           return renderSoftwareInstallStatusBlock();
-        case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+        case !!softwareVersionId || !!softwareTitleId:
           // Software version can be combined with os name and os version
           // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
           // Note: This is our only double filter available in the UI, are there others?
@@ -779,7 +785,7 @@ const HostsFilterBlock = ({
           return renderConfigProfileStatusBlock();
         case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
           return renderScriptBatchExecutionBlock();
-        case !!depProfileError:
+        case showDepProfileError:
           return renderDepProfileError();
         case !!depAssignProfileResponse:
           return renderDepAssignProfileResponse();

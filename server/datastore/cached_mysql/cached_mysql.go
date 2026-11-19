@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/patrickmn/go-cache"
 )
@@ -26,8 +27,7 @@ import (
 //     WithXXXExpiration option to customize it.
 //  3. Implement the cloner interface for the type of the cached item. If the
 //     type is a slice, you will need to define a type for the slice (see
-//     fleet.ScheduledQueryList for an example, or packsList in this package
-//     for an alternative approach).
+//     queryIDList in this package for an example).
 //  4. Add the cached item to fleet/tools/cloner-check/main.go (in the
 //     cacheableItems slice variable) to ensure it gets properly checked in CI
 //     when fields are added/modified. Run the tool to update the generated files
@@ -39,10 +39,6 @@ const (
 	appConfigKey                       = "AppConfig:%s"
 	defaultAppConfigExpiration         = 1 * time.Second
 	windowsEnrollmentDefaultFleetKey   = "WindowsEnrollmentDefaultFleet"
-	packsHostKey                       = "Packs:host:%d"
-	defaultPacksExpiration             = 1 * time.Minute
-	scheduledQueriesKey                = "ScheduledQueries:pack:%d"
-	defaultScheduledQueriesExpiration  = 1 * time.Minute
 	teamAgentOptionsKey                = "TeamAgentOptions:team:%d"
 	defaultTeamAgentOptionsExpiration  = 1 * time.Minute
 	teamFeaturesKey                    = "TeamFeatures:team:%d"
@@ -74,20 +70,36 @@ const (
 	// osquery-reported names with the FMA canonical name.
 	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
+
+	// The Windows terms page reads this on every request, unauthenticated. It
+	// is kept as short as the app config so a replaced agreement shows on other
+	// instances almost immediately.
+	eulaMetadataKey               = "EULAMetadata:%s"
+	defaultEULAMetadataExpiration = 1 * time.Second
 )
 
 // MaxConfigInputTTL is the longest default expiration among the cached items
-// that feed the osquery config build: app config, team agent options, the
-// host's packs, and a pack's scheduled queries. The osquery config ETag write
-// fence must outlive it, so that a config assembled from a stale in-memory
-// read can never be published as the current validator. See
-// redis_config_etag.DefaultFenceTTL.
+// that feed the osquery config build: app config and team agent options. The
+// osquery config ETag write fence must outlive it, so that a config assembled
+// from a stale in-memory read can never be published as the current
+// validator. See redis_config_etag.DefaultFenceTTL.
 func MaxConfigInputTTL() time.Duration {
 	return max(
 		defaultAppConfigExpiration,
-		defaultPacksExpiration,
-		defaultScheduledQueriesExpiration,
 		defaultTeamAgentOptionsExpiration,
+	)
+}
+
+// MaxOrbitConfigInputTTL is the longest default expiration among the cached
+// fleet-wide and global items that GetOrbitConfig reads. A notification
+// telling agents to fetch their orbit config after such an item changed must
+// be delayed by at least this long, or instances may still serve the stale
+// cached item.
+func MaxOrbitConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultTeamAgentOptionsExpiration,
+		defaultTeamMDMConfigExpiration,
 	)
 }
 
@@ -139,8 +151,6 @@ type cachedMysql struct {
 	c *cloneCache
 
 	appConfigExp            time.Duration
-	packsExp                time.Duration
-	scheduledQueriesExp     time.Duration
 	teamAgentOptionsExp     time.Duration
 	teamFeaturesExp         time.Duration
 	teamMDMConfigExp        time.Duration
@@ -150,6 +160,7 @@ type cachedMysql struct {
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
 	fmaNamesByIdentifierExp time.Duration
+	eulaMetadataExp         time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -157,18 +168,6 @@ type Option func(*cachedMysql)
 func WithAppConfigExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.appConfigExp = d
-	}
-}
-
-func WithPacksExpiration(d time.Duration) Option {
-	return func(o *cachedMysql) {
-		o.packsExp = d
-	}
-}
-
-func WithScheduledQueriesExpiration(d time.Duration) Option {
-	return func(o *cachedMysql) {
-		o.scheduledQueriesExp = d
 	}
 }
 
@@ -226,13 +225,17 @@ func WithFMANamesByIdentifierExpiration(d time.Duration) Option {
 	}
 }
 
+func WithEULAMetadataExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.eulaMetadataExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:               ds,
 		c:                       &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
 		appConfigExp:            defaultAppConfigExpiration,
-		packsExp:                defaultPacksExpiration,
-		scheduledQueriesExp:     defaultScheduledQueriesExpiration,
 		teamAgentOptionsExp:     defaultTeamAgentOptionsExpiration,
 		teamFeaturesExp:         defaultTeamFeaturesExpiration,
 		teamMDMConfigExp:        defaultTeamMDMConfigExpiration,
@@ -242,6 +245,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
 		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
+		eulaMetadataExp:         defaultEULAMetadataExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -312,44 +316,6 @@ func (ds *cachedMysql) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fle
 	}
 	ds.c.Delete(windowsEnrollmentDefaultFleetKey)
 	return nil
-}
-
-func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-	key := fmt.Sprintf(packsHostKey, hid)
-	if x, found := ds.c.Get(ctx, key); found {
-		cachedPacks, ok := x.(packsList)
-		if ok {
-			return cachedPacks, nil
-		}
-	}
-
-	packs, err := ds.Datastore.ListPacksForHost(ctx, hid)
-	if err != nil {
-		return nil, err
-	}
-
-	ds.c.Set(ctx, key, packsList(packs), ds.packsExp)
-
-	return packs, nil
-}
-
-func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
-	key := fmt.Sprintf(scheduledQueriesKey, packID)
-	if x, found := ds.c.Get(ctx, key); found {
-		scheduledQueries, ok := x.(fleet.ScheduledQueryList)
-		if ok {
-			return scheduledQueries, nil
-		}
-	}
-
-	scheduledQueries, err := ds.Datastore.ListScheduledQueriesInPack(ctx, packID)
-	if err != nil {
-		return nil, err
-	}
-
-	ds.c.Set(ctx, key, scheduledQueries, ds.scheduledQueriesExp)
-
-	return scheduledQueries, nil
 }
 
 func (ds *cachedMysql) TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error) {
@@ -648,4 +614,42 @@ func (ds *cachedMysql) ClearRemovedFleetMaintainedApps(ctx context.Context, slug
 	ds.c.Delete(fmaNamesByIdentifierKey)
 
 	return nil
+}
+
+func (ds *cachedMysql) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+	key := fmt.Sprintf(eulaMetadataKey, platform)
+	if x, found := ds.c.Get(ctx, key); found {
+		if lookup, ok := x.(*fleet.MDMEULAMetadataLookup); ok {
+			if lookup.EULA == nil {
+				return nil, common_mysql.NotFound("MDMEULA")
+			}
+			return lookup.EULA, nil
+		}
+	}
+
+	eula, err := ds.Datastore.MDMGetEULAMetadata(ctx, platform)
+	switch {
+	case fleet.IsNotFound(err):
+		ds.c.Set(ctx, key, &fleet.MDMEULAMetadataLookup{}, ds.eulaMetadataExp)
+		return nil, err
+	case err != nil:
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, &fleet.MDMEULAMetadataLookup{EULA: eula}, ds.eulaMetadataExp)
+	return eula, nil
+}
+
+func (ds *cachedMysql) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
+	err := ds.Datastore.MDMInsertEULA(ctx, eula)
+	// Invalidate even on failure: a duplicate means another instance wrote one
+	// that this cache may not know about yet.
+	ds.c.Delete(fmt.Sprintf(eulaMetadataKey, eula.Platform))
+	return err
+}
+
+func (ds *cachedMysql) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+	err := ds.Datastore.MDMDeleteEULA(ctx, platform, token)
+	ds.c.Delete(fmt.Sprintf(eulaMetadataKey, platform))
+	return err
 }

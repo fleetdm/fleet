@@ -1,7 +1,8 @@
 import Foundation
 
 /// Exit codes for `notify`. The Fleet server maps these to activities, so the values
-/// must stay stable. Bands: 30s server/network, 40s nobody was there to see it.
+/// must stay stable. Bands: 30s server/network, 40s nobody was there to see it, 50s
+/// another notification is in the way.
 ///
 /// 1 is unassigned, and nothing uses 126-165 (shell-reserved; 127 is what a caller
 /// sees when the binary is missing). The calling script owns 40, 100 and 101.
@@ -12,6 +13,7 @@ enum ExitCode: Int32 {
     case httpError = 31
     case screenLocked = 41
     case noDisplay = 42
+    case anotherDisplayed = 50
     case internalError = 70
 }
 

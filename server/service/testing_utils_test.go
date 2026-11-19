@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -28,7 +29,9 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -56,6 +59,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -120,6 +124,39 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, "", nil
 			}
 		}
+		// Config reads and writes keep failing_policies_webhook.policy_ids in sync with the per-policy webhook and
+		// ticket flag. Default to no such policies.
+		if mockDS.WebhooksAndTicketsPolicyIDsFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) { return nil, nil }
+		}
+		if mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.SetWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
+		}
+		if mockDS.PoliciesWithOtherAutomationsFunc == nil {
+			mockDS.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
+			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPolicyNameFunc == nil {
+			mockDS.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.FilterWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+				return nil, nil
+			}
+		}
 		// Default to none configured so tests that don't care don't panic on a nil mock.
 		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
 			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
@@ -158,16 +195,18 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                               clock.Clock                   = clock.C
 		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
+		ejbcaService                                                  = ejbca.NewService(ejbca.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
+		googleCASService                fleet.GoogleCASService        = googlecas.NewService(googlecas.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 		mdmStorage             fleet.MDMAppleStore
 		mdmPusher              nanomdm_push.Pusher
 		ssoStore               sso.SessionStore
-		profMatcher            fleet.ProfileMatcher
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -187,7 +226,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// pool when one is provided (integration tests), nil otherwise.
 	var pssoNonceStore fleet.PSSONonceStore
 
-	task := async.NewTask(ds, nil, c, nil)
+	task := async.NewTask(ds, false)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
 			task = opts[0].Task
@@ -205,14 +244,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
-			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
-			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool, redis_install_attempts.SoftwareInstallerPrefix)
 			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
-		}
-		if opts[0].ProfileMatcher != nil {
-			profMatcher = opts[0].ProfileMatcher
 		}
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
@@ -236,6 +271,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -269,11 +305,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if len(opts) > 0 && opts[0].DigiCertService != nil {
 		digiCertService = opts[0].DigiCertService
 	}
+	if len(opts) > 0 && opts[0].GoogleCASService != nil {
+		googleCASService = opts[0].GoogleCASService
+	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
 		// The Conditional Access feature is gated on Fleet Premium; callers that
 		// exercise it must provide a premium license via opts[0].License.
 		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
+	}
+
+	var googleConditionalAccess *GoogleConditionalAccessClient
+	if len(opts) > 0 {
+		googleConditionalAccess = opts[0].ConditionalAccessGoogleClient
 	}
 
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
@@ -325,6 +369,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,
@@ -359,17 +404,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			ssoStore,
-			profMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
 			scepConfigService,
 			digiCertService,
+			ejbcaService,
 			androidModule,
 			estCAService,
+			googleCASService,
 			pssoNonceStore,
 			msGraphClientFactory,
 		)
@@ -569,8 +616,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			logger,
 		)
 		svc.SetNotificationsService(notificationsSvc)
-		patchNotificationKind := NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+		patchNotificationKind := NewPatchNotificationKind(fleet.PatchNotificationKind, ds, svc, notificationsSvc, logger)
 		notificationsSvc.RegisterKind(patchNotificationKind)
+		notificationsSvc.RegisterKind(NewPatchNotificationKind(fleet.PatchDeadlineNotificationKind, ds, svc, notificationsSvc, logger))
 		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
 		opts[0].NotificationsSvc = notificationsSvc
@@ -644,7 +692,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			rootCAPool.AddCert(opts[0].ACMECertCA)
 			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
 		}
-		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365))}
 		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, acmeacl.NewFleetDatastoreAdapter(ds, acmeSigner), logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
@@ -723,6 +771,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var extra []ExtraHandlerOption
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
+	mcpConn := NewMCPConn()
+	extra = append(extra, WithMCPConn(mcpConn))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
@@ -741,7 +791,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	apiHandler, err := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
-	// that gorilla/mux can't introspect, so surface their routes to the validator
+	// that the API router's route table doesn't list, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
 	extraInitFeatureRoutes = append(extraInitFeatureRoutes, scim.RegisterValidationRoutes)
 	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {
@@ -756,6 +806,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
+	rootMux.Handle("/enroll/next-steps", ServeEndUserEnrollNextSteps("", logger, false))
+	rootMux.Handle("/enroll/next-steps/", ServeEndUserEnrollNextSteps("", logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
@@ -775,11 +827,19 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		server.Config.Handler = rootMux
 	}
 	server.Start()
+	mcpConn.Start(ctx, rootMux)
+	testMCPConns.Store(server, mcpConn)
 	t.Cleanup(func() {
+		testMCPConns.Delete(server)
 		server.Close()
+		_ = mcpConn.Shutdown(context.Background())
 	})
 	return users, server
 }
+
+// testMCPConns maps each test server to the internal connection its embedded
+// MCP calls the API through, for tests that send requests over it directly.
+var testMCPConns sync.Map
 
 func NewTestService(t *testing.T, ds fleet.Datastore, cfg config.FleetConfig, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	var rs fleet.QueryResultStore
@@ -941,6 +1001,16 @@ func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push
 	return res, nil
 }
 
+// appleProfilesBatchRequest is a POST /mdm/profiles/batch body for .mobileconfig files, each named after its PayloadDisplayName. The
+// batch replaces every profile of the fleet, not only its Apple profiles.
+func appleProfilesBatchRequest(profiles [][]byte) batchSetMDMProfilesRequest {
+	payloads := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
+	for _, p := range profiles {
+		payloads = append(payloads, fleet.MDMProfileBatchPayload{Contents: p})
+	}
+	return batchSetMDMProfilesRequest{Profiles: payloads}
+}
+
 func mdmConfigurationRequiredEndpoints() []struct {
 	method, path        string
 	deviceAuthenticated bool
@@ -951,79 +1021,41 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		deviceAuthenticated bool
 		premiumOnly         bool
 	}{
-		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
-		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
-		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
-		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple", false, false},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
-		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
-		{"DELETE", "/api/latest/fleet/mdm/setup/eula/token", false, true},
 		{"DELETE", "/api/latest/fleet/setup_experience/eula/token", false, true},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/metadata", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/metadata", false, true},
-		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
+		// The Windows EULA upload is absent for the same reason as the other EULA uploads.
+		{"GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", false, true},
 		{"GET", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
-		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"POST", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
-		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
-		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
-		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
 		{"POST", "/api/latest/fleet/commands/run", false, false},
-		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
 		{"GET", "/api/latest/fleet/commands/results", false, false},
-		{"GET", "/api/latest/fleet/mdm/commands", false, false},
-		{"GET", "/api/latest/fleet/commands", false, false},
+		{"GET", "/api/latest/fleet/commands?host_identifier=some-host", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_protection", false, false},
-		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
 		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
 		// {"POST", "/api/latest/fleet/setup_experience/eula"},
-		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
 		// {"POST", "/api/latest/fleet/bootstrap", false, true},
-		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
-		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},
 		{"GET", "/api/latest/fleet/enrollment_profiles/manual", false, true},
-		{"GET", "/api/latest/fleet/mdm/bootstrap/1/metadata", false, true},
 		{"GET", "/api/latest/fleet/bootstrap/1/metadata", false, true},
-		{"DELETE", "/api/latest/fleet/mdm/bootstrap/1", false, true},
 		{"DELETE", "/api/latest/fleet/bootstrap/1", false, true},
 		{"GET", "/api/latest/fleet/mdm/bootstrap?token=1", false, true},
 		{"GET", "/api/latest/fleet/bootstrap?token=1", false, true},
-		{"GET", "/api/latest/fleet/mdm/bootstrap/summary", false, true},
-		{"GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", false, true},
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
-		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
@@ -1041,6 +1073,7 @@ func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
 		"/api/fleet/orbit/disk_encryption_protection",
+		"/api/latest/fleet/setup_experience/eula/metadata?platform=windows",
 	}
 }
 
@@ -1427,8 +1460,12 @@ func getURISchemas() []string {
 	}
 }
 
+// androidTestEnterpriseID is the enterprise enableAndroidMDM creates. Device names must be under it,
+// as AMAPI's are, because Fleet checks a notification's device against its own enterprise.
+const androidTestEnterpriseID = "LC02k5wxw7"
+
 func createAndroidDeviceID(name string) string {
-	return "enterprises/mock-enterprise-id/devices/" + name
+	return "enterprises/" + androidTestEnterpriseID + "/devices/" + name
 }
 
 func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
@@ -1492,6 +1529,7 @@ func messageWithAndroidIdentifiers(t *testing.T, notificationType android.Notifi
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -1653,8 +1691,8 @@ type acmeCSRSigner struct {
 	signer *depot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (a *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+	return a.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 // mockRoundTripper is a custom http.RoundTripper that redirects requests to a mock server.

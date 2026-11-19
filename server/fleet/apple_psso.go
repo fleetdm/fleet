@@ -61,6 +61,10 @@ type PSSOClaims struct {
 // providers).
 type PSSOIdPClient interface {
 	ValidatePasswordAndGetClaims(ctx context.Context, username, password string) (*PSSOClaims, error)
+	// VerifyConfig checks the client settings with the IdP without a real
+	// user's credentials, returning an *InvalidArgumentError that says what to
+	// fix when the IdP rejects them.
+	VerifyConfig(ctx context.Context) error
 }
 
 // PSSONonceStore is a short-lived store for the nonces issued by the PSSO
@@ -69,6 +73,9 @@ type PSSOIdPClient interface {
 type PSSONonceStore interface {
 	Store(ctx context.Context, nonce string, ttl time.Duration) error
 	Consume(ctx context.Context, nonce string) (ok bool, err error)
+	// MarkLoginAssertionUsed records a login assertion by its fingerprint for ttl, and reports whether this is its first
+	// use. The records are kept apart from the nonces, so a nonce consumed on a request can never remove one.
+	MarkLoginAssertionUsed(ctx context.Context, fingerprint string, ttl time.Duration) (firstUse bool, err error)
 }
 
 // PSSODeviceRegistrationRequest carries the device-key enrollment the Mac

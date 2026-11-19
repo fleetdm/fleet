@@ -101,7 +101,9 @@ const dashboardHTML = `<!doctype html>
   <div class="panel stat"><div class="n" id="count">–</div><div class="l">ws connected</div></div>
   <div class="panel stat"><div class="n" id="nextsync">–</div><div class="l">next sync</div></div>
   <div class="panel stat"><div class="n" id="notified">–</div><div class="l">notifications</div></div>
-  <div class="panel stat"><div class="n" id="dropped">–</div><div class="l">dropped</div></div>
+  <div class="panel stat"><div class="n" id="coalesced">–</div><div class="l">coalesced</div></div>
+  <div class="panel stat"><div class="n" id="orbitconfig">–</div><div class="l">orbit/config</div></div>
+  <div class="panel stat"><div class="n" id="pacerqueue">–</div><div class="l">pacer queue</div></div>
   <div class="panel stat"><div class="n" id="bytesin">–</div><div class="l">bytes in</div></div>
   <div class="panel stat"><div class="n" id="bytesout">–</div><div class="l">bytes out</div></div>
   <div class="panel stat"><div class="n" id="orbitreads">–</div><div class="l">reads (orbit)</div></div>
@@ -114,7 +116,7 @@ const dashboardHTML = `<!doctype html>
     <table>
       <thead><tr>
         <th>os</th><th>host</th><th>hostname</th><th>remote</th><th>connected</th><th>last notified</th>
-        <th style="text-align:right">notified</th><th style="text-align:right">dropped</th>
+        <th style="text-align:right">notified</th><th style="text-align:right" title="notifications merged into a pending one of the same type">coalesced</th>
         <th style="text-align:right">in</th><th style="text-align:right">out</th>
         <th style="text-align:right" title="distributed/read via /api/osquery/ (orbit)">reads</th>
         <th style="text-align:right" title="distributed/read via /api/v1/osquery/ (osqueryd tls plugin)">v1 reads</th>
@@ -298,9 +300,6 @@ function diff(conns) {
         logEvent("notify", "host " + id + " notified" + reason + (delta > 1 ? " (×" + delta + ")" : ""));
         flashHosts.add(id);
       }
-      if (c.dropped_count > p.dropped_count) {
-        logEvent("disconnect", "host " + id + " dropped " + (c.dropped_count - p.dropped_count) + " notification(s) (buffer full)");
-      }
       // Reconnection shows up as a newer connected_at.
       if (c.connected_at !== p.connected_at) {
         logEvent("connect", "host " + id + " reconnected");
@@ -336,15 +335,18 @@ function readCells(tr, stats) {
 function render(conns, readStats, data) {
   $("count").textContent = conns.length;
 
-  let notified = 0, dropped = 0, bytesIn = 0, bytesOut = 0;
+  let notified = 0, coalesced = 0, orbitConfig = 0, bytesIn = 0, bytesOut = 0;
   for (const c of conns) {
     notified += c.notified_count;
-    dropped += c.dropped_count;
+    coalesced += c.coalesced_count || 0;
+    orbitConfig += (c.notified_by_type || {})["orbit/config"] || 0;
     bytesIn += c.bytes_in || 0;
     bytesOut += c.bytes_out || 0;
   }
   $("notified").textContent = notified;
-  $("dropped").textContent = dropped;
+  $("coalesced").textContent = coalesced;
+  $("orbitconfig").textContent = orbitConfig;
+  $("pacerqueue").textContent = data.pacer_queue_len || 0;
 
   const statsByHost = new Map(readStats.map(s => [s.host_id, s]));
   let orbitReads = 0, legacyReads = 0;
@@ -404,14 +406,7 @@ function render(conns, readStats, data) {
     tdN.textContent = c.notified_count;
     const tdD = document.createElement("td");
     tdD.className = "num";
-    if (c.dropped_count > 0) {
-      const s = document.createElement("span");
-      s.className = "drop";
-      s.textContent = c.dropped_count;
-      tdD.appendChild(s);
-    } else {
-      tdD.textContent = "0";
-    }
+    tdD.textContent = c.coalesced_count || 0;
     const tdIn = document.createElement("td");
     tdIn.className = "num";
     tdIn.textContent = fmtBytes(c.bytes_in || 0);

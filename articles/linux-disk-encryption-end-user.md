@@ -30,6 +30,14 @@ Follow the steps below to get set up.
   ![Linux MDM Fedora setup "Installation summary" screen](../website/assets/images/articles/fedora-1-1200x675@2x.png)
   ![Linux MDM Fedora setup: Installation destination > Encryption > Encrypt my data ](../website/assets/images/articles/fedora-2-1200x675@2x.png)
 
+  #### Omarchy
+
+  - Omarchy (4 and later) encrypts the disk with LUKS by default during installation. Set a strong passphrase when prompted.
+  - Fleet's passphrase prompt uses `zenity`, which Omarchy doesn't install by default. Before you escrow your key, install it:
+    ```bash
+      sudo pacman -S zenity
+    ```
+
 ## 2. Verify encryption
 
   - Once installation is complete, verify that your disk is encrypted by running:
@@ -38,6 +46,7 @@ Follow the steps below to get set up.
     ```
   - **Ubuntu Linux**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
   - **Fedora Linux**: Ensure the `/` (root) and `/home` partitions are encrypted.
+  - **Omarchy**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
 
 ## 3. Escrow your key with Fleet
 
@@ -45,6 +54,7 @@ Follow the steps below to get set up.
 
   - Open Fleet Desktop. If your device is encrypted, you'll see a banner prompting you to escrow the key.
   - Click **Create key**. Enter your existing encryption passphrase when prompted. Your passphrase is only used locally for authentication purposes during the next step and is not stored or sent to Fleet. 
+  - Keep your computer unlocked with the desktop visible until the passphrase prompt appears. The prompt closes after about a minute. If it closes before you enter your passphrase, wait a few minutes before you select **Create key** again.
   - Fleet will generate and securely store a new passphrase for recovery. This may take several minutes. A popup will appear when Fleet is done.
 
 Now, your encryption status will update to "verified" in Fleet Desktop, meaning that the newly created recovery key has been successfully stored.

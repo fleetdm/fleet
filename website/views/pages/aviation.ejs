@@ -1,0 +1,264 @@
+<div id="aviation" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+
+      <div purpose="page-hero">
+        <div purpose="page-heading">
+          <h4>Aviation</h4>
+          <h1>Same airframe, new engine</h1>
+        </div>
+        <div purpose="hero-text">
+          <p>Upgrade to AI-native device management to be more efficient and more secure.</p>
+        </div>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+          <animated-arrow-button href="/fast-track">See how switching works</animated-arrow-button>
+        </div>
+      </div>
+
+      <div purpose="pain-banner">
+        <div purpose="pain-text">
+          <h2>What's holding airlines back</h2>
+          <div purpose="pain-items">
+            <div purpose="pain-item">
+              <h5>Microsoft E3/E5 feels inescapable</h5>
+              <p>Many organizations still believe you need Entra and Intune to manage Windows devices, even in regulated environments.</p>
+            </div>
+            <div purpose="pain-item">
+              <h5>New devices cost more than they should</h5>
+              <p>In the past, zero-touch setup often meant another license, and a USB stick for everything else.</p>
+            </div>
+            <div purpose="pain-item">
+              <h5>The basics eat the budget</h5>
+              <p>Patching and escalations take IT's focus, and there isn’t much left for what really matters: the employee experience.</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="pain-image">
+          <img alt="A passenger jet in flight against a cloudy sky" src="/images/aviation-pain-airplane-487x561@2x.jpg">
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="section-heading">
+          <img alt="Introducing Fleet" src="/images/endpoint-governance-introducing-fleet-193x28@2x.png">
+          <h2>The new engine for airline IT</h2>
+        </div>
+        <div purpose="feature-rows">
+          <div purpose="feature-with-image">
+            <div purpose="feature-image">
+              <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks what it takes to meet CIS Level 2 on their Windows devices. Fleet reports that 2,184 of 2,350 Windows hosts pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are Credential Guard, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review.">
+                <div purpose="teams-window" aria-hidden="true">
+                  <img purpose="teams-chrome" alt="" src="/images/aviation-teams-chat-window-560x576.svg">
+                  <div purpose="teams-messages">
+                    <div purpose="teams-message-stack">
+                      <div purpose="teams-first-message">
+                        <p><strong>@Fleet</strong> what do we need for CIS level 2 on our Windows devices?</p>
+                      </div>
+                      <div purpose="teams-first-reply">
+                        <div purpose="teams-typing">
+                          <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                          <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+                        </div>
+                        <div purpose="teams-reply">
+                          <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                          <div purpose="teams-reply-body">
+                            <span purpose="teams-sender">Fleet</span>
+                            <div purpose="teams-reply-bubble">
+                              <p>2,184 of 2,350 Windows hosts pass Level 1. Level 2 adds 38 settings. The biggest gaps are Credential Guard, telemetry limits, and unneeded services.</p>
+                            </div>
+                            <div purpose="teams-follow-up">
+                              <div purpose="teams-reply-bubble">
+                                <p>Want me to propose changes that close those gaps?</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div purpose="teams-second-message">
+                        <p>Yes</p>
+                      </div>
+                      <div purpose="teams-second-reply">
+                        <div purpose="teams-typing">
+                          <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                          <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+                        </div>
+                        <div purpose="teams-reply">
+                          <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                          <div purpose="teams-reply-body">
+                            <span purpose="teams-sender">Fleet</span>
+                            <div purpose="teams-reply-bubble">
+                              <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="teams-link">for your review</span>.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div purpose="feature-text">
+              <h3>Deliver entire IT projects in minutes, not&nbsp;weeks</h3>
+              <p>Ask Fleet in plain language for what you need, and fix it right&nbsp;away.</p>
+            </div>
+          </div>
+          <div purpose="feature-with-image" class="reverse">
+            <div purpose="feature-image">
+              <img alt="A new computer installing apps automatically during setup" src="/images/aviation-zero-touch-504x378@2x.png">
+            </div>
+            <div purpose="feature-text">
+              <h3>Zero-touch setup, no Autopilot required</h3>
+              <p>Use Autopilot and Entra if you have them, but you don’t need them. Zero touch works on Apple, Windows, and Linux, and already runs on thousands of Windows devices in production.</p>
+              <a purpose="video-button" @click="clickOpenVideoModal('zero-touch-setup')"><img alt="Play" src="/images/icon-play-video-32x32@2x.png">See how it works</a>
+            </div>
+          </div>
+          <div purpose="feature-with-image">
+            <div purpose="feature-image">
+              <img alt="Patch options in Fleet and the notification employees see before apps update" src="/images/aviation-patch-notification-504x378@2x.png">
+            </div>
+            <div purpose="feature-text">
+              <h3>Get time back</h3>
+              <p>When the basics run themselves, IT has time for what really matters: the productivity of the people who use the devices.</p>
+              <div purpose="stats">
+                <div purpose="stat">
+                  <h3>50–80%</h3>
+                  <p>Less time on maintenance, as reported by Fleet customers.</p>
+                </div>
+                <div purpose="stat">
+                  <h3>10mins</h3>
+                  <p>Average new hire time to productivity.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="quote-section">
+        <div purpose="quote-author-image">
+          <img alt="Swan avatar" src="/images/aviation-quote-swan-64x64@2x.png">
+        </div>
+        <p purpose="quote-text">“Like the A320 with its new engine option, we're swapping the engines before we scale up Macs: more efficient, cheaper, and more secure. Fleet is the new engine.”</p>
+        <div purpose="name-and-title">
+          <p purpose="author-name">Senior IT Security Architect</p>
+          <p purpose="author-title">Major European airline</p>
+        </div>
+      </div>
+
+      <div purpose="logo-strip">
+        <p purpose="logo-strip-title">Trusted by IT and security teams worldwide</p>
+        <div purpose="logo-tiles">
+          <div purpose="logo-tile"><img purpose="logo-leidos" alt="Leidos logo" src="/images/logos/logo-leidos-color-84x20@2x.png"></div>
+          <div purpose="logo-tile"><img purpose="logo-vast" alt="VAST logo" src="/images/logos/logo-vast-111x16@2x.png"></div>
+          <div purpose="logo-tile"><img purpose="logo-northwood" alt="Northwood logo" src="/images/logos/logo-northwood-134x12@2x.png"></div>
+          <div purpose="logo-tile"><img purpose="logo-nvidia" alt="NVIDIA logo" src="/images/logos/logo-nvidia-color-161x32@2x.png"></div>
+          <div purpose="logo-tile"><img purpose="logo-sopra-steria" alt="Sopra Steria logo" src="/images/logos/logo-sopra-steria-134x18@2x.png"></div>
+          <div purpose="logo-tile"><img purpose="logo-leon-software" alt="Leon Software logo" src="/images/logos/logo-leon-software-91x30@2x.png"></div>
+        </div>
+      </div>
+
+      <div purpose="feature-rows">
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="Vulnerabilities in Fleet, ranked by severity and probability of exploit" src="/images/aviation-vulnerability-detection-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Stop waiting for Intune and Jamf to patch</h3>
+            <p>Fleet keeps a live connection to every Mac and PC, so you can see and patch what’s actually on a device right now, not what it reported hours ago.</p>
+          </div>
+        </div>
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="A shared iPad with a sign-in screen for each shift, next to an iPad locked to a check-in app" src="/images/aviation-shared-devices-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Shared devices that work for every shift</h3>
+            <p>Share iPads and Android devices between crews and station staff, with each person's data kept separate. Or lock a device to a single app for gate check-in and kiosks.</p>
+          </div>
+        </div>
+
+        <div purpose="trust-cards">
+          <div purpose="trust-card">
+            <img alt="SOC 2 audited" src="/images/aviation-soc-2-audited-64x64@2x.png">
+            <div purpose="trust-card-content">
+              <div purpose="trust-card-text">
+                <h5>ISO 27001 certified, SOC 2 Type II audited</h5>
+                <p>Independent audits that help you meet NIS2 supply chain requirements and pass your security and procurement review.</p>
+              </div>
+              <animated-arrow-button href="https://trust.fleetdm.com" target="_blank">Visit trust center</animated-arrow-button>
+            </div>
+          </div>
+          <div purpose="trust-card">
+            <img alt="GDPR" src="/images/aviation-gdpr-64x64@2x.png">
+            <div purpose="trust-card-content">
+              <div purpose="trust-card-text">
+                <h5>Hosted or self-hosted</h5>
+                <p>Unlike other solutions, we can host Fleet for you (in your region) or you can deploy it yourself. Get the same features either way.</p>
+              </div>
+              <animated-arrow-button href="/europe">Fleet for Europe</animated-arrow-button>
+            </div>
+          </div>
+        </div>
+
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="A Mac Studio, an AMD Ryzen AI Halo, and an NVIDIA DGX Spark" src="/images/aviation-desk-side-ai-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Be ready for desk-side AI</h3>
+            <p>AI assistants are moving onto always-on Mac Studios, NVIDIA DGX machines, and AMD AI PCs. Make sure your device management can see and manage all three before they arrive.</p>
+          </div>
+        </div>
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="The prompt employees see when their Mac migrates to Fleet" src="/images/aviation-mdm-migration-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>No reimaging, no downtime</h3>
+            <p>Move devices from your current MDM in place, without wiping them. Employees keep working.</p>
+          </div>
+        </div>
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="Fleet connected to Mac, iPhone, iPad, Windows, Linux, and Android devices" src="/images/aviation-one-console-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>One console instead of one per platform</h3>
+            <p>Manage Mac, iPhone, iPad, Windows, Linux, and Android from one place. Explore Fleet for <a href="/apple">Apple</a>, <a href="/windows">Windows</a>, and <a href="/linux">Linux</a>.</p>
+          </div>
+        </div>
+
+        <div purpose="workshop-banner">
+          <div purpose="banner-image">
+            <img alt="Fleet workshop illustration with Apple, Windows, Linux, and Android" src="/images/aviation-workshop-365x223@2x.png">
+          </div>
+          <div purpose="banner-text">
+            <div purpose="trust-card-text">
+              <h5>Get your team AI certified</h5>
+              <p>Practice new AI-native techniques for managing Apple, Windows, Linux, and Android devices, developed by the IT teams at leading tech companies.</p>
+            </div>
+            <a purpose="cta-button" href="/workshops">Free workshop</a>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="bottom-cta">
+        <div purpose="page-heading">
+          <h4>Aviation</h4>
+          <h1>Same airframe, new engine</h1>
+        </div>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+          <animated-arrow-button href="/fast-track">See how switching works</animated-arrow-button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <cloud-city></cloud-city>
+  <modal purpose="video-modal" v-if="modal === 'zero-touch-setup'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/7-O9Fiad80g?rel=0&autoplay=1&mute=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

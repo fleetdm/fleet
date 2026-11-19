@@ -35,14 +35,15 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
 		inHouseAppsTeamsGlobalOrTeamIDFilter  string
-		autoUpdatesJoin                       string
 		autoUpdatesSelect                     string
 		autoUpdatesGroupBy                    string
 	)
 
 	if teamID != nil {
-		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_window_start, sus.end_time as auto_update_window_end, `
-		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
+		autoUpdatesSelect = `
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) as auto_update_enabled,
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) as auto_update_window_start,
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end, `
 		autoUpdatesGroupBy = "auto_update_enabled, auto_update_window_start, auto_update_window_end, "
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
@@ -78,11 +79,13 @@ SELECT
 	%s
 	vap.icon_url AS icon_url
 FROM software_titles st
-%s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s AND vat.id = (
+	SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+	WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
+)
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
 	(sthc.software_title_id IS NOT NULL OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
@@ -95,7 +98,7 @@ GROUP BY
 	hosts_count,
 	%s
 	vap.icon_url
-	`, autoUpdatesSelect, autoUpdatesJoin, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
+	`, autoUpdatesSelect, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
@@ -130,6 +133,13 @@ GROUP BY
 
 		title.DisplayName = displayName
 	}
+
+	aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), []uint{id})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ai tool software title")
+	}
+	_, isAITool := aiToolTitles[id]
+	title.AITool = new(isAITool)
 
 	title.VersionsCount = uint(len(title.Versions))
 
@@ -217,25 +227,23 @@ func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, 
 // installer/VPP/in-house columns that get promoted in post-processing.
 type softwareTitleWithInstallerFields struct {
 	fleet.SoftwareTitleListResult
-	PackageSelfService           *bool   `db:"package_self_service"`
-	PackageName                  *string `db:"package_name"`
-	PackageVersion               *string `db:"package_version"`
-	PackagePlatform              *string `db:"package_platform"`
-	PackageURL                   *string `db:"package_url"`
-	PackageInstallDuringSetup    *bool   `db:"package_install_during_setup"`
-	VPPAppSelfService            *bool   `db:"vpp_app_self_service"`
-	VPPAppAdamID                 *string `db:"vpp_app_adam_id"`
-	VPPAppVersion                *string `db:"vpp_app_version"`
-	VPPAppPlatform               *string `db:"vpp_app_platform"`
-	VPPAppIconURL                *string `db:"vpp_app_icon_url"`
-	VPPInstallDuringSetup        *bool   `db:"vpp_install_during_setup"`
-	FleetMaintainedAppID         *uint   `db:"fleet_maintained_app_id"`
-	InHouseAppName               *string `db:"in_house_app_name"`
-	InHouseAppVersion            *string `db:"in_house_app_version"`
-	InHouseAppPlatform           *string `db:"in_house_app_platform"`
-	InHouseAppStorageID          *string `db:"in_house_app_storage_id"`
-	InHouseAppSelfService        *bool   `db:"in_house_app_self_service"`
-	InHouseAppInstallDuringSetup *bool   `db:"in_house_app_install_during_setup"`
+	PackageSelfService           *bool      `db:"package_self_service"`
+	PackageName                  *string    `db:"package_name"`
+	PackageVersion               *string    `db:"package_version"`
+	PackagePlatform              *string    `db:"package_platform"`
+	PackageURL                   *string    `db:"package_url"`
+	PackageInstallDuringSetup    *bool      `db:"package_install_during_setup"`
+	VPPAppAdamID                 *string    `db:"vpp_app_adam_id"`
+	VPPAppIconURL                *string    `db:"vpp_app_icon_url"`
+	FleetMaintainedAppID         *uint      `db:"fleet_maintained_app_id"`
+	InHouseAppName               *string    `db:"in_house_app_name"`
+	InHouseAppVersion            *string    `db:"in_house_app_version"`
+	InHouseAppPlatform           *string    `db:"in_house_app_platform"`
+	InHouseAppStorageID          *string    `db:"in_house_app_storage_id"`
+	InHouseAppSelfService        *bool      `db:"in_house_app_self_service"`
+	InHouseAppInstallDuringSetup *bool      `db:"in_house_app_install_during_setup"`
+	InHouseAppID                 *uint      `db:"in_house_app_id"`
+	InHouseAppUploadedAt         *time.Time `db:"in_house_app_uploaded_at"`
 }
 
 // canUseOptimizedListTitlesQuery returns true when the common fast-path can be used:
@@ -284,7 +292,7 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	if opt.TeamID == nil {
 		if opt.PackagesOnly {
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with fleet_id")
 		}
 		if opt.Platform != "" {
 			// the platform filters for **installable** software on the given platform, and installable
@@ -292,10 +300,10 @@ func (ds *Datastore) ListSoftwareTitles(
 			return nil, 0, nil, fleet.NewInvalidArgumentError("query", fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
 		}
 		if opt.HashSHA256 != "" {
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "hash_sha256 can only be provided with team_id")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "hash_sha256 can only be provided with fleet_id")
 		}
 		if opt.PackageName != "" {
-			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "package_name can only be provided with team_id")
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "package_name can only be provided with fleet_id")
 		}
 	}
 
@@ -360,21 +368,21 @@ func (ds *Datastore) listSoftwareTitlesOptimized(
 
 	dbReader := ds.reader(ctx)
 
-	listSQL := buildOptimizedListSoftwareTitlesSQL(opt)
-	countSQL := countSoftwareTitlesOptimized(opt)
+	listSQL, listArgs := buildOptimizedListSoftwareTitlesSQL(opt)
+	countSQL, countArgs := countSoftwareTitlesOptimized(opt)
 
 	// Run list and count queries in parallel.
 	var softwareList []*softwareTitleWithInstallerFields
 	var counts int
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL); err != nil {
+		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL, listArgs...); err != nil {
 			return ctxerr.Wrap(gCtx, err, "optimized select software titles")
 		}
 		return nil
 	})
 	g.Go(func() error {
-		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL); err != nil {
+		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL, countArgs...); err != nil {
 			return ctxerr.Wrap(gCtx, err, "optimized count software titles")
 		}
 		return nil
@@ -445,30 +453,43 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 			// This is set directly for software packages via db tag, but for in-house apps we need to set it here.
 			title.HashSHA256 = title.InHouseAppStorageID
+
+			title.Packages = []fleet.SoftwarePackageListItem{{
+				InstallerID: ptr.ValOrZero(title.InHouseAppID),
+				Name:        *title.InHouseAppName,
+				Version:     version,
+				Platform:    platform,
+				SelfService: title.InHouseAppSelfService,
+				UploadedAt:  ptr.ValOrZero(title.InHouseAppUploadedAt),
+			}}
+			if opt.ForSetupExperience {
+				title.Packages[0].InstallDuringSetup = title.InHouseAppInstallDuringSetup
+			}
 		}
 
 		// Promote VPP app properties.
 		if title.VPPAppAdamID != nil {
-			var version string
-			if title.VPPAppVersion != nil {
-				version = *title.VPPAppVersion
-			}
-			var platform string
-			if title.VPPAppPlatform != nil {
-				platform = *title.VPPAppPlatform
-			}
-			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
-				AppStoreID:         *title.VPPAppAdamID,
-				Version:            version,
-				Platform:           platform,
-				SelfService:        title.VPPAppSelfService,
-				InstallDuringSetup: title.VPPInstallDuringSetup,
-			}
 			title.IconUrl = title.VPPAppIconURL
 		}
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
+	}
+
+	if opt.AITool {
+		// The filter already excluded every title that isn't an AI tool.
+		for _, title := range softwareList {
+			title.AITool = new(true)
+		}
+	} else {
+		aiToolTitles, err := ds.aiToolTitleIDs(ctx, dbReader, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get ai tool software titles")
+		}
+		for _, title := range softwareList {
+			_, ok := aiToolTitles[title.ID]
+			title.AITool = new(ok)
+		}
 	}
 
 	// Fetch automatic install policies, icons, and display names for team-scoped queries.
@@ -479,20 +500,19 @@ func (ds *Datastore) processSoftwareTitleResults(
 		if err != nil {
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
 		}
+		appStoreAppPoliciesByTitleID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
 			if i, ok := titleIndex[p.TitleID]; ok {
 				switch {
-				case softwareList[i].AppStoreApp != nil:
-					softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(
-						softwareList[i].AppStoreApp.AutomaticInstallPolicies, p,
-					)
 				case softwareList[i].SoftwarePackage != nil:
 					softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(
 						softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
 					)
+				case softwareList[i].VPPAppAdamID != nil:
+					appStoreAppPoliciesByTitleID[p.TitleID] = append(appStoreAppPoliciesByTitleID[p.TitleID], p)
 				default:
 					ds.logger.WarnContext(ctx, "policy should have an associated VPP application or software package",
-						"team_id", opt.TeamID,
+						"fleet_id", opt.TeamID,
 						"policy_id", p.ID,
 					)
 				}
@@ -529,14 +549,17 @@ func (ds *Datastore) processSoftwareTitleResults(
 		// Key policies by installer_id so each package on a multi-package
 		// title only shows the policies actually bound to it — not the
 		// aggregated title-level list. Custom-package-backed policies
-		// always carry a non-nil InstallerID; VPP-backed policies do not
-		// (they're already attached above via softwareList[i].AppStoreApp).
+		// always carry a non-nil InstallerID; VPP-backed policies carry a
+		// non-nil VPPAppsTeamsID.
 		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+		policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
-			if p.InstallerID == nil {
-				continue
+			if p.InstallerID != nil {
+				policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
 			}
-			policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 		for titleID, pkgs := range packagesByTitle {
 			i, ok := titleIndex[titleID]
@@ -545,8 +568,57 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 			for j := range pkgs {
 				pkgs[j].AutomaticInstallPolicies = policiesByInstaller[pkgs[j].InstallerID]
+				if opt.ForSetupExperience {
+					// Selecting a title for setup experience selects all of the packages it has at that time.
+					pkgs[j].InstallDuringSetup = softwareList[i].PackageInstallDuringSetup
+				}
 			}
 			softwareList[i].Packages = pkgs
+		}
+
+		var appStoreAppTitleIDs []uint
+		for _, title := range softwareList {
+			if title.VPPAppAdamID != nil {
+				appStoreAppTitleIDs = append(appStoreAppTitleIDs, title.ID)
+			}
+		}
+		appStoreApps, err := ds.getAppStoreAppVersionsForTitles(ctx, opt.TeamID, appStoreAppTitleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
+		}
+		for _, appStoreApp := range appStoreApps {
+			title := softwareList[titleIndex[appStoreApp.TitleID]]
+			listItem := fleet.AppStoreAppListItem{
+				ID:                       appStoreApp.VPPAppsTeamsID,
+				Name:                     appStoreApp.VersionName,
+				AppStoreID:               appStoreApp.AdamID,
+				Platform:                 appStoreApp.Platform,
+				Version:                  appStoreApp.LatestVersion,
+				SelfService:              appStoreApp.SelfService,
+				AutomaticInstallPolicies: policiesByVersionID[appStoreApp.VPPAppsTeamsID],
+			}
+			if opt.ForSetupExperience {
+				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
+			}
+			title.AppStoreApps = append(title.AppStoreApps, listItem)
+		}
+
+		// Fill in the deprecated app_store_app for setup experience software only.
+		if opt.ForSetupExperience {
+			for _, title := range softwareList {
+				if len(title.AppStoreApps) > 0 {
+					// Set app_store_app to the first-added version, versions are sorted by id.
+					firstVersion := title.AppStoreApps[0]
+					title.AppStoreApp = &fleet.SoftwarePackageOrApp{
+						AppStoreID:               firstVersion.AppStoreID,
+						Version:                  firstVersion.Version,
+						Platform:                 string(firstVersion.Platform),
+						SelfService:              new(firstVersion.SelfService),
+						InstallDuringSetup:       firstVersion.InstallDuringSetup,
+						AutomaticInstallPolicies: appStoreAppPoliciesByTitleID[title.ID],
+					}
+				}
+			}
 		}
 	}
 
@@ -600,6 +672,11 @@ func (ds *Datastore) processSoftwareTitleResults(
 					if softwareList[i].SoftwarePackage != nil {
 						softwareList[i].SoftwarePackage.FleetMaintainedVersions = fmaVers
 					}
+					for j := range softwareList[i].Packages {
+						if softwareList[i].Packages[j].FleetMaintainedAppID != nil {
+							softwareList[i].Packages[j].FleetMaintainedVersions = fmaVers
+						}
+					}
 				}
 			}
 		}
@@ -638,7 +715,8 @@ SELECT
 	si.platform,
 	si.self_service,
 	si.url AS package_url,
-	si.uploaded_at
+	si.uploaded_at,
+	si.fleet_maintained_app_id
 FROM
 	software_installers si
 WHERE
@@ -646,14 +724,15 @@ WHERE
 ORDER BY si.id ASC`
 
 	type packageRow struct {
-		TitleID     uint      `db:"title_id"`
-		InstallerID uint      `db:"installer_id"`
-		Name        string    `db:"name"`
-		Version     string    `db:"version"`
-		Platform    string    `db:"platform"`
-		SelfService bool      `db:"self_service"`
-		PackageURL  *string   `db:"package_url"`
-		UploadedAt  time.Time `db:"uploaded_at"`
+		TitleID              uint      `db:"title_id"`
+		InstallerID          uint      `db:"installer_id"`
+		Name                 string    `db:"name"`
+		Version              string    `db:"version"`
+		Platform             string    `db:"platform"`
+		SelfService          bool      `db:"self_service"`
+		PackageURL           *string   `db:"package_url"`
+		UploadedAt           time.Time `db:"uploaded_at"`
+		FleetMaintainedAppID *uint     `db:"fleet_maintained_app_id"`
 	}
 
 	ret := make(map[uint][]fleet.SoftwarePackageListItem)
@@ -670,13 +749,14 @@ ORDER BY si.id ASC`
 		for _, r := range rows {
 			selfService := r.SelfService
 			ret[r.TitleID] = append(ret[r.TitleID], fleet.SoftwarePackageListItem{
-				InstallerID: r.InstallerID,
-				Name:        r.Name,
-				Version:     r.Version,
-				Platform:    r.Platform,
-				SelfService: &selfService,
-				PackageURL:  r.PackageURL,
-				UploadedAt:  r.UploadedAt,
+				InstallerID:          r.InstallerID,
+				Name:                 r.Name,
+				Version:              r.Version,
+				Platform:             r.Platform,
+				SelfService:          &selfService,
+				PackageURL:           r.PackageURL,
+				UploadedAt:           r.UploadedAt,
+				FleetMaintainedAppID: r.FleetMaintainedAppID,
 			})
 		}
 		return nil
@@ -749,11 +829,7 @@ SELECT
 		END){{else}}si.install_during_setup{{end}} as package_install_during_setup
 		,si.storage_id as package_storage_id
 		,si.fleet_maintained_app_id
-		,vat.self_service as vpp_app_self_service
 		,vat.adam_id as vpp_app_adam_id
-		,vat.install_during_setup as vpp_install_during_setup
-		,vap.latest_version as vpp_app_version
-		,vap.platform as vpp_app_platform
 		,vap.icon_url as vpp_app_icon_url
 		,iha.filename as in_house_app_name
 		,iha.version as in_house_app_version
@@ -761,11 +837,18 @@ SELECT
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
 		,iha.install_during_setup as in_house_app_install_during_setup
-		,sus.enabled as auto_update_enabled
-		,sus.start_time as auto_update_window_start
-		,sus.end_time as auto_update_window_end
+		,iha.id as in_house_app_id
+		,iha.created_at as in_house_app_uploaded_at
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) as auto_update_enabled
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) as auto_update_window_start
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end
 	{{end}}
 FROM software_titles st
+	{{if and (hasTeamID .) (or .AvailableForInstall .SelfServiceOnly (and .PackagesOnly (not .ListOptions.MatchQuery)))}}
+		-- These filters only keep titles with an installer, VPP app or in-house app in the fleet.
+		-- A packages_only with a search query also keeps titles without a package, so it can't use the inner join
+		INNER JOIN ({{fleetInstallableTitleIDs (teamID .)}}) fleet_installable_titles ON fleet_installable_titles.title_id = st.id
+	{{end}}
 	{{if hasTeamID .}}
 		LEFT JOIN software_installers si ON si.id = (
 			SELECT MIN(si2.id) FROM software_installers si2
@@ -774,8 +857,10 @@ FROM software_titles st
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
-			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = {{teamID .}}
+			{{if .PackagesOnly}} FALSE {{else}} vat.id = (
+				SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+				WHERE vat2.adam_id = vap.adam_id AND vat2.platform = vap.platform AND vat2.global_or_team_id = {{teamID .}}
+			){{end}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
@@ -826,6 +911,12 @@ WHERE
 		{{if and (hasTeamID $) $.PackageName}}
 		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.filename = ?)" $additionalWhere (teamID $)}}
 		{{end}}
+		{{with $typeFilter := typeFilter}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere $typeFilter}}
+		{{end}}
+		{{if $.AITool}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere aiToolFilter}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -834,10 +925,18 @@ WHERE
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.software_title_id IS NOT NULL ) "}}
 		{{ end }}
-		{{if and $.SelfServiceOnly (hasTeamID $)}}
-		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
-		{{end}}
 		AND ({{$defFilter}})
+		{{if and $.SelfServiceOnly (hasTeamID $)}}
+		AND (
+			si.self_service = 1
+			OR iha.self_service = 1
+			OR EXISTS (
+				SELECT 1 FROM vpp_apps_teams vat_ss
+				WHERE vat_ss.adam_id = vap.adam_id AND vat_ss.platform = vap.platform
+					AND vat_ss.global_or_team_id = {{teamID $}} AND vat_ss.self_service = 1
+			)
+		)
+		{{end}}
 	{{end}}
 	-- If for setup experience, exclude any installers that are not supported.
 	-- In-house apps are only supported for setup experience on iOS/iPadOS, so
@@ -858,18 +957,16 @@ GROUP BY
 		,package_install_during_setup
 		,package_storage_id
 		,fleet_maintained_app_id
-		,vpp_app_self_service
 		,vpp_app_adam_id
-		,vpp_app_version
-		,vpp_app_platform
 		,vpp_app_icon_url
-		,vpp_install_during_setup
 		,in_house_app_name
 		,in_house_app_version
 		,in_house_app_platform
 		,in_house_app_storage_id
 		,in_house_app_self_service
 		,in_house_app_install_during_setup
+		,in_house_app_id
+		,in_house_app_uploaded_at
 		,auto_update_enabled
 		,auto_update_window_start
 		,auto_update_window_end
@@ -917,7 +1014,12 @@ GROUP BY
 		args = append(args, opt.PackageName)
 	}
 
+	typeFilterSQL, typeFilterArgs := softwareTypeFilterSQL(opt.TypeFilter, "st")
+	args = append(args, typeFilterArgs...)
+
 	t, err := template.New("stm").Funcs(map[string]any{
+		"typeFilter":   func() string { return typeFilterSQL },
+		"aiToolFilter": func() string { return aiToolTitleFilterSQL("st.id") },
 		"yesNo": func(b bool, yes string, no string) string {
 			if b {
 				return yes
@@ -948,6 +1050,7 @@ GROUP BY
 			}
 			return *q.TeamID
 		},
+		"fleetInstallableTitleIDs": fleetInstallableTitleIDsSQL,
 	}).Parse(stmt)
 	if err != nil {
 		return "", nil, err
@@ -961,12 +1064,25 @@ GROUP BY
 	return buff.String(), args, nil
 }
 
+func fleetInstallableTitleIDsSQL(globalOrTeamID uint) string {
+	return fmt.Sprintf(`
+		SELECT si.title_id FROM software_installers si
+		WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
+		UNION
+		SELECT vap.title_id FROM vpp_apps vap
+		INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
+		WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
+		UNION
+		SELECT iha.title_id FROM in_house_apps iha
+		WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL`, globalOrTeamID)
+}
+
 // buildOptimizedListSoftwareTitlesSQL builds a two-phase query for listing software titles
 // ordered by hosts_count. Phase 1 (inner query) uses the covering index on
 // software_titles_host_counts to filter by team, then joins software_titles for the correct
 // secondary sort (name, source, extension_for), and paginates. Phase 2 (outer query)
 // enriches only the ~20 paginated IDs with installer/VPP/in-house details.
-func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) string {
+func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (string, []any) {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
 	if hasTeamID {
@@ -992,6 +1108,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		perPage++
 	}
 
+	hostCountsTypeFilter, installerOnlyTypeFilter, args := optimizedTitlesTypeFilterSQL(opts)
+
 	// Build the inner query: find paginated title IDs sorted by (hosts_count, software_title_id).
 	// The secondary sort uses software_title_id (not name) for performance so that the entire ORDER BY is satisfied
 	// by the covering index (team_id, global_stats, hosts_count, software_title_id) without a filesort.
@@ -1004,9 +1122,9 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		innerSQL = fmt.Sprintf(`
 			SELECT sthc.software_title_id, sthc.hosts_count
 			FROM software_titles_host_counts sthc
-			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
+			WHERE sthc.team_id = 0 AND sthc.global_stats = 1%[3]s
 			ORDER BY sthc.hosts_count %[1]s, sthc.software_title_id %[1]s
-			LIMIT %[2]d`, direction, perPage)
+			LIMIT %[2]d`, direction, perPage, hostCountsTypeFilter)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1020,28 +1138,18 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			FROM (
 				(SELECT sthc.software_title_id, sthc.hosts_count
 				FROM software_titles_host_counts sthc
-				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0)
+				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[4]s)
 
 				UNION ALL
 
 				(SELECT t.title_id AS software_title_id, 0 AS hosts_count
-				FROM (
-					SELECT si.title_id FROM software_installers si
-					WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
-					UNION
-					SELECT vap.title_id FROM vpp_apps vap
-					INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
-					WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
-					UNION
-					SELECT iha.title_id FROM in_house_apps iha
-					WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL
-				) AS t
+				FROM (%[6]s) AS t
 				LEFT JOIN software_titles_host_counts sthc
 					ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
-				WHERE sthc.software_title_id IS NULL)
+				WHERE sthc.software_title_id IS NULL%[5]s)
 			) AS combined
 			ORDER BY combined.hosts_count %[2]s, combined.software_title_id %[2]s
-			LIMIT %[3]d`, teamID, direction, perPage)
+			LIMIT %[3]d`, teamID, direction, perPage, hostCountsTypeFilter, installerOnlyTypeFilter, fleetInstallableTitleIDsSQL(teamID))
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1070,11 +1178,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			si.install_during_setup AS package_install_during_setup,
 			si.storage_id AS package_storage_id,
 			si.fleet_maintained_app_id,
-			vat.self_service AS vpp_app_self_service,
 			vat.adam_id AS vpp_app_adam_id,
-			vat.install_during_setup AS vpp_install_during_setup,
-			vap.latest_version AS vpp_app_version,
-			vap.platform AS vpp_app_platform,
 			vap.icon_url AS vpp_app_icon_url,
 			iha.filename AS in_house_app_name,
 			iha.version AS in_house_app_version,
@@ -1082,9 +1186,11 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			iha.storage_id AS in_house_app_storage_id,
 			iha.self_service AS in_house_app_self_service,
 			iha.install_during_setup AS in_house_app_install_during_setup,
-			sus.enabled AS auto_update_enabled,
-			sus.start_time AS auto_update_window_start,
-			sus.end_time AS auto_update_window_end`
+			iha.id AS in_house_app_id,
+			iha.created_at AS in_house_app_uploaded_at,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) AS auto_update_enabled,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) AS auto_update_window_start,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) AS auto_update_window_end`
 	}
 
 	outerSQL += fmt.Sprintf(`
@@ -1104,9 +1210,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		)
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-			AND vat.global_or_team_id = %[1]d
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %[1]d`, teamID)
+		LEFT JOIN vpp_apps_teams vat ON vat.id = (
+			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+			WHERE vat2.adam_id = vap.adam_id AND vat2.platform = vap.platform AND vat2.global_or_team_id = %[1]d
+		)`, teamID)
 	}
 
 	outerSQL += `
@@ -1117,44 +1224,87 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		ORDER BY top.hosts_count %[1]s, top.software_title_id %[1]s`,
 		direction)
 
-	return outerSQL
+	return outerSQL, args
+}
+
+// optimizedTitlesTypeFilterSQL renders the type filter as EXISTS subqueries for the optimized titles
+// queries: one on the host counts arm (sthc) and one on the installer-only arm (t). MySQL rewrites
+// the EXISTS as a semi-join driven from software_titles: no index starts with source, so it scans
+// idx_sw_titles, joins the matching titles to the host counts by primary key, and sorts them before
+// applying the LIMIT. A filtered request therefore costs about one scan of the titles index instead of
+// the index-ordered scan that stops at the LIMIT; an index on (source, extension_for) would let it
+// seek instead. EXPLAIN ANALYZE of the all-fleets list with source=apps on 200k titles (10% apps):
+//
+//	-> Limit: 21 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 21 row(s) per chunk
+//	        -> Nested loop inner join                                 (rows=19897)
+//	            -> Filter: (st.source = 'apps')                       (rows=19897)
+//	                -> Covering index scan on st using idx_sw_titles  (rows=200000)
+//	            -> Single-row index lookup on sthc using PRIMARY      (loops=19897)
+//
+// The AI tool filter is appended to both arms. MySQL drives that semi-join from the flagged rows of
+// idx_software_ai_tool_title_id and joins them to the host counts by primary key, so the list and the
+// count cost about the number of AI tools rather than the number of titles. EXPLAIN ANALYZE of the
+// all-fleets list with ai_tool=true, page 5, on 200k titles (750 AI titles):
+//
+//	-> Limit/Offset: 21/100 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 121 row(s) per chunk
+//	        -> Nested loop inner join                                                                  (rows=750)
+//	            -> Remove duplicates from input sorted on idx_software_ai_tool_title_id                 (rows=750)
+//	                -> Covering index lookup on sai using idx_software_ai_tool_title_id (ai_tool=1)    (rows=1023)
+//	            -> Single-row index lookup on sthc using PRIMARY                                        (loops=750)
+//
+// args cover the host counts arm, plus the installer-only arm when a team is set.
+func optimizedTitlesTypeFilterSQL(opts fleet.SoftwareTitleListOptions) (hostCounts, installerOnly string, args []any) {
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st"); filterSQL != "" {
+		hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
+		installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
+		args = filterArgs
+		if opts.TeamID != nil {
+			args = slices.Concat(filterArgs, filterArgs)
+		}
+	}
+	if opts.AITool {
+		hostCounts += " AND " + aiToolTitleFilterSQL("sthc.software_title_id")
+		installerOnly += " AND " + aiToolTitleFilterSQL("t.title_id")
+	}
+	return hostCounts, installerOnly, args
+}
+
+// aiToolTitleFilterSQL is a predicate matching titles, identified by titleIDColumn, that have at
+// least one software row flagged as an AI tool.
+func aiToolTitleFilterSQL(titleIDColumn string) string {
+	return "EXISTS (SELECT 1 FROM software sai WHERE sai.title_id = " + titleIDColumn + " AND sai.ai_tool = 1)"
 }
 
 // countSoftwareTitlesOptimized builds a dedicated count query that avoids the expensive
 // full-query-wrapping approach. It counts titles with host counts via a simple index scan,
 // and when a team is specified, adds the count of installer-only titles (small set).
-func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
+func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) (string, []any) {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
 	if hasTeamID {
 		teamID = *opts.TeamID
 	}
 
+	hostCountsTypeFilter, installerOnlyTypeFilter, args := optimizedTitlesTypeFilterSQL(opts)
+
 	if !hasTeamID {
 		// All teams: only count titles with host counts.
-		return `SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = 0 AND global_stats = 1`
+		return `SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = 0 AND sthc.global_stats = 1` +
+			hostCountsTypeFilter, args
 	}
 
 	// Specific team: count of host-count titles + count of installer-only titles.
 	return fmt.Sprintf(`
 		SELECT
-			(SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = %[1]d AND global_stats = 0)
+			(SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[2]s)
 			+
-			(SELECT COUNT(DISTINCT t.title_id) FROM (
-				SELECT si.title_id FROM software_installers si
-				WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
-				UNION
-				SELECT vap.title_id FROM vpp_apps vap
-				INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
-				WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
-				UNION
-				SELECT iha.title_id FROM in_house_apps iha
-				WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL
-			) AS t
+			(SELECT COUNT(DISTINCT t.title_id) FROM (%[4]s) AS t
 			LEFT JOIN software_titles_host_counts sthc
 				ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
-			WHERE sthc.software_title_id IS NULL)
-		AS total_count`, teamID)
+			WHERE sthc.software_title_id IS NULL%[3]s)
+		AS total_count`, teamID, hostCountsTypeFilter, installerOnlyTypeFilter, fleetInstallableTitleIDsSQL(teamID)), args
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
@@ -1463,55 +1613,19 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 	})
 }
 
-func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate schedule if enabled.
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-		schedule := fleet.SoftwareAutoUpdateSchedule{
-			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
-				AutoUpdateEnabled:   config.AutoUpdateEnabled,
-				AutoUpdateStartTime: config.AutoUpdateStartTime,
-				AutoUpdateEndTime:   config.AutoUpdateEndTime,
-			},
-		}
-		if err := schedule.WindowIsValid(); err != nil {
-			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
-		}
-	}
-	var startTime, endTime string
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
-		startTime = *config.AutoUpdateStartTime
-	}
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
-		endTime = *config.AutoUpdateEndTime
-	}
-
-	stmt := `
-INSERT INTO software_update_schedules
-	(title_id, team_id, enabled, start_time, end_time)
-VALUES (?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-	enabled = VALUES(enabled),
-	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
-	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
-`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-	return nil
-}
-
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	sus.team_id,
-	sus.title_id,
-	sus.enabled AS auto_update_enabled,
-	sus.start_time AS auto_update_window_start,
-	sus.end_time AS auto_update_window_end
-FROM software_update_schedules sus
-JOIN software_titles st ON st.id = sus.title_id
-WHERE sus.team_id = ? AND st.source = ?
+	vat.id AS vpp_app_team_id,
+	vat.global_or_team_id AS team_id,
+	va.title_id,
+	vat.update_schedule_enabled AS auto_update_enabled,
+	vat.start_time AS auto_update_window_start,
+	vat.end_time AS auto_update_window_end
+FROM vpp_apps_teams vat
+JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+JOIN software_titles st ON st.id = va.title_id
+WHERE vat.global_or_team_id = ? AND st.source = ? AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')
 `
 
 	args := []any{teamID, source}
@@ -1519,7 +1633,7 @@ WHERE sus.team_id = ? AND st.source = ?
 	if len(optionalFilter) > 0 {
 		filter := optionalFilter[0]
 		if filter.Enabled != nil {
-			stmt += " AND enabled = ?"
+			stmt += " AND vat.update_schedule_enabled = ?"
 			args = append(args, *filter.Enabled)
 		}
 	}

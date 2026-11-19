@@ -114,15 +114,13 @@ const HostActionsDropdown = ({
     isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
     isAppleBusinessEnabledAndConfigured:
-      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
+      globalConfig?.mdm?.apple_business_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
     isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
     isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled:
-      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,

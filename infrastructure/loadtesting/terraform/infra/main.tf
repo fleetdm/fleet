@@ -241,7 +241,7 @@ module "migrations" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.5.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.6.0"
   ecs_cluster                         = module.loadtest.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.loadtest.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.loadtest.byo-db.byo-ecs.service.network_configuration[0].subnets

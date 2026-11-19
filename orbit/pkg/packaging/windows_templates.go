@@ -1,6 +1,10 @@
 package packaging
 
-import "text/template"
+import (
+	"text/template"
+
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+)
 
 // Adapted from
 // https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/goversioninfo.exe.manifest
@@ -34,7 +38,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     Name="Fleet osquery"
     Language="1033"
     Version="{{.Version}}"
-    Manufacturer="Fleet Device Management (fleetdm.com)"
+    Manufacturer="` + constant.AgentPublisher + `"
     UpgradeCode="B681CB20-107E-428A-9B14-2D3C1AFED244" >
 
     <Package
@@ -59,6 +63,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="FLEET_SECRET" Value="dummy" Hidden="yes"/>
     <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
 	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>
+    <Property Id="BYPASS_END_USER_AUTH" Value="{{ if .BypassEndUserAuth }}True{{ else }}False{{ end }}" Secure="yes"/>
     {{ if .EnableEndUserEmailProperty }}
 		<Property Id="END_USER_EMAIL" Value="{{ if .EndUserEmail }}{{ .EndUserEmail }}{{ else }}dummy{{end}}"/>
     {{ end }}
@@ -124,7 +129,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   {{ if .EnableEUATokenProperty }}<MultiStringValue>ORBIT_EUA_TOKEN=[EUA_TOKEN]</MultiStringValue>{{ end }}
                   {{ if .OsqueryDB }}<MultiStringValue>ORBIT_OSQUERY_DB={{ .OsqueryDB }}</MultiStringValue>{{ end }}
                   {{ if .DisableSetupExperience }}<MultiStringValue>ORBIT_DISABLE_SETUP_EXPERIENCE=true</MultiStringValue>{{ end }}
-                  {{ if .BypassEndUserAuth }}<MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=true</MultiStringValue>{{ end }}
+                  <MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]</MultiStringValue>
                 </RegistryValue>
                 <!--
                   ##############################################################################################
@@ -608,9 +613,9 @@ function Force-Remove-Orbit {
     #Remove HKLM registry entries
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
 
-      # Filter for osquery entries
+      # fleetd's entry, also after fleetd renames it "Fleet" (other apps use that name, hence the publisher)
       $entryPath = $_.PSPath
-      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "Fleet osquery")} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
+      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "Fleet osquery") -or (($_.DisplayName -eq "Fleet") -and ($_.Publisher -eq "` + constant.AgentPublisher + `"))} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
       if ($properties) {
 
         #Remove Registry Entries

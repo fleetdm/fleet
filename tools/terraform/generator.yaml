@@ -5,16 +5,16 @@ provider:
 resources:
   team:
     create:
-      path: /api/v1/fleet/teams
+      path: /api/v1/fleet/fleets
       method: POST
     read:
-      path: /api/v1/fleet/teams/{id}
+      path: /api/v1/fleet/fleets/{id}
       method: GET
     update:
-      path: /api/v1/fleet/teams/{id}
+      path: /api/v1/fleet/fleets/{id}
       method: PUT
     delete:
-      path: /api/v1/fleet/teams/{id}
+      path: /api/v1/fleet/fleets/{id}
       method: DELETE
     schema:
       attributes:

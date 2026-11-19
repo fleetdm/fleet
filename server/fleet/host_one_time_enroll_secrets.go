@@ -13,17 +13,20 @@ import (
 // stretch osquery's retry backoff to about 10 minutes.
 const HostOneTimeEnrollSecretSecondPlaneWindow = 60 * time.Minute
 
-// EnrollmentPlane identifies which fleetd component is enrolling.
+// EnrollmentPlane identifies what is enrolling: a fleetd component, or an
+// Apple device during automatic enrollment (ADE).
 type EnrollmentPlane string
 
 const (
-	EnrollmentPlaneOrbit   EnrollmentPlane = "orbit"
-	EnrollmentPlaneOsquery EnrollmentPlane = "osquery"
+	EnrollmentPlaneOrbit    EnrollmentPlane = "orbit"
+	EnrollmentPlaneOsquery  EnrollmentPlane = "osquery"
+	EnrollmentPlaneAppleMDM EnrollmentPlane = "apple_mdm"
 )
 
 // HostOneTimeEnrollSecret is a per-device, single-use enroll secret minted when an MDM-enrolled host is handed the credential it
-// will enroll with: an Apple host fetching its fleetd configuration profile, or a Windows host being sent the fleetd installer or
-// having its Fleetd enroll secret profile resent by an administrator. It may be used once per enrollment plane.
+// will enroll with: an Apple host fetching its fleetd configuration profile, a Windows host being sent the fleetd installer or
+// having its Fleetd enroll secret profile resent by an administrator, or an Android host whose Fleet agent managed configuration
+// is being built. It may be used once per enrollment plane.
 type HostOneTimeEnrollSecret struct {
 	ID     uint   `db:"id"`
 	Secret string `db:"secret"`
@@ -46,6 +49,11 @@ type HostOneTimeEnrollSecret struct {
 func (s *HostOneTimeEnrollSecret) MatchesHost(platform, hardwareUUID, hardwareSerial string) bool {
 	if s.IsMDMEnrollmentBound() {
 		return s.matchesCapturedIdentifiers(platform, hardwareUUID, hardwareSerial)
+	}
+	// The Fleet Android agent cannot read the device serial and presents its enterprise-specific ID in its place, so only the
+	// platform and that ID, the host's UUID, are compared.
+	if strings.EqualFold(s.Platform, "android") {
+		return strings.EqualFold(platform, "android") && strings.EqualFold(s.HardwareUUID, hardwareUUID)
 	}
 	return strings.EqualFold(s.Platform, platform) &&
 		strings.EqualFold(s.HardwareUUID, hardwareUUID) &&
@@ -102,14 +110,25 @@ const (
 	EnrollmentRejectedOneTimeSecretIdentifierMismatch = "one_time_secret_identifier_mismatch"
 	// EnrollmentRejectedSharedSecretForMDMManagedHost: a shared (team or
 	// global) enroll secret was used to claim an Apple host that is enrolled in
-	// Fleet MDM or assigned to Fleet in Apple Business, or a Windows host that is
-	// enrolled in Fleet MDM.
+	// Fleet MDM or assigned to Fleet in Apple Business, or a Windows or Android
+	// host that is enrolled in Fleet MDM.
 	EnrollmentRejectedSharedSecretForMDMManagedHost = "shared_secret_for_mdm_managed_host"
+	// EnrollmentRejectedHostIdentityCertRequired: an enrollment matched a host
+	// that holds a host identity certificate, but was not signed with it.
+	EnrollmentRejectedHostIdentityCertRequired = "host_identity_cert_required"
+	// EnrollmentRejectedEndUserAuthenticationRequired: the automatic enrollment
+	// token was presented for an Apple host in a fleet that requires end user
+	// authentication. The device got its enrollment configuration before its
+	// fleet required it, and must be reactivated.
+	EnrollmentRejectedEndUserAuthenticationRequired = "end_user_authentication_required"
+	// EnrollmentRejectedUUIDOfAnotherMDMHost: an enrollment presented the
+	// hardware UUID of another host that is enrolled in Apple or Windows MDM.
+	EnrollmentRejectedUUIDOfAnotherMDMHost = "uuid_of_another_mdm_host"
 )
 
 // EnrollmentRejectedError is returned by the datastore enroll methods when an
-// enrollment is refused by the one-time enroll secret rules. HostID is the host
-// the attempt targeted, when known.
+// enrollment is refused by the enroll secret or host identity certificate
+// rules. HostID is the host the attempt targeted, when known.
 type EnrollmentRejectedError struct {
 	Reason string
 	HostID *uint

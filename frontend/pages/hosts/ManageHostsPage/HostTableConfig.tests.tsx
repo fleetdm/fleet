@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Column } from "react-table";
@@ -8,6 +8,7 @@ import { IHost } from "interfaces/host";
 import {
   generateAvailableTableHeaders,
   getPrimaryDeviceUser,
+  toFleetColumnId,
 } from "./HostTableConfig";
 
 // react-table's `Column` union includes group columns, which carry no `Cell`,
@@ -145,6 +146,90 @@ describe("getPrimaryDeviceUser", () => {
     ]);
     expect(primaryEmail).toBe("bob@acmecorp.com");
     expect(suffixCount).toBe(1);
+  });
+});
+
+describe("HostTableConfig - Host column", () => {
+  const LONG_HOST_NAME = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
+
+  const renderHostCell = (displayName: string) => {
+    const hostColumn = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).find(
+      (h) => (h as Column<IHost>).id === "display_name"
+    ) as IColumnWithCell;
+    const Cell = hostColumn.Cell as React.ElementType;
+    return render(
+      <Cell
+        cell={{ value: displayName }}
+        row={{
+          original: {
+            id: 1,
+            status: "online",
+            seen_time: "2026-01-01T00:00:00Z",
+            platform: "windows",
+          },
+        }}
+      />
+    );
+  };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("renders the host name through the truncation wrapper and keeps the last seen title", () => {
+    renderHostCell("DESKTOP-U3RE7T8");
+
+    const link = screen.getByTitle("Online");
+    expect(
+      within(link).getByText("DESKTOP-U3RE7T8", {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    ).toBeVisible();
+  });
+
+  it("shows the full host name in a tooltip when it is truncated", async () => {
+    // jsdom has no layout, so report a text box narrower than its content.
+    jest
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockReturnValue(352);
+    jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+
+    const { container } = renderHostCell(LONG_HOST_NAME);
+
+    expect(
+      container.querySelector(".data-table__tooltip-truncated-text-container")
+    ).toHaveAttribute("data-tip-disable", "false");
+    await userEvent.hover(
+      screen.getByText(LONG_HOST_NAME, {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    );
+    expect(
+      await screen.findByText(LONG_HOST_NAME, {
+        selector: ".truncated-tooltip.show",
+      })
+    ).toBeVisible();
+  });
+
+  it("does not show a tooltip when the host name fits", async () => {
+    const { container } = renderHostCell("DESKTOP-U3RE7T8");
+
+    expect(
+      container.querySelector(".data-table__tooltip-truncated-text-container")
+    ).toHaveAttribute("data-tip-disable", "true");
+    await userEvent.hover(
+      screen.getByText("DESKTOP-U3RE7T8", {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    );
+    expect(
+      screen.queryByText("DESKTOP-U3RE7T8", {
+        selector: ".truncated-tooltip.show",
+      })
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -299,6 +384,47 @@ describe("HostTableConfig - Serial number column", () => {
   });
 });
 
+describe("HostTableConfig - Operating system column", () => {
+  const renderOSCell = (osName: string, osVersion: string) => {
+    const osColumn = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).find((h) => (h as Column<IHost>).id === "os_version") as IColumnWithCell;
+    const Cell = osColumn.Cell as React.ElementType;
+    return render(
+      <Cell
+        cell={{ value: osVersion }}
+        row={{ original: { os_name: osName, os_version: osVersion } }}
+      />
+    );
+  };
+
+  it.each([
+    ["macOS", "15.2", "macOS 15.2"],
+    ["Omarchy", "4.0.0", "Omarchy 4.0.0"],
+    ["", "", "---"],
+  ])("renders %p %p as %p", (osName, osVersion, expected) => {
+    renderOSCell(osName, osVersion);
+    expect(
+      screen.getByText(expected, {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("adds the rolling release tooltip to Arch-based hosts", async () => {
+    renderOSCell("CachyOS Linux", "rolling");
+
+    const osText = screen.getByText("CachyOS Linux", {
+      selector: ".data-table__tooltip-truncated-text",
+    });
+    await userEvent.hover(within(osText).getByText("rolling"));
+    expect(
+      await screen.findByText(/Version follows a rolling release model/)
+    ).toBeInTheDocument();
+  });
+});
+
 describe("HostTableConfig - Status column", () => {
   it("renders '---' with the Windows Autopilot tooltip for a pending Windows host", async () => {
     const statusColumn = generateAvailableTableHeaders({
@@ -327,5 +453,19 @@ describe("HostTableConfig - Status column", () => {
         "Device is pending enrollment in Windows Autopilot and status is not yet available."
       )
     ).toBeInTheDocument();
+  });
+});
+
+describe("HostTableConfig - Fleet column", () => {
+  it("is sorted and hidden by `fleet_name`, and saved `team_name` settings carry over", () => {
+    const ids = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).map((h) => (h as Column<IHost>).id);
+
+    expect(ids).toContain("fleet_name");
+    expect(ids).not.toContain("team_name");
+    expect(toFleetColumnId("team_name")).toBe("fleet_name");
+    expect(toFleetColumnId("hostname")).toBe("hostname");
   });
 });

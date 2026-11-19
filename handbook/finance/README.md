@@ -556,7 +556,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 The following stubs are included only to make links backward compatible.
 
 ##### Monitor compliance tests
-Please see [handbook/it#monitor-compliance-tests](https://fleetdm.com/handbook/it#monitor-compliance-tests)
+Please see [handbook/people#monitor-compliance-tests](https://fleetdm.com/handbook/people#monitor-compliance-tests)
 
 ### Run payroll
 Please see [handbook/people#run-payroll](https://fleetdm.com/handbook/people#run-payroll)

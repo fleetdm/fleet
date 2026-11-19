@@ -37,7 +37,7 @@ jobs:
       issues: write # to create the tracking issues
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -104,6 +104,15 @@ jobs:
         env:
           NEW_GO_VERSION: ${{ steps.check.outputs.new_version }}
         run: make update-go version="$NEW_GO_VERSION"
+
+      # A Go patch release can break golangci-lint (e.g. Go 1.27.2 bumped the
+      # export data version), and golangci-lint.yml doesn't run on go.mod-only PRs.
+      - name: Run go lint
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # Keep in sync with the golangci-lint version in golangci-lint.yml.
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@114493f9b3e7257d29e4130f2b4a4aadefbb6845 # v2.14.0
+          SKIP_INCREMENTAL=1 make lint-go
 
       - name: PR changes
         if: steps.check.outputs.update_needed == 'true'

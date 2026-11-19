@@ -86,7 +86,7 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 			require.NotZero(t, h.ID)
 
 			// associate host with IdP account, should trigger reconciliation
-			err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
+			_, err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
 			require.NoError(t, err)
 
 			// host_emails table has IdP email
@@ -99,7 +99,7 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 			assert.Equal(t, "test.user@example.com", emails[0])
 
 			// calling again shouldn't create duplicates
-			err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
+			_, err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
 			require.NoError(t, err)
 
 			emails = nil
@@ -160,11 +160,11 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("manual mapping with different email", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-diff")
 
-		err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
 		require.NoError(t, err)
 
 		// enrollment reconciles the association and supersedes the manual mapping
-		err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
 		require.NoError(t, err)
 
 		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
@@ -178,10 +178,10 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("manual mapping with same email", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-same")
 
-		err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "sso.user@example.com")
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "sso.user@example.com")
 		require.NoError(t, err)
 
-		err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
 		require.NoError(t, err)
 
 		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
@@ -203,7 +203,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 			host.ID, "someone.else@example.com", fleet.DeviceMappingIDP)
 		require.NoError(t, err)
 
-		err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
 		require.NoError(t, err)
 
 		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
@@ -225,7 +225,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 			host.ID, "sso.user@example.com", fleet.DeviceMappingMDMIdpAccounts)
 		require.NoError(t, err)
 
-		err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
 		require.NoError(t, err)
 
 		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
@@ -252,7 +252,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, updated)
 
-		err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
 		require.NoError(t, err)
 
 		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
@@ -274,7 +274,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("manual mapping survives reconcile without idp account", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-no-idp")
 
-		err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
 		require.NoError(t, err)
 
 		// no host_mdm_idp_accounts association exists (e.g. re-enrollment without SSO)
@@ -351,7 +351,7 @@ func testAndroidEnrollmentFlowWithIdP(t *testing.T, ds *Datastore) {
 	require.Empty(t, emails, "No IdP emails should exist immediately after NewAndroidHost")
 
 	// associate with IdP account
-	err = ds.AssociateHostMDMIdPAccount(ctx, "android-uuid-001", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "android-uuid-001", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// verify reconciliation happened

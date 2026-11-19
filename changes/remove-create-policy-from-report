@@ -1,0 +1,1 @@
+- Removed the undocumented `report_id` field from the create policy API, which created a policy from an existing report.

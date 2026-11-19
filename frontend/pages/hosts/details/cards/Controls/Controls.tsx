@@ -33,6 +33,7 @@ interface IControlsProps {
   hostDisplayName: string;
   /** My device: second person, and no Controls page to link to. */
   isDeviceUser?: boolean;
+  isPremiumTier?: boolean;
   /** Fleet setting for macOS: disk encryption enforced without key escrow. */
   isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
@@ -80,6 +81,7 @@ const Controls = ({
   canManageSelfServiceProfiles = false,
   installRequest,
   uninstallRequest,
+  isPremiumTier = false,
   router,
   className,
 }: IControlsProps) => {
@@ -201,7 +203,7 @@ const Controls = ({
   };
 
   const onAddControls = useCallback(() => {
-    // A no-team host reports `team_id: null`, but the Controls page reads "No
+    // A no-team host reports `fleet_id: null`, but the Controls page reads "No
     // team" as fleet_id=0 — an absent param means "keep whatever fleet you were
     // on", which lands the user somewhere else entirely.
     router.push(
@@ -226,10 +228,11 @@ const Controls = ({
   }, [controls, isDeviceUser, showHiddenProfiles, typeFilter, searchQuery]);
 
   const tableCustomFilters = (): JSX.Element | null => {
-    if (!isMacOSHost) {
-      return null;
-    }
     if (isDeviceUser) {
+      if (!isPremiumTier || !controls.some((control) => control.hidden)) {
+        return null;
+      }
+
       return (
         <Slider
           value={showHiddenProfiles}
@@ -241,9 +244,15 @@ const Controls = ({
         />
       );
     }
+
+    if (!isMacOSHost) {
+      return null;
+    }
+
     return (
       <>
         <DropdownWrapper
+          ariaLabel="Filter by type"
           className={`${baseClass}__filter`}
           variant="table-filter"
           name="type-filter"
@@ -279,6 +288,7 @@ const Controls = ({
     <div
       className={classnames(baseClass, className, {
         [`${baseClass}--self-service`]: canManageSelfServiceProfiles,
+        [`${baseClass}--device-user`]: isDeviceUser,
       })}
     >
       <TableContainer

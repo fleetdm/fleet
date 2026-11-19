@@ -42,17 +42,17 @@ describe("AddPackageModal", () => {
   });
 
   describe("standard mode", () => {
-    it("renders with the 'Add package' title", () => {
+    it("renders with the 'Add version' title", () => {
       renderModal();
       // Modal renders its title as a <span>, not a heading; use getByText.
-      expect(screen.getByText("Add package")).toBeInTheDocument();
+      expect(screen.getByText("Add version")).toBeInTheDocument();
     });
 
     it("renders the multi-package first-added banner in the target section", () => {
       renderModal();
       expect(
         screen.getByText(
-          /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i
+          /If multiple versions target the same host, Fleet will deploy the one that was added first\./i
         )
       ).toBeInTheDocument();
     });
@@ -82,13 +82,13 @@ describe("AddPackageModal", () => {
       expect(screen.getByText("Linux")).toBeInTheDocument();
     });
 
-    it("renders the form's Save button as 'Save' (not 'Add software')", async () => {
+    it("renders the form's submit button as 'Add' (not 'Add software')", async () => {
       renderModal();
       // The button text comes from PackageForm — `multiPackageContext` flips
-      // it from "Add software" to "Save". The form mounts after labels load
+      // it from "Add software" to "Add". The form mounts after labels load
       // (an empty array via the optional-chained fallback), so await it.
-      const saveButton = await screen.findByRole("button", { name: "Save" });
-      expect(saveButton).toBeInTheDocument();
+      const addButton = await screen.findByRole("button", { name: "Add" });
+      expect(addButton).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Add software" })
       ).not.toBeInTheDocument();
@@ -126,7 +126,9 @@ describe("AddPackageModal", () => {
     it("hides the standard multi-package banner copy in GitOps mode", () => {
       renderModal({}, true);
       expect(
-        screen.queryByText(/will install the one that was added first/)
+        screen.queryByText(
+          /If multiple versions target the same host, Fleet will deploy the one that was added first\./i
+        )
       ).not.toBeInTheDocument();
     });
   });

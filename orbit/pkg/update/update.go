@@ -845,7 +845,9 @@ func createTUFRemoteStore(opt Options, serverURL string) (client.RemoteStore, er
 	remoteOpt := &client.HTTPRemoteOptions{
 		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
 	}
-	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig))
+	// Orbit fetches metadata at startup, so a connection that never returns headers would block it.
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithResponseHeaderTimeout(45*time.Second),
+		fleethttp.WithTLSClientConfig(tlsConfig))
 	remoteStore, err := client.HTTPRemoteStore(serverURL, remoteOpt, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("init remote store: %w", err)

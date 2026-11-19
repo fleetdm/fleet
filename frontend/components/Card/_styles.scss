@@ -57,4 +57,9 @@
     background-color: $ui-yellow-banner;
     border-color: $ui-yellow-banner-outline;
   }
+
+  &__red {
+    background-color: $ui-error-flash-bg;
+    border-color: $core-vibrant-red;
+  }
 }

@@ -25,7 +25,7 @@ interface ILivePolicyPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids?: string; fleet_id?: string };
+    query: { host_ids?: string; fleet_id?: string; from?: string };
     search: string;
   };
 }
@@ -69,7 +69,7 @@ const LivePolicyPage = ({
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
   const teamIdForApi = currentTeamId === -1 ? undefined : currentTeamId;
 
   // Reroute users out of live flow when live queries are globally disabled
@@ -138,7 +138,12 @@ const LivePolicyPage = ({
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
-        router.replace(location.pathname);
+        router.replace(
+          getPathWithQueryParams(location.pathname, {
+            ...location.query,
+            host_ids: undefined,
+          })
+        );
       },
     }
   );
@@ -153,10 +158,16 @@ const LivePolicyPage = ({
   }, [location.pathname, storedPolicy?.name]);
 
   const goToQueryEditor = useCallback(() => {
-    const path = policyId ? PATHS.EDIT_POLICY(policyId) : PATHS.NEW_POLICY;
+    let path = PATHS.NEW_POLICY;
+    if (policyId) {
+      path =
+        location.query.from === "edit"
+          ? PATHS.EDIT_POLICY(policyId)
+          : PATHS.POLICY_DETAILS(policyId);
+    }
 
     router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
-  }, [policyId, router, teamIdForApi]);
+  }, [policyId, location.query.from, router, teamIdForApi]);
 
   const renderScreen = () => {
     const step1Props = {

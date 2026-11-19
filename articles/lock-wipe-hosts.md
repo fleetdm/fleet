@@ -28,7 +28,55 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 >
 > On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge).
 
-### Get location of locked iOS/iPadOS host
+### Find a lost Android host
+
+If a company-owned Android host is lost and you want to retrieve it, you can put it in lost mode. The device plays a loud sound and shows the contact details you choose, so whoever finds it knows how to return it.
+
+Lost mode is available in Fleet Free and Fleet Premium. It's only supported on company-owned (fully managed) Android hosts. Fleet rejects lost mode commands for BYOD hosts.
+
+Lost mode doesn't prevent access to the device. Anyone who knows the device's PIN or password can unlock it and exit lost mode.
+
+To start lost mode, send the Android Management API's [`START_LOST_MODE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.START_LOST_MODE) command as a [custom MDM command](https://fleetdm.com/guides/mdm-commands):
+
+1. Save the payload below as a file named `android-start-lost-mode.json`. Replace the example values with your own. Each field is optional, but the payload must include at least one field other than `lostOrganization`.
+
+```json
+{
+  "type": "START_LOST_MODE",
+  "startLostModeParams": {
+    "lostMessage": { "defaultMessage": "This device is lost. Please contact IT." },
+    "lostPhoneNumber": { "defaultMessage": "+1 555 555 0100" },
+    "lostEmailAddress": "it-helpdesk@yourcompany.com",
+    "lostStreetAddress": { "defaultMessage": "Your Company, 123 Main St, Anytown" },
+    "lostOrganization": { "defaultMessage": "Your Company" }
+  }
+}
+```
+
+2. Run the command against one host:
+
+```shell
+fleetctl mdm run-command --payload=android-start-lost-mode.json --hosts=$HOST_IDENTIFIER
+```
+
+You can also run it with the [REST API](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command). To check whether the device entered lost mode, see [Verify the MDM command result](https://fleetdm.com/guides/mdm-commands#step-4-verify-the-mdm-command-result).
+
+When the device enters lost mode, it rings and shows a **This device was reported lost** screen with two options:
+
+- **I found this device**: Silences the sound and shows your message, email address, and street address. From here, the finder can tap **Call owner** to call the `lostPhoneNumber`, or **Emergency** to place an emergency call.
+- **This is my device**: Prompts for the device PIN or password. Entering it unlocks the device and exits lost mode.
+
+If the end user recently exited lost mode, or you recently reset the device's password, Android may reject a new `START_LOST_MODE` command. The command result shows the `USER_EXIT_LOST_MODE_RECENTLY` or `RESET_PASSWORD_RECENTLY` status.
+
+To take the device out of lost mode remotely, send the [`STOP_LOST_MODE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.STOP_LOST_MODE) command the same way:
+
+```json
+{
+  "type": "STOP_LOST_MODE"
+}
+```
+
+### Find a lost iOS/iPadOS host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the locked device. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host details** page
@@ -86,7 +134,7 @@ Linux wipe does not use an MDM command because there's no standard Linux MDM pro
 
 3. btrfs snapshots are attempted to be deleted — using `snapper` if available, with a fallback to `btrfs subvolume delete`. This step runs before file deletion because read-only snapshots resist `rm -rf`. Snapshot deletion may not be complete if `snapper` is not installed and the fallback cannot access all subvolumes.
 4. Deletion of non-essential user data is attempted: `/home/*`, `/tmp`, `/var/tmp`, `/var/log`, user caches, trash directories, and `/.snapshots`.
-5. Deletion of system directories is attempted: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, and `/srv`.
+5. Deletion of system directories is attempted in this order: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, `/srv`, and finally `/nix/store` (if the directory exists). A read-only mount directly at `/nix/store` is remounted read-write before deletion. If remounting fails or the mount is not confirmed writable, Nix store deletion is skipped and an error is reported.
 6. The host is halted via the kernel's sysrq interface.
 
 The script will not cross filesystem boundaries — it uses `--one-file-system` (or `find -xdev` as a fallback) to avoid recursing into mounted filesystems. This is a safety measure, but it also means data on separately mounted filesystems at non-standard paths will not be erased.
@@ -94,6 +142,7 @@ The script will not cross filesystem boundaries — it uses `--one-file-system` 
 #### Limitations
 
 - This is a **best-effort, script-based** erase, not a hardware-level secure erase. There is no guarantee all data is removed. Data may be recoverable with forensic tools, particularly on SSDs without full-disk encryption.
+- **Nix stores** are targeted at `/nix/store`. Only a read-only mount directly at that path is remounted; a read-only containing filesystem is not remounted. Deletion can still fail if the underlying filesystem is read-only or earlier deletions remove utilities needed to finish the wipe. This does not guarantee a complete wipe on NixOS.
 - **Separate partitions or mount points** not covered by the paths listed above (e.g. a dedicated `/data` partition) will not be erased. If your hosts use non-standard disk layouts, the script may leave data intact on those volumes.
 - **Network-mounted paths** are detected and skipped to protect remote storage, but detection relies on `/proc/mounts` being accurate and complete. **Disconnect all network drives before wiping** and confirm there is no network-backed storage accessible on the host at wipe time. If you are unsure, check what is mounted by running `mount` on the host before initiating the wipe.
 - After the script completes, the host will halt and will not reboot into a usable state. Physical access and OS reinstallation will be required to bring the host back into service.
@@ -156,6 +205,8 @@ Configuration profile installations and other MDM command types cannot be cancel
 Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. You can cancel them the same way: **Host details > Activity > Upcoming**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-upcoming-activity).
 
 Wipe on Windows and lock, wipe, and clear passcode on Android aren't cancelable.
+
+If a Windows host re-enrolls in MDM before it receives a pending lock or wipe, Fleet cancels the lock or wipe.
 
 ### Cancel from the UI
 

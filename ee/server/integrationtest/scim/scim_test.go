@@ -107,6 +107,8 @@ func testAuth(t *testing.T, s *Suite) {
 		"userName": "maintainer-attempt@example.com",
 	}, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
+	// Maintainer denied on delete user
+	s.Do(t, "DELETE", scimPath("/Users/1"), nil, http.StatusForbidden)
 	// Maintainer denied on details endpoint
 	resp = nil
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &resp)
@@ -1292,8 +1294,10 @@ func testHostIdPAssociationAndRename(t *testing.T, s *Suite) {
 		Fullname: "SCIM Multi",
 		Email:    userName,
 	}))
-	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID))
-	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID))
+	_, err := s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID)
+	require.NoError(t, err)
+	_, err = s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID)
+	require.NoError(t, err)
 
 	// Provision the user through the SCIM API, as an IdP would.
 	createPayload := map[string]any{

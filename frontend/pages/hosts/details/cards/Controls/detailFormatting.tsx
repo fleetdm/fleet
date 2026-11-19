@@ -5,6 +5,7 @@ import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   IHostMdmProfile,
 } from "interfaces/mdm";
+import { formatFleet5RemovalMessage } from "utilities/helpers";
 
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
@@ -14,6 +15,9 @@ import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
  * CSR mean nothing and there is nothing the reader can act on. Each known reason is restated in
  * plain language; anything unrecognized falls through to the reported text so a new failure is
  * never swallowed. The app's own wording stays in the details block either way.
+ *
+ * Fleet Android app versions after 1.6.0 report these in plain language themselves, which none of
+ * these prefixes match. This only exists for hosts still on 1.6.0 or earlier.
  */
 const ANDROID_CERTIFICATE_ERRORS: [prefix: string, message: string][] = [
   [
@@ -178,28 +182,6 @@ const formatDetailCertificateError = (detail: IHostMdmProfile["detail"]) => {
   return null;
 };
 
-/**
- * formatDetailIdpEmailError generates the formatted detail for certain errors related to
- * host IdP email profiles. It returns a JSX element with the formatted message or null if
- * the detail does not match any of the expected patterns.
- */
-const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
-  if (detail.includes("There is no IdP email for this host.")) {
-    return (
-      <>
-        There is no IdP email for this host. Fleet couldn&apos;t populate
-        $FLEET_VAR_HOST_END_USER_EMAIL_IDP.{" "}
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/idp-email"
-          newTab
-        />
-      </>
-    );
-  }
-  return null;
-};
-
 export interface IDetailGuidance {
   message: React.ReactNode;
   /** True when the message already says everything the raw detail says, so the
@@ -223,9 +205,10 @@ export const getDetailGuidance = (
     return message ? { message, supersedesDetail: false } : null;
   }
 
-  const idpEmailError = formatDetailIdpEmailError(profile.detail);
-  if (idpEmailError) {
-    return { message: idpEmailError, supersedesDetail: true };
+  // A profile or CA saved before the Fleet 5 upgrade that still uses a removed variable.
+  const fleet5Removal = formatFleet5RemovalMessage(profile.detail, "default");
+  if (fleet5Removal) {
+    return { message: fleet5Removal, supersedesDetail: true };
   }
 
   const certificateError = formatDetailCertificateError(profile.detail);

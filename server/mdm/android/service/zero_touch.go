@@ -9,8 +9,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
-func zeroTouchConfigurationEndpoint(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
-	resp, err := svc.GetZeroTouchConfiguration(ctx, nil)
+type zeroTouchConfigurationRequest struct {
+	TeamID *uint `query:"fleet_id,optional"`
+}
+
+func zeroTouchConfigurationEndpoint(ctx context.Context, request any, svc android.Service) fleet.Errorer {
+	req := request.(*zeroTouchConfigurationRequest)
+	resp, err := svc.GetZeroTouchConfiguration(ctx, req.TeamID)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
@@ -48,7 +53,7 @@ func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmen
 					return nil, "", ctxerr.Wrap(ctx, err, "checking if team exists")
 				}
 				if !exists {
-					svc.logger.WarnContext(ctx, "enrollment token team does not exist, assigning to unassigned",
+					svc.logger.WarnContext(ctx, "enrollment token fleet does not exist, assigning to unassigned",
 						"fleet_id", *data.TeamID)
 					return nil, "", nil
 				}

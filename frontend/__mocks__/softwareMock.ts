@@ -7,6 +7,7 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IAppStoreApp,
+  IAppStoreAppVersion,
   IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
   ISoftwareInstallResult,
@@ -112,9 +113,8 @@ export const createMockSoftwareVersionsResponse = (
 
 const DEFAULT_OS_VERSION_MOCK = {
   os_version_id: 1,
-  name: "macOS 14.6.1",
-  name_only: "macOS",
-  version: "14.6.1",
+  os_name: "macOS",
+  os_version: "14.6.1",
   platform: "darwin",
   hosts_count: 42,
   generated_cpes: [],
@@ -221,13 +221,75 @@ export const createMockAppStoreAppIos = (overrides?: Partial<IAppStoreApp>) => {
   return { ...DEFAULT_APP_STORE_APP_IOS_MOCK, ...overrides };
 };
 
+const DEFAULT_APP_STORE_APP_VERSION_MOCK: IAppStoreAppVersion = {
+  id: 1,
+  name: "Production",
+  app_store_id: "546505307",
+  platform: "ios",
+  version: "6.4.0",
+  self_service: false,
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+  labels_include_any: null,
+  labels_include_all: null,
+  labels_exclude_any: null,
+  created_at: "2020-01-01T00:00:00.000Z",
+};
+
+export const createMockAppStoreAppVersion = (
+  overrides?: Partial<IAppStoreAppVersion>
+): IAppStoreAppVersion => ({
+  ...DEFAULT_APP_STORE_APP_VERSION_MOCK,
+  ...overrides,
+});
+
+const DEFAULT_APP_STORE_APP_VERSION_IOS_MOCK: IAppStoreAppVersion = {
+  ...DEFAULT_APP_STORE_APP_VERSION_MOCK,
+  platform: "ios",
+  self_service: true,
+};
+
+export const createMockAppStoreAppVersionIos = (
+  overrides?: Partial<IAppStoreAppVersion>
+): IAppStoreAppVersion => ({
+  ...DEFAULT_APP_STORE_APP_VERSION_IOS_MOCK,
+  ...overrides,
+});
+
+const DEFAULT_APP_STORE_APP_VERSION_ANDROID_MOCK: IAppStoreAppVersion = {
+  id: 1,
+  name: "Production",
+  app_store_id: "com.test.app",
+  platform: "android",
+  version: "1.2.3",
+  self_service: true,
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+  labels_include_any: null,
+  labels_include_all: null,
+  labels_exclude_any: null,
+  created_at: "2020-01-01T00:00:00.000Z",
+};
+
+export const createMockAppStoreAppVersionAndroid = (
+  overrides?: Partial<IAppStoreAppVersion>
+): IAppStoreAppVersion => ({
+  ...DEFAULT_APP_STORE_APP_VERSION_ANDROID_MOCK,
+  ...overrides,
+});
+
 const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   id: 1,
   name: "test.app",
   icon_url: null,
-  software_package: null,
   packages: null,
-  app_store_app: null,
+  app_store_apps: null,
   source: "apps",
   hosts_count: 1,
   versions: [createMockSoftwareTitleVersion()],
@@ -340,9 +402,8 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   hosts_count: 1,
   extension_for: "",
   versions: [createMockSoftwareTitleVersion()],
-  software_package: createMockSoftwarePackage(),
-  packages: null,
-  app_store_app: null,
+  packages: [createMockSoftwarePackage()],
+  app_store_apps: null,
 };
 
 export const createMockSoftwareTitle = (

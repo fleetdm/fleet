@@ -4,8 +4,13 @@ import { CellProps } from "react-table";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import { formatSoftwareVersion, SoftwareSource } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import {
+  formatSoftwareVersion,
+  NO_VERSION_TOOLTIP_BY_SOURCE,
+  SoftwareSource,
+} from "interfaces/software";
+
+import EmptyCellWithTooltip from "../EmptyCellWithTooltip";
 
 interface IVersionEntry {
   version: string;
@@ -23,7 +28,9 @@ const VersionCell = <T extends IVersionEntry>({
   source,
 }: IVersionCellProps<T>) => {
   if (!versions || versions.length === 0 || versions[0].version === "") {
-    return <TextCell value={DEFAULT_EMPTY_CELL_VALUE} grey />;
+    return (
+      <EmptyCellWithTooltip tipContent={NO_VERSION_TOOLTIP_BY_SOURCE[source]} />
+    );
   }
 
   const displayedVersions = versions.map((v) =>

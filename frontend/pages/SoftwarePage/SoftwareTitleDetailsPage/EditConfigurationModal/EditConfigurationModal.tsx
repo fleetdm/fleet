@@ -1,12 +1,15 @@
 import { Ace } from "ace-builds";
 import React, { useCallback, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import { notify } from "components/ToastNotification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import {
   IAppStoreApp,
   ISoftwarePackage,
@@ -49,6 +52,7 @@ const EditConfigurationModal = ({
   refetchSoftwareTitle,
   onExit,
 }: IEditConfigurationModalProps) => {
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const isInHouseApp = isSoftwarePackage(softwareInstaller);
 
   const XML_EMPTY = "<dict>\n  \n</dict>";
@@ -60,9 +64,11 @@ const EditConfigurationModal = ({
     return validateJson(curFormData);
   };
 
-  const getInitialValue = () => {
+  const getInitialValue = (): string => {
     if (isApplePlatform) {
-      return softwareInstaller.configuration || XML_EMPTY;
+      // iOS/iPadOS config is always a string on the wire; the union includes
+      // Record for Android. Cast narrows to the apple branch.
+      return (softwareInstaller.configuration as string) || XML_EMPTY;
     }
     return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
   };
@@ -84,7 +90,6 @@ const EditConfigurationModal = ({
   const initialValue = getInitialValue();
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
-  const [canSaveForm, setCanSaveForm] = useState(!validateForm(initialValue));
   const [formData, setFormData] = useState<string>(initialValue);
   // Seed from validateForm so the error is visible on open if the stored config
   // is somehow invalid (unlikely — the backend validates on save, but guards
@@ -111,9 +116,15 @@ const EditConfigurationModal = ({
   const onEditConfiguration = async (
     evt: React.MouseEvent<HTMLFormElement>
   ) => {
-    setIsUpdatingConfiguration(true);
-
     evt.preventDefault();
+
+    const error = validateForm(formData);
+    if (error) {
+      setFormError(error);
+      return;
+    }
+
+    setIsUpdatingConfiguration(true);
 
     try {
       if (isInHouseApp) {
@@ -152,12 +163,24 @@ const EditConfigurationModal = ({
     setIsUpdatingConfiguration(false);
   };
 
+  // 3s pause after the last keystroke surfaces the error without flashing
+  // mid-edit. Submit still validates immediately.
+  const debounceValidate = useDebouncedCallback((value: string) => {
+    setFormError(validateForm(value));
+  }, 3000);
+
   const onInputChange = (value: string) => {
     setFormData(value);
+    if (formError) {
+      setFormError(null);
+    }
+    debounceValidate(value);
+  };
 
-    const error = validateForm(value);
-    setFormError(error);
-    setCanSaveForm(!error);
+  const onInputBlur = () => {
+    // Beat the pending debounce so tabbing away surfaces the error immediately.
+    debounceValidate.cancel();
+    setFormError(validateForm(formData));
   };
 
   const editorMode = isApplePlatform ? "xml" : "json";
@@ -210,8 +233,10 @@ const EditConfigurationModal = ({
       value={formData}
       helpText={renderHelpText()}
       onChange={onInputChange}
+      onBlur={onInputBlur}
       onLoad={onEditorLoad}
       readOnly={isUpdatingConfiguration}
+      disabled={gitOpsModeEnabled}
       error={formError}
       label="Configuration"
     />
@@ -245,6 +270,24 @@ const EditConfigurationModal = ({
     );
   };
 
+  const renderSaveButton = () => (
+    <GitOpsModeTooltipWrapper
+      position="top"
+      tipOffset={8}
+      entityType="software"
+      renderChildren={(gitOpsDisabled) => (
+        <Button
+          type="submit"
+          onClick={onEditConfiguration}
+          isLoading={isUpdatingConfiguration}
+          disabled={isUpdatingConfiguration || !!gitOpsDisabled}
+        >
+          Save
+        </Button>
+      )}
+    />
+  );
+
   const renderFooter = () => {
     if (isApplePlatform) {
       return (
@@ -254,33 +297,13 @@ const EditConfigurationModal = ({
               <Button onClick={onExit} variant="secondary">
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                onClick={onEditConfiguration}
-                isLoading={isUpdatingConfiguration}
-                disabled={!canSaveForm || isUpdatingConfiguration}
-              >
-                Save
-              </Button>
+              {renderSaveButton()}
             </>
           }
         />
       );
     }
-    return (
-      <ModalFooter
-        primaryButtons={
-          <Button
-            type="submit"
-            onClick={onEditConfiguration}
-            isLoading={isUpdatingConfiguration}
-            disabled={!canSaveForm || isUpdatingConfiguration}
-          >
-            Save
-          </Button>
-        }
-      />
-    );
+    return <ModalFooter primaryButtons={renderSaveButton()} />;
   };
 
   return (

@@ -1,4 +1,4 @@
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import { IHydrantFormData } from "./HydrantForm";
@@ -78,7 +78,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: IHydrantFormData) => {
-            return valid_url({ url: formData.url });
+            return isValidURL({ url: formData.url });
           },
           message: "Must be a valid URL.",
         },

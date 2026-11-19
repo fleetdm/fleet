@@ -3,6 +3,7 @@
   "slug": "beekeeper-studio/windows",
   "package_identifier": "beekeeper-studio.beekeeper-studio",
   "unique_identifier": "Beekeeper Studio",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

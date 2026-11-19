@@ -38,6 +38,21 @@ describe("AddCertAuthorityModal", () => {
     expect(screen.getByLabelText("Challenge")).toBeVisible();
   });
 
+  it("shows the EJBCA form when EJBCA is selected", async () => {
+    const { user } = renderWithSetup(
+      <AddCertAuthorityModal certAuthorities={[]} onExit={noop} />
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(
+      screen.getByRole("option", { name: CA_LABEL_BY_TYPE.ejbca })
+    );
+
+    expect(screen.getByLabelText("Name")).toBeVisible();
+    expect(screen.getByLabelText("Client certificate password")).toBeVisible();
+    expect(screen.getByLabelText("End entity profile name")).toBeVisible();
+  });
+
   it("does not allow NDES option to be selected if there is already an NDES CA added", async () => {
     const { user } = renderWithSetup(
       <AddCertAuthorityModal

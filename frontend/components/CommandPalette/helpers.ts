@@ -65,6 +65,9 @@ export interface ICommandPaletteContext {
    *  page despite passing `canWrite`. Gates every software-add palette
    *  item (FMA, VPP, Android, custom package). */
   canAddSoftware?: boolean;
+  /** Global or current-fleet admin/maintainer. Gates `add-profile`, where
+   *  `isAdminOrMaintainer` would pass a technician who admins another fleet. */
+  canAddConfigurationProfile?: boolean;
   /** Global or any-team admin/maintainer. Gates the admin/maintainer-only
    *  Controls > OS settings sub-items (Certificates, Passwords, Host names),
    *  which technicians can't manage despite passing `canAccessControls`. */
@@ -515,7 +518,7 @@ export const pathSupportsAllFleets = (pathname: string): boolean =>
  *
  * This bypasses useTeamIdParam.handleTeamChange (which owns per-page
  * `overrideParamsOnTeamChange` config), so it reproduces handleTeamChange's
- * generic strip rules (page, legacy team_id) plus the fleet-scoped Hosts
+ * generic strip rules (page) plus the fleet-scoped Hosts
  * filter keys (script_batch_execution_*, software_status on switch to All).
  */
 export const buildFleetSwitchUrl = ({
@@ -551,7 +554,6 @@ export const buildFleetSwitchUrl = ({
     params.set("fleet_id", String(fleetId));
   }
   params.delete("page");
-  params.delete("team_id");
   params.delete("script_batch_execution_id");
   params.delete("script_batch_execution_status");
   if (isAll) {

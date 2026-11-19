@@ -1,4 +1,4 @@
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import { ICustomESTFormData } from "./CustomESTForm";
@@ -74,7 +74,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ICustomESTFormData) => {
-            return valid_url({ url: formData.url });
+            return isValidURL({ url: formData.url });
           },
           message: "Must be a valid URL.",
         },

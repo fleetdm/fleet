@@ -84,19 +84,9 @@ const buildControlsItems = (
             "deploy",
             "ddm",
             "windows csp",
+            "assets",
           ],
         },
-        // Assets are premium-only
-        ...(isPremiumTier
-          ? [
-              {
-                id: "controls-assets",
-                label: "Assets",
-                path: withTeamId(paths.CONTROLS_ASSETS),
-                keywords: ["assets", "ddm"],
-              },
-            ]
-          : []),
         // Certificates and Passwords — Premium-only, admin/maintainer only.
         ...(isPremiumTier && isAdminOrMaintainer
           ? [
@@ -175,12 +165,6 @@ const buildControlsItems = (
                 label: "Install software",
                 path: withTeamId(paths.CONTROLS_INSTALL_SOFTWARE("macos")),
                 keywords: ["automatic install"],
-              },
-              {
-                id: "controls-run-script",
-                label: "Run script",
-                path: withTeamId(paths.CONTROLS_RUN_SCRIPT),
-                keywords: ["shell", "post-enrollment"],
               },
               {
                 id: "controls-setup-assistant",

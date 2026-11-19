@@ -25,7 +25,6 @@ on multiple platforms, so it can be shared.
 Fleet variables supported across systems:
 - $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>
 - $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>
-- $FLEET_VAR_HOST_END_USER_EMAIL_IDP
 
 Once more is needed it should be placed here, and the main replacement logic can be taken from the apple_mdm.go
 under server/service folder. Inside the `preprocessProfileContents` under the `fleetVarLoop` loop.
@@ -134,6 +133,9 @@ func ResolveHostEndUserIDPValue(ctx context.Context, ds fleet.Datastore,
 	case string(fleet.FleetVarHostEndUserIDPFullname):
 		rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
 		value = strings.TrimSpace(user.IdpFullName)
+	case string(fleet.FleetVarHostEndUserIDPExternalID):
+		rx = fleet.FleetVarHostEndUserIDPExternalIDRegexp
+		value = user.IdpID
 	default:
 		return "", nil, false, nil
 	}
@@ -170,6 +172,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 	noGroupsErr := fmt.Sprintf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
 	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
+	noExternalIDErr := fmt.Sprintf("There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPExternalID)
 	if len(users) > 0 && users[0].IdpUserName != "" {
 		idpUser := users[0]
 
@@ -181,6 +184,9 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		}
 		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
 			return nil, false, onError(noFullnameErr)
+		}
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPExternalID) && idpUser.IdpID == "" {
+			return nil, false, onError(noExternalIDErr)
 		}
 
 		return &idpUser, true, nil
@@ -198,6 +204,8 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,
 		detail = noDepartmentErr
 	case string(fleet.FleetVarHostEndUserIDPFullname):
 		detail = noFullnameErr
+	case string(fleet.FleetVarHostEndUserIDPExternalID):
+		detail = noExternalIDErr
 	}
 	return nil, false, onError(detail)
 }

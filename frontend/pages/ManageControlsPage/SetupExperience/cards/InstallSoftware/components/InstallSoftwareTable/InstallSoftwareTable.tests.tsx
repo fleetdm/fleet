@@ -1,8 +1,12 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
-import { createMockSoftwareTitle } from "__mocks__/softwareMock";
+import {
+  createMockSoftwarePackage,
+  createMockSoftwarePackageIos,
+  createMockSoftwareTitle,
+} from "__mocks__/softwareMock";
 import { createCustomRenderer } from "test/test-utils";
 
 import InstallSoftwareTable from "./InstallSoftwareTable";
@@ -27,13 +31,16 @@ const EXPECTED_ORDER = [
   "Superhuman Docs",
 ];
 
-const renderTable = () => {
+const renderTable = (
+  softwareTitles = TITLES,
+  platform: "macos" | "ios" = "macos"
+) => {
   const render = createCustomRenderer({ withBackendMock: true });
   return render(
     <InstallSoftwareTable
-      softwareTitles={TITLES}
+      softwareTitles={softwareTitles}
       onChangeSoftwareSelect={noop}
-      platform="macos"
+      platform={platform}
     />
   );
 };
@@ -45,6 +52,30 @@ const renderedNames = () =>
     .map((row) => EXPECTED_ORDER.find((n) => row.textContent?.includes(n)));
 
 describe("InstallSoftwareTable", () => {
+  it("distinguishes script packages beside their selection checkboxes", () => {
+    renderTable([
+      createMockSoftwareTitle({
+        id: 1,
+        name: "hello",
+        source: "py_packages",
+        packages: [createMockSoftwarePackage({ name: "hello.py" })],
+      }),
+      createMockSoftwareTitle({
+        id: 2,
+        name: "hello",
+        source: "sh_packages",
+        packages: [createMockSoftwarePackage({ name: "hello.sh" })],
+      }),
+    ]);
+
+    expect(
+      screen.getByRole("row", { name: /hello \(hello\.py\)/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("row", { name: /hello \(hello\.sh\)/ })
+    ).toBeInTheDocument();
+  });
+
   it("sorts rows by display name, falling back to the title name", () => {
     renderTable();
 
@@ -68,5 +99,41 @@ describe("InstallSoftwareTable", () => {
     await user.type(screen.getByPlaceholderText(/search/i), "coda");
 
     await waitFor(() => expect(renderedNames()).toEqual(["Superhuman Docs"]));
+  });
+
+  it("checks a title when a package other than the first installs during setup", () => {
+    renderTable([
+      createMockSoftwareTitle({
+        id: 1,
+        name: "hello",
+        packages: [
+          createMockSoftwarePackage(),
+          createMockSoftwarePackage({ install_during_setup: true }),
+        ],
+      }),
+    ]);
+
+    expect(
+      within(screen.getByRole("row", { name: /hello/ })).getByRole("checkbox")
+    ).toBeChecked();
+  });
+
+  it("checks an in-house iOS title that installs during setup", () => {
+    renderTable(
+      [
+        createMockSoftwareTitle({
+          id: 1,
+          name: "hello",
+          packages: [
+            createMockSoftwarePackageIos({ install_during_setup: true }),
+          ],
+        }),
+      ],
+      "ios"
+    );
+
+    expect(
+      within(screen.getByRole("row", { name: /hello/ })).getByRole("checkbox")
+    ).toBeChecked();
   });
 });

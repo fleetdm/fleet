@@ -1,0 +1,1 @@
+- Fixed a bug where deleting a report or losing connection while running `fleetctl report` or `fleetctl query` caused `fleetctl` to panic.

@@ -6,18 +6,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 func GetRoutes(fleetSvc fleet.Service, svc android.Service) eu.HandlerRoutesFunc {
-	return func(r *mux.Router, opts []kithttp.ServerOption) {
+	return func(r *eu.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, fleetSvc, svc, opts)
 	}
 }
 
 const pubSubPushPath = "/api/v1/fleet/android_enterprise/pubsub"
 
-func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *eu.Router, fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption) {
 	// //////////////////////////////////////////
 	// User-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
@@ -26,7 +25,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	ue.GET("/api/_version_/fleet/android_enterprise", getEnterpriseEndpoint, nil)
 	ue.DELETE("/api/_version_/fleet/android_enterprise", deleteEnterpriseEndpoint, nil)
 	ue.GET("/api/_version_/fleet/android_enterprise/signup_sse", enterpriseSSE, nil)
-	ue.GET("/api/_version_/fleet/android_enterprise/zero_touch_configuration", zeroTouchConfigurationEndpoint, nil)
+	ue.GET("/api/_version_/fleet/android_enterprise/zero_touch_configuration", zeroTouchConfigurationEndpoint, zeroTouchConfigurationRequest{})
 
 	// //////////////////////////////////////////
 	// Unauthenticated endpoints

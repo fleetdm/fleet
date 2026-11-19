@@ -130,7 +130,12 @@ parasails.registerPage('login', {
           });
         }
       }
-
+      if(cloudResponse.isIcpUser) {
+        // Track a "conversion" in LinkedIn Campaign Manager.
+        if(window.lintrk !== undefined) {
+          window.lintrk('track', { conversion_id: 31914441 });// eslint-disable-line camelcase
+        }
+      }
       // Track a "conversion" in LinkedIn Campaign Manager.
       if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase

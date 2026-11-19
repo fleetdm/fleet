@@ -1,42 +1,30 @@
 .host-sw-library-table {
-  // TableContainer always renders its filter/customControl slot before the
-  // search box, with no prop to place something after it. `display: contents`
-  // unwraps the two intermediate flex containers so the dropdown, search box,
-  // and "Add software" button become direct siblings under `__header`, which
-  // lets `order` put "Add software" after the search box like the design
-  // calls for.
-  .table-container__header {
-    justify-content: flex-start;
-  }
-
-  .table-container__header-left {
-    display: contents;
-  }
-
+  // Keep the dropdown and "Add software" button on one line next to the
+  // search, and stop the card's full-width search rule from squeezing them.
   .controls {
-    display: contents;
+    display: flex;
+    align-items: center;
+    gap: $gap-table-elements;
   }
 
   .table-container__results-count {
-    order: 1;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  // The search and dropdown shrink on narrow cards (768px viewport). The
+  // search stops at its input's 305px min-width (set in the card's
+  // stylesheet), so the dropdown absorbs the rest down to its own floor.
+  .table-container__header .table-container__search {
+    flex: 0 1 315px;
   }
 
   &__filter-controls {
-    width: 230px;
-    order: 2;
-    // Pushes the dropdown/search/button group to the right, restoring the
-    // separation from the item count that `justify-content: flex-start`
-    // above removed (count and this group used to be split apart by the
-    // default `justify-content: space-between`).
-    margin-left: auto;
-  }
-
-  .table-container__search {
-    width: 315px;
-    order: 3;
+    flex: 0 1 230px;
+    min-width: 160px;
   }
 
   &__add-software-button {
-    order: 4;
+    flex-shrink: 0;
   }
 }

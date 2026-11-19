@@ -1,1 +1,0 @@
-- Fixed `fleetctl gitops` reporting script validation errors without saying which script failed. Errors from applying scripts now include the offending script's filename.

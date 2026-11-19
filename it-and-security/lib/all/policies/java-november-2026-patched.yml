@@ -1,0 +1,185 @@
+# Oracle's November 17, 2026 Java SE update. The 17/21/25/27 builds also carry Java4Shell's fix (JDK-8393212,
+# x86-64 with AVX-512 only). OpenJDK's tags match Oracle's numbers except Java 8 (8u514), which passes 8u513.
+# A 4th version component of 0 (17.0.21.0.3) is still vulnerable. Add Java 28 when it ships (March 2027).
+# Advisory: https://www.oracle.com/security-alerts/cspunov2026.html
+- name: macOS - Java runtimes patched for November 2026 Java SE update (Java4Shell, CVE-2026-114938)
+  query: |
+    WITH jdks AS (
+      SELECT value AS raw FROM plist
+      WHERE path LIKE '/Library/Java/JavaVirtualMachines/%/Contents/Info.plist'
+        AND key = 'JavaVM' AND subkey = 'JVMVersion'
+      UNION ALL
+      SELECT value FROM plist
+      WHERE path LIKE '/Users/%/Library/Java/JavaVirtualMachines/%/Contents/Info.plist'
+        AND key = 'JavaVM' AND subkey = 'JVMVersion'
+      UNION ALL
+      SELECT value FROM plist
+      WHERE path = '/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Info.plist'
+        AND key = 'JavaVM' AND subkey = 'JVMVersion'
+      UNION ALL
+      -- Drop the Homebrew revision ("17.0.21_1") so it isn't read as a Java update number
+      SELECT CASE WHEN instr(version, '_') > 0 THEN substr(version, 1, instr(version, '_') - 1) ELSE version END
+      FROM homebrew_packages
+      WHERE type = 'formula' AND (name = 'openjdk' OR name LIKE 'openjdk@%')
+    ),
+    no_build AS (
+      SELECT CASE WHEN instr(raw, '+') > 0 THEN substr(raw, 1, instr(raw, '+') - 1) ELSE raw END AS s
+      FROM jdks WHERE raw <> ''
+    ),
+    normalized AS (
+      -- Java 8 reports 1.8.0_511, 1.8.0_511-b33 or 1.8.0-512 (Homebrew); compare it as 8.0.<update>
+      SELECT CASE
+               WHEN s GLOB '1.8.0[._-]*' THEN '8.0.' || CAST(substr(s, 7) AS INTEGER)
+               WHEN instr(s, '-') > 0 THEN substr(s, 1, instr(s, '-') - 1)
+               ELSE s
+             END AS v
+      FROM no_build
+    ),
+    checked AS (
+      SELECT v, CAST(v AS INTEGER) AS major FROM normalized
+    )
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM checked
+      WHERE CASE major
+              WHEN 8 THEN version_compare(v, '8.0.513') < 0
+              WHEN 11 THEN version_compare(v, '11.0.33.1') < 0
+              WHEN 17 THEN version_compare(v, '17.0.21.1') < 0
+              WHEN 21 THEN version_compare(v, '21.0.13.1') < 0
+              WHEN 25 THEN version_compare(v, '25.0.5.1') < 0
+              WHEN 27 THEN version_compare(v, '27.0.1.1') < 0
+              ELSE 1
+            END
+    );
+  critical: false
+  description: |
+    Passes when no Java runtime is found, or when every JDK/JRE is at or above Oracle's November 2026
+    patched build for its line: 8u513, 11.0.33.1, 17.0.21.1, 21.0.13.1, 25.0.5.1 or 27.0.1.1. Fails when a
+    runtime is older than that, or is an end-of-life Java version (for example 23 or 24). Java4Shell only affects
+    Intel and AMD processors with AVX-512, but this update also fixes flaws that affect Apple silicon Macs. Checks
+    JDKs in /Library/Java/JavaVirtualMachines and ~/Library/Java/JavaVirtualMachines (Oracle, Temurin, Zulu,
+    Corretto and IntelliJ-downloaded JDKs), the Java browser plugin, and Homebrew openjdk formulas. Java copies
+    bundled inside apps and SDKMAN installs aren't checked.
+  resolution: >-
+    Update every Java on your Mac to the latest patched build. For Homebrew, run `brew update && brew list
+    --formula | grep '^openjdk' | xargs -r brew upgrade`. For a JDK in
+    /Library/Java/JavaVirtualMachines, install the newest update from the same vendor (Oracle, Adoptium Temurin,
+    Azul Zulu or Amazon Corretto), then delete the old JDK folder. If you're on an end-of-life Java version like
+    23 or 24, move to Java 25 (LTS). If your vendor hasn't published a patched build yet, this policy keeps
+    failing until they do. Ask in #help-it if you're not sure which JDKs your projects need.
+  platform: darwin
+  calendar_events_enabled: false
+
+- name: Linux - Java runtimes patched for November 2026 Java SE update (Java4Shell, CVE-2026-114938)
+  query: |
+    WITH pkgs AS (
+      -- Every OpenJDK JRE/JDK package depends on the jre-headless package, so checking it covers them all
+      SELECT version AS raw FROM deb_packages
+      WHERE status IN ('install ok installed', 'hold ok installed')
+        AND (name GLOB 'openjdk-[0-9]*-jre-headless'
+             OR name GLOB 'temurin-[0-9]*-jdk' OR name GLOB 'temurin-[0-9]*-jre')
+      UNION ALL
+      SELECT version FROM rpm_packages
+      WHERE name GLOB 'java-*-openjdk-headless'
+         OR name GLOB 'temurin-[0-9]*-jdk' OR name GLOB 'temurin-[0-9]*-jre'
+    ),
+    no_epoch AS (
+      SELECT CASE WHEN instr(raw, ':') > 0 THEN substr(raw, instr(raw, ':') + 1) ELSE raw END AS s
+      FROM pkgs WHERE raw <> ''
+    ),
+    no_build AS (
+      SELECT CASE WHEN instr(s, '+') > 0 THEN substr(s, 1, instr(s, '+') - 1) ELSE s END AS s
+      FROM no_epoch
+    ),
+    normalized AS (
+      -- Java 8 appears as 8u504-ga-... (deb) or 1.8.0.472.b08 (rpm); rewrite both as 8.0.<update>
+      SELECT CASE
+               WHEN s GLOB '8u[0-9]*' THEN '8.0.' || CAST(substr(s, 3) AS INTEGER)
+               WHEN s GLOB '1.8.0[._]*' THEN '8.0.' || CAST(substr(s, 7) AS INTEGER)
+               WHEN instr(s, '-') > 0 THEN substr(s, 1, instr(s, '-') - 1)
+               ELSE s
+             END AS v
+      FROM no_build
+    ),
+    checked AS (
+      SELECT v, CAST(v AS INTEGER) AS major FROM normalized
+    )
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM checked
+      WHERE CASE major
+              WHEN 8 THEN version_compare(v, '8.0.513') < 0
+              WHEN 11 THEN version_compare(v, '11.0.33.1') < 0
+              WHEN 17 THEN version_compare(v, '17.0.21.1') < 0
+              WHEN 21 THEN version_compare(v, '21.0.13.1') < 0
+              WHEN 25 THEN version_compare(v, '25.0.5.1') < 0
+              WHEN 27 THEN version_compare(v, '27.0.1.1') < 0
+              ELSE 1
+            END
+    );
+  critical: false
+  description: |
+    Passes when no Java package is installed, or when every OpenJDK or Temurin package (deb or rpm) is at or
+    above Oracle's November 2026 patched build for its line: 8u513, 11.0.33.1, 17.0.21.1, 21.0.13.1,
+    25.0.5.1 or 27.0.1.1. Fails when a package is older than that, or is an end-of-life Java version. Only
+    distro and Temurin packages are checked. Tarball installs under /opt, SDKMAN, containers, and Corretto or
+    Zulu packages aren't covered.
+  resolution: >-
+    Upgrade the Java packages with your package manager, for example `sudo apt update && sudo apt install
+    --only-upgrade 'openjdk-*'` or `sudo dnf upgrade 'java-*-openjdk*'`. If you installed Temurin from Adoptium's
+    repository, run the same command with `'temurin-*'`. Then restart any running Java services. Remove
+    end-of-life Java versions or replace them with a supported LTS (17, 21 or 25). If your distro hasn't published
+    the patched build yet, this policy keeps failing until the update reaches the repository.
+  platform: linux
+  calendar_events_enabled: false
+
+- name: Windows - Java runtimes patched for November 2026 Java SE update (Java4Shell, CVE-2026-114938)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM file
+      WHERE (path LIKE 'C:\Program Files\Java\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Java\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\Eclipse Adoptium\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Eclipse Adoptium\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\AdoptOpenJDK\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\AdoptOpenJDK\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\Microsoft\jdk-%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\Amazon Corretto\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Amazon Corretto\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\Zulu\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Zulu\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\BellSoft\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\BellSoft\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\Semeru\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\Semeru\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files\RedHat\%\bin\java.exe'
+             OR path LIKE 'C:\Program Files (x86)\RedHat\%\bin\java.exe'
+             OR path LIKE 'C:\Users\%\.jdks\%\bin\java.exe')
+        -- java.exe's file version is feature.interim.update.patch (17.0.21.1); Java 8's is 8.0.<update>0.<build>
+        AND CASE CAST(file_version AS INTEGER)
+              WHEN 8 THEN version_compare(file_version, '8.0.5130') < 0
+              WHEN 11 THEN version_compare(file_version, '11.0.33.1') < 0
+              WHEN 17 THEN version_compare(file_version, '17.0.21.1') < 0
+              WHEN 21 THEN version_compare(file_version, '21.0.13.1') < 0
+              WHEN 25 THEN version_compare(file_version, '25.0.5.1') < 0
+              WHEN 27 THEN version_compare(file_version, '27.0.1.1') < 0
+              ELSE 1
+            END
+    );
+  critical: false
+  description: |
+    Passes when no Java runtime is found, or when every java.exe is at or above Oracle's November 2026 patched
+    build for its line: 8u513, 11.0.33.1, 17.0.21.1, 21.0.13.1, 25.0.5.1 or 27.0.1.1. Fails when a runtime is
+    older than that, or is an end-of-life Java version (for example 23 or 24). Java4Shell only affects Intel and
+    AMD processors with AVX-512, but this update also fixes flaws that affect every PC. Checks the Oracle,
+    Temurin, Microsoft, Corretto, Zulu, Liberica, Semeru and Red Hat folders in Program Files and Program Files
+    (x86), and JDKs that IntelliJ IDEA downloaded to each user's .jdks folder. Java copies bundled inside apps
+    aren't checked.
+  resolution: >-
+    Update every Java on your PC to the latest patched build. Install the newest update for each Java version
+    from the same vendor (Oracle, Adoptium Temurin, Microsoft, Amazon Corretto, Azul Zulu, BellSoft Liberica, IBM
+    Semeru or Red Hat). If the old version is still listed in Settings > Apps > Installed apps, uninstall it. For
+    a JDK that IntelliJ IDEA downloaded, download the new version in IntelliJ, then delete the old folder in
+    .jdks. If you're on an end-of-life Java version like 23 or 24, move to Java 25 (LTS). If your vendor hasn't
+    published a patched build yet, this policy keeps failing until they do. Ask in #help-it if you're not sure
+    which JDKs your projects need.
+  platform: windows
+  calendar_events_enabled: false

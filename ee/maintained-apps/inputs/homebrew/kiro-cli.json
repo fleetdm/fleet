@@ -6,5 +6,6 @@
   "slug": "kiro-cli/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

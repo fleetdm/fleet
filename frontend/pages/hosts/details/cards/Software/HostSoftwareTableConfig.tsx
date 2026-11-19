@@ -13,7 +13,9 @@ import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
 } from "interfaces/software";
+import EmptyCellWithTooltip from "pages/SoftwarePage/components/tables/EmptyCellWithTooltip";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
@@ -61,7 +63,7 @@ export const generateSoftwareTableHeaders = ({
           bundle_identifier,
           source,
           app_store_app,
-          software_package,
+          package: pkg,
           icon_url,
           auto_update_enabled,
           auto_update_window_start,
@@ -73,14 +75,21 @@ export const generateSoftwareTableHeaders = ({
           { fleet_id: teamId }
         );
 
-        const hasInstaller = !!app_store_app || !!software_package;
-        const isSelfService =
-          app_store_app?.self_service || software_package?.self_service;
+        const hasInstaller = !!app_store_app || !!pkg;
+        const isSelfService = app_store_app?.self_service || pkg?.self_service;
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
         const isAndroidPlayStoreApp =
           !!app_store_app && source === "android_apps";
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+
+        // Same gating as HostSoftwareLibraryTableConfig.
+        const deliveredVersionName =
+          (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
+          app_store_app?.version_name
+            ? app_store_app.version_name
+            : undefined;
 
         return (
           <SoftwareNameCell
@@ -95,12 +104,13 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
             isAppStoreApp={!!app_store_app}
             autoUpdateEnabled={auto_update_enabled}
             autoUpdateWindowStart={auto_update_window_start}
             autoUpdateWindowEnd={auto_update_window_end}
+            deliveredVersionName={deliveredVersionName}
           />
         );
       },
@@ -202,6 +212,11 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
         if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
+        }
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
         }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;

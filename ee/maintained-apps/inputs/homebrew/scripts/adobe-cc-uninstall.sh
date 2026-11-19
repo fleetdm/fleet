@@ -3,25 +3,40 @@
 quit_app() {
   b="$1"
   # try a friendly quit if a GUI user is active
-  app_running=$(osascript -e "application id \"$b\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$b" 2>/dev/null)
   if [ "$app_running" = "true" ]; then
     cu="$(stat -f "%Su" /dev/console 2>/dev/null || true)"
     if [ "$(id -u)" -ne 0 ] || [ "$cu" != "root" ]; then
       i=0
       while [ "$i" -lt 10 ]; do
-        osascript -e "tell application id \"$b\" to quit" >/dev/null 2>&1 || true
-        if ! pgrep -f "$b" >/dev/null 2>&1; then break; fi
-        i=$((i+1))
+        osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$b" >/dev/null 2>&1 || true
         sleep 1
+        if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$b" 2>/dev/null) && [ "$still_running" = "false" ]; then break; fi
+        i=$((i+1))
       done
     fi
   fi
-  # hard stop fallback
-  pkill -f "$b" >/dev/null 2>&1 || true
+}
+
+# hard stop anything still running from an app bundle removed below
+kill_app_at_path() {
+  pattern="^$1/Contents/"
+  pgrep -f "$pattern" >/dev/null 2>&1 || return 0
+  pkill -TERM -f "$pattern" >/dev/null 2>&1 || true
+  i=0
+  while [ "$i" -lt 5 ]; do
+    sleep 1
+    pgrep -f "$pattern" >/dev/null 2>&1 || return 0
+    i=$((i+1))
+  done
+  pkill -KILL -f "$pattern" >/dev/null 2>&1 || true
 }
 
 BUNDLE_ID="com.adobe.acc.AdobeCreativeCloud"
 quit_app "$BUNDLE_ID"
+kill_app_at_path "/Applications/Adobe Creative Cloud.app"
+kill_app_at_path "/Applications/Creative Cloud.app"
+kill_app_at_path "/Applications/Utilities/Adobe Creative Cloud/ACC/Creative Cloud.app"
 
 # Try the official Adobe Creative Cloud Uninstaller.app first
 UNINST_APP=""

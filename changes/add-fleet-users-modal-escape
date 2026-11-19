@@ -1,0 +1,1 @@
+- Fixed the "Add users" modal on a fleet's Users page not closing when Escape is pressed while the user search field is focused.

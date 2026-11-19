@@ -225,10 +225,17 @@ func TestInsertPreamblePowerShellPlacement(t *testing.T) {
 			got, err := InsertPreamble(tc.contents, pre, DialectPowerShell)
 			if tc.want == "" {
 				require.ErrorIs(t, err, ErrPowerShellLeadingParamBlock)
+				require.ErrorIs(t, CheckPreamble(tc.contents, DialectPowerShell), ErrPowerShellLeadingParamBlock)
 				return
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got)
+			require.NoError(t, CheckPreamble(tc.contents, DialectPowerShell))
 		})
 	}
+
+	t.Run("check is powershell only", func(t *testing.T) {
+		require.NoError(t, CheckPreamble("param($Foo = $FLEET_VAR_HOST_UUID)\n", DialectPOSIX))
+		require.NoError(t, CheckPreamble("param($Foo = $FLEET_VAR_HOST_UUID)\n", DialectPython))
+	})
 }

@@ -514,7 +514,7 @@ spec:
 
 ### Settings
 
-For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../REST%20API/rest-api.md#modify-configuration).
+For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../../../API/rest-api.md#modify-configuration).
 
 Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` characters) as required by the YAML format.
 

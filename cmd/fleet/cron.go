@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
@@ -1372,6 +1373,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
 	notificationsSvc notifications_api.Service,
@@ -1379,11 +1381,12 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name                          = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval               = 1 * time.Hour
-		expiredHostsCleanupMaxRunTime = 10 * time.Minute
-		expiredHostsCleanupBatchSize  = 5000
-		installerCleanupMaxRunTime    = 10 * time.Minute
+		name                            = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval                 = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime   = 10 * time.Minute
+		hostAISessionsCleanupMaxRunTime = 3 * time.Minute
+		expiredHostsCleanupBatchSize    = 5000
+		installerCleanupMaxRunTime      = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1497,6 +1500,12 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			},
 		),
+		schedule.WithJob(
+			"cleanup_orphaned_query_stats",
+			func(ctx context.Context) error {
+				return ds.DeleteOrphanedQueryStats(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -1606,6 +1615,17 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
 			return cleanupUnusedBootstrapPackagesCronJob(ctx, ds, bootstrapPackageStore, installerCleanupMaxRunTime)
 		}),
+		schedule.WithJob("cleanup_staged_uploads", func(ctx context.Context) error {
+			if stagedUploadStore == nil {
+				return nil
+			}
+			// A staging object only exists once its PUT completes, so the cutoff only
+			// has to outlast the gap between upload and finalize.
+			workCtx, cancel := context.WithTimeout(ctx, installerCleanupMaxRunTime)
+			defer cancel()
+			_, err := stagedUploadStore.Cleanup(workCtx, nil, time.Now().Add(-24*time.Hour))
+			return err
+		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
@@ -1645,6 +1665,16 @@ func newCleanupsAndAggregationSchedule(
 				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
+			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
+		}),
+		schedule.WithJob("cleanup_host_ai_sessions", func(ctx context.Context) error {
+			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge), hostAISessionsCleanupMaxRunTime)
+			if deleted > 0 {
+				logger.InfoContext(ctx, "cleaned up host ai sessions", "count", deleted)
+			}
+			return err
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
@@ -1805,6 +1835,24 @@ func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, lo
 	return nil
 }
 
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention
+func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup soft-deleted host certificates failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "deleted", deleted)
+	}
+	return nil
+}
+
 func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, maxRunTime time.Duration) error {
 	// Jobs in this schedule run one after another under a leader lock that keeps being extended while
 	// a job runs, so an S3 call with no deadline here blocks every job after it until a restart. The
@@ -1902,7 +1950,7 @@ func newChartDataCollectionSchedule(
 				fleet.ListOptions{},
 			)
 			if err != nil {
-				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				logger.ErrorContext(ctx, "list fleets for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
 			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
@@ -1965,6 +2013,10 @@ func newQueryResultsCleanupSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
+		// Runs first so the excess cleanup's counts don't include rows about to be deleted.
+		schedule.WithJob("cleanup_stale_query_results", func(ctx context.Context) error {
+			return ds.CleanupStaleQueryResults(ctx)
+		}),
 		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -2001,6 +2053,9 @@ func newQueryResultsCleanupSchedule(
 				}
 			}
 			return nil
+		}),
+		schedule.WithJob("update_query_results_last_fetched", func(ctx context.Context) error {
+			return service.UpdateQueryResultsLastFetched(ctx, ds, liveQueryStore)
 		}),
 	)
 
@@ -2251,6 +2306,8 @@ func newAndroidMDMProfileManagerSchedule(
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
+	redisPool fleet.RedisPool,
+	oneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -2258,11 +2315,13 @@ func newAndroidMDMProfileManagerSchedule(
 	)
 
 	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter,
+				android_svc.WithReconcileOneTimeEnrollSecrets(oneTimeEnrollSecrets))
 		}),
 	)
 
@@ -2588,6 +2647,7 @@ func newIPhoneIPadRefetcher(
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
 	newActivityFn apple_mdm.NewActivityFunc,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = logger.With("cron", name, "component", "iphone-ipad-refetcher")
@@ -2595,7 +2655,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn, batchSize)
 		}),
 	)
 
@@ -2800,6 +2860,21 @@ func newIPhoneIPadReviver(
 	return s, nil
 }
 
+func unblockHostsUpcomingActivityQueueCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxHosts int, skipFleetInitiated bool) error {
+	unblocked, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxHosts, skipFleetInitiated)
+	// per-host isolation in the datastore means a partial failure still unblocks the
+	// healthy hosts, so report progress before returning the error
+	if unblocked > 0 {
+		logger.InfoContext(ctx, "unblocked hosts upcoming activity queue",
+			"hosts_unblocked", unblocked,
+			"max_hosts", maxHosts,
+			// unblocked == max means more hosts are likely still blocked
+			"cap_reached", unblocked == maxHosts,
+		)
+	}
+	return err
+}
+
 func newUpcomingActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2846,8 +2921,7 @@ func newUpcomingActivitiesSchedule(
 		// solely on deferred fleet-initiated activities are not blocked — they
 		// belong to the release cron, and unblocking them here would bypass
 		// its budget
-		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts, fleetInitiatedReleaseEnabled)
-		return err
+		return unblockHostsUpcomingActivityQueueCronJob(ctx, ds, logger, maxUnblockHosts, fleetInitiatedReleaseEnabled)
 	}))
 
 	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
@@ -3039,6 +3113,36 @@ func cronMigrateToPerHostPolicy(
 	return s, nil
 }
 
+// newReencryptWindowsDiskEncryptionKeysSchedule moves legacy Windows recovery keys, encrypted to the WSTEP certificate
+// by older releases, onto the server private key. It is an online migration: the first run starts ten minutes after
+// startup, once the agents that were waiting for the server have checked in, and runs hourly from then on. It is not
+// run-once because customers upgrade from any version, so legacy rows can appear at any upgrade; a run that finds
+// none costs one index probe.
+func newReencryptWindowsDiskEncryptionKeysSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronReencryptWindowsDiskEncryptionKeys)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 10*time.Minute)
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs ten minutes after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return service.ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, config)
+		}),
+	)
+	return s, nil
+}
+
 func newRecoveryLockPasswordSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -3113,6 +3217,18 @@ func newCleanupExpiredADUEChallengesSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_apple_scep_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupAppleSCEPChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
+			}
+			return nil
+		}),
 	)
 
 	return s, nil
@@ -3165,4 +3281,66 @@ func newAppleMDMOSUpdatesSchedule(
 	)
 
 	return s, nil
+}
+
+func newAppStoreAppConfigurationReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	redisPool fleet.RedisPool,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
+		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, retryCounter, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newGoogleConditionalAccessSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccess, 5*time.Minute, "sync_google_conditional_access",
+		(*service.GoogleConditionalAccessSyncer).Sync)
+}
+
+func newGoogleConditionalAccessAndroidRetrySchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccessAndroidRetry, time.Hour, "retry_google_conditional_access_android_hosts",
+		(*service.GoogleConditionalAccessSyncer).RetryAndroidHosts)
+}
+
+func newGoogleConditionalAccessSyncerSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+	name fleet.CronScheduleName, interval time.Duration, jobID string,
+	job func(*service.GoogleConditionalAccessSyncer, context.Context) error,
+) (*schedule.Schedule, error) {
+	logger = logger.With("cron", string(name))
+	syncer := service.NewGoogleConditionalAccessSyncer(ds, clients, newActivityFn, logger)
+	return schedule.New(
+		ctx, string(name), instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(jobID, func(ctx context.Context) error { return job(syncer, ctx) }),
+	), nil
 }

@@ -51,7 +51,7 @@
         </div>
       </div>
 
-        <div purpose="right-sidebar" class="order-first order-lg-last right-sidebar" v-if="!thisPage.title.includes('FAQ')">
+        <div purpose="right-sidebar" class="order-first order-lg-last right-sidebar d-lg-none d-xl-block" v-if="!thisPage.title.includes('FAQ')">
           <div class="d-none d-lg-block">
             <p purpose="subtopics-heading" class="font-weight-bold" v-if="!_.isEmpty(subtopics)">On this page:</p>
             <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
@@ -79,6 +79,14 @@
 
 
 
+        <div purpose="content-column">
+        <%/* Between the desktop and tablet layouts there isn't room for the right sidebar, so its links open from here instead. */%>
+        <div purpose="mid-width-subtopics" class="d-none d-lg-block d-xl-none" v-if="!_.isEmpty(subtopics) && !thisPage.title.includes('FAQ')">
+          <div purpose="mobile-custom-select" class="d-flex flex-row justify-content-between" @click="clickOpenMobileSubtopicsNav()">
+            <div><p class="mb-0">On this page</p></div>
+            <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
+          </div>
+        </div>
         <div purpose="content" id="body-content" class="d-flex flex-column content" parasails-has-no-page-script>
           <%- partial(
             path.relative(
@@ -98,22 +106,23 @@
               <% if(!me){ %>
               <h2>Try it out</h2>
               <p>See what Fleet can do</p>
-              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
+              <a purpose="continue-button" class="btn btn-sm btn-primary docs-cta-continue-button" href="/register">Start now</a>
               <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
               <h2>Tried Fleet yet?</h2>
               <p>Continue getting started with Fleet</p>
-              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <a purpose="continue-button" class="btn btn-sm btn-primary docs-cta-continue-button" href="/start">Continue</a>
               <% } else if (me.psychologicalStage === '4 - Has use case') {%>
               <h2>Feeling confident?</h2>
               <p>Get set up with Fleet</p>
-              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <a purpose="continue-button" class="btn btn-sm btn-primary docs-cta-continue-button" href="/start">Continue</a>
               <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
                 <h2>Talk to the team</h2>
                 <p>Let’s get you set up!</p>
-                <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+                <a purpose="continue-button" class="btn btn-sm btn-primary docs-cta-continue-button" href="/start">Continue</a>
               <%}%>
             </div>
           </div> -->
+        </div>
         </div>
 
       </div>

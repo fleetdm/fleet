@@ -1,43 +1,27 @@
 # Enroll BYOD iOS/iPadOS hosts
 
-This guide will walk you through the process of inviting BYOD (Bring Your Own Device) iPhones and iPads to enroll in Fleet.
+Fleet supports two ways to enroll personal (BYOD) iPhones and iPads:
 
-By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software installations, enforce settings, and ensure devices comply with company policies. By adding BYOD devices, you can monitor, enforce settings, and manage security on BYOD iPhones and iPads in real-time, providing enhanced control without compromising user autonomy. This helps secure access to organizational resources while maintaining control over device configurations.
+- **Account-driven User Enrollment**: the end user signs in to their Managed Apple Account in **Settings**. Work and personal data stay separate, and Fleet only manages work apps and data. The host shows as **On (personal)**. For set up and end user instructions, see [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). _Available in Fleet Premium._
+- **Profile-based enrollment**: the end user opens an enrollment link and installs Fleet's enrollment profile. The host shows as **On (manual - personal)**, and IT can't wipe it or lock the end user out. The steps are below.
+
+> Neither works if [Allow only Apple Business enrollments](https://fleetdm.com/guides/apple-mdm-setup#turn-on-mdm-on-a-host) is on. Only devices assigned in Apple Business can enroll.
 
 Fleet only collects software inventory for apps installed through Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.
 
-## Enrolling BYOD iPad/iOS devices in Fleet
+## Profile-based enrollment
 
-* **Step 1: Navigate to the manage hosts page**
-    * Click “Hosts” in the top navigation bar
-* **Step 2: Choose the fleet**
-    * Select the desired [fleet](https://fleetdm.com/guides/fleets) from the menu at the top of the screen
-* **Step 3: Get a link to share with your end users**
-    * Click on “Add hosts.”
-    * In the modal, select the **iOS & iPadOS** tab.
-    * Copy the link to enroll hosts.
-* **Step 4: Distribute the link**
-    * Share the link with your end users using an introductory email or message.
-    * The link provides instructions to guide users through downloading and installing Fleet’s enrollment profile.
+1. In Fleet, head to **Hosts** and select the [fleet](https://fleetdm.com/guides/fleets) for these hosts.
+2. Select **Add hosts**, then the **iOS & iPadOS** tab. Select **Personal (BYOD)** and copy the enrollment link.
+3. Share the link with your end users. It walks them through downloading and installing Fleet's enrollment profile.
 
-> Each fleet has a unique URL that includes the fleet's enrollment secret. This enrollment secret ensures that devices are assigned to the correct fleet during enrollment. When an incorrect enroll secret is provided, users can still download the enrollment profile, but the enrollment itself will fail (403 error).
+> To enroll company-owned iPhones and iPads that aren't in Apple Business, select **Company-owned (fully-managed)** instead. These hosts show as **On (manual)**, and IT can wipe them and enforce all MDM restrictions.
 
-## Profile-based vs. account-driven enrollment
-
-BYOD enrollment in Fleet requires end users to install a configuration profile on their device. This is called profile-based _device_ enrollment. Apple recently deprecated profile-based _user_ enrollment (not supported in Fleet) in favor of the new account-driven enrollment: enrollment happens when end users add a Managed Apple Account to their device. Both profile-based and account-driven enrollment methods are supported in Fleet. To learn more, see this [guide](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account).
-
-## Conclusion
-
-This guide covered how to invite and enroll BYOD iPhones and iPads into Fleet. This allows IT admins to manage software, enforce settings, and ensure compliance with organizational policies. Streamlining the enrollment process will enable you to secure access to company resources while maintaining control over end-user devices.
-
-For more information on device management and other features, explore Fleet’s documentation and guides to optimize your setup and keep your devices fully secure.
-
-See Fleet's [documentation](https://fleetdm.com/docs/using-fleet) and additional [guides](https://fleetdm.com/guides) for more details on advanced setups, software features, and vulnerability detection.
-
+> Each fleet's link includes the fleet's enroll secret, which assigns hosts to the right fleet. If the enroll secret is wrong, end users can still download the profile, but enrollment fails with a 403 error.
 
 <meta name="articleTitle" value="Enrolling BYOD iPad/iOS devices in Fleet">
 <meta name="authorFullName" value="Roberto Dip">
 <meta name="authorGitHubUsername" value="roperzh">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-09-20">
-<meta name="description" value="This guide will walk you through the process of inviting BYOD iPhones and iPads to enroll in Fleet.">
+<meta name="description" value="Choose account-driven or profile-based enrollment for personal (BYOD) iPhones and iPads, and enroll them in Fleet.">

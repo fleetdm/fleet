@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,7 +22,6 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,7 +71,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		}
 	}
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	ce := &CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -147,7 +148,7 @@ func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
 		}
 	}
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	ce := (&CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -185,6 +186,71 @@ func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
 	assert.False(t, authCalled, "auth middleware must not run when pre-auth rejects")
 }
 
+func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+
+	for _, decodeErr := range []error{nil, errors.New("bad form")} {
+		var spooled int
+		var flushable bool
+		r := NewRouter()
+		ce := &CommonEndpointer[testHandlerFunc]{
+			EP: nopEP{},
+			MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+				return func(ctx context.Context, r *http.Request) (any, error) {
+					if err := r.ParseMultipartForm(1 << 10); err != nil {
+						return nil, err
+					}
+					files, _ := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+					spooled = len(files)
+					return nopRequest{}, decodeErr
+				}
+			},
+			EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+				_, flushable = w.(http.Flusher)
+				w.WriteHeader(http.StatusOK)
+				return nil
+			},
+			AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+				return func(ctx context.Context, req any) (any, error) {
+					if authctx, ok := authz_ctx.FromContext(ctx); ok {
+						authctx.SetChecked()
+					}
+					return next(ctx, req)
+				}
+			},
+			Router: r,
+			Opts:   []kithttp.ServerOption{kithttp.ServerErrorEncoder(func(_ context.Context, _ error, w http.ResponseWriter) { w.WriteHeader(http.StatusBadRequest) })},
+		}
+		ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+			return nopResponse{}, nil
+		}, nil, "POST")
+		srv := httptest.NewServer(r)
+		t.Cleanup(srv.Close)
+
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		fw, err := mw.CreateFormFile("software", "a.pkg")
+		require.NoError(t, err)
+		_, err = fw.Write(bytes.Repeat([]byte{0}, 64<<10))
+		require.NoError(t, err)
+		require.NoError(t, mw.Close())
+
+		resp, err := http.Post(srv.URL+"/", mw.FormDataContentType(), &body)
+		require.NoError(t, err)
+		resp.Body.Close()
+		srv.Close() // waits for the finalizer
+
+		require.Equal(t, 1, spooled, "file part should be spooled to disk")
+		if decodeErr == nil {
+			assert.True(t, flushable, "encoder must still see http.Flusher")
+		}
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		assert.Empty(t, files, "decode error: %v", decodeErr)
+	}
+}
+
 // TestHTTPPreAuthMiddlewarePassThrough asserts that when the pre-auth
 // middleware calls next, the decoder and auth chain run as normal.
 func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
@@ -201,7 +267,7 @@ func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
 		}
 	}
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	ce := (&CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -240,7 +306,7 @@ func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
 
 func TestRegisterDeprecatedPathAliases(t *testing.T) {
 	// Set up a router and register a primary endpoint via CommonEndpointer.
-	r := mux.NewRouter()
+	r := NewRouter()
 	registry := NewHandlerRegistry()
 	versions := []string{"v1", "2022-04"}
 
@@ -324,7 +390,7 @@ func TestLogDeprecatedPathAlias(t *testing.T) {
 }
 
 func TestRegisterDeprecatedPathAliasesPanicsOnMissing(t *testing.T) {
-	r := mux.NewRouter()
+	r := NewRouter()
 	registry := NewHandlerRegistry()
 	versions := []string{"v1"}
 
@@ -685,7 +751,7 @@ func TestMakeEndpointRequestSizeOverride(t *testing.T) {
 			platform_http.EndpointRequestSizeOverrides = c.overrides
 
 			var limitPassed int64
-			r := mux.NewRouter()
+			r := NewRouter()
 			ce := &CommonEndpointer[testHandlerFunc]{
 				EP: nopEP{},
 				MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -728,6 +794,8 @@ func TestRequestFieldName(t *testing.T) {
 		EmptyTag  string `json:""`
 		NoJSONTag string
 		OtherTags string `url:"other_tags"`
+		QueryTag  string `query:"param_tag,optional"`
+		DryRun    string `json:"-" query:"dry_run,optional"`
 	}
 
 	ty := reflect.TypeFor[tagged]()
@@ -738,6 +806,8 @@ func TestRequestFieldName(t *testing.T) {
 	}{
 		{field: "Plain", want: "plain"},
 		{field: "WithOpts", want: "with_opts"},
+		{field: "QueryTag", want: "param_tag"},
+		{field: "DryRun", want: "dry_run"},
 		// The rest have no name a client could have sent, so the Go field name
 		// is all that's left to report.
 		{field: "Skipped", want: "Skipped"},
@@ -799,6 +869,22 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	})
 }
 
+type premiumGatedQueryRequest struct {
+	IncludeHidden bool `query:"include_hidden,optional" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheQueryParam(t *testing.T) {
+	decode := MakeDecoder(premiumGatedQueryRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("GET", "/?include_hidden=true", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "option include_hidden requires a premium license")
+
+	r = httptest.NewRequest("GET", "/?include_hidden=false", nil)
+	_, err = decode(t.Context(), r)
+	require.NoError(t, err)
+}
+
 type renamedPremiumRequest struct {
 	TeamIDs     []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
 	InstallerID uint   `json:"software_installer_id" renameto:"software_package_id,inline" premium:"true"`
@@ -822,4 +908,48 @@ func TestMakeDecoderPremiumErrorNamesTheRenamedFieldAsSent(t *testing.T) {
 			require.ErrorContains(t, err, tc.want)
 		})
 	}
+}
+
+type internalFieldsRequest struct {
+	Page    uint     `query:"page,optional"`
+	IsEE    bool     `json:"-"`
+	Columns []string `json:"-"`
+}
+
+func TestMakeDecoderIgnoresServerInternalFields(t *testing.T) {
+	decode := MakeDecoder(internalFieldsRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	t.Run("no body is required", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/?page=2", nil)
+		r.Header.Set("Origin", "https://example.com")
+		req, err := decode(t.Context(), r)
+		require.NoError(t, err)
+		require.Equal(t, uint(2), req.(*internalFieldsRequest).Page)
+	})
+
+	t.Run("the body cannot set them", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", strings.NewReader(`{"IsEE":true,"Columns":["x"]}`))
+		req, err := decode(t.Context(), r)
+		require.NoError(t, err)
+		require.False(t, req.(*internalFieldsRequest).IsEE)
+		require.Empty(t, req.(*internalFieldsRequest).Columns)
+	})
+}
+
+type queryOnlyRequest struct {
+	DryRun bool `json:"-" query:"dry_run,optional"`
+	json.RawMessage
+}
+
+func TestMakeDecoderKeepsBodyRequirementForTaggedSkippedFields(t *testing.T) {
+	decode := MakeDecoder(queryOnlyRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("PATCH", "/", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "Expected JSON Body")
+
+	r = httptest.NewRequest("PATCH", "/", strings.NewReader(`{}`))
+	r.Header.Set("Origin", "https://example.com")
+	_, err = decode(t.Context(), r)
+	require.ErrorContains(t, err, `Expected Content-Type "application/json"`)
 }

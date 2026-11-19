@@ -1,0 +1,1 @@
+- Fixed GitOps software batches hanging when an installer download stalls.

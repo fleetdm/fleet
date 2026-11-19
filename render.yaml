@@ -1,6 +1,6 @@
 services:
   - name: fleet
-    plan: standard
+    plan: pro
     type: web
     runtime: image
     image:

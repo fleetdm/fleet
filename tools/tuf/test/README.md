@@ -40,6 +40,15 @@ GENERATE_MSI=1 \
 GENERATE_MSI_ARM64=1 \
 GENERATE_PKG_TAR_ZST=1 \
 GENERATE_PKG_TAR_ZST_ARM64=1 \
+PKG_OUTFILE=fleet-macos.pkg \
+DEB_OUTFILE=fleet-linux-amd64.deb \
+DEB_ARM64_OUTFILE=fleet-linux-arm64.deb \
+RPM_OUTFILE=fleet-linux-amd64.rpm \
+RPM_ARM64_OUTFILE=fleet-linux-arm64.rpm \
+MSI_OUTFILE=fleet-windows-amd64.msi \
+MSI_ARM64_OUTFILE=fleet-windows-arm64.msi \
+PKG_TAR_ZST_OUTFILE=fleet-linux-amd64.pkg.tar.zst \
+PKG_TAR_ZST_ARM64_OUTFILE=fleet-linux-arm64.pkg.tar.zst \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 DEBUG=1 \
@@ -47,6 +56,8 @@ DEBUG=1 \
 ```
 
 > Separate `*_FLEET_URL` and `*_TUF_URL` variables are defined for each package type to support different setups.
+
+> The `*_OUTFILE` variables set the name and destination of each generated package (the values above are the defaults).
 
 To publish test extensions you can set comma-separated executable paths in the `{MACOS|WINDOWS|LINUX}_TEST_EXTENSIONS` environment variables:
 Here's a sample to use the `hello_world` and `hello_mars` test extensions:
@@ -73,11 +84,10 @@ GOARCH=arm64 \
 ./tools/tuf/test/main.sh
 ```
 
-To include Escrow Buddy, Nudge, or Swift Dialog on the TUF repository you can use the following variables:
+To include Escrow Buddy or Swift Dialog on the TUF repository you can use the following variables:
 ```sh
 [...]
 ESCROW_BUDDY=1 \
-NUDGE=1 \
 SWIFT_DIALOG=1 \
 [...]
 ./tools/tuf/test/main.sh
@@ -163,16 +173,18 @@ make osqueryd-app-tar-gz osqueryd_path=/path/to/osqueryd out-path=.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
 ```
 
-E.g. to add a custom `osqueryd` version from an osquery PR for Linux (amd64 and arm64):
+E.g. to add a custom `osqueryd` version from an osquery PR for Linux (amd64 and arm64).
+The `osqueryd` executable is extracted from the PR's deb package (default) or rpm package (`pkg=rpm`).
+This works on macOS and Linux. Extracting from the rpm requires `bsdtar`, or `rpm2cpio` and `cpio`.
 ```sh
-# Grab osqueryd linux amd64 executable from pull request https://github.com/osquery/osquery/pull/8844.
+# Grab osqueryd linux amd64 executable from the deb package of pull request https://github.com/osquery/osquery/pull/8844.
 make osqueryd-linux pr=8844 arch=amd64 out-path=.
 
 # Push the osqueryd amd64 target as a new version.
 ./tools/tuf/test/push_target.sh linux osqueryd osqueryd 5.23.0
 
-# Grab osqueryd linux arm64 executable from pull request https://github.com/osquery/osquery/pull/8844.
-make osqueryd-linux pr=8844 arch=arm64 out-path=.
+# Grab osqueryd linux arm64 executable from the rpm package of pull request https://github.com/osquery/osquery/pull/8844.
+make osqueryd-linux pr=8844 arch=arm64 pkg=rpm out-path=.
 
 # Push the osqueryd arm64 target as a new version.
 ./tools/tuf/test/push_target.sh linux-arm64 osqueryd osqueryd 5.23.0

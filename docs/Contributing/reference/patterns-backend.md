@@ -12,8 +12,10 @@ Table of Contents
   - [Timestamps](#timestamps)
   - [UUIDs](#uuids)
   - [Say no to `goqu`](#say-no-to-goqu)
+  - [Unbounded tables](#unbounded-tables)
   - [Data retention](#data-retention)
   - [Re-usable transactionable functions](#re-usable-transactionable-functions)
+  - [Replica lag](#replica-lag)
 - [Specific features](#specific-features)
   - [GitOps](#gitops)
 
@@ -127,6 +129,21 @@ Do not use [goqu](https://github.com/doug-martin/goqu); use MySQL queries direct
 queries is easier. If needing to modify an existing `goqu` query, try to rewrite it in
 MySQL. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8041045095900447703).
 
+### Unbounded tables
+
+Tables that grow with hosts multiplied by time (per-host history such as script results, command results, report results, and MDM command queues) will eventually hold tens of millions of rows on large instances. Unbounded growth has caused production incidents: slow cleanups saturating the writer, and deletes on parent rows that time out or deadlock. Treat bounding a table as part of creating it, not as a follow-up.
+
+Every per-host history table must have:
+- **A retention window.** Decide how long rows are kept when the table is created. Make it configurable if customers may reasonably need a different window.
+- **A cleanup cron.** A scheduled job deletes rows outside the retention window. Ship it in the same PR as the table.
+- **A supporting index.** The cleanup query's `WHERE` clause must be served by an index (for example, an index whose leading column is `created_at`), so cleanup does not full-scan the table. Run `EXPLAIN` on the cleanup query against realistic data.
+
+Cleanup queries must also:
+- Delete in small batches (for example, `DELETE ... LIMIT 1000` in a loop, or a keyset cursor), each in its own short transaction, so no single statement holds locks for long or floods replication. See `CleanupNanoCommands` in `server/datastore/mysql/apple_mdm_cleanups.go` for an example.
+- Be resumable. If a run times out or the server restarts, the next run picks up where it left off without redoing work.
+
+Avoid foreign keys with `ON DELETE CASCADE` or `ON DELETE SET NULL` from an unbounded table to a parent row (such as a policy, script, or software title). Deleting one parent then rewrites an unbounded number of child rows inside the caller's transaction, which can time out or deadlock an API or GitOps request. Instead, clean up or detach child rows in batches outside the parent's delete transaction.
+
 ### Data retention
 
 Sometimes we need data from rows that have been deleted from DB. For example, the activity feed may be retained forever, and it needs user info (or host info) that may not exist anymore.
@@ -169,6 +186,12 @@ func (ds *Datastore) MyDSMethodWithTransaction(ctx context.Context, yourArgsHere
 See [this commit](https://github.com/fleetdm/fleet/pull/22843/files#diff-c5babdad542a72acf2ec2ecb7cb43967fc53850b6998ac629e253336b87e008bR415)
 for an example of this pattern.
 
+### Replica lag
+
+Replication lag of up to 50ms could potentially happen (based on some historical data from AWS Aurora). Use `ctxdb.RequirePrimary(ctx, true)` when reading a value after writing to it in the same request, or for a read-then-write of something critical like the app config (see [`SetAndroidEnabledAndConfigured`](https://github.com/fleetdm/fleet/blob/c1ccc202b46aa66205b4c13723ef7c62374d6411/server/datastore/mysql/app_configs.go#L130)).
+
+Avoid reading from the primary db when not necessary. For example, a GET request after a PATCH for the same resource, or two concurrent requests from different admins that change the same resource (e.g. one admin edits an App Store app while another deletes it), might not need to handle replica lag issues. Some host endpoints might have to deal with back to back requests, so they may need to handle replica lag. For examples, see [`isDuplicateOrStalePubSub`](https://github.com/fleetdm/fleet/blob/c1ccc202b46aa66205b4c13723ef7c62374d6411/server/mdm/android/service/pubsub.go#L463) and [`tryLinkUnlinkedEnrollmentFromDevDetail`](https://github.com/fleetdm/fleet/blob/c1ccc202b46aa66205b4c13723ef7c62374d6411/server/service/microsoft_mdm.go#L1889).
+
 ## Specific features
 
 ### GitOps
@@ -187,3 +210,12 @@ Common issues and gotchas:
   to make adding future integration tests easier.
 - GitOps admin can define settings in `default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml`. Create unit tests for all these cases
   for features that support them.
+
+#### Database work in batch operations
+
+GitOps endpoints receive a whole payload of profiles, software packages, reports, or policies at once, and a single change can touch rows for every affected host. A transaction or statement whose size grows with the payload or the host count holds row and gap locks for its full duration. That blocks host check-ins and other API requests, causes lock wait timeouts and deadlocks, and lags replicas.
+
+- **Split the work into chunks, each in its own transaction.** Process items in fixed-size batches (for example, 500 IDs per `INSERT`, `UPDATE`, or `DELETE`) instead of one statement or transaction covering the whole payload.
+- **Keep each transaction short.** Do validation, file hashing, network calls, and other slow work before opening the transaction. Inside it, run only the SQL statements that must be atomic together.
+- **Don't rely on context cancellation to stop a query.** When the request context is canceled (for example, `fleetctl gitops` times out or the client disconnects), the MySQL driver closes the connection but does not kill the query on the server. A large `DELETE` or `UPDATE` keeps running to completion, holding its locks, and inside a transaction it is then rolled back, which can take as long again. Bounding each statement's size is a reliable way to bound its cost.
+- **Plan for partial failure.** Chunking gives up all-or-nothing atomicity, so a failed run can leave partial changes. Re-running GitOps only redoes work it can derive from the config. Work triggered by a change detected in an earlier, committed chunk (such as cleaning up host rows after a policy's query changes) won't run again, because the next run sees no change. Either derive that work from the desired state on every run, or have a cron job pick up the leftovers, as `CleanupPolicyMembership` does for `ApplyPolicySpecs`.

@@ -3,6 +3,9 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,4 +128,151 @@ func TestValidateSqlInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProgramsExistsWhereClause(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
+			"name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%'",
+		},
+		{
+			"select 1 from programs where name = 'Foo'",
+			"name = 'Foo'",
+		},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo';",
+			"",
+		},
+		{
+			"SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Foo') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, programsExistsWhereClause(tc.query), tc.query)
+	}
+}
+
+func TestAppsExistsWhereClause(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo';",
+			"bundle_identifier = 'com.example.foo'",
+		},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');",
+			"bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')",
+		},
+		{
+			"select 1 from apps where bundle_identifier = 'org.qgis.qgis3' and path = '/Applications/QGIS-LTR.app'",
+			"bundle_identifier = 'org.qgis.qgis3' and path = '/Applications/QGIS-LTR.app'",
+		},
+		{
+			"SELECT 1 FROM programs WHERE name = 'Foo';",
+			"",
+		},
+		{
+			"SELECT 1 WHERE EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo');",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, appsExistsWhereClause(tc.query), tc.query)
+	}
+}
+
+func TestPatchedQueryVersion(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 9.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '9.3.2026.52328') < 0);",
+			"9.3.2026.52328",
+		},
+		{
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path = 'C:\\foo.exe' AND version_compare(file_version, '1.2.3') < 0);",
+			"",
+		},
+		{
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo' AND version_compare(bundle_short_version, '1.2.3') < 0);",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, patchedQueryVersion(tc.query), tc.query)
+	}
+}
+
+func TestCheckManifestQueries(t *testing.T) {
+	originalRunOsqueryi := runOsqueryi
+	t.Cleanup(func() { runOsqueryi = originalRunOsqueryi })
+
+	const query = "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Foo Inc.';"
+
+	checks := []struct {
+		kind      string
+		check     func(context.Context, string) error
+		errNoRows error
+	}{
+		{kind: "exists", check: checkExistsQuery, errNoRows: errExistsQueryNoRows},
+		{kind: "patched", check: checkPatchedQuery, errNoRows: errPatchedQueryNoRows},
+	}
+	testCases := []struct {
+		name       string
+		query      string
+		output     string
+		runErr     error
+		wantErr    string // %s is the query kind
+		wantNoRows bool
+	}{
+		{name: "one row", query: query, output: `[{"1":"1"}]`},
+		{name: "several rows", query: query, output: `[{"1":"1"},{"1":"1"}]`},
+		{name: "no rows", query: query, output: "[\n\n]\n", wantErr: "%s query returned no rows", wantNoRows: true},
+		{name: "empty query", query: "  ", wantErr: "no %s query"},
+		{name: "osqueryi fails", query: query, runErr: errors.New("exit status 1: Error: near \"FORM\": syntax error"), wantErr: "executing %s query: exit status 1"},
+		{name: "unparsable output", query: query, output: "not json", wantErr: "parsing %s query output"},
+	}
+	for _, c := range checks {
+		for _, tc := range testCases {
+			t.Run(c.kind+"/"+tc.name, func(t *testing.T) {
+				var gotQuery string
+				runOsqueryi = func(_ context.Context, query string) ([]byte, error) {
+					gotQuery = query
+					return []byte(tc.output), tc.runErr
+				}
+
+				err := c.check(t.Context(), tc.query)
+				if tc.wantErr == "" {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, fmt.Sprintf(tc.wantErr, c.kind))
+				}
+				// run accepts no exists query rows when appExists found the app
+				// outside programs, but must still fail on every other error.
+				require.Equal(t, tc.wantNoRows, errors.Is(err, c.errNoRows))
+				if strings.TrimSpace(tc.query) == "" {
+					require.Empty(t, gotQuery, "osqueryi shouldn't run without a query")
+				} else {
+					require.Equal(t, tc.query, gotQuery)
+				}
+			})
+		}
+	}
+}
+
+func TestFoundVersion(t *testing.T) {
+	require.Equal(t, "6.7.0.3", foundVersion("6.7.0.3", "6.7.0.3"))
+	require.Equal(t, "6.7.0.3 (osquery: v6.7.0.3)", foundVersion("6.7.0.3", "v6.7.0.3"))
+	require.Equal(t, "2025.3.1 (osquery: 253.31033.139)", foundVersion("2025.3.1", "253.31033.139"))
 }

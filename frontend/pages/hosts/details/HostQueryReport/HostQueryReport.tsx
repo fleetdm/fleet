@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
-import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -33,7 +32,7 @@ const HostQueryReport = ({
   params: { host_id, query_id },
 }: IHostQueryReportProps) => {
   const { config, currentTeam } = useContext(AppContext);
-  const globalReportsDisabled = config?.server_settings.query_reports_disabled;
+  const globalReportsDisabled = config?.server_settings.discard_reports_data;
   const hostId = Number(host_id);
   const queryId = Number(query_id);
 
@@ -57,16 +56,16 @@ const HostQueryReport = ({
     }
   );
 
-  const {
-    isLoading: queryLoading,
-    data: queryResponse,
-    error: queryError,
-  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
+  const { isLoading: queryLoading, data: queryResponse } = useQuery<
+    IGetQueryResponse,
+    Error,
+    ISchedulableQuery
+  >(
     ["query", queryId],
     () => queryAPI.load(queryId),
 
     {
-      select: (data) => data.query,
+      select: (data) => data.report,
       enabled: !!queryId,
       refetchOnMount: false,
       refetchOnReconnect: false,
@@ -115,25 +114,18 @@ const HostQueryReport = ({
     );
     return (
       <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__header__row1`}>
-          <BackButton
-            text="Back to host details"
-            path={PATHS.HOST_DETAILS(hostId)}
-          />
-        </div>
-        <div className={`${baseClass}__header__row2`}>
-          {!hqrError && <h1 className="host-name">{hostName}</h1>}
-          <Button
-            onClick={() => {
-              browserHistory.push(fullReportPath);
-            }}
-          >
-            View report for all hosts
-          </Button>
-        </div>
+        {!hqrError && <h1 className="host-name">{hostName}</h1>}
+        <Button
+          variant="secondary"
+          onClick={() => {
+            browserHistory.push(fullReportPath);
+          }}
+        >
+          View report for all hosts
+        </Button>
       </div>
     );
-  }, [queryId, hostId, hqrError, hostName]);
+  }, [queryId, hqrError, hostName]);
 
   return (
     <MainContent className={baseClass}>

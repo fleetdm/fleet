@@ -6,7 +6,7 @@
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_access_database_engine_2016_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_access_database_engine_2016_uninstall.ps1",
   "installer_arch": "x64",
-  "installer_type": "portable",
+  "installer_type": "exe",
   "installer_scope": "",
   "default_categories": ["Developer tools"]
 }

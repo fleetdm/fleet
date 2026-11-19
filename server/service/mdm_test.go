@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -38,7 +39,6 @@ import (
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
@@ -177,13 +177,6 @@ func TestMDMAppleAuthorization(t *testing.T) {
 	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
 		ctx := test.UserContext(ctx, user)
 		_, err := svc.GetAppleMDM(ctx)
-		checkAuthErr(t, shouldFailWithAuth, err)
-		_, err = svc.GetAppleBM(ctx)
-		checkAuthErr(t, shouldFailWithAuth, err)
-
-		// deliberately send invalid args so it doesn't actually generate a CSR
-		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
-		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
 		checkAuthErr(t, shouldFailWithAuth, err)
 
 		_, err = svc.GetMDMAppleCSR(ctx)
@@ -525,13 +518,13 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	checkAuthErr := func(t *testing.T, shouldFailWithAuth bool, err error) {
 		t.Helper()
 
+		var forbidden *authz.Forbidden
 		if shouldFailWithAuth {
-			require.Error(t, err)
-			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.ErrorAs(t, err, &forbidden)
 		} else {
 			// call always fails, but due to the host not being enrolled in MDM
 			require.Error(t, err)
-			require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.NotErrorAs(t, err, &forbidden)
 		}
 	}
 
@@ -546,7 +539,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"admin", test.UserAdmin, singleUnenrolledHost, false},
 		{"observer", test.UserObserver, singleUnenrolledHost, true},
 		{"observer+", test.UserObserverPlus, singleUnenrolledHost, true},
-		{"gitops", test.UserGitOps, singleUnenrolledHost, false},
+		{"gitops", test.UserGitOps, singleUnenrolledHost, true},
 		{"team 1 admin", test.UserTeamAdminTeam1, singleUnenrolledHost, false},
 		{"team 2 admin", test.UserTeamAdminTeam2, singleUnenrolledHost, true},
 		{"team 1 maintainer", test.UserTeamMaintainerTeam1, singleUnenrolledHost, false},
@@ -555,7 +548,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"team 2 observer", test.UserTeamObserverTeam2, singleUnenrolledHost, true},
 		{"team 1 observer+", test.UserTeamObserverPlusTeam1, singleUnenrolledHost, true},
 		{"team 2 observer+", test.UserTeamObserverPlusTeam2, singleUnenrolledHost, true},
-		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, false},
+		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, true},
 		{"team 2 gitops", test.UserTeamGitOpsTeam2, singleUnenrolledHost, true},
 		{"team 1 admin mix of teams", test.UserTeamAdminTeam1, team1And2UnenrolledHosts, true},
 		{"team 1 maintainer mix of teams", test.UserTeamMaintainerTeam1, team1And2UnenrolledHosts, true},
@@ -1234,6 +1227,8 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
 		{"recovery lock password placeholder", false, `<Exec><CmdID>1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target><Data>` +
 			fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
+		{"SCEP status probe CmdID", false, `<Exec><CmdID>` + fleet.WindowsSCEPStatusProbeCmdUUIDPrefix +
+			`c0ffee-1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target></Item></Exec>`, "is reserved for commands Fleet sends", ""},
 	}
 
 	for _, c := range cases {
@@ -1570,11 +1565,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil, "")
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil, "")
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1670,7 +1665,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll, nil, "")
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -1706,11 +1701,10 @@ func newUpdateMDMConfigProfileRequest(t *testing.T, profileUUID string, fields m
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	vars := map[string]string{}
 	if profileUUID != "" {
-		vars["profile_uuid"] = profileUUID
+		req.SetPathValue("profile_uuid", profileUUID)
 	}
-	return mux.SetURLVars(req, vars)
+	return req
 }
 
 func TestDeleteMDMConfigProfileFreeLicenseTeam(t *testing.T) {
@@ -1956,7 +1950,7 @@ func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 			ctx = test.UserContext(ctx, test.UserAdmin)
 
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil, "")
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "foo", bitLockerProfile, nil, fleet.LabelsIncludeAll, nil, "", false, false)
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				require.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
@@ -1981,7 +1975,8 @@ func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
 		req.Header.Set("Content-Type", w.FormDataContentType())
-		return mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+		req.SetPathValue("profile_uuid", "abc-123")
+		return req
 	}
 
 	t.Run("a file replaces the activation", func(t *testing.T) {
@@ -2008,7 +2003,7 @@ func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
 		req.Header.Set("Content-Type", w.FormDataContentType())
-		req = mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+		req.SetPathValue("profile_uuid", "abc-123")
 
 		_, err = updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), req)
 		require.Error(t, err)
@@ -2048,12 +2043,12 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		}, nil
 	}
 
-	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 	require.ErrorContains(t, err, "simulated declaration lookup error")
 	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
 
 	// an unrecognized profile UUID prefix still falls through to "not supported".
-	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
 
@@ -2069,7 +2064,7 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 			{"explicitly emptied", nil},
 		} {
 			t.Run(prefix+" "+tc.name, func(t *testing.T) {
-				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation), nil)
+				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation), nil, nil, nil)
 				require.Error(t, err)
 				assert.ErrorContains(t, err, ActivationUnsupportedProfileErrorMsg)
 			})
@@ -2079,22 +2074,24 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 
 func TestMDMBatchSetProfiles(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
+	origAppCfg := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Foo Inc.",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://foo.example.com",
+		},
+		MDM: fleet.MDM{
+			EnabledAndConfigured:        true,
+			WindowsEnabledAndConfigured: true,
+			AndroidEnabledAndConfigured: true,
+		},
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			OrgInfo: fleet.OrgInfo{
-				OrgName: "Foo Inc.",
-			},
-			ServerSettings: fleet.ServerSettings{
-				ServerURL: "https://foo.example.com",
-			},
-			MDM: fleet.MDM{
-				EnabledAndConfigured:        true,
-				WindowsEnabledAndConfigured: true,
-				AndroidEnabledAndConfigured: true,
-			},
-		}, nil
+		return origAppCfg, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -2130,14 +2127,15 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name     string
-		user     *fleet.User
-		premium  bool
-		teamID   *uint
-		teamName *string
-		profiles []fleet.MDMProfileBatchPayload
-		wantErr  string
-		dryRun   bool
+		name           string
+		user           *fleet.User
+		premium        bool
+		teamID         *uint
+		teamName       *string
+		profiles       []fleet.MDMProfileBatchPayload
+		wantErr        string
+		dryRun         bool
+		appCfgOverride *(func(*fleet.AppConfig))
 	}{
 		{
 			"global admin",
@@ -2148,6 +2146,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global admin, team",
@@ -2158,6 +2157,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global maintainer",
@@ -2168,6 +2168,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global maintainer, team",
@@ -2178,6 +2179,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"global observer",
@@ -2188,6 +2190,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES belong to team",
@@ -2198,6 +2201,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES belong to team by name",
@@ -2208,6 +2212,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES NOT belong to team",
@@ -2218,6 +2223,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team admin, DOES NOT belong to team by name",
@@ -2228,6 +2234,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team maintainer, DOES belong to team",
@@ -2238,6 +2245,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			"",
 			false,
+			nil,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -2248,6 +2256,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team observer, DOES belong to team",
@@ -2258,6 +2267,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team observer, DOES NOT belong to team",
@@ -2268,6 +2278,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"user no roles",
@@ -2278,6 +2289,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			authz.ForbiddenErrorMessage,
 			false,
+			nil,
 		},
 		{
 			"team id with free license",
@@ -2288,6 +2300,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			ErrMissingLicense.Error(),
 			false,
+			nil,
 		},
 		{
 			"team name with free license",
@@ -2298,6 +2311,29 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			ErrMissingLicense.Error(),
 			false,
+			nil,
+		},
+		{
+			"self_service with free license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), SelfService: true}},
+			ErrMissingLicense.Error(),
+			false,
+			nil,
+		},
+		{
+			"hidden with free license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{{Name: "N1", Contents: syncMLForTest("./Foo/Bar"), Hidden: true}},
+			ErrMissingLicense.Error(),
+			false,
+			nil,
 		},
 		{
 			"team id and name specified",
@@ -2306,8 +2342,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.Uint(1),
 			ptr.String("team"),
 			nil,
-			"cannot specify both team_id and team_name",
+			"cannot specify both fleet_id and fleet_name",
 			false,
+			nil,
 		},
 		{
 			"duplicate macOS profile name",
@@ -2321,6 +2358,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
 			false,
+			nil,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -2335,6 +2373,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
 			false,
+			nil,
 		},
 		{
 			"only macOS",
@@ -2345,11 +2384,55 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			[]fleet.MDMProfileBatchPayload{
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N2", "I2")},
-				{Name: "N3", Contents: mobileconfigForTest("N3", "I3 $FLEET_VAR_HOST_END_USER_EMAIL_IDP")},
+				{Name: "N3", Contents: mobileconfigForTest("N3", "I3 $FLEET_VAR_HOST_END_USER_IDP_USERNAME")},
 				{Name: "N4", Contents: declBytesForTest("D1", "d1content")},
 			},
 			``,
 			false,
+			nil,
+		},
+		{
+			"macOS profile with a removed Fleet variable",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: mobileconfigForTest("N2", "I2 ${FLEET_VAR_HOST_END_USER_EMAIL_IDP}")},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+			false,
+			nil,
+		},
+		{
+			"dry run of profiles with a removed Fleet variable and a secret",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A1 $FLEET_SECRET_X $FLEET_VAR_HOST_END_USER_EMAIL_IDP", nil).RawJSON},
+				{Name: "N2", Contents: []byte(strings.ReplaceAll(string(mobileconfigForTest("N2", "I2", "HOST_END_USER_EMAIL_IDP")),
+					"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "$FLEET_SECRET_X ${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"))},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+			true,
+			nil,
+		},
+		{
+			"Android profile with a removed Fleet variable",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A1", nil).RawJSON},
+				{Name: "N2", Contents: androidConfigProfileForTest(t, "A2 $FLEET_VAR_HOST_END_USER_EMAIL_IDP", nil).RawJSON},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+			false,
+			nil,
 		},
 		{
 			"mixed profiles",
@@ -2369,6 +2452,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			``,
 			false,
+			nil,
 		},
 		{
 			"only windows",
@@ -2383,6 +2467,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			``,
 			false,
+			nil,
 		},
 		{
 			"unsupported payload type",
@@ -2429,6 +2514,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 			false,
+			nil,
 		},
 		{
 			"unsupported Apple config profile Fleet variable",
@@ -2441,6 +2527,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"unsupported Apple declaration Fleet variable",
@@ -2453,6 +2540,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"unsupported Windows Fleet variable",
@@ -2465,6 +2553,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"unsupported fleet variable in android config is rejected",
@@ -2477,6 +2566,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			false,
+			nil,
 		},
 		{
 			"supported fleet variable in android config is accepted",
@@ -2489,6 +2579,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"",
 			false,
+			nil,
 		},
 		{
 			"duplicate android config profile names",
@@ -2502,6 +2593,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"duplicate json by name",
 			false,
+			nil,
 		},
 		{
 			"premium-only android profile without premium license",
@@ -2514,6 +2606,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
 			false,
+			nil,
 		},
 		{
 			"premium-only android profile with premium license",
@@ -2526,6 +2619,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"",
 			false,
+			nil,
 		},
 		{
 			"profiles have variable validation on dry-run",
@@ -2538,6 +2632,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 			true,
+			nil,
 		},
 		{
 			"profiles with include all labels fails on free license",
@@ -2550,6 +2645,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
+			nil,
 		},
 		{
 			"profiles with include any labels fails on free license",
@@ -2562,6 +2658,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
+			nil,
 		},
 		{
 			"profiles with exclude labels fails on free license",
@@ -2574,12 +2671,85 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Scoping configuration profiles with labels requires Fleet Premium license",
 			true,
+			nil,
+		},
+		{
+			"apple mdm off fails with profiles",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+			},
+			fleet.AppleMDMNotConfiguredMessage,
+			true,
+			new(func(appCfg *fleet.AppConfig) {
+				appCfg.MDM.EnabledAndConfigured = false
+			}),
+		},
+		{
+			"apple mdm off fails with declarations",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: declBytesForTest("N1", "I1")},
+			},
+			fleet.AppleMDMNotConfiguredMessage,
+			true,
+			new(func(appCfg *fleet.AppConfig) {
+				appCfg.MDM.EnabledAndConfigured = false
+			}),
+		},
+		{
+			"apple mdm off fails with both profiles and declarations",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: declBytesForTest("N2", "I2")},
+			},
+			fleet.AppleMDMNotConfiguredMessage,
+			true,
+			new(func(appCfg *fleet.AppConfig) {
+				appCfg.MDM.EnabledAndConfigured = false
+			}),
+		},
+		{
+			"declaration with empty name fails",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "", Contents: declBytesForTest("N1", "I1")},
+			},
+			"Couldn't edit configuration_profiles. Profile name can't be empty.",
+			false,
+			nil,
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() { ds.BatchSetMDMProfilesFuncInvoked = false }()
+			defer func() {
+				ds.BatchSetMDMProfilesFuncInvoked = false
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return origAppCfg, nil
+				}
+			}()
+
+			appCfg := *origAppCfg
+			if tt.appCfgOverride != nil {
+				(*tt.appCfgOverride)(&appCfg)
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &appCfg, nil
+			}
 
 			// prepare the context with the user and license
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
@@ -2589,7 +2759,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, tt.dryRun, false, nil, nil, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -2604,6 +2774,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 
 func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -2641,12 +2812,12 @@ func TestMDMBatchSetProfilesAppleConfigProfileScopeValidation(t *testing.T) {
 	}
 
 	// Test dry-run
-	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, false)
+	err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, true, false, nil, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
 
 	// Test actual run
-	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, false)
+	err = svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, nil, nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "conflicting scopes")
 }
@@ -2732,7 +2903,7 @@ func TestMDMBatchSetProfilesWindowsAssumeEnabled(t *testing.T) {
 			windowsEnabled = tc.windowsEnabled
 			ds.BatchSetMDMProfilesFuncInvoked = false
 
-			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, false)
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, windowsProfiles, tc.dryRun, false, tc.assumeEnabled, nil, false)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, tc.wantErr)
@@ -2866,6 +3037,18 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "null",
+			input:       []byte("null"),
+			expect:      nil,
+			expectError: false,
+		},
+		{
+			name:        "empty old format",
+			input:       []byte(`{}`),
+			expect:      backwardsCompatProfilesParam{},
+			expectError: false,
+		},
+		{
 			name:  "new format",
 			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg=="}, {"name": "profile2", "contents": "YmFyCg=="}]`),
 			expect: backwardsCompatProfilesParam{
@@ -2908,6 +3091,7 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, tc.expect == nil, bcp == nil)
 				require.ElementsMatch(t, tc.expect, bcp)
 			}
 		})
@@ -3387,6 +3571,7 @@ func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
 
 func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -3607,7 +3792,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	authCtx := test.UserContext(ctx, test.UserAdmin)
 
-	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true), false)
+	err := svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, profiles, false, false, new(true), nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["MIncAll"])
@@ -3627,20 +3812,20 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["AExclAny"])
 
 	// Test that a bad label doesn't pass validation...
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, false, false, ptr.Bool(true), false)
+	}}, false, false, new(true), nil, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Label "baddy" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// ...unless we're in dry run mode
-	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+	err = svc.BatchSetMDMProfiles(authCtx, new(uint(1)), nil, []fleet.MDMProfileBatchPayload{{
 		Name:             "Baddy",
 		Contents:         declarationForTest("Baddy"),
 		LabelsExcludeAny: []string{"baddy"},
-	}}, true, false, ptr.Bool(true), false)
+	}}, true, false, new(true), nil, false)
 	require.NoError(t, err)
 }
 
@@ -3660,6 +3845,23 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 	}
 	windowsOSUpdate := func(name, leaf string) fleet.MDMProfileBatchPayload {
 		return fleet.MDMProfileBatchPayload{Name: name, Contents: syncMLForTest("./Device" + syncml.FleetOSUpdateTargetLocURI + leaf)}
+	}
+
+	// Same type once JSON-decoded, but not a literal match for the type string.
+	appleEscapedOSUpdate := fleet.MDMProfileBatchPayload{Name: "apple-os-escaped", Contents: []byte(`{
+		"Type": "com.apple.configuration.softwareupdate.enforcement.specifi\u0063",
+		"Identifier": "os-update-escaped",
+		"Payload": {"TargetOSVersion": "15.4.1", "TargetLocalDateTime": "2025-07-01T19:00:00"}
+	}`)}
+	// A different declaration type that mentions the software-update type in its payload.
+	appleDecoy := fleet.MDMProfileBatchPayload{Name: "apple-decoy", Contents: []byte(`{
+		"Type": "com.apple.configuration.decoy",
+		"Identifier": "decoy",
+		"Payload": {"Echo": "` + apple_mdm.DeclarationTypeSoftwareUpdate + `"}
+	}`)}
+	// Same LocURI once XML-decoded ("&#101;" is "e").
+	windowsEscapedOSUpdate := fleet.MDMProfileBatchPayload{
+		Name: "win-os-escaped", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Updat&#101;/Install"),
 	}
 
 	appleConfigured := &fleet.TeamMDM{MacOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("14.0"), Deadline: optjson.SetString("2025-01-01")}}
@@ -3737,11 +3939,50 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			dryRun:   true,
 			wantErr:  "Requires Fleet Premium license",
 		},
+		{
+			name:       "rejects escaped Apple OS update declaration when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{appleEscapedOSUpdate},
+			teamConfig: appleConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:     "rejects escaped Apple OS update declaration in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{appleEscapedOSUpdate},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+		{
+			name:       "rejects Apple OS update declaration alongside a decoy when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), appleDecoy},
+			teamConfig: appleConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:     "decoy declaration alone is not an OS update declaration",
+			profiles: []fleet.MDMProfileBatchPayload{appleDecoy},
+			freeTier: true,
+			dryRun:   true,
+		},
+		{
+			name:       "rejects escaped Windows OS update profile when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{windowsEscapedOSUpdate},
+			teamConfig: windowsConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:     "rejects escaped Windows OS update profile in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{windowsEscapedOSUpdate},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			mockDuplicateStringGroupsExactMatch(ds)
 			license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 			teamID = new(uint(1))
 			if c.freeTier {
@@ -3776,12 +4017,12 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			var gotAppleOSUpdate, gotWindowsOSUpdate bool
 			ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
 				for _, d := range macDeclarations {
-					if bytes.Contains(d.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+					if d.Type == apple_mdm.DeclarationTypeSoftwareUpdate {
 						gotAppleOSUpdate = true
 					}
 				}
 				for _, p := range winProfiles {
-					if bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+					if fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 						gotWindowsOSUpdate = true
 					}
 				}
@@ -3792,7 +4033,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			}
 
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), false)
+			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), nil, false)
 
 			if c.wantErr != "" {
 				require.Error(t, err)
@@ -3848,7 +4089,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 			gotDocs = documents
 			return nil
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.NoError(t, err)
 		found := false
 		for _, doc := range gotDocs {
@@ -3864,7 +4105,7 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not defined")
 		var invalidArgErr *fleet.InvalidArgumentError
@@ -3877,13 +4118,79 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
 		}
-		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), nil, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "connection refused")
 		var invalidArgErr *fleet.InvalidArgumentError
 		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
 		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
 	})
+}
+
+func TestBatchSetMDMProfilesAndroidPasscodeVariables(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
+	// Expand like the real datastore, so the check must run on the content before expansion.
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return strings.NewReplacer("$FLEET_SECRET_NAME", "expanded", "$FLEET_SECRET_PIN_LENGTH", "6").Replace(document), nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	passcode := map[string]any{"passwordPolicies": []map[string]any{{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": 6}}}
+	// Invalid JSON until the secret is expanded.
+	const unquotedSecret = `{"passwordPolicies": [{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": $FLEET_SECRET_PIN_LENGTH}]}`
+
+	cases := []struct {
+		name      string
+		value     string
+		contents  string
+		dryRun    bool
+		errSubstr string
+	}{
+		{name: "no variables", value: "plain"},
+		{name: "secret", value: "$FLEET_SECRET_NAME", errSubstr: "$FLEET_SECRET_NAME"},
+		{name: "secret on dry run", value: "$FLEET_SECRET_NAME", dryRun: true, errSubstr: "$FLEET_SECRET_NAME"},
+		{name: "fleet variable", value: "$FLEET_VAR_HOST_UUID", errSubstr: "$FLEET_VAR_HOST_UUID"},
+		{name: "unquoted secret", contents: unquotedSecret, errSubstr: "$FLEET_SECRET_PIN_LENGTH"},
+		{name: "unquoted secret on dry run", contents: unquotedSecret, dryRun: true, errSubstr: "$FLEET_SECRET_PIN_LENGTH"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.BatchSetMDMProfilesFuncInvoked = false
+			contents := []byte(c.contents)
+			if c.contents == "" {
+				contents = androidConfigProfileForTest(t, c.value, passcode).RawJSON
+			}
+			profiles := []fleet.MDMProfileBatchPayload{{Name: "passcode", Contents: contents}}
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, c.dryRun, false, new(true), nil, false)
+			if c.errSubstr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
+				return
+			}
+			require.ErrorContains(t, err, c.errSubstr)
+			var invalidArgErr *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArgErr)
+			require.False(t, ds.BatchSetMDMProfilesFuncInvoked)
+		})
+	}
 }
 
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
@@ -4091,7 +4398,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			false,
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
-			`Android OS updates ("systemUpdate") is Fleet Premium only.`,
+			`Couldn't add. Android OS updates ("systemUpdate") is Fleet Premium only.`,
 		},
 		{
 			"premium-only android profile with premium license",
@@ -4100,6 +4407,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
 			"",
+		},
+		{
+			"android software setting without premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Couldn't add. Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
+		},
+		{
+			"android software setting with premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Couldn't add. Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
 		},
 		{
 			"android profile with team and free license",
@@ -4131,7 +4454,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll, nil, "")
+			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
@@ -4142,6 +4465,24 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 		})
 	}
+}
+
+func TestNewMDMAndroidConfigProfileRemovedFleetVariable(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	// A 422 with the Fleet 5 message, not the 400 "Couldn't add." of the other validation errors.
+	_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "removed", []byte(`{"name": "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"}`), nil,
+		fleet.LabelsIncludeAll, nil, "", false, false)
+	removedErr, ok := errors.AsType[*fleet.RemovedFleetVariableError](err)
+	require.True(t, ok, err)
+	require.Equal(t, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
+		`What to use instead: `+removednames.GuideURL, removedErr.Error())
+	require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 }
 
 func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
@@ -4167,7 +4508,7 @@ func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
 			require.Contains(t, documents[0], "$FLEET_HOST_VITAL_7")
 			return nil
 		}
-		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil, "")
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.NoError(t, err)
 	})
 
@@ -4175,7 +4516,7 @@ func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{7}}
 		}
-		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil, "")
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not defined")
 		var invalidArgErr *fleet.InvalidArgumentError
@@ -4186,7 +4527,7 @@ func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
 		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
 		}
-		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil, "")
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "connection refused")
 		var invalidArgErr *fleet.InvalidArgumentError
@@ -4264,12 +4605,12 @@ func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 
 	t.Run("labels not allowed with free license", func(t *testing.T) {
 		svc, _, ctx := setup(false)
-		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"}, "")
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false, false)
 		require.Error(t, err)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profile")
 
-		_, err = svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), []string{"label1"}, fleet.LabelsIncludeAll, nil, "")
+		_, err = svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), []string{"label1"}, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.Error(t, err)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profile")
@@ -4277,14 +4618,14 @@ func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {
 
 	t.Run("profile without labels allowed with free license", func(t *testing.T) {
 		svc, _, ctx := setup(false)
-		profile, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, nil, "")
+		profile, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, nil, "", false, false)
 		require.NoError(t, err)
 		require.NotNil(t, profile)
 	})
 
 	t.Run("labels allowed with premium license", func(t *testing.T) {
 		svc, _, ctx := setup(true)
-		profile, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"}, "")
+		profile, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"screenCaptureDisabled": true}`), nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false, false)
 		require.NoError(t, err)
 		require.NotNil(t, profile)
 	})
@@ -4352,7 +4693,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.RawJSON)
@@ -4385,7 +4726,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -4415,7 +4756,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
@@ -4444,7 +4785,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -4466,9 +4807,11 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "Invalid JSON payload")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.ErrorContains(t, err, "Couldn't edit. Invalid JSON payload")
+
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", []byte(`{"playStoreMode": "BLACKLIST"}`), nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.ErrorContains(t, err, `Couldn't edit. Android configuration profile can't include "playStoreMode" setting.`)
 	})
 
 	t.Run("label appearing in both include and exclude lists is rejected", func(t *testing.T) {
@@ -4483,7 +4826,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{}, nil, nil, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -4500,7 +4843,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -4512,7 +4855,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -4529,7 +4872,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -4538,7 +4881,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 	})
 
@@ -4559,14 +4902,14 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 
 		// labels-only edit passes no variables -- the datastore leaves the
 		// existing associations untouched when no content is provided
 		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Empty(t, capturedVars)
 	})
@@ -4587,10 +4930,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -4601,7 +4944,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			ac.MDM.AndroidEnabledAndConfigured = false
 			return ac, nil
 		}
-		err := svc.UpdateMDMConfigProfile(ctx, "gsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "gsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.ErrorContains(t, err, "Android MDM isn't turned on.")
 	})
 
@@ -4654,10 +4997,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
@@ -4957,25 +5300,29 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	// buildReqMsg builds a minimal valid SyncML request. extraBody (if non-empty) is inserted into <SyncBody>; use it to
 	// inject a <Results> with the device's reply to our DevDetail Get.
-	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+	buildReqMsgWithID := func(t *testing.T, msgID, extraBody string) *fleet.SyncML {
 		t.Helper()
 		raw := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
 			<SyncHdr>
 				<VerDTD>1.2</VerDTD>
 				<VerProto>DM/1.2</VerProto>
 				<SessionID>1</SessionID>
-				<MsgID>1</MsgID>
+				<MsgID>%s</MsgID>
 				<Source><LocURI>%s</LocURI></Source>
 			</SyncHdr>
 			<SyncBody>
 				%s
 				<Final/>
 			</SyncBody>
-		</SyncML>`, testDeviceID, extraBody)
+		</SyncML>`, msgID, testDeviceID, extraBody)
 		reqMsg := &fleet.SyncML{}
 		require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
 		reqMsg.Raw = []byte(raw)
 		return reqMsg
+	}
+	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+		t.Helper()
+		return buildReqMsgWithID(t, "1", extraBody)
 	}
 
 	// newSvc builds a service with the stubs that processIncomingMDMCmds always touches; per-subtest stubs override.
@@ -5052,6 +5399,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			assert.Equal(t, testSerial, serial)
 			return &fleet.HostLite{ID: testHostID, UUID: testHostUUID}, nil
 		}
+		ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(_ context.Context, hostUUID, mdmDeviceID string) (bool, error) {
 			assert.Equal(t, testHostUUID, hostUUID)
 			assert.Equal(t, testDeviceID, mdmDeviceID)
@@ -5091,6 +5439,25 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.True(t, foundInternalCmdID, "expected to find the DevDetail Get among response commands")
 	})
 
+	t.Run("challenged session: Get goes out on the first trusted message", func(t *testing.T) {
+		svc, _, _, ctx := newSvc(t)
+		svc.keyValueStore = memoryKVStore()
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+
+		// Real devices: MsgID 1 is challenged, MsgID 2 is the first trusted message, and MsgID 3 acks it.
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "1", ""), RequestAuthStateChallenge)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "a challenge response carries only the auth status")
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "2", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, hasGetForDevDetailSerial(cmds))
+
+		cmds, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", ""), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds))
+	})
+
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
 		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: testHostUUID}
@@ -5104,50 +5471,114 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 
 	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
-		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
-		stubLink(t, ds, true)
+		// Real devices answer the session-start Get mid-session (MsgID 3); linking is not gated to session start.
+		for _, msgID := range []string{"1", "3"} {
+			t.Run("MsgID "+msgID, func(t *testing.T) {
+				svc, ds, _, ctx := newSvc(t)
+				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+				stubLink(t, ds, true)
 
-		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
-		require.NoError(t, err)
-		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
-		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
-		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
-		assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+				cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, msgID, serialResults(testSerial)), RequestAuthStateTrusted)
+				require.NoError(t, err)
+				assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+				assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
+				assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+			})
+		}
 	})
 
-	t.Run("serial claims a host already held by other hardware: refused", func(t *testing.T) {
-		svc, ds, _, ctx := newSvc(t)
-		// A second device reporting the victim's serial. Nothing corroborates the claim, so it must not take the host.
-		claimantHardwareID := "claimant-hardware-id"
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: claimantHardwareID, HostUUID: ""}
-		stubLink(t, ds, true)
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
-			assert.Equal(t, testHostUUID, hostUUID)
-			assert.Equal(t, claimantHardwareID, mdmHardwareID)
-			return true, testHardwareID, nil
+	t.Run("link guard by link source", func(t *testing.T) {
+		const (
+			testZTDID          = "ztd-registration-id"
+			claimantHardwareID = "claimant-hardware-id"
+		)
+		cases := []struct {
+			name                 string
+			ztdID                string // empty links by the reported serial alone
+			pendingAutopilotHost bool
+			hardwareID           string
+			conflicted           bool
+			conflictErr          error
+			wantConflictCheck    bool
+			wantLinked           bool
+		}{
+			{
+				name: "serial, host not held by other hardware: linked", hardwareID: testHardwareID,
+				wantConflictCheck: true, wantLinked: true,
+			},
+			// Nothing corroborates a device-reported serial or ZTDID, so a device presenting the victim's must not take its host.
+			{
+				name: "serial, host already held by other hardware: refused", hardwareID: claimantHardwareID,
+				conflicted: true, wantConflictCheck: true,
+			},
+			{
+				name: "serial, conflict lookup fails: refused", hardwareID: testHardwareID,
+				conflictErr: errors.New("db is down"), wantConflictCheck: true,
+			},
+			{
+				name: "ZTDID, host not held by other hardware: linked", ztdID: testZTDID, hardwareID: testHardwareID,
+				wantConflictCheck: true, wantLinked: true,
+			},
+			{
+				name: "ZTDID, host already held by other hardware: refused", ztdID: testZTDID, hardwareID: claimantHardwareID,
+				conflicted: true, wantConflictCheck: true,
+			},
+			{
+				name: "ZTDID, conflict lookup fails: refused", ztdID: testZTDID, hardwareID: testHardwareID,
+				conflictErr: errors.New("db is down"), wantConflictCheck: true,
+			},
+			{
+				name: "ZTDID, pending autopilot host without uuid: deferred before the conflict check", ztdID: testZTDID,
+				pendingAutopilotHost: true, hardwareID: testHardwareID,
+			},
 		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				svc, ds, _, ctx := newSvc(t)
+				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: tc.hardwareID, ZTDRegistrationID: tc.ztdID}
+				stubLink(t, ds, true)
+				ds.HostIDByAutopilotDeviceIDFunc = func(_ context.Context, autopilotDeviceID string) (uint, error) {
+					assert.Equal(t, testZTDID, autopilotDeviceID)
+					return testHostID, nil
+				}
+				ds.HostLiteFunc = func(_ context.Context, hostID uint) (*fleet.Host, error) {
+					assert.Equal(t, testHostID, hostID)
+					if tc.pendingAutopilotHost {
+						return &fleet.Host{ID: testHostID}, nil
+					}
+					return &fleet.Host{ID: testHostID, UUID: testHostUUID}, nil
+				}
+				ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+					assert.Equal(t, testHostUUID, hostUUID)
+					assert.Equal(t, tc.hardwareID, mdmHardwareID)
+					if tc.conflicted {
+						return true, testHardwareID, nil
+					}
+					return false, "", tc.conflictErr
+				}
 
-		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
-		require.NoError(t, err, "the session must continue; only the link is refused")
-		assert.True(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
-		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "the host must not be relinked to the claimant")
-		assert.Empty(t, enrolledDevice.HostUUID, "in-memory HostUUID must not be set from a refused claim")
-		assert.False(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked,
-			"the refused serial must not be persisted, or the orbit reverse-link path inherits the same bad claim")
-	})
-
-	t.Run("conflict lookup fails: link is refused rather than allowed", func(t *testing.T) {
-		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
-		stubLink(t, ds, true)
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, _, _ string) (bool, string, error) {
-			return false, "", errors.New("db is down")
+				// Every device reports a serial, so a refused or deferred ZTDID link must not fall through to the serial branch.
+				cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+				require.NoError(t, err, "the session must continue whether or not the link happens")
+				if tc.ztdID != "" {
+					assert.True(t, ds.HostIDByAutopilotDeviceIDFuncInvoked)
+					assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "a ZTDID match decides the link on its own")
+				} else {
+					assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+				}
+				assert.Equal(t, tc.wantConflictCheck, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+				assert.Equal(t, tc.wantLinked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				if tc.wantLinked {
+					assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
+				} else {
+					assert.Empty(t, enrolledDevice.HostUUID, "in-memory HostUUID must not be set without a link")
+				}
+				assert.False(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked,
+					"a matched host's serial must not be persisted, or the orbit reverse-link path inherits a refused claim")
+				assert.Equal(t, !tc.wantLinked, hasGetForDevDetailSerial(cmds), "the Get is reinjected only while the enrollment is unlinked")
+			})
 		}
-
-		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
-		require.NoError(t, err)
-		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "an unreadable guard must fail closed")
 	})
 
 	t.Run("serial with no matching host (NotFound): Get is reinjected for retry", func(t *testing.T) {
@@ -5251,15 +5682,20 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	})
 }
 
-// mockAndroidService is a minimal mock of android.Service for RunMDMCommand tests.
-// Only IssueCustomCommand is implemented; all other methods panic if called.
+// mockAndroidService is a minimal mock of android.Service for RunMDMCommand and WipeHost tests.
+// Only IssueCustomCommand and WipeAndroidHost are implemented; all other methods panic if called.
 type mockAndroidService struct {
 	android.Service        // embed interface — unimplemented methods panic
 	IssueCustomCommandFunc func(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error)
+	WipeAndroidHostFunc    func(ctx context.Context, hostID uint) error
 }
 
 func (m *mockAndroidService) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
 	return m.IssueCustomCommandFunc(ctx, hostID, rawJSON)
+}
+
+func (m *mockAndroidService) WipeAndroidHost(ctx context.Context, hostID uint) error {
+	return m.WipeAndroidHostFunc(ctx, hostID)
 }
 
 func TestRunMDMCommandAndroid(t *testing.T) {
@@ -5454,8 +5890,8 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
 	})
 
-	// Wipe is COBO-only. The dedicated wipe endpoint refuses personally-owned hosts, so the
-	// custom command path must refuse them too, with the same error.
+	// The custom command path runs the same wipe validation as the dedicated wipe endpoint,
+	// which allows wipe on both company-owned and personally-owned hosts on any tier.
 	setupWipeDS := func(t *testing.T, enrollmentStatus string) *mock.Store {
 		ds := setupDS(t)
 		// ListHostsLiteByUUIDs does not populate host.MDM, so the host the wipe validation
@@ -5469,95 +5905,83 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		return ds
 	}
 
-	t.Run("rejects WIPE on personally-owned host", func(t *testing.T) {
-		for _, tc := range []struct {
-			name    string
-			payload string
+	t.Run("allows WIPE on company-owned and personally-owned hosts", func(t *testing.T) {
+		payloads := []struct {
+			name        string
+			payload     string
+			premiumOnly bool
 		}{
-			{"explicit type", `{"type":"WIPE","wipeParams":{}}`},
-			{"lowercase type", `{"type":"wipe","wipeParams":{}}`},
-			{"padded type", `{"type":" Wipe ","wipeParams":{}}`},
+			{name: "explicit type", payload: `{"type":"WIPE","wipeParams":{}}`},
+			{name: "lowercase type", payload: `{"type":"wipe","wipeParams":{}}`},
+			{name: "padded type", payload: `{"type":" Wipe ","wipeParams":{}}`},
 			// AMAPI sets the type to WIPE itself when only wipeParams is given, so a payload
 			// with no type at all still wipes the device. This is the shape the AMAPI docs
 			// recommend, and wipeReason exists specifically for the BYOD work-profile case.
-			{"inferred from wipeParams", `{"wipeParams":{}}`},
-			{"inferred with wipeReason", `{"wipeParams":{"wipeReason":{"defaultMessage":"bye"}}}`},
-			// A mismatched type must not launder a wipe past the check.
-			{"wipeParams under another type", `{"type":"LOCK","wipeParams":{}}`},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
-				androidMock := &mockAndroidService{
-					IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
-						t.Error("wipe must not reach AMAPI for a personally-owned host")
-						return nil, errors.New("unexpected call")
-					},
-				}
-				opts := &TestServerOpts{
-					SkipCreateTestUsers: true,
-					AndroidModule:       androidMock,
-					// premium so the LOCK case clears premium gating and reaches the wipe check
-					License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
-				}
-				svc, ctx := newTestService(t, ds, nil, nil, opts)
-				ctx = test.UserContext(ctx, test.UserAdmin)
-
-				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-					t.Error("no activity must be recorded for a refused wipe")
-					return nil
-				}
-
-				encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
-				_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
-				require.Error(t, err)
-				// same message the dedicated POST /hosts/{id}/wipe endpoint returns
-				require.ErrorContains(t, err, "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.")
-				var badRequestErr *fleet.BadRequestError
-				require.ErrorAs(t, err, &badRequestErr)
-			})
+			{name: "inferred from wipeParams", payload: `{"wipeParams":{}}`},
+			{name: "inferred with wipeReason", payload: `{"wipeParams":{"wipeReason":{"defaultMessage":"bye"}}}`},
+			// A mismatched type must not skip the wipe validation. LOCK is premium gated, so
+			// it only reaches the wipe check on Premium.
+			{name: "wipeParams under another type", payload: `{"type":"LOCK","wipeParams":{}}`, premiumOnly: true},
 		}
-	})
-
-	t.Run("allows WIPE on company-owned host", func(t *testing.T) {
-		for _, tc := range []struct {
-			name    string
-			payload string
+		ownerships := []struct {
+			name             string
+			enrollmentStatus string
 		}{
-			{"explicit type", `{"type":"WIPE","wipeParams":{}}`},
-			{"inferred from wipeParams", `{"wipeParams":{}}`},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusAutomatic)
-				androidMock := &mockAndroidService{
-					IssueCustomCommandFunc: func(_ context.Context, hostID uint, _ []byte) (*android.MDMAndroidCommand, error) {
-						require.Equal(t, androidHost.ID, hostID)
-						return &android.MDMAndroidCommand{
-							CommandUUID: "cmd-uuid-wipe",
-							CommandType: "WIPE",
-						}, nil
-					},
-				}
-				// no License: Android wipe is available on Fleet Free, matching the
-				// dedicated endpoint, so it must not be premium gated here either
-				opts := &TestServerOpts{
-					SkipCreateTestUsers: true,
-					AndroidModule:       androidMock,
-				}
-				svc, ctx := newTestService(t, ds, nil, nil, opts)
-				ctx = test.UserContext(ctx, test.UserAdmin)
+			{"company-owned", fleet.MDMEnrollmentStatusAutomatic},
+			{"personally-owned", fleet.MDMEnrollmentStatusPersonal},
+		}
+		tiers := []struct {
+			name    string
+			license *fleet.LicenseInfo
+		}{
+			// Android wipe is available on Fleet Free, matching the dedicated endpoint
+			{"free", nil},
+			{"premium", &fleet.LicenseInfo{Tier: fleet.TierPremium}},
+		}
 
-				var capturedActivity activity_api.ActivityDetails
-				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
-					capturedActivity = act
-					return nil
-				}
+		for _, tier := range tiers {
+			for _, ownership := range ownerships {
+				for _, tc := range payloads {
+					if tc.premiumOnly && tier.license == nil {
+						continue
+					}
+					t.Run(tier.name+"/"+ownership.name+"/"+tc.name, func(t *testing.T) {
+						ds := setupWipeDS(t, ownership.enrollmentStatus)
+						var issuedJSON []byte
+						androidMock := &mockAndroidService{
+							IssueCustomCommandFunc: func(_ context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+								require.Equal(t, androidHost.ID, hostID)
+								issuedJSON = rawJSON
+								return &android.MDMAndroidCommand{
+									CommandUUID: "cmd-uuid-wipe",
+									CommandType: "WIPE",
+								}, nil
+							},
+						}
+						opts := &TestServerOpts{
+							SkipCreateTestUsers: true,
+							AndroidModule:       androidMock,
+							License:             tier.license,
+						}
+						svc, ctx := newTestService(t, ds, nil, nil, opts)
+						ctx = test.UserContext(ctx, test.UserAdmin)
 
-				encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
-				result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
-				require.NoError(t, err)
-				assert.Equal(t, "WIPE", result.RequestType)
-				require.NotNil(t, capturedActivity)
-			})
+						var capturedActivity activity_api.ActivityDetails
+						opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+							capturedActivity = act
+							return nil
+						}
+
+						encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
+						result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+						require.NoError(t, err)
+						assert.Equal(t, "WIPE", result.RequestType)
+						assert.JSONEq(t, tc.payload, string(issuedJSON))
+						assert.True(t, ds.HostFuncInvoked, "the wipe validation must load the host")
+						assert.NotNil(t, capturedActivity)
+					})
+				}
+			}
 		}
 	})
 
@@ -6020,4 +6444,16 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		assert.False(t, e.ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
 		assert.Empty(t, e.recorded)
 	})
+}
+
+func TestValidateProfileDeployFlags(t *testing.T) {
+	free := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+	premium := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	require.NoError(t, validateProfileDeployFlags(free, false, false, true, ""), "false for hidden and self-service on an Apple profile should not fail on free")
+	require.ErrorContains(t, validateProfileDeployFlags(free, false, true, false, ""), ErrMissingLicense.Error(), "hidden on free tier should fail")
+	require.NoError(t, validateProfileDeployFlags(premium, true, false, true, ""), "self service on premium tier should succeed")
+	require.NoError(t, validateProfileDeployFlags(premium, false, true, false, ""), "hidden on premium tier should succeed")
+	require.ErrorContains(t, validateProfileDeployFlags(premium, true, false, false, ""), "only supported for .mobileconfig", "self service for non-apple profile should fail")
+	require.ErrorContains(t, validateProfileDeployFlags(premium, true, true, true, "Couldn't edit. "), "Couldn't edit. hidden requires self_service to be false", "self service and hidden both true should fail")
 }
