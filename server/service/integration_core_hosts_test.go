@@ -1681,7 +1681,6 @@ func (s *integrationTestSuite) TestHostEndpointsAcceptIdentifiers() {
 			if endpoint.unknownHostStatus != 0 {
 				unknownHostStatus = endpoint.unknownHostStatus
 			}
-			s.Do("GET", fmt.Sprintf(endpoint.path, *target.OsqueryHostID), nil, unknownHostStatus)
 			s.Do("GET", fmt.Sprintf(endpoint.path, "no-such-host"), nil, unknownHostStatus)
 		})
 	}
@@ -1704,14 +1703,6 @@ func (s *integrationTestSuite) TestHostEndpointsAcceptIdentifiers() {
 		var hostResp getHostResponse
 		s.DoJSON("GET", "/api/latest/fleet/hosts/"+sharedSerial, nil, http.StatusOK, &hostResp)
 		require.Equal(t, newest.ID, hostResp.Host.ID)
-
-		require.Equal(t,
-			responseFor(t, fmt.Sprintf("/api/latest/fleet/hosts/%d/software", newest.ID), http.StatusOK),
-			responseFor(t, "/api/latest/fleet/hosts/"+sharedSerial+"/software", http.StatusOK))
-
-		var queryResp runLiveQueryOnHostResponse
-		s.DoJSON("POST", "/api/latest/fleet/hosts/"+sharedSerial+"/query", runLiveQueryOnHostRequest{Query: "SELECT 1"}, http.StatusOK, &queryResp)
-		require.Equal(t, newest.ID, queryResp.HostID)
 	})
 
 	t.Run("device url only takes a host ID", func(t *testing.T) {

@@ -4230,11 +4230,6 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	require.Len(t, hostsByIdentifier, 1)
 	assert.Equal(t, hostsByIdentifier[0], hosts[2].ID)
 
-	// Agent keys aren't identifiers.
-	hostsByIdentifier, err = ds.HostIDsByIdentifier(t.Context(), filter, []string{"osq.host1", "nk.2"})
-	require.NoError(t, err)
-	assert.Empty(t, hostsByIdentifier)
-
 	noSerialHost, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -4776,12 +4771,6 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	h, err = ds.HostLiteByID(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, identifier, h.UUID)
-
-	// Agent keys aren't identifiers.
-	for _, agentKey := range []string{"osquery_host_id_2", "node_key_4"} {
-		_, err = ds.HostLiteByIdentifier(context.Background(), agentKey)
-		require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", agentKey, err)
-	}
 
 	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)

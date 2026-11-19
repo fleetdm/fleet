@@ -3303,19 +3303,15 @@ func testHostIDBySetupExperienceUUID(t *testing.T, ds *Datastore) {
 	}
 	// fleet.HostUUIDForSetupExperience gives the osquery host ID on Windows and Linux, which can differ from the UUID.
 	windowsHost := newHost("windows", "windows-uuid", "windows-osquery-host-id")
-	macHost := newHost("darwin", "mac-uuid", "mac-uuid")
+	// A UUID match comes first, so another host's osquery host ID can't take a Mac's UUID.
+	newHost("windows", "other-windows-uuid", "mac-uuid")
+	macHost := newHost("darwin", "mac-uuid", "mac-osquery-host-id")
 
 	for identifier, wantID := range map[string]uint{"windows-osquery-host-id": windowsHost, "windows-uuid": windowsHost, "mac-uuid": macHost} {
 		gotID, err := ds.HostIDBySetupExperienceUUID(ctx, identifier)
 		require.NoError(t, err)
 		require.Equal(t, wantID, gotID, identifier)
 	}
-	// A UUID match comes first, so another host's osquery host ID can't take a Mac's UUID.
-	newHost("windows", "other-windows-uuid", "mac-takeover-uuid")
-	takenMac := newHost("darwin", "mac-takeover-uuid", "mac-takeover-osquery-host-id")
-	gotID, err := ds.HostIDBySetupExperienceUUID(ctx, "mac-takeover-uuid")
-	require.NoError(t, err)
-	require.Equal(t, takenMac, gotID)
 
 	for _, identifier := range []string{"", "windows-uuid-hostname", "no-such-host"} {
 		_, err := ds.HostIDBySetupExperienceUUID(ctx, identifier)

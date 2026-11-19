@@ -24,9 +24,6 @@ func TestUp_20261118222516(t *testing.T) {
 		execNoErr(t, db, `INSERT INTO user_api_endpoints (user_id, path, method) VALUES (?, ?, 'POST')`, userID, path)
 	}
 
-	// A user with no grants can call every endpoint, so the only grant must be replaced, not just removed.
-	identifierOnly := newUser("identifier-only")
-	grant(identifierOnly, oldPath)
 	identifierAndOther := newUser("identifier-and-other")
 	grant(identifierAndOther, oldPath)
 	grant(identifierAndOther, otherPath)
@@ -35,8 +32,10 @@ func TestUp_20261118222516(t *testing.T) {
 	grant(bothGrants, newPath)
 	unrelated := newUser("unrelated")
 	grant(unrelated, otherPath)
-	// The server accepts any placeholder spelling and the version placeholder, so the stored path can differ from the catalog's.
+	// A user with no grants can call every endpoint, so a user's only grant must be replaced, not just removed. The server accepts any
+	// placeholder spelling and the version placeholder, so the stored path can differ from the catalog's.
 	alternateSpellings := []string{
+		oldPath,
 		"/api/v1/fleet/hosts/identifier/{identifier}/query",
 		"/api/v1/fleet/hosts/identifier/:serial/query",
 		"/api/_version_/fleet/hosts/identifier/:identifier/query",
@@ -54,7 +53,6 @@ func TestUp_20261118222516(t *testing.T) {
 		require.NoError(t, db.Select(&paths, `SELECT path FROM user_api_endpoints WHERE user_id = ? AND method = 'POST' ORDER BY path`, userID))
 		return paths
 	}
-	assert.Equal(t, []string{newPath}, grantsOf(identifierOnly))
 	assert.Equal(t, []string{newPath, otherPath}, grantsOf(identifierAndOther))
 	assert.Equal(t, []string{newPath}, grantsOf(bothGrants))
 	assert.Equal(t, []string{otherPath}, grantsOf(unrelated))
