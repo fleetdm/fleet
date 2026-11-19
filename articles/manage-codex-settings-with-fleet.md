@@ -157,7 +157,7 @@ New-Item -ItemType Directory -Path $dir -Force | Out-Null
 
 ### Optional: set defaults users can change
 
-Requirements limit choices but don't pick a starting value. To set defaults, like `approval_policy = "on-request"`, deploy a system `config.toml` the same way: `/etc/codex/config.toml` on macOS and Linux, or `C:\ProgramData\OpenAI\Codex\config.toml` on Windows. A user's own `~/.codex/config.toml` overrides these defaults, but only with values your requirements allow. On macOS, the `config_toml_base64` key in the same profile sets defaults that Codex reapplies each time it starts, over the user's own settings. This guide doesn't edit users' `~/.codex/config.toml` files, because requirements already win over them.
+Requirements limit choices but don't pick a starting value. To set defaults, like `approval_policy = "on-request"`, deploy a system `config.toml` the same way: `/etc/codex/config.toml` on macOS and Linux, or `C:\ProgramData\OpenAI\Codex\config.toml` on Windows. A user's own `~/.codex/config.toml` overrides these defaults, but only with values your requirements allow. On macOS, the profile's `config_toml_base64` key isn't a plain default: Codex reapplies it over the user's own settings each time it starts, and turns any `approval_policy` or `sandbox_mode` in it into a requirement users can't change. Use `/etc/codex/config.toml` for defaults users should be able to change. This guide doesn't edit users' `~/.codex/config.toml` files, because requirements already win over them.
 
 ## Deploy with Fleet
 
@@ -174,7 +174,7 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 ### GitOps
 
 1. Save the profile in `platforms/macos/configuration-profiles/`. The `fleets/workstations.yml` file that `fleetctl new` creates already picks up `.mobileconfig` files there.
-2. Save the scripts in `lib/codex/` and add them to your fleet file, for example `fleets/workstations.yml`:
+2. Save the scripts in `lib/codex/` and add them to the existing `controls.scripts` list in your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
    controls:
@@ -195,7 +195,7 @@ Each policy below passes when the requirements file matches what you intend. A h
 2. Get the SHA-256 hash of the file it wrote:
    - On Linux, run `sha256sum /etc/codex/requirements.toml`.
    - On Windows, run `(Get-FileHash 'C:\ProgramData\OpenAI\Codex\requirements.toml').Hash.ToLower()`.
-3. Add the policies to your fleet file, replacing `<sha256-linux>` and `<sha256-windows>` with those hashes:
+3. Add the policies to the existing `policies` list in your fleet file, replacing `<sha256-linux>` and `<sha256-windows>` with those hashes:
 
    ```yaml
    policies:
