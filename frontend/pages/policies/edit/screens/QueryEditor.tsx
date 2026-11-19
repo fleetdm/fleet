@@ -11,8 +11,7 @@ import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PolicyForm from "pages/policies/edit/components/PolicyForm";
 import PATHS from "router/paths";
 import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
@@ -228,20 +227,8 @@ const QueryEditor = ({
       delete updatedPolicy.platform;
     }
 
-    const updateAPIRequest = () => {
-      // storedPolicy.fleet_id is used for existing policies because selectedTeamId is subject to change
-      const fleet_id = storedPolicy?.fleet_id ?? undefined;
-
-      return fleet_id !== undefined
-        ? teamPoliciesAPI.update(policyIdForEdit, {
-            ...updatedPolicy,
-            fleet_id,
-          })
-        : globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
-    };
-
     try {
-      await updateAPIRequest();
+      await policiesAPI.update(policyIdForEdit, updatedPolicy);
       notify.success("Policy updated.");
     } catch (updateError) {
       console.error(updateError);

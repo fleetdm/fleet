@@ -14,9 +14,9 @@ import { SelectedPlatform } from "interfaces/platform";
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PATHS from "router/paths";
-import { AutomationType } from "services/entities/team_policies";
 import { getNextLocationPath } from "utilities/helpers";
 
+import { PoliciesAutomationFilter } from "../../helpers";
 import {
   DEFAULT_SORT_COLUMN,
   DEFAULT_SORT_DIRECTION,
@@ -86,7 +86,7 @@ interface IPoliciesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
     page?: string;
-    automation_type?: AutomationType;
+    automation_type?: PoliciesAutomationFilter;
     platform?: string;
   };
   platform?: SelectedPlatform;

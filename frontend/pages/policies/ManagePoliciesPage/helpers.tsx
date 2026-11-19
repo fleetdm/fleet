@@ -1,5 +1,22 @@
-import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import {
+  IPolicyStats,
+  OtherAutomationType,
+  PolicyAutomationType,
+} from "interfaces/policy";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { IPoliciesFilterParams } from "services/entities/policies";
+
+/** The Policies table's automation filter. "patch" filters by policy type. */
+export type PoliciesAutomationFilter = PolicyAutomationType | "patch";
+
+export const getPoliciesFilterParams = (
+  filter: PoliciesAutomationFilter | null
+): Pick<IPoliciesFilterParams, "automationType" | "type"> => {
+  if (!filter) {
+    return {};
+  }
+  return filter === "patch" ? { type: "patch" } : { automationType: filter };
+};
 
 export type AutomationDisplayType =
   | "software"

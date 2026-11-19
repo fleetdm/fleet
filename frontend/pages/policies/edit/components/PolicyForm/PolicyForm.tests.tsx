@@ -8,7 +8,7 @@ import createMockPolicy from "__mocks__/policyMock";
 import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { ILabelSummary } from "interfaces/label";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI from "services/entities/teams";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
@@ -226,7 +226,7 @@ describe("PolicyForm - component", () => {
           },
         },
       } as never);
-      jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+      jest.spyOn(policiesAPI, "update").mockResolvedValue({} as never);
       const onUpdate = jest.fn().mockResolvedValue({});
 
       const { user } = renderEditForm(
@@ -1049,7 +1049,7 @@ describe("PolicyForm - component", () => {
           .spyOn(teamsAPI, "load")
           .mockReturnValue(new Promise(() => undefined));
         const updatePolicySpy = jest
-          .spyOn(teamPoliciesAPI, "update")
+          .spyOn(policiesAPI, "update")
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
@@ -1077,7 +1077,6 @@ describe("PolicyForm - component", () => {
         // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
-            fleet_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
             notify_before_patching: false,
@@ -1093,7 +1092,7 @@ describe("PolicyForm - component", () => {
           fleet: createMockTeam({ id: 1 }),
         } as never);
         const updatePolicySpy = jest
-          .spyOn(teamPoliciesAPI, "update")
+          .spyOn(policiesAPI, "update")
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
@@ -1159,7 +1158,7 @@ describe("PolicyForm - component", () => {
 
       it("does not carry notify_before_patching for a Windows patch policy", async () => {
         const updatePolicySpy = jest
-          .spyOn(teamPoliciesAPI, "update")
+          .spyOn(policiesAPI, "update")
           .mockResolvedValue({} as never);
         const windowsPatchPolicy = {
           ...patchPolicy,
@@ -1236,7 +1235,7 @@ describe("PolicyForm - component", () => {
             },
           },
         } as never);
-        jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+        jest.spyOn(policiesAPI, "update").mockResolvedValue({} as never);
         const onUpdate = jest.fn().mockResolvedValue({});
 
         const { user } = renderPatchPolicy(

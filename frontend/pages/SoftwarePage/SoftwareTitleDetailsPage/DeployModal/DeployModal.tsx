@@ -21,8 +21,8 @@ import {
   getFleetAppPolicyDescription,
   getFleetAppPolicyName,
 } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/helpers";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 
 const baseClass = "deploy-modal";
 
@@ -114,7 +114,7 @@ const DeployModal = ({
             );
             return;
           }
-          await teamPoliciesAPI.create({
+          await policiesAPI.create({
             fleet_id: teamId,
             name: getFleetAppPolicyName(softwareTitle.name),
             description: getFleetAppPolicyDescription(softwareTitle.name),
@@ -123,24 +123,24 @@ const DeployModal = ({
             software_title_id: softwareTitle.id,
           });
         } else if (forceInstallPolicy) {
-          await teamPoliciesAPI.destroy(teamId, [forceInstallPolicy.id]);
+          await policiesAPI.destroy([forceInstallPolicy.id]);
         }
         savedAnyChange = true;
       }
 
       if (patch !== !!patchPolicy) {
         if (patch) {
-          await teamPoliciesAPI.create({
+          await policiesAPI.create({
             fleet_id: teamId,
             type: "patch",
-            patch_software_title_id: softwareTitle.id,
+            software_title_id: softwareTitle.id,
             ...(patchOption !== "manual" && {
-              software_title_id: softwareTitle.id,
+              automation_type: "software",
             }),
             ...patchFlags,
           });
         } else if (patchPolicy) {
-          await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
+          await policiesAPI.destroy([patchPolicy.id]);
         }
         savedAnyChange = true;
       } else if (
@@ -161,8 +161,7 @@ const DeployModal = ({
           (patchPolicy.continuous_automations_enabled ?? false) !==
             patchFlags.continuous_automations_enabled)
       ) {
-        await teamPoliciesAPI.update(patchPolicy.id, {
-          fleet_id: teamId,
+        await policiesAPI.update(patchPolicy.id, {
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
           ...patchFlags,
         });

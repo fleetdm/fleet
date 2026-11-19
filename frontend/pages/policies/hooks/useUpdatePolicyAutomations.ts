@@ -6,7 +6,7 @@ import { IConfig } from "interfaces/config";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI from "services/entities/teams";
 
 /** The per-policy automation fields settable from the modal. */
@@ -99,12 +99,7 @@ const useUpdatePolicyAutomations = ({
 
       const requests: Promise<unknown>[] = [];
       if (policyUpdate) {
-        requests.push(
-          teamPoliciesAPI.update(policyId, {
-            fleet_id: teamIdForApi,
-            ...policyUpdate,
-          })
-        );
+        requests.push(policiesAPI.update(policyId, policyUpdate));
       }
       if (webhookOrTicketUpdate) {
         requests.push(
