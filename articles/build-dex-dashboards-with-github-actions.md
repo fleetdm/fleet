@@ -171,6 +171,7 @@ Put the site behind your single sign-on, and give the upload credential access t
 ## What works differently from the Claude version
 
 - **AI governance policy decisions don't save.** The page shows the inventory and risk findings, but nobody can record a posture or decision, and there's no change log. Those need the artifact's shared store.
+- **AI governance has no report download.** The **Download report** button saves the report through the Claude artifact, so the site doesn't show it. **Copy as CSV** works the same as in the Claude version.
 - **Theme choices stay in each browser.** Each viewer's Light, Dark, or System choice is saved in their browser only.
 - **One site per repository.** GitHub Pages serves one site from each repository. To build dashboards for more than one Fleet server, for example a test server and production, use one repository for each.
 
