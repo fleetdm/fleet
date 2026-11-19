@@ -801,7 +801,12 @@ const SoftwareTitleDetailsPage = ({
       <DeleteSoftwareModal
         softwareId={softwareId}
         teamId={teamIdForApi}
-        installerId={selected?.installer_id}
+        // Don't send installer_id for in-house apps because delete only accepts it for custom packages.
+        installerId={
+          isIpadOrIphoneSoftwareSource(title.source)
+            ? undefined
+            : selected?.installer_id
+        }
         versionId={isVersionDelete ? selectedVersionId ?? undefined : undefined}
         isLastVersion={isLastVersion}
         gitOpsModeEnabled={gitOpsModeEnabled}
