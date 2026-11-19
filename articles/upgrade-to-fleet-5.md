@@ -1306,11 +1306,14 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4 and review the file.
    - 2017 packs stop running on hosts after the upgrade.
+   - The command's output says Fleet 5 converts 2017 packs to reports automatically. It doesn't: Fleet 5 deletes them.
+   - Only packs that target fleets keep their schedule in the file. For packs that target labels (including "All Hosts") or individual hosts, the file sets `interval: 0` and `automations_enabled: false`, so those reports don't run. Set `interval` and `automations_enabled: true`. For packs that target labels other than "All Hosts", list those labels under `labels_include_any`. Reports can't target individual hosts, so use a label instead.
+   - If a pack's query doesn't set `snapshot` or `removed`, the file leaves `logging` empty and the report logs snapshot results. Set `logging: differential` to keep the pack's log format.
 2. Add the reports to Fleet with [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#reports) or [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report) (API).
    - With GitOps, copy each report's settings from under `spec:` into `reports` in `default.yml` or the fleet's YAML file.
    - With the API, call [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) once for each report.
 
-GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issues: [#53470](https://github.com/fleetdm/fleet/issues/53470), [#59237](https://github.com/fleetdm/fleet/issues/59237)
 
 ### fleetctl delete removed
 
