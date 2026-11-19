@@ -105,22 +105,22 @@ b, strong { font-weight: 600; color: var(--ink); }
 .select-wrap { position: relative; display: inline-flex; min-width: 0; flex: 0 1 auto; }
 .controls .seg-toggle { flex-shrink: 0; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--ink-2); font-size: 12px; }
-/* Fleet's dropdown: 8px side padding and a 16px chevron, drawn here because the native
-   arrow sits against the border whatever the padding. */
+/* fleetdm.com's normal text field (36px, 12px sides, 8px radius) with a 16px chevron,
+   drawn here because the native arrow sits against the border whatever the padding. */
 .select-wrap select {
   appearance: none; -webkit-appearance: none; min-width: 0; text-overflow: ellipsis; cursor: pointer;
-  font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 4px; padding: 0 32px 0 8px; max-width: 220px; height: 36px;
+  font: 400 14px/1.5 var(--font-ui); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; padding: 0 36px 0 12px; max-width: 220px; height: 36px;
 }
 .select-wrap select:hover { border-color: var(--ui-fleet-black-50); }
 .select-wrap select:focus-visible { outline: none; border-color: var(--ink); }
 .select-wrap::after {
-  content: ""; position: absolute; right: 8px; top: 50%; width: 16px; height: 16px; margin-top: -8px; pointer-events: none;
+  content: ""; position: absolute; right: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; pointer-events: none;
   background: var(--ui-fleet-black-75);
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M12 6l-4 4-4-4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 16px no-repeat;
 }
-.seg-toggle { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-2); border-radius: 4px; overflow: hidden; background: var(--panel); }
+.seg-toggle { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--panel); }
 .seg-toggle button {
   font: 400 14px var(--font-ui); color: var(--ink-2); background: transparent; border: 0; border-left: 1px solid var(--line-2);
   padding: 0 12px; height: 34px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
@@ -199,29 +199,47 @@ h3 a:hover { text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   font: 400 14px var(--font-ui); color: var(--ink-2); background: var(--panel); border: 1px solid var(--line-2);
-  border-radius: 4px; padding: 0 12px; height: 32px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+  border-radius: 8px; padding: 0 12px; height: 32px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
 }
 .chip b { font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 400; }
 .chip:hover { color: var(--ink); border-color: var(--ui-fleet-black-50); }
 .chip[aria-pressed="true"] { color: var(--ink); background: var(--ui-fleet-black-5); border-color: var(--ui-fleet-black-50); font-weight: 600; }
 .chip[aria-pressed="true"] b { color: var(--ink); font-weight: 600; }
 .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--tone, var(--neutral)); }
-/* fleetdm.com buttons: outline secondary, and a green primary with the website's hover shine. */
+/* fleetdm.com buttons (website/assets/styles/mixins-and-variables/buttons.less): an outline
+   secondary, and the normal-size primary with its ring, lift, and cursor-following spotlight
+   (base.js sets --spotlight-x/y). The primary keeps the website's green in both themes. */
 .btn {
-  font: 700 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line-2);
-  border-radius: 4px; padding: 0 12px; height: 32px; cursor: pointer;
+  font: 700 14px/1.5 var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 8px; padding: 0 12px; height: 36px; cursor: pointer;
 }
 .btn:hover { border-color: var(--ui-fleet-black-50); }
-.btn.primary { position: relative; overflow: hidden; color: var(--core-fleet-white); background: var(--core-fleet-green); border-color: var(--core-fleet-green); padding: 0 16px; }
-.btn.primary::before {
-  content: ""; position: absolute; top: 0; left: -5px; width: 50%; height: 100%; transform: skew(-10deg); pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-  transition: left 0.5s ease-in, opacity 0.5s ease-in, width 0.5s ease-in;
+.btn.primary {
+  --spotlight-x: 35%; --spotlight-y: 30%;
+  position: relative; isolation: isolate; overflow: hidden; border: 0; border-radius: 12px; height: auto; min-height: 36px; padding: 7.5px 16px;
+  color: #fff; background-color: #009a7d; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 60%);
+  box-shadow: 0 0 0 1px #008a70, 0 2px 6px -1px rgba(0, 154, 125, 0.225);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.btn.primary:hover::before, .btn.primary:focus-visible::before { opacity: 0; left: 160px; width: 110%; }
+.btn.primary::before, .btn.primary::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+}
+.btn.primary::after { background: radial-gradient(120px circle at var(--spotlight-x) var(--spotlight-y), rgba(133, 255, 198, 0.25), rgba(133, 255, 198, 0) 70%); }
+.btn.primary::before {
+  padding: 1px; background: radial-gradient(80px circle at var(--spotlight-x) var(--spotlight-y), rgba(133, 255, 198, 0.8), rgba(133, 255, 198, 0) 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 1px #008a70, 0 4px 9px -2px rgba(0, 154, 125, 0.275);
+}
+.btn.primary:hover::before, .btn.primary:hover::after { opacity: 1; }
+.btn.primary:active { transform: scale(0.98); transition-duration: 0.1s; }
+.btn.primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 input.search {
   font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
-  border-radius: 4px; padding: 0 12px; height: 32px; min-width: 0; width: 220px; max-width: 100%;
+  border-radius: 8px; padding: 0 12px; height: 36px; min-width: 0; width: 220px; max-width: 100%; box-sizing: border-box;
 }
 input.search:hover { border-color: var(--ui-fleet-black-50); }
 input.search:focus-visible { outline: none; border-color: var(--ink); }
@@ -286,4 +304,7 @@ svg text { fill: var(--ink-2); font: 12px var(--font-ui); }
   .bar-row { grid-template-columns: minmax(60px, 35%) minmax(40px, 1fr) auto; }
   .panel { padding: 16px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  .btn.primary:hover, .btn.primary:active { transform: none; }
+}

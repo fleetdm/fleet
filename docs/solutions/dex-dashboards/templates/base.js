@@ -445,6 +445,15 @@ function sortTable({ columns, groups, sort, onRow, detail, id }) {
   return wrap;
 }
 
+// fleetdm.com's primary-button spotlight follows the cursor.
+document.addEventListener("pointermove", (e) => {
+  const b = e.pointerType === "mouse" && e.target.closest && e.target.closest(".btn.primary");
+  if (!b) return;
+  const r = b.getBoundingClientRect();
+  b.style.setProperty("--spotlight-x", `${e.clientX - r.left}px`);
+  b.style.setProperty("--spotlight-y", `${e.clientY - r.top}px`);
+}, { passive: true });
+
 // Clipboard copy needs a click; fall back to a selectable box.
 function copyButton(label, text) {
   const btn = h("button", { type: "button", class: "btn" }, label);
