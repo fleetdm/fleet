@@ -584,7 +584,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
-		{"testdata/gitops/team_vpp_valid_app.yml", `"Earth" VPP token is expired. Please renew it.`, time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_app.yml", `VPP token "Earth" is expired. Please renew it and try again.`, time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
 		{"testdata/gitops/team_vpp_invalid_app.yml", `isn't available in the "Earth" VPP token`, time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",

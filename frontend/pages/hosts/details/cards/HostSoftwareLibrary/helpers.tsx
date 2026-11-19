@@ -35,10 +35,10 @@ export const DROPDOWN_OPTIONS = [
 const createOnlyInstallableOnMacOSMessage = (reason: string) =>
   `Couldn't install. ${reason.replace("darwin", "macOS")}.`;
 
-const createVPPTokenExpiredMessage = (tokenName?: string) => (
+const createVPPTokenExpiredMessage = (tokenName: string) => (
   <>
-    {INSTALL_SOFTWARE_ERROR_PREFIX} VPP token
-    {tokenName ? ` "${tokenName}"` : ""} expired. Go to{" "}
+    {INSTALL_SOFTWARE_ERROR_PREFIX} VPP token &quot;{tokenName}&quot; expired.
+    Go to{" "}
     <b>
       Settings {">"} Integration {">"} Volume Purchasing Program
     </b>{" "}
@@ -46,10 +46,8 @@ const createVPPTokenExpiredMessage = (tokenName?: string) => (
   </>
 );
 
-// Matches the install-time expired-token error in ee/server/service/vpp.go.
-// Legacy form before the token name was included is still matched so stale
-// in-flight errors don't fall through to the generic default message.
-const VPP_TOKEN_EXPIRED_RE = /VPP token (?:"([^"]+)" )?(?:is )?expired/;
+// Matches the install-time expired-token error from ee/server/service/vpp.go.
+const VPP_TOKEN_EXPIRED_RE = /VPP token "([^"]+)" is expired/;
 
 // determines if we want to show the API message as is to the user.
 const showAPIMessage = (message: string) => {

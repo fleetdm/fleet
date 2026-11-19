@@ -1849,7 +1849,7 @@ func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
 				return us, batchJPToken()
 			},
 			payloads: []fleet.VPPBatchPayload{batchIOS("1", "")},
-			want:     `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`,
+			want:     `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`,
 			status:   http.StatusUnprocessableEntity,
 		},
 		{
@@ -1860,7 +1860,7 @@ func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
 				return batchUSToken(), jp
 			},
 			payloads: []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan")},
-			want:     `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`,
+			want:     `Couldn't apply. VPP token "Acme Japan" is expired. Please renew it and try again.`,
 			status:   http.StatusUnprocessableEntity,
 		},
 		{
@@ -1973,7 +1973,7 @@ func TestBatchAssociateVPPAppsExistingAppOnExpiredToken(t *testing.T) {
 	t.Run("an app moved to the expired token's location still fails", func(t *testing.T) {
 		fx := setup(t)
 		err := fx.apply(false, batchIOS("1", "Acme Japan"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan" is expired. Please renew it and try again.`)
 	})
 }
 
@@ -2019,7 +2019,7 @@ func TestBatchAssociateVPPAppsExpandedPlatformsOnExpiredToken(t *testing.T) {
 	t.Run("a new app on the expired token still fails", func(t *testing.T) {
 		fx := setup(t)
 		err := fx.apply(false, noPlatform("2"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`)
 	})
 
 	t.Run("an explicit platform still fails", func(t *testing.T) {
@@ -2027,7 +2027,7 @@ func TestBatchAssociateVPPAppsExpandedPlatformsOnExpiredToken(t *testing.T) {
 		macOS := noPlatform("1")
 		macOS.Platform = fleet.MacOSPlatform
 		err := fx.apply(false, macOS)
-		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`)
 	})
 }
 
@@ -2079,7 +2079,7 @@ func TestBatchAssociateVPPAppsExpandedPlatformsInheritToken(t *testing.T) {
 		us.RenewDate = time.Now().Add(-24 * time.Hour)
 		fx := newBatchVPPFixture(t, us, batchJPToken())
 		err := fx.apply(false, noPlatform("2"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`)
 	})
 }
 
@@ -2125,7 +2125,7 @@ func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
 		jp.RenewDate = time.Now().Add(-24 * time.Hour)
 		fx := setup(t, batchUSToken(), jp)
 		err := fx.apply(true, batchIOS("3", "Acme Japan"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan" is expired. Please renew it and try again.`)
 		require.Empty(t, fx.assetCalls)
 	})
 

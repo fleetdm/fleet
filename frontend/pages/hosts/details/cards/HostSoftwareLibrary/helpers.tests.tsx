@@ -73,15 +73,6 @@ describe("getInstallErrorMessage", () => {
     );
   });
 
-  it("still handles the legacy expired-token message without a name", () => {
-    const result = getInstallErrorMessage(
-      makeErr("Couldn't install. VPP token expired.")
-    );
-    const { container } = render(<>{result}</>);
-    expect(container.textContent).toContain("VPP token expired");
-    expect(container.textContent).not.toContain(`"`);
-  });
-
   it("returns default message for unknown errors", () => {
     const result = getInstallErrorMessage(makeErr("something unexpected"));
     expect(result).toBe("Couldn't install. Please try again.");
