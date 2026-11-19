@@ -6,7 +6,7 @@ It covers Cursor on macOS, Windows, and Linux. It doesn't cover settings you con
 
 ## Prerequisites
 
-- Cursor 2.0 or later on your hosts
+- Cursor 2.1 or later on your hosts
 - A Cursor Teams or Enterprise plan, for the team ID policy
 - fleetd 1.59.0 or later, which adds the `ai_tools` table
 - `jq` on your macOS and Linux hosts, for the MCP hook (macOS 15 and later include it at `/usr/bin/jq`)
@@ -74,14 +74,16 @@ Generate new UUIDs for both `PayloadUUID` values and change `com.example` to you
 
 ### Windows
 
-Cursor reads policy from `HKLM\SOFTWARE\Policies\Microsoft\Cursor`. Every policy in this example is a string.
+Cursor reads policy from `HKLM\SOFTWARE\Policies\Cursor\Cursor`. Every policy in this example is a string.
+
+> **Note:** Cursor 2.1 moved its policies to this key. Cursor still reads the older `HKLM\SOFTWARE\Policies\Microsoft\Cursor` key, but checks the new one first, so set policies in one place only.
 
 Save this as `cursor-settings.ps1`:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 
-$key = 'HKLM:\SOFTWARE\Policies\Microsoft\Cursor'
+$key = 'HKLM:\SOFTWARE\Policies\Cursor\Cursor'
 $allowedExtensions = '{"anysphere": true, "github": true, "esbenp.prettier-vscode": true}'
 
 # Stop here if the JSON is invalid, so a bad policy never reaches a host.
@@ -243,7 +245,7 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 ### GitOps
 
 1. Save the profile in `platforms/macos/configuration-profiles/`, where the `fleets/workstations.yml` file from `fleetctl new` already picks up `.mobileconfig` files.
-2. Save the scripts in `lib/cursor/` and add them to your fleet file, for example `fleets/workstations.yml`:
+2. Save the scripts in `lib/cursor/` and add them to the existing `controls.scripts` list in your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
    controls:
@@ -267,7 +269,7 @@ Each policy below passes when the host has your settings. A host that fails gets
    - On macOS, run `shasum -a 256 "/Library/Application Support/Cursor/hooks/mcp-allowlist.sh"`.
    - On Windows, run `(Get-FileHash 'C:\ProgramData\Cursor\hooks\mcp-allowlist.ps1').Hash.ToLower()`.
    The Linux hook script is the same file as on macOS, so it has the same hash.
-3. Add the policies to your fleet file, replacing `<sha256-sh>` and `<sha256-ps1>` with those hashes:
+3. Add the policies to the existing `policies` list in your fleet file, replacing `<sha256-sh>` and `<sha256-ps1>` with those hashes:
 
    ```yaml
    policies:
@@ -275,7 +277,7 @@ Each policy below passes when the host has your settings. A host that fails gets
        platform: windows
        description: Checks that the Cursor policies from Git are in the registry.
        resolution: Fleet reapplies the policies automatically. To do it yourself, run cursor-settings.ps1 from Fleet.
-       query: "SELECT COUNT(*) AS applied FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Cursor' AND name IN ('AllowedExtensions', 'AllowedTeamId') HAVING applied = 2;"
+       query: "SELECT COUNT(*) AS applied FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Cursor\\Cursor' AND name IN ('AllowedExtensions', 'AllowedTeamId') HAVING applied = 2;"
        run_script:
          path: ../lib/cursor/cursor-settings.ps1
      - name: Cursor MCP hook current (macOS)
