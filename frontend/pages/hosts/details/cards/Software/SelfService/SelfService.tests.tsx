@@ -296,7 +296,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             installed_versions: null,
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "1.1.0",
             }),
           }),
@@ -320,7 +320,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             installed_versions: [DEFAULT_INSTALLED_VERSION], // "1.0.0"
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "1.1.0",
             }),
           }),
@@ -392,7 +392,7 @@ describe("SelfService", () => {
         installed_versions: [
           { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
         ],
-        software_package: createMockHostSoftwarePackage({
+        package: createMockHostSoftwarePackage({
           version: "2.0.0",
           last_install: {
             install_uuid: "abc-123",

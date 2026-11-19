@@ -134,6 +134,10 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
   HOST_CERTIFICATES: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/certificates`,
+  HOST_AI_SESSIONS: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions`,
+  HOST_AI_SESSION_EVENTS: (id: number, aiSessionId: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions/${aiSessionId}/events`,
   HOST_DEVICE_MAPPING: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>
@@ -194,7 +198,6 @@ export default {
   MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
@@ -311,9 +314,6 @@ export default {
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
   STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,
   TARGETS: `/${API_VERSION}/fleet/targets`,
-  TEAM_POLICIES: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
-  },
   TEAMS: `/${API_VERSION}/fleet/fleets`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/agent_options`;

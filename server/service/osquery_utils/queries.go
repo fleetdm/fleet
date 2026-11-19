@@ -34,7 +34,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
@@ -71,12 +70,7 @@ type DetailQuery struct {
 	IngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data stored in a separate table.
-	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
-	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
-	// ingest the results. This is for ingestion that can be either sync or async.
-	// DirectIngestFunc must not be set if this is set.
-	DirectTaskIngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -1250,7 +1244,7 @@ SELECT
 FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("vscode_extensions"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1269,7 +1263,7 @@ SELECT
 FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("jetbrains_plugins"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1315,7 +1309,7 @@ SELECT
 FROM adobe_plugins`,
 	Platforms: []string{"darwin", "windows"},
 	Discovery: discoveryTable("adobe_plugins"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1324,8 +1318,8 @@ var scheduledQueryStats = DetailQuery{
 			SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
-	DirectTaskIngestFunc: directIngestScheduledQueryStats,
-	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+	DirectIngestFunc: directIngestScheduledQueryStats,
+	Platforms:        append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
 // softwareLinuxPacman splits pacman's "[epoch:]pkgver-pkgrel" version the way
@@ -1354,7 +1348,7 @@ SELECT
 FROM packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1380,7 +1374,7 @@ SELECT
 FROM fleetd_nix_packages`,
 	Platforms: []string{"nixos"},
 	Discovery: discoveryTable("fleetd_nix_packages"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1410,7 +1404,7 @@ SELECT
 FROM go_binaries`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("go_binaries"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// Has no IngestFunc or DirectIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
@@ -1462,7 +1456,7 @@ WHERE type IN ('agents', 'mcp_server', 'agent_instruction', 'skill', 'apps', 'id
   AND NOT (type = 'mcp_server' AND source = 'process')`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("ai_tools"),
-	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because preProcessSoftwareResults
+	// Has no IngestFunc or DirectIngestFunc because preProcessSoftwareResults
 	// merges its results into the main software query using AIToolsProcessResults, which needs the
 	// host's platform.
 }
@@ -2511,7 +2505,7 @@ func directIngestEntraJoinUser(
 	return nil
 }
 
-func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
+func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
 		providedName := row["name"]
@@ -2582,8 +2576,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, h
 			},
 		)
 	}
-	if err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, packStats, time.Now()); err != nil {
-		return ctxerr.Wrap(ctx, err, "record host pack stats")
+	if err := ds.SaveHostPackStats(ctx, host.TeamID, host.ID, packStats); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host pack stats")
 	}
 
 	return nil
@@ -3560,7 +3554,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (fleet/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
 			"host", host.Hostname)
@@ -3692,7 +3686,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host fleet/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
 			"host", host.Hostname)
@@ -3976,7 +3970,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
 	}
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
-		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+		"host_id", hostID, "fleet_id", *teamID, "fleet_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
 }
 
@@ -4441,9 +4435,16 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	// IdP host vitals are a premium feature.
+	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
+		if appConfig == nil || !appConfig.ServerSettings.AISessionsDisabled {
+			generatedMap["ai_agent_sessions"] = aiAgentSessions
+			if fleetConfig.Osquery.AISessionMaxToolCalls > 0 {
+				generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
+					fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+			}
+		}
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

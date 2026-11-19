@@ -8,6 +8,18 @@ import (
 func init() {
 	endpointer.SetRemovedKeyMessage(removedKeyMessage)
 	endpointer.SetDeletedKeyRules(deletedKeyRules())
+	endpointer.SetRemovedNames(requestNames(removednames.KindJSONKey), requestNames(removednames.KindQueryParam),
+		requestNames(removednames.KindSortKey), []string{"/osquery/", "/orbit/", "/fleetd/", "/device/"})
+	endpointer.SetRemovedFormFields(requestNames(removednames.KindFormField))
+}
+
+// requestNames lists the removed names of a kind that a request can no longer send.
+func requestNames(kind removednames.Kind) []string {
+	var names []string
+	for _, entry := range removednames.Filter(kind, removednames.ScopeRequest) {
+		names = append(names, entry.Old)
+	}
+	return names
 }
 
 // removedKeyMessage words a removed request key with its pkg/removednames entry.

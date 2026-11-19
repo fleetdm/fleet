@@ -733,7 +733,7 @@ func TestEnrollOsqueryDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -794,7 +794,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 
 func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	cfg := config.TestConfig()
 	cfg.WebSocket.TransportEnabled = true
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Task: task})
@@ -981,7 +981,7 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 
 func TestAuthenticateHostRejectsNonOsqueryPlatforms(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -2279,6 +2279,9 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
+	}
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
+		return nil, nil
 	}
 
 	lq := live_query_mock.New(t)
@@ -5012,11 +5015,21 @@ func TestPolicyWebhooks(t *testing.T) {
 			},
 			WebhookSettings: fleet.WebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					Enable:    true,
-					PolicyIDs: []uint{1, 2, 3},
+					Enable: true,
 				},
 			},
 		}, nil
+	}
+
+	// Policies 1, 2 and 3 are "All fleets" policies with the webhook or ticket automation on.
+	ds.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+		var policies []fleet.PolicyIDAndTeam
+		for _, id := range policyIDs {
+			if id >= 1 && id <= 3 {
+				policies = append(policies, fleet.PolicyIDAndTeam{ID: id})
+			}
+		}
+		return policies, nil
 	}
 
 	// Since the host doesn't have a team, DefaultTeamConfig will be called
@@ -5027,8 +5040,7 @@ func TestPolicyWebhooks(t *testing.T) {
 				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-							Enable:    true,
-							PolicyIDs: []uint{1, 2, 3},
+							Enable: true,
 						},
 					},
 				},
@@ -7842,4 +7854,59 @@ func TestPolicyAutomationSkipsDeletedInstaller(t *testing.T) {
 			require.Equal(t, []uint{200}, queued)
 		})
 	}
+}
+
+func TestWebhookAndTicketPolicyResults(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	ctx := t.Context()
+
+	// Policies 1 (global) and 10, 11 (the host's fleet) have the automation on.
+	var filterCalls [][]uint
+	ds.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+		filterCalls = append(filterCalls, policyIDs)
+		var out []fleet.PolicyIDAndTeam
+		for _, id := range policyIDs {
+			switch id {
+			case 1:
+				out = append(out, fleet.PolicyIDAndTeam{ID: id})
+			case 10, 11:
+				out = append(out, fleet.PolicyIDAndTeam{ID: id, TeamID: new(uint(3))})
+			}
+		}
+		return out, nil
+	}
+	teamEnabled := true
+	var teamLoads int
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		teamLoads++
+		require.Equal(t, uint(3), id)
+		return &fleet.TeamLite{ID: id, Config: fleet.TeamConfigLite{WebhookSettings: fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: teamEnabled},
+		}}}, nil
+	}
+	globalOn := &fleet.AppConfig{WebhookSettings: fleet.WebhookSettings{FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true}}}
+	results := map[uint]*bool{1: new(false), 2: new(false), 10: new(true), 11: new(false), 12: new(true)}
+
+	// No flipped policies: no lookup at all.
+	require.Empty(t, svc.webhookAndTicketPolicyResults(ctx, globalOn, results, nil, nil))
+	require.Empty(t, filterCalls)
+	require.Zero(t, teamLoads)
+
+	// Only the flipped IDs are looked up, and the fleet is loaded once.
+	got := svc.webhookAndTicketPolicyResults(ctx, globalOn, results, []uint{1, 2, 11}, []uint{10, 12})
+	require.Equal(t, [][]uint{{1, 2, 11, 10, 12}}, filterCalls)
+	require.Equal(t, map[uint]*bool{1: new(false), 10: new(true), 11: new(false)}, got)
+	require.Equal(t, 1, teamLoads)
+
+	// A scope whose destinations are off sends nothing.
+	teamEnabled = false
+	got = svc.webhookAndTicketPolicyResults(ctx, &fleet.AppConfig{}, results, []uint{1, 11}, []uint{10})
+	require.Empty(t, got)
+
+	// Only global policies flipped: the fleet isn't loaded.
+	teamLoads = 0
+	got = svc.webhookAndTicketPolicyResults(ctx, globalOn, results, []uint{1}, nil)
+	require.Equal(t, map[uint]*bool{1: new(false)}, got)
+	require.Zero(t, teamLoads)
 }

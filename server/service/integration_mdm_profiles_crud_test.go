@@ -94,7 +94,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t, filename, mobileconfigForTest(name, ident), s.token, fields,
@@ -117,7 +117,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration := func(filename, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
 		bytes := []byte(fmt.Sprintf(`{
@@ -176,7 +176,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertWindowsProfile := func(filename, locURI string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t,
@@ -217,7 +217,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile := func(filename string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
 		bytes := []byte(`{
@@ -318,7 +318,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
 		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
-		assertAppleDeclaration(name+".json", name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %q is not allowed`, name))
+		assertAppleDeclaration(name+".json", name+"-ident", 0, nil, http.StatusUnprocessableEntity, fmt.Sprintf(`name %q is not allowed`, name))
 		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't add. Profile name %q is not allowed.`, name))
 	}
 
@@ -690,6 +690,12 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusOK, &deleteResp)
 	}
 
+	assertGetReservedFails := func(uid string) {
+		var getResp getMDMConfigProfileResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uid), nil, http.StatusBadRequest, &getResp)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uid), nil, http.StatusBadRequest, "alt", "media")
+	}
+
 	// A declaration that uses a Fleet-reserved name stays protected from deletion
 	// through this endpoint. The reserved-name check is the sole Fleet-managed
 	// gate on the delete path, so make sure removing the upload-time validation
@@ -697,16 +703,18 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	{
 		reservedName := servermdm.FleetMacOSUpdatesProfileName
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-		rawJSON := `{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":"com.fleet.reserved","Payload":{}}`
+		reservedIdent := apple_mdm.MacOSDDMSoftwareUpdateIdentifier
+		rawJSON := fmt.Sprintf(`{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":%q,"Payload":{}}`, reservedIdent)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				"INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json, scope, uploaded_at, team_id) VALUES (?, ?, ?, ?, ?, NOW(6), 0)",
-				declUUID, "com.fleet.reserved", reservedName, rawJSON, fleet.PayloadScopeSystem)
+				declUUID, reservedIdent, reservedName, rawJSON, fleet.PayloadScopeSystem)
 			return err
 		})
 
 		var deleteResp deleteMDMConfigProfileResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusBadRequest, &deleteResp)
+		assertGetReservedFails(declUUID)
 
 		// the API refused to delete it, so remove the seeded row directly
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -725,6 +733,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// try to delete the profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profile.ProfileUUID), nil, http.StatusBadRequest, &deleteResp)
+	assertGetReservedFails(profile.ProfileUUID)
 
 	// make fleet add a Windows OS Updates profile
 	acResp = appConfigResponse{}
@@ -737,6 +746,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profUUID), nil, http.StatusBadRequest, &deleteResp)
 	require.Empty(t, deleteResp.Warning)
+	assertGetReservedFails(profUUID)
 
 	// TODO: Add tests for OS updates declaration when implemented.
 }
@@ -1418,12 +1428,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	})
 
 	// make hosts members of labels [1], [2], [3] and [4], meaning that none of the profiles apply anymore
-	err = s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, appleHost.ID},
-		{labels[2].ID, appleHost.ID},
-		{labels[3].ID, appleHost.ID},
-		{labels[4].ID, appleHost.ID},
-	})
+	err = s.ds.AddLabelsToHost(ctx, appleHost.ID, []uint{labels[1].ID, labels[2].ID, labels[3].ID, labels[4].ID})
 	require.NoError(t, err)
 
 	s.awaitTriggerProfileSchedule(t)
@@ -1439,9 +1444,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	// remove membership of [4] for Apple, meaning
 	// that only D3 will be installed on Apple (as the Windows host is still
 	// member of an excluded label)
-	err = s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[4].ID, appleHost.ID},
-	})
+	err = s.ds.RemoveLabelsFromHost(ctx, appleHost.ID, []uint{labels[4].ID})
 	require.NoError(t, err)
 
 	s.awaitTriggerProfileSchedule(t)
@@ -1504,7 +1507,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// simulate reporting label results for the new host, otherwise exclude-any
 	// profiles are withheld until label membership is known
-	require.NoError(t, s.ds.AsyncBatchUpdateLabelTimestamp(ctx, []uint{appleHost2.ID}, time.Now()))
+	appleHost2.LabelUpdatedAt = time.Now()
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, appleHost2, map[uint]*bool{}, appleHost2.LabelUpdatedAt, false))
 	s.awaitRunAppleMDMWorkerSchedule()
 	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost2.UUID)
 	require.NoError(t, err)
@@ -1622,17 +1626,9 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 
 	// make hosts members of labels [1], [2], [3] and [4], meaning that each of the "include any"
 	// labels will now match at least one host
-	err = s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[0].ID, appleHost.ID},
-		{labels[1].ID, appleHost.ID},
-		{labels[2].ID, appleHost.ID},
-		{labels[3].ID, appleHost.ID},
-		{labels[4].ID, appleHost.ID},
-		{labels[1].ID, windowsHost.ID},
-		{labels[2].ID, windowsHost.ID},
-		{labels[3].ID, windowsHost.ID},
-		{labels[4].ID, windowsHost.ID},
-	})
+	err = s.ds.AddLabelsToHost(ctx, appleHost.ID, []uint{labels[0].ID, labels[1].ID, labels[2].ID, labels[3].ID, labels[4].ID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, windowsHost.ID, []uint{labels[1].ID, labels[2].ID, labels[3].ID, labels[4].ID})
 	require.NoError(t, err)
 
 	triggerReconcileProfiles()
@@ -1653,11 +1649,9 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	// remove membership of labels [2] for Windows, and [1] and [4] for Apple, meaning
 	// that D3 will be removed on Apple, A1 will remain on Apple because the host is still a member
 	// of [0], and W2 will remain on Windows because the host is still a member of [3]
-	err = s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, appleHost.ID},
-		{labels[4].ID, appleHost.ID},
-		{labels[2].ID, windowsHost.ID},
-	})
+	err = s.ds.RemoveLabelsFromHost(ctx, appleHost.ID, []uint{labels[1].ID, labels[4].ID})
+	require.NoError(t, err)
+	err = s.ds.RemoveLabelsFromHost(ctx, windowsHost.ID, []uint{labels[2].ID})
 	require.NoError(t, err)
 
 	s.awaitTriggerProfileSchedule(t)
@@ -2101,7 +2095,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 }`)
 
 	fields := make(map[string][]string)
-	fields["team_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
+	fields["fleet_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
 	body, headers := generateNewProfileMultipartRequest(t, "remove-user-disabled.json", bytes, s.token, fields)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	require.NotNil(t, res)
@@ -2178,7 +2172,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	teamFields := func(extra map[string][]string) map[string][]string {
-		fields := map[string][]string{"team_id": {fmt.Sprint(team.ID)}}
+		fields := map[string][]string{"fleet_id": {fmt.Sprint(team.ID)}}
 		maps.Copy(fields, extra)
 		return fields
 	}
@@ -2389,7 +2383,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	teamID := fmt.Sprint(team.ID)
 
 	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
-		fields["team_id"] = []string{teamID}
+		fields["fleet_id"] = []string{teamID}
 		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
 		defer res.Body.Close()

@@ -2,7 +2,7 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 
 import { Ace } from "ace-builds";
-import { size } from "lodash";
+import { omit, size } from "lodash";
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -57,7 +57,7 @@ import {
   PatchOptionSelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import PATHS from "router/paths";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -80,10 +80,7 @@ interface IPolicyFormProps {
   isStoredPolicyLoading: boolean;
   isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
-  onCreatePolicy: (
-    formData: IPolicyFormData,
-    saveAutomations?: (newPolicy: IPolicy) => Promise<void>
-  ) => void;
+  onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   // Returns a Promise so the form can sequence the automations save AFTER the
@@ -230,7 +227,7 @@ const PolicyForm = ({
     isFreeTier,
   } = useContext(AppContext);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
   const aiFeaturesDisabled =
     config?.server_settings.ai_features_disabled || false;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
@@ -326,12 +323,14 @@ const PolicyForm = ({
   }
 
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const storedConditionalAccess =
+    storedPolicy?.automation_type === "conditional_access";
   const [conditionalAccessOn, setConditionalAccessOn] = useState(
-    storedPolicy?.conditional_access_enabled ?? false
+    storedConditionalAccess
   );
   useEffect(() => {
-    setConditionalAccessOn(storedPolicy?.conditional_access_enabled ?? false);
-  }, [storedPolicy?.conditional_access_enabled]);
+    setConditionalAccessOn(storedConditionalAccess);
+  }, [storedConditionalAccess]);
   useEffect(() => {
     if (conditionalAccessOn) {
       setLastEditedQueryHidden(false);
@@ -343,9 +342,6 @@ const PolicyForm = ({
     isLoading: isSavingAutomations,
   } = useUpdatePolicyAutomations({
     policy: storedPolicy,
-    teamIdForApi: automationsTeamId,
-    isGlobalPolicy,
-    automationsConfig,
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
@@ -453,9 +449,8 @@ const PolicyForm = ({
     }
     setIsAddingAutomation(true);
     try {
-      await teamPoliciesAPI.update(policyIdForEdit as number, {
-        fleet_id: storedPolicy.fleet_id,
-        software_title_id: storedPolicy.patch_software.software_title_id,
+      await policiesAPI.update(policyIdForEdit as number, {
+        automation_type: "software",
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
       notify.success("Automation added.");
@@ -493,16 +488,21 @@ const PolicyForm = ({
     if (isEditMode) {
       automations = automationsRef.current?.getAutomationsPayload();
       if (!automations && isPremiumTier && isPatchPolicy) {
+        const patchFlags = getPatchPolicyFlags(patchOption, endUserExperience);
+        // Like the loaded fields: manual patching keeps another automation
+        // (e.g. a script) and its continuous setting.
+        const keepsOtherAutomation =
+          patchOption === "manual" &&
+          storedPolicy?.automation_type !== "software";
         automations = {
           isValid: true,
           isDirty: true,
-          policyUpdate: {
-            software_title_id:
-              patchOption === "manual"
-                ? null
-                : storedPolicy?.patch_software?.software_title_id ?? null,
-            ...getPatchPolicyFlags(patchOption, endUserExperience),
-          },
+          policyUpdate: keepsOtherAutomation
+            ? omit(patchFlags, "continuous_automations_enabled")
+            : {
+                automation_type: patchOption === "manual" ? null : "software",
+                ...patchFlags,
+              },
         };
       }
       if (automations && !automations.isValid) {
@@ -515,20 +515,23 @@ const PolicyForm = ({
     // automations write is always the LAST write to the policy. This matters
     // for patch policies, where the backend re-links install_software to
     // patch_software whenever a patch policy is updated.
+    // The core PATCH lands before the automations PATCH, and the backend
+    // validates hidden against the stored conditional access value, so turning
+    // conditional access off has to travel with the core update or hidden is
+    // rejected.
+    const disablesConditionalAccess =
+      storedPolicy?.automation_type === "conditional_access" &&
+      !!automations?.policyUpdate &&
+      automations.policyUpdate.automation_type !== "conditional_access";
     const persistAutomations = () => {
-      if (automations?.isDirty) {
-        saveAutomations({
-          policyUpdate: automations.policyUpdate,
-          webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
-        });
+      if (
+        automations?.isDirty &&
+        automations.policyUpdate &&
+        !disablesConditionalAccess
+      ) {
+        saveAutomations({ policyUpdate: automations.policyUpdate });
       }
     };
-
-    // The core PATCH lands before the automations PATCH, and the backend
-    // validates hidden against the stored conditional access value, so a
-    // disable has to travel with the core update or hidden is rejected.
-    const disablesConditionalAccess =
-      automations?.policyUpdate?.conditional_access_enabled === false;
 
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
@@ -541,7 +544,7 @@ const PolicyForm = ({
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
         if (disablesConditionalAccess) {
-          payload.conditional_access_enabled = false;
+          Object.assign(payload, automations?.policyUpdate);
         }
       }
       await onUpdate(payload);
@@ -586,7 +589,7 @@ const PolicyForm = ({
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
         if (disablesConditionalAccess) {
-          payload.conditional_access_enabled = false;
+          Object.assign(payload, automations?.policyUpdate);
         }
       }
       await onUpdate(payload);
@@ -778,11 +781,11 @@ const PolicyForm = ({
     if (!fleetName) return null;
 
     return isEditMode ? (
-      <p>
+      <p className={`${baseClass}__fleet-name`}>
         Editing policy for <strong>{fleetName}</strong>.
       </p>
     ) : (
-      <p>
+      <p className={`${baseClass}__fleet-name`}>
         Creating a new policy for <strong>{fleetName}</strong>.
       </p>
     );
@@ -864,8 +867,7 @@ const PolicyForm = ({
             />
           )}
           {showAutomationsBlock && (
-            <div className="form-field">
-              <div className="form-field__label">Automations</div>
+            <div className={`${baseClass}__automation`}>
               {!(isPremiumTier && isPatchPolicy) && (
                 <PatchAutomationCta
                   storedPolicy={storedPolicy}

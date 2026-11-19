@@ -25,6 +25,7 @@ func TestAndroidZeroTouch(t *testing.T) {
 		{"ConcurrentCreate", testZeroTouchConcurrentCreate},
 		{"DeleteAll", testZeroTouchDeleteAll},
 		{"DeleteFleetCascades", testZeroTouchDeleteFleetCascades},
+		{"Replace", testZeroTouchReplace},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -224,4 +225,58 @@ func testZeroTouchDeleteFleetCascades(t *testing.T, ds *Datastore) {
 	unassigned, err := ds.GetZeroTouchEnrollmentToken(testCtx(), nil)
 	require.NoError(t, err)
 	assert.Equal(t, "value0", unassigned.TokenValue)
+}
+
+func testZeroTouchReplace(t *testing.T, ds *Datastore) {
+	expiresAt := time.Now().Add(100 * 365 * 24 * time.Hour).Truncate(time.Microsecond)
+	team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-replace-team"})
+	require.NoError(t, err)
+
+	legacyUnassigned, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
+		TokenName: "enterprises/e/enrollmentTokens/legacy-unassigned", TokenValue: "legacy-unassigned", ExpiresAt: expiresAt,
+	})
+	require.NoError(t, err)
+	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
+		TeamID: &team.ID, TokenName: "enterprises/e/enrollmentTokens/legacy-team", TokenValue: "legacy-team", ExpiresAt: expiresAt,
+	})
+	require.NoError(t, err)
+
+	got, err := ds.GetZeroTouchEnrollmentToken(testCtx(), &team.ID)
+	require.NoError(t, err)
+	require.False(t, got.UsesFleetPolicy)
+
+	replacement := &android.ZeroTouchToken{
+		TeamID: &team.ID, TokenName: "enterprises/e/enrollmentTokens/new-team", TokenValue: "new-team", ExpiresAt: expiresAt, UsesFleetPolicy: true,
+	}
+	replaced, err := ds.ReplaceZeroTouchEnrollmentToken(testCtx(), "enterprises/e/enrollmentTokens/legacy-team", replacement)
+	require.NoError(t, err)
+	assert.Equal(t, got.ID, replaced.ID)
+	assert.Equal(t, "enterprises/e/enrollmentTokens/new-team", replaced.TokenName)
+	assert.Equal(t, "new-team", replaced.TokenValue)
+	assert.True(t, replaced.UsesFleetPolicy)
+
+	// A concurrent replacement that read the old name loses and gets the stored token back.
+	loser := &android.ZeroTouchToken{
+		TeamID: &team.ID, TokenName: "enterprises/e/enrollmentTokens/loser", TokenValue: "loser", ExpiresAt: expiresAt, UsesFleetPolicy: true,
+	}
+	stored, err := ds.ReplaceZeroTouchEnrollmentToken(testCtx(), "enterprises/e/enrollmentTokens/legacy-team", loser)
+	require.NoError(t, err)
+	assert.Equal(t, "new-team", stored.TokenValue)
+
+	// The other fleet's token is untouched.
+	gotUnassigned, err := ds.GetZeroTouchEnrollmentToken(testCtx(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, legacyUnassigned.TokenValue, gotUnassigned.TokenValue)
+	assert.False(t, gotUnassigned.UsesFleetPolicy)
+
+	// Creating with the flag set stores it.
+	otherTeam, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-replace-other"})
+	require.NoError(t, err)
+	_, err = ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
+		TeamID: &otherTeam.ID, TokenName: "enterprises/e/enrollmentTokens/fresh", TokenValue: "fresh", ExpiresAt: expiresAt, UsesFleetPolicy: true,
+	})
+	require.NoError(t, err)
+	gotOther, err := ds.GetZeroTouchEnrollmentToken(testCtx(), &otherTeam.ID)
+	require.NoError(t, err)
+	assert.True(t, gotOther.UsesFleetPolicy)
 }

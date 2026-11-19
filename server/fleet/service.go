@@ -551,6 +551,13 @@ type Service interface {
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
 
+	// ListHostAISessions lists the AI agent sessions on the specified host.
+	ListHostAISessions(ctx context.Context, hostID uint, opts HostAISessionListOptions) ([]*HostAISession, *PaginationMetadata, error)
+	// GetHostAISession returns an AI agent session on the specified host.
+	GetHostAISession(ctx context.Context, hostID, aiSessionID uint) (*HostAISession, error)
+	// ListHostAISessionEvents lists the events of an AI agent session on the specified host.
+	ListHostAISessionEvents(ctx context.Context, hostID, aiSessionID uint, opts HostAISessionEventListOptions) ([]*HostAISessionEvent, *PaginationMetadata, error)
+
 	// GetHostRecoveryLockPassword retrieves the recovery lock password for the specified host.
 	// Requires admin or maintainer role and MDM to be enabled.
 	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)
@@ -791,6 +798,17 @@ type Service interface {
 
 	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
+	// ListPolicies lists the policies of a scope: a nil teamID is "All fleets", 0 is "Unassigned". With mergeInherited, a
+	// fleet's list also has the "All fleets" policies.
+	ListPolicies(ctx context.Context, teamID *uint, mergeInherited bool, opts ListOptions, filter PolicyListFilter) ([]*Policy, error)
+	// CountPolicies counts the policies ListPolicies returns.
+	CountPolicies(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter PolicyListFilter) (int, error)
+	// NewPolicy creates a policy in the scope of the request's fleet_id.
+	NewPolicy(ctx context.Context, req CreatePolicyRequest) (*Policy, error)
+	// ModifyPolicy updates a policy in any scope.
+	ModifyPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
+	// DeletePolicies deletes policies from any scopes, or none if the user can't delete one of them.
+	DeletePolicies(ctx context.Context, ids []uint) ([]uint, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
@@ -1030,26 +1048,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
-	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
-
-	// GetMDMAppleInstallerByID returns the installer details of an installer, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil).
-	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
-
-	// DeleteMDMAppleInstaller deletes an Apple installer from Fleet.
-	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
-
-	// GetMDMAppleInstallerByToken returns the installer with its contents included (MDMAppleInstaller.Installer) from its secret token.
-	GetMDMAppleInstallerByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// GetMDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil) from its secret token.
-	GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// ListMDMAppleInstallers lists all the uploaded installers.
-	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
 	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)

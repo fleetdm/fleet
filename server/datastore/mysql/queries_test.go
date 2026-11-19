@@ -215,6 +215,45 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, fleet.ErrQueryInvalidPlatform)
 }
 
+func TestDeleteQueryStatsInBatches(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	setDeleteQueryStatsBatchSize(t, 2)
+	var batches int
+	deleteQueryStatsAfterBatchHook = func(d *Datastore) {
+		if d == ds {
+			batches++
+		}
+	}
+	t.Cleanup(func() { deleteQueryStatsAfterBatchHook = nil })
+
+	q1 := test.NewQuery(t, ds, nil, "q1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, nil, "q2", "select 2", 0, true)
+	kept := test.NewQuery(t, ds, nil, "kept", "select 3", 0, true)
+	for _, id := range []uint{q1.ID, q2.ID, kept.ID} {
+		for hostID := 1; hostID <= 3; hostID++ {
+			_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO scheduled_query_stats
+				(host_id, scheduled_query_id, average_memory, executions, output_size, system_time, user_time, wall_time)
+				VALUES (?, ?, 1, 1, 1, 1, 1, 1)`, hostID, id)
+			require.NoError(t, err)
+		}
+	}
+	require.NoError(t, ds.UpdateQueryAggregatedStats(ctx))
+
+	ds.deleteQueryStats(ctx, []uint{q1.ID, q2.ID})
+
+	// 3 rows per query with a batch size of 2 take 2 deletes each.
+	require.Equal(t, 4, batches)
+	var statIDs []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &statIDs, `SELECT scheduled_query_id FROM scheduled_query_stats`))
+	require.Equal(t, []uint{kept.ID, kept.ID, kept.ID}, statIDs)
+	var aggregatedIDs []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &aggregatedIDs,
+		`SELECT id FROM aggregated_stats WHERE type = ?`, fleet.AggregatedStatsTypeScheduledQuery))
+	require.Equal(t, []uint{kept.ID}, aggregatedIDs)
+}
+
 func testQueriesDelete(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 

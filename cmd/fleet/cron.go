@@ -1381,11 +1381,12 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name                          = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval               = 1 * time.Hour
-		expiredHostsCleanupMaxRunTime = 10 * time.Minute
-		expiredHostsCleanupBatchSize  = 5000
-		installerCleanupMaxRunTime    = 10 * time.Minute
+		name                            = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval                 = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime   = 10 * time.Minute
+		hostAISessionsCleanupMaxRunTime = 3 * time.Minute
+		expiredHostsCleanupBatchSize    = 5000
+		installerCleanupMaxRunTime      = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1668,6 +1669,13 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
 			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
+		schedule.WithJob("cleanup_host_ai_sessions", func(ctx context.Context) error {
+			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge), hostAISessionsCleanupMaxRunTime)
+			if deleted > 0 {
+				logger.InfoContext(ctx, "cleaned up host ai sessions", "count", deleted)
+			}
+			return err
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
@@ -1942,7 +1950,7 @@ func newChartDataCollectionSchedule(
 				fleet.ListOptions{},
 			)
 			if err != nil {
-				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				logger.ErrorContext(ctx, "list fleets for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
 			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
@@ -2299,6 +2307,7 @@ func newAndroidMDMProfileManagerSchedule(
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
 	redisPool fleet.RedisPool,
+	oneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -2311,7 +2320,8 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter,
+				android_svc.WithReconcileOneTimeEnrollSecrets(oneTimeEnrollSecrets))
 		}),
 	)
 

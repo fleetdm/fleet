@@ -62,7 +62,6 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.1
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-ini/ini v1.67.0
 	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/go-kit/kit v0.12.0
@@ -80,7 +79,6 @@ require (
 	github.com/google/go-tpm v0.9.8
 	github.com/google/uuid v1.6.0
 	github.com/goreleaser/nfpm/v2 v2.47.0
-	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
@@ -131,7 +129,6 @@ require (
 	github.com/sassoftware/relic/v8 v8.0.1
 	github.com/scim2/filter-parser/v2 v2.2.0
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
-	github.com/sethvargo/go-password v0.3.0
 	github.com/shirou/gopsutil/v4 v4.26.2
 	github.com/shogo82148/rdsmysql/v2 v2.5.0
 	github.com/siderolabs/go-blockdevice/v2 v2.0.3
@@ -153,19 +150,18 @@ require (
 	github.com/ziutek/mymysql v1.5.4
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1
-	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.71.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
-	go.opentelemetry.io/otel v1.46.0
+	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.22.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.46.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.46.0
-	go.opentelemetry.io/otel/log v0.22.0
-	go.opentelemetry.io/otel/metric v1.46.0
-	go.opentelemetry.io/otel/sdk v1.46.0
-	go.opentelemetry.io/otel/sdk/log v0.22.0
-	go.opentelemetry.io/otel/sdk/metric v1.46.0
-	go.opentelemetry.io/otel/trace v1.46.0
+	go.opentelemetry.io/otel/log v1.47.0
+	go.opentelemetry.io/otel/metric v1.47.0
+	go.opentelemetry.io/otel/sdk v1.47.0
+	go.opentelemetry.io/otel/sdk/log v1.47.0
+	go.opentelemetry.io/otel/sdk/metric v1.47.0
+	go.opentelemetry.io/otel/trace v1.47.0
 	go.step.sm/crypto v0.77.1
 	golang.org/x/crypto v0.58.0
 	golang.org/x/exp v0.0.0-20260813180055-c1d0aacb2297
@@ -275,6 +271,7 @@ require (
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
+	github.com/go-git/go-git/v5 v5.19.2 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
@@ -297,6 +294,7 @@ require (
 	github.com/goreleaser/chglog v0.7.4 // indirect
 	github.com/goreleaser/fileglob v1.4.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

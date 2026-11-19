@@ -103,6 +103,12 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 			continue
 		}
 
+		for removed := range strings.SplitSeq(field.Tag.Get("removedkey"), ",") {
+			if removed = strings.TrimSpace(removed); removed != "" {
+				keys[removed] = fieldInfo{jsonName: removed, typ: field.Type, removed: true}
+			}
+		}
+
 		tag := field.Tag.Get("json")
 		if tag == "" || tag == "-" {
 			continue
@@ -131,12 +137,6 @@ func collectFields(t reflect.Type, keys map[string]fieldInfo) {
 			typ:      field.Type,
 			pathName: pathName,
 		}
-
-		for removed := range strings.SplitSeq(field.Tag.Get("removedkey"), ",") {
-			if removed = strings.TrimSpace(removed); removed != "" {
-				keys[removed] = fieldInfo{jsonName: removed, typ: field.Type, removed: true}
-			}
-		}
 	}
 }
 
@@ -150,9 +150,9 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 		"ipados_updates":   reflect.TypeFor[fleet.AppleOSUpdateSettings](),
 		"macos_migration":  reflect.TypeFor[fleet.MacOSMigration](),
 		"windows_updates":  reflect.TypeFor[fleet.WindowsUpdates](),
-		"macos_settings":   reflect.TypeFor[fleet.MacOSSettings](),
-		"windows_settings": reflect.TypeFor[fleet.WindowsSettings](),
-		"android_settings": reflect.TypeFor[fleet.AndroidSettings](),
+		"apple_settings":   reflect.TypeFor[fleet.GitOpsMacOSSettings](),
+		"windows_settings": reflect.TypeFor[fleet.GitOpsWindowsSettings](),
+		"android_settings": reflect.TypeFor[fleet.GitOpsAndroidSettings](),
 	},
 	reflect.TypeFor[GitOpsOrgSettings](): {
 		"certificate_authorities":     reflect.TypeFor[fleet.GroupedCertificateAuthorities](),

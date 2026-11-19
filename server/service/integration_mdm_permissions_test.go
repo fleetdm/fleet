@@ -91,7 +91,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			},
 			"enable_disk_encryption": true,
@@ -126,9 +126,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]any{
-				"custom_settings": []any{"foo", "bar"},
-			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -151,9 +148,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]any{
-				"custom_settings": []any{"foo", "bar"},
-			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -739,8 +733,8 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &gplr)
 
 	// Attempt to edit a global policy, should fail.
-	mgplr := fleet.ModifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyGlobalPolicyRequest{
+	mgplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from plist WHERE path = 'foo';"),
 	}, http.StatusForbidden, &mgplr)
 
@@ -957,7 +951,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		"test_prof",
 		mobileconfigForTest("test_prof", "test_prof"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprint(t1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 
@@ -1332,7 +1326,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		"test_prof",
 		mobileconfigForTest("test_prof2", "test_prof2"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprint(t1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 
