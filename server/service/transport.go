@@ -41,7 +41,6 @@ func uint32FromRequest(r *http.Request, name string) (uint32, error) {
 	return uint32(u), nil
 }
 
-
 // listOptionsFromRequest parses the list options from the request parameters
 func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	var err error

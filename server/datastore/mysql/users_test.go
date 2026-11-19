@@ -286,7 +286,7 @@ func testUsersNewInitialUser(t *testing.T, ds *Datastore) {
 	var existsErr *existsError
 	require.ErrorAs(t, err, &existsErr)
 
-	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
+	users, _, err := ds.ListUsers(ctx, fleet.UserListOptions{})
 	require.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, first.ID, users[0].ID)
@@ -308,7 +308,7 @@ func testUsersHas(t *testing.T, ds *Datastore) {
 	})
 
 	// fails right now due to SELECT *
-	_, err = ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	_, _, err = ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	assert.ErrorContains(t, err, "missing destination name settings2")
 
 	// should succeed since we are being pickier about what we select
@@ -326,16 +326,16 @@ func testUsersHas(t *testing.T, ds *Datastore) {
 func testUsersList(t *testing.T, ds *Datastore) {
 	createTestUsers(t, ds)
 
-	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	users, _, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	assert.NoError(t, err)
 	require.Len(t, users, 2)
 
-	users, err = ds.ListUsers(context.Background(), fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "jason"}})
+	users, _, err = ds.ListUsers(context.Background(), fleet.UserListOptions{MatchQuery: "jason"})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "jason@fleet.co", users[0].Email)
 
-	users, err = ds.ListUsers(context.Background(), fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "ike"}})
+	users, _, err = ds.ListUsers(context.Background(), fleet.UserListOptions{MatchQuery: "ike"})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "mike@fleet.co", users[0].Email)
@@ -373,7 +373,7 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), users[0])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(
+	users, _, err = ds.ListUsers(
 		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
@@ -403,7 +403,7 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), users[1])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(
+	users, _, err = ds.ListUsers(
 		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
@@ -420,7 +420,7 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), users[1])
 	require.NoError(t, err)
 
-	users, err = ds.ListUsers(
+	users, _, err = ds.ListUsers(
 		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},

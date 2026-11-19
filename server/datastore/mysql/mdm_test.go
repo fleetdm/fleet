@@ -1788,7 +1788,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "android desc", gotAndroid.Description)
 
-	appleListed, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	appleListed, _, err := ds.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, appleListed, 1)
 	require.Equal(t, "apple desc", appleListed[0].Description)

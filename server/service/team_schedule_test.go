@@ -159,7 +159,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.GetTeamScheduledQueries(ctx, 1, fleet.ListOptions{})
+			_, _, err := svc.GetTeamScheduledQueries(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.TeamScheduleQuery(ctx, 1, &fleet.ScheduledQuery{Interval: 10})

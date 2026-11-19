@@ -51,7 +51,8 @@ type GetQueryReportRequest struct {
 	ID     uint  `url:"id"`
 	TeamID *uint `query:"fleet_id,optional"`
 	// ListOptions supports page, per_page, order_key, order_direction and query.
-	// Results are paginated only when per_page is set; otherwise all rows are returned.
+	// HTTP requests always arrive bounded (omitted per_page gets the standard
+	// default); only internal callers with a zero PerPage get all rows.
 	ListOptions ListOptions `url:"list_options"`
 }
 

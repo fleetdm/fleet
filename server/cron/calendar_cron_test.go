@@ -130,7 +130,7 @@ func TestEventForDifferentHost(t *testing.T) {
 		}, nil
 	}
 	teamID1 := uint(1)
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		return []*fleet.Team{
 			{
 				ID: teamID1,
@@ -142,7 +142,7 @@ func TestEventForDifferentHost(t *testing.T) {
 					},
 				},
 			},
-		}, nil
+		}, nil, nil
 	}
 	policyID1 := uint(10)
 	ds.GetCalendarPoliciesFunc = func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
@@ -234,7 +234,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	}
 
 	teamID1 := uint(1)
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		return []*fleet.Team{
 			{
 				ID: teamID1,
@@ -247,7 +247,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 					},
 				},
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	policyID1 := uint(10)
@@ -424,7 +424,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	teamID3 := uint(3)
 	teamID4 := uint(4)
 	teamID5 := uint(5)
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		return []*fleet.Team{
 			{
 				ID: teamID1,
@@ -481,7 +481,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 					},
 				},
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	policyID1 := uint(10)
@@ -764,7 +764,7 @@ func TestEventBody(t *testing.T) {
 	}
 
 	teamID1 := uint(1)
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		return []*fleet.Team{
 			{
 				ID: teamID1,
@@ -777,7 +777,7 @@ func TestEventBody(t *testing.T) {
 					},
 				},
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	policyID1 := uint(10)

@@ -1620,7 +1620,7 @@ func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 
 	// Only 'All Hosts' label should be returned
-	labels, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
+	labels, _, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
 
@@ -1666,7 +1666,7 @@ func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 	require.NoError(t, err)
 
 	// should only show global labels
-	labels, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
+	labels, _, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, labels, 4)
 	labelsByID := make(map[uint]*fleet.Label)
@@ -1789,7 +1789,7 @@ func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 			}
 		})
 		t.Run(tc.name+" list", func(t *testing.T) {
-			ls, err := db.ListLabels(context.Background(), tc.filter, fleet.ListOptions{}, false)
+			ls, _, err := db.ListLabels(context.Background(), tc.filter, fleet.ListOptions{}, false)
 			if tc.expectedErr != nil {
 				require.ErrorContains(t, err, tc.expectedErr.Error())
 				return
@@ -2455,7 +2455,7 @@ func testAddDeleteLabelsToFromHost(t *testing.T, ds *Datastore) {
 }
 
 func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
-	allLbls, err := ds.ListLabels(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
+	allLbls, _, err := ds.ListLabels(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
 	require.Nil(t, err)
 	for _, lbl := range allLbls {
 		if lbl.Name == name {
@@ -4428,22 +4428,22 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 		"host_count",
 	} {
 		t.Run("order_"+key, func(t *testing.T) {
-			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, true)
+			labels, _, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, true)
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, len(labels), 3)
 		})
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
+		_, _, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
 		require.Error(t, err)
 	})
 
 	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {
-		page0, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 0}, false)
+		page0, _, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 0}, false)
 		require.NoError(t, err)
 		require.NotEmpty(t, page0)
-		page1, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 1}, false)
+		page1, _, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 1}, false)
 		require.NoError(t, err)
 		require.NotEmpty(t, page1)
 		require.NotEqual(t, page0[0].Name, page1[0].Name)

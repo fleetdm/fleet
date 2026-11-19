@@ -108,7 +108,7 @@ func testInvitesList(t *testing.T, ds *Datastore) {
 		OrderKey:       "name",
 	}
 
-	result, err := ds.ListInvites(context.Background(), opt)
+	result, _, err := ds.ListInvites(context.Background(), opt)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, len(result), 10)
@@ -118,7 +118,7 @@ func testInvitesList(t *testing.T, ds *Datastore) {
 
 	opt.Page = 2
 	opt.OrderDirection = fleet.OrderDescending
-	result, err = ds.ListInvites(context.Background(), opt)
+	result, _, err = ds.ListInvites(context.Background(), opt)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(result)) // allow for admin we created
 	assert.Equal(t, "User00", result[3].Name)

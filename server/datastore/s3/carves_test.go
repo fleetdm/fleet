@@ -51,7 +51,7 @@ func (s *stubCarveMetadataStore) CarveBySessionId(_ context.Context, _ string) (
 func (s *stubCarveMetadataStore) CarveByName(_ context.Context, _ string) (*fleet.CarveMetadata, error) {
 	return nil, nil
 }
-func (s *stubCarveMetadataStore) ListCarves(_ context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (s *stubCarveMetadataStore) ListCarves(_ context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 	s.listCarvesCalled = true
 	s.lastListOpts = opt
 	// Mirror the real datastore: honor ordering by created_at so the S3 listing
@@ -66,7 +66,7 @@ func (s *stubCarveMetadataStore) ListCarves(_ context.Context, opt fleet.CarveLi
 			return less
 		})
 	}
-	return carves, nil
+	return carves, nil, nil
 }
 func (s *stubCarveMetadataStore) NewBlock(_ context.Context, _ *fleet.CarveMetadata, _ int64, _ []byte) error {
 	return nil

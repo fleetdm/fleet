@@ -203,7 +203,7 @@ func testSessionsLastLoginAt(t *testing.T, ds *Datastore) {
 	// live sessions surface last activity (accessed_at); ListUsers also
 	// returns it
 	require.NotNil(t, got.LastActivityAt)
-	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	users, _, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	require.NoError(t, err)
 	require.Len(t, users, 1)
 	require.NotNil(t, users[0].LastActivityAt)

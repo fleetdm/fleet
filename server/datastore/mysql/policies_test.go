@@ -1596,7 +1596,7 @@ func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedPolicies.policyQueries, queries)
 			// ListPoliciesForHost is the endpoint used by fleet UI/API clients.
-			hostPolicies, err := ds.ListPoliciesForHost(context.Background(), tc.host)
+			hostPolicies, _, err := ds.ListPoliciesForHost(context.Background(), tc.host, fleet.ListOptions{}, false)
 			require.NoError(t, err)
 			sort.Slice(hostPolicies, func(i, j int) bool {
 				return hostPolicies[i].ID < hostPolicies[j].ID
@@ -1685,7 +1685,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	// Team policy ran with failing result.
 	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{tp.ID: new(false), gp.ID: nil}, time.Now(), false, nil)))
 
-	policies, err := ds.ListPoliciesForHost(context.Background(), host1)
+	policies, _, err := ds.ListPoliciesForHost(context.Background(), host1, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -1718,7 +1718,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	checkGlobaPolicy(policies[1])
 	assert.Equal(t, "", policies[1].Response)
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
+	policies, _, err = ds.ListPoliciesForHost(context.Background(), host2, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -1728,7 +1728,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	// Global policy ran with passing result.
 	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{gp.ID: new(true)}, time.Now(), false, nil)))
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
+	policies, _, err = ds.ListPoliciesForHost(context.Background(), host2, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -1749,7 +1749,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		errOnly(ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{uint(id): nil}, //nolint:gosec // dismiss G115
 			time.Now(), false, nil)))
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
+	policies, _, err = ds.ListPoliciesForHost(context.Background(), host2, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -3683,7 +3683,7 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
+	hostPolicies, _, err := ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, hostPolicies, 1)
 
@@ -7040,7 +7040,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), mergedTeamPolicies[3].PassingHostCount)
 
 	// Test ListPoliciesForHost and PolicyQueriesForHost for host0NoTeam.
-	host0Policies, err := ds.ListPoliciesForHost(ctx, host0NoTeam)
+	host0Policies, _, err := ds.ListPoliciesForHost(ctx, host0NoTeam, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, host0Policies, 4)
 	require.Equal(t, globalPolicy1.ID, host0Policies[0].ID)
@@ -7060,7 +7060,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, "SELECT 3;", host0PolicyQueries[strconv.FormatUint(uint64(policy3NoTeam.ID), 10)])
 
 	// Test ListPoliciesForHost and PolicyQueriesForHost for host1Team1.
-	host1Policies, err := ds.ListPoliciesForHost(ctx, host1Team1)
+	host1Policies, _, err := ds.ListPoliciesForHost(ctx, host1Team1, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, host1Policies, 3)
 	require.Equal(t, globalPolicy2.ID, host1Policies[0].ID)
@@ -7077,7 +7077,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, "SELECT 1;", host1PolicyQueries[strconv.FormatUint(uint64(policy1Team1.ID), 10)])
 
 	// Test ListPoliciesForHost and PolicyQueriesForHost for host2Team1.
-	host2Policies, err := ds.ListPoliciesForHost(ctx, host2Team1)
+	host2Policies, _, err := ds.ListPoliciesForHost(ctx, host2Team1, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, host2Policies, 3)
 	require.Equal(t, globalPolicy1.ID, host2Policies[0].ID)
@@ -7094,7 +7094,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, "SELECT 1;", host2PolicyQueries[strconv.FormatUint(uint64(policy1Team1.ID), 10)])
 
 	// Test ListPoliciesForHost and PolicyQueriesForHost for host3Team2.
-	host3Policies, err := ds.ListPoliciesForHost(ctx, host3Team2)
+	host3Policies, _, err := ds.ListPoliciesForHost(ctx, host3Team2, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, host3Policies, 4)
 	require.Equal(t, policy4Team2.ID, host3Policies[0].ID)
@@ -7114,7 +7114,7 @@ func testTeamPoliciesNoTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, "SELECT 4;", host3PolicyQueries[strconv.FormatUint(uint64(policy4Team2.ID), 10)])
 
 	// Test ListPoliciesForHost and PolicyQueriesForHost for host5NoTeam.
-	host5Policies, err := ds.ListPoliciesForHost(ctx, host5NoTeam)
+	host5Policies, _, err := ds.ListPoliciesForHost(ctx, host5NoTeam, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, host5Policies, 4)
 	require.Equal(t, globalPolicy2.ID, host5Policies[0].ID)
@@ -7389,7 +7389,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	}, time.Now(), false, nil)
 	require.NoError(t, err)
 
-	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
+	hostPolicies, _, err := ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
@@ -7404,7 +7404,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// the status should be NULL for the automatic install policy but not the "regular" one
-	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
+	hostPolicies, _, err = ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
@@ -7420,7 +7420,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// the status should be NULL for the automatic install policy but not the "regular" one
-	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
+	hostPolicies, _, err = ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
@@ -7608,7 +7608,7 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tc := range tcs {
-		policies, err := ds.ListPoliciesForHost(ctx, tc.Host)
+		policies, _, err := ds.ListPoliciesForHost(ctx, tc.Host, fleet.ListOptions{}, false)
 		require.NoError(t, err)
 		assertPolicies(t, policies, tc.Policies, tc.Host.Hostname)
 		queries, err := ds.PolicyQueriesForHost(ctx, tc.Host)
@@ -7633,7 +7633,7 @@ func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
 		t.Helper()
 		queries, err := ds.PolicyQueriesForHost(ctx, host)
 		require.NoError(t, err)
-		policies, err := ds.ListPoliciesForHost(ctx, host)
+		policies, _, err := ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 		require.NoError(t, err)
 
 		byID := make(map[uint]string, len(policies))
@@ -7737,9 +7737,9 @@ func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
 		minimal := &fleet.Host{ID: host.ID, Platform: host.Platform}
 		require.True(t, minimal.LabelUpdatedAt.IsZero())
 
-		full, err := ds.ListPoliciesForHost(ctx, host)
+		full, _, err := ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 		require.NoError(t, err)
-		lean, err := ds.ListPoliciesForHost(ctx, minimal)
+		lean, _, err := ds.ListPoliciesForHost(ctx, minimal, fleet.ListOptions{}, false)
 		require.NoError(t, err)
 
 		names := func(ps []*fleet.HostPolicy) []string {
@@ -11284,7 +11284,7 @@ func testPoliciesHidden(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 	spec.Hidden = true
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
-	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
+	hostPolicies, _, err := ds.ListPoliciesForHost(ctx, host, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	require.Len(t, hostPolicies, 1)
 	require.True(t, hostPolicies[0].Hidden)

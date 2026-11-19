@@ -321,8 +321,8 @@ func TestEndpointer(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
 	}
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return []*fleet.User{{GlobalRole: ptr.String(fleet.RoleAdmin)}}, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return []*fleet.User{{GlobalRole: new(fleet.RoleAdmin)}}, nil, nil
 	}
 
 	svc, _ := newTestService(t, ds, nil, nil)

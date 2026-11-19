@@ -69,8 +69,8 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 		}
 		return nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-		return nil, nil
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.ListHostUsersFunc = func(ctx context.Context, hostID uint) ([]fleet.HostUser, error) {
 		return nil, nil
@@ -216,8 +216,8 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-		return nil, nil
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.ListHostUsersFunc = func(ctx context.Context, hostID uint) ([]fleet.HostUser, error) {
 		return nil, nil
@@ -371,8 +371,8 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 			ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeVulnerabilities bool) error {
 				return nil
 			}
-			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-				return nil, nil
+			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+				return nil, nil, nil
 			}
 			ds.ListHostUsersFunc = func(ctx context.Context, hostID uint) ([]fleet.HostUser, error) {
 				return nil, nil

@@ -41,11 +41,11 @@ func TestTeamAuth(t *testing.T) {
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return nil, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-		return nil, nil
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.DeleteTeamFunc = func(ctx context.Context, tid uint) error {
 		return nil
@@ -228,10 +228,10 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.DeleteTeamUsers(ctx, 1, []fleet.TeamUser{})
 			checkAuthErr(t, tt.shouldFailTeamMemberWrite, err)
 
-			_, err = svc.ListTeamUsers(ctx, 1, fleet.ListOptions{})
+			_, _, err = svc.ListTeamUsers(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListTeams(ctx, fleet.ListOptions{})
+			_, _, err = svc.ListTeams(ctx, fleet.ListOptions{})
 			checkAuthErr(t, false, err) // everybody can do this
 
 			_, err = svc.GetTeam(ctx, 1)

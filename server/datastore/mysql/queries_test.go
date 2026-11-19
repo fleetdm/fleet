@@ -2038,7 +2038,7 @@ func testQueriesClearResultsThenCleanup(t *testing.T, ds *Datastore) {
 		counts, err := ds.ResultCountsForQueries(ctx, []uint{q.ID})
 		require.NoError(t, err)
 		require.Equal(t, want, counts[q.ID])
-		hostRows, err := ds.QueryResultRowsForHost(ctx, q.ID, hosts[0].ID)
+		hostRows, _, err := ds.QueryResultRowsForHost(ctx, q.ID, hosts[0].ID, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, hostRows, min(want, rowsPerHost))
 		hostCount, err := ds.ResultCountForQueryAndHost(ctx, q.ID, hosts[0].ID)

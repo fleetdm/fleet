@@ -227,7 +227,7 @@ func testCarvesList(t *testing.T, ds *Datastore) {
 	assert.NotEqual(t, 0, expectedCarve2.ID)
 	expectedCarve2.MaxBlock = -1
 
-	carves, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: true})
+	carves, _, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: true})
 	require.NoError(t, err)
 	assert.Equal(t, []*fleet.CarveMetadata{expectedCarve, expectedCarve2}, carves)
 
@@ -235,11 +235,11 @@ func testCarvesList(t *testing.T, ds *Datastore) {
 	_, err = ds.CleanupCarves(context.Background(), time.Now().Add(24*time.Hour))
 	require.NoError(t, err)
 
-	carves, err = ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: false})
+	carves, _, err = ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: false})
 	require.NoError(t, err)
 	assert.Empty(t, carves)
 
-	carves, err = ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: true})
+	carves, _, err = ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: true})
 	require.NoError(t, err)
 	assert.Len(t, carves, 2)
 
@@ -259,7 +259,7 @@ func testCarvesList(t *testing.T, ds *Datastore) {
 		"error",
 	} {
 		t.Run("allowed order_"+key, func(t *testing.T) {
-			result, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
+			result, _, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
 				Expired:     true,
 				ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10},
 			})
@@ -269,7 +269,7 @@ func testCarvesList(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
+		_, _, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
 			Expired:     true,
 			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
 		})

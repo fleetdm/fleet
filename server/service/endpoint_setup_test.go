@@ -107,7 +107,7 @@ func TestSetupNotRearmedByStaleReplica(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, code)
 	assert.Nil(t, admin)
 
-	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
+	users, _, err := ds.ListUsers(ctx, fleet.UserListOptions{})
 	require.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "admin@example.com", users[0].Email)
@@ -164,7 +164,7 @@ func TestSetupConcurrentRequestsCreateSingleAdmin(t *testing.T) {
 	}
 	assert.Equal(t, 1, succeeded)
 
-	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
+	users, _, err := ds.ListUsers(ctx, fleet.UserListOptions{})
 	require.NoError(t, err)
 	require.Len(t, users, 1)
 
@@ -217,7 +217,7 @@ func TestSetupInvalidServerURLKeepsSetupOpen(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, code)
 	assert.Nil(t, admin)
 
-	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
+	users, _, err := ds.ListUsers(ctx, fleet.UserListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, users)
 

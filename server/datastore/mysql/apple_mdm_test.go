@@ -972,7 +972,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("name0", "identifier0", 0), nil)
 	require.NoError(t, err)
 	expectedTeam0 = append(expectedTeam0, cp)
-	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	cps, _, err := ds.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
 	checkConfigProfileWithChecksum(t, *expectedTeam0[0], *cps[0])
@@ -990,7 +990,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	expectedTeam1 = append(expectedTeam1, cp)
 	// list profiles for team id 1
-	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
+	cps, _, err = ds.ListMDMAppleConfigProfiles(ctx, new(uint(1)), fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
 	checkConfigProfileWithChecksum(t, *expectedTeam1[0], *cps[0])
@@ -1000,7 +1000,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	expectedTeam1 = append(expectedTeam1, cp)
 	// list profiles for team id 1
-	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
+	cps, _, err = ds.ListMDMAppleConfigProfiles(ctx, new(uint(1)), fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, cps, 2)
 	for _, cp := range cps {
@@ -1015,7 +1015,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// try to list profiles for non-existent team id
-	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(42))
+	cps, _, err = ds.ListMDMAppleConfigProfiles(ctx, new(uint(42)), fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, cps, 0)
 }
@@ -1274,7 +1274,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	p3, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{Name: "Name3", Identifier: "Identifier3", Mobileconfig: []byte("profile3-bytes"), Scope: fleet.PayloadScopeUser}, nil)
 	require.NoError(t, err)
 
-	profiles, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
+	profiles, _, err := ds.ListMDMAppleConfigProfiles(ctx, new(uint(0)), fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profiles, 4)
 
@@ -2504,7 +2504,7 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 	_, err := ds.BatchSetMDMProfiles(ctx, nil, profiles, nil, nil, nil, nil)
 	require.NoError(t, err)
 
-	profiles, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
+	profiles, _, err = ds.ListMDMAppleConfigProfiles(ctx, new(uint(0)), fleet.ListOptions{})
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -4033,7 +4033,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// no enrolled host, unknown command
-	res, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String(), "")
+	res, _, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String(), "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -4079,7 +4079,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint16(mysqlerr.ER_NO_REFERENCED_ROW_2), mysqlErr.Number)
 
 	// command has no results
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid1, "")
+	res, _, err = ds.GetMDMAppleCommandResults(ctx, uuid1, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -4094,7 +4094,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has no results yet
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
+	res, _, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 	for _, r := range res {
@@ -4120,7 +4120,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has a result for [0]
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
+	res, _, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 	for _, r := range res {
@@ -4152,7 +4152,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has both results
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
+	res, _, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 
@@ -4188,7 +4188,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(ctx, enrolledHosts[0].ID)
 	require.NoError(t, err)
 
-	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "")
+	res, _, err = ds.GetMDMAppleCommandResults(ctx, uuid2, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 
@@ -4262,7 +4262,7 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 
 	checkProfiles := func(uploadedAtMatch bool) {
 		for _, p := range allProfiles {
-			profiles, err := ds.ListMDMAppleConfigProfiles(ctx, p.TeamID)
+			profiles, _, err := ds.ListMDMAppleConfigProfiles(ctx, p.TeamID, fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, profiles, 1)
 
@@ -4280,11 +4280,11 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 
 	reloadUploadedAt := func() {
 		// reload to get the uploaded_at timestamps
-		profiles, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+		profiles, _, err := ds.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profiles, 1)
 		globalCP.UploadedAt = profiles[0].UploadedAt
-		profiles, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
+		profiles, _, err = ds.ListMDMAppleConfigProfiles(ctx, new(uint(1)), fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profiles, 1)
 		teamCP.UploadedAt = profiles[0].UploadedAt
@@ -4966,7 +4966,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// list config profiles for no team
-	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	cps, _, err := ds.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, cps, 4)
 	storedByIdentifier := make(map[string]*fleet.MDMAppleConfigProfile)
@@ -9430,7 +9430,7 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	profiles, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
+	profiles, _, err := ds.ListMDMAppleConfigProfiles(ctx, new(uint(0)), fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 

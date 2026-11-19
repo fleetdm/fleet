@@ -110,7 +110,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(*query2Rows[0].Data), string(*results[0].Data))
 
 	// Assert that QueryResultRowsForHost returns empty slice when no results are found
-	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
+	results, _, err = ds.QueryResultRowsForHost(context.Background(), 999, 999, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 0)
 }
@@ -154,7 +154,7 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 2 results for Host1
-	results, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host1.ID)
+	results, _, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 2) // should return rows with nil data
 	require.Equal(t, host1ResultRows[0].QueryID, results[0].QueryID)
@@ -167,7 +167,7 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(*host1ResultRows[1].Data), string(*results[1].Data))
 
 	// Assert that Query1 returns 1 result for Host2
-	results, err = ds.QueryResultRowsForHost(context.Background(), query.ID, host2.ID)
+	results, _, err = ds.QueryResultRowsForHost(context.Background(), query.ID, host2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, host2ResultRows[0].QueryID, results[0].QueryID)
@@ -582,7 +582,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, 0, res.RowsAdded)
 
 	// Assert that we get the overwritten data (1 result with USB Mouse data)
-	results, err := ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
+	results, _, err := ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
@@ -604,7 +604,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, res.RowsAdded)
 
 	// Results of a deleted query are never returned; CleanupStaleQueryResults deletes them.
-	results, err = ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
+	results, _, err = ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, results)
 }
@@ -783,7 +783,7 @@ func testOverwriteQueryResultRowsRespectsCap(t *testing.T, ds *Datastore) {
 		return rows
 	}
 	hostValues := func(host *fleet.Host) []string {
-		stored, err := ds.QueryResultRowsForHost(ctx, query.ID, host.ID)
+		stored, _, err := ds.QueryResultRowsForHost(ctx, query.ID, host.ID, fleet.ListOptions{})
 		require.NoError(t, err)
 		var values []string
 		for _, row := range stored {
@@ -897,7 +897,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Confirm NO rows are stored when > 1000 rows in a single submission (we bail early)
-	allResults, err := ds.QueryResultRowsForHost(context.Background(), query2.ID, host1.ID)
+	allResults, _, err := ds.QueryResultRowsForHost(context.Background(), query2.ID, host1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, allResults, 0)
 
@@ -914,7 +914,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the small batch was stored
-	host2Results, err := ds.QueryResultRowsForHost(context.Background(), query2.ID, host2.ID)
+	host2Results, _, err := ds.QueryResultRowsForHost(context.Background(), query2.ID, host2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, host2Results, 1)
 }
@@ -1168,7 +1168,7 @@ func testQueryResultWritesDoNotBlockOtherHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, writeRow(waitCtx, hostIDs[6]))
 
 	require.NoError(t, tx.Rollback())
-	rows, err := ds.QueryResultRowsForHost(ctx, query.ID, hostIDs[9])
+	rows, _, err := ds.QueryResultRowsForHost(ctx, query.ID, hostIDs[9], fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, rows)
 }

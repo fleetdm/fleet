@@ -4974,7 +4974,7 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 		}
 
 		deviceCtx := test.HostContext(ctx, testHost)
-		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		results, _, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "", fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		require.NotNil(t, results[0].ResultsMetadata)
@@ -4999,7 +4999,7 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 		}
 
 		deviceCtx := test.HostContext(ctx, testHost)
-		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		results, _, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "", fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		require.Nil(t, results[0].ResultsMetadata)
@@ -5016,7 +5016,7 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 		}
 
 		deviceCtx := test.HostContext(ctx, testHost)
-		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		results, _, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "", fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Empty(t, results)
 		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
@@ -5046,11 +5046,11 @@ func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
 
 	// The datastore loads every row for the command UUID (no host filtering),
 	// including the result and payload of hosts on teams the caller cannot see.
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, cmdUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, cmdUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
 		return []*fleet.MDMCommandResult{
 			{HostUUID: "host-team1", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team1")},
 			{HostUUID: "host-team2", CommandUUID: cmdUUID, RequestType: "DeviceInformation", Payload: []byte("payload"), Result: []byte("result-team2")},
-		}, nil
+		}, nil, nil
 	}
 
 	// Mimic the real datastore's team scoping: a non-global user only sees hosts
@@ -5081,7 +5081,7 @@ func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
 	// A team-1 observer (lowest privilege on the only team it shares with the
 	// command) must receive its own host's result and nothing from team 2.
 	teamCtx := test.UserContext(ctx, test.UserTeamObserverTeam1)
-	results, err := svc.GetMDMCommandResults(teamCtx, commandUUID, "")
+	results, _, err := svc.GetMDMCommandResults(teamCtx, commandUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, "host-team1", results[0].HostUUID)
@@ -5092,7 +5092,7 @@ func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
 
 	// A global admin still sees every host's result.
 	adminCtx := test.UserContext(ctx, test.UserAdmin)
-	results, err = svc.GetMDMCommandResults(adminCtx, commandUUID, "")
+	results, _, err = svc.GetMDMCommandResults(adminCtx, commandUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 }

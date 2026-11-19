@@ -26,25 +26,25 @@ func TestListCarves(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 		return []*fleet.CarveMetadata{
 			{ID: 1},
 			{ID: 2},
-		}, nil
+		}, nil, nil
 	}
 
 	// admin user
-	carves, err := svc.ListCarves(test.UserContext(ctx, test.UserAdmin), fleet.CarveListOptions{})
+	carves, _, err := svc.ListCarves(test.UserContext(ctx, test.UserAdmin), fleet.CarveListOptions{})
 	require.NoError(t, err)
 	require.Len(t, carves, 2)
 
 	// only global admin can read carves
-	_, err = svc.ListCarves(test.UserContext(ctx, test.UserNoRoles), fleet.CarveListOptions{})
+	_, _, err = svc.ListCarves(test.UserContext(ctx, test.UserNoRoles), fleet.CarveListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 
 	// no user in context
-	_, err = svc.ListCarves(ctx, fleet.CarveListOptions{})
+	_, _, err = svc.ListCarves(ctx, fleet.CarveListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }

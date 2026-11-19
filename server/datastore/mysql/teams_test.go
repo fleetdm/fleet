@@ -501,7 +501,7 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	teams, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
+	teams, _, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
 	require.NoError(t, err)
 	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
 
@@ -532,7 +532,7 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	_, err = ds.SaveTeam(context.Background(), team2)
 	require.NoError(t, err)
 
-	teams, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
+	teams, _, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
 	require.NoError(t, err)
 	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
 
@@ -555,14 +555,14 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 
 	for _, key := range []string{"id", "name", "created_at", "user_count", "host_count"} {
 		t.Run("order_"+key, func(t *testing.T) {
-			result, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{OrderKey: key, PerPage: 10})
+			result, _, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{OrderKey: key, PerPage: 10})
 			require.NoError(t, err)
 			require.NotEmpty(t, result)
 		})
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{OrderKey: "h.node_key"})
+		_, _, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{OrderKey: "h.node_key"})
 		require.Error(t, err)
 	})
 }
@@ -1041,7 +1041,7 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 
 	// Try to find team with equivalent name
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	results, err := ds.ListTeams(context.Background(), teamFilter, fleet.ListOptions{MatchQuery: equivalentNames[1]})
+	results, _, err := ds.ListTeams(context.Background(), teamFilter, fleet.ListOptions{MatchQuery: equivalentNames[1]})
 	assert.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, equivalentNames[0], results[0].Name)
@@ -1137,7 +1137,7 @@ func testTeamsNameEmoji(t *testing.T, ds *Datastore) {
 
 	// Try to find team with emoji0
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	results, err := ds.ListTeams(context.Background(), teamFilter, fleet.ListOptions{MatchQuery: emoji0})
+	results, _, err := ds.ListTeams(context.Background(), teamFilter, fleet.ListOptions{MatchQuery: emoji0})
 	assert.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, emoji0, results[0].Name)
@@ -1162,7 +1162,7 @@ func testTeamsNameSort(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	results, err := ds.ListTeams(context.Background(), teamFilter, fleet.ListOptions{OrderKey: "name"})
+	results, _, err := ds.ListTeams(context.Background(), teamFilter, fleet.ListOptions{OrderKey: "name"})
 	assert.NoError(t, err)
 	require.Len(t, teams, 3)
 	for i, item := range teams {

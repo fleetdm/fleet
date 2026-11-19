@@ -3960,7 +3960,7 @@ func TestGetSoftwareVersionsFetchesAllPages(t *testing.T) {
 	// through both instead of truncating at the server's page size.
 	perPage := int(fleet.MaxListPerPage)
 	page0 := make([]fleet.Software, 0, perPage)
-	for i := 0; i < perPage; i++ {
+	for i := range perPage {
 		page0 = append(page0, fleet.Software{Name: fmt.Sprintf("app%04d", i), Version: "0.0.1", Source: "apps"})
 	}
 	page1 := []fleet.Software{{Name: "zzz-last", Version: "0.0.2", Source: "apps"}}

@@ -193,8 +193,8 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.ListMDMAppleInstallersFunc = func(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
 		return nil, nil
 	}
-	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-		return nil, nil
+	ds.MDMAppleListDevicesFunc = func(ctx context.Context, opt fleet.ListOptions) ([]fleet.MDMAppleDevice, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
@@ -316,7 +316,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleInstallers(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleDevices(ctx)
+		_, _, err = svc.ListMDMAppleDevices(ctx, fleet.ListOptions{})
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -558,8 +558,9 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		return res, nil
 	}
 
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
-		return getResults(commandUUID)
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string, opt fleet.ListOptions) ([]*fleet.MDMCommandResult, *fleet.PaginationMetadata, error) {
+		res, err := getResults(commandUUID)
+		return res, nil, err
 	}
 
 	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
@@ -611,7 +612,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
 				// TODO(sarah): move test to shared file
-				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "")
+				_, _, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "", fleet.ListOptions{})
 				checkAuthErr(t, err, c.shouldFailWithAuth)
 			})
 		}
@@ -693,8 +694,8 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
-	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
-		return nil, nil
+	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMAppleConfigProfile, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.GetMDMAppleProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMProfilesSummary, error) {
 		return nil, nil
@@ -769,11 +770,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
-			_, err = svc.ListMDMAppleConfigProfiles(ctx, 0)
+			_, _, err = svc.ListMDMAppleConfigProfiles(ctx, 0, fleet.ListOptions{})
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz list profiles (team 1)
-			_, err = svc.ListMDMAppleConfigProfiles(ctx, 1)
+			_, _, err = svc.ListMDMAppleConfigProfiles(ctx, 1, fleet.ListOptions{})
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz get config profile (no team)
@@ -2254,8 +2255,8 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
-	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-		return nil, nil
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil

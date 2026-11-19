@@ -970,8 +970,8 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				return tt.caPolicyIDs, nil
 			}
 
-			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-				return tt.hostPolicies, nil
+			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host, opt fleet.ListOptions, excludeHidden bool) ([]*fleet.HostPolicy, *fleet.PaginationMetadata, error) {
+				return tt.hostPolicies, nil, nil
 			}
 
 			ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {

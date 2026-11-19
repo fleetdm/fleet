@@ -126,7 +126,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.ErrorAs(t, err, &nfe)
 
 	// no teams, so no team-specific custom setup assistants
-	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	teams, _, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, teams)
 

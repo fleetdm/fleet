@@ -1535,7 +1535,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	// Host1 submits same rows again (overwrite), should still have 1000 rows
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr,
+		"per_page", "1000")
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	// Reaching the cap alone doesn't clip the report: nothing has been rejected yet.
 	require.False(t, gqrr.ReportClipped)
@@ -1543,7 +1544,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Equal(t, fleet.DefaultMaxQueryReportRows, counts[osqueryInfoQuery.ID]) // counter unchanged after overwrite
 
 	ghqrr = getHostQueryReportResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr,
+		"per_page", "1000")
 	require.NoError(t, ghqrr.Err)
 	require.Len(t, ghqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.False(t, ghqrr.ReportClipped)
@@ -1576,10 +1578,20 @@ func (s *integrationTestSuite) TestQueryReports() {
 		require.NoError(t, slres.Err)
 	}
 	checkReport := func(wantRows int, wantClipped bool) {
-		gqrr = fleet.GetQueryReportResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr)
-		require.Len(t, gqrr.Results, wantRows)
-		require.Equal(t, wantClipped, gqrr.ReportClipped)
+		// Responses are bounded pages (max per_page 1000), so collect every page.
+		var all []fleet.HostQueryResultRow
+		for page := 0; ; page++ {
+			gqrr = fleet.GetQueryReportResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr,
+				"per_page", "1000", "page", fmt.Sprint(page))
+			require.Equal(t, wantClipped, gqrr.ReportClipped)
+			require.Equal(t, wantRows, gqrr.Count)
+			all = append(all, gqrr.Results...)
+			if gqrr.Meta == nil || !gqrr.Meta.HasNextResults {
+				break
+			}
+		}
+		require.Len(t, all, wantRows)
 		require.Equal(t, wantRows, counts[osqueryInfoQuery.ID])
 	}
 
@@ -1611,7 +1623,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	submitRows(host2Global, 500)
 	checkReport(fleet.DefaultMaxQueryReportRows, false)
 	ghqrr = getHostQueryReportResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host2Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host2Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr,
+		"per_page", "1000")
 	require.NoError(t, ghqrr.Err)
 	require.Len(t, ghqrr.Results, 500)
 	require.False(t, ghqrr.ReportClipped)
@@ -1629,13 +1642,16 @@ func (s *integrationTestSuite) TestQueryReports() {
 	submitRows(host2Global, fleet.DefaultMaxQueryReportRows)
 	checkReport(1500, false)
 
-	// Without per_page every row is returned and there's no pagination metadata.
+	// Without per_page the server returns the default first page (not every
+	// row) with pagination metadata — the v5 contract.
 	reportURL := fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID)
 	gqrr = fleet.GetQueryReportResponse{}
 	s.DoJSON("GET", reportURL, nil, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 1500)
+	require.Len(t, gqrr.Results, int(fleet.DefaultListPerPage))
 	require.Equal(t, 1500, gqrr.Count)
-	require.Nil(t, gqrr.Meta)
+	require.NotNil(t, gqrr.Meta)
+	require.True(t, gqrr.Meta.HasNextResults)
+	require.False(t, gqrr.Meta.HasPreviousResults)
 
 	// With per_page the rows are paginated and count is the total.
 	gqrr = fleet.GetQueryReportResponse{}

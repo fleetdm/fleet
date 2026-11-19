@@ -157,7 +157,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
-	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	teams, _, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, tm := range teams {
 		err := ts.ds.DeleteTeam(ctx, tm.ID)
@@ -199,7 +199,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return err
 	})
 
-	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
+	lbls, _, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
@@ -229,7 +229,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.EqualValues(t, len(queries), count)
 	}
 
-	users, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})
+	users, _, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})
 	require.NoError(t, err)
 	for _, u := range users {
 		if _, ok := ts.users[u.Email]; !ok {

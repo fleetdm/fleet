@@ -87,8 +87,8 @@ func TestUserAuth(t *testing.T) {
 	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
 		return nil
 	}
-	ds.ListUsersFunc = func(ctx context.Context, opts fleet.UserListOptions) ([]*fleet.User, error) {
-		return nil, nil
+	ds.ListUsersFunc = func(ctx context.Context, opts fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 		return nil
@@ -440,10 +440,10 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.ModifyUser(ctx, userTeamMaintainerID, fleet.UserPayload{NewPassword: ptr.String(test.GoodPassword2)})
 			checkAuthErr(t, tt.shouldFailTeamChangePassword, err)
 
-			_, err = svc.ListUsers(ctx, fleet.UserListOptions{})
+			_, _, err = svc.ListUsers(ctx, fleet.UserListOptions{})
 			checkAuthErr(t, tt.shouldFailListAll, err)
 
-			_, err = svc.ListUsers(ctx, fleet.UserListOptions{TeamID: teamID})
+			_, _, err = svc.ListUsers(ctx, fleet.UserListOptions{TeamID: teamID})
 			checkAuthErr(t, tt.shouldFailListTeam, err)
 		})
 	}
@@ -2006,11 +2006,11 @@ func TestListUsersFiltersTeamsToRequesterScope(t *testing.T) {
 		{Team: fleet.Team{ID: 1, Name: "Team 1"}, Role: fleet.RoleObserver},
 		{Team: fleet.Team{ID: 2, Name: "Team 2"}, Role: fleet.RoleObserver},
 	}
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 		return []*fleet.User{{
 			ID:    10,
 			Teams: append([]fleet.UserTeam{}, sharedUserTeams...),
-		}}, nil
+		}}, nil, nil
 	}
 
 	// Requester is an admin of team 1 only, listing users of team 1.
@@ -2041,14 +2041,14 @@ func TestListUsersGlobalRequesterSeesAllTeams(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 		return []*fleet.User{{
 			ID: 10,
 			Teams: []fleet.UserTeam{
 				{Team: fleet.Team{ID: 1, Name: "Team 1"}, Role: fleet.RoleObserver},
 				{Team: fleet.Team{ID: 2, Name: "Team 2"}, Role: fleet.RoleObserver},
 			},
-		}}, nil
+		}}, nil, nil
 	}
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
@@ -2073,7 +2073,7 @@ func TestListUsersComputesStatus(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	now := time.Now() //nolint:staticcheck // it is referenced.
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 		return []*fleet.User{
 			{
 				// recent login -> active
@@ -2099,7 +2099,7 @@ func TestListUsersComputesStatus(t *testing.T) {
 				Teams:       []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}},
 				LastLoginAt: new(now.Add(-31 * 24 * time.Hour)),
 			},
-		}, nil
+		}, nil, nil
 	}
 
 	// Requester is an admin of team 1 only.

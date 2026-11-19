@@ -162,10 +162,10 @@ func TestListInvites(t *testing.T) {
 	ms := new(mock.Store)
 	svc, ctx := newTestService(t, ms, nil, nil)
 
-	ms.ListInvitesFunc = func(context.Context, fleet.ListOptions) ([]*fleet.Invite, error) {
-		return nil, nil
+	ms.ListInvitesFunc = func(context.Context, fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
-	_, err := svc.ListInvites(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{})
+	_, _, err := svc.ListInvites(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{})
 	require.Nil(t, err)
 	assert.True(t, ms.ListInvitesFuncInvoked)
 }
@@ -174,8 +174,8 @@ func TestInvitesAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListInvitesFunc = func(context.Context, fleet.ListOptions) ([]*fleet.Invite, error) {
-		return nil, nil
+	ds.ListInvitesFunc = func(context.Context, fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.DeleteInviteFunc = func(context.Context, uint) error { return nil }
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -267,7 +267,7 @@ func TestInvitesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ListInvites(ctx, fleet.ListOptions{})
+			_, _, err = svc.ListInvites(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			err = svc.DeleteInvite(ctx, 99)

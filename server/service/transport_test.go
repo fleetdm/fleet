@@ -33,32 +33,36 @@ func TestListOptionsFromRequest(t *testing.T) {
 			url:         "/foo?per_page=10",
 			listOptions: fleet.ListOptions{Page: 0, PerPage: 10},
 		},
-		// only page (per_page should default to defaultPerPage
+		// only page (per_page should default to fleet.DefaultListPerPage)
 		{
 			url:         "/foo?page=10",
-			listOptions: fleet.ListOptions{Page: 10, PerPage: defaultPerPage},
+			listOptions: fleet.ListOptions{Page: 10, PerPage: fleet.DefaultListPerPage},
 		},
-		// no params provided (defaults to empty ListOptions indicating
-		// unlimited)
+		// no params provided (per_page defaults to fleet.DefaultListPerPage)
 		{
 			url:         "/foo?unrelated=foo",
-			listOptions: fleet.ListOptions{},
+			listOptions: fleet.ListOptions{PerPage: fleet.DefaultListPerPage},
+		},
+		// per_page above the maximum is clamped to fleet.MaxListPerPage
+		{
+			url:         "/foo?per_page=5000",
+			listOptions: fleet.ListOptions{PerPage: fleet.MaxListPerPage},
 		},
 
 		// Both order params provided
 		{
 			url:         "/foo?order_key=foo&order_direction=desc",
-			listOptions: fleet.ListOptions{OrderKey: "foo", OrderDirection: fleet.OrderDescending},
+			listOptions: fleet.ListOptions{OrderKey: "foo", OrderDirection: fleet.OrderDescending, PerPage: fleet.DefaultListPerPage},
 		},
 		// Both order params provided (asc)
 		{
 			url:         "/foo?order_key=bar&order_direction=asc",
-			listOptions: fleet.ListOptions{OrderKey: "bar", OrderDirection: fleet.OrderAscending},
+			listOptions: fleet.ListOptions{OrderKey: "bar", OrderDirection: fleet.OrderAscending, PerPage: fleet.DefaultListPerPage},
 		},
 		// Default order direction
 		{
 			url:         "/foo?order_key=foo",
-			listOptions: fleet.ListOptions{OrderKey: "foo", OrderDirection: fleet.OrderAscending},
+			listOptions: fleet.ListOptions{OrderKey: "foo", OrderDirection: fleet.OrderAscending, PerPage: fleet.DefaultListPerPage},
 		},
 
 		// All params defined
@@ -88,6 +92,11 @@ func TestListOptionsFromRequest(t *testing.T) {
 		},
 		{
 			url:          "/foo?page=1&per_page=-10",
+			shouldErr400: true,
+		},
+		// per_page=0 is no longer a valid "unlimited" request
+		{
+			url:          "/foo?page=1&per_page=0",
 			shouldErr400: true,
 		},
 		// order_direction without order_key
@@ -585,6 +594,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 					return
 				}
 				assert.Nil(t, err)
+				// per_page defaults to fleet.DefaultListPerPage when omitted
+				if tt.hostListOptions.ListOptions.PerPage == 0 {
+					tt.hostListOptions.ListOptions.PerPage = fleet.DefaultListPerPage
+				}
 				assert.Equal(t, tt.hostListOptions, opt)
 			},
 		)
@@ -682,6 +695,10 @@ func TestCarveListOptionsFromRequest(t *testing.T) {
 					return
 				}
 				assert.Nil(t, err)
+				// per_page defaults to fleet.DefaultListPerPage when omitted
+				if tt.carveListOptions.ListOptions.PerPage == 0 {
+					tt.carveListOptions.ListOptions.PerPage = fleet.DefaultListPerPage
+				}
 				assert.Equal(t, tt.carveListOptions, opt)
 			},
 		)
@@ -756,6 +773,10 @@ func TestUserListOptionsFromRequest(t *testing.T) {
 					return
 				}
 				assert.Nil(t, err)
+				// per_page defaults to fleet.DefaultListPerPage when omitted
+				if tt.userListOptions.ListOptions.PerPage == 0 {
+					tt.userListOptions.ListOptions.PerPage = fleet.DefaultListPerPage
+				}
 				assert.Equal(t, tt.userListOptions, opt)
 			},
 		)

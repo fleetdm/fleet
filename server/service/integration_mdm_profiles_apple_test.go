@@ -1674,7 +1674,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	triggerReconcileProfilesMarkVerifying()
 
 	// delete a no team profile
-	noTeamProfs, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	noTeamProfs, _, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	var g1ProfUUID string
 	for _, p := range noTeamProfs {
@@ -1706,7 +1706,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// delete a team profile
-	tm2Profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm2.ID)
+	tm2Profs, _, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm2.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	var tm21ProfUUID string
 	for _, p := range tm2Profs {

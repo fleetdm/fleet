@@ -895,7 +895,7 @@ type testingLookupService struct {
 	ds *Datastore
 }
 
-func (t *testingLookupService) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (t *testingLookupService) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	return t.ds.ListUsers(ctx, opt)
 }
 

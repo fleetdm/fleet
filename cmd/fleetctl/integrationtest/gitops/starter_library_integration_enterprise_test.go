@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -92,7 +91,7 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) TestApplyStarterLibraryPr
 	assert.Equal(t, "Test Org", appConfig.OrgInfo.OrgName)
 
 	// Verify that the teams from the starter templates were created.
-	teams, _, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}}, fleet.ListOptions{})
+	teams, _, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, fleet.ListOptions{})
 	require.NoError(t, err)
 
 	teamNames := make([]string, len(teams))
@@ -103,7 +102,7 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) TestApplyStarterLibraryPr
 	assert.Contains(t, teamNames, "📱🔐 Personal mobile devices")
 
 	// Verify labels were created (global labels, team_id=0).
-	labelSpecs, err := s.DS.GetLabelSpecs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String("admin")}})
+	labelSpecs, err := s.DS.GetLabelSpecs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}})
 	require.NoError(t, err)
 	var customLabelNames []string
 	for _, l := range labelSpecs {

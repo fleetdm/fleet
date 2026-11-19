@@ -1341,14 +1341,14 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 		{Name: "Vital Vince", ID: 3, HostVitalsCriteria: ptr.RawMessage(json.RawMessage(`{"vital":"owl", "value":"hoot"}`)), LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeHostVitals},
 	}
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
 		// The cron must pass a filter that includes fleet/team-scoped labels,
 		// otherwise host vitals labels on a team never get populated (#46869). An
 		// empty TeamFilter (nil User) falls back to global-only labels in
 		// applyLabelTeamFilter, so require a global-admin user here.
 		require.NotNil(t, filter.User, "cron must pass a user-scoped filter so team labels are included")
 		require.True(t, filter.User.HasAnyGlobalRole(), "cron must use a global-admin filter to see all team labels")
-		return labels, nil
+		return labels, nil, nil
 	}
 
 	numCalls := 0

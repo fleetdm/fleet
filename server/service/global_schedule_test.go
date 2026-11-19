@@ -87,7 +87,7 @@ func TestGlobalScheduleAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
+			_, _, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{

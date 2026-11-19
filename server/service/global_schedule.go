@@ -5,7 +5,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -39,7 +38,7 @@ func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error) {
-	queries, _, _, meta, err := svc.ListQueries(ctx, opts, nil, ptr.Bool(true), false, nil) // teamID == nil means global
+	queries, _, _, meta, err := svc.ListQueries(ctx, opts, nil, new(true), false, nil) // teamID == nil means global
 	if err != nil {
 		return nil, nil, err
 	}

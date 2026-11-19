@@ -166,8 +166,8 @@ func TestLabelsAuth(t *testing.T) {
 		return nil, nil, ctxerr.Wrap(ctx, &notFoundErr{Msg: "label"})
 	}
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
-		return nil, nil
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 	ds.LabelsSummaryFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error) {
 		return nil, nil
@@ -291,7 +291,7 @@ func TestLabelsAuth(t *testing.T) {
 							_, err = svc.GetLabelSpecs(ctx2, tc.label.TeamID)
 							require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-							_, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
+							_, _, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
 							require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
 							_, err = svc.LabelsSummary(ctx2, tc.label.TeamID)
@@ -313,7 +313,7 @@ func TestLabelsAuth(t *testing.T) {
 					_, err = svc.GetLabelSpecs(ctx2, tc.label.TeamID)
 					checkAuthErr(t, tc.shouldFailRead, err)
 
-					_, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
+					_, _, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
 					checkAuthErr(t, tc.shouldFailRead, err)
 
 					_, err = svc.LabelsSummary(ctx2, tc.label.TeamID)
@@ -341,7 +341,7 @@ func TestLabelsAuth(t *testing.T) {
 			_, err = svc.GetLabelSpecs(ctx, ptr.Uint(0))
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.ListLabels(ctx, fleet.ListOptions{}, ptr.Uint(0), true)
+			_, _, err = svc.ListLabels(ctx, fleet.ListOptions{}, new(uint(0)), true)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}
@@ -353,26 +353,26 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
 		// Expect host counts not to be requested
 		require.False(t, includeHostCounts)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Test explicitly setting include_host_counts to false
-	_, err := svc.ListLabels(ctx, fleet.ListOptions{}, nil, false)
+	_, _, err := svc.ListLabels(ctx, fleet.ListOptions{}, nil, false)
 	require.NoError(t, err)
 
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
 		// Expect host counts to be requested
 		require.True(t, includeHostCounts)
 		// Expect the team filter to be set
 		require.Equal(t, filter.User, user)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Test explicitly setting include_host_counts to true
-	_, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil, true)
+	_, _, err = svc.ListLabels(ctx, fleet.ListOptions{}, nil, true)
 	require.NoError(t, err)
 }
 
@@ -415,7 +415,7 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	test.AddBuiltinLabels(t, ds)
 
-	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, nil, true)
+	labels, _, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, nil, true)
 	require.NoError(t, err)
 	require.Len(t, labels, 13)
 

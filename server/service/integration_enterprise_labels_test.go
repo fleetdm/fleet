@@ -805,7 +805,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 
 	// filterLabelQueries filters out non-label queries and builtin label queries.
 	filterLabelQueries := func(queries map[string]string) map[string]string {
-		allLabels, err := s.ds.ListLabels(t.Context(), fleet.TeamFilter{
+		allLabels, _, err := s.ds.ListLabels(t.Context(), fleet.TeamFilter{
 			User: user,
 		}, fleet.ListOptions{}, false)
 		require.NoError(t, err)

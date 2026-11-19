@@ -97,7 +97,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.Nil(t, abmTok.IOSDefaultTeamID)
 
 		// no teams, so no team-specific custom setup assistants
-		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+		teams, _, err := ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Empty(t, teams)
 

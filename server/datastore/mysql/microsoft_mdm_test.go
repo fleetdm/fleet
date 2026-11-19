@@ -2698,7 +2698,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, "windows", p)
 
 	// One host replied, so the other two are still pending, and none of the three is duplicated.
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
+	results, _, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 3)
 	resultsByHost := make(map[string]fleet.MDMCommandResult, len(results))
@@ -2716,11 +2716,11 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, "101", resultsByHost[dev3.HostUUID].Status)
 
 	// With a host filter, the host that replied gets its result and a host that is still queued gets a pending one.
-	results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev.HostUUID)
+	results, _, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev.HostUUID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, rawResponse, results[0].Result)
-	results, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev2.HostUUID)
+	results, _, err = ds.GetMDMWindowsCommandResults(ctx, cmdUUID, dev2.HostUUID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev2.HostUUID, results[0].HostUUID)
@@ -2734,10 +2734,10 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?), (?, ?)`,
 		enrollmentID2, pendingCmdUUID, enrollmentID3, pendingCmdUUID)
 	require.NoError(t, err)
-	results, err = ds.GetMDMWindowsCommandResults(ctx, pendingCmdUUID, "")
+	results, _, err = ds.GetMDMWindowsCommandResults(ctx, pendingCmdUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 2)
-	results, err = ds.GetMDMWindowsCommandResults(ctx, pendingCmdUUID, dev2.HostUUID)
+	results, _, err = ds.GetMDMWindowsCommandResults(ctx, pendingCmdUUID, dev2.HostUUID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev2.HostUUID, results[0].HostUUID)
@@ -2747,7 +2747,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
 
-	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
+	results, _, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "", fleet.ListOptions{})
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
 }
@@ -2848,7 +2848,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.Equal(t, "windows", p)
 
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
+	results, _, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
@@ -2863,7 +2863,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 	require.True(t, fleet.IsNotFound(err))
 	require.Empty(t, p)
 
-	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
+	results, _, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "", fleet.ListOptions{})
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
 }
@@ -5288,7 +5288,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	require.False(t, hasPending(enrolledDevice1), "refresh must recompute has_pending_commands to false after the ack")
 
 	// Verify results
-	results, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
+	results, _, err := ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	// Only the first device replied, the other two are still pending.
 	require.Len(t, results, 3)
@@ -5348,7 +5348,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	require.NoError(t, err)
 
 	// Verify results for the second device
-	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
+	results, _, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 3) // two replied, the third is still pending
 	pendingCount := 0
@@ -5379,7 +5379,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	require.NoError(t, err)
 
 	// Verify results does not exist for the third device
-	results, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "")
+	results, _, err = ds.GetMDMWindowsCommandResults(context.Background(), cmd.CommandUUID, "", fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 3) // still two replies plus the third host, which is pending
 	for _, res := range results {
@@ -5442,7 +5442,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 		require.NoError(t, err)
 
 		// Verify results
-		results, err := ds.GetMDMWindowsCommandResults(t.Context(), cmd.CommandUUID, "")
+		results, _, err := ds.GetMDMWindowsCommandResults(t.Context(), cmd.CommandUUID, "", fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
@@ -5534,14 +5534,14 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-success', ?)`, enr
 			require.NoError(t, err)
 
 			// Verify results
-			results, err := ds.GetMDMWindowsCommandResults(t.Context(), atomicCmd.CommandUUID, "")
+			results, _, err := ds.GetMDMWindowsCommandResults(t.Context(), atomicCmd.CommandUUID, "", fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, results, 1)
 			assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
 			assert.Equal(t, atomicCmd.CommandUUID, results[0].CommandUUID)
 			assert.Equal(t, "200", results[0].Status)
 
-			results, err = ds.GetMDMWindowsCommandResults(t.Context(), replaceCmd.CommandUUID, "")
+			results, _, err = ds.GetMDMWindowsCommandResults(t.Context(), replaceCmd.CommandUUID, "", fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, results, 1)
 			assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
@@ -5595,14 +5595,14 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-failure', ?)`, enr
 			require.NoError(t, err)
 
 			// Verify results
-			results, err := ds.GetMDMWindowsCommandResults(t.Context(), atomicCmd.CommandUUID, "")
+			results, _, err := ds.GetMDMWindowsCommandResults(t.Context(), atomicCmd.CommandUUID, "", fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, results, 1)
 			assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
 			assert.Equal(t, atomicCmd.CommandUUID, results[0].CommandUUID)
 			assert.Equal(t, "200", results[0].Status)
 
-			results, err = ds.GetMDMWindowsCommandResults(t.Context(), replaceCmd.CommandUUID, "")
+			results, _, err = ds.GetMDMWindowsCommandResults(t.Context(), replaceCmd.CommandUUID, "", fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, results, 1)
 			assert.Equal(t, enrolledDevice1.HostUUID, results[0].HostUUID)
@@ -9909,7 +9909,7 @@ func testMDMWindowsFailUndeliverableCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingCmds, 1)
 
-	results, err := ds.GetMDMWindowsCommandResults(ctx, cmd.CommandUUID, device.HostUUID)
+	results, _, err := ds.GetMDMWindowsCommandResults(ctx, cmd.CommandUUID, device.HostUUID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, syncml.CmdStatusBadRequest, results[0].Status)
