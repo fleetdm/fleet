@@ -1722,9 +1722,9 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 		{LabelsExcludeAll: []string{lbl.Name}},
 		{LabelsExcludeAny: []string{lbl.Name}},
 	} {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyPolicyRequest{
 			ModifyPolicyPayload: payload,
-		}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+		}, http.StatusBadRequest, &fleet.ModifyPolicyResponse{})
 	}
 
 	for _, payload := range []fleet.QueryPayload{

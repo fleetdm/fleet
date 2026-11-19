@@ -2652,31 +2652,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	})
 
 	t.Run("global_patch_policy", func(t *testing.T) {
-		// attempt to add a global patch policy
+		// Patch policies need a fleet; without fleet_id the policy would be an "All fleets" policy.
 		params := map[string]any{
 			"name":                    "global-policy",
 			"query":                   "UNAFFECTED;",
 			"description":             "patch policies only work for teams",
 			"type":                    "patch",
-			"patch_software_title_id": "1", // should not matter
+			"patch_software_title_id": 1,
 		}
-		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusOK)
-
-		resBody, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		res.Body.Close()
-
-		policyResp := fleet.GlobalPolicyResponse{}
-		err = json.Unmarshal(resBody, &policyResp)
-		require.NoError(t, err)
-		policyID := policyResp.Policy.ID
-
-		getPolicyResp := fleet.GetPolicyByIDResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
-		require.NotNil(t, getPolicyResp.Policy)
-		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
-		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
-		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
+		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policy cannot be a patch policy`)
+		var listResp fleet.ListPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp, "query", "global-policy")
+		require.Empty(t, listResp.Policies)
 
 		// Should not be able to apply global patch policy
 		spec := &fleet.PolicySpec{

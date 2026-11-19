@@ -178,6 +178,7 @@ export interface IConfigServerSettings {
   discard_reports_data: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
+  ai_sessions_disabled: boolean;
 }
 
 export interface IConfig {

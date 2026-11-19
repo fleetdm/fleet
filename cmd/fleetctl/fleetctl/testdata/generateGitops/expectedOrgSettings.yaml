@@ -149,6 +149,7 @@ secrets:
   - secret: ___GITOPS_COMMENT_17___
 server_settings:
   ai_features_disabled: false
+  ai_sessions_disabled: false
   debug_host_ids:
     - 1
     - 3
