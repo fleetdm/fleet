@@ -24,7 +24,7 @@ Currently, the macOS versions of these apps are Apple Silicon-only rather than u
 
 ### Windows
 
-Windows apps are x64, so they run on both x64 and Arm hosts.
+Windows apps are x64, so they run on both x64 and Arm hosts. On Arm, Windows 11 runs x64 apps through its built-in emulator, Prism. [Learn more](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation).
 
 ## Windows install scope
 
