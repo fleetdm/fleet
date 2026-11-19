@@ -21,8 +21,6 @@ const (
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
 	RoleTechnician   = "technician"
-	TeamNameNoTeam   = "No team"
-	TeamNameAllTeams = "All teams"
 )
 
 const (
@@ -30,7 +28,7 @@ const (
 	ReservedNameNoTeam   = "No team"
 )
 
-// Display names used in user-facing error messages.
+// Names of the Unassigned fleet (ID 0) and of all fleets in requests and responses.
 const (
 	DisplayNameNoTeam   = "Unassigned"
 	DisplayNameAllTeams = "All fleets"

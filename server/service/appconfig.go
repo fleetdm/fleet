@@ -2853,9 +2853,21 @@ func (svc *Service) validateABMAssignments(
 		if err != nil {
 			return nil, nil, err
 		}
-		teamsByName := map[string]*uint{"": nil, "No team": nil}
+		teamsByName := map[string]*uint{"": nil}
+		// Fleets created before "Unassigned" was reserved can still have that name.
+		var fleetsNamedUnassigned []string
 		for _, tm := range teams {
 			teamsByName[tm.Name] = &tm.ID
+			if fleet.IsUnassignedFleetName(tm.Name) {
+				fleetsNamedUnassigned = append(fleetsNamedUnassigned, fmt.Sprintf("%q", tm.Name))
+			}
+		}
+		slices.Sort(fleetsNamedUnassigned)
+		fleetID := func(name string) *uint {
+			if fleet.IsUnassignedFleetName(name) {
+				return nil
+			}
+			return teamsByName[norm.NFC.String(name)]
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
@@ -2892,6 +2904,17 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
+				if reason, removed := removedFleetName(tmName, false); removed {
+					invalid.Append("mdm.apple_business", reason)
+					return nil, nil, nil
+				}
+				if fleet.IsUnassignedFleetName(tmName) {
+					if len(fleetsNamedUnassigned) > 0 {
+						invalid.Appendf("mdm.apple_business", "fleets with the reserved name Unassigned must be renamed before you assign an Apple Business token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
+						return nil, nil, nil
+					}
+					continue
+				}
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "fleet %s doesn't exist", tmName)
 					return nil, nil, nil
@@ -2904,10 +2927,10 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			tok := tokensByName[orgName]
-			tok.MacOSDefaultTeamID = teamsByName[norm.NFC.String(bm.MacOSTeam)]
-			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
-			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
-			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
+			tok.MacOSDefaultTeamID = fleetID(bm.MacOSTeam)
+			tok.IOSDefaultTeamID = fleetID(bm.IOSTeam)
+			tok.IPadOSDefaultTeamID = fleetID(bm.IpadOSTeam)
+			tok.BYODDefaultTeamID = fleetID(bm.BYODTeam)
 		}
 
 		return tokens, defaultTokenID, nil
@@ -2936,7 +2959,7 @@ func (svc *Service) validateVPPAssignments(
 	if err != nil {
 		return nil, err
 	}
-	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	teamsByName := map[string]uint{fleet.DisplayNameNoTeam: 0}
 	// Fleets created before "Unassigned" was reserved can still have that name.
 	var fleetsNamedUnassigned []string
 	for _, tm := range teams {
@@ -2965,17 +2988,18 @@ func (svc *Service) validateVPPAssignments(
 	repeated := make(map[uint]struct{})
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
-			if tmName == fleet.DisplayNameAllTeams {
-				tmName = fleet.TeamNameAllTeams
+			if reason, removed := removedFleetName(tmName, true); removed {
+				invalid.Append("mdm.volume_purchasing_program", reason)
+				return nil, nil
 			}
 			if fleet.IsUnassignedFleetName(tmName) {
 				if len(fleetsNamedUnassigned) > 0 {
 					invalid.Appendf("mdm.volume_purchasing_program", "fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
 					return nil, nil
 				}
-				tmName = fleet.TeamNameNoTeam
+				tmName = fleet.DisplayNameNoTeam
 			}
-			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
+			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.DisplayNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
 			}
@@ -2989,13 +3013,10 @@ func (svc *Service) validateVPPAssignments(
 
 		var tokenTeams []uint
 		for _, teamName := range vpp.Teams {
-			if teamName == fleet.DisplayNameAllTeams {
-				teamName = fleet.TeamNameAllTeams
-			}
 			if fleet.IsUnassignedFleetName(teamName) {
-				teamName = fleet.TeamNameNoTeam
+				teamName = fleet.DisplayNameNoTeam
 			}
-			if teamName == fleet.TeamNameAllTeams {
+			if teamName == fleet.DisplayNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil

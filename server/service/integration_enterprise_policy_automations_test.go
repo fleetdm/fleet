@@ -338,7 +338,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Configure webhook for "No Team" - only include pol1 and pol2
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"`
 	}
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
@@ -376,11 +376,11 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Test that we can configure and retrieve the "No Team" webhook settings
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"`
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
-	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 	require.Equal(t, []uint{noTeamPol1.ID, noTeamPol2.ID}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)

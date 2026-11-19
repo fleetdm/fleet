@@ -2464,12 +2464,12 @@ spec:
 		ds := setupServer(t, true)
 
 		// The config doesn't save the setup assistant, so check whether one is saved on its own for
-		// each fleet name, or fleet.TeamNameNoTeam.
+		// each fleet name, or fleet.DisplayNameNoTeam.
 		assertSavedSetupAssistants := func(want map[string]bool) {
 			t.Helper()
 			for teamName, wantSaved := range want {
 				var teamID *uint
-				if teamName != fleet.TeamNameNoTeam {
+				if teamName != fleet.DisplayNameNoTeam {
 					tm, err := ds.TeamByNameFunc(t.Context(), teamName)
 					require.NoError(t, err)
 					teamID = &tm.ID
@@ -2509,7 +2509,7 @@ spec:
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: false, "tm1": false})
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
@@ -2526,7 +2526,7 @@ spec:
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: false, "tm1": false})
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -2544,7 +2544,7 @@ spec:
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// a value of the wrong type fails instead of reading as empty, which would delete the item
 		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
@@ -2564,7 +2564,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -2605,7 +2605,7 @@ spec:
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -2626,7 +2626,7 @@ spec:
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false, "tm2": false})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: false, "tm1": false, "tm2": false})
 
 		// apply team 1 with an empty setup assistant key and enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))

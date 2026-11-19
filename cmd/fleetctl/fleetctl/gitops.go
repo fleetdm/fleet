@@ -221,9 +221,9 @@ func gitopsCommand() *cli.Command {
 						if err != nil {
 							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
 						}
-						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
-						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
-						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
+						syntheticSoftwareByTeam[fleet.DisplayNameNoTeam] = raw
+						teamsSoftwareInstallers[fleet.DisplayNameNoTeam] = installers
+						teamsVPPApps[fleet.DisplayNameNoTeam] = vppApps
 					}
 				}
 				for teamName, teamID := range teamIDLookup {
@@ -334,7 +334,8 @@ func gitopsCommand() *cli.Command {
 			// caught by the server.
 			seenTeamNames := make(map[string]string, len(configs)) // key -> filename
 			for _, cf := range configs {
-				if cf.IsGlobalConfig || cf.Config.TeamName == nil {
+				// Unassigned is fleet 0, not a named fleet, so "Un-assigned" can coexist with it.
+				if cf.IsGlobalConfig || cf.Config.TeamName == nil || cf.Config.IsNoTeam() {
 					continue
 				}
 				key := fleet.TeamNameKey(*cf.Config.TeamName)
@@ -661,7 +662,7 @@ func gitopsCommand() *cli.Command {
 				if ms := config.Controls.MacOSSetup; ms != nil && ms.MacOSSetupAssistant.Value != "" {
 					switch {
 					case config.TeamName == nil || config.IsNoTeam():
-						setupAssistantFleets[fleet.TeamNameNoTeam] = 0
+						setupAssistantFleets[fleet.DisplayNameNoTeam] = 0
 					case config.TeamID != nil:
 						setupAssistantFleets[norm.NFC.String(*config.TeamName)] = *config.TeamID
 					}
@@ -767,7 +768,7 @@ func gitopsCommand() *cli.Command {
 			// mean that other teams are not present.
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
-				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
+				defaultNoTeamConfig.TeamName = new(fleet.DisplayNameNoTeam)
 				_, err := fleetClient.DoGitOps(
 					c.Context,
 					defaultNoTeamConfig,
@@ -1495,16 +1496,9 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 									if teamStr, ok := team.(string); ok {
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
-										// Accept display name "All fleets" as equivalent to the internal "All teams"
-										if normalizedTeam == fleet.DisplayNameAllTeams {
-											normalizedTeam = fleet.TeamNameAllTeams
-										}
-										if fleet.IsUnassignedFleetName(normalizedTeam) {
-											normalizedTeam = fleet.TeamNameNoTeam
-										}
 										vppTeams = append(vppTeams, normalizedTeam)
-										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
-										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {
+										// ListTeams doesn't return Unassigned or All fleets, and the server rejects the old names of those.
+										if _, ok := teamNames[normalizedTeam]; !ok && !fleet.IsReservedTeamName(normalizedTeam) {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}

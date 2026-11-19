@@ -701,8 +701,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return "", &notFoundError{}
 	}
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
-		return nil
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) ([]uint, error) {
+		return nil, nil
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil

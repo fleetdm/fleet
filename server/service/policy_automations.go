@@ -159,7 +159,7 @@ func policySpecTeamID(spec *fleet.PolicySpec, teamIDsByName map[string]uint) *ui
 	switch spec.Team {
 	case "":
 		return nil
-	case "No team":
+	case fleet.DisplayNameNoTeam:
 		return new(uint(0))
 	default:
 		return new(teamIDsByName[spec.Team])

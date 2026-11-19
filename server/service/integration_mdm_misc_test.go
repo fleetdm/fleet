@@ -1478,7 +1478,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// Associate team to the VPP token.
 		var resPatchVPP patchVPPTokensTeamsResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{t1.ID}}, http.StatusOK, &resPatchVPP)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{t1.ID}}, http.StatusOK, &resPatchVPP)
 
 		// Attempt to add an app store app on a team with a label from another team (should fail).
 		var addAppResp addAppStoreAppResponse
@@ -1502,7 +1502,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// Associate all teams token.
 		resPatchVPP = patchVPPTokensTeamsResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 		// Attempt to add an app store app to "No team" with a team label (should fail).
 		addAppResp = addAppStoreAppResponse{}

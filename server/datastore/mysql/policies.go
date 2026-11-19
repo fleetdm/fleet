@@ -1983,7 +1983,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		teamID, ok := teamNameToID[spec.Team]
 		if !ok {
 			if spec.Team != "" {
-				if spec.Team == "No team" {
+				if fleet.IsUnassignedFleetName(spec.Team) {
 					teamID = ptr.Uint(0)
 				} else {
 					var tmID uint

@@ -22,6 +22,7 @@ import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  defaultMacAdminsHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
   googleConditionalAccessHandler,
@@ -29,6 +30,7 @@ import {
   ssoRequiredDeviceHandler,
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
+import { emptyDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -69,6 +71,14 @@ const mockLocation = {
   },
   search: undefined,
 };
+
+// The page loads both of these alongside the device details.
+beforeEach(() => {
+  mockServer.use(
+    defaultMacAdminsHandler,
+    emptyDeviceSelfServiceCategoriesHandler
+  );
+});
 
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
