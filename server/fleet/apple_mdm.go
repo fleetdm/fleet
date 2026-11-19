@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
@@ -149,16 +148,6 @@ func (m MDMAppleManualEnrollmentProfile) AuthzType() string {
 type MDMAppleDEPKeyPair struct {
 	PublicKey  []byte `json:"public_key"`
 	PrivateKey []byte `json:"private_key"`
-}
-
-// MDMAppleDEPDevice represents an Apple device in Apple Business (AB).
-type MDMAppleDEPDevice struct {
-	godep.Device
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleDEPDevice) AuthzType() string {
-	return "mdm_apple_dep_device"
 }
 
 // These following types are copied from nanomdm.

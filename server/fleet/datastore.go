@@ -1843,9 +1843,6 @@ type Datastore interface {
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)
 
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
-
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a
 	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)

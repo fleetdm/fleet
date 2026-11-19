@@ -1152,13 +1152,6 @@ allow {
   action == read
 }
 
-# Global admins can read and write Apple DEP devices.
-allow {
-  object.type == "mdm_apple_dep_device"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins and maintainers can read and write MDM Apple settings.
 allow {
   object.type == "mdm_apple_settings"

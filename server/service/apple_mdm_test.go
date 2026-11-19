@@ -172,9 +172,6 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 		return &fleet.MDMAppleEnrollmentProfile{ID: 1, Token: token, Type: fleet.MDMAppleEnrollmentTypeAutomatic}, nil
 	}
-	ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-		return nil, nil
-	}
 	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil

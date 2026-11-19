@@ -1148,8 +1148,6 @@ type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newTok
 
 type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
 
-type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
-
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
@@ -4308,9 +4306,6 @@ type DataStore struct {
 
 	GetMDMAppleEnrollmentProfileByTypeFunc        GetMDMAppleEnrollmentProfileByTypeFunc
 	GetMDMAppleEnrollmentProfileByTypeFuncInvoked bool
-
-	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
-	ListMDMAppleEnrollmentProfilesFuncInvoked bool
 
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
@@ -10455,13 +10450,6 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ 
 	s.GetMDMAppleEnrollmentProfileByTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleEnrollmentProfileByTypeFunc(ctx, typ)
-}
-
-func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	s.mu.Lock()
-	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
