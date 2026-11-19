@@ -12,7 +12,7 @@ It covers Claude Code on macOS, Windows, and Linux, and Claude Desktop on macOS 
 - Optional, for GitOps: a repository created with `fleetctl new` ([install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) first)
 - Optional, to fix drift automatically: Fleet Premium, because script policy automations are a Premium feature
 
-> **Warning:** By default, Claude Code uses only the highest-ranked managed source that sets at least one policy key and ignores the rest. The order is server-managed settings from claude.ai, then MDM or registry policy (the `com.anthropic.claudecode` domain on macOS, or `HKLM\SOFTWARE\Policies\ClaudeCode` on Windows), then files. If your organization delivers server-managed settings, or you already deploy a Claude Code profile or registry policy, Claude Code ignores the file you deploy here. To combine sources, set `managedSourcesBehavior` to `merge` in the highest-ranked source (Claude Code v2.1.242 or later).
+> **Warning:** By default, Claude Code uses only the highest-ranked managed source that sets at least one policy key and ignores the rest. The order is server-managed settings from claude.ai, then MDM or registry policy (the `com.anthropic.claudecode` domain on macOS, or `HKLM\SOFTWARE\Policies\ClaudeCode` on Windows), then files. If your organization delivers server-managed settings, or you already deploy a Claude Code profile or registry policy, Claude Code ignores most of the file you deploy here. Only a few keys, such as `allowManagedMcpServersOnly` and `deniedMcpServers`, still apply from it. To combine sources, set `managedSourcesBehavior` to `merge` in the highest-ranked source (Claude Code v2.1.242 or later).
 
 ## Write the Claude Code policy
 
@@ -117,7 +117,7 @@ Other keys include `isDesktopExtensionEnabled`, `isClaudeCodeForDesktopEnabled`,
 
 ### macOS
 
-Save this as `claude-desktop-settings.mobileconfig`. The `PayloadType` must be `com.anthropic.claudefordesktop`:
+Save this as `claude-desktop-settings.mobileconfig`. The inner payload's `PayloadType` is the preference domain, `com.anthropic.claudefordesktop`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -181,8 +181,8 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 
 ### GitOps
 
-1. Save the scripts in `lib/claude/` and the profile in `platforms/macos/configuration-profiles/`, where the default fleet file already picks up `.mobileconfig` files.
-2. Add the scripts to your fleet file, for example `fleets/workstations.yml`:
+1. Save the scripts in `lib/claude/` and the profile in `platforms/macos/configuration-profiles/`, where the fleet files that `fleetctl new` creates already pick up `.mobileconfig` files.
+2. Add the scripts to the existing `controls.scripts` list in your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
    controls:
@@ -205,7 +205,7 @@ Each policy below passes when the deployed settings match what you intend. A hos
    - On macOS, run `shasum -a 256 "<path to managed-settings.json>"`.
    - On Linux, run `sha256sum <path to managed-settings.json>`.
    - On Windows, run `(Get-FileHash 'C:\Program Files\ClaudeCode\managed-settings.json').Hash.ToLower()`.
-3. Add the policies to your fleet file, replacing `<sha256>` with the hash from the previous step:
+3. Add the policies to the existing `policies` list in your fleet file, replacing `<sha256>` with the hash from the previous step:
 
    ```yaml
    policies:
@@ -241,7 +241,7 @@ Each policy below passes when the deployed settings match what you intend. A hos
 
 To do the same in the Fleet UI, go to **Policies**, select your fleet, and select **Add policy** for each query. Then select **Manage automations > Run script**, check each policy, and pick its script.
 
-> **Note:** Changing the JSON in a script changes the file's hash, so update `<sha256>` in the policy at the same time. Hosts then fail the policy and pick up the new file. Fleet runs the script when a policy newly fails and retries it up to three times. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+> **Note:** Changing the JSON in a script changes the file's hash, so update `<sha256>` in the policy at the same time. Hosts then fail the policy and pick up the new file. Fleet runs the script when a policy newly fails and tries it up to three times in total. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
 ## What your users see
 
