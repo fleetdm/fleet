@@ -227,7 +227,7 @@ To learn more, see [Custom variables](https://fleetdm.com/guides/secrets-in-scri
 | Blocked dependency | If a package depends on a blocked package, dnf stops the install and says the dependency `is filtered out by exclude filtering`. |
 | Download | `dnf download` stops with `No package "sshpass" available`. |
 | Removed package | The package is removed without a prompt. If users try to install it again, dnf blocks it. |
-| User without `sudo` | apt stops any install: `Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?` |
+| User without `sudo` | dnf stops any install and says the operation requires superuser privileges. |
 
 ## Verify
 
