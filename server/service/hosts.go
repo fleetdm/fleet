@@ -1153,10 +1153,11 @@ func (svc *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier strin
 
 // hostByIDOrIdentifier calls get with the ID of the host that the :id path parameter of a host endpoint names, and returns its result and
 // that ID. A number is tried as the host ID first, without a lookup, so a request by host ID costs what it did before identifiers were
-// accepted. The identifier is looked up when it isn't a number, or when the call by ID is not found and the identifier names another host,
-// like one with a numeric serial. get should load the host before anything else that can be not found.
+// accepted. The identifier is looked up when it isn't a host ID, or when the call by ID is not found or forbidden and the identifier names
+// another host, like one with a numeric serial. get should load the host before anything else that can be not found.
 func hostByIDOrIdentifier[T any](ctx context.Context, svc fleet.Service, identifier string, get func(hostID uint) (T, error)) (T, uint, error) {
-	id, parseErr := strconv.ParseUint(identifier, 10, 0)
+	// A larger number can't be a host ID, since hosts.id is an unsigned INT.
+	id, parseErr := strconv.ParseUint(identifier, 10, 32)
 	if parseErr != nil {
 		hostID, err := svc.HostIDByIDOrIdentifier(ctx, identifier)
 		if err != nil {
@@ -1168,13 +1169,15 @@ func hostByIDOrIdentifier[T any](ctx context.Context, svc fleet.Service, identif
 	}
 
 	res, err := get(uint(id))
-	if !fleet.IsNotFound(err) {
+	var forbidden *authz.Forbidden
+	if !fleet.IsNotFound(err) && !errors.As(err, &forbidden) {
 		return res, uint(id), err
 	}
-	// The call can be not found for something an existing host doesn't have, like a recovery lock password. The lookup matches the host ID
-	// first, so then it returns the same ID and the error stands. A caller who can't list hosts gets the error, as before identifiers.
+	// An existing host can be not found for something it doesn't have, like a recovery lock password, or forbidden to a caller who can't
+	// see it. Some calls are also forbidden for a missing host, so they don't reveal which IDs exist. The lookup matches the host ID first,
+	// so for an existing host it returns the same ID and the error stands. A caller who can't list hosts gets the error, as before
+	// identifiers.
 	hostID, lookupErr := svc.HostIDByIDOrIdentifier(ctx, identifier)
-	var forbidden *authz.Forbidden
 	switch {
 	case lookupErr == nil && hostID != uint(id):
 		res, err = get(hostID)

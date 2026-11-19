@@ -136,6 +136,7 @@ func TestPolicies(t *testing.T) {
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"UpdateHostPolicyCountsDoesNotWaitOnMembershipLocks", testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
+		{"UpdateHostIssuesForMissingHost", testUpdateHostIssuesForMissingHost},
 		{"ResetPolicy", testResetPolicy},
 		{"ResetPolicyForHost", testResetPolicyForHost},
 	}
@@ -11885,4 +11886,15 @@ func testListAndCountPoliciesInScope(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, inherited, 1)
 	require.Equal(t, "global webhook", inherited[0].Name)
+}
+
+func testUpdateHostIssuesForMissingHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	// A number tried as a host ID before its lookup as a serial can name no host, or be beyond the host_id column's range.
+	for _, hostID := range []uint{123456, 1 << 32} {
+		require.NoError(t, ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, hostID))
+		var rows int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rows, `SELECT COUNT(*) FROM host_issues WHERE host_id = ?`, hostID))
+		require.Zero(t, rows, "host ID %d", hostID)
+	}
 }

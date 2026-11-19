@@ -7645,11 +7645,13 @@ func (ds *Datastore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Co
 }
 
 func updateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, tx sqlx.ExecerContext, hostID uint) error {
+	// The host is selected from hosts so that an ID with no host, like a number tried as a host ID before its lookup as a serial, adds no
+	// row, and one beyond the column's range isn't an error.
 	stmt := `
 	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
 	SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
 		FROM policy_membership pm
-		RIGHT JOIN (SELECT ? as id) as host_id
+		RIGHT JOIN (SELECT id FROM hosts WHERE id = ?) as host_id
 		ON pm.host_id = host_id.id
 		GROUP BY host_id.id
 	ON DUPLICATE KEY UPDATE

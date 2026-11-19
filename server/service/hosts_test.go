@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -7960,8 +7961,9 @@ func TestHostByIDOrIdentifier(t *testing.T) {
 	testCases := []struct {
 		name       string
 		identifier string
-		// failFor is the host ID that get is not found for, and lookup is what HostIDByIDOrIdentifier returns.
+		// failFor is the host ID that get fails for, with failErr or not found, and lookup is what HostIDByIDOrIdentifier returns.
 		failFor     uint
+		failErr     error
 		lookupID    uint
 		lookupErr   error
 		wantCalls   []uint
@@ -7981,6 +7983,13 @@ func TestHostByIDOrIdentifier(t *testing.T) {
 		{name: "a caller who can't list hosts gets the error", identifier: "7", failFor: 7, lookupErr: forbidden, wantCalls: []uint{7},
 			wantHostID: 7, wantErr: notFound, wantLookups: 1},
 		{name: "an identifier a caller can't look up", identifier: "serial", lookupErr: forbidden, wantErr: forbidden, wantLookups: 1},
+		// Like script details, which are forbidden for a missing host so they don't reveal which IDs exist.
+		{name: "forbidden for a number that isn't a host ID", identifier: "7", failFor: 7, failErr: forbidden, lookupID: otherHostID,
+			wantCalls: []uint{7, otherHostID}, wantHostID: otherHostID, wantLookups: 1},
+		{name: "forbidden for an existing host", identifier: "7", failFor: 7, failErr: forbidden, lookupID: 7, wantCalls: []uint{7},
+			wantHostID: 7, wantErr: forbidden, wantLookups: 1},
+		{name: "a number beyond a host ID's range is looked up", identifier: "4294967296", lookupID: otherHostID,
+			wantCalls: []uint{otherHostID}, wantHostID: otherHostID, wantLookups: 1},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -7994,7 +8003,7 @@ func TestHostByIDOrIdentifier(t *testing.T) {
 			res, hostID, err := hostByIDOrIdentifier(t.Context(), svc, tc.identifier, func(hostID uint) (uint, error) {
 				calls = append(calls, hostID)
 				if hostID == tc.failFor {
-					return 0, notFound
+					return 0, cmp.Or(tc.failErr, error(notFound))
 				}
 				return hostID, nil
 			})

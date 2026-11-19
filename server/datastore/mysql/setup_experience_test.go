@@ -3310,6 +3310,13 @@ func testHostIDBySetupExperienceUUID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, wantID, gotID, identifier)
 	}
+	// A UUID match comes first, so another host's osquery host ID can't take a Mac's UUID.
+	newHost("windows", "other-windows-uuid", "mac-takeover-uuid")
+	takenMac := newHost("darwin", "mac-takeover-uuid", "mac-takeover-osquery-host-id")
+	gotID, err := ds.HostIDBySetupExperienceUUID(ctx, "mac-takeover-uuid")
+	require.NoError(t, err)
+	require.Equal(t, takenMac, gotID)
+
 	for _, identifier := range []string{"", "windows-uuid-hostname", "no-such-host"} {
 		_, err := ds.HostIDBySetupExperienceUUID(ctx, identifier)
 		require.True(t, fleet.IsNotFound(err), "HostIDBySetupExperienceUUID(%q): %v", identifier, err)

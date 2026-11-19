@@ -4313,10 +4313,10 @@ func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID}, ids)
 
-	// HostIDsByIdentifier still matches them, for live queries and profile variables.
+	// HostIDsByIdentifier also matches hostnames, for live queries and profile variables, but not agent keys.
 	ids, err = ds.HostIDsByIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, ids)
+	assert.ElementsMatch(t, []uint{hosts[0].ID}, ids)
 }
 
 func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
