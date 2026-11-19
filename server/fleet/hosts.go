@@ -2303,8 +2303,6 @@ type HostMacOSProfile struct {
 type HostIDByIdentifierOptions struct {
 	// MatchID tries a numeric identifier as a host ID first.
 	MatchID bool
-	// MatchAgentKeys also matches osquery_host_id and node_key, after hostname.
-	MatchAgentKeys bool
 }
 
 // HostLite contains a subset of Host fields.

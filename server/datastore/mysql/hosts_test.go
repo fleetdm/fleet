@@ -4230,6 +4230,11 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	require.Len(t, hostsByIdentifier, 1)
 	assert.Equal(t, hostsByIdentifier[0], hosts[2].ID)
 
+	// Agent keys aren't identifiers.
+	hostsByIdentifier, err = ds.HostIDsByIdentifier(t.Context(), filter, []string{"osq.host1", "nk.2"})
+	require.NoError(t, err)
+	assert.Empty(t, hostsByIdentifier)
+
 	noSerialHost, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -4485,15 +4490,13 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
-	h, err = ds.HostByIdentifier(context.Background(), "osquery_host_id_2")
-	require.NoError(t, err)
-	assert.Equal(t, uint(2), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
-
-	h, err = ds.HostByIdentifier(context.Background(), "node_key_4")
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
+	// Agent keys aren't identifiers.
+	for _, agentKey := range []string{"osquery_host_id_2", "node_key_4"} {
+		_, err = ds.HostByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", agentKey, err)
+		_, err = ds.HostLiteByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", agentKey, err)
+	}
 
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
@@ -4509,8 +4512,6 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		setSerial := func(h *fleet.Host, value string) { h.HardwareSerial = value }
 		setUUID := func(h *fleet.Host, value string) { h.UUID = value }
 		setHostname := func(h *fleet.Host, value string) { h.Hostname = value }
-		setOsqueryHostID := func(h *fleet.Host, value string) { h.OsqueryHostID = &value }
-		setNodeKey := func(h *fleet.Host, value string) { h.NodeKey = &value }
 
 		// The expected loser is created first, so the winner never has the lower ID unless the case is about the tie-break.
 		testCases := []struct {
@@ -4521,8 +4522,6 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		}{
 			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
 			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
-			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
-			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
 			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
 			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
 			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
@@ -4686,7 +4685,7 @@ func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
 	setHostname := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.Hostname = value } }
 	setOsqueryHostID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.OsqueryHostID = &value } }
 	setNodeKey := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.NodeKey = &value } }
-	allColumns := fleet.HostIDByIdentifierOptions{MatchID: true, MatchAgentKeys: true}
+	allColumns := fleet.HostIDByIdentifierOptions{MatchID: true}
 
 	t.Run("priority across and within columns", func(t *testing.T) {
 		// winnerIsLast creates the winner after the loser, so a case about column priority shows whether the newest host can override it.
@@ -4698,8 +4697,6 @@ func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
 		}{
 			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
 			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
-			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
-			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
 			{name: "serial beats a newer UUID", setLoser: setUUID, setWinner: setSerial},
 			{name: "newest host wins on a shared serial", setLoser: setSerial, setWinner: setSerial, winnerIsLast: true},
 			{name: "newest host wins on a shared UUID", setLoser: setUUID, setWinner: setUUID, winnerIsLast: true},
@@ -4745,14 +4742,16 @@ func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
 		require.Equal(t, serialHost, gotID)
 	})
 
-	t.Run("options exclude columns", func(t *testing.T) {
+	t.Run("agent keys and, without MatchID, the host ID don't match", func(t *testing.T) {
 		idHost := newHost(setOsqueryHostID("excluded_osquery_host_id"))
 		newHost(setNodeKey("excluded_node_key"))
 
-		for _, identifier := range []string{fmt.Sprint(idHost), "excluded_osquery_host_id", "excluded_node_key"} {
-			_, err := ds.HostIDByIdentifier(t.Context(), identifier, fleet.HostIDByIdentifierOptions{})
+		for _, identifier := range []string{"excluded_osquery_host_id", "excluded_node_key"} {
+			_, err := ds.HostIDByIdentifier(t.Context(), identifier, allColumns)
 			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", identifier, err)
 		}
+		_, err := ds.HostIDByIdentifier(t.Context(), fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{})
+		require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%d): %v", idHost, err)
 	})
 
 	t.Run("blank identifiers match nothing", func(t *testing.T) {
@@ -4801,15 +4800,11 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, identifier, h.UUID)
 
-	h, err = ds.HostLiteByIdentifier(context.Background(), "osquery_host_id_2")
-	require.NoError(t, err)
-	assert.Equal(t, uint(2), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
-
-	h, err = ds.HostLiteByIdentifier(context.Background(), "node_key_4")
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
+	// Agent keys aren't identifiers.
+	for _, agentKey := range []string{"osquery_host_id_2", "node_key_4"} {
+		_, err = ds.HostLiteByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", agentKey, err)
+	}
 
 	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
@@ -14065,11 +14060,11 @@ func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
 	}{
 		{desc: "no identifier", in: nil, out: nil},
 		{desc: "no match", in: []string{"ZZZ"}, out: nil},
-		{desc: "single match", in: []string{"abc"}, out: []string{h1.Hostname}},
-		{desc: "two matches", in: []string{"mno"}, out: []string{h2.Hostname, h3.Hostname}},
-		{desc: "all matches", in: []string{"def"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "multiple identifiers", in: []string{"abc", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "duplicate identifiers", in: []string{"abc", "abc", "ghi"}, out: []string{h1.Hostname}},
+		{desc: "single match", in: []string{"jkl"}, out: []string{h1.Hostname}},
+		{desc: "two matches", in: []string{"def"}, out: []string{h1.Hostname, h3.Hostname}},
+		{desc: "node keys aren't identifiers", in: []string{"abc"}, out: nil},
+		{desc: "multiple identifiers", in: []string{"jkl", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "duplicate identifiers", in: []string{"jkl", "jkl", "ghi"}, out: []string{h1.Hostname}},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {

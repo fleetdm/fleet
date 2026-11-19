@@ -3752,7 +3752,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
-	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "hostname", "uuid", "hardware_serial", "node_key", "osquery_host_id")
+	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "hostname", "uuid", "hardware_serial")
 }
 
 func (ds *Datastore) HostIDsByLabelIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
@@ -3916,17 +3916,13 @@ const hostByIdentifierWhere = `
         (SELECT id, 1 FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id LIMIT 1)
         UNION ALL
         (SELECT id, 2 FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id LIMIT 1)
-        UNION ALL
-        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ? AND osquery_host_id <> '')
-        UNION ALL
-        (SELECT id, 4 FROM hosts WHERE node_key = ? AND node_key <> '')
       ) candidates
       ORDER BY candidates.priority
       LIMIT 1
     )`
 
 func hostByIdentifierArgs(identifier string) []any {
-	return []any{identifier, identifier, identifier, identifier, identifier}
+	return []any{identifier, identifier, identifier}
 }
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -7492,12 +7488,10 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 // Each candidate excludes empty values for the reason given on hostByIdentifierWhere, and the identifier columns aren't unique, so each
 // takes the newest host on its own index.
 const (
-	hostIDCandidateByID        = `(SELECT id, 0 AS priority FROM hosts WHERE id = ?)`
-	hostIDCandidateBySerial    = `(SELECT id, 1 AS priority FROM hosts WHERE hardware_serial = ? AND hardware_serial <> '' ORDER BY id DESC LIMIT 1)`
-	hostIDCandidateByUUID      = `(SELECT id, 2 AS priority FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id DESC LIMIT 1)`
-	hostIDCandidateByHostname  = `(SELECT id, 3 AS priority FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id DESC LIMIT 1)`
-	hostIDCandidateByOsqueryID = `(SELECT id, 4 AS priority FROM hosts WHERE osquery_host_id = ? AND osquery_host_id <> '')`
-	hostIDCandidateByNodeKey   = `(SELECT id, 5 AS priority FROM hosts WHERE node_key = ? AND node_key <> '')`
+	hostIDCandidateByID       = `(SELECT id, 0 AS priority FROM hosts WHERE id = ?)`
+	hostIDCandidateBySerial   = `(SELECT id, 1 AS priority FROM hosts WHERE hardware_serial = ? AND hardware_serial <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByUUID     = `(SELECT id, 2 AS priority FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByHostname = `(SELECT id, 3 AS priority FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id DESC LIMIT 1)`
 )
 
 func (ds *Datastore) HostIDByIdentifier(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
@@ -7513,10 +7507,6 @@ func (ds *Datastore) HostIDByIdentifier(ctx context.Context, identifier string, 
 	}
 	candidates = append(candidates, hostIDCandidateBySerial, hostIDCandidateByUUID, hostIDCandidateByHostname)
 	args = append(args, identifier, identifier, identifier)
-	if opts.MatchAgentKeys {
-		candidates = append(candidates, hostIDCandidateByOsqueryID, hostIDCandidateByNodeKey)
-		args = append(args, identifier, identifier)
-	}
 	stmt := `SELECT candidates.id FROM (` + strings.Join(candidates, " UNION ALL ") + `) candidates ORDER BY candidates.priority LIMIT 1`
 
 	var hostID uint
@@ -7602,7 +7592,7 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 			DISTINCT h.hostname
 		FROM hosts h,
 		(%s) ids
-		WHERE ids.identifier IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
+		WHERE ids.identifier IN (h.hostname, h.uuid, h.hardware_serial)
 `
 	if len(identifiers) == 0 {
 		return nil, nil
