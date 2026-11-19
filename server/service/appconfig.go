@@ -2342,19 +2342,24 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 // unchanged. Only the (non-secret) fields are compared; an edit records the
 // primary domain and the synced domains it added or removed.
 func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) fleet.ActivityDetails {
-	oldConfigured := len(old) > 0
-	newConfigured := len(current) > 0
+	var o, c *fleet.GoogleWorkspaceIntegration
+	if len(old) > 0 {
+		o = old[0]
+	}
+	if len(current) > 0 {
+		c = current[0]
+	}
 	switch {
-	case !oldConfigured && newConfigured:
-		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: current[0].Domain}
-	case oldConfigured && !newConfigured:
-		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: old[0].Domain}
-	case oldConfigured && newConfigured:
-		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail ||
-			!slices.Equal(old[0].AdditionalDomains, current[0].AdditionalDomains) {
-			added, removed := diffStringSlices(old[0].Domains(), current[0].Domains())
+	case o == nil && c != nil:
+		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: c.Domain}
+	case o != nil && c == nil:
+		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: o.Domain}
+	case o != nil && c != nil:
+		if o.Domain != c.Domain || o.ImpersonatedUserEmail != c.ImpersonatedUserEmail ||
+			!slices.Equal(o.AdditionalDomains, c.AdditionalDomains) {
+			added, removed := diffStringSlices(o.Domains(), c.Domains())
 			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{
-				Domain:         current[0].Domain,
+				Domain:         c.Domain,
 				AddedDomains:   added,
 				RemovedDomains: removed,
 			}
