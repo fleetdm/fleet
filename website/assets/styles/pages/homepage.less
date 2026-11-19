@@ -290,6 +290,8 @@
 
   // You don't need the Microsoft bundle
   [purpose='microsoft-bundle-section'] {
+    // Clears the sticky header (and the announcement banner, when shown) when linked to as /#you-dont-need-the-microsoft-bundle.
+    scroll-margin-top: ~'calc(81px + var(--announcement-banner-height, 0px) + 24px)';
     display: flex;
     flex-direction: column;
     gap: @section-64;

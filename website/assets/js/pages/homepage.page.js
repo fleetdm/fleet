@@ -79,9 +79,15 @@ parasails.registerPage('homepage', {
     if(masonry && masonry.scrollHeight <= this.testimonialsVisibleHeight) {
       this.allTestimonialsVisible = true;
     }
-    // Vue replaces the page's DOM on mount, so a browser that already tried the /#newsletter jump (e.g. Firefox) can be left at the top.
-    if(window.location.hash === '#newsletter') {
-      this.$el.querySelector('#newsletter').scrollIntoView();
+    // Vue replaces the page's DOM on mount, so a browser that already tried the jump to a linked section (e.g. /#newsletter in Firefox) can be left at the top.
+    if(['#newsletter', '#you-dont-need-the-microsoft-bundle'].includes(window.location.hash)) {
+      // Wait for the layout's announcement banner script, which sets the --announcement-banner-height used by scroll-margin-top.
+      let scrollToSection = ()=>{ this.$el.querySelector(window.location.hash).scrollIntoView(); };
+      if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scrollToSection);
+      } else {
+        scrollToSection();
+      }
     }
   },
 

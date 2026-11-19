@@ -356,7 +356,8 @@
 
   // FAQ
   [purpose='faq-section'] {
-    scroll-margin-top: 120px;
+    // Clears the sticky header (and the announcement banner, when shown) when linked to as /windows#faq.
+    scroll-margin-top: ~'calc(81px + var(--announcement-banner-height, 0px) + 24px)';
     display: flex;
     flex-direction: column;
     gap: @section-48;
