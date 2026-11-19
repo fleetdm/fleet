@@ -49,6 +49,12 @@ type androidAgent struct {
 	deviceName           string // AMAPI resource name: enterprises/{id}/devices/{id}
 	enterpriseID         string
 	orbitNodeKey         string // obtained from orbit enrollment, used for certificate API auth
+	// agentEnrollSecret is the enroll secret in the Fleet agent's managed configuration, as the proxy last reported it. Orbit
+	// enrolls with it when set, like the real agent; with one-time enroll secrets on, Fleet refuses the shared one.
+	agentEnrollSecret string
+	// proxyReportsAgentSecret is set once the proxy is known to report the managed configuration's enroll secret. An older
+	// proxy doesn't, and then orbit enrolls with the shared secret.
+	proxyReportsAgentSecret bool
 
 	// Hardware details
 	brand        string
@@ -616,9 +622,17 @@ func (a *androidAgent) runLoop() {
 	}
 	a.stats.IncrementAndroidEnrollments()
 
-	// Step 2b: Orbit enrollment (retry with backoff, non-fatal)
+	// Step 2b: Orbit enrollment (retry with backoff, non-fatal). The status loop keeps trying until it succeeds, since the
+	// agent's managed configuration, and the enroll secret in it, arrives only after Fleet runs the setup experience. Like
+	// the real agent, this waits for that secret rather than presenting the shared one, which Fleet refuses when one-time
+	// enroll secrets are on.
 	for attempt := 1; ; attempt++ {
-		if err := a.orbitEnroll(); err != nil {
+		a.refreshAgentEnrollSecret()
+		err := errors.New("no enroll secret in the agent's managed configuration yet")
+		if a.shouldOrbitEnroll() {
+			err = a.orbitEnroll()
+		}
+		if err != nil {
 			if attempt >= 3 {
 				log.Printf("Android agent %d: orbit enrollment failed after %d attempts: %v", a.agentIndex, attempt, err)
 				break // Non-fatal — certificate flow won't work but status reports will
@@ -654,6 +668,16 @@ func (a *androidAgent) runLoop() {
 			// Still report, so the device doesn't look dead to Fleet's reconciler, but count
 			// it: the state being reported is fabricated.
 			a.stats.IncrementAndroidErrors()
+		}
+
+		if !stale {
+			a.noteAgentEnrollSecret(state)
+		}
+		if a.shouldOrbitEnroll() {
+			if err := a.orbitEnroll(); err != nil {
+				log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
+				a.stats.IncrementAndroidErrors()
+			}
 		}
 
 		// Send STATUS_REPORT
@@ -716,6 +740,8 @@ type proxyDeviceState struct {
 	PolicyName          string   `json:"policy_name"`
 	PendingCommands     []string `json:"pending_commands"`
 	PendingCertificates []uint   `json:"pending_certificates"`
+	// AgentEnrollSecret is nil when the proxy is too old to report the managed configuration's enroll secret.
+	AgentEnrollSecret *string `json:"agent_enroll_secret"`
 }
 
 // certTemplateResponse is the response from GET /api/fleetd/certificates/{id}
@@ -776,6 +802,27 @@ var errProxyDeviceUnknown = errors.New("device not registered with proxy")
 // unenrolled. Unlike errProxyDeviceUnknown this is terminal: the device is gone on purpose
 // and must not register again.
 var errProxyDeviceDeleted = errors.New("device was deleted from the proxy")
+
+// shouldOrbitEnroll reports whether an agent should try to enroll orbit now: not once it has a node key, and otherwise with
+// the managed configuration's enroll secret, waiting for it, unless the proxy is too old to report one, in which case the
+// shared secret is all there is.
+func (a *androidAgent) shouldOrbitEnroll() bool {
+	if a.orbitNodeKey != "" {
+		return false
+	}
+	return a.agentEnrollSecret != "" || !a.proxyReportsAgentSecret
+}
+
+// noteAgentEnrollSecret records what a freshly polled proxy state says about the managed configuration's enroll secret.
+func (a *androidAgent) noteAgentEnrollSecret(state *proxyDeviceState) {
+	if state.AgentEnrollSecret == nil {
+		return
+	}
+	a.proxyReportsAgentSecret = true
+	if *state.AgentEnrollSecret != "" {
+		a.agentEnrollSecret = *state.AgentEnrollSecret
+	}
+}
 
 // maxStaleStateReports bounds how many consecutive status reports may be sent from a stale
 // cached state, so a permanently broken agent stops looking healthy.
@@ -986,7 +1033,19 @@ func (a *androidAgent) sendCommandAck(operationName string) error {
 	return a.sendPubSubMessage(android.PubSubCommand, op)
 }
 
+// refreshAgentEnrollSecret picks up the enroll secret from the agent's managed configuration, if the proxy has one yet.
+func (a *androidAgent) refreshAgentEnrollSecret() {
+	state, err := a.pollProxyState()
+	if err == nil {
+		a.noteAgentEnrollSecret(state)
+	}
+}
+
 func (a *androidAgent) orbitEnroll() error {
+	enrollSecret := a.enrollSecret
+	if a.agentEnrollSecret != "" {
+		enrollSecret = a.agentEnrollSecret
+	}
 	body := struct {
 		EnrollSecret   string `json:"enroll_secret"`
 		HardwareUUID   string `json:"hardware_uuid"`
@@ -994,7 +1053,7 @@ func (a *androidAgent) orbitEnroll() error {
 		Platform       string `json:"platform"`
 		ComputerName   string `json:"computer_name"`
 	}{
-		EnrollSecret:   a.enrollSecret,
+		EnrollSecret:   enrollSecret,
 		HardwareUUID:   a.enterpriseSpecificID,
 		HardwareSerial: a.serialNumber,
 		Platform:       "android",

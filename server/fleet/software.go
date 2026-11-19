@@ -502,14 +502,10 @@ type SoftwareTitle struct {
 	// InHouseAppsCount is 0 or 1, indicating if the software title has
 	// an in house app (.ipa) installer
 	InHouseAppCount int `json:"-" db:"in_house_apps_count"`
-	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
-	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
-	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
-	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
 	// AppStoreApps holds every App Store app version, first-added first, nil when there is none.
-	AppStoreApps []AppStoreAppVersion `json:"app_store_apps" db:"-"`
+	AppStoreApps []*VPPAppStoreApp `json:"app_store_apps" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -529,9 +525,8 @@ type SoftwareTitle struct {
 	SoftwareAutoUpdateConfig
 }
 
-// This type is essentially the same as the above SoftwareTitle type. The only difference is that
-// SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
-// the above type is used when fetching them individually.
+// This type is essentially the same as the above SoftwareTitle type. This type is for use when
+// listing out SoftwareTitles; the above type is used when fetching them individually.
 type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
@@ -552,15 +547,14 @@ type SoftwareTitleListResult struct {
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 
-	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
-	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+	// SoftwarePackage holds the first-added package for the setup experience software list, nil when none.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package,omitempty"`
 
 	// Packages holds the trimmed per-package info, first-added first; nil (marshals to null) when none.
 	Packages []SoftwarePackageListItem `json:"packages"`
 
-	// AppStoreApp provides VPP app information, it is only present if a VPP app
-	// is available for the software title.
-	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	// AppStoreApp is only set when listing setup experience software, nil otherwise.
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app,omitempty"`
 	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match

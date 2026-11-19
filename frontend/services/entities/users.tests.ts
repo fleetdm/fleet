@@ -8,7 +8,7 @@ describe("toFleetRoles", () => {
         role: "admin",
         name: "Fleet A",
         mdm: {
-          windows_settings: { custom_settings: [], configuration_profiles: [] },
+          windows_settings: { configuration_profiles: [] },
         },
       },
     ];

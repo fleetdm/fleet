@@ -24,12 +24,6 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
     // reformat title and insert at start of headers array
     newHeaders.unshift({ ...displayNameHeader, id: "Host" });
   }
-  // TODO: Remove after v5 when host_hostname is removed rom API response.
-  const hostNameIndex = columns.findIndex((h) => h.id === "host_hostname");
-  if (hostNameIndex >= 0) {
-    newHeaders.splice(hostNameIndex, 1);
-  }
-  // end remove
   return newHeaders;
 };
 

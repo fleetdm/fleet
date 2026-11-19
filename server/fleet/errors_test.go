@@ -85,7 +85,7 @@ func TestFleetdErrors(t *testing.T) {
 
 func TestParamRequiredDeprecationError(t *testing.T) {
 	err := NewParamRequiredDeprecationError("host_identifier")
-	require.Equal(t, `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, err.Error())
+	require.Equal(t, `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, err.Error())
 
 	// Encoded as a bad request (400) and logged as a client error.
 	var asError error = err

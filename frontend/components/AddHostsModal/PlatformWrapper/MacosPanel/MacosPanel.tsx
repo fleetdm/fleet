@@ -77,6 +77,7 @@ const MacosPanel = ({
             inputWrapperClass={`${baseClass}__enroll-link`}
             name="enroll-link"
             enableCopy
+            enableOpenInNewTab
             label="Share this link with your end users:"
             value={enrollUrl}
             helpText={helpText}

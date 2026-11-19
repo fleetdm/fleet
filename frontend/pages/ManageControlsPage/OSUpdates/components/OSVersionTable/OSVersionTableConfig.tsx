@@ -38,7 +38,7 @@ export const generateTableHeaders = (teamId: number) => {
       Cell: ({ row }: IOSTypeCellProps) => (
         <OSTypeCell
           platform={row.original.platform}
-          versionName={row.original.name_only}
+          versionName={row.original.os_name}
         />
       ),
     },
@@ -46,7 +46,7 @@ export const generateTableHeaders = (teamId: number) => {
       title: "Version",
       Header: "Version",
       disableSortBy: true,
-      accessor: "version",
+      accessor: "os_version",
     },
     {
       title: "Hosts",
@@ -74,8 +74,8 @@ export const generateTableHeaders = (teamId: number) => {
             {cellProps.row.original && (
               <ViewAllHostsLink
                 queryParams={{
-                  os_name: cellProps.row.original.name_only,
-                  os_version: cellProps.row.original.version,
+                  os_name: cellProps.row.original.os_name,
+                  os_version: cellProps.row.original.os_version,
                   fleet_id: teamId,
                 }}
                 className="os-hosts-link"
