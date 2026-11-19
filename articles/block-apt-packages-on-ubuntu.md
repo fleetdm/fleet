@@ -218,7 +218,7 @@ policies:
 
 > **Note:** Each `path` is relative to the YAML file it's in. Change the paths to match where the scripts are saved in your repository, like `../lib/servers/scripts/`.
 
-> **Warning:** The `labels` key replaces all labels defined in that file. If your file already has a `labels` section, add `Hosts with apt` to it. If your organization manages labels outside GitOps, leave out the `labels` section and create the label in the Fleet UI instead.
+> **Warning:** The `labels` key replaces all labels defined in that file. If your file already has a `labels` section, add `Hosts with dnf` to it. If your organization manages labels outside GitOps, leave out the `labels` section and create the label in the Fleet UI instead. Label names must be unique across all fleets, so if you use these policies in more than one fleet, define the label once in `default.yml` instead.
 
 To learn more, see [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
 
