@@ -140,8 +140,8 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 
 ### GitOps
 
-1. Save the profile in `platforms/macos/configuration-profiles/`, where the default fleet file already picks up `.mobileconfig` files.
-2. Save the scripts in `lib/windsurf/` and add them to your fleet file, for example `fleets/workstations.yml`:
+1. Save the profile in `platforms/macos/configuration-profiles/`, where `fleets/workstations.yml` from `fleetctl new` already picks up `.mobileconfig` files.
+2. Save the scripts in `lib/windsurf/` and add them to the existing `controls.scripts` list in your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
    controls:
@@ -159,7 +159,7 @@ Fleet sends the macOS profile to hosts automatically. Scripts run only when you 
 Each policy below passes when the host has your settings. A host that fails gets the script automatically.
 
 1. Run `windsurf-settings.sh` on a Linux test host, then run `sha256sum /etc/vscode/policy.json` and copy the hash.
-2. Add the policies to your fleet file, replacing `<sha256>` with that hash:
+2. Add the policies to the existing `policies` list in your fleet file, replacing `<sha256>` with that hash:
 
    ```yaml
    policies:
