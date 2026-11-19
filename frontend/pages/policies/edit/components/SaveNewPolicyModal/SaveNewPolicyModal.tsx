@@ -143,6 +143,10 @@ const SaveNewPolicyModal = ({
 
   const [platformError, setPlatformError] = useState<string | null>(null);
   const [showLabelsError, setShowLabelsError] = useState(false);
+  // Name is autofocused when the modal opens; skip blur validation until the
+  // user has typed in it so clicking away from an untouched field doesn't
+  // surface "Enter a policy name".
+  const [nameDirty, setNameDirty] = useState(false);
 
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
@@ -304,7 +308,24 @@ const SaveNewPolicyModal = ({
       >
         <InputField
           name="name"
-          onChange={(value: string) => setLastEditedQueryName(value)}
+          onChange={(value: string) => {
+            setLastEditedQueryName(value);
+            if (!nameDirty) setNameDirty(true);
+          }}
+          onBlur={() => {
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (nameDirty && !trimmed) {
+              setErrors({ ...errors, name: "Enter a policy name" });
+            }
+          }}
+          onFocus={() => {
+            if (errors.name) {
+              const next = { ...errors };
+              delete next.name;
+              setErrors(next);
+            }
+          }}
           value={lastEditedQueryName}
           error={errors.name}
           inputClassName={`${baseClass}__policy-save-modal-name`}
