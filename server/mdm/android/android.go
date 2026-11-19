@@ -66,8 +66,6 @@ type EnrollmentToken struct {
 	EnrollmentToken  string `json:"android_enrollment_token"`
 	EnrollmentURL    string `json:"android_enrollment_url"`
 	EnrollmentQRCode string `json:"android_enrollment_qr_code"`
-	// RFC 3339 timestamp, as returned by Google.
-	ExpiresAt string `json:"android_enrollment_token_expires_at,omitempty"`
 }
 
 type ZeroTouchToken struct {

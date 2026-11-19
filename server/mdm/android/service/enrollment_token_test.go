@@ -120,7 +120,7 @@ func TestCreateEnrollmentTokenUsesFleetDefaultPolicy(t *testing.T) {
 			var tokenPolicyName string
 			androidAPIClient.EnterprisesEnrollmentTokensCreateFunc = func(_ context.Context, _ string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 				tokenPolicyName = token.PolicyName
-				return &androidmanagement.EnrollmentToken{Value: "token", ExpirationTimestamp: "2026-11-19T13:00:00Z"}, nil
+				return &androidmanagement.EnrollmentToken{Value: "token"}, nil
 			}
 
 			fleetDS := InitCommonDSMocks()
@@ -156,9 +156,8 @@ func TestCreateEnrollmentTokenUsesFleetDefaultPolicy(t *testing.T) {
 			svc, err := NewServiceWithClient(slog.New(slog.DiscardHandler), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
 			require.NoError(t, err)
 
-			token, err := svc.CreateEnrollmentToken(t.Context(), "secret", "", true)
+			_, err = svc.CreateEnrollmentToken(t.Context(), "secret", "", true)
 			require.NoError(t, err)
-			require.Equal(t, "2026-11-19T13:00:00Z", token.ExpiresAt)
 			require.Equal(t, c.wantPolicyName, tokenPolicyName)
 			require.Equal(t, c.wantPatched, patched)
 			if len(c.wantPatched) > 0 && c.patchErr == nil {
