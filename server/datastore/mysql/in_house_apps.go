@@ -52,7 +52,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
 			}
-			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			return alreadyExists("In-house app", payload.Title).WithTeamName(teamName)
 		}
 
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
@@ -132,7 +132,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err)
 			}
-			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			err = alreadyExists("In-house app", payload.Title).WithTeamName(teamName)
 			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
