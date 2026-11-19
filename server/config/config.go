@@ -2549,7 +2549,6 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			MaxJitterPercent:                man.getConfigInt("osquery.max_jitter_percent"),
 			AISessionMaxToolCalls:           man.getConfigInt("osquery.ai_session_max_tool_calls"),
 			AISessionMaxToolCallsPerRefresh: man.getConfigInt("osquery.ai_session_max_tool_calls_per_refresh"),
-			MinSoftwareLastOpenedAtDiff:     man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:             man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:     man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:           man.getConfigBool("osquery.allow_body_auth_fallback"),

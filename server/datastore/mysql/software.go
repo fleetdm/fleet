@@ -642,7 +642,12 @@ func updateHostSoftwareInstalledPathExecutables(
 	return nil
 }
 
-func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) (
+// minLastOpenedAtDiff is how much later a reported last opened time must be than the stored one
+// to be saved, so small differences in reported times (for example, between copies of an app
+// installed in two locations) don't cause a database write on every check-in.
+const minLastOpenedAtDiff = 5 * time.Second
+
+func nothingChanged(current, incoming []fleet.Software) (
 	map[string]fleet.Software, map[string]fleet.Software, bool,
 ) {
 	// Process incoming software to ensure there are no duplicates, since the same software can be installed at multiple paths.
@@ -784,7 +789,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		}
 	}
 
-	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware, ds.minLastOpenedAtDiff)
+	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware)
 	if noChanges {
 		// TODO: This is to backfill existing data ... we should be able to remove this call after a couple of releases?
 		// Benchmark showed no meaningful impact to performance
@@ -838,7 +843,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 
-			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff, ds.logger); err != nil {
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.logger); err != nil {
 				return err
 			}
 
@@ -2094,7 +2099,6 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-	minLastOpenedAtDiff time.Duration,
 	logger *slog.Logger,
 ) error {
 	var keysToUpdate []string

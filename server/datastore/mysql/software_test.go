@@ -416,6 +416,7 @@ func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
+	lastOpened := time.Now()
 	cases := []struct {
 		desc     string
 		current  []fleet.Software
@@ -480,6 +481,30 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 			true,
 		},
 		{
+			"last open 4 seconds later",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(4 * time.Second))}},
+			true,
+		},
+		{
+			"last open 5 seconds later",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(5 * time.Second))}},
+			false,
+		},
+		{
+			"same last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			true,
+		},
+		{
+			"earlier last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(-time.Hour))}},
+			true,
+		},
+		{
 			"identical with duplicates incoming",
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "A", Version: "1.0", Source: "ASD"}},
@@ -498,7 +523,7 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			current, incoming, got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
+			current, incoming, got := nothingChanged(c.current, c.incoming)
 			if c.want {
 				assert.True(t, got)
 				assert.Equal(t, len(current), len(incoming))
@@ -2296,6 +2321,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", now}) // baz hasn't been updated to nowish, too small diff
+
+	// a 6 second change on baz is above the minimum diff, so it's saved
+	sixSecondsLater := now.Add(6 * time.Second)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &sixSecondsLater},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", sixSecondsLater})
 
 	// more changes: bar receives a date further in the past, baz and qux to future
 	lastLastYear := lastYear.Add(-365 * 24 * time.Hour)
