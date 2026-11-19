@@ -1021,7 +1021,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		deviceAuthenticated bool
 		premiumOnly         bool
 	}{
-		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"GET", "/api/latest/fleet/apns", false, false},

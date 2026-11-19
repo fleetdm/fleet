@@ -4639,16 +4639,6 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, profMan.ID)
 
-	profs, err := ds.ListMDMAppleEnrollmentProfiles(ctx)
-	require.NoError(t, err)
-	require.Len(t, profs, 2)
-
-	tokens := make([]string, 2)
-	for i, p := range profs {
-		tokens[i] = p.Token
-	}
-	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
-
 	// get the automatic profile by type
 	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
 	require.NoError(t, err)

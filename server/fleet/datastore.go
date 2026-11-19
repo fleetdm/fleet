@@ -1851,9 +1851,6 @@ type Datastore interface {
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)
 
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
-
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a
 	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
@@ -1861,9 +1858,6 @@ type Datastore interface {
 	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
-
-	// MDMAppleListDevices lists all the MDM enrolled devices.
-	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
 	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
 	// `host_dep_assignments` for all the provided hosts. mdmMigrationDeadlinesByHostID

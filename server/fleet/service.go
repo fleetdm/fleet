@@ -1050,9 +1050,6 @@ type Service interface {
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
-	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
-	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
-
 	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
 	GenerateABMKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
