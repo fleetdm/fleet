@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "19.4.3",
+      "version": "19.4.3.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft OLE DB Driver 19 for SQL Server' AND publisher = 'Microsoft Corporation' AND version LIKE '19.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft OLE DB Driver 19 for SQL Server' AND publisher = 'Microsoft Corporation' AND version LIKE '19.%' AND version_compare(version, '19.4.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft OLE DB Driver 19 for SQL Server' AND publisher = 'Microsoft Corporation' AND version LIKE '19.%' AND version_compare(version, '19.4.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft ole db driver 19 for sql server.exe');"
       },
       "installer_url": "https://download.microsoft.com/download/bbb0d870-7a04-44d9-af17-af28575a0ed8/amd64/1033/msoledbsql.msi",

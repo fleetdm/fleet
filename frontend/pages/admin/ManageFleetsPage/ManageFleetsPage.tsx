@@ -19,7 +19,6 @@ import TableCount from "components/TableContainer/TableCount";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import { IApiError } from "interfaces/errors";
 import { ITeam as IFleet } from "interfaces/team";
 import teamsAPI, {
   ILoadTeamsResponse,
@@ -33,6 +32,7 @@ import CreateFleetModal from "./components/CreateFleetModal";
 import DeleteFleetModal from "./components/DeleteFleetModal";
 import RenameFleetModal from "./components/RenameFleetModal";
 import { generateTableHeaders, generateDataSet } from "./FleetTableConfig";
+import { getFleetNameError } from "./helpers";
 
 const baseClass = "manage-fleets";
 const noFleetsClass = "no-fleets";
@@ -78,7 +78,8 @@ const ManageFleetsPage = ({
     if (!isCreateFleetDisabled) {
       setShowCreateFleetModal(true);
     }
-    const { create_fleet, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.create_fleet;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,
@@ -113,7 +114,7 @@ const ManageFleetsPage = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ILoadTeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.fleets,
       onError: (error) => handlePageError(error),
     }
   );
@@ -161,24 +162,10 @@ const ManageFleetsPage = ({
           refetchMe();
           refetchFleets();
         })
-        .catch((createError: { data: IApiError }) => {
-          const rawReason = createError.data.errors[0].reason;
-          const errMsg = rawReason.toLowerCase();
-          if (errMsg.includes("must differ")) {
-            setBackendValidators({ name: rawReason });
-          } else if (errMsg.includes("duplicate")) {
-            setBackendValidators({
-              name: "A fleet with this name already exists",
-            });
-          } else if (
-            errMsg.includes("all teams") ||
-            errMsg.includes("all fleets") ||
-            errMsg.includes("no team") ||
-            errMsg.includes("unassigned")
-          ) {
-            setBackendValidators({
-              name: `"${formData.name}" is a reserved fleet name. Please try another name.`,
-            });
+        .catch((createError: unknown) => {
+          const nameError = getFleetNameError(createError, formData.name);
+          if (nameError) {
+            setBackendValidators({ name: nameError });
           } else {
             notify.error("Could not create fleet. Please try again.", {
               response: createError,
@@ -241,30 +228,10 @@ const ManageFleetsPage = ({
             toggleRenameFleetModal();
             refetchFleets();
           })
-          .catch((updateError: { data: IApiError }) => {
-            console.error(updateError);
-            const rawReason = updateError.data.errors[0].reason;
-            const errMsg = rawReason.toLowerCase();
-            if (errMsg.includes("must differ")) {
-              setBackendValidators({ name: rawReason });
-            } else if (errMsg.includes("duplicate")) {
-              setBackendValidators({
-                name: "A fleet with this name already exists",
-              });
-            } else if (
-              errMsg.includes("all teams") ||
-              errMsg.includes("all fleets")
-            ) {
-              setBackendValidators({
-                name: `"All fleets" is a reserved fleet name.`,
-              });
-            } else if (
-              errMsg.includes("no team") ||
-              errMsg.includes("unassigned")
-            ) {
-              setBackendValidators({
-                name: `"Unassigned" is a reserved fleet name. Please try another name.`,
-              });
+          .catch((updateError: unknown) => {
+            const nameError = getFleetNameError(updateError, formData.name);
+            if (nameError) {
+              setBackendValidators({ name: nameError });
             } else {
               notify.error(
                 `Could not rename ${fleetEditing.name}. Please try again.`,

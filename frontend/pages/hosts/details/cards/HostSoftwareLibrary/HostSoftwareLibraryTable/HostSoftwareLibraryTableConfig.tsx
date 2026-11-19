@@ -102,7 +102,7 @@ export const generateHostSWLibraryTableHeaders = ({
           source,
           icon_url,
           app_store_app,
-          software_package,
+          package: pkg,
           auto_update_enabled,
           auto_update_window_start,
           auto_update_window_end,
@@ -113,9 +113,8 @@ export const generateHostSWLibraryTableHeaders = ({
           { fleet_id: teamId }
         );
 
-        const hasInstaller = !!app_store_app || !!software_package;
-        const isSelfService =
-          app_store_app?.self_service || software_package?.self_service;
+        const hasInstaller = !!app_store_app || !!pkg;
+        const isSelfService = app_store_app?.self_service || pkg?.self_service;
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
           cellProps.row.original
         );
@@ -193,11 +192,11 @@ export const generateHostSWLibraryTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) =>
-        originalRow.software_package || originalRow.app_store_app,
+        originalRow.package || originalRow.app_store_app,
       Cell: (cellProps: IVersionsCellProps) => {
         const softwareTitle = cellProps.row.original;
-        const installerData = softwareTitle.software_package
-          ? softwareTitle.software_package
+        const installerData = softwareTitle.package
+          ? softwareTitle.package
           : (softwareTitle.app_store_app as IHostAppStoreApp);
         const isAndroidPlayStoreApp =
           !!softwareTitle.app_store_app &&

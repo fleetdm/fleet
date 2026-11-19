@@ -12,6 +12,7 @@
   flex-direction: column;
   align-items: center;
   gap: 48px;
+  user-select: none;
 
   [purpose='ai-tool-switcher'] {
     display: flex;
@@ -50,7 +51,7 @@
   // Tablet and mobile drop side panes to keep the conversation legible.
   // Text elements set their own font-size in em, so their children can't use
   // em lengths for Figma pixels.
-  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'] {
+  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'], [purpose='slack-animation'], [purpose='teams-animation'] {
     position: relative;
     width: 940em;
     height: 576em;
@@ -811,7 +812,7 @@
       flex-shrink: 0;
       width: (162em / 12);
       @media (max-width: 767px) {
-        width: (112em / 12);
+        width: (124em / 12);
       }
     }
     > span:nth-child(2) {
@@ -1730,7 +1731,7 @@
     @media (max-width: 767px) {
       gap: 9em;
       > span:nth-child(1) {
-        flex: 0 0 (95em / 12);
+        flex: 0 0 (108em / 12);
       }
       > span:nth-child(2) {
         flex: 0 0 (40em / 12);
@@ -1936,10 +1937,575 @@
     background-color: #a1c1f7;
   }
 
+  [purpose='slack-animation'] {
+    font-family: 'Lato', sans-serif;
+    color: #1d1c1d;
+    p {
+      font-size: 14em;
+      line-height: 1.3;
+      color: #1d1c1d;
+    }
+  }
+  [purpose='slack-window'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #39063a;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
+    @media (max-width: 991px) {
+      width: 752em;
+    }
+    @media (max-width: 767px) {
+      width: 362em;
+    }
+  }
+  // Starts after the window controls, which every tool pins at 14, 14.
+  [purpose='slack-title-bar'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14em;
+    height: 38em;
+    padding: 0 13em 0 60em;
+    > img {
+      width: 20em;
+      height: 20em;
+    }
+    @media (max-width: 767px) {
+      padding-left: 74em;
+    }
+  }
+  [purpose='slack-search'] {
+    flex: 0 1 405em;
+    min-width: 0;
+    height: 29em;
+    display: flex;
+    align-items: center;
+    padding: 0 9em;
+    border-radius: 5em;
+    background-color: #693e6d;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    // Too narrow for the search field, so only its icon shows, at the size of the other title bar icons.
+    @media (max-width: 767px) {
+      flex: none;
+      height: auto;
+      margin-left: auto;
+      padding: 0;
+      background-color: transparent;
+      img {
+        width: 20em;
+        height: 20em;
+        opacity: 0.7;
+      }
+    }
+  }
+  [purpose='slack-body'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  [purpose='slack-rail'] {
+    flex-shrink: 0;
+    width: 60em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 13em;
+    padding-top: 9em;
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+  [purpose='slack-rail-item'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34em;
+    height: 34em;
+    border-radius: 7em;
+    &.selected {
+      background-color: rgba(248, 193, 255, 0.2);
+    }
+    img {
+      width: 20em;
+      height: 20em;
+    }
+  }
+  [purpose='slack-workspace'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    margin: 0 6em 6em 0;
+    overflow: hidden;
+    border-radius: 13em;
+    @media (max-width: 767px) {
+      margin-left: 6em;
+    }
+  }
+  [purpose='slack-sidebar'] {
+    flex-shrink: 0;
+    width: 183em;
+    display: flex;
+    flex-direction: column;
+    padding-top: 7em;
+    background-color: #611f69;
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+  [purpose='slack-sidebar-header'] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 22em;
+    padding: 0 10em 0 8em;
+  }
+  [purpose='slack-workspace-name'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    padding: 3em 4em 3em 5em;
+    [purpose='slack-sidebar-bar'] {
+      width: 50em;
+      height: 11em;
+    }
+    img {
+      width: 12em;
+      height: 12em;
+    }
+  }
+  [purpose='slack-new-message'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22em;
+    height: 22em;
+    img {
+      width: 12em;
+      height: 12em;
+    }
+  }
+  [purpose='slack-sidebar-bar'] {
+    width: 63em;
+    height: 7em;
+    border-radius: 5em;
+    background-color: #986e9d;
+  }
+  [purpose='slack-sidebar-group'], [purpose='slack-sidebar-channels'] {
+    display: flex;
+    flex-direction: column;
+    padding: 0 5em;
+  }
+  [purpose='slack-sidebar-group'] {
+    padding-top: 8em;
+    padding-bottom: 8em;
+  }
+  [purpose='slack-sidebar-item'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    height: 29em;
+    padding: 0 7em 0 8em;
+    border-radius: 7em;
+    img {
+      width: 14em;
+      height: 14em;
+    }
+    > span:not([purpose]) {
+      font-size: 13em;
+      line-height: 1;
+      color: #4d1e4e;
+    }
+    &.selected {
+      background-color: #f9edff;
+    }
+    &.direct-messages {
+      height: 14em;
+      margin: 8em 5em 0;
+    }
+  }
+  [purpose='slack-sidebar-section'] {
+    display: flex;
+    align-items: center;
+    gap: 3em;
+    height: 22em;
+    padding-left: 10em;
+    img {
+      width: 18em;
+      height: 18em;
+    }
+    span {
+      font-size: 11em;
+      line-height: 1;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+  [purpose='slack-channel'] {
+    flex-shrink: 0;
+    width: 248em;
+    display: flex;
+    flex-direction: column;
+    gap: 7em;
+    background-color: #fafafa;
+    @media (max-width: 991px) {
+      display: none;
+    }
+  }
+  [purpose='slack-pane-header'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 37em;
+    padding: 0 11em;
+    background-color: @accent-white;
+  }
+  [purpose='slack-channel'] [purpose='slack-pane-header'] {
+    border-bottom: 1em solid #dddddd;
+  }
+  [purpose='slack-channel-name'] {
+    display: flex;
+    align-items: center;
+    gap: 4em;
+    padding: 0 5em;
+    img {
+      width: 13em;
+      height: 13em;
+    }
+    span {
+      font-size: 14em;
+      font-weight: 900;
+      line-height: (17 / 14);
+    }
+  }
+  [purpose='slack-channel-message'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 7em;
+    padding: 9em 13em 7em;
+    > img {
+      width: 28em;
+      height: 28em;
+      border-radius: 5em;
+    }
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 7em;
+      padding-top: 2em;
+    }
+    span {
+      display: block;
+      height: 7em;
+      border-radius: 5em;
+      background-color: #dcdcdc;
+    }
+  }
+  [purpose='slack-thread-pane'] {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: @accent-white;
+    box-shadow: -4em 0 5em rgba(0, 0, 0, 0.06);
+  }
+  [purpose='slack-thread-title'] {
+    padding: 0 (5em / 16);
+    font-size: 16em;
+    font-weight: 900;
+    line-height: (17 / 16);
+  }
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='slack-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 7em;
+  }
+  [purpose='slack-thread'] {
+    display: flex;
+    flex-direction: column;
+    gap: 7em;
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
+    }
+    &.resetting {
+      transition: none;
+    }
+  }
+  [purpose='slack-message'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 7em;
+    padding: 7em 13em 11em;
+  }
+  [purpose='slack-avatar'] {
+    width: 32em;
+    height: 32em;
+    margin-top: 3em;
+    border-radius: 5em;
+  }
+  [purpose='slack-message-content'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2em;
+    padding-right: 13em;
+  }
+  [purpose='slack-sender'] {
+    display: flex;
+    align-items: center;
+    gap: (4em / 14);
+    font-size: 14em;
+    font-weight: 900;
+    line-height: 1;
+  }
+  [purpose='slack-app-badge'] {
+    padding: (2em / 11);
+    border-radius: (3em / 11);
+    background-color: #f2f2f2;
+    font-size: (11em / 14);
+    font-weight: 700;
+    line-height: (10 / 11);
+    color: #454447;
+  }
+  [purpose='slack-mention'] {
+    margin-left: (-3em / 14);
+    padding: (1em / 14) (3em / 14);
+    border-radius: (1em / 14);
+    background-color: #e7eff6;
+    color: #1264a3;
+  }
+  [purpose='slack-link'] {
+    color: #1264a3;
+    text-decoration: underline;
+  }
+  [purpose='slack-reactions'] {
+    display: flex;
+    gap: 3em;
+    margin-top: 2em;
+  }
+  [purpose='slack-reaction'] {
+    display: flex;
+    align-items: center;
+    gap: 5em;
+    height: 20em;
+    padding: 0 5em;
+    border-radius: 10em;
+    background-color: #f8f8f8;
+    span {
+      font-size: 10em;
+      line-height: 1.4;
+    }
+    img {
+      width: 14em;
+      height: 14em;
+      margin: 0 3em;
+    }
+  }
+
+  [purpose='teams-animation'] {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #242424;
+    p {
+      font-size: 15em;
+      line-height: 1.3;
+      color: #242424;
+    }
+    strong {
+      font-weight: 700;
+    }
+  }
+  // The Teams window art has a wider aspect ratio than the other tools, so it's
+  // scaled to the frame's width and centered. 1em inside it is one pixel of the
+  // Teams Figma frames (desktop 1044×520, tablet 844×576, mobile 492×576).
+  [purpose='teams-window'] {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1044em;
+    height: 520em;
+    font-size: (940em / 1044);
+    border-radius: 6.962em;
+    overflow: hidden;
+    box-shadow: 0 3.481em 9.283em rgba(0, 0, 0, 0.08);
+    @media (max-width: 991px) {
+      width: 844em;
+      height: 576em;
+      font-size: (752em / 844);
+    }
+    @media (max-width: 767px) {
+      width: 492em;
+      font-size: (362em / 492);
+    }
+  }
+  [purpose='teams-chrome'] {
+    display: block;
+    width: 100%;
+    height: 100%;
+    img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+  // The message area below the chat header.
+  [purpose='teams-conversation'] {
+    position: absolute;
+    left: 278.5em;
+    top: 93.37em;
+    width: 760em;
+    height: 420.43em;
+    border-radius: 0 0 8em 8em;
+    overflow: hidden;
+    @media (max-width: 991px) {
+      left: 220.5em;
+      top: 93.57em;
+      width: 617em;
+      height: 477.43em;
+    }
+    @media (max-width: 767px) {
+      left: 0;
+      width: 492em;
+      height: 482.43em;
+      border-radius: 0;
+    }
+  }
+  [purpose='teams-thread'] {
+    display: flex;
+    flex-direction: column;
+    gap: 13.752em;
+    padding: 15.7em 23.7em 0 22.7em;
+    @media (max-width: 991px) {
+      padding: 12em 10.5em 0 9.5em;
+    }
+    @media (max-width: 767px) {
+      padding: 12em 10em 0 10em;
+    }
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
+    }
+    &.resetting {
+      transition: none;
+    }
+  }
+  [purpose='teams-first-message'], [purpose='teams-second-message'] {
+    align-self: flex-end;
+    padding: 10.314em 13.752em;
+    border-radius: 8em;
+    background-color: #e8ebfa;
+    p {
+      white-space: nowrap;
+    }
+  }
+  [purpose='teams-first-message'] {
+    @media (max-width: 991px) {
+      max-width: 346em;
+      p {
+        white-space: normal;
+      }
+    }
+    @media (max-width: 767px) {
+      max-width: 339em;
+    }
+  }
+  [purpose='teams-reply'], [purpose='teams-typing'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 6.876em;
+  }
+  [purpose='teams-typing'] {
+    padding-top: 10.314em;
+  }
+  [purpose='teams-avatar'] {
+    width: 28em;
+    height: 28em;
+    margin-top: 10.314em;
+  }
+  [purpose='teams-typing'] [purpose='teams-avatar'] {
+    margin-top: 0;
+  }
+  [purpose='teams-typing-bubble'] {
+    display: flex;
+    align-items: center;
+    gap: 3.5em;
+    height: 28em;
+    padding: 0 13.752em;
+    border-radius: 8em;
+    background-color: #f5f5f5;
+    span {
+      display: block;
+      width: 5.2em;
+      height: 5.2em;
+      border-radius: 50%;
+      background-color: #616161;
+    }
+  }
+  // Bubbles hug their text and wrap only at the widths set in Figma.
+  [purpose='teams-reply-body'] {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3.438em;
+  }
+  [purpose='teams-first-reply'] [purpose='teams-reply-body'] > [purpose='teams-reply-bubble'] {
+    max-width: 434.5em;
+    @media (max-width: 991px) {
+      max-width: 349.5em;
+    }
+  }
+  [purpose='teams-second-reply'] [purpose='teams-reply-bubble'] {
+    @media (max-width: 767px) {
+      width: 381.1em;
+    }
+  }
+  [purpose='teams-sender'] {
+    font-size: 12em;
+    line-height: 13.752 / 12;
+    color: #616161;
+    @media (max-width: 991px) {
+      font-size: 10.314em;
+      line-height: 13.752 / 10.314;
+    }
+    @media (max-width: 767px) {
+      font-size: 12em;
+      line-height: 13.752 / 12;
+    }
+  }
+  [purpose='teams-reply-bubble'] {
+    padding: 10.314em 20.628em 10.314em 13.752em;
+    border-radius: 8em;
+    background-color: #f5f5f5;
+  }
+  // Underlined to suggest it links to the PR. It isn't interactive.
+  [purpose='teams-link'] {
+    text-decoration: underline;
+    // Mobile wraps the whole phrase onto its own line, as in Figma.
+    @media (max-width: 767px) {
+      display: inline-block;
+    }
+  }
+
   // The component reveals one message at a time and moves the thread up to
   // keep the newest one in view. With reduced motion it shows the whole
   // conversation instead, and the pane scrolls normally.
-  [purpose='claude-code-animation'].reduced-motion [purpose='claude-code-conversation'], [purpose='cursor-animation'].reduced-motion [purpose='cursor-conversation'], [purpose='copilot-animation'].reduced-motion [purpose='copilot-conversation'], [purpose='codex-animation'].reduced-motion [purpose='codex-conversation'] {
+  [purpose='claude-code-animation'].reduced-motion [purpose='claude-code-conversation'], [purpose='cursor-animation'].reduced-motion [purpose='cursor-conversation'], [purpose='copilot-animation'].reduced-motion [purpose='copilot-conversation'], [purpose='codex-animation'].reduced-motion [purpose='codex-conversation'], [purpose='slack-animation'].reduced-motion [purpose='slack-conversation'], [purpose='teams-animation'].reduced-motion [purpose='teams-conversation'] {
     overflow-y: auto;
     padding-bottom: 14em;
   }
@@ -1952,14 +2518,23 @@
     background-color: #1f1e1d;
   }
   @media (prefers-reduced-motion: no-preference) {
-    [purpose='claude-code-thread'], [purpose='cursor-thread'], [purpose='copilot-thread'], [purpose='codex-thread'] {
+    [purpose='claude-code-thread'], [purpose='cursor-thread'], [purpose='copilot-thread'], [purpose='codex-thread'], [purpose='slack-thread'], [purpose='teams-thread'] {
       transition: transform 0.5s ease-out, opacity 0.35s ease-out;
       > p, > div {
         animation: ai-demo-appear 0.35s ease-out;
       }
     }
-    [purpose='claude-code-tool-row'], [purpose='cursor-step'], [purpose='copilot-activity'], [purpose='codex-call'] {
+    [purpose='claude-code-tool-row'], [purpose='cursor-step'], [purpose='copilot-activity'], [purpose='codex-call'], [purpose='teams-typing'], [purpose='teams-reply'], [purpose='teams-follow-up'] {
       animation: ai-demo-appear 0.35s ease-out;
+    }
+    [purpose='teams-typing-bubble'] span {
+      animation: teams-typing-dot 1.2s ease-in-out infinite;
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+      }
     }
     [purpose='ai-demo-caret'] {
       animation: ai-demo-caret-blink 1s steps(1) infinite;
@@ -1968,6 +2543,10 @@
   @keyframes ai-demo-appear {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes teams-typing-dot {
+    0%, 60%, 100% { opacity: 0.4; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3em); }
   }
   @keyframes ai-demo-caret-blink {
     0% { opacity: 1; }

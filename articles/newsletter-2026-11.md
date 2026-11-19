@@ -1,0 +1,84 @@
+# Fleet news: November 2026
+
+Our first virtual summit streams free on November 10, and [you're invited](https://www.linkedin.com/events/7518683538410459136/)! October also brought two releases, including a heads-up for Mac users before Fleet patches the apps they're working in. Let's dig in!
+
+## 🚀 What shipped last month
+
+- **Warn end users before patching macOS apps.** Patch policies can now notify end users when an open app is about to update. Fleet Desktop lists the apps, waits an hour with a reminder five minutes before, and then installs the update, so nobody loses unsaved work.
+- **Zero-touch enrollment for company-owned Android.** Ship company-owned Android devices straight to end users, and they enroll in Fleet the first time they're turned on. As of Fleet 4.94.0, you choose which fleet each device lands in.
+- **Self-service configuration profiles for Mac.** Offer configuration profiles that end users install themselves from the **My device** page.
+
+Also new: a configuration profile editor, Windows local admin password rotation, on-demand FileVault key rotation, and reports that keep a result for every host instead of stopping at 1,000. [See every release](https://fleetdm.com/releases).
+
+## 🗺️ What we plan to ship this month
+
+Fleet 4.95.0 is planned for November. These are planned, not promised, and scope changes as the release comes together.
+
+- **AI tools in software inventory.** See which AI tools are installed across your hosts on the **Software** page, **Host details**, and **My device**, without writing a custom report.
+- **Patch deadlines for macOS apps.** Set a deadline for Fleet-maintained app patches, so updates land within your organization's patching rules.
+- **Configuration profile validation.** Fleet checks the type, keys, and values in Apple and Windows configuration profiles, so you know a profile built with Fleet's AI-native builder, or any other tool, is valid before it reaches a host.
+
+Also on deck: Okta conditional access for Windows hosts, scoping Android Play Store apps with labels, running a bootstrap package during manual macOS enrollment, and multiple versions of the same App Store app for iOS, iPadOS, and Android.
+
+Fleet plans releases in the open. The [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) shows what's queued for the releases after this one, and the [October roadmap preview](https://fleetdm.com/announcements/roadmap-preview-october-2026) walks through the next 90 days, including Fleet 5.
+
+## 📺 You're invited: Fleet virtual summit
+
+Device settings are moving into Git, AI agents are popping up on laptops, and attackers aren't slowing down. On Tuesday, November 10, IT and security leaders from Cisco, Pinterest, Red Hat, Reddit, and more get real about what's working and what isn't. It's free on LinkedIn Live, with no slides and no demos.
+
+**[RSVP on LinkedIn](https://www.linkedin.com/events/7518683538410459136/)** to save your seat and get a reminder when we go live. Have a favorite topic? Reserve a spot in the panels you care about most:
+
+- **11 AM ET / 4 PM GMT:** [Infrastructure as code for device management](https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code)
+- **11:30 AM ET / 4:30 PM GMT:** [Open source in enterprise device management](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
+- **12 PM ET / 5 PM GMT:** [AI agents as a device management problem](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
+- **12:30 PM ET / 5:30 PM GMT:** [Device management 2027](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
+
+Can't choose? Stay for all four. [Meet the panelists](https://fleetdm.com/announcements/fleet-virtual-summit-2026), then [RSVP on LinkedIn](https://www.linkedin.com/events/7518683538410459136/), and tune in live!
+
+## 🎓 Upcoming workshops
+
+Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert. Seats are limited, so register early.
+
+- **GitOps, Tokyo.** November 12, 1pm to 5pm GMT+9. [Register](https://www.eventbrite.com/e/gitops-tokyo-tickets-2003716644422)
+- **GitOps, Austin.** November 17, 1pm to 5pm CST. [Register](https://www.eventbrite.com/e/gitops-austin-tickets-2002266719658)
+- **Apple administrator, San Antonio.** November 18, 1pm to 5pm CST. [Register](https://www.eventbrite.com/e/apple-administrator-workshop-san-antonio-tickets-2002266872114)
+- **Apple administrator, Raleigh.** December 15, 1pm to 5pm EST. [Register](https://www.eventbrite.com/e/apple-administrator-workshop-raleigh-tickets-2002267524064)
+
+Don't see your city? [Request a workshop](https://fleetdm.com/contact#gitops) to get hands-on experience and earn your certification.
+
+## 📖 Worth reading
+
+### Articles
+
+- [New research: AI helps Mac admins ship changes quickly, but rollback often takes days](https://fleetdm.com/announcements/apple-in-the-enterprise-2026). Fleet surveyed more than 250 enterprise Mac admins: 86% let AI-written changes reach production devices, but 69% can't roll back a bad change within an hour.
+- [Fleet brings NVIDIA AI hardware under enterprise IT control](https://fleetdm.com/announcements/nvidia-gtc-2026). Manage NVIDIA RTX PRO workstations and NVIDIA DGX Station alongside your macOS, Windows, and Linux devices.
+- Missed MacSysAdmin? Watch Fleet's session, "[Open All the Way Down](https://www.youtube.com/watch?v=tbAhyq095Aw)", on YouTube. In 20 minutes, [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) explains why working in the open matters as AI agents take on more IT work.
+
+### Guides
+
+- [Revert a bad change in GitOps](https://fleetdm.com/guides/revert-a-bad-change-in-gitops). Undo a bad change with a revert commit instead of a reset and force-push, so your history keeps a record of what changed and why.
+- Block browser extensions in [Chrome](https://fleetdm.com/guides/block-chrome-extensions), [Edge](https://fleetdm.com/guides/block-edge-extensions), [Firefox](https://fleetdm.com/guides/block-firefox-extensions), and [Safari](https://fleetdm.com/guides/block-safari-extensions). Block, allow, or force-install extensions across macOS, Windows, and Linux.
+- [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet). Generate Fleet policies, reports, and configuration profiles with Claude Code, with or without GitOps.
+
+## 🤝 Community contributions
+
+We're grateful for the Fleet community! Fleet is open source, and every month people outside Fleet help make it better. Want in? [Start contributing](https://fleetdm.com/docs/contributing) and your name could be here next month.
+
+- [Michael Alt](https://github.com/alt-Rational) added Azure Blob Storage support for software installers, bootstrap packages, and organization logos, so self-managed Fleet deployments on Azure can keep those files in their own storage.
+- [Andrew Doering](https://github.com/delize) made `fleetctl gitops --dry-run` check that each App Store app is available on your VPP account, so a wrong or unlicensed app fails in CI instead of during the real apply.
+- [Adriel Velazquez](https://github.com/AdrielVelazquez) extended Linux remote wipe to clear the Nix store on NixOS hosts.
+
+Thank you to October's top first-time contributors: [Prajwal Janbandhu](https://github.com/Prajwal2246) (8 merged PRs), [Eloi Torrents](https://github.com/Eloitor) and [@shubhamkapoor01](https://github.com/shubhamkapoor01) (3 each), and [Aliaska Varieva](https://github.com/aliaska-varieva) and [@patrickrgr](https://github.com/patrickrgr) (2 each). Thanks to everyone else who made their first contribution too!
+
+Thank you all!
+
+That's a wrap for November. [See you at the summit](https://www.linkedin.com/events/7518683538410459136/)!
+
+<meta name="articleTitle" value="Fleet news: November 2026">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
+<meta name="publishedOn" value="2026-11-02">
+<meta name="category" value="newsletter">
+<meta name="description" value="What shipped in Fleet 4.93.0 and 4.94.0, what's planned for 4.95.0, the Fleet Virtual Summit, November workshops, and October's best reads.">
+<meta name="newsletterIssue" value="2026-11">
+<meta name="coversPeriod" value="2026-10">

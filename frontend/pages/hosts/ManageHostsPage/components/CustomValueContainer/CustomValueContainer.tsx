@@ -12,7 +12,7 @@ const CustomDropdownIndicator = ({ props }: ValueContainerProps | any) => {
 
   return (
     <components.DropdownIndicator {...props} className={baseClass}>
-      <Icon name="filter-alt" className={`${baseClass}__icon`} />
+      <Icon name="filter" className={`${baseClass}__icon`} />
       {children}
     </components.DropdownIndicator>
   );

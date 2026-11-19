@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"log/slog"
 	"math/big"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -18,7 +19,6 @@ import (
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/gorilla/mux"
 	"github.com/smallstep/scep"
 )
 
@@ -73,7 +73,7 @@ func StartTestSCEPServer(t *testing.T) *httptest.Server {
 		logger := slog.New(slog.DiscardHandler)
 		e := scepserver.MakeServerEndpoints(svc)
 		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-		r := mux.NewRouter()
+		r := http.NewServeMux()
 		r.Handle("/scep", scepHandler)
 		// The Windows SCEP client appends /pkiclient.exe to the server URL, as NDES expects.
 		r.Handle("/scep/pkiclient.exe", scepHandler)

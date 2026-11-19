@@ -261,10 +261,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	if automaticInstall && payload.AddedAutomaticInstallPolicy != nil {
-		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   payload.AddedAutomaticInstallPolicy.ID,
-			Name: payload.AddedAutomaticInstallPolicy.Name,
-		}
+		policyAct := createdAutomaticInstallPolicyActivity(payload.AddedAutomaticInstallPolicy, teamName)
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			svc.logger.WarnContext(ctx, "failed to create activity for create automatic install policy for FMA", "err", err)

@@ -72,7 +72,7 @@ func marshalActivityDetails(ctx context.Context, activity api.ActivityDetails) (
 		return nil, ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
 	// Duplicate JSON keys so that stored activity details include both the
-	// old and new field names (e.g. team_id and fleet_id).
+	// old and new field names (e.g. query_id and report_id).
 	if rules := eu.ExtractAliasRules(activity); len(rules) > 0 {
 		detailsBytes = eu.DuplicateJSONKeys(detailsBytes, rules, eu.DuplicateJSONKeysOpts{Compact: true})
 	}

@@ -2949,7 +2949,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return false, nil
 		}
-		// require_all_software_windows defaults to false via the no-team / app-config path. setRequireAll(ds, true)
+		// windows_require_all_software defaults to false via the no-team / app-config path. setRequireAll(ds, true)
 		// flips it for tests that need require_all=true.
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
@@ -3153,7 +3153,7 @@ func TestGetESPCommands(t *testing.T) {
 		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not evaluate delivery status when reconcile failed")
 	})
 
-	// setRequireAll flips the require_all_software_windows lookup to the given value via the no-team /
+	// setRequireAll flips the windows_require_all_software lookup to the given value via the no-team /
 	// app-config path. Default in newSvc is false; call this with true when a test needs require_all=true. The
 	// team-config path is covered explicitly by its own subtest.
 	setRequireAll := func(ds *mock.Store, requireAll bool) {
@@ -3315,7 +3315,7 @@ func TestGetESPCommands(t *testing.T) {
 
 	t.Run("profile failure alone does not block even with require_all=true", func(t *testing.T) {
 		// Profile delivery failures (e.g. CSP not supported on the host's edition) should not trigger the ESP
-		// block screen. The require_all_software_windows setting is software-scoped (matching macOS), so a
+		// block screen. The windows_require_all_software setting is software-scoped (matching macOS), so a
 		// failed profile with no software failure must release the device normally.
 		ds, svc := newSvc(t)
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -3382,7 +3382,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: &hostTeamID}, nil
 		}
-		// require_all_software_windows stays false via the team path (zero-value team config).
+		// windows_require_all_software stays false via the team path (zero-value team config).
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{ID: tid}, nil
 		}
@@ -3493,8 +3493,8 @@ func TestGetESPCommands(t *testing.T) {
 				"the rows and the next retry's pending check skips them")
 	})
 
-	t.Run("require_all read via team config blocks when team has require_all_software_windows=true", func(t *testing.T) {
-		// Covers the team-path branch of the require_all_software_windows lookup chain (HostLite returns
+	t.Run("require_all read via team config blocks when team has windows_require_all_software=true", func(t *testing.T) {
+		// Covers the team-path branch of the windows_require_all_software lookup chain (HostLite returns
 		// TeamID set -> TeamLite -> team config). Other tests use the no-team path via setRequireAll.
 		ds, svc := newSvc(t)
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
@@ -3503,7 +3503,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		// Team-path overrides: HostLite returns a host with TeamID set; TeamLite returns the team config with
-		// require_all_software_windows=true. AppConfig MUST NOT be consulted on the team path.
+		// windows_require_all_software=true. AppConfig MUST NOT be consulted on the team path.
 		teamID := uint(42)
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, TeamID: &teamID}, nil
@@ -3528,7 +3528,7 @@ func TestGetESPCommands(t *testing.T) {
 		require.NotEmpty(t, cmds)
 		assert.True(t, ds.TeamLiteFuncInvoked, "TeamLite must be called on the team path")
 		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
-			"team config require_all_software_windows=true must drive the block path")
+			"team config windows_require_all_software=true must drive the block path")
 	})
 
 	t.Run("persist failure aborts finalize without committing CAS", func(t *testing.T) {

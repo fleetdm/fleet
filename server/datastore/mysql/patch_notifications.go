@@ -5,13 +5,86 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
+
+func cleanupPatchNotificationsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, teamID *uint) error {
+	// A plain SELECT, because a DELETE that joins these tables locks the notifications it scans,
+	// which during a bulk transfer can be other hosts' too.
+	selectStmt, args, err := sqlx.In(`
+SELECT pna.notification_uuid, pna.software_title_id
+FROM patch_notification_apps pna
+	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	LEFT JOIN software_installers si ON si.id = pna.software_installer_id
+WHERE neu.host_id IN (?)
+	AND (
+		neu.status IN (?, ?)
+		OR (neu.status = ? AND pna.install_queued = 0 AND pna.updated_in_inventory = 0)
+	)
+	AND (si.id IS NULL OR si.global_or_team_id <> ?)
+`, hostIDs, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
+		notifications_api.EndUserNotificationActed, ptr.ValOrZero(teamID))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select patch notification apps outside fleet statement")
+	}
+	var apps []struct {
+		NotificationUUID string `db:"notification_uuid"`
+		SoftwareTitleID  uint   `db:"software_title_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &apps, selectStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select patch notification apps outside fleet")
+	}
+	if len(apps) == 0 {
+		return nil
+	}
+
+	// Keep these small, because MySQL falls back to a full scan, which locks every row, when an IN list is long
+	// for the size of the table.
+	const writeBatchSize = 1000
+
+	notificationUUIDs := make([]string, 0, len(apps))
+	for batch := range slices.Chunk(apps, writeBatchSize) {
+		deleteArgs := make([]any, 0, 2*len(batch))
+		for _, app := range batch {
+			notificationUUIDs = append(notificationUUIDs, app.NotificationUUID)
+			deleteArgs = append(deleteArgs, app.NotificationUUID, app.SoftwareTitleID)
+		}
+		deleteStmt := `DELETE FROM patch_notification_apps WHERE (notification_uuid, software_title_id) IN (` +
+			strings.TrimSuffix(strings.Repeat("(?, ?),", len(batch)), ",") + `)`
+		if _, err := tx.ExecContext(ctx, deleteStmt, deleteArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete patch notification apps outside fleet")
+		}
+	}
+
+	slices.Sort(notificationUUIDs)
+	// Written here rather than through the notifications service so it commits with the transfer.
+	// Render would fail a pending one anyway, but only after the host ran the script for it.
+	for batch := range slices.Chunk(slices.Compact(notificationUUIDs), writeBatchSize) {
+		failStmt, args, err := sqlx.In(`
+UPDATE notifications_end_user neu
+SET neu.status = ?, neu.last_reason = ?
+WHERE neu.uuid IN (?)
+	AND neu.status IN (?, ?)
+	AND NOT EXISTS (SELECT 1 FROM patch_notification_apps pna WHERE pna.notification_uuid = neu.uuid)
+`, notifications_api.EndUserNotificationFailed, notifications_api.EndUserNotificationReasonNothingToShow, batch,
+			notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build fail patch notifications with no apps statement")
+		}
+		if _, err := tx.ExecContext(ctx, failStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fail patch notifications with no apps")
+		}
+	}
+	return nil
+}
 
 func (ds *Datastore) PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
 	const selectStmt = `

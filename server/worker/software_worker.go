@@ -43,6 +43,7 @@ const (
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
 	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"       // deprecated
 	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch" // deprecated
+	sendAndroidFleetAgentConfigTask         SoftwareWorkerTask = "send_android_fleet_agent_config"
 )
 
 type softwareWorkerArgs struct {
@@ -114,6 +115,11 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 	case bulkSetAndroidAppsAvailableForHostsTask:
 		return ctxerr.Wrapf(ctx, v.updateAndroidHostsAfterFleetTransfer(ctx, args.UUIDsToIDs), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
+	case sendAndroidFleetAgentConfigTask:
+		// A failed send is returned so the job is retried: the configuration carries the enroll secret the host is waiting for.
+		return ctxerr.Wrapf(ctx, v.AndroidModule.SendFleetAgentConfig(ctx, args.EnterpriseName, args.HostUUID),
+			"running %s task", sendAndroidFleetAgentConfigTask)
+
 	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:
 		// these tasks are deprecated, the App Store app configurations cron sends configurations, but they must be
 		// kept here in case some pending jobs are still in the queue.
@@ -130,25 +136,9 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 // configuration changed).
 // this is called when an app is removed from Fleet.
 // prepareHostSpecificPolicy sets the settings of the host-specific policy before the device is moved to it.
-func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID string, enterpriseName string) error {
-	var policy androidmanagement.Policy
-	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
-		DeviceSettingsEnabled:        true,
-		MemoryInfoEnabled:            true,
-		NetworkInfoEnabled:           true,
-		DisplayInfoEnabled:           true,
-		PowerManagementEventsEnabled: true,
-		HardwareStatusEnabled:        true,
-		SystemPropertiesEnabled:      true,
-		SoftwareInfoEnabled:          true,
-		CommonCriteriaModeEnabled:    true,
-		ApplicationReportsEnabled:    true,
-		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
-	}
-
-	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-	_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
-	if err != nil {
+func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, androidHost *fleet.AndroidHost, enterpriseName string) error {
+	hostUUID := androidHost.Host.UUID
+	if err := v.AndroidModule.PrepareHostPolicy(ctx, enterpriseName, hostUUID, ptr.ValOrZero(androidHost.Host.TeamID)); err != nil {
 		return err
 	}
 
@@ -159,8 +149,7 @@ func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID
 		return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
 	}
 
-	err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
-	if err != nil {
+	if err := v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false); err != nil {
 		return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
 	}
 	return nil
@@ -186,16 +175,16 @@ func (v *SoftwareWorker) moveDeviceToHostSpecificPolicy(ctx context.Context, and
 }
 
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
-	onDefaultPolicy := policyID == fmt.Sprint(android.DefaultAndroidPolicyID)
-	if onDefaultPolicy {
-		if err := v.prepareHostSpecificPolicy(ctx, hostUUID, enterpriseName); err != nil {
-			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)
-		}
-	}
-
 	androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+	}
+
+	onDefaultPolicy := android.IsDefaultPolicyID(policyID)
+	if onDefaultPolicy {
+		if err := v.prepareHostSpecificPolicy(ctx, androidHost, enterpriseName); err != nil {
+			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)
+		}
 	}
 
 	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
@@ -456,6 +445,22 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	}
 
 	logger.DebugContext(ctx, "queued android setup experience job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+// QueueSendAndroidFleetAgentConfig queues a rebuild and resend of the Fleet agent's managed configuration for the host, which
+// carries a fresh enroll secret.
+func QueueSendAndroidFleetAgentConfig(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID, enterpriseName string) error {
+	args := &softwareWorkerArgs{
+		Task:           sendAndroidFleetAgentConfigTask,
+		HostUUID:       hostUUID,
+		EnterpriseName: enterpriseName,
+	}
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+	logger.DebugContext(ctx, "queued android fleet agent config job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 

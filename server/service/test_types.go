@@ -82,7 +82,6 @@ type TestServerOpts struct {
 	StartCronSchedules              []TestNewScheduleFunc
 	UseMailService                  bool
 	APNSTopic                       string
-	ProfileMatcher                  fleet.ProfileMatcher
 	EnableCachedDS                  bool
 	NoCacheDatastore                bool
 	SoftwareInstallStore            fleet.SoftwareInstallerStore
@@ -98,11 +97,13 @@ type TestServerOpts struct {
 	GoogleCASService                fleet.GoogleCASService
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
-	HostIdentity                    *HostIdentity
-	AndroidMockClient               *android_mock.Client
-	AndroidModule                   android.Service
-	ConditionalAccess               *ConditionalAccess
-	DBConns                         *common_mysql.DBConnections
+	// ConditionalAccessGoogleClient replaces fleetdm.com and Google.
+	ConditionalAccessGoogleClient *GoogleConditionalAccessClient
+	HostIdentity                  *HostIdentity
+	AndroidMockClient             *android_mock.Client
+	AndroidModule                 android.Service
+	ConditionalAccess             *ConditionalAccess
+	DBConns                       *common_mysql.DBConnections
 
 	// ActivityMock is populated automatically when a test service is built.
 	// After setup, tests can use it to intercept or assert on activity creation.

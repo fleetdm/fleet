@@ -4,12 +4,26 @@
  * Sails virtual request, so routing, input validation, status codes and response bodies are all the real ones.
  */
 const assert = require('assert');
+const crypto = require('crypto');
 
 
 describe('profile generator endpoints over HTTP', function() {
 
   let originalGenerationHelper;
   let originalPromptHelper;
+  let originalLicensePublicKey;
+  let originalRoute;
+  // Fleet servers authenticate with a license key signed by a key pair made for these tests.
+  let licenseSigningKeys = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  let premiumLicenseKey = require('jsonwebtoken').sign(
+    { iss: 'Fleet Device Management Inc.', sub: 'http-contract-tests', tier: 'premium', devices: 10 },
+    licenseSigningKeys.privateKey,
+    { algorithm: 'ES256', expiresIn: '1h' }
+  );
+  // The configuration generator page's route checks a CSRF token against a secret kept in the session.
+  // Virtual requests have no session of their own, so ones that want a valid token get this secret.
+  let csrfTokens = new (require('csrf'))();
+  let csrfSecret = csrfTokens.secretSync();
   // What the stubbed generation or model call does: a result, a function that throws, or a promise that never settles.
   let stubbedOutcome;
   let stubCalls;
@@ -39,11 +53,22 @@ describe('profile generator endpoints over HTTP', function() {
     originalPromptHelper = sails.helpers.ai.prompt;
     sails.helpers.generateConfigurationProfile = stubbedHelper();
     sails.helpers.ai.prompt = stubbedHelper();
+    originalLicensePublicKey = sails.config.custom.licenseKeyGeneratorPublicKey;
+    sails.config.custom.licenseKeyGeneratorPublicKey = licenseSigningKeys.publicKey.export({ type: 'spki', format: 'pem' });
+    originalRoute = sails.router.route;
+    sails.router.route = function(req, res) {
+      if(req && req.headers && req.headers['x-test-csrf-session']) {
+        req.session = { csrfSecret };
+      }
+      return originalRoute.call(this, req, res);
+    };
   });
 
   after(function() {
     sails.helpers.generateConfigurationProfile = originalGenerationHelper;
     sails.helpers.ai.prompt = originalPromptHelper;
+    sails.config.custom.licenseKeyGeneratorPublicKey = originalLicensePublicKey;
+    sails.router.route = originalRoute;
   });
 
   beforeEach(function() {
@@ -53,23 +78,56 @@ describe('profile generator endpoints over HTTP', function() {
 
   // A request with no marketingAttribution cookie makes the custom hook set one, which a virtual response
   // cannot do, so every request carries one.
-  let post = (url, data)=>{
+  let post = (url, data, headers)=>{
     return new Promise((resolve)=>{
-      sails.request({ method: 'POST', url, data, headers: { cookie: 'marketingAttribution=%7B%7D' } }, (err, res, body)=>{
+      sails.request({ method: 'POST', url, data, headers: _.extend({ cookie: 'marketingAttribution=%7B%7D' }, headers) }, (err, res, body)=>{
         resolve(err ? { status: err.status, body: err.body } : { status: res.statusCode, body });
       });
     });
   };
-  let requestProfile = (data)=>{ return post('/api/v1/get-llm-generated-configuration-profile', _.extend({ forFleet: true }, data)); };
-  let requestNameAndDescription = (data)=>{ return post('/api/v1/get-llm-generated-configuration-profile-name-and-description', data); };
+  let requestProfile = (data)=>{ return post('/api/profile-generator/v1/profile', _.extend({ fleetLicenseKey: premiumLicenseKey }, data)); };
+  let requestNameAndDescription = (data)=>{ return post('/api/profile-generator/v1/name-and-description', _.extend({ fleetLicenseKey: premiumLicenseKey }, data)); };
+  let requestProfileFromPage = (data, csrfToken)=>{
+    return post('/api/v1/get-llm-generated-configuration-profile', data, csrfToken ? { 'x-test-csrf-session': '1', 'x-csrf-token': csrfToken } : {});
+  };
   let generatedResult = { profileType: 'ddm', couldNotGenerateProfile: false, generatedProfile: { profile: '{}', profileFilename: 'x.json', deliveryNotes: '', items: [], additionalProfiles: [] } };
 
-  it('is a 400 when neither or both of profileType and platform are given', async function() {
+  it('is a 400 when neither or both of profileType and platform are given on the page\'s route', async function() {
     for (let data of [{}, { profileType: 'ddm', platform: 'apple' }]) {
-      let response = await requestProfile(_.extend({ naturalLanguageInstructions: 'Turn off AirDrop' }, data));
+      let response = await requestProfileFromPage(_.extend({ naturalLanguageInstructions: 'Turn off AirDrop' }, data), csrfTokens.create(csrfSecret));
       assert.strictEqual(response.status, 400);
       assert.strictEqual(response.body.error, 'invalidInput');
     }
+    assert.strictEqual(stubCalls.length, 0);
+  });
+
+  it('rejects a request to the page\'s route without a valid CSRF token', async function() {
+    for (let csrfToken of [undefined, 'not-a-token']) {
+      let response = await requestProfileFromPage({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' }, csrfToken);
+      assert.strictEqual(response.status, 403);
+    }
+    assert.strictEqual(stubCalls.length, 0);
+  });
+
+  it('ignores forFleet on the page\'s route', async function() {
+    stubbedOutcome = generatedResult;
+    let response = await requestProfileFromPage({ platform: 'apple', forFleet: true, naturalLanguageInstructions: 'Turn off AirDrop' }, csrfTokens.create(csrfSecret));
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(stubCalls.length, 1);
+    assert.strictEqual(stubCalls[0].forFleet, undefined);
+  });
+
+  it('turns on Fleet\'s rules for a Fleet server', async function() {
+    stubbedOutcome = generatedResult;
+    let response = await requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(stubCalls[0].forFleet, true);
+  });
+
+  it('no longer has the page\'s name and description route', async function() {
+    // With a valid CSRF token, so the 404 is from the route being gone rather than the 403 every token-less POST gets.
+    let response = await post('/api/v1/get-llm-generated-configuration-profile-name-and-description', { platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' }, { 'x-test-csrf-session': '1', 'x-csrf-token': csrfTokens.create(csrfSecret) });
+    assert.strictEqual(response.status, 404);
     assert.strictEqual(stubCalls.length, 0);
   });
 

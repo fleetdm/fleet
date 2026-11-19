@@ -20,7 +20,7 @@ export type UserFormState = {
   sso_enabled: boolean;
   mfa_enabled: boolean;
   global_role: UserRole | null;
-  teams: ITeam[];
+  fleets: ITeam[];
 };
 
 export interface IUserFormValidationContext {
@@ -34,7 +34,8 @@ export interface IUserFormValidationContext {
 const PASSWORD_ERRORS: Record<string, string> = {
   too_short: "Enter a password with at least 12 characters",
   too_long: "Enter a password with 48 characters or fewer",
-  invalid_format: "Enter a password with at least 1 number and 1 symbol",
+  invalid_format:
+    "Enter a password with at least 1 letter, 1 number, and 1 symbol",
 };
 
 export const isPasswordShown = (
@@ -88,8 +89,8 @@ export const validateUserForm = (
     }
   }
 
-  if (context.isPremiumTier && !data.global_role && !data.teams.length) {
-    errors.teams = "Select at least one fleet";
+  if (context.isPremiumTier && !data.global_role && !data.fleets.length) {
+    errors.fleets = "Select at least one fleet";
   }
 
   return errors;

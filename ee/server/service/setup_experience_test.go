@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -359,6 +360,55 @@ func TestSetupExperienceScriptFleetVariables(t *testing.T) {
 	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_VAR_HOST_UUID")))
 	require.NoError(t, err)
 	require.True(t, ds.SetSetupExperienceScriptFuncInvoked)
+}
+
+func TestSetupExperienceScriptDeprecationWarning(t *testing.T) {
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+	// unchanged content: no activity, but the warning must still be logged
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return false, nil }
+
+	lc := &logging.LoggingContext{}
+	err := svc.SetSetupExperienceScript(logging.NewContext(ctx, lc), nil, "potato.sh", bytes.NewReader([]byte("echo hi")))
+	require.NoError(t, err)
+	require.NotNil(t, lc.ForceLevel)
+	assert.Equal(t, slog.LevelWarn, *lc.ForceLevel)
+	assert.Equal(t, []any{"deprecation_warning", "The setup experience script is deprecated. Use a script-only package instead."}, lc.Extras)
+
+	lc = &logging.LoggingContext{}
+	err = svc.SetSetupExperienceScript(logging.NewContext(ctx, lc), nil, "potato.txt", bytes.NewReader([]byte("echo hi")))
+	require.Error(t, err)
+	assert.Nil(t, lc.ForceLevel)
+	assert.Empty(t, lc.Extras)
+
+	// deleting when there is no script logs nothing
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return nil, NewNotFoundError("")
+	}
+	lc = &logging.LoggingContext{}
+	require.NoError(t, svc.DeleteSetupExperienceScript(logging.NewContext(ctx, lc), nil))
+	assert.Nil(t, lc.ForceLevel)
+	assert.Empty(t, lc.Extras)
+
+	// deleting an existing script logs the warning
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return &fleet.Script{Name: "potato.sh"}, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
+	lc = &logging.LoggingContext{}
+	require.NoError(t, svc.DeleteSetupExperienceScript(logging.NewContext(ctx, lc), nil))
+	require.NotNil(t, lc.ForceLevel)
+	assert.Equal(t, slog.LevelWarn, *lc.ForceLevel)
+	assert.Equal(t, []any{"deprecation_warning", "The setup experience script is deprecated. Use a script-only package instead."}, lc.Extras)
 }
 
 func TestSetupExperienceScriptCustomHostVitalInfraErrorPropagates(t *testing.T) {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.3.2",
+      "version": "6.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mattermost' AND publisher = 'Mattermost, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mattermost' AND publisher = 'Mattermost, Inc.' AND version_compare(version, '6.3.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mattermost' AND publisher = 'Mattermost, Inc.' AND version_compare(version, '6.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mattermost.exe');"
       },
-      "installer_url": "https://github.com/mattermost/desktop/releases/download/v6.3.2/mattermost-desktop-6.3.2-win-x64.msi",
+      "installer_url": "https://github.com/mattermost/desktop/releases/download/v6.4.0/mattermost-desktop-6.4.0-win-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "1e287bf6",
-      "sha256": "f468e53a41204dee816025772934b83416dee80077b3581daa81476d55efdad8",
+      "sha256": "6e08729149e88091fa79bf29b41ba550f2727e89d6d4e7bc99e2ddc275d9b98b",
       "default_categories": [
         "Communication"
       ],

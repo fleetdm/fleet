@@ -51,6 +51,24 @@ func TestWingetVersionManifestDirs(t *testing.T) {
 	assert.Equal(t, "16.0.19929.20062", got[1].GetName())
 }
 
+func TestFilterVersionPrefix(t *testing.T) {
+	dir := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: new("dir")}
+	}
+	in := []*github.RepositoryContent{dir("26.13.1"), dir("24.22.1"), dir("240.1"), dir("24"), dir("2.4.0")}
+
+	names := func(dirs []*github.RepositoryContent) []string {
+		var out []string
+		for _, d := range dirs {
+			out = append(out, d.GetName())
+		}
+		return out
+	}
+	assert.Equal(t, []string{"24.22.1", "24"}, names(filterVersionPrefix(in, "24")))
+	assert.Equal(t, names(in), names(filterVersionPrefix(in, "")))
+	assert.Empty(t, filterVersionPrefix(in, "22"))
+}
+
 func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -360,6 +378,7 @@ func TestIngestValidations(t *testing.T) {
 		wantExists          string
 		wantPatched         string
 		wantPatchedContains string
+		wantOpen            string
 		inputApp            inputApp
 		cfg                 serverConfig
 	}{
@@ -573,6 +592,147 @@ func TestIngestValidations(t *testing.T) {
 				upgradeCode:       "{ABCDEF}",
 			},
 		},
+		{
+			name:     "open process names",
+			wantOpen: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('foo64.exe','foo-helper.exe'));",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				OpenProcessNames:    []string{"Foo64.exe", "foo-helper.exe"},
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:     "node.js open query scoped to its install dir",
+			wantOpen: `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`,
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "nodejs/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:     "python open query scoped to its install dir",
+			wantOpen: `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313-arm64\%');`,
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "python-3.13-arm64/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:     "node.js 22 open query scoped to its install dir",
+			wantOpen: `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`,
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "nodejs-22/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:     "node.js 24 open query scoped to its install dir",
+			wantOpen: `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`,
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "nodejs-24/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:    "open process names with prefix",
+			wantErr: "can't both be set",
+			inputApp: inputApp{
+				Name:                  "Foo",
+				UniqueIdentifier:      "Foo",
+				PackageIdentifier:     "Foo",
+				InstallerArch:         "x64",
+				Slug:                  "foo/windows",
+				InstallScriptPath:     path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:   path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:         "msi",
+				InstallerScope:        "machine",
+				OpenProcessNames:      []string{"foo64.exe"},
+				OpenProcessNamePrefix: "foo",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -609,11 +769,81 @@ func TestIngestValidations(t *testing.T) {
 			} else {
 				require.Equal(t, c.cfg.upgradeCode, out.UpgradeCode)
 			}
-			// The managed "is app open" query matches a process named "<title>.exe".
-			require.Equal(t,
-				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
-				out.Queries.Open,
-			)
+			wantOpen := c.wantOpen
+			if wantOpen == "" {
+				// The managed "is app open" query matches a process named "<title>.exe".
+				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');"
+			}
+			require.Equal(t, wantOpen, out.Queries.Open)
+		})
+	}
+}
+
+func TestWindowsOpenQuery(t *testing.T) {
+	cases := []struct {
+		name    string
+		names   []string
+		prefix  string
+		want    string
+		wantErr string
+	}{
+		{
+			name: "default is <name>.exe",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'android studio.exe');",
+		},
+		{
+			name:  "empty list is the default",
+			names: []string{},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'android studio.exe');",
+		},
+		{
+			name:  "single name",
+			names: []string{"studio64.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');",
+		},
+		{
+			name:  "names keep manifest order",
+			names: []string{"idea.exe", "idea64.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('idea.exe','idea64.exe'));",
+		},
+		{
+			name:  "names are lowercased and escaped",
+			names: []string{"O'Reilly.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');",
+		},
+		{
+			name:  "names are trimmed",
+			names: []string{" studio64.exe "},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');",
+		},
+		{
+			name:   "prefix",
+			prefix: "OneDrive",
+			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'onedrive%');",
+		},
+		{
+			name:   "prefix is escaped",
+			prefix: "o'drive",
+			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'o''drive%');",
+		},
+		{
+			name:   "prefix LIKE wildcards match literally",
+			prefix: `Foo_Bar%\`,
+			want:   `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'foo\_bar\%\\%' ESCAPE '\');`,
+		},
+		{name: "blank name", names: []string{"studio64.exe", " "}, wantErr: "blank name"},
+		{name: "blank prefix", prefix: " ", wantErr: "is blank"},
+		{name: "names and prefix", names: []string{"studio64.exe"}, prefix: "studio", wantErr: "can't both be set"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := windowsOpenQuery("Android Studio", c.names, c.prefix)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
 		})
 	}
 }
@@ -800,6 +1030,110 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.ErrorContains(t, err, "504")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
+
+	t.Run("version prefix skips dirs outside the release line", func(t *testing.T) {
+		// A 500 on 2.0 fails the ingest if that dir is fetched at all.
+		srv := newTwoVersionServer(t, http.StatusInternalServerError)
+		t.Cleanup(srv.Close)
+
+		in := input
+		in.VersionPrefix = "1"
+		out, err := newIngester(srv).ingestOne(ctx, in)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+	})
+
+	t.Run("version prefix with no matching dirs fails", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusOK)
+		t.Cleanup(srv.Close)
+
+		in := input
+		in.VersionPrefix = "3"
+		_, err := newIngester(srv).ingestOne(ctx, in)
+		require.ErrorContains(t, err, "no version manifest directories found")
+	})
+}
+
+func TestIngestNestedInstallerType(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	installScript := path.Join(tempDir, "install_script.ps1")
+	uninstallScript := path.Join(tempDir, "uninstall_script.ps1")
+	require.NoError(t, os.WriteFile(installScript, []byte("install"), 0o644))
+	require.NoError(t, os.WriteFile(uninstallScript, []byte("uninstall"), 0o644))
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{{Name: new("1.0"), Type: new("dir")}}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(installerManifest{
+				InstallerType:  "zip",
+				PackageVersion: "1.0",
+				Installers: []installer{
+					{Architecture: "x64", NestedInstallerType: "exe", Scope: "machine", InstallerURL: "https://example.com/foo.install.zip", InstallerSha256: "AAAA"},
+					{Architecture: "x64", NestedInstallerType: "wix", Scope: "machine", InstallerURL: "https://example.com/foo.msi.zip", InstallerSha256: "BBBB"},
+				},
+			})
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	gc := github.NewClient(srv.Client())
+	u, err := url.Parse(srv.URL + "/")
+	require.NoError(t, err)
+	gc.BaseURL = u
+	i := &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+
+	input := inputApp{
+		Name:                "Foo",
+		UniqueIdentifier:    "Foo",
+		PackageIdentifier:   "Foo",
+		Slug:                "foo/windows",
+		InstallerArch:       "x64",
+		InstallerType:       "zip",
+		InstallerScope:      "machine",
+		InstallScriptPath:   installScript,
+		UninstallScriptPath: uninstallScript,
+	}
+
+	out, err := i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/foo.install.zip", out.InstallerURL, "without a filter the first match wins")
+
+	input.NestedInstallerType = "wix"
+	out, err = i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/foo.msi.zip", out.InstallerURL)
+	require.Equal(t, "bbbb", out.SHA256)
+
+	input.NestedInstallerType = "msix"
+	_, err = i.ingestOne(ctx, input)
+	require.ErrorContains(t, err, "failed to find installer for app")
 }
 
 func TestNormalizeSourceForgeURL(t *testing.T) {

@@ -13,7 +13,7 @@ export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
   /** default grey */
-  color?: "grey" | "yellow";
+  color?: "grey" | "yellow" | "red";
   pageLevel?: boolean;
   /** Add this element to the end of the banner message. Mutually exclusive with `link`. */
   cta?: JSX.Element;
@@ -25,6 +25,10 @@ export interface IInfoBannerProps {
   icon?: IconNames;
   /** Overrides the icon's default color when `icon` is set. */
   iconColor?: Colors;
+  /** `"compact"` renders a slim 32px-tall card with tighter padding, for use
+   * inside narrow surfaces (e.g. device notification toasts). Defaults to
+   * `"regular"`. */
+  size?: "regular" | "compact";
 }
 
 const InfoBanner = ({
@@ -36,12 +40,14 @@ const InfoBanner = ({
   closable,
   icon,
   iconColor,
+  size = "regular",
 }: IInfoBannerProps) => {
   const wrapperClasses = classNames(
     baseClass,
     {
       [`${baseClass}__page-banner`]: !!pageLevel,
       [`${baseClass}__icon`]: !!icon,
+      [`${baseClass}--compact`]: size === "compact",
     },
     className
   );

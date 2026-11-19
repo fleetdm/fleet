@@ -1,10 +1,9 @@
-import { isOktaConditionalAccessConfigured } from "interfaces/config";
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 
 const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
-  const { canAccessSettings, config, isPremiumTier, isPrimoMode } = ctx;
+  const { canAccessSettings, isPremiumTier, isPrimoMode } = ctx;
 
   // Settings — global admins only
   if (!canAccessSettings) return [];
@@ -225,29 +224,15 @@ const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
                 id: "settings-int-conditional-access",
                 label: "Conditional access",
                 path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
-                keywords: ["okta", "entra", "intune", "zero trust"],
+                keywords: [
+                  "okta",
+                  "entra",
+                  "intune",
+                  "google",
+                  "context-aware access",
+                  "zero trust",
+                ],
               },
-              // The Okta page redirects back to conditional access until
-              // Okta is configured.
-              ...(isOktaConditionalAccessConfigured(config)
-                ? [
-                    {
-                      id: "edit-okta-conditional-access",
-                      label: "Edit Okta conditional access",
-                      path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA,
-                      keywords: [
-                        "update",
-                        "change",
-                        "modify",
-                        "idp",
-                        "profile",
-                        "scep",
-                        "certificate",
-                        "zero trust",
-                      ],
-                    },
-                  ]
-                : []),
             ]
           : []),
       ],

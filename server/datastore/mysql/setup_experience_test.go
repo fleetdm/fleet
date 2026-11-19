@@ -1444,7 +1444,6 @@ func testEnqueueSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, results, 1)
 	require.NotNil(t, results[0].InHouseAppID)
 	require.Equal(t, iosAppID, *results[0].InHouseAppID)
-	require.True(t, results[0].IsForInHouseApp())
 	require.True(t, results[0].IsForSoftware())
 	require.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
 	require.NotNil(t, results[0].SoftwareTitleID)
@@ -1588,8 +1587,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
-		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID+":"+title.AppStoreApp.Platform] = title.ID
+		if len(title.AppStoreApps) > 0 {
+			titleVPP[title.AppStoreApps[0].AppStoreID+":"+string(title.AppStoreApps[0].Platform)] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
@@ -1599,8 +1598,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
-		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+		if len(title.AppStoreApps) > 0 {
+			titleVPP[title.AppStoreApps[0].AppStoreID] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}

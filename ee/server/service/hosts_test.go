@@ -495,7 +495,6 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		}{
 			{"global admin", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleAdmin)}, false, false},
 			{"global maintainer", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleMaintainer)}, false, false},
-			// gitops may write MDM commands but not rotate keys
 			{"global gitops", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleGitOps)}, true, false},
 			{"global observer", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleObserver)}, true, false},
 			{"global observer+", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleObserverPlus)}, true, false},
@@ -506,7 +505,7 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 			{"team technician", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleTechnician}}}, true, false},
 			{"other team admin", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 2, Role: fleet.RoleAdmin}}}, true, true},
 			{"team gitops", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}, true, false},
-			// can list hosts through the other team, and gitops may write the host's MDM commands
+			// can list hosts through the other team, but gitops can't read the host's MDM commands
 			{
 				"team gitops with another team's observer+",
 				&fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}, {ID: 2, Role: fleet.RoleObserverPlus}}},

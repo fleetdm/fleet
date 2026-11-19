@@ -20,10 +20,9 @@ func renderConditionalAccessProfile(t *testing.T, d appleProfileTemplateData) st
 	return buf.String()
 }
 
-// scepPayload parses the rendered profile and returns the SCEP payload's inner
-// dictionary, so assertions can be made against the values a device would apply
-// rather than against the escaped markup.
-func conditionalAccessSCEPPayload(t *testing.T, profile string) map[string]any {
+// conditionalAccessPayload parses the rendered profile and returns the payload of the given type, so assertions can be
+// made against the values a device would apply rather than against the escaped markup.
+func conditionalAccessPayload(t *testing.T, profile, payloadType string) map[string]any {
 	t.Helper()
 	var root struct {
 		PayloadContent []map[string]any `plist:"PayloadContent"`
@@ -32,21 +31,17 @@ func conditionalAccessSCEPPayload(t *testing.T, profile string) map[string]any {
 	require.NoError(t, err, "rendered profile must be a well-formed plist")
 
 	for _, p := range root.PayloadContent {
-		if p["PayloadType"] == "com.apple.security.scep" {
-			inner, ok := p["PayloadContent"].(map[string]any)
-			require.True(t, ok, "SCEP payload should carry a dictionary")
-			return inner
+		if p["PayloadType"] == payloadType {
+			return p
 		}
 	}
-	t.Fatal("no SCEP payload found in profile")
+	t.Fatalf("no %s payload found in profile", payloadType)
 	return nil
 }
 
 func conditionalAccessProfileFixture() appleProfileTemplateData {
 	return appleProfileTemplateData{
 		CACertBase64:     "dGVzdC1jZXJ0aWZpY2F0ZQ==",
-		SCEPURL:          "https://fleet.example.com/api/fleet/conditional_access/scep",
-		Challenge:        "abc123-normal-enroll-secret",
 		CertificateCN:    "fleet-conditional-access",
 		MTLSURL:          "https://fleet.example.com/mtls",
 		CACertUUID:       "00000000-0000-0000-0000-000000000001",
@@ -63,37 +58,15 @@ func conditionalAccessProfileFixture() appleProfileTemplateData {
 func TestConditionalAccessProfileEscapesInterpolatedValues(t *testing.T) {
 	t.Parallel()
 
-	payload := `secret</string><key>Injected</key><string>true</string><key>Ignored</key><string>`
+	payload := `https://okta.example.com</string><key>Injected</key><string>true</string><key>Ignored</key><string>`
 	d := conditionalAccessProfileFixture()
-	d.Challenge = payload
+	d.MTLSURL = payload
 
-	scep := conditionalAccessSCEPPayload(t, renderConditionalAccessProfile(t, d))
+	pref := conditionalAccessPayload(t, renderConditionalAccessProfile(t, d), "com.apple.security.identitypreference")
 
-	require.NotContains(t, scep, "Injected", "an interpolated value must not add keys to the payload")
-	require.NotContains(t, scep, "Ignored")
-	require.Equal(t, payload, scep["Challenge"], "the value must survive as literal text")
-}
-
-// TestConditionalAccessProfileChallengeRoundTrips covers the other half of
-// escaping: a benign enroll secret containing XML metacharacters must reach the
-// device byte-for-byte, or it would no longer match as a SCEP challenge.
-func TestConditionalAccessProfileChallengeRoundTrips(t *testing.T) {
-	t.Parallel()
-
-	for _, secret := range []string{
-		"p@ss&word<123>",
-		`quote"and'apostrophe`,
-		"amp&only",
-		"plain-secret-no-specials",
-	} {
-		t.Run(secret, func(t *testing.T) {
-			t.Parallel()
-			d := conditionalAccessProfileFixture()
-			d.Challenge = secret
-			scep := conditionalAccessSCEPPayload(t, renderConditionalAccessProfile(t, d))
-			require.Equal(t, secret, scep["Challenge"])
-		})
-	}
+	require.NotContains(t, pref, "Injected", "an interpolated value must not add keys to the payload")
+	require.NotContains(t, pref, "Ignored")
+	require.Equal(t, payload, pref["Name"], "the value must survive as literal text")
 }
 
 // TestConditionalAccessProfileChromePolicyIsValidJSON covers the one payload that

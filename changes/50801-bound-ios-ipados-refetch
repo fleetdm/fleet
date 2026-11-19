@@ -1,0 +1,1 @@
+- Spread iOS/iPadOS hourly refetches across a 1-minute cron (up to 1,000 devices per run, longest-waiting first) instead of sending every due device its refetch commands at once.

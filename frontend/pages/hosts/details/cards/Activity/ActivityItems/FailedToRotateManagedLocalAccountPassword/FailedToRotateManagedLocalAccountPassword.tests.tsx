@@ -55,7 +55,7 @@ describe("FailedToRotateManagedLocalAccountPasswordActivityItem", () => {
       />
     );
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 
   it("renders the show details icon when the host reported a reason", () => {
@@ -67,6 +67,6 @@ describe("FailedToRotateManagedLocalAccountPasswordActivityItem", () => {
       />
     );
 
-    expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("info-icon")).toBeInTheDocument();
   });
 });

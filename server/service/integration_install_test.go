@@ -115,7 +115,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	}
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -248,7 +248,7 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 
 	// Create a team
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -321,7 +321,7 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 	var titleResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
 		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
-	}, http.StatusOK, &titleResp, "team_id", "0")
+	}, http.StatusOK, &titleResp, "fleet_id", "0")
 	require.Len(t, titleResp.SoftwareTitles, 1)
 	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
 	titleID := titleResp.SoftwareTitles[0].ID
@@ -363,7 +363,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 	}
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 
 	const unsupportedVarErrMsg = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."

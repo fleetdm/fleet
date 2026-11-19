@@ -19,7 +19,7 @@ import (
 
 type createDistributedQueryCampaignRequest struct {
 	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"query_id" renameto:"report_id"`
+	QueryID  *uint             `json:"report_id" removedkey:"query_id"`
 	Selected fleet.HostTargets `json:"selected"`
 }
 
@@ -50,7 +50,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 	}
 
 	if queryID == nil && strings.TrimSpace(queryString) == "" {
-		return nil, fleet.NewInvalidArgumentError("query", "one of query or query_id must be specified")
+		return nil, fleet.NewInvalidArgumentError("query", "one of query or report_id must be specified")
 	}
 
 	var query *fleet.Query
@@ -187,7 +187,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 
 type createDistributedQueryCampaignByIdentifierRequest struct {
 	QuerySQL string                                       `json:"query"`
-	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
+	QueryID  *uint                                        `json:"report_id" removedkey:"query_id"`
 	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }
 
@@ -223,23 +223,26 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	labelMap, err := svc.ds.LabelIDsByName(ctx, labels, fleet.TeamFilter{User: vc.User})
+	// A name can match labels on several fleets, and each of them is targeted.
+	labelIDsByName, err := svc.ds.AllLabelIDsByName(ctx, labels, fleet.TeamFilter{User: vc.User})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
 	}
 
+	var labelIDs []uint
+	foundLabels := make(map[string]uint, len(labelIDsByName))
+	for name, ids := range labelIDsByName {
+		labelIDs = append(labelIDs, ids...)
+		foundLabels[name] = ids[0]
+	}
+
 	// DetectMissingLabels will return the list of labels that are not found in the database
 	// These labels are considered invalid
-	invalidLabels := fleet.DetectMissingLabels(labelMap, labels)
+	invalidLabels := fleet.DetectMissingLabels(foundLabels, labels)
 	if len(invalidLabels) > 0 {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("%s %s.", fleet.InvalidLabelSpecifiedErrMsg, strings.Join(invalidLabels, ", ")),
 		}, "invalid labels")
-	}
-
-	var labelIDs []uint
-	for _, labelID := range labelMap {
-		labelIDs = append(labelIDs, labelID)
 	}
 
 	targets := fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}

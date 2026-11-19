@@ -85,7 +85,6 @@ const Tag = (props: ITagProps) => {
           <Icon
             name="close"
             color={props.disabled ? "ui-fleet-black-33" : "core-fleet-black"}
-            size="small"
           />
         </button>
       </span>

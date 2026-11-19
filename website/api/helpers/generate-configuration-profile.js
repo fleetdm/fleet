@@ -257,6 +257,10 @@ module.exports = {
       result.generatedProfile.profile = withAdmxInstalls.profile;
       result.generatedProfile.additionalProfiles = withAdmxInstalls.admxInstallProfiles || [];
       result.generatedProfile.deliveryNotes = _.compact([result.generatedProfile.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
+      result.generatedProfile.deliveryNotes = await sails.helpers.addChromeHomepageNoteToWindowsProfile.with({
+        profile: result.generatedProfile.profile,
+        deliveryNotes: result.generatedProfile.deliveryNotes,
+      });
     }
 
     return result;

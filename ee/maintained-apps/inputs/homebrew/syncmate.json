@@ -1,6 +1,6 @@
 {
   "name": "SyncMate",
-  "unique_identifier": "com.eltima.SyncMate.com.eltima.SyncMateService",
+  "unique_identifier": "com.eltima.SyncMate",
   "token": "syncmate",
   "installer_format": "zip",
   "slug": "syncmate/darwin",
