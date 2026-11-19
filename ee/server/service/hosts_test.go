@@ -707,3 +707,72 @@ func TestUnlockHostAndroid(t *testing.T) {
 		}
 	})
 }
+
+type lockAndroidModule struct {
+	android.Service
+	lockedHostIDs []uint
+}
+
+func (m *lockAndroidModule) LockAndroidHost(ctx context.Context, hostID uint) (string, error) {
+	m.lockedHostIDs = append(m.lockedHostIDs, hostID)
+	return "135792", nil
+}
+
+func TestLockHostAndroidAuthorization(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	androidModule := &lockAndroidModule{}
+	svc.androidModule = androidModule
+
+	var hostTeamID *uint
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, Platform: "android", Hostname: "pixel", TeamID: hostTeamID}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{HostFleetPlatform: "android"}, nil
+	}
+	baseSvc.VerifyMDMAndroidConfiguredFunc = func(ctx context.Context) error { return nil }
+	var activities []fleet.ActivityDetails
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		activities = append(activities, activity)
+		return nil
+	}
+
+	team1 := new(uint(1))
+	cases := []struct {
+		desc       string
+		user       *fleet.User
+		hostTeamID *uint
+		wantErr    error
+	}{
+		{"observer", test.UserObserver, nil, test.ErrForbidden},
+		{"observer+", test.UserObserverPlus, nil, test.ErrForbidden},
+		{"gitops", test.UserGitOps, nil, test.ErrForbidden},
+		{"maintainer", test.UserMaintainer, nil, nil},
+		{"team 1 admin", test.UserTeamAdminTeam1, team1, nil},
+		{"team 1 observer", test.UserTeamObserverTeam1, team1, test.ErrForbidden},
+		{"team 2 admin", test.UserTeamAdminTeam2, team1, test.ErrNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			hostTeamID = c.hostTeamID
+			androidModule.lockedHostIDs = nil
+			activities = nil
+			pin, err := svc.LockHost(test.UserContext(t.Context(), c.user), 1, true)
+			test.RequireErrKind(t, c.wantErr, err)
+			if c.wantErr != nil {
+				require.Empty(t, pin)
+				require.Empty(t, androidModule.lockedHostIDs, "no RESET_PASSWORD may be issued")
+				require.Empty(t, activities)
+				return
+			}
+			require.Equal(t, "135792", pin)
+			require.Equal(t, []uint{1}, androidModule.lockedHostIDs)
+			require.Len(t, activities, 1)
+		})
+	}
+}
