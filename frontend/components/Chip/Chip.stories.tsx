@@ -30,14 +30,14 @@ export const Playground: Story = {
 
 export const WithLeadingIcon: Story = {
   args: {
-    icon: "user",
+    icon: "self-service",
     text: "Self service",
   },
 };
 
 export const WithTrailingIcon: Story = {
   args: {
-    icon: "refresh",
+    icon: "install-auto",
     text: "Auto install",
     trailingIcon: "chevron-right",
   },
@@ -45,7 +45,7 @@ export const WithTrailingIcon: Story = {
 
 export const Clickable: Story = {
   args: {
-    icon: "refresh",
+    icon: "install-auto",
     text: "Auto install",
     onClick: () => undefined,
   },
@@ -53,7 +53,7 @@ export const Clickable: Story = {
 
 export const WithTooltip: Story = {
   args: {
-    icon: "user",
+    icon: "self-service",
     text: "Self service",
     tooltip: "End users can install this from the My device page.",
   },
@@ -61,7 +61,7 @@ export const WithTooltip: Story = {
 
 export const ClickableWithTooltip: Story = {
   args: {
-    icon: "refresh",
+    icon: "install-auto",
     text: "Auto install",
     onClick: () => undefined,
     tooltip: "Policy triggers install.",

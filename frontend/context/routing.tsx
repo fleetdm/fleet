@@ -16,9 +16,14 @@ const initialState = {
 
 const actions = {
   SET_REDIRECT_LOCATION: "SET_REDIRECT_LOCATION",
+} as const;
+
+type Action = {
+  type: typeof actions.SET_REDIRECT_LOCATION;
+  pathname: string | null;
 };
 
-const reducer = (state: any, action: any) => {
+const reducer = (state: InitialStateType, action: Action) => {
   switch (action.type) {
     case actions.SET_REDIRECT_LOCATION:
       return { ...state, redirectLocation: action.pathname };

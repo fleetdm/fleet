@@ -51,9 +51,6 @@ const ManageAutomationsModal = ({
 
   const { mutate: save, isLoading: isSaving } = useUpdatePolicyAutomations({
     policy,
-    teamIdForApi,
-    isGlobalPolicy,
-    automationsConfig,
     onSuccess: () => {
       notify.success(SUCCESS_MSG);
       refetchPolicies();
@@ -71,14 +68,11 @@ const ManageAutomationsModal = ({
     if (!payload.isValid) {
       return;
     }
-    if (!payload.isDirty) {
+    if (!payload.isDirty || !payload.policyUpdate) {
       onExit();
       return;
     }
-    save({
-      policyUpdate: payload.policyUpdate,
-      webhookOrTicketUpdate: payload.webhookOrTicketUpdate,
-    });
+    save({ policyUpdate: payload.policyUpdate });
   };
 
   const policyPlatforms = (policy.platform ?? "")
@@ -112,7 +106,7 @@ const ManageAutomationsModal = ({
               <div className={`${baseClass}__platforms`}>
                 {displayedPlatforms.map((p) => (
                   <span key={p} className={`${baseClass}__platform`}>
-                    <Icon name={p} size="small" />
+                    <Icon name={p} />
                     {PLATFORM_DISPLAY_NAMES[p]}
                   </span>
                 ))}
@@ -121,7 +115,6 @@ const ManageAutomationsModal = ({
           )}
 
           <section className={`${baseClass}__section`}>
-            <h2 className={`${baseClass}__section-title`}>Automations</h2>
             <PolicyAutomationsFields
               ref={automationsRef}
               policy={policy}

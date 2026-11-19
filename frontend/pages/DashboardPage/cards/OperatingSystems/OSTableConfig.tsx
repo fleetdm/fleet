@@ -19,10 +19,7 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { isVulnUnsupportedPlatform } from "interfaces/platform";
 import {
   ISoftwareVulnerability,
@@ -157,7 +154,7 @@ export const compareOSTableVersions = (
         : totalB - totalA;
     return desc ? -target : target;
   }
-  return compareOSVersionStrings(rowA.version, rowB.version);
+  return compareOSVersionStrings(rowA.os_version, rowB.os_version);
 };
 
 const generateDefaultTableHeaders = (
@@ -168,18 +165,13 @@ const generateDefaultTableHeaders = (
   {
     Header: "Name",
     disableSortBy: true,
-    accessor: "name_only",
+    accessor: "os_name",
     Cell: (cellProps: INameCellProps) => {
       if (!configOptions?.includeIcon) {
-        return (
-          <TextCell
-            value={cellProps.cell.value}
-            formatter={(name) => formatOperatingSystemDisplayName(name)}
-          />
-        );
+        return <TextCell value={cellProps.cell.value} />;
       }
 
-      const { name_only, os_version_id, platform } = cellProps.row.original;
+      const { os_name, os_version_id, platform } = cellProps.row.original;
 
       const softwareOsDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_OS_DETAILS(os_version_id),
@@ -199,7 +191,7 @@ const generateDefaultTableHeaders = (
           customOnClick={onClickSoftware}
           tooltipTruncate
           prefix={<OSIcon name={platform} />}
-          value={name_only}
+          value={os_name}
         />
       );
     },
@@ -213,7 +205,7 @@ const generateDefaultTableHeaders = (
       />
     ),
     disableSortBy: !!configOptions?.disableVersionSort,
-    accessor: "version",
+    accessor: "os_version",
     sortType: (rowA, rowB, _columnId, desc) =>
       compareOSTableVersions(
         rowA.original,
@@ -222,16 +214,16 @@ const generateDefaultTableHeaders = (
         configOptions?.platformHostTotals
       ),
     Cell: (cellProps: IVersionCellProps) => {
-      const { version, name_only } = cellProps.row.original;
+      const { os_version, os_name } = cellProps.row.original;
       if (
-        ROLLING_ARCH_LINUX_NAMES.includes(name_only) &&
-        version === "rolling"
+        ROLLING_ARCH_LINUX_NAMES.includes(os_name) &&
+        os_version === "rolling"
       ) {
         return (
           <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
         );
       }
-      return <TextCell value={version} />;
+      return <TextCell value={os_version} />;
     },
   },
   {
@@ -322,9 +314,7 @@ const generateTableHeaders = (
   let tableConfig = generateDefaultTableHeaders(teamId, router, configOptions);
 
   if (!configOptions?.includeName) {
-    tableConfig = tableConfig.filter(
-      (column) => column.accessor !== "name_only"
-    );
+    tableConfig = tableConfig.filter((column) => column.accessor !== "os_name");
   }
 
   if (!configOptions?.includeVulnerabilities) {

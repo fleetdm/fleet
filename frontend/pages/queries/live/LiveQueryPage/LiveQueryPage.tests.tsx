@@ -54,7 +54,7 @@ const renderPage = createCustomRenderer({
 beforeEach(() => {
   mockServer.use(
     http.get(baseUrl("/reports/1"), () =>
-      HttpResponse.json({ query: createMockQuery({ id: 1 }) })
+      HttpResponse.json({ report: createMockQuery({ id: 1 }) })
     ),
     http.get(baseUrl("/policies/1"), () =>
       HttpResponse.json({ policy: createMockPolicy({ id: 1 }) })
@@ -62,7 +62,7 @@ beforeEach(() => {
     http.get(baseUrl("/hosts/42"), () =>
       HttpResponse.json({ host: createMockHost({ id: 42 }) })
     ),
-    http.get(baseUrl("/fleets"), () => HttpResponse.json({ teams: [] })),
+    http.get(baseUrl("/fleets"), () => HttpResponse.json({ fleets: [] })),
     http.get(baseUrl("/labels/summary"), () =>
       HttpResponse.json({
         labels: [{ id: 1, name: "All Hosts", label_type: "builtin" }],

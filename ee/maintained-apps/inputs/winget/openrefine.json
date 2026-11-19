@@ -3,6 +3,7 @@
   "slug": "openrefine/windows",
   "package_identifier": "OpenRefine.OpenRefine",
   "unique_identifier": "OpenRefine",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

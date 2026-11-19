@@ -24,6 +24,8 @@ Fleet can automatically rename macOS, iOS, and iPadOS hosts as they enroll, so y
 
 Fleet applies the template the next time each matching host enrolls or checks in, and again whenever you change the template.
 
+If an end user renames a host on the device, Fleet detects it the next time the host reports its name (about every hour) and renames it back, up to 3 times. On macOS, this requires fleetd to be installed and running.
+
 
 ### Available variables
 
@@ -36,6 +38,7 @@ Fleet applies the template the next time each matching host enrolls or checks in
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | The local part of the end user's IdP username (before the `@`) |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | The end user's IdP groups |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | The end user's IdP department |
+| `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` | The end user's immutable IdP user ID (SCIM `externalId`) |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULLNAME` | The end user's full name from the IdP |
 
 You can also reference [secret variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) and [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) in a template.
@@ -57,6 +60,8 @@ You can also reference [secret variables](https://fleetdm.com/guides/secrets-in-
 ## Troubleshoot
 
 **A host shows a "Failed" status.** The name Fleet resolved for that host is likely longer than Apple's 63-byte device name limit, often because a variable (like an IdP username) expanded to more text than expected. Shorten the fixed text in your template, or check the value the variable resolved to for that host, then use **Resend** on the host's **Host name** row to try again.
+
+**A host shows a "Failed" status after being renamed on the device.** Fleet renames a host back up to 3 times. If the host keeps being renamed, or keeps rejecting the rename command, it shows **Failed**. Find out what's renaming the host, then use **Resend** on its **Host name** row to reset the retries and try again.
 
 
 ## Manage with GitOps

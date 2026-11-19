@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 
 import CustomLink from "./CustomLink";
+import CustomLinkSizeContext from "./CustomLinkSizeContext";
 
 describe("CustomLink - component", () => {
   it("renders text, link in same tab, and no icon", () => {
@@ -37,5 +38,17 @@ describe("CustomLink - component", () => {
 
     expect(icon).toBeInTheDocument();
     expect(icon.closest("a")).toHaveAttribute("target", "_blank");
+  });
+
+  it("renders the small external link icon inside a small-size context", () => {
+    render(
+      <CustomLinkSizeContext.Provider value="small">
+        <CustomLink url="https://fleetdm.com/docs" text="Learn more" newTab />
+      </CustomLinkSizeContext.Provider>
+    );
+
+    expect(
+      screen.getByTestId("external-link-icon").querySelector("svg")
+    ).toHaveAttribute("viewBox", "0 0 12 12");
   });
 });

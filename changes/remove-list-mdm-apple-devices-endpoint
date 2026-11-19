@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the undocumented `GET /api/v1/fleet/mdm/apple/devices` endpoint. Requests to it now return a 404. Use `GET /api/v1/fleet/hosts` to list hosts and their MDM enrollment status.

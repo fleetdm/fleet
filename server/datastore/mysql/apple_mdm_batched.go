@@ -361,7 +361,7 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			p.IncludeLabels = nil
 			p.IncludeMode = fleet.AppleProfileIncludeNone
 			errMsg := "apple profile has mixed include label modes; ignoring include labels"
-			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "team_id", p.TeamID)
+			ds.logger.ErrorContext(ctx, errMsg, "profile_uuid", uuid, "fleet_id", p.TeamID)
 			ctxerr.Handle(ctx, ctxerr.New(ctx, errMsg))
 			continue
 		}
@@ -405,7 +405,8 @@ func (ds *Datastore) bulkGetHostMDMAppleProfilesByUUIDsTransaction(
 			COALESCE(detail, '') AS detail,
 			command_uuid,
 			ignore_error,
-			scope
+			scope,
+			variables_updated_at
 		FROM host_mdm_apple_profiles
 		WHERE host_uuid IN (?)
 	`
@@ -672,7 +673,7 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 			d.IncludeMode = fleet.AppleProfileIncludeNone
 
 			errMsg := "apple declaration has mixed include label modes; ignoring include labels"
-			ds.logger.ErrorContext(ctx, errMsg, "declaration_uuid", uuid, "team_id", d.TeamID)
+			ds.logger.ErrorContext(ctx, errMsg, "declaration_uuid", uuid, "fleet_id", d.TeamID)
 			ctxerr.Handle(ctx, ctxerr.New(ctx, errMsg))
 			continue
 		}

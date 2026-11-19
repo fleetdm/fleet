@@ -33,7 +33,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] GitOps mode UI changes: TODO <!-- Specify UI changes for read-only GitOps mode. Put "No changes" if there are no changes necessary. -->
 - [ ] GitOps generation changes: TODO <!-- Specify changes to results from the fleetctl generate-gitops command. Put "No changes" if there are no changes necessary. -->
 - [ ] Activity changes: TODO <!-- Specify the display name that will appear on the dashboard ("type" filter) and changes to the Audit log page in the contributor docs as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
-- [ ] Permissions changes: TODO <!-- Specify changes in the permissions doc page here: https://fleetdm.com/docs/using-fleet/manage-access as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
+- [ ] Permissions changes: TODO <!-- Specify changes in the permissions doc page here: https://fleetdm.com/docs/using-fleet/manage-access as a PR to the reference docs release branch. For each new or changed permission, also specify which roles have access by adding or updating role bubbles (e.g. ((Admin)), ((Maintainer)), ((GitOps)), ((Technician)), ((Observer+)), ((Observer))) in the REST API docs (https://fleetdm.com/docs/api/rest-api) in the same PR. Put "No changes" if there are no permissions changes. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] My device and fleetdm.com/better changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
 - [ ] Usage statistics: TODO <!-- Specify changes in the Fleet usage statistics guide as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
@@ -78,6 +78,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 #### UI
 - [ ] Verify that all UI changes specified in the Figma wireframes are correctly implemented
 - [ ] Verify expected UI states (loading, empty, error states if applicable)
+- [ ] Verify the UI at Fleet's breakpoints (480, 768, 1024, 1280, 1440px) — no clipped controls, no horizontal scroll, no overlapping text
 
 #### API
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
@@ -108,6 +109,17 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 #### Feature in isolation (MDM / platform independence)
 - [ ] Verify the feature works on a fully configured server (all MDM platforms enabled)
 - [ ] Verify the feature works in isolation — e.g. Apple MDM **off**, Windows-only, Linux-only, or Android-only deployments as applicable
+
+#### Identity provider (IdP)
+- [ ] Verify behavior when the end user is deprovisioned or removed from the IdP
+- [ ] Verify behavior when the end user's IdP group membership changes
+- [ ] Verify identities that differ only by capitalization are treated as one (no duplicate user or host record)
+- [ ] Verify the feature still works after a certificate or token renewal
+- [ ] Verify the feature on a host that re-enrolls with an IdP identity already attached
+
+#### Host re-enrollment
+- [ ] Verify the feature on a host that enrolls, is wiped, and enrolls again
+- [ ] Verify whether host state (identity, labels, encryption key, setup experience status) is correctly kept or reset
 
 -->
 

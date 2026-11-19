@@ -1,0 +1,12 @@
+{
+  "name": "T3 Code",
+  "unique_identifier": "com.t3tools.t3code",
+  "token": "t3-code",
+  "installer_format": "dmg",
+  "slug": "t3-code/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/t3-code-install.sh",
+  "post_uninstall_scripts": [
+    "sudo rm -rf '/Applications/T3 Code (Alpha).app'"
+  ],
+  "default_categories": ["Developer tools"]
+}

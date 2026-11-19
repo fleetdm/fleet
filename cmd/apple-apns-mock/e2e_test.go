@@ -6,8 +6,7 @@ package main
 // behavior — is documented on pushHandler, parsePushHeaders, apnsPushError,
 // and eventsSSEHandler in handlers.go. TestE2ENanopushProvider verifies the
 // contract through the actual nanopush provider `fleet serve` uses in
-// production; TestE2EBufordCompatibility keeps the legacy buford client
-// covered while it remains in-tree.
+// production.
 
 import (
 	"bufio"
@@ -28,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	bufordpush "github.com/RobotsAndPencils/buford/push"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -746,34 +744,6 @@ func TestE2EDisconnectedStreamIsReapedByKeepalive(t *testing.T) {
 
 	require.NoError(t, conn.Close())
 	waitConnected(t, srv.URL, 0)
-}
-
-// TestE2EBufordCompatibility drives the mock through the buford client
-// library — the code path `fleet serve` used before the nanopush swap
-// (server/mdm/nanomdm/push/buford wraps bufordpush.Service). Kept while
-// buford remains in-tree so older clients stay covered.
-func TestE2EBufordCompatibility(t *testing.T) {
-	srv := newTestServer(t)
-	svc := bufordpush.NewService(fleethttp.NewClient(), srv.URL)
-
-	t.Run("successful push round-trips to a client", func(t *testing.T) {
-		const token = "aabbccddee0a" // nolint:gosec // test token
-		id, err := svc.Push(token, nil, []byte(`{"mdm":"pushmagicABC"}`))
-		require.NoError(t, err)
-		assert.NotEmpty(t, id, "buford returns the apns-id header on success")
-
-		c := sseConnect(t, srv.URL, token)
-		assert.JSONEq(t, `{"mdm":"pushmagicABC"}`, nextPing(t, c, 5*time.Second))
-	})
-
-	t.Run("invalid token surfaces as BadDeviceToken", func(t *testing.T) {
-		_, err := svc.Push("not-hex-token", nil, []byte(`{"mdm":"m"}`))
-		var apnsErr *bufordpush.Error
-		require.ErrorAs(t, err, &apnsErr,
-			"error must decode as a buford push error, not a JSON parse failure — the mock must always send the JSON error body")
-		assert.Equal(t, bufordpush.ErrBadDeviceToken, apnsErr.Reason)
-		assert.Equal(t, http.StatusBadRequest, apnsErr.Status)
-	})
 }
 
 // TestE2ENanopushProvider drives the mock through the actual nanopush

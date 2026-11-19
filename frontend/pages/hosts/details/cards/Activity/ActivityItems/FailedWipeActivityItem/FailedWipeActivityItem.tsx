@@ -1,7 +1,6 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
-import CustomLink from "components/CustomLink";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 

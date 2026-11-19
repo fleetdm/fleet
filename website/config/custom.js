@@ -42,6 +42,16 @@ module.exports.custom = {
 
   /**************************************************************************
   *                                                                         *
+  * How many requests each Fleet Free registration can make to the          *
+  * configuration profile generator in a UTC calendar month.  Fleet         *
+  * Premium is not limited.                                                 *
+  *                                                                         *
+  **************************************************************************/
+  profileGeneratorMonthlyProfileLimit: 15,
+  profileGeneratorMonthlyNameAndDescriptionLimit: 45,
+
+  /**************************************************************************
+  *                                                                         *
   * Automated email configuration                                           *
   *                                                                         *
   * Sandbox Sendgrid credentials for use during development, as well as any *
@@ -120,7 +130,6 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // 🚀 Code for core product and integrations
-    'ee/tools/puppet': 'georgekarrv', //« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
     'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
@@ -134,6 +143,12 @@ module.exports.custom = {
 
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': 'allenhouchins',
+
+    // 🤖 fleet-gitops and fleet-maintained-apps agent skills
+    '.claude/skills/fleet-gitops': 'allenhouchins',
+    '.claude/skills/fleet-maintained-apps': 'allenhouchins',
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins', //« The one fleet-gitops skill copy (.claude/skills/fleet-gitops points here)
+    'cmd/fleetctl/fleetctl/templates/new/.claude/skills/fleet-gitops': 'allenhouchins',
 
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
@@ -207,7 +222,17 @@ module.exports.custom = {
     'ee/maintained-apps/inputs': 'allenhouchins',
   },
 
-  // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
+  /***************************************************************************
+  *                                                                          *
+  * Same as above, but for fleetdm/confidential.  (Paths without a DRI here  *
+  * fall back to the CODEOWNERS file in fleetdm/confidential.)               *
+  *                                                                          *
+  ***************************************************************************/
+  confidentialGithubRepoDRIByPath: {// fleetdm/confidential
+    '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+    '.github/workflows/market-research-check.yml': 'lukeheath',// « rebuilds and checks the market research explorer, DMs the build on Slack
+    '.github/workflows/market-research-revenue.yml': 'lukeheath',// « weekly Fleet revenue pull from Salesforce for the market research
+  },
 
 
   //  ███╗   ███╗ █████╗ ██╗███╗   ██╗████████╗ █████╗ ██╗███╗   ██╗███████╗██████╗ ███████╗
@@ -228,7 +253,6 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -236,7 +260,7 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
     '/docs/get-started/faq': ['rynsatterlee', 'ddribeiro', 'zayhanlon'],
     'docs/solutions': ['ddribeiro', 'allenhouchins'],
-    'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
+    'docs/API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (REST API reference)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
     'server/api_endpoints/api_endpoints.yml': 'rachaelshaw',// « API endpoint display names in the Fleet UI (API-only users)
@@ -254,6 +278,7 @@ module.exports.custom = {
     'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
+    'website/assets/js/pages': ['eashaw','mike-j-thomas'],
     'website/assets/styles': ['eashaw','mike-j-thomas'],
     'website/assets/images': ['eashaw','mike-j-thomas','allenhouchins'],
     'website/assets/videos': ['eashaw','mike-j-thomas'],
@@ -261,6 +286,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
+    'website/api/controllers': ['eashaw', 'mike-j-thomas'],
+    'website/api/controllers/landing-pages': ['eashaw', 'mike-j-thomas', 'thomcrowe'],
     'website/api/controllers/webhooks/receive-from-clay.js': ['sampfluger88'],
     'website/api/helpers/salesforce': ['sampfluger88'],
 
@@ -277,6 +304,7 @@ module.exports.custom = {
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
+    'cmd/maintained-apps/validate': 'allenhouchins',
     'pkg/patch_policy': 'allenhouchins',
 
     // Other brandfronts
@@ -350,6 +378,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
     '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
     '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/fasttrack.md': ['zayhanlon', 'ireedy', 'sampfluger88', 'ddribeiro', 'mikermcneil'],
 
     // GTM
     'go-to-market': ['sampfluger88'],
@@ -378,7 +407,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.24.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.24.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -529,6 +558,10 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
 
+  // Google conditional access proxy
+  // googleConditionalAccessOauthClientId: '…',
+  // googleConditionalAccessOauthClientSecret: '…',
+  // googleConditionalAccessPartnerId: '…',
 
   // Android proxy
   // androidEnterpriseProjectId: '…',

@@ -1,1 +1,0 @@
-- Fixed false positive vulnerabilities where Adobe Lightroom and Adobe Lightroom Classic on macOS were matched against each other's CVEs.

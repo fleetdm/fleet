@@ -4,14 +4,9 @@ import React, { useEffect } from "react";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import Tag from "components/Tag";
-import {
-  ILoadAllPoliciesResponse,
-  ILoadTeamPoliciesResponse,
-  IPolicyStats,
-} from "interfaces/policy";
+import { ILoadAllPoliciesResponse, IPolicyStats } from "interfaces/policy";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 
 import { RESULT_PREFIXES } from "./constants";
 import HighlightedLabel from "./HighlightedLabel";
@@ -48,29 +43,21 @@ const PolicyPicker = ({
   const fleetSuffix = getFleetSuffix(currentTeam);
 
   const { items: policies, isLoading, debouncedQuery } = usePickerSearch<
-    ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse,
+    ILoadAllPoliciesResponse,
     IPolicyStats
   >({
     search,
     queryKeyPrefix: ["commandPalettePolicies", teamId ?? "global"],
-    queryFn: (q) => {
-      if (teamId !== undefined) {
-        return teamPoliciesAPI.loadAllNew({
-          teamId,
-          page: 0,
-          perPage: POLICY_SEARCH_LIMIT,
-          query: q || undefined,
-          // Surface inherited global policies in team views, matching the
-          // Policies page behavior.
-          mergeInherited: true,
-        });
-      }
-      return globalPoliciesAPI.loadAllNew({
+    queryFn: (q) =>
+      policiesAPI.loadAll({
+        fleetId: teamId,
         page: 0,
         perPage: POLICY_SEARCH_LIMIT,
         query: q || undefined,
-      });
-    },
+        // Surface inherited global policies in team views, matching the
+        // Policies page behavior.
+        mergeInherited: teamId !== undefined,
+      }),
     selectItems: (data) => data?.policies ?? [],
   });
 
@@ -97,7 +84,7 @@ const PolicyPicker = ({
   }
 
   // "Inherited" applies only when viewing a specific team and the policy
-  // is a global one (team_id === null), matching PoliciesTableConfig.
+  // is a global one (fleet_id === null), matching PoliciesTableConfig.
   const isViewingSpecificTeam =
     !!currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID;
 
@@ -107,7 +94,7 @@ const PolicyPicker = ({
         const showCriticalBadge = isPremiumTier && policy.critical;
         const showPatchBadge = policy.type === "patch";
         const showInheritedBadge =
-          isViewingSpecificTeam && policy.team_id === null;
+          isViewingSpecificTeam && policy.fleet_id === null;
 
         return (
           <Command.Item

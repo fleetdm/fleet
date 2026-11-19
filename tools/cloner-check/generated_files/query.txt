@@ -35,23 +35,6 @@ github.com/fleetdm/fleet/v4/server/fleet/Query	ObserverCanRun	bool
 github.com/fleetdm/fleet/v4/server/fleet/Query	AuthorID	*uint
 github.com/fleetdm/fleet/v4/server/fleet/Query	AuthorName	string
 github.com/fleetdm/fleet/v4/server/fleet/Query	AuthorEmail	string
-github.com/fleetdm/fleet/v4/server/fleet/Query	Packs	[]fleet.Pack
-github.com/fleetdm/fleet/v4/server/fleet/Pack	UpdateCreateTimestamps	fleet.UpdateCreateTimestamps
-github.com/fleetdm/fleet/v4/server/fleet/Pack	ID	uint
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Name	string
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Description	string
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Platform	string
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Disabled	bool
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Type	*string
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Labels	[]fleet.Target
-github.com/fleetdm/fleet/v4/server/fleet/Target	Type	fleet.TargetType	int
-github.com/fleetdm/fleet/v4/server/fleet/Target	TargetID	uint
-github.com/fleetdm/fleet/v4/server/fleet/Target	DisplayText	string
-github.com/fleetdm/fleet/v4/server/fleet/Pack	LabelIDs	[]uint
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Hosts	[]fleet.Target
-github.com/fleetdm/fleet/v4/server/fleet/Pack	HostIDs	[]uint
-github.com/fleetdm/fleet/v4/server/fleet/Pack	Teams	[]fleet.Target
-github.com/fleetdm/fleet/v4/server/fleet/Pack	TeamIDs	[]uint
 github.com/fleetdm/fleet/v4/server/fleet/Query	AggregatedStats	fleet.AggregatedStats
 github.com/fleetdm/fleet/v4/server/fleet/AggregatedStats	SystemTimeP50	*float64
 github.com/fleetdm/fleet/v4/server/fleet/AggregatedStats	SystemTimeP95	*float64

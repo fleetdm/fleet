@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,5 +87,40 @@ func TestRetryWait(t *testing.T) {
 				require.LessOrEqual(t, wait, tt.wantMax)
 			}
 		})
+	}
+}
+
+// TestProxyClientSecretConcurrentUse updates the secret while requests read it. Run with -race.
+func TestProxyClientSecretConcurrentUse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer secret", r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name": "enterprises/E/devices/D"}`))
+	}))
+	defer srv.Close()
+
+	client := NewProxyClient(t.Context(), slog.New(slog.DiscardHandler), "license", func(name string) string {
+		if name == "FLEET_DEV_ANDROID_PROXY_ENDPOINT" {
+			return srv.URL + "/"
+		}
+		return ""
+	})
+	require.NotNil(t, client)
+	require.NoError(t, client.SetAuthenticationSecret("secret"))
+
+	const workers = 10
+	errs := make(chan error, 2*workers)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			errs <- client.SetAuthenticationSecret("secret")
+			_, err := client.EnterprisesDevicesGet(t.Context(), "enterprises/E/devices/D")
+			errs <- err
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
 	}
 }

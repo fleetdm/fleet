@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 // apiTimeoutOverrideHandler wraps the main API handler with per-route request
@@ -22,7 +24,7 @@ import (
 //
 // Deadline overrides are best-effort: if the ResponseWriter does not support
 // SetReadDeadline/SetWriteDeadline the error is logged and the request proceeds.
-func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, logger *slog.Logger) http.HandlerFunc {
+func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, logger *slog.Logger, serverWriteTimeout func() time.Duration) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
 			// when running a script synchronously, we wait a while for a script
@@ -69,6 +71,26 @@ func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, 
 			// parsing, which happens somewhere where we're only passed the request (and not the service object)
 			req.Body = http.MaxBytesReader(rw, req.Body, cfg.Server.MaxInstallerSizeBytes)
 			req = req.WithContext(installersize.NewContext(req.Context(), cfg.Server.MaxInstallerSizeBytes))
+		}
+
+		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mcp") {
+			// An embedded MCP tool call can run a live query, which waits the
+			// live query period before the response is written.
+			period, _ := service.LiveQueryRestPeriod()
+			deadline := time.Now().Add(max(serverWriteTimeout(), period+30*time.Second))
+			rc := http.NewResponseController(rw)
+			if err := rc.SetWriteDeadline(deadline); err != nil {
+				logger.ErrorContext(req.Context(),
+					"http middleware failed to override endpoint write timeout for the embedded MCP",
+					"response_writer_type", fmt.Sprintf("%T", rw),
+					"err", err,
+				)
+			}
+			// Nothing can be written after the deadline, so stop the tools'
+			// internal API calls then too.
+			ctx, cancel := context.WithDeadline(req.Context(), deadline)
+			defer cancel()
+			req = req.WithContext(ctx)
 		}
 
 		if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {

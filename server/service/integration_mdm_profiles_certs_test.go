@@ -20,6 +20,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -312,6 +316,227 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 	}
 }
 
+// TestWindowsConditionalAccessSCEPProfile covers a Windows SCEP profile written before the challenge variable existed:
+// the admin writes a global enroll secret into it directly or through a secret variable. Fleet fills in the SCEP URL at
+// delivery and tracks the certificate the way it tracks a proxied certificate authority's.
+func (s *integrationMDMTestSuite) TestWindowsConditionalAccessSCEPProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "first+secret="}}))
+	_, _, err := s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+		{Name: "CONDACCESS_CHALLENGE", Value: "first+secret="},
+		{Name: "BAD_CHALLENGE", Value: "bad_secret"},
+	})
+	require.NoError(t, err)
+	withChallenge := func(challenge string) []byte {
+		profile := bytes.ReplaceAll(windowsUserSCEPProfileBytes,
+			[]byte("$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_INTEGRATION"), []byte(fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()))
+		return bytes.ReplaceAll(profile, []byte("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_INTEGRATION"), []byte(challenge))
+	}
+
+	// A challenge Windows can't send is rejected at upload, secret variables included.
+	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "ConditionalAccessSCEP", Contents: withChallenge("$FLEET_SECRET_BAD_CHALLENGE")},
+	}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(resp.Body), conditionalAccessChallengeInvalidMsg)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "ConditionalAccessSCEP", Contents: withChallenge("$FLEET_SECRET_CONDACCESS_CHALLENGE")},
+	}}, http.StatusNoContent)
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	scepURL, err := url.JoinPath(appConfig.ServerSettings.ServerURL, "/api/fleet/conditional_access/scep")
+	require.NoError(t, err)
+
+	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	hostProfile := func() *fleet.HostMDMWindowsProfile {
+		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profiles {
+			if p.Name == "ConditionalAccessSCEP" {
+				return &p
+			}
+		}
+		require.FailNow(t, "ConditionalAccessSCEP not found for host")
+		return nil
+	}
+	rawCommand := func(cmdUUID string) string {
+		var raw string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &raw, `SELECT raw_command FROM windows_mdm_commands WHERE command_uuid = ?`, cmdUUID)
+		})
+		return raw
+	}
+	// Acknowledges every pending command and returns the challenge in the one SCEP profile the device received.
+	ackCommands := func() string {
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		sceps, incomplete := mdmDevice.ExtractSCEPCommands(cmds)
+		require.Empty(t, incomplete)
+		require.Len(t, sceps, 1)
+		ackWindowsCmds(t, mdmDevice, cmds)
+		return sceps[0].Challenge
+	}
+	// Queues the profile for another delivery, the way a resend or the renewal job does.
+	queueRedelivery := func(profileUUID string) {
+		require.NoError(t, s.ds.ResendHostMDMProfile(ctx, host.UUID, profileUUID))
+	}
+
+	s.awaitTriggerProfileSchedule(t)
+	p := hostProfile()
+	require.NotNil(t, p.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *p.Status)
+	raw := rawCommand(p.CommandUUID)
+	require.Contains(t, raw, "<Data>"+scepURL+"</Data>")
+	// A secret variable is only expanded when the command is sent, so the stored command never holds the secret.
+	require.Contains(t, raw, "<Data>$FLEET_SECRET_CONDACCESS_CHALLENGE</Data>")
+	require.NotContains(t, raw, "first+secret=")
+
+	managedCert, err := s.ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, fleet.ConditionalAccessManagedCertificateCAName)
+	require.NoError(t, err)
+	require.NotNil(t, managedCert)
+	require.Equal(t, fleet.CAConfigConditionalAccess, managedCert.Type)
+	require.NotNil(t, managedCert.ChallengeRetrievedAt)
+
+	// Windows acknowledges the Exec before it contacts the SCEP server, so the ack alone doesn't verify the profile.
+	require.Equal(t, "first+secret=", ackCommands())
+	p = hostProfile()
+	require.NotNil(t, p.Status)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+
+	// After the enroll secret and the secret variable are rotated, a redelivery carries the new secret without re-uploading
+	// the profile.
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "second-secret"}}))
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "CONDACCESS_CHALLENGE", Value: "second-secret"}})
+	require.NoError(t, err)
+	queueRedelivery(p.ProfileUUID)
+	s.awaitTriggerProfileSchedule(t)
+	p = hostProfile()
+	raw = rawCommand(p.CommandUUID)
+	require.NotContains(t, raw, "second-secret")
+	require.Equal(t, "second-secret", ackCommands())
+}
+
+// TestWindowsConditionalAccessRenderedProfiles uploads both rendered Windows conditional access profiles unchanged and
+// enrolls the host's certificate against Fleet's conditional access SCEP server with a one-time challenge.
+func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles() {
+	t := s.T()
+	ctx := t.Context()
+
+	var profiles fleet.ConditionalAccessWindowsProfiles
+	s.DoJSON("GET", "/api/latest/fleet/conditional_access/idp/windows/profiles", nil, http.StatusOK, &profiles)
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	for fileName, contents := range map[string]string{
+		"OktaSCEP.xml":     profiles.SCEPProfile,
+		"OktaBrowsers.xml": profiles.BrowserProfile,
+	} {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, []byte(contents), s.token,
+			map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	}
+
+	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID})))
+	s.awaitTriggerProfileSchedule(t)
+
+	// The stored command only holds a placeholder; the challenge is created when the command is sent.
+	scepProfileRow := func() fleet.HostMDMWindowsProfile {
+		hostProfiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range hostProfiles {
+			if p.Name == "OktaSCEP" {
+				return p
+			}
+		}
+		require.FailNow(t, "OktaSCEP not found for host")
+		return fleet.HostMDMWindowsProfile{}
+	}
+	var raw string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &raw, `SELECT raw_command FROM windows_mdm_commands WHERE command_uuid = ?`, scepProfileRow().CommandUUID)
+	})
+	require.Contains(t, raw, "<Data>"+fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge)+"</Data>")
+
+	cmds, err := mdmDevice.StartManagementSession()
+	require.NoError(t, err)
+	msgID, err := mdmDevice.GetCurrentMsgID()
+	require.NoError(t, err)
+	scepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	handled, scepResults, _ := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+	for _, c := range cmds {
+		if c.Verb == fleet.CmdStatus {
+			continue
+		}
+		if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+			continue
+		}
+		cmdID, verb, status := c.Cmd.CmdID.Value, c.Verb, syncml.CmdStatusOK
+		mdmDevice.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &cmdID,
+			Cmd:     &verb,
+			Data:    &status,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	var certs []*x509.Certificate
+	for res := range scepResults {
+		require.NoError(t, res.Err, "SCEP exchange failed")
+		certs = append(certs, res.Cert)
+	}
+	require.Len(t, certs, 1)
+	_, err = mdmDevice.SendResponse()
+	require.NoError(t, err)
+
+	hostProfiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	statuses := map[string]fleet.MDMDeliveryStatus{}
+	var scepProfileUUID string
+	for _, p := range hostProfiles {
+		require.NotNil(t, p.Status, p.Name)
+		statuses[p.Name] = *p.Status
+		if p.Name == "OktaSCEP" {
+			scepProfileUUID = p.ProfileUUID
+		}
+	}
+	require.Equal(t, fleet.MDMDeliveryVerifying, statuses["OktaSCEP"])
+	require.Equal(t, fleet.MDMDeliveryVerified, statuses["OktaBrowsers"])
+
+	cert := certs[0]
+	require.Equal(t, fleet.ConditionalAccessOktaCertificateCN, cert.Subject.CommonName)
+	require.Equal(t, []string{"fleet-" + scepProfileUUID}, cert.Subject.OrganizationalUnit)
+	require.Len(t, cert.URIs, 1)
+	require.Equal(t, "urn:device:fleet:uuid:"+host.UUID, cert.URIs[0].String())
+	hostID, err := s.ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
+	require.NoError(t, err)
+	require.Equal(t, host.ID, hostID)
+
+	// The enrollment used the host's one-time challenge, so a redelivery, as for renewal, carries a new one.
+	var consumed []string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &consumed, `SELECT challenge FROM mdm_apple_scep_challenges
+			WHERE host_uuid = ? AND purpose = ? AND consumed_at IS NOT NULL`, host.UUID, fleet.ConditionalAccessSCEPChallengePurpose)
+	})
+	require.Len(t, consumed, 1)
+	require.NoError(t, s.ds.ResendHostMDMProfile(ctx, host.UUID, scepProfileUUID))
+	s.awaitTriggerProfileSchedule(t)
+	cmds, err = mdmDevice.StartManagementSession()
+	require.NoError(t, err)
+	sceps, incomplete := mdmDevice.ExtractSCEPCommands(cmds)
+	require.Empty(t, incomplete)
+	require.Len(t, sceps, 1)
+	require.Regexp(t, `^[0-9a-f]{64}$`, sceps[0].Challenge)
+	require.NotEqual(t, consumed[0], sceps[0].Challenge)
+	ackWindowsCmds(t, mdmDevice, cmds)
+}
+
 // #40639 — integration coverage for non-proxied cert renewal
 // profile uploads. The renewal-ID marker is opt-in; ACME and non-proxied
 // SCEP profiles upload regardless of marker presence or placement. Auto-
@@ -434,35 +659,71 @@ func (s *integrationMDMTestSuite) TestRawSCEPProfileUploadAcceptsAllMarkerPlacem
 	})
 }
 
-// TestConditionalAccessProfileUploadsCleanly verifies that the Fleet-
-// generated Conditional Access SCEP profile uploads cleanly via the
-// documented custom-OS-settings path. The template includes the renewal
-// marker, so deploying from the Settings UI activates
-// auto-renewal by default.
-func (s *integrationMDMTestSuite) TestConditionalAccessProfileUploadsCleanly() {
+// TestConditionalAccessAppleProfileOneTimeChallenge uploads the Okta profile as copied from Fleet and delivers it on
+// the user channel: the stored command holds only a placeholder, and the device gets a one-time challenge bound to its
+// UUID, the one the profile's SAN carries.
+func (s *integrationMDMTestSuite) TestConditionalAccessAppleProfileOneTimeChallenge() {
 	t := s.T()
+	ctx := t.Context()
 
-	var buf bytes.Buffer
-	require.NoError(t, conditionalAccessAppleProfileTemplateParsed.Execute(&buf, appleProfileTemplateData{
-		CACertBase64:     "ZHVtbXkK",
-		SCEPURL:          "https://example.com/api/fleet/conditional_access/scep",
-		Challenge:        "test-challenge",
-		CertificateCN:    "Fleet conditional access for Okta",
-		MTLSURL:          "https://okta.example.com/api/fleet/conditional_access/idp/sso",
-		CACertUUID:       "11111111-1111-1111-1111-111111111111",
-		SCEPPayloadUUID:  "22222222-2222-2222-2222-222222222222",
-		IdentityPrefUUID: "33333333-3333-3333-3333-333333333333",
-		ChromeConfigUUID: "44444444-4444-4444-4444-444444444444",
-		RootPayloadUUID:  "55555555-5555-5555-5555-555555555555",
-	}))
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+	require.NoError(t, mdmDevice.UserEnroll())
 
-	// Use the single-profile endpoint (POST /configuration_profiles) — that's
-	// the route the custom-OS-settings UI uses when an admin uploads a
-	// .mobileconfig copied out of Settings > Integrations > Conditional access.
-	body, headers := generateNewProfileMultipartRequest(
-		t, "ConditionalAccessProfile.mobileconfig", buf.Bytes(), s.token, nil,
-	)
+	resp := s.DoRaw("GET", "/api/latest/fleet/conditional_access/idp/apple/profile", nil, http.StatusOK)
+	profile, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	// The single-profile endpoint is the one the custom OS settings UI uses when an admin uploads the profile.
+	body, headers := generateNewProfileMultipartRequest(t, "ConditionalAccessProfile.mobileconfig", profile, s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	s.awaitTriggerProfileSchedule(t)
+
+	ok, cmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	scepURL, err := url.JoinPath(appConfig.ServerSettings.ServerURL, fleet.ConditionalAccessSCEPPath)
+	require.NoError(t, err)
+	var stored string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stored, `SELECT command FROM nano_commands WHERE command_uuid = ?`, cmdUUID)
+	})
+	require.Contains(t, stored, "<string>"+fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge)+"</string>")
+	require.Contains(t, stored, "<string>"+scepURL+"</string>")
+	require.NotContains(t, stored, "FLEET_VAR_CONDITIONAL_ACCESS")
+
+	cmd, err := mdmDevice.UserIdle()
+	require.NoError(t, err)
+	for cmd != nil && cmd.CommandUUID != cmdUUID {
+		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "the Okta profile must be delivered on the user channel")
+	var fullCmd micromdm.CommandPayload
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+	require.NoError(t, err)
+	var delivered struct {
+		PayloadContent []map[string]any `plist:"PayloadContent"`
+	}
+	require.NoError(t, plist.Unmarshal(p7.Content, &delivered))
+	var challenge string
+	for _, payload := range delivered.PayloadContent {
+		if payload["PayloadType"] == "com.apple.security.scep" {
+			scep, ok := payload["PayloadContent"].(map[string]any)
+			require.True(t, ok)
+			require.Equal(t, scepURL, scep["URL"])
+			challenge, _ = scep["Challenge"].(string)
+		}
+	}
+	require.Regexp(t, `^[0-9a-f]{64}$`, challenge)
+	_, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	err = s.ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, "another-host-uuid")
+	require.True(t, fleet.IsNotFound(err), err)
+	require.NoError(t, s.ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, host.UUID))
 }
 
 // TestWindowsSCEPProfilePreferredVariableAccepted exercises the

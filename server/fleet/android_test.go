@@ -251,7 +251,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "valid - Fleet variable in a non-managedConfiguration field",
-			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "$FLEET_VAR_HOST_UUID"}}`),
+			config:      json.RawMessage(`{"permissionGrants": [{"permission": "$FLEET_VAR_HOST_UUID", "policy": "GRANT"}]}`),
 			expectError: false,
 		},
 		// Fleet variable tests
@@ -277,7 +277,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "valid - all IDP variables",
-			config:      json.RawMessage(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "local": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", "groups": "$FLEET_VAR_HOST_END_USER_IDP_GROUPS", "dept": "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", "name": "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", "externalId": "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID"}}`),
+			config:      json.RawMessage(`{"managedConfiguration": {"user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "local": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", "groups": "$FLEET_VAR_HOST_END_USER_IDP_GROUPS", "dept": "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", "name": "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", "externalId": "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID"}}`),
 			expectError: false,
 		},
 		{
@@ -306,7 +306,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		// Values Google rejects
 		{
 			name:        "valid - every enum field with a supported value",
-			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "COMPANION_APP"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
+			config:      json.RawMessage(`{"alwaysOnVpnLockdownExemption": "VPN_LOCKDOWN_EXEMPTION", "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "connectedWorkAndPersonalApp": "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED", "defaultPermissionPolicy": "GRANT", "delegatedScopes": ["CERT_INSTALL", "SECURITY_LOGS"], "installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING", "deviceIdleConstraint": "INSTALL_ONLY_WHEN_DEVICE_IDLE", "networkTypeConstraint": "INSTALL_ONLY_ON_UNMETERED_NETWORK"}], "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "DENY"}], "preferentialNetworkId": "PREFERENTIAL_NETWORK_ID_TWO", "roles": [{"roleType": "MOBILE_THREAT_DEFENSE_ENDPOINT_DETECTION_RESPONSE"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}], "userControlSettings": "USER_CONTROL_DISALLOWED", "workProfileWidgets": "WORK_PROFILE_WIDGETS_DISALLOWED"}`),
 			expectError: false,
 		},
 		{
@@ -453,7 +453,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - roles roleType unspecified",
-			config:      json.RawMessage(`{"roles": [{"roleType": "COMPANION_APP"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
+			config:      json.RawMessage(`{"roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}, {"roleType": "ROLE_TYPE_UNSPECIFIED"}]}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "roles.1.roleType" is required.`,
 		},
@@ -465,9 +465,9 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - duplicate roles roleType",
-			config:      json.RawMessage(`{"roles": [{"roleType": "COMPANION_APP"}, {"roleType": "COMPANION_APP"}]}`),
+			config:      json.RawMessage(`{"roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}, {"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "COMPANION_APP" is listed more than once in "roles".`,
+			errorMsg:    `Couldn't update configuration. "SYSTEM_HEALTH_MONITORING" is listed more than once in "roles".`,
 		},
 		{
 			name:        "invalid - KIOSK role",
@@ -476,13 +476,19 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "KIOSK" isn't supported for "roles.0.roleType".`,
 		},
 		{
+			name:        "invalid - COMPANION_APP role",
+			config:      json.RawMessage(`{"roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}, {"roleType": "COMPANION_APP"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "COMPANION_APP" isn't supported for "roles.1.roleType".`,
+		},
+		{
 			name:        "valid - USER_CONTROL_ALLOWED without roles",
 			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED"}`),
 			expectError: false,
 		},
 		{
 			name:        "invalid - USER_CONTROL_ALLOWED with roles",
-			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED", "roles": [{"roleType": "COMPANION_APP"}]}`),
+			config:      json.RawMessage(`{"userControlSettings": "USER_CONTROL_ALLOWED", "roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
 			expectError: true,
 			errorMsg:    `Couldn't update configuration. "userControlSettings" can't be "USER_CONTROL_ALLOWED" for an app with "roles".`,
 		},
@@ -545,32 +551,15 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    `Couldn't update configuration. "signingKeyCerts.0.signingKeyCertFingerprintSha256" must be a base64-encoded SHA-256 hash.`,
 		},
 		{
-			name:        "valid - extensionConfig hex fingerprint",
-			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["5eb2ce291c7d227dd684ec83f9ddc05776e2fe9a0c4e62927b4592383e66fb28"]}}`),
+			name:        "invalid - extensionConfig",
+			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "extensionConfig" isn't supported.`,
+		},
+		{
+			name:        "valid - extensionConfig null",
+			config:      json.RawMessage(`{"extensionConfig": null}`),
 			expectError: false,
-		},
-		{
-			name:        "invalid - extensionConfig fingerprint not hex",
-			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["zz"]}}`),
-			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig.signingKeyFingerprintsSha256.0" must be a 64-character hex SHA-256 hash.`,
-		},
-		{
-			name:        "invalid - extensionConfig base64 fingerprint",
-			config:      json.RawMessage(`{"extensionConfig": {"signingKeyFingerprintsSha256": ["XrLOKRx9In3WhOyD+d3AV3bi/poMTmKSe0WSOD5m+yg="]}}`),
-			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig.signingKeyFingerprintsSha256.0" must be a 64-character hex SHA-256 hash.`,
-		},
-		{
-			name:        "valid - extensionConfig with another role",
-			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}, "roles": [{"roleType": "SYSTEM_HEALTH_MONITORING"}]}`),
-			expectError: false,
-		},
-		{
-			name:        "invalid - extensionConfig with COMPANION_APP role",
-			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "com.example.Receiver"}, "roles": [{"roleType": "COMPANION_APP"}]}`),
-			expectError: true,
-			errorMsg:    `Couldn't update configuration. "extensionConfig" can't be set for an app with the "COMPANION_APP" role.`,
 		},
 		{
 			name:        "valid - installPriority bounds",
@@ -737,6 +726,147 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestValidateUserProvided_PasscodeProfileVariables(t *testing.T) {
+	const passcode = `"passwordPolicies": [{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": 6}]`
+	tests := []struct {
+		name      string
+		rawJSON   string
+		errSubstr string
+	}{
+		{
+			name:    "passcode profile without variables",
+			rawJSON: `{` + passcode + `, "cameraDisabled": true}`,
+		},
+		{
+			name:    "non-passcode profile may use variables",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID"}`,
+		},
+		{
+			name:      "fleet variable in passwordPolicies profile",
+			rawJSON:   `{` + passcode + `, "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "fleet variable with braces",
+			rawJSON:   `{` + passcode + `, "name": "${FLEET_VAR_HOST_HARDWARE_SERIAL}"}`,
+			errSubstr: "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		},
+		{
+			name:      "secret in passwordPolicies profile",
+			rawJSON:   `{` + passcode + `, "name": "$FLEET_SECRET_NAME"}`,
+			errSubstr: "$FLEET_SECRET_NAME",
+		},
+		{
+			name:      "custom host vital in passwordPolicies profile",
+			rawJSON:   `{` + passcode + `, "name": "$FLEET_HOST_VITAL_7"}`,
+			errSubstr: "$FLEET_HOST_VITAL_7",
+		},
+		{
+			name:      "fleet variable in passwordRequirements profile",
+			rawJSON:   `{"passwordRequirements": {"passwordMinimumLength": 6}, "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "empty passwordPolicies still counts as a passcode profile",
+			rawJSON:   `{"passwordPolicies": [], "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prof := &MDMAndroidConfigProfile{Name: "test-profile", RawJSON: []byte(tt.rawJSON)}
+			err := prof.ValidateUserProvided(true)
+			if tt.errSubstr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.errSubstr)
+			require.Contains(t, err.Error(), `"passwordPolicies" or "passwordRequirements"`)
+		})
+	}
+}
+
+func TestValidateAndroidPasscodeProfileVariables(t *testing.T) {
+	// A JSON escape for "$", which a scan of the raw text misses.
+	const escapedDollar = `\u0024`
+	tests := []struct {
+		name      string
+		rawJSON   string
+		errSubstr string
+	}{
+		{
+			name:      "escaped fleet variable",
+			rawJSON:   `{"passwordRequirements": {}, "name": "` + escapedDollar + `FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "escaped secret",
+			rawJSON:   `{"passwordRequirements": {}, "name": "` + escapedDollar + `FLEET_SECRET_NAME"}`,
+			errSubstr: "$FLEET_SECRET_NAME",
+		},
+		{
+			name:      "escaped custom host vital in a key",
+			rawJSON:   `{"passwordRequirements": {"` + escapedDollar + `FLEET_HOST_VITAL_7": 1}}`,
+			errSubstr: "$FLEET_HOST_VITAL_7",
+		},
+		{
+			name:      "unquoted secret makes the raw JSON invalid",
+			rawJSON:   `{"passwordPolicies": [{"passwordMinimumLength": $FLEET_SECRET_PIN_LENGTH}]}`,
+			errSubstr: "$FLEET_SECRET_PIN_LENGTH",
+		},
+		{
+			name:      "unquoted braced fleet variable",
+			rawJSON:   `{"passwordRequirements": {"passwordMinimumLength": ${FLEET_VAR_HOST_UUID}}}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "unclosed brace after a variable breaks the JSON with values replaced",
+			rawJSON:   `{"passwordRequirements": {}, "name": "$FLEET_VAR_HOST_UUID ${"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:    "unquoted secret in a non-passcode profile",
+			rawJSON: `{"maximumTimeToLock": $FLEET_SECRET_LOCK}`,
+		},
+		{
+			name:    "dollar text that isn't a variable",
+			rawJSON: `{"passwordRequirements": {}, "name": "$100 ` + escapedDollar + `HOME"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateAndroidPasscodeProfileVariables([]byte(tt.rawJSON))
+			if tt.errSubstr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.errSubstr)
+		})
+	}
+}
+
+func TestIsAndroidPasscodeProfile(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawJSON string
+		want    bool
+	}{
+		{name: "passwordPolicies", rawJSON: `{"passwordPolicies": []}`, want: true},
+		{name: "passwordRequirements", rawJSON: `{"passwordRequirements": {}}`, want: true},
+		{name: "nested key does not count", rawJSON: `{"policyEnforcementRules": [{"settingName": "passwordPolicies"}]}`, want: false},
+		{name: "other settings", rawJSON: `{"cameraDisabled": true}`, want: false},
+		{name: "invalid JSON", rawJSON: `{`, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, IsAndroidPasscodeProfile([]byte(tt.rawJSON)))
 		})
 	}
 }

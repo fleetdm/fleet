@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/entratoken"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
@@ -93,6 +95,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		versionCommand,
 		shellCommand,
+		entraDeviceTokenCommand,
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -913,6 +916,9 @@ func orbitAction(c *cli.Context) error {
 		// Perform early check for updates before starting any sub-system.
 		// This is to prevent bugs in other sub-systems to mess up with
 		// the download of available updates.
+		//
+		// New code/sub-systems must go after this check: if they crash or
+		// hang before it, devices can't auto-update to a fix.
 		didUpdate, err := updateRunner.UpdateAction()
 		if err != nil {
 			log.Info().Err(err).Msg("early update check failed")
@@ -973,6 +979,12 @@ func orbitAction(c *cli.Context) error {
 				}
 			}
 		}
+	}
+
+	// After the early update check, so an update can fix a problem here, and before orbit waits for the Fleet server, so
+	// the Linux process shows its name while the server is unreachable.
+	if runtime.GOOS == "linux" {
+		update.ApplyRememberedAgentNames(c.String("root-dir"))
 	}
 
 	// Clear leftover files from updates
@@ -1510,15 +1522,12 @@ func orbitAction(c *cli.Context) error {
 	case "darwin":
 		orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
 			orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
-		const nudgeLaunchInterval = 30 * time.Minute
-		orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
-			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
-		}))
 		setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
 		// Use the legacy UI if the server indicates so via capabilities.
 		setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
 		orbitClient.RegisterConfigReceiver(setupExperiencer)
 		orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+		orbitClient.RegisterConfigReceiver(entratoken.NewRunner(orbitClient, orbitHostInfo.HardwareUUID))
 
 	case "windows":
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
@@ -1551,6 +1560,10 @@ func orbitAction(c *cli.Context) error {
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+		orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(c.String("root-dir"), orbitClient.GetServerCapabilities))
+	}
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
@@ -1631,10 +1644,12 @@ func orbitAction(c *cli.Context) error {
 	// the early config fetch above had a chance to persist a server-directed
 	// change (and restart orbit if it did). Everything — the osquery flag
 	// flip, the plugin registration, the manager subsystem — derives from this
-	// one bool, so there is no mixed state within a run.
-	wsTransportEnabled := wstransport.Enabled(c.String("root-dir"))
+	// one state, so there is no mixed state within a run.
+	wsTransportState := wstransport.LoadState(c.String("root-dir"))
+	wsTransportEnabled := wsTransportState.Enabled
 	if wsTransportEnabled {
-		log.Info().Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
+		log.Info().Bool("osquery_config", wsTransportState.OsqueryConfig).
+			Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
 	}
 
 	// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
@@ -1683,6 +1698,8 @@ func orbitAction(c *cli.Context) error {
 	// the flagfile are merged in rather than clobbered — dropping the user's
 	// list would hit the same race for their extensions (see
 	// wstransport.OsqueryFlags).
+	var wsUserFlags map[string]string
+	serveOsqueryConfig := false
 	if wsTransportEnabled {
 		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
 		if err != nil {
@@ -1692,7 +1709,13 @@ func orbitAction(c *cli.Context) error {
 			}
 			userFlags = nil
 		}
-		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags)))
+		wsUserFlags = userFlags
+		serveOsqueryConfig = wsTransportState.OsqueryConfig
+		if plugin, ok := wstransport.UserConfigPlugin(userFlags); ok && serveOsqueryConfig {
+			log.Info().Str("config_plugin", plugin).Msg("osquery.flags sets a config plugin: orbit won't serve osquery its config")
+			serveOsqueryConfig = false
+		}
+		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags, serveOsqueryConfig)))
 	}
 
 	// Handle additional args after '--' in the command line. These are added last and should
@@ -1767,7 +1790,9 @@ func orbitAction(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("parse Fleet URL for websocket transport: %w", err)
 		}
-		wsManager := wstransport.NewManager(wstransport.Options{
+		var wsManager *wstransport.Manager
+		connected := func() bool { return wsManager.Connected() }
+		managerOpts := wstransport.Options{
 			ServerURL:          parsedFleetURL,
 			RootCA:             c.String("fleet-certificate"),
 			InsecureSkipVerify: c.Bool("insecure"),
@@ -1778,7 +1803,23 @@ func orbitAction(c *cli.Context) error {
 			OnOrbitConfig:      orbitClient.TriggerConfigRefresh,
 			OnConnect:          orbitClient.TransportConnected,
 			OnDisconnect:       orbitClient.TransportDisconnected,
-		})
+		}
+		if serveOsqueryConfig {
+			configFetcher := wstransport.NewConfigFetcher(orbitClient, connected, wstransport.ServerConfigRefresh(wsUserFlags))
+			managerOpts.OnOsqueryConfig = configFetcher.Nudge
+			managerOpts.OnDisconnect = func() {
+				orbitClient.TransportDisconnected()
+				configFetcher.Disconnected()
+			}
+			orbitClient.RegisterConfigReceiver(fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+				if ws := cfg.WebSocketTransport; ws != nil && ws.OsqueryConfigPollInterval != nil {
+					configFetcher.SetPollInterval(time.Duration(*ws.OsqueryConfigPollInterval) * time.Second)
+				}
+				return nil
+			}))
+			extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewConfigPlugin(configFetcher)))
+		}
+		wsManager = wstransport.NewManager(managerOpts)
 		orbitClient.SetTransportConnectedFunc(wsManager.Connected)
 		addSubsystem(&g, "websocket transport", wsManager)
 		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
@@ -1791,24 +1832,17 @@ func orbitAction(c *cli.Context) error {
 	)
 
 	if c.Bool("fleet-desktop") {
-		var (
-			rawClientCrt []byte
-			rawClientKey []byte
-		)
-		if fleetClientCrt != nil {
-			rawClientCrt = fleetClientCrt.RawCrt
-			rawClientKey = fleetClientCrt.RawKey
-		}
 		desktopRunner := newDesktopRunner(
 			desktopPath,
 			fleetURL,
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			trw,
-			rawClientCrt,
-			rawClientKey,
+			fleetClientCertPath,
+			fleetClientKeyPath,
 			c.String("fleet-desktop-alternative-browser-host"),
 			opt.RootDirectory,
+			c.String("root-dir"),
 		)
 		go func() {
 			for {
@@ -1942,7 +1976,14 @@ func orbitAction(c *cli.Context) error {
 	return nil
 }
 
-func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string, openMyDevicePage func() error) error {
+type setupExperienceClient interface {
+	setupexperience.OrbitClient
+	GetServerCapabilities() fleet.CapabilityMap
+	InitiateSetupExperience() (fleet.SetupExperienceInitResult, error)
+	RegisterConfigReceiver(cr fleet.OrbitConfigReceiver)
+}
+
+func processSetupExperience(orbitClient setupExperienceClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
@@ -1998,8 +2039,10 @@ func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string
 			return fmt.Errorf("writing setup experience file: %w", err)
 		}
 
-		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
-		orbitClient.RegisterConfigReceiver(setupExperiencer)
+		if initSetupExperienceResponse.Enabled {
+			setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
+		}
 	case !exp.Enabled:
 		// Setup experience was checked, but was disabled at the time, nothing else to do.
 		log.Debug().Msg("setup experience already checked and disabled at the time")
@@ -2025,6 +2068,101 @@ func deleteSecretPathIfExists(enrollSecretPath string) {
 			log.Warn().Err(err).Msgf("failed to delete enroll secret file: %v", enrollSecretPath)
 		}
 	}
+}
+
+// prepareDesktopTLSFiles creates copies of the TLS client cert/key owned by
+// the target user so Fleet Desktop (unprivileged) can read them. This is
+// called before execuser.Run, so the files are fully ready before the desktop
+// process starts.
+func (d *desktopRunner) prepareDesktopTLSFiles(username string) (certPath, keyPath string, err error) {
+	if username == "" {
+		return "", "", errors.New("cannot prepare TLS files without a target username")
+	}
+
+	// Use the id command instead of os/user.Lookup because the Linux arm64
+	// build has CGO disabled, so os/user cannot resolve LDAP/SSSD users.
+	uid, err := lookupUID(username)
+	if err != nil {
+		return "", "", err
+	}
+	gid, err := lookupGID(username)
+	if err != nil {
+		return "", "", err
+	}
+
+	certDst := filepath.Join(d.rootDir, ".desktop_fleet_client.crt")
+	keyDst := filepath.Join(d.rootDir, ".desktop_fleet_client.key")
+
+	crt, err := os.ReadFile(d.fleetClientCertPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read cert: %w", err)
+	}
+	key, err := os.ReadFile(d.fleetClientKeyPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read key: %w", err)
+	}
+
+	if err := os.WriteFile(certDst, crt, 0o644); err != nil {
+		return "", "", fmt.Errorf("write cert copy: %w", err)
+	}
+	if err := os.Chown(certDst, uid, gid); err != nil {
+		return "", "", fmt.Errorf("chown cert: %w", err)
+	}
+
+	// Write key to a temp file and rename to avoid a previous user retaining
+	// a read descriptor on the destination inode.
+	tmpKey, err := os.CreateTemp(d.rootDir, ".desktop_fleet_client_key_*")
+	if err != nil {
+		return "", "", fmt.Errorf("create temp key file: %w", err)
+	}
+	tmpKeyPath := tmpKey.Name()
+	if _, err := tmpKey.Write(key); err != nil {
+		tmpKey.Close()
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("write key temp: %w", err)
+	}
+	if err := tmpKey.Chmod(0o400); err != nil {
+		tmpKey.Close()
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("chmod key temp: %w", err)
+	}
+	tmpKey.Close()
+	if err := os.Chown(tmpKeyPath, uid, gid); err != nil {
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("chown key temp: %w", err)
+	}
+	if err := os.Rename(tmpKeyPath, keyDst); err != nil {
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("rename key to final path: %w", err)
+	}
+
+	return certDst, keyDst, nil
+}
+
+// lookupUID returns the numeric UID for the given username using the id command.
+func lookupUID(username string) (int, error) {
+	out, err := exec.Command("id", "-u", username).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lookup uid for %q: %w", username, err)
+	}
+	uid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("parse uid for %q: %w", username, err)
+	}
+	return uid, nil
+}
+
+// lookupGID returns the numeric primary GID for the given username using the id command.
+func lookupGID(username string) (int, error) {
+	out, err := exec.Command("id", "-g", username).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lookup gid for %q: %w", username, err)
+	}
+	gid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("parse gid for %q: %w", username, err)
+	}
+	return gid, nil
 }
 
 // setServerOverrides overrides specific variables in c with values fetched from Fleet.
@@ -2208,12 +2346,12 @@ type desktopRunner struct {
 	fleetRootCA string
 	// insecure disables all TLS verification.
 	insecure bool
-	// fleetClientCrt is the raw TLS client certificate (in PEM format)
-	// to use for authenticating to the Fleet server.
-	fleetClientCrt []byte
-	// fleetClientKey is the raw TLS client private key (in PEM format)
-	// to use for authenticating to the Fleet server.
-	fleetClientKey []byte
+	// fleetClientCertPath is the path to the TLS client certificate file.
+	fleetClientCertPath string
+	// fleetClientKeyPath is the path to the TLS client key file.
+	fleetClientKeyPath string
+	// rootDir is the orbit root directory.
+	rootDir string
 	// fleetAlternativeBrowserHost is an alternative host:port to use for
 	// the browser URLs in Fleet Desktop.
 	fleetAlternativeBrowserHost string
@@ -2231,9 +2369,10 @@ func newDesktopRunner(
 	desktopPath, fleetURL, fleetRootCA string,
 	insecure bool,
 	trw *token.ReadWriter,
-	fleetClientCrt []byte, fleetClientKey []byte,
+	fleetClientCertPath, fleetClientKeyPath string,
 	fleetAlternativeBrowserHost string,
 	updateRoot string,
+	rootDir string,
 ) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:                 desktopPath,
@@ -2242,8 +2381,9 @@ func newDesktopRunner(
 		trw:                         trw,
 		fleetRootCA:                 fleetRootCA,
 		insecure:                    insecure,
-		fleetClientCrt:              fleetClientCrt,
-		fleetClientKey:              fleetClientKey,
+		fleetClientCertPath:         fleetClientCertPath,
+		fleetClientKeyPath:          fleetClientKeyPath,
+		rootDir:                     rootDir,
 		fleetAlternativeBrowserHost: fleetAlternativeBrowserHost,
 		interruptCh:                 make(chan struct{}),
 		executeDoneCh:               make(chan struct{}),
@@ -2273,7 +2413,7 @@ func (d *desktopRunner) Execute() error {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
 	deviceURL.Path = path.Join(url.Path, "device", d.trw.GetCached())
-	opts := []execuser.Option{
+	baseOpts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
 
@@ -2281,17 +2421,15 @@ func (d *desktopRunner) Execute() error {
 		// we should remove it once we think is safe
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
 
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(d.fleetClientCrt)),
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(d.fleetClientKey)),
-
 		execuser.WithEnv("FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST", d.fleetAlternativeBrowserHost),
 		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
 	}
+
 	if d.fleetRootCA != "" {
-		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
+		baseOpts = append(baseOpts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
 	}
 	if d.insecure {
-		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
+		baseOpts = append(baseOpts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
 	for {
@@ -2316,8 +2454,48 @@ func (d *desktopRunner) Execute() error {
 				return true
 			}
 			log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
+
+			// Build a fresh opts slice for each attempt to avoid accumulating
+			// stale WithUser/cert path entries from prior retries.
+			opts := make([]execuser.Option, len(baseOpts))
+			copy(opts, baseOpts)
+
 			if *loggedInUser != "" {
 				opts = append(opts, execuser.WithUser(*loggedInUser))
+			}
+
+			if d.fleetClientCertPath != "" && d.fleetClientKeyPath != "" {
+				if runtime.GOOS == "windows" {
+					// On Windows, env vars are passed securely via os.Setenv
+					// (not in process cmdline). Read on each attempt to pick
+					// up rotated credentials.
+					crtData, err := os.ReadFile(d.fleetClientCertPath)
+					if err != nil {
+						log.Warn().Err(err).Msg("reading TLS client certificate for desktop")
+					}
+					keyData, err := os.ReadFile(d.fleetClientKeyPath)
+					if err != nil {
+						log.Warn().Err(err).Msg("reading TLS client key for desktop")
+					}
+					if len(crtData) > 0 && len(keyData) > 0 {
+						opts = append(opts,
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(crtData)),
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(keyData)),
+						)
+					}
+				} else {
+					// On Linux/macOS, pass file paths (not content) to avoid
+					// exposing secrets in process argv.
+					certCopy, keyCopy, err := d.prepareDesktopTLSFiles(*loggedInUser)
+					if err != nil {
+						log.Warn().Err(err).Msg("preparing TLS files for desktop, launching without TLS client cert")
+					} else {
+						opts = append(opts,
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE_PATH", certCopy),
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY_PATH", keyCopy),
+						)
+					}
+				}
 			}
 
 			log.Info().Msg("killing any pre-existing fleet-desktop instances")

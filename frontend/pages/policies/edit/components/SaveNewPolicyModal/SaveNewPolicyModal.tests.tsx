@@ -132,6 +132,26 @@ describe("SaveNewPolicyModal", () => {
     expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
   });
 
+  it("does not display name error when blurring the autofocused name without typing", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewPolicyModal {...defaultProps} />);
+
+    screen.getByLabelText("Name").focus();
+    await user.tab();
+
+    expect(screen.queryByText("Enter a policy name")).not.toBeInTheDocument();
+  });
+
   describe("in premium tier", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -163,26 +183,31 @@ describe("SaveNewPolicyModal", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-      render(<SaveNewPolicyModal {...defaultProps} />);
-      let allHosts;
-      let custom;
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <SaveNewPolicyModal {...defaultProps} onCreatePolicy={onCreatePolicy} />
+      );
       await waitFor(() => {
-        allHosts = screen.getByLabelText("All hosts");
-        custom = screen.getByLabelText("Custom");
-        expect(allHosts).toBeInTheDocument();
-        expect(custom).toBeInTheDocument();
+        expect(screen.getByLabelText("Name")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
       });
-      custom && (await userEvent.click(custom));
+      // Set the name first so blurring Name to click Custom doesn't surface
+      // the required-name error (which would swap the "Name" label text).
+      await userEvent.type(screen.getByLabelText("Name"), "name");
+      await userEvent.click(screen.getByLabelText("Custom"));
       const saveButton = screen.getByRole("button", { name: "Save" });
-      expect(saveButton).toBeDisabled();
-
-      const funButton = await screen.findByRole("checkbox", {
-        name: "Fun",
-      });
-      expect(funButton).not.toBeChecked();
-      await userEvent.click(funButton);
       expect(saveButton).toBeEnabled();
+      await userEvent.click(saveButton);
+
+      expect(onCreatePolicy).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      const funButton = await screen.findByRole("checkbox", { name: "Fun" });
+      await userEvent.click(funButton);
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
     });
 
     it("sends hidden when Hide from end user is checked on a fleet policy", async () => {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.19.4",
+      "version": "1.19.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cryptomator' AND publisher = 'Skymatic GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cryptomator' AND publisher = 'Skymatic GmbH' AND version_compare(version, '1.19.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cryptomator' AND publisher = 'Skymatic GmbH' AND version_compare(version, '1.19.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cryptomator.exe');"
       },
-      "installer_url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.4/Cryptomator-1.19.4-x64.msi",
+      "installer_url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.7/Cryptomator-1.19.7-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "1eb26343",
-      "sha256": "521c8eb33a7a65efb8cd0eb1f78d25c9b8300aa7d680da26a5c6203bb7af4c55",
+      "sha256": "e8079987c521549ed32ca37db2480417f31824ef847771428590f01c9e2442f5",
       "default_categories": [
         "Security"
       ],

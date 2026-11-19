@@ -9,7 +9,7 @@ const baseClass = "section-card";
 
 interface ISectionCardProps {
   children: React.ReactNode;
-  header?: string;
+  header?: React.ReactNode;
   iconName?: IconNames;
   cta?: JSX.Element;
   className?: string;

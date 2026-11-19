@@ -54,26 +54,25 @@ const getSoftwareNameCellData = (
     { fleet_id: teamId }
   );
 
-  const { software_package, app_store_app } = softwareTitle;
+  const { packages } = softwareTitle;
+  const pkg = packages?.[0];
+  const firstAppStoreApp = softwareTitle.app_store_apps?.[0];
   let hasInstaller = false;
   let isSelfService = false;
   let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
-  if (software_package) {
+  if (pkg) {
     hasInstaller = true;
-    isSelfService = software_package.self_service;
-    installType =
-      software_package.automatic_install_policies &&
-      software_package.automatic_install_policies.length > 0
-        ? "automatic"
-        : "manual";
-  } else if (app_store_app) {
+    isSelfService = pkg.self_service;
+    installType = packages?.some((p) => !!p.automatic_install_policies?.length)
+      ? "automatic"
+      : "manual";
+  } else if (firstAppStoreApp) {
     hasInstaller = true;
-    isSelfService = app_store_app.self_service;
-    iconUrl = app_store_app.icon_url;
+    isSelfService = firstAppStoreApp.self_service;
     installType =
-      app_store_app.automatic_install_policies &&
-      app_store_app.automatic_install_policies.length > 0
+      firstAppStoreApp.automatic_install_policies &&
+      firstAppStoreApp.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
   }
@@ -118,7 +117,7 @@ const generateTableHeaders = (
           teamId
         );
         const isAndroidPlayStoreApp =
-          !!cellProps.row.original.app_store_app &&
+          !!cellProps.row.original.app_store_apps?.length &&
           cellProps.row.original.source === "android_apps";
 
         return (
@@ -137,7 +136,7 @@ const generateTableHeaders = (
             }
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-            isAppStoreApp={!!cellProps.row.original.app_store_app}
+            isAppStoreApp={!!cellProps.row.original.app_store_apps?.length}
             autoUpdateEnabled={cellProps.row.original.auto_update_enabled}
             autoUpdateWindowStart={
               cellProps.row.original.auto_update_window_start

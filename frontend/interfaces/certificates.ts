@@ -38,6 +38,8 @@ export interface ICertificateAuthorityPartial {
   id: number;
   name: string;
   type: ICertificateAuthorityType;
+  /** The expiry of the client certificate of an EJBCA CA. Only EJBCA CAs have it. */
+  mtls_cert_expires_at?: string;
 }
 
 export interface ICertificatesNDES {
@@ -97,6 +99,26 @@ export interface ICertificatesCustomEST {
   password: string;
 }
 
+export interface ICertificatesEJBCA {
+  id?: number;
+  type?: "ejbca";
+  name: string;
+  url: string;
+  /** The client certificate and key as a base64 PKCS#12. It is only sent, never returned. */
+  client_p12?: string;
+  /** The password of `client_p12`. It is only sent, never returned. */
+  password?: string;
+  trust_ca_bundle?: string;
+  certificate_authority_name: string;
+  certificate_profile_name: string;
+  end_entity_profile_name: string;
+  certificate_common_name: string;
+  username_template?: string;
+  certificate_user_principal_names: string[] | null;
+  /** When the stored client certificate expires. It is returned, never sent. */
+  mtls_cert_expires_at?: string;
+}
+
 export interface ICertificatesGoogleCAS {
   id?: number;
   type?: "google_cas";
@@ -115,6 +137,7 @@ export type ICertificateAuthorityType =
   | "hydrant"
   | "smallstep"
   | "custom_est_proxy"
+  | "ejbca"
   | "google_cas";
 
 /** all the types of certificates */
@@ -125,6 +148,7 @@ export type ICertificateAuthority =
   | ICertificatesCustomSCEP
   | ICertificatesSmallstep
   | ICertificatesCustomEST
+  | ICertificatesEJBCA
   | ICertificatesGoogleCAS;
 
 export const isNDESCertAuthority = (
@@ -145,6 +169,16 @@ export const isDigicertCertAuthority = (
     "certificate_common_name" in integration &&
     "certificate_user_principal_names" in integration &&
     "certificate_seat_id" in integration
+  );
+};
+
+export const isEJBCACertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesEJBCA => {
+  return (
+    "certificate_authority_name" in integration &&
+    "certificate_profile_name" in integration &&
+    "end_entity_profile_name" in integration
   );
 };
 
@@ -236,6 +270,12 @@ export const createMockCertificateAuthorities = (): ICertificateAuthorityPartial
     },
     {
       id: 7,
+      name: "Test EJBCA",
+      type: "ejbca",
+      mtls_cert_expires_at: "2099-01-01T00:00:00Z",
+    },
+    {
+      id: 8,
       name: "Test Google CAS",
       type: "google_cas",
     },

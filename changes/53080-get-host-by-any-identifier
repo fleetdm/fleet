@@ -1,0 +1,2 @@
+* Updated `GET /api/v1/fleet/hosts/:id` to also accept a host's serial number, UUID, or hostname. A host ID takes priority, followed by serial number, UUID, and hostname.
+* Made host lookups by identifier resolve in a consistent priority order and use database indexes instead of scanning the `hosts` table.

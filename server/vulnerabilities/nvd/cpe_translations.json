@@ -1,6 +1,24 @@
 [
   {
     "software": {
+      "bundle_identifier": ["com.linear"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["codex"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
@@ -130,6 +148,16 @@
     "filter": {
       "product": ["desktop"],
       "vendor": ["nextcloud"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Brotli", "brotli"],
+      "source": ["python_packages", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["brotli"],
+      "vendor": ["google"]
     }
   },
   {

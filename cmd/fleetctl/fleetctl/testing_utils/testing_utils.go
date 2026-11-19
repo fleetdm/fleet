@@ -103,6 +103,8 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
+	MockWebhookPolicyIDs(ds)
+	mockPoliciesInScope(ds)
 	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 		return nil, nil
 	}
@@ -165,6 +167,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		return nil
 	}
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.GetPatchDeadlineSettingsFunc = func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+		return fleet.DefaultPatchDeadlineSettings(teamID), nil
+	}
+	ds.SetPatchDeadlineSettingsFunc = func(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
 		return nil
 	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -402,6 +410,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) error {
 		return nil
 	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -537,6 +548,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, &notFoundError{}
 	}
+	MockWebhookPolicyIDs(ds)
+	mockPoliciesInScope(ds)
 	// Stateful default for the Windows enrollment default fleet config row. Tests can override.
 	var windowsEnrollmentDefaultTeamID *uint
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
@@ -625,6 +638,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
+	}
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
 	}
@@ -685,8 +701,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return "", &notFoundError{}
 	}
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
-		return nil
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) ([]uint, error) {
+		return nil, nil
 	}
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
@@ -709,8 +725,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 }
 
 type AppleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token's base64
+	// content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
 }
 
 func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
@@ -812,7 +832,11 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 			// Then we're responding to GetAssets
 			w.Header().Set("Content-Type", "application/json")
 			encoder := json.NewEncoder(w)
-			err := encoder.Encode(map[string][]vpp.Asset{"assets": config.Assets})
+			assets, ok := config.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]
+			if !ok {
+				assets = config.Assets
+			}
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": assets})
 			if err != nil {
 				panic(err)
 			}
@@ -843,7 +867,14 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 }
 
 func StartAndServeVPPServer(t *testing.T) {
+	StartAndServeVPPServerWithAssets(t, nil)
+}
+
+// StartAndServeVPPServerWithAssets is StartAndServeVPPServer with per-token
+// assets, keyed by the bearer Fleet sends for each token.
+func StartAndServeVPPServerWithAssets(t *testing.T, assetsByBearer map[string][]vpp.Asset) {
 	config := &AppleVPPConfigSrvConf{
+		AssetsByBearer: assetsByBearer,
 		Assets: []vpp.Asset{
 			{
 				AdamID:         "1",
@@ -980,7 +1011,6 @@ func (m *MemKeyValueStore) Get(ctx context.Context, key string) (*string, error)
 }
 
 func AddLabelMocks(ds *mock.Store) {
-	var deletedLabels []string
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
@@ -1000,17 +1030,11 @@ func AddLabelMocks(ds *mock.Store) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 1, Name: name}, nil
-	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		deletedLabels = append(deletedLabels, name)
-		return nil
-	}
+	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return nil }
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		validLabels := map[string]*fleet.Label{
 			"a": {
@@ -1033,6 +1057,31 @@ func AddLabelMocks(ds *mock.Store) {
 	}
 }
 
+// LabelsByID serves label lookups by ID from a test's label specs, since GitOps deletes labels by ID.
+func LabelsByID(specs ...*fleet.LabelSpec) func(context.Context, uint, fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+	return func(_ context.Context, lid uint, _ fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		for _, s := range specs {
+			if s.ID == lid {
+				return &fleet.LabelWithTeamName{ID: s.ID, Name: s.Name, TeamID: s.TeamID, LabelType: s.LabelType}, nil, nil
+			}
+		}
+		return nil, nil, &notFoundError{}
+	}
+}
+
+// RecordDeletedLabelNames records the name of each label a test deletes. Labels are deleted by ID, so the name comes from the
+// test's Label mock.
+func RecordDeletedLabelNames(ds *mock.Store, names *[]string) mock.DeleteLabelFunc {
+	return func(ctx context.Context, id uint) error {
+		l, _, err := ds.LabelFunc(ctx, id, fleet.TeamFilter{})
+		if err != nil {
+			return err
+		}
+		*names = append(*names, l.Name)
+		return nil
+	}
+}
+
 type notFoundError struct{}
 
 var _ fleet.NotFoundError = (*notFoundError)(nil)
@@ -1043,4 +1092,75 @@ func (e *notFoundError) IsNotFound() bool {
 
 func (e *notFoundError) Error() string {
 	return ""
+}
+
+// MockWebhookPolicyIDs stores which policies have the webhook or ticket automation on per scope, so config reads return
+// the failing_policies_webhook.policy_ids that config writes saved. Tests can override.
+//
+// TODO(#58577): remove with policy_ids.
+func MockWebhookPolicyIDs(ds *mock.Store) {
+	var mu sync.Mutex
+	byScope := map[string][]uint{}
+	scope := func(teamID *uint) string {
+		if teamID == nil {
+			return "global"
+		}
+		return fmt.Sprint(*teamID)
+	}
+	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		return byScope[scope(teamID)], nil
+	}
+	ds.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		out := make(map[uint][]uint, len(teamIDs))
+		for _, id := range teamIDs {
+			if ids := byScope[scope(&id)]; len(ids) > 0 {
+				out[id] = ids
+			}
+		}
+		return out, nil
+	}
+	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
+		mu.Lock()
+		defer mu.Unlock()
+		byScope[scope(teamID)] = policyIDs
+		return nil
+	}
+	ds.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+		return nil, nil
+	}
+	ds.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+		return nil, nil
+	}
+}
+
+// mockPoliciesInScope serves the combined policy list and count from the per-scope mocks a test sets, so tests written
+// against those keep working.
+func mockPoliciesInScope(ds *mock.Store) {
+	ds.ListPoliciesInScopeFunc = func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions,
+		filter fleet.PolicyListFilter,
+	) ([]*fleet.Policy, error) {
+		switch {
+		case teamID == nil && ds.ListGlobalPoliciesFunc != nil:
+			return ds.ListGlobalPolicies(ctx, opts, filter.Platform)
+		case teamID != nil && mergeInherited && ds.ListMergedTeamPoliciesFunc != nil:
+			return ds.ListMergedTeamPolicies(ctx, *teamID, opts, fleet.PolicyAutomationTypeNone, filter.Platform)
+		case teamID != nil && ds.ListTeamPoliciesFunc != nil:
+			policies, _, err := ds.ListTeamPolicies(ctx, *teamID, opts, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, filter.Platform)
+			return policies, err
+		}
+		return nil, nil
+	}
+	ds.CountPoliciesInScopeFunc = func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string,
+		filter fleet.PolicyListFilter,
+	) (int, error) {
+		policies, err := ds.ListPoliciesInScope(ctx, teamID, mergeInherited, fleet.ListOptions{MatchQuery: matchQuery}, filter)
+		return len(policies), err
+	}
 }

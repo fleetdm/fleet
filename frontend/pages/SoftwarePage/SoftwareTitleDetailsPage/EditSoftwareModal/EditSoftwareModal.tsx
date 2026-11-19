@@ -22,7 +22,6 @@ import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/moda
 import {
   generateSelectedLabels,
   getCustomTarget,
-  getInstallType,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -33,7 +32,7 @@ import { getFileDetails } from "utilities/file/fileUtils";
 
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, hasChangeSideEffects } from "./helpers";
 
 const baseClass = "edit-software-modal";
 
@@ -57,7 +56,7 @@ interface IEditSoftwareModalProps {
   displayName: string;
   source?: string;
   iconUrl?: string | null;
-  /** When true, the modal title reads "Edit package" instead of "Edit
+  /** When true, the modal title reads "Edit version" instead of "Edit
    * software" — we're editing one specific installer on a title that has
    * several, not the title's only package. */
   canActivateMultiplePackages?: boolean;
@@ -90,18 +89,22 @@ const EditSoftwareModal = ({
   const isGitOpsCompatible =
     gitOpsModeEnabled && (isFleetMaintainedApp || canActivateMultiplePackages);
 
-  // Backend rejects pre_install_query on save when patch_when_closed or
-  // notify_before_patching is on, so the field must be read-only and
-  // omitted. Derived from the installer's own patch policy so a caller
-  // can't forget; explicit prop can still force it.
+  // Backend rejects pre_install_query on save when patch_when_closed,
+  // notify_before_patching, or patch_deadline is on, so the field must be
+  // read-only and omitted. Derived from the installer's own patch policy so
+  // a caller can't forget; explicit prop can still force it.
   const notifyLocksPreInstallQuery =
     "patch_policy" in softwareInstaller &&
     !!softwareInstaller.patch_policy?.notify_before_patching;
+  const deadlineLocksPreInstallQuery =
+    "patch_policy" in softwareInstaller &&
+    !!softwareInstaller.patch_policy?.patch_deadline;
   const effectivePreInstallQueryLocked =
     preInstallQueryLocked ||
     ("patch_policy" in softwareInstaller &&
       !!softwareInstaller.patch_policy?.patch_when_closed) ||
-    notifyLocksPreInstallQuery;
+    notifyLocksPreInstallQuery ||
+    deadlineLocksPreInstallQuery;
 
   const formClassNames = classnames(`${baseClass}__package-form`, {
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
@@ -240,7 +243,8 @@ const EditSoftwareModal = ({
 
       notify.success(
         <>
-          Successfully edited <b>{formData.software?.name}</b>.
+          Successfully edited <b>{formData.software?.name}</b>
+          {canActivateMultiplePackages ? " version." : "."}
           {formData.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
@@ -264,24 +268,22 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  const isOnlySelfServiceUpdated = (updates: Record<string, unknown>) => {
-    return Object.keys(updates).length === 1 && "selfService" in updates;
-  };
-
   const onClickSavePackage = (formData: IPackageFormData) => {
     const softwarePackage = softwareInstaller as ISoftwarePackage;
 
+    // Mirror IPackageFormData init in PackageForm.tsx so deepDifference only reports real changes.
     const currentData = {
-      software: null,
+      software: (softwarePackage as unknown) as File | null,
       installScript: softwarePackage.install_script || "",
       preInstallQuery: softwarePackage.pre_install_query || "",
       postInstallScript: softwarePackage.post_install_script || "",
       uninstallScript: softwarePackage.uninstall_script || "",
       selfService: softwarePackage.self_service || false,
-      installType: getInstallType(softwarePackage),
       targetType: getTargetType(softwarePackage),
       customTarget: getCustomTarget(softwarePackage),
       labelTargets: generateSelectedLabels(softwarePackage),
+      automaticInstall: false,
+      categories: softwarePackage.categories || [],
     };
 
     setPendingPackageUpdates(formData);
@@ -295,10 +297,10 @@ const EditSoftwareModal = ({
       formData.categories = [""];
     }
 
-    if (isOnlySelfServiceUpdated(updates)) {
-      onEditPackage(formData);
-    } else {
+    if (hasChangeSideEffects(updates)) {
       setShowConfirmSaveChangesModal(true);
+    } else {
+      onEditPackage(formData);
     }
   };
 
@@ -342,16 +344,17 @@ const EditSoftwareModal = ({
       targetType: getTargetType(softwareInstaller),
       customTarget: getCustomTarget(softwareInstaller),
       labelTargets: generateSelectedLabels(softwareInstaller),
+      categories: softwareInstaller.categories || [],
     };
 
     setPendingVppUpdates(formData);
 
     const updates = deepDifference(formData, currentData);
 
-    if (isOnlySelfServiceUpdated(updates)) {
-      onEditVpp(formData);
-    } else {
+    if (hasChangeSideEffects(updates)) {
       setShowConfirmSaveChangesModal(true);
+    } else {
+      onEditVpp(formData);
     }
   };
 
@@ -406,7 +409,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title={canActivateMultiplePackages ? "Edit package" : "Edit software"}
+        title={canActivateMultiplePackages ? "Edit version" : "Edit software"}
         onExit={onExit}
         width="large"
       >

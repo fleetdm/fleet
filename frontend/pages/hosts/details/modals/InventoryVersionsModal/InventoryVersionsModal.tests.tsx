@@ -45,7 +45,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getAllByText(/CVE-2020-0001/).length).toBeGreaterThan(0);
 
     // Close button
-    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
+    expect(screen.getByText("Close")).toBeVisible();
   });
 
   it("does not render hash if signature_information is missing", () => {

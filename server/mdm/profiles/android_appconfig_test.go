@@ -3,11 +3,15 @@ package profiles
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,58 +85,37 @@ func TestSubstituteFleetVarsAndVitalsInAndroidAppConfig(t *testing.T) {
 		require.Contains(t, string(got), "android")
 	})
 
-	t.Run("HOST_END_USER_EMAIL_IDP resolves via datastore", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			require.Equal(t, "host-uuid-1", hostUUID)
-			return []string{"user@example.com"}, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
-		require.NoError(t, err)
-		require.Contains(t, string(got), "user@example.com")
-		require.True(t, json.Valid(got))
-	})
-
-	t.Run("HOST_END_USER_EMAIL_IDP missing returns error", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return nil, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+	t.Run("removed HOST_END_USER_EMAIL_IDP is unresolvable with its Fleet 5 message", func(t *testing.T) {
+		cfg := []byte(`{"managedConfiguration": {"email": "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
+		require.EqualError(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
+			`What to use instead: `+removednames.GuideURL)
 		require.Nil(t, got)
 	})
 
 	t.Run("multiple variables substituted independently", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return []string{"user@example.com"}, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "platform": "$FLEET_VAR_HOST_PLATFORM"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		s := string(got)
 		require.Contains(t, s, "host-uuid-1")
 		require.Contains(t, s, "ABC123")
-		require.Contains(t, s, "user@example.com")
+		require.Contains(t, s, `"platform": "android"`)
 		require.True(t, json.Valid(got))
 	})
 
 	t.Run("JSON special chars in value are escaped", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return []string{`user"with\special`}, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		specialHost := host
+		specialHost.HardwareSerial = `serial"with\special`
+		cfg := []byte(`{"managedConfiguration": {"serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, specialHost)
 		require.NoError(t, err)
 		require.True(t, json.Valid(got), "result must be valid JSON: %s", string(got))
 		// Parse and verify the value round-trips correctly
 		var parsed map[string]map[string]string
 		require.NoError(t, json.Unmarshal(got, &parsed))
-		require.Equal(t, `user"with\special`, parsed["managedConfiguration"]["email"])
+		require.Equal(t, `serial"with\special`, parsed["managedConfiguration"]["serial"])
 	})
 
 	t.Run("IDP username substituted", func(t *testing.T) {
@@ -281,4 +264,144 @@ func TestJsonEscapeString(t *testing.T) {
 			require.Equal(t, tt.expected, jsonEscapeString(tt.input))
 		})
 	}
+}
+
+// A host that can't supply a referenced value must not take the rest of its
+// batch down with it: the other hosts still get their app config, and the job
+// succeeds rather than burning its retries.
+func TestIsUnresolvableAndroidAppConfigForHost(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"missing vital value", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{1}}, true},
+		{"wrapped missing vital value", fmt.Errorf("substitute: %w", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{1}}), true},
+		{"unresolvable fleet var", &UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_END_USER_IDP_USERNAME"}, true},
+		{"wrapped unresolvable fleet var", fmt.Errorf("substitute: %w", &UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_END_USER_IDP_USERNAME"}), true},
+		{"unrelated error", errors.New("db is down"), false},
+		{"nil", nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, IsUnresolvableAndroidAppConfigForHost(c.err))
+		})
+	}
+}
+
+func TestBuildApplicationPoliciesWithConfig(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("app with full configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "com.example.app", policies[0].PackageName)
+		require.Equal(t, "AVAILABLE", policies[0].InstallType)
+		require.JSONEq(t, `{"key": "value"}`, string(policies[0].ManagedConfiguration))
+		require.Equal(t, "WORK_PROFILE_WIDGETS_ALLOWED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("app without configuration clears previously applied settings", func(t *testing.T) {
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Empty(t, policies[0].ManagedConfiguration)
+		require.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("partial configuration leaves other fields unset", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "FORCE_INSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
+		require.Empty(t, policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("empty configuration object leaves every field unset", func(t *testing.T) {
+		configs := map[string][]byte{"com.example.app": []byte(`{}`)}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Nil(t, policies[0].ManagedConfiguration)
+		require.Empty(t, policies[0].WorkProfileWidgets)
+		require.Empty(t, policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("other ApplicationPolicy fields are passed through", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+		}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		assert.Equal(t, "AUTO_UPDATE_HIGH_PRIORITY", policies[0].AutoUpdateMode)
+		assert.EqualValues(t, 42, policies[0].MinimumVersionCode)
+		require.Len(t, policies[0].PermissionGrants, 1)
+		assert.Equal(t, "android.permission.CAMERA", policies[0].PermissionGrants[0].Permission)
+		assert.Equal(t, "GRANT", policies[0].PermissionGrants[0].Policy)
+	})
+
+	t.Run("stored packageName and installType never override Fleet's values", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"packageName": "com.example.other", "installType": "KIOSK"}`),
+		}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, "PREINSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		assert.Equal(t, "com.example.app", policies[0].PackageName)
+		assert.Equal(t, "PREINSTALLED", policies[0].InstallType)
+	})
+
+	t.Run("installConstraint is sent only for installs Google starts", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"installConstraint": [{"chargingConstraint": "INSTALL_ONLY_WHEN_CHARGING"}], "autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+		}
+		cases := []struct {
+			installType    string
+			wantConstraint bool
+		}{
+			{installType: "AVAILABLE", wantConstraint: false},
+			{installType: "PREINSTALLED", wantConstraint: true},
+			{installType: "FORCE_INSTALLED", wantConstraint: true},
+		}
+		for _, c := range cases {
+			t.Run(c.installType, func(t *testing.T) {
+				policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.app"}, configs, c.installType)
+				require.NoError(t, err)
+				require.Len(t, policies, 1)
+				assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
+				if c.wantConstraint {
+					require.Len(t, policies[0].InstallConstraint, 1)
+					assert.Equal(t, "INSTALL_ONLY_WHEN_CHARGING", policies[0].InstallConstraint[0].ChargingConstraint)
+				} else {
+					assert.Empty(t, policies[0].InstallConstraint)
+				}
+			})
+		}
+	})
+
+	t.Run("each app gets its own configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.configured": []byte(`{"autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+		}
+		policies, err := BuildApplicationPoliciesWithConfig(ctx, []string{"com.example.configured", "com.example.unconfigured"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 2)
+		assert.Equal(t, "com.example.configured", policies[0].PackageName)
+		assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
+		assert.Empty(t, policies[0].WorkProfileWidgets)
+		assert.Equal(t, "com.example.unconfigured", policies[1].PackageName)
+		assert.Empty(t, policies[1].AutoUpdateMode)
+		assert.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[1].WorkProfileWidgets)
+	})
 }

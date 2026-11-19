@@ -1,16 +1,25 @@
+import { mapValues } from "lodash";
 import React from "react";
 
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
+import { IFormErrors } from "hooks/useFormValidation";
 import { ICertificateAuthorityType } from "interfaces/certificates";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { IAddCertAuthorityFormData } from "services/entities/certificates";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { formatFleet5RemovalMessage } from "utilities/helpers";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
+import {
+  generateEJBCAAddData,
+  splitEJBCAServerErrors,
+} from "../EJBCAForm/helpers";
 import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import CA_LABEL_BY_TYPE from "../helpers";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
@@ -28,6 +37,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.ejbca, value: "ejbca" },
   { label: CA_LABEL_BY_TYPE.google_cas, value: "google_cas" },
   {
     label: CA_LABEL_BY_TYPE.hydrant,
@@ -109,6 +119,8 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "ejbca":
+      return { ejbca: generateEJBCAAddData(formData as IEJBCAFormData) };
     case "custom_scep_proxy": {
       const {
         name: customSCEPName,
@@ -258,6 +270,7 @@ export const getDisplayErrMessage = (
   const reason = rawReason.toLowerCase();
   const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
   const unprefixedReason = rawReason.replace(SERVER_ERROR_PREFIX, "");
+  const fleet5Removal = formatFleet5RemovalMessage(unprefixedReason);
 
   // Google CAS errors name the field or Google setting to fix, and the server
   // writes its 4xx reasons for admins, so they're shown as is.
@@ -269,6 +282,8 @@ export const getDisplayErrMessage = (
     err.status < 500
   ) {
     message = unprefixedReason;
+  } else if (fleet5Removal) {
+    message = fleet5Removal;
   } else if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile guid")) {
@@ -320,4 +335,49 @@ export const getErrorMessage = (
       {getDisplayErrMessage(err, caType)}
     </>
   );
+};
+
+const PRIVATE_KEY_NOT_CONFIGURED_REASON = "Private key must be configured";
+
+/**
+ * The toast for the reasons of a failed EJBCA request that don't belong to a field.
+ */
+export const getEJBCAErrorMessage = (
+  action: "add" | "edit",
+  otherReasons: string[]
+) => {
+  if (!otherReasons.length) {
+    return `Couldn't ${action} certificate authority. Please try again.`;
+  }
+  return (
+    <>
+      Couldn&apos;t {action} certificate authority.{" "}
+      {otherReasons.map((otherReason) => {
+        const reason = otherReason.replace(SERVER_ERROR_PREFIX, "");
+        return (
+          <React.Fragment key={reason}>
+            {reason.startsWith(PRIVATE_KEY_NOT_CONFIGURED_REASON)
+              ? PRIVATE_KEY_NOT_CONFIGURED_ERROR
+              : reason}{" "}
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
+
+/** Shows the errors of a failed EJBCA request: the form gets the ones of its fields, and the rest are a toast. */
+export const handleEJBCAServerError = (
+  err: unknown,
+  action: "add" | "edit",
+  setFieldErrors: (errors: IFormErrors) => void
+) => {
+  const { fieldErrors, otherReasons } = splitEJBCAServerErrors(err);
+  // a field's error is shown next to it, so it doesn't need to say what failed
+  setFieldErrors(
+    mapValues(fieldErrors, (reason) => reason?.replace(SERVER_ERROR_PREFIX, ""))
+  );
+  if (otherReasons.length || Object.keys(fieldErrors).length === 0) {
+    notify.error(getEJBCAErrorMessage(action, otherReasons), { response: err });
+  }
 };
