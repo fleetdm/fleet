@@ -8,9 +8,7 @@ import { IPolicy, IPolicySoftwareToInstall } from "interfaces/policy";
 import { baseUrl } from "test/test-utils";
 
 const settingsUrl = baseUrl("/software/patch_deadline_settings");
-// Note the path is /fleets/ even though the endpoints constant is still called
-// TEAMS. The URL got renamed, the constant did not.
-const patchPoliciesUrl = baseUrl("/fleets/:teamId/policies");
+const patchPoliciesUrl = baseUrl("/policies");
 
 export const getPatchDeadlineSettingsHandler = (
   overrides?: Partial<IPatchDeadlineSettings>
@@ -74,13 +72,21 @@ export const getPatchDeadlineSettingsServerErrorHandler = http.get(
 // Each entry becomes a patch-type policy with the given software under
 // `patch_software`, matching the real BE response shape. `patch_deadline`
 // defaults to true; pass false to mimic another patch option, which
-// `automation_type=patch` also returns.
+// `type=patch` also returns. Only requests for `fleetId` get the apps.
 export const getPatchDeadlineAppsHandler = (
   apps: (Partial<IPolicySoftwareToInstall> & {
     patch_deadline?: boolean;
-  })[] = []
+  })[] = [],
+  fleetId = 1
 ) =>
-  http.get(patchPoliciesUrl, () => {
+  http.get(patchPoliciesUrl, ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    if (
+      params.get("type") !== "patch" ||
+      params.get("fleet_id") !== String(fleetId)
+    ) {
+      return HttpResponse.json({ policies: [] });
+    }
     const policies = apps.map((a, i) => {
       const patch_software: IPolicySoftwareToInstall = {
         software_title_id: a.software_title_id ?? i + 1,

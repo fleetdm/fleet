@@ -124,6 +124,39 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, "", nil
 			}
 		}
+		// Config reads and writes keep failing_policies_webhook.policy_ids in sync with the per-policy webhook and
+		// ticket flag. Default to no such policies.
+		if mockDS.WebhooksAndTicketsPolicyIDsFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) { return nil, nil }
+		}
+		if mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.SetWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
+		}
+		if mockDS.PoliciesWithOtherAutomationsFunc == nil {
+			mockDS.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
+			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPolicyNameFunc == nil {
+			mockDS.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.FilterWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+				return nil, nil
+			}
+		}
 		// Default to none configured so tests that don't care don't panic on a nil mock.
 		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
 			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
@@ -282,6 +315,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
+	var googleConditionalAccess *GoogleConditionalAccessClient
+	if len(opts) > 0 {
+		googleConditionalAccess = opts[0].ConditionalAccessGoogleClient
+	}
+
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
 		androidService = opts[0].AndroidModule
 	}
@@ -331,6 +369,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,

@@ -1,5 +1,22 @@
-import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import {
+  IPolicyStats,
+  OtherAutomationType,
+  PolicyAutomationType,
+} from "interfaces/policy";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { IPoliciesFilterParams } from "services/entities/policies";
+
+/** The Policies table's automation filter. "patch" filters by policy type. */
+export type PoliciesAutomationFilter = PolicyAutomationType | "patch";
+
+export const getPoliciesFilterParams = (
+  filter: PoliciesAutomationFilter | null
+): Pick<IPoliciesFilterParams, "automationType" | "type"> => {
+  if (!filter) {
+    return {};
+  }
+  return filter === "patch" ? { type: "patch" } : { automationType: filter };
+};
 
 export type AutomationDisplayType =
   | "software"
@@ -32,63 +49,58 @@ export type IAutomationData =
   | ISoftwareAutomationData
   | INonSoftwareAutomationData;
 
-/** Returns an ordered list of automations configured for a policy. */
+/** Returns the policy's automation, as a list for the Automation column. */
 export const getAutomationsForPolicy = (
   policy: Pick<
     IPolicyStats,
+    | "automation_type"
     | "install_software"
     | "run_script"
     | "resend_configuration_profile"
-    | "calendar_events_enabled"
-    | "conditional_access_enabled"
-    | "webhook"
   >,
   otherAutomationType?: OtherAutomationType
 ): IAutomationData[] => {
-  const automations: IAutomationData[] = [];
-
-  if (policy.install_software) {
-    automations.push({
-      type: "software",
-      name: getDisplayedSoftwareName(
-        policy.install_software.name,
-        policy.install_software.display_name
-      ),
-      iconName: policy.install_software.name,
-      softwareTitleId: policy.install_software.software_title_id,
-      iconUrl: policy.install_software.icon_url,
-    });
+  switch (policy.automation_type) {
+    case "software":
+      return policy.install_software
+        ? [
+            {
+              type: "software",
+              name: getDisplayedSoftwareName(
+                policy.install_software.name,
+                policy.install_software.display_name
+              ),
+              iconName: policy.install_software.name,
+              softwareTitleId: policy.install_software.software_title_id,
+              iconUrl: policy.install_software.icon_url,
+            },
+          ]
+        : [];
+    case "script":
+      return policy.run_script
+        ? [{ type: "script", name: policy.run_script.name }]
+        : [];
+    case "configuration_profile":
+      return policy.resend_configuration_profile
+        ? [
+            {
+              type: "profile",
+              name: policy.resend_configuration_profile.name,
+            },
+          ]
+        : [];
+    case "calendar":
+      return [{ type: "calendar", name: "Maintenance window" }];
+    case "conditional_access":
+      return [{ type: "conditional_access", name: "Conditional access" }];
+    case "webhook_or_ticket":
+      return [
+        {
+          type: "other",
+          name: otherAutomationType === "ticket" ? "Ticket" : "Webhook",
+        },
+      ];
+    default:
+      return [];
   }
-  if (policy.run_script) {
-    automations.push({
-      type: "script",
-      name: policy.run_script.name,
-    });
-  }
-  if (policy.resend_configuration_profile) {
-    automations.push({
-      type: "profile",
-      name: policy.resend_configuration_profile.name,
-    });
-  }
-  if (policy.calendar_events_enabled) {
-    automations.push({
-      type: "calendar",
-      name: "Maintenance window",
-    });
-  }
-  if (policy.conditional_access_enabled) {
-    automations.push({
-      type: "conditional_access",
-      name: "Conditional access",
-    });
-  }
-  if (policy.webhook === "On") {
-    automations.push({
-      type: "other",
-      name: otherAutomationType === "ticket" ? "Ticket" : "Webhook",
-    });
-  }
-
-  return automations;
 };

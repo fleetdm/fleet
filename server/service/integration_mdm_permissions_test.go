@@ -184,7 +184,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 
 	// GitOps users can't run MDM commands, even on hosts of their fleets.
 	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
-		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 	type mdmCommandEndpoint struct {
 		method string
 		path   string
@@ -736,8 +736,8 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &gplr)
 
 	// Attempt to edit a global policy, should fail.
-	mgplr := fleet.ModifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyGlobalPolicyRequest{
+	mgplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from plist WHERE path = 'foo';"),
 	}, http.StatusForbidden, &mgplr)
 

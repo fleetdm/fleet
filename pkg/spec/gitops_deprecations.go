@@ -59,8 +59,8 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 // Keep in sync with the `renamescope` struct tags, which do the same job for the API request/response layer.
 var DeprecatedGitOpsKeyScopes = map[string][]string{}
 
-// RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated
-// (RejectRemovedKeys), and buildAliasRules also reads them, because the structs that fleetctl serializes still carry the old names.
+// RemovedGitOpsKeys are the keys that Fleet 5 removed from GitOps files. They are rejected, not migrated (RejectRemovedKeys), and
+// buildAliasRules also reads the ones with a replacement, because the structs that fleetctl serializes still carry the old names.
 // Every path has an entry in pkg/removednames, which supplies the error message.
 var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 	{"team_settings", "settings"},
@@ -69,6 +69,8 @@ var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
 	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
 	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
+	{"org_settings.webhook_settings.failing_policies_webhook.policy_ids", ""},
+	{"settings.webhook_settings.failing_policies_webhook.policy_ids", ""},
 }
 
 // removedKeyParents are the old spellings of a parent key in RemovedGitOpsKeys that ApplyDeprecatedKeyMappings renames, so a removed key

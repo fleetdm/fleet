@@ -416,7 +416,7 @@ describe("PatchDeadlineSection", () => {
       const onPoliciesRequest = jest.fn();
       mockServer.use(
         getPatchDeadlineSettingsHandler(),
-        http.get(baseUrl("/fleets/:teamId/policies"), () => {
+        http.get(baseUrl("/policies"), () => {
           onPoliciesRequest();
           return HttpResponse.json({ policies: [] });
         })
@@ -460,7 +460,10 @@ describe("PatchDeadlineSection", () => {
     it("opens the software title in the current fleet when a row is clicked", async () => {
       mockServer.use(
         getPatchDeadlineSettingsHandler(),
-        getPatchDeadlineAppsHandler([{ software_title_id: 42, name: "Figma" }])
+        getPatchDeadlineAppsHandler(
+          [{ software_title_id: 42, name: "Figma" }],
+          3
+        )
       );
       const router = createMockRouter();
       const render = createCustomRenderer({
@@ -547,7 +550,7 @@ describe("PatchDeadlineSection", () => {
 
       // Fleet switch: wrapper re-renders with a new fleetId, which should
       // trigger the page-reset effect and a fresh apps query.
-      mockServer.use(getPatchDeadlineAppsHandler(fleet2Apps));
+      mockServer.use(getPatchDeadlineAppsHandler(fleet2Apps, 2));
       rerender(<SectionWrapper fleetId={2} />);
 
       // Fleet 2 page 1: A-J visible, K-L not. The settings query may spin
