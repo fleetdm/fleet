@@ -2,7 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-import DropdownWrapper, { CustomOptionType } from "./DropdownWrapper";
+import { COLORS } from "styles/var/colors";
+
+import DropdownWrapper, {
+  CustomOptionType,
+  getOptionBackgroundColor,
+} from "./DropdownWrapper";
 
 const sampleOptions: CustomOptionType[] = [
   {
@@ -149,5 +154,39 @@ describe("DropdownWrapper Component", () => {
     expect(
       container.querySelector(".dropdown-wrapper__disabled-tooltip")
     ).not.toBeInTheDocument();
+  });
+
+  describe("option background", () => {
+    const optionState = (state: { isFocused: boolean; isSelected: boolean }) =>
+      state as Parameters<typeof getOptionBackgroundColor>[0];
+
+    test("gives the hovered option a stronger shade than the selected one", () => {
+      expect(
+        getOptionBackgroundColor(
+          optionState({ isFocused: true, isSelected: false })
+        )
+      ).toBe(COLORS["ui-fleet-black-10"]);
+      expect(
+        getOptionBackgroundColor(
+          optionState({ isFocused: false, isSelected: true })
+        )
+      ).toBe(COLORS["ui-fleet-black-5"]);
+    });
+
+    test("keeps the hover shade on a selected option under the pointer", () => {
+      expect(
+        getOptionBackgroundColor(
+          optionState({ isFocused: true, isSelected: true })
+        )
+      ).toBe(COLORS["ui-fleet-black-10"]);
+    });
+
+    test("leaves other options transparent", () => {
+      expect(
+        getOptionBackgroundColor(
+          optionState({ isFocused: false, isSelected: false })
+        )
+      ).toBe("transparent");
+    });
   });
 });

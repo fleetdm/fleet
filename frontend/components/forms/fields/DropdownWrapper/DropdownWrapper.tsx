@@ -139,11 +139,13 @@ export interface IDropdownWrapper {
   menuPlacement?: MenuPlacement;
 }
 
-const getOptionBackgroundColor = (
+export const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  if (state.isFocused) return COLORS["ui-fleet-black-5"];
-  if (state.isSelected) return COLORS["ui-fleet-black-10"];
+  // The option under the pointer or keyboard focus gets the stronger shade, so
+  // it stands out from the selected option, which is also shown in bold.
+  if (state.isFocused) return COLORS["ui-fleet-black-10"];
+  if (state.isSelected) return COLORS["ui-fleet-black-5"];
   return "transparent";
 };
 
@@ -328,13 +330,13 @@ export const generateCustomDropdownStyles = (
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-fleet-black-5"],
+          : COLORS["ui-fleet-black-10"],
         cursor: state.isDisabled ? "not-allowed" : "pointer",
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-fleet-black-5"],
+          : COLORS["ui-fleet-black-10"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
