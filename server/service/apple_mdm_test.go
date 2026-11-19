@@ -175,9 +175,6 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
 		return nil, nil
 	}
-	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-		return nil, nil
-	}
 	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil
@@ -288,12 +285,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		}
 	}
 
-	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
-		ctx := test.UserContext(ctx, user)
-		_, err := svc.ListMDMAppleDevices(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-	}
-
 	// some eula methods read and write access for gitops users. We test them separately
 	// from the other MDM methods.
 	testEULAMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
@@ -311,9 +302,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		err := svc.MDMDeleteEULA(ctx, "foo", false)
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
-
-	// Only global admins can access the endpoints.
-	testAuthdMethods(t, test.UserAdmin, false)
 
 	// The EULA methods check each platform's MDM after authorization, so both are on.
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -335,7 +323,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
-		testAuthdMethods(t, user, true)
 		testEULAMethods(t, user, true)
 	}
 	// Token authenticated endpoints can be accessed by anyone.

@@ -1154,8 +1154,6 @@ type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string,
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
-type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
-
 type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error
 
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam *fleet.Team, iosTeam *fleet.Team, ipadTeam *fleet.Team) (int64, error)
@@ -4319,9 +4317,6 @@ type DataStore struct {
 
 	GetVPPCommandResultsFunc        GetVPPCommandResultsFunc
 	GetVPPCommandResultsFuncInvoked bool
-
-	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
-	MDMAppleListDevicesFuncInvoked bool
 
 	UpsertMDMAppleHostDEPAssignmentsFunc        UpsertMDMAppleHostDEPAssignmentsFunc
 	UpsertMDMAppleHostDEPAssignmentsFuncInvoked bool
@@ -10481,13 +10476,6 @@ func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string
 	s.GetVPPCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPCommandResultsFunc(ctx, commandUUID, hostUUID)
-}
-
-func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	s.mu.Lock()
-	s.MDMAppleListDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleListDevicesFunc(ctx)
 }
 
 func (s *DataStore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error {

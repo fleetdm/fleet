@@ -1854,9 +1854,6 @@ type Datastore interface {
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// MDMAppleListDevices lists all the MDM enrolled devices.
-	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
-
 	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
 	// `host_dep_assignments` for all the provided hosts. mdmMigrationDeadlinesByHostID
 	// should include migration deadlines from the DEP API for any hosts that had one set

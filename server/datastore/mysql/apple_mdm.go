@@ -1508,29 +1508,6 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	var devices []fleet.MDMAppleDevice
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&devices,
-		`
-SELECT
-    d.id,
-    d.serial_number,
-    e.enabled
-FROM
-    nano_devices d
-    JOIN nano_enrollments e ON d.id = e.device_id
-WHERE
-    type = "Device"
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list devices")
-	}
-	return devices, nil
-}
-
 func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {

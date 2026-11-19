@@ -613,8 +613,6 @@ type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, 
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
 
-type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
-
 type GenerateABMKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
 
 type UploadABMTokenFunc func(ctx context.Context, token io.Reader) (*fleet.ABMToken, error)
@@ -1889,9 +1887,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	ListMDMAppleDevicesFunc        ListMDMAppleDevicesFunc
-	ListMDMAppleDevicesFuncInvoked bool
 
 	GenerateABMKeyPairFunc        GenerateABMKeyPairFunc
 	GenerateABMKeyPairFuncInvoked bool
@@ -4545,13 +4540,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	s.mu.Lock()
-	s.ListMDMAppleDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleDevicesFunc(ctx)
 }
 
 func (s *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {

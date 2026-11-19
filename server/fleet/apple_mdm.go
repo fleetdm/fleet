@@ -151,22 +151,6 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// MDMAppleDevice represents an MDM enrolled Apple device.
-type MDMAppleDevice struct {
-	// ID is the device hardware UUID.
-	ID string `json:"id" db:"id"`
-	// SerialNumber is the serial number of the Apple device.
-	SerialNumber string `json:"serial_number" db:"serial_number"`
-	// Enabled indicates whether the device is currently enrolled.
-	// It's set to false when a device unenrolls from Fleet.
-	Enabled bool `json:"enabled" db:"enabled"`
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleDevice) AuthzType() string {
-	return "mdm_apple_device"
-}
-
 // MDMAppleDEPDevice represents an Apple device in Apple Business (AB).
 type MDMAppleDEPDevice struct {
 	godep.Device
