@@ -33,9 +33,25 @@ module.exports = {
       throw 'missingOriginHeader';
     }
 
-    // The OAuth callback sends this server's secret to the Origin, so it must be an HTTPS URL (except in local development).
-    if(sails.config.environment !== 'development' && !this.req.get('origin').startsWith('https://')) {
-      throw 'invalidOriginHeader';
+    // The OAuth callback sends this server's secret to the Origin, so it must be an HTTPS URL for a public hostname (except in local development).
+    if(sails.config.environment !== 'development') {
+      let origin = this.req.get('origin');
+      let parsedOrigin;
+      try {
+        parsedOrigin = new URL(origin);
+      } catch(unusedErr) {
+        throw 'invalidOriginHeader';
+      }
+      let hostname = parsedOrigin.hostname;
+      if(parsedOrigin.protocol !== 'https:'
+        || parsedOrigin.username || parsedOrigin.password
+        || /[?#\\\s]/.test(origin)
+        || !hostname.includes('.')
+        || hostname.endsWith('.localhost')
+        || require('node:net').isIP(hostname) !== 0
+      ) {
+        throw 'invalidOriginHeader';
+      }
     }
 
     let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
