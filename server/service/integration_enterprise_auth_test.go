@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"`
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"`
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}

@@ -30,6 +30,14 @@ func TestRemovedPaths(t *testing.T) {
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
 	// Aliases write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
 	shape := func(path string) string { return pathVar.ReplaceAllString(path, "{}") }
+	// The reverse: a path entry without a template would keep its old route, or a deprecated alias of it, serving requests.
+	served := make(map[string]struct{}, len(removedPathTemplates))
+	for _, template := range removedPathTemplates {
+		served[shape(template)] = struct{}{}
+	}
+	for _, entry := range removednames.Filter(removednames.KindPath, 0) {
+		assert.Contains(t, served, shape(entry.Old))
+	}
 	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions}
 	// A removed path limited to some methods only collides with aliases of those methods.
 	removedRoutes := make(map[string]struct{})

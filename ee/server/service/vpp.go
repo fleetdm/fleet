@@ -1339,7 +1339,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
 
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {

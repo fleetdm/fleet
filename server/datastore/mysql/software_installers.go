@@ -419,7 +419,7 @@ INSERT INTO software_installers (
 }
 
 func (ds *Datastore) getTeamName(ctx context.Context, teamID *uint) (string, error) {
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if teamID != nil && *teamID > 0 {
 		tm, err := ds.TeamLite(ctx, *teamID)
 		if err != nil {
@@ -3401,7 +3401,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
 		tm, err := ds.TeamLite(ctx, *tmID)
