@@ -19,7 +19,7 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app) and select **Automatic**. Fleet creates a policy that installs the app on Macs that don't have it, and reinstalls it if an end user deletes it.
 2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
 
-> If your Fleet deployment requires [mTLS client certificates](https://fleetdm.com/guides/fleetd-mtls), Fleet hasn't confirmed yet that the Fleet Desktop app can load **My device**. Fleet is testing this in Fleet 5.3 ([#55448](https://github.com/fleetdm/fleet/issues/55448)).
+> If your Fleet deployment requires [mTLS client certificates](https://fleetdm.com/guides/fleetd-mtls), Fleet hasn't confirmed yet that the Fleet Desktop app can load the **My device** page. Fleet is testing this in Fleet 5.3 ([#55448](https://github.com/fleetdm/fleet/issues/55448)).
 
 ## Update Fleet Desktop
 
