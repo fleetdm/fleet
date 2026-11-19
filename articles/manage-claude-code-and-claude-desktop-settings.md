@@ -181,7 +181,7 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 
 ### GitOps
 
-1. Save the scripts in `lib/claude/` and the profile in `platforms/macos/configuration-profiles/`, where the fleet files that `fleetctl new` creates already pick up `.mobileconfig` files.
+1. Save the scripts in `lib/claude/` and the profile in `platforms/macos/configuration-profiles/`, where `fleets/workstations.yml` from `fleetctl new` already picks up `.mobileconfig` files.
 2. Add the scripts to the existing `controls.scripts` list in your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
