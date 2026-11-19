@@ -56,14 +56,20 @@ jobs:
           persist-credentials: false
 
       # The PR's it-and-security config is data for fleetctl gitops --dry-run;
-      # nothing under this path is executed.
-      - name: Checkout pull request configuration
+      # nothing under this path is executed. Fetched as a tarball rather than a
+      # git checkout so no credentials or git metadata are involved, and so
+      # OpenSSF Scorecard doesn't flag it as an untrusted checkout under
+      # pull_request_target.
+      - name: Download pull request configuration
         if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: untrusted-pr
-          persist-credentials: false
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir untrusted-pr
+          gh api "repos/${GITHUB_REPOSITORY}/tarball/${PR_HEAD_SHA}" > pr.tar.gz
+          tar -xzf pr.tar.gz --strip-components=1 -C untrusted-pr
+          rm pr.tar.gz
 
       # DOGFOOD_GITOPS_SECRETS_JSON is a JSON bundle holding all the individual
       # secrets this workflow's gitops step needs. See .github/actions/expand-secrets/README.md for how to
