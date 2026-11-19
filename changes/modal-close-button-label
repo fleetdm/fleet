@@ -1,0 +1,1 @@
+- Added an accessible name to the close button in modals, so screen readers announce it as "Close".

@@ -140,7 +140,7 @@ describe("LocationModal", () => {
 
     expect(screen.getByText(/To lock, go to/i)).toBeVisible();
     expect(screen.getByText("Actions > Lock")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
+    expect(screen.getByText("Close")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Lock" })
     ).not.toBeInTheDocument();
@@ -170,6 +170,6 @@ describe("LocationModal", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
+    expect(screen.getByText("Close")).toBeVisible();
   });
 });

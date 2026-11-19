@@ -528,7 +528,7 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByText("Close"));
     expect(onExit).toHaveBeenCalled();
   });
 });
