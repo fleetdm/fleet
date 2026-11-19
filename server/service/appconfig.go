@@ -794,11 +794,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Copied before the merge below, which writes into the same struct. Read from
 	// appConfig rather than oldAppConfig, which nilaway can't prove non-nil.
-	var oldGoogleConditionalAccess *fleet.GoogleConditionalAccessIntegration
-	if gca := appConfig.Integrations.GoogleConditionalAccess; gca != nil {
-		gcaCopy := *gca
-		oldGoogleConditionalAccess = &gcaCopy
-	}
+	oldGoogleConditionalAccess := copyGoogleConditionalAccessSettings(appConfig.Integrations.GoogleConditionalAccess)
 	oldServerURL := appConfig.ServerSettings.ServerURL
 
 	// We apply the config that is incoming to the old one
@@ -808,20 +804,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// A null or absent google_conditional_access keeps the existing settings. In overwrite
-	// mode (GitOps) a given object replaces them rather than merging, and a null one turns
-	// the integration off: fleetctl sends null when the YAML has none, while older fleetctl
-	// versions don't send the key at all.
-	gcaCleared := applyOpts.Overwrite && googleConditionalAccessInPayload(p)
-	switch gca := newAppConfig.Integrations.GoogleConditionalAccess; {
-	case gca == nil && gcaCleared:
-		appConfig.Integrations.GoogleConditionalAccess = nil
-	case gca == nil:
-		appConfig.Integrations.GoogleConditionalAccess = oldGoogleConditionalAccess
-	case applyOpts.Overwrite:
-		replaced := *gca
-		appConfig.Integrations.GoogleConditionalAccess = &replaced
-	}
+	gcaRequested := mergeGoogleConditionalAccessSettings(appConfig, oldGoogleConditionalAccess,
+		newAppConfig.Integrations.GoogleConditionalAccess, applyOpts.Overwrite, p)
 
 	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
@@ -1279,16 +1263,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	var gcaPlan *googleConditionalAccessPlan
-	if lic.IsPremium() {
-		gcaPlan, err = svc.planGoogleConditionalAccess(ctx, oldGoogleConditionalAccess, appConfig.Integrations.GoogleConditionalAccess,
-			newAppConfig.Integrations.GoogleConditionalAccess != nil || gcaCleared, gcaKey, oldServerURL, appConfig.ServerSettings.ServerURL)
-		if err != nil {
-			return nil, err
-		}
-		if err := svc.verifyGoogleConditionalAccessPlan(ctx, gcaPlan); err != nil {
-			return nil, err
-		}
+	gcaPlan, err := svc.planVerifiedGoogleConditionalAccess(ctx, lic.IsPremium(), oldGoogleConditionalAccess,
+		appConfig.Integrations.GoogleConditionalAccess, gcaRequested, gcaKey, oldServerURL, appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
 	}
 
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
@@ -1480,10 +1458,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err := svc.applyGoogleConditionalAccessPlan(ctx, gcaPlan); err != nil {
 		return nil, err
 	}
-	// The Google status is filled on read and never stored.
-	if appConfig.ConditionalAccess != nil {
-		appConfig.ConditionalAccess.Google = nil
-	}
+	dropGoogleConditionalAccessStatus(appConfig)
 
 	// TODO(#58577): remove with policy_ids, see loadGlobalWebhookPolicyIDs. The list lives on the policies, so it isn't
 	// stored, and only a changed list is written, so a request that doesn't change it can't undo a concurrent change.
@@ -1693,9 +1668,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.processSavedAppConfigChanges(ctx, oldAppConfig, appConfig, lic, oldAgentOptions, newAgentOptions,
 		conditionalAccessNoTeamUpdated); err != nil {
-		if gcaErr != nil {
-			svc.logger.ErrorContext(ctx, "google conditional access update", "err", gcaErr)
-		}
+		svc.logGoogleConditionalAccessUpdateError(ctx, gcaErr)
 		return nil, err
 	}
 	if gcaErr != nil {

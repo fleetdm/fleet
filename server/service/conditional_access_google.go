@@ -432,6 +432,72 @@ type googleConditionalAccessPlan struct {
 	retryReason string
 }
 
+// copyGoogleConditionalAccessSettings returns a copy of the settings, nil for nil.
+func copyGoogleConditionalAccessSettings(settings *fleet.GoogleConditionalAccessIntegration) *fleet.GoogleConditionalAccessIntegration {
+	if settings == nil {
+		return nil
+	}
+	settingsCopy := *settings
+	return &settingsCopy
+}
+
+// mergeGoogleConditionalAccessSettings settles appConfig's google_conditional_access once
+// the payload was decoded over it, and reports whether the payload carries the setting. A
+// null or absent one keeps old, the settings before the decode. In overwrite mode (GitOps)
+// a given object replaces them rather than merging, and a null one turns the integration
+// off: fleetctl sends null when the YAML has none, while older fleetctl versions don't send
+// the key at all.
+func mergeGoogleConditionalAccessSettings(
+	appConfig *fleet.AppConfig, old, given *fleet.GoogleConditionalAccessIntegration, overwrite bool, payload []byte,
+) bool {
+	cleared := overwrite && googleConditionalAccessInPayload(payload)
+	switch {
+	case given == nil && cleared:
+		appConfig.Integrations.GoogleConditionalAccess = nil
+	case given == nil:
+		appConfig.Integrations.GoogleConditionalAccess = old
+	case overwrite:
+		replaced := *given
+		appConfig.Integrations.GoogleConditionalAccess = &replaced
+	}
+	return given != nil || cleared
+}
+
+// dropGoogleConditionalAccessStatus removes the status from a config about to be saved: it
+// is filled on read and never stored.
+func dropGoogleConditionalAccessStatus(appConfig *fleet.AppConfig) {
+	if appConfig.ConditionalAccess != nil {
+		appConfig.ConditionalAccess.Google = nil
+	}
+}
+
+// logGoogleConditionalAccessUpdateError logs the integration's error, if any, of an app
+// config update that returns another error.
+func (svc *Service) logGoogleConditionalAccessUpdateError(ctx context.Context, err error) {
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "google conditional access update", "err", err)
+	}
+}
+
+// planVerifiedGoogleConditionalAccess plans the work an app config update implies for the
+// integration and verifies it with Google. There is no plan on Fleet Free.
+func (svc *Service) planVerifiedGoogleConditionalAccess(
+	ctx context.Context, premium bool, oldSettings, settings *fleet.GoogleConditionalAccessIntegration, requested bool,
+	newKey []byte, oldServerURL, serverURL string,
+) (*googleConditionalAccessPlan, error) {
+	if !premium {
+		return nil, nil
+	}
+	plan, err := svc.planGoogleConditionalAccess(ctx, oldSettings, settings, requested, newKey, oldServerURL, serverURL)
+	if err != nil {
+		return nil, err
+	}
+	if err := svc.verifyGoogleConditionalAccessPlan(ctx, plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
 // planGoogleConditionalAccess compares the desired settings with the config's and the
 // connection state, so a GitOps run that resends the same settings makes no Google or
 // fleetdm.com call. Only an update that carries the Google settings (requested) is
