@@ -1284,8 +1284,6 @@ GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481]
    - Repairing fleetd from the installer brings "Fleet osquery" back until fleetd renames it again.
    - On upgraded Fleet servers, the Software page keeps listing it as "Fleet osquery". New Fleet 5 servers list "Fleet".
 
-On macOS, the process name changes in a later release. You can get ready now by adding the new path, `/opt/orbit/bin/orbit/macos/<channel>/Fleet`, to your Full Disk Access profile. Fleet's [sample profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/allow-fleetd-full-disk-access.mobileconfig) lists both the old and new paths, so you can deploy it before the change. Without the new path, fleetd and osquery lose Full Disk Access once the change ships.
-
 GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 
 ### Older fleetd can't find the organization logo

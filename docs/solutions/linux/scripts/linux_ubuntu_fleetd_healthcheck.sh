@@ -6,7 +6,7 @@
 #
 # Components checked:
 #   - orbit.service      (systemd service)
-#   - orbit / fleet      (process: a file named orbit or fleet under /opt/orbit/)
+#   - orbit              (process: /opt/orbit/bin/orbit/orbit)
 #   - osqueryd           (process: spawned and managed by orbit)
 #   - fleet-desktop      (process: optional, only present if packaged with --fleet-desktop)
 #
@@ -100,9 +100,9 @@ check_process() {
   fi
 }
 
-# The agent runs from a file named orbit (older fleetd) or fleet under /opt/orbit/
-# Source: linux_shared.go ExecStart
-check_process "orbit/fleet"  "^/opt/orbit/.*/(orbit|fleet)( |$)"
+# orbit binary path is /opt/orbit/bin/orbit/orbit
+# Source: linux_shared.go ExecStart=/opt/orbit/bin/orbit/orbit
+check_process "orbit"        "/opt/orbit/bin/orbit/orbit"
 
 # osqueryd is spawned by orbit; match the binary name
 check_process "osqueryd"     "osqueryd"
@@ -133,8 +133,7 @@ check_file() {
   fi
 }
 
-orbit_bin=$(find /opt/orbit/bin/orbit \( -name orbit -o -name fleet \) \( -type f -o -type l \) 2>/dev/null | head -n 1 || true)
-check_file "orbit/fleet binary"  "${orbit_bin:-/opt/orbit/bin/orbit/fleet}"
+check_file "orbit binary"        "/opt/orbit/bin/orbit/orbit"
 check_file "orbit symlink"       "/usr/local/bin/orbit"
 check_file "osquery pidfile"     "/opt/orbit/osquery.pid"
 check_file "env file"            "/etc/default/orbit"
