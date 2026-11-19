@@ -1939,6 +1939,7 @@ func TestDeleteTeamWindowsEnrollmentDefaultFleet(t *testing.T) {
 				return nil
 			}
 			ds.DeleteTeamFunc = func(context.Context, uint) error { return nil }
+			ds.NewJobFunc = func(_ context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
 
 			var activities []string
 			mockSvc := &svcmock.Service{}
@@ -2676,6 +2677,7 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 			}
 			ds.GetWindowsEnrollmentDefaultFleetFunc = func(context.Context) (*uint, string, error) { return nil, "", nil }
 			ds.DeleteTeamFunc = func(context.Context, uint) error { return nil }
+			ds.NewJobFunc = func(_ context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
 
 			require.NoError(t, svc.DeleteTeam(ctx, teamID))
 

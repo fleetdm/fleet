@@ -297,7 +297,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob, vppVerifyJob, softwareWorker)
+	workr.Register(macosJob, vppVerifyJob, softwareWorker, &worker.LabelMembershipCleanup{Datastore: s.ds})
 
 	s.worker = workr
 

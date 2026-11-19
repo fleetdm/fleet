@@ -358,7 +358,9 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Empty(t, hostLabels)
 
-			// ListLabelsForHost joins labels, so check the membership rows themselves.
+			// ListLabelsForHost joins labels, so check the membership rows themselves. They stay until the
+			// orphan cleanup runs.
+			require.NoError(t, ds.CleanupOrphanedLabelMembership(t.Context()))
 			var membershipCount int
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				return sqlx.GetContext(t.Context(), q, &membershipCount, `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`, teamLabel.ID)
