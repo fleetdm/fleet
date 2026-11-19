@@ -155,7 +155,7 @@ Each policy can have one automation. If a policy turns on more than one of `inst
 _Available in Fleet Premium_
 
 To trigger software install, when policy fails, specify one of:
-  - `install_software.package_path` is the path to a [custom package YAML file](#packages) with one package in it. If the file has multiple packages, use `install_software.hash_sha256` instead, or split the multi-package file into single-package files.
+  - `install_software.package_path` is the path to a [custom package YAML file](#packages) with a list of one package. If the file has multiple packages, use `install_software.hash_sha256` instead, or split the multi-package file into single-package files.
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
   - `install_software.app_store_id` is the ID of the Apple App Store app or Google Play app.

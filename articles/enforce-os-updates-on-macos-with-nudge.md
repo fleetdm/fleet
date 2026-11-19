@@ -48,13 +48,13 @@ The LaunchAgent opens Nudge on a schedule, so end users see the reminder even if
 3. Under **Advanced options**, paste the script into **Post-install script**.
 4. Select **Add software**.
 
-In GitOps, add a package YAML file next to the downloaded package and reference it in the fleet's YAML file:
+In GitOps, add a package YAML file with the package's URL from the releases page and reference it in the fleet's YAML file:
 
 ```yaml
 # lib/macos/software/nudge-launchagent.yml
-path: ../packages/Nudge_LaunchAgent.pkg
-post_install_script:
-  path: ../scripts/nudge-postinstall.sh
+- url: https://github.com/macadmins/nudge/releases/download/v2.1.4.81863/Nudge_LaunchAgent-1.0.1.pkg
+  post_install_script:
+    path: ../scripts/nudge-postinstall.sh
 ```
 
 ```yaml
