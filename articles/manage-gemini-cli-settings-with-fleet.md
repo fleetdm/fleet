@@ -38,7 +38,7 @@ The example `settings.json` in the scripts below does four things:
 
 The example admin policy blocks shell commands that start with `curl` or `wget` and asks before `git push`. See [Policy engine](https://geminicli.com/docs/reference/policy-engine/) for the full rule syntax.
 
-> **Warning:** Google says these files aren't a foolproof security boundary. A user can set `GEMINI_CLI_SYSTEM_SETTINGS_PATH` to skip your `settings.json`, or start Gemini CLI with `--allowed-mcp-server-names` to replace your MCP allowlist for that session. Telemetry settings also give way to command-line flags and environment variables. The admin policy directory has no override like this, so put rules that must hold in `policies/`.
+> **Warning:** Google says these files aren't a foolproof security boundary. A user can set `GEMINI_CLI_SYSTEM_SETTINGS_PATH` to skip your `settings.json`, or start Gemini CLI with `--allowed-mcp-server-names` to replace your MCP allowlist for that session. That flag also stops Gemini CLI from using your `mcp.excluded` list when it loads servers, though the policy rules built from that list still block those servers' tools. Telemetry settings also give way to command-line flags and environment variables. The admin policy directory has no override like this, so put rules that must hold in `policies/`.
 
 > **Warning:** Gemini CLI won't start if `settings.json` isn't valid JSON. Check it with `jq . settings.json` before you upload a script.
 
@@ -179,7 +179,7 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 ### GitOps
 
 1. Save the scripts in `lib/gemini/`.
-2. Add them to your fleet file, for example `fleets/workstations.yml`:
+2. Add them to the existing `controls.scripts` list in your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
    controls:
@@ -201,7 +201,7 @@ Each policy below passes when both files match what you intend. A host that fail
    - On macOS, run `shasum -a 256 "/Library/Application Support/GeminiCli/settings.json" "/Library/Application Support/GeminiCli/policies/fleet.toml"`.
    - On Linux, run `sha256sum /etc/gemini-cli/settings.json /etc/gemini-cli/policies/fleet.toml`. The script writes the same files as on macOS, so the hashes match.
    - On Windows, run `(Get-FileHash 'C:\ProgramData\gemini-cli\settings.json').Hash.ToLower()` and `(Get-FileHash 'C:\ProgramData\gemini-cli\policies\fleet.toml').Hash.ToLower()`.
-3. Add the policies to your fleet file, replacing the placeholders with the hashes from the previous step:
+3. Add the policies to the existing `policies` list in your fleet file, replacing the placeholders with the hashes from the previous step:
 
    ```yaml
    policies:
