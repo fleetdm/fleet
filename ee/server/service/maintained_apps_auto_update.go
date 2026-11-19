@@ -461,7 +461,7 @@ func hydrateLatestManifest(ctx context.Context, ds fleet.Datastore, c fleet.FMAA
 // advance to. versions must be ordered most recently downloaded first. An empty
 // pin means Latest (newest). A caret pin returns the newest version within its major, or
 // ok=false when no cached version satisfies the major (so the cron skips rather
-// than crossing into another major, unlike the on-demand PATCH path).
+// than crossing into another major).
 func selectAutoUpdateTarget(versions []fleet.FleetMaintainedVersion, pin string) (fleet.FleetMaintainedVersion, bool) {
 	if pin == "" {
 		return versions[0], true

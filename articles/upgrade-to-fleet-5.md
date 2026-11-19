@@ -1220,6 +1220,23 @@ Pass `--host` on every call.
 
 GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
+### Commands look up hosts like the REST API
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get host`, `fleetctl mdm run-command --hosts`, `fleetctl mdm lock`, `fleetctl mdm unlock`, `fleetctl mdm clear-passcode`, `fleetctl mdm wipe`, and `fleetctl run-script` find a host by its hostname, UUID, serial number, osquery host ID, or node key. If more than one host matches, they use the oldest. | These commands also accept a host ID. They find a host like [`GET /hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host): a host ID first, then a serial number, UUID, and hostname. If more than one host matches, they use the newest. They don't match an osquery host ID or node key. |
+| `fleetctl query --hosts` matches a hostname, UUID, serial number, osquery host ID, or node key | `fleetctl query --hosts` matches a hostname, UUID, or serial number |
+
+#### What to do
+
+1. If you pass an all-digit hostname or serial number, check that it isn't also a host ID.
+   - An all-digit identifier is used as a host ID if a host has that ID, even if another host has that hostname or serial number.
+   - Pass the host's UUID instead, or its host ID.
+2. If you pass an osquery host ID or node key, pass the host's hostname, UUID, or serial number instead.
+   - Hostnames, UUIDs, and serial numbers already work in Fleet 4.
+
+GitHub issue: [#58203](https://github.com/fleetdm/fleet/issues/58203)
+
 ### mdm-apple-bm is now mdm-ab
 
 | Fleet 4 | Fleet 5 |
@@ -1428,7 +1445,8 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 #### What to do
 
-1. Remove these options from your server configuration.
+1. Remove these options from your server configuration before you upgrade.
+   - Fleet 5 doesn't start if any of them is still set as a config file key, environment variable, or command-line flag, even if the value is `false`.
    - Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
 
 GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)

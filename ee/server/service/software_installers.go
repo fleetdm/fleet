@@ -826,7 +826,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 			if activeInstallerID == 0 {
-				activeInstallerID = versions[0].ID
+				return nil, fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 		default: // literal version
 			for _, v := range versions {
