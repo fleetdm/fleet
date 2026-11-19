@@ -36,16 +36,16 @@ module.exports = {
       // The client credentials flow does not return a refresh token, so request a new access token if the session expires.
       refreshFn: async (connection, callback)=>{
         try {
-          await connection.authorize({ grant_type: 'client_credentials' });
-          callback(undefined, connection.accessToken);
+          await connection.authorize({ grant_type: 'client_credentials' });// eslint-disable-line camelcase
+          return callback(undefined, connection.accessToken);
         } catch (err) {
-          callback(err);
+          return callback(err);
         }
       },
     });
 
     await sails.helpers.flow.build(async ()=>{
-      await salesforceConnection.authorize({ grant_type: 'client_credentials' });
+      await salesforceConnection.authorize({ grant_type: 'client_credentials' });// eslint-disable-line camelcase
     }).intercept((err)=>{
       return new Error(`When attempting to authenticate with Salesforce using the OAuth 2.0 client credentials flow, an error occurred. Full error: ${require('util').inspect(err)}`);
     });
