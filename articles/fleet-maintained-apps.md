@@ -24,17 +24,11 @@ Currently, the macOS versions of these apps are Apple Silicon-only rather than u
 
 ### Windows
 
-Windows Fleet-maintained apps are x64 builds. An x64 build runs natively on x64 hosts and on Windows 11 Arm hosts through emulation, so one app covers both. If the publisher doesn't offer an x64 build, Fleet uses the 32-bit x86 build.
-
-Some apps also have a separate Arm64 version, labeled "(ARM64)," for apps that run better natively on Arm. Apps that include drivers, like VPN clients, may not work on Arm hosts through emulation.
+Windows apps are x64, so they run on both x64 and Arm hosts.
 
 ## Windows install scope
 
-Fleet installs Windows apps for all users on the host (machine scope) whenever the app supports it. This way, end users with standard (non-admin) access can't uninstall required apps.
-
-Some apps can only be installed for one user. Fleet installs these for the user who's signed in to the host. If more than one user is signed in, Fleet installs the app for one of them. If no one is signed in, the install fails. Ask the end user to sign in, then try again.
-
-MSIX apps, like Slack and Microsoft Teams, are the exception. Fleet installs them for all users, and each user gets the app when they sign in.
+Fleet installs Windows apps for all users (machine scope) when the app supports it. Otherwise, Fleet installs the app for the signed-in user.
 
 ## Add a Fleet-maintained app
 
