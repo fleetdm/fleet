@@ -115,8 +115,8 @@ type OsqueryService interface {
 // UserLookupService provides methods for looking up users.
 // This interface is extracted for use by components that only need user lookup capabilities.
 type UserLookupService interface {
-	// ListUsers returns all users.
-	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, err error)
+	// ListUsers returns a page of users.
+	ListUsers(ctx context.Context, opt UserListOptions) (users []*User, meta *PaginationMetadata, err error)
 	// UsersByIDs returns minimal user info matching the provided IDs.
 	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
 }
@@ -333,7 +333,7 @@ type Service interface {
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*LabelWithTeamName, []uint, error)
-	ListLabels(ctx context.Context, opt ListOptions, teamID *uint, includeHostCounts bool) (labels []*Label, err error)
+	ListLabels(ctx context.Context, opt ListOptions, teamID *uint, includeHostCounts bool) (labels []*Label, meta *PaginationMetadata, err error)
 	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
@@ -628,8 +628,8 @@ type Service interface {
 	// DeleteInvite removes an invite.
 	DeleteInvite(ctx context.Context, id uint) (err error)
 
-	// ListInvites returns a list of all invites.
-	ListInvites(ctx context.Context, opt ListOptions) (invites []*Invite, err error)
+	// ListInvites returns a page of invites.
+	ListInvites(ctx context.Context, opt ListOptions) (invites []*Invite, meta *PaginationMetadata, err error)
 
 	// VerifyInvite verifies that an invite exists and that it matches the invite token.
 	VerifyInvite(ctx context.Context, token string) (invite *Invite, err error)
@@ -668,7 +668,7 @@ type Service interface {
 	CarveBegin(ctx context.Context, payload CarveBeginPayload) (*CarveMetadata, error)
 	CarveBlock(ctx context.Context, payload CarveBlockPayload) error
 	GetCarve(ctx context.Context, id int64) (*CarveMetadata, error)
-	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, error)
+	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, *PaginationMetadata, error)
 	GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
@@ -689,9 +689,9 @@ type Service interface {
 	// DeleteTeam deletes an existing team.
 	DeleteTeam(ctx context.Context, id uint) error
 	// ListTeams lists teams with the ordering and filters in the provided options.
-	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
+	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, *PaginationMetadata, error)
 	// ListTeamUsers lists users on the team with the provided list options.
-	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, *PaginationMetadata, error)
 	// ListAvailableTeamsForUser lists the teams the user is permitted to view
 	ListAvailableTeamsForUser(ctx context.Context, user *User) ([]*TeamSummary, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
@@ -767,7 +767,7 @@ type Service interface {
 	// GlobalScheduleService
 
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, error)
+	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, *PaginationMetadata, error)
 	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
 	DeleteGlobalScheduledQueries(ctx context.Context, id uint) error
 
@@ -780,7 +780,7 @@ type Service interface {
 	// TeamScheduleService
 
 	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, error)
+	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, *PaginationMetadata, error)
 	ModifyTeamScheduledQueries(
 		ctx context.Context, teamID uint, scheduledQueryID uint, q ScheduledQueryPayload,
 	) (*ScheduledQuery, error)

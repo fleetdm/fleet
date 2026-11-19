@@ -55,10 +55,11 @@ func (mw metricsMiddleware) User(ctx context.Context, id uint) (*fleet.User, err
 	return user, err
 }
 
-func (mw metricsMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (mw metricsMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 
 	var (
 		users []*fleet.User
+		meta  *fleet.PaginationMetadata
 		err   error
 	)
 	defer func(begin time.Time) {
@@ -67,8 +68,8 @@ func (mw metricsMiddleware) ListUsers(ctx context.Context, opt fleet.UserListOpt
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	users, err = mw.Service.ListUsers(ctx, opt)
-	return users, err
+	users, meta, err = mw.Service.ListUsers(ctx, opt)
+	return users, meta, err
 }
 
 func (mw metricsMiddleware) AuthenticatedUser(ctx context.Context) (*fleet.User, error) {

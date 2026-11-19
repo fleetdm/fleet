@@ -75,27 +75,37 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 
 // ListInvites lists all invites in the Fleet database. Supply query options
 // using the opt parameter. See fleet.ListOptions
-func (ds *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (ds *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error) {
 	invites := []*fleet.Invite{}
 	query := "SELECT * FROM invites WHERE true"
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
 	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opt, inviteAllowedOrderKeys)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &invites, query, params...)
 	if err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Invite"))
+		return nil, nil, ctxerr.Wrap(ctx, notFound("Invite"))
 	} else if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select invite by ID")
+		return nil, nil, ctxerr.Wrap(ctx, err, "select invite by ID")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		// Drop the sentinel row before the per-invite team loads below.
+		if len(invites) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			invites = invites[:len(invites)-1]
+		}
 	}
 
 	if err := ds.loadTeamsForInvites(ctx, invites); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load teams")
+		return nil, nil, ctxerr.Wrap(ctx, err, "load teams")
 	}
 
-	return invites, nil
+	return invites, metaData, nil
 }
 
 // Invite returns Invite identified by id.

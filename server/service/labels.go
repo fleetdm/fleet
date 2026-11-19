@@ -362,12 +362,12 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		includeHostCounts = *req.IncludeHostCounts
 	}
 
-	labels, err := svc.ListLabels(ctx, req.ListOptions, getTeamIDOrZeroForGlobal(req.TeamID), includeHostCounts)
+	labels, meta, err := svc.ListLabels(ctx, req.ListOptions, getTeamIDOrZeroForGlobal(req.TeamID), includeHostCounts)
 	if err != nil {
 		return fleet.ListLabelsResponse{Err: err}, nil
 	}
 
-	resp := fleet.ListLabelsResponse{}
+	resp := fleet.ListLabelsResponse{Meta: meta}
 	for _, label := range labels {
 		labelResp, err := labelResponseForLabel(label, nil)
 		if err != nil {
@@ -394,19 +394,21 @@ func getTeamIDOrZeroForGlobal(stringID *string) *uint {
 	return nil
 }
 
-func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) ([]*fleet.Label, error) {
+func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, fleet.ErrNoContext
 	}
 
 	if !license.IsPremium(ctx) && teamID != nil && *teamID > 0 {
-		return nil, fleet.ErrMissingLicense
+		return nil, nil, fleet.ErrMissingLicense
 	}
+
+	opt.IncludeMetadata = true
 
 	// TODO(mna): ListLabels doesn't currently return the hostIDs members of the
 	// label, the quick approach would be an N+1 queries endpoint. Leaving like

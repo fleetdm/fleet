@@ -1937,7 +1937,7 @@ func newChartDataCollectionSchedule(
 				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
 			}
-			teams, err := ds.ListTeams(ctx,
+			teams, _, err := ds.ListTeams(ctx,
 				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
 				fleet.ListOptions{},
 			)
@@ -2551,7 +2551,7 @@ func cronHostVitalsLabelMembership(
 	// An empty TeamFilter (nil User) falls back to the "global-only" filter
 	// (l.team_id IS NULL), which would silently exclude every fleet-scoped host
 	// vitals label and leave them unpopulated. See #46869.
-	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{
+	labels, _, err := ds.ListLabels(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{
 		PerPage: 0, // No limit.
 	}, false)
 	if err != nil {

@@ -188,7 +188,7 @@ var userAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
-func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	sqlStatement := `
 		SELECT users.*, ` + userLastActivitySelect + `
 		FROM users
@@ -204,23 +204,33 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	var err error
 	sqlStatement, params, err = appendListOptionsWithCursorToSQLSecure(sqlStatement, params, &opt.ListOptions, userAllowedOrderKeys)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 	users := []*fleet.User{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, sqlStatement, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list users")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list users")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		// Drop the sentinel row before the per-user team/endpoint loads below.
+		if len(users) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			users = users[:len(users)-1]
+		}
 	}
 
 	if err := ds.loadTeamsForUsers(ctx, users); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load teams")
+		return nil, nil, ctxerr.Wrap(ctx, err, "load teams")
 	}
 
 	if err := ds.loadAPIEndpointsForUsers(ctx, users); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load api endpoints")
+		return nil, nil, ctxerr.Wrap(ctx, err, "load api endpoints")
 	}
 
-	return users, nil
+	return users, metaData, nil
 }
 
 // UsersByIDs returns user summaries matching the provided IDs.

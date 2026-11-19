@@ -33,7 +33,7 @@ type CarveStore interface {
 	Carve(ctx context.Context, carveId int64) (*CarveMetadata, error)
 	CarveBySessionId(ctx context.Context, sessionId string) (*CarveMetadata, error)
 	CarveByName(ctx context.Context, name string) (*CarveMetadata, error)
-	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, error)
+	ListCarves(ctx context.Context, opt CarveListOptions) ([]*CarveMetadata, *PaginationMetadata, error)
 	NewBlock(ctx context.Context, metadata *CarveMetadata, blockId int64, data []byte) error
 	GetBlock(ctx context.Context, metadata *CarveMetadata, blockId int64) ([]byte, error)
 	// CleanupCarves will mark carves older than 24 hours expired, and delete the associated data blocks. This behaves
@@ -77,7 +77,7 @@ type Datastore interface {
 	NewInitialUser(ctx context.Context, user *User) (*User, error)
 	// HasUsers returns whether Fleet has any users registered
 	HasUsers(ctx context.Context) (bool, error)
-	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
+	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, *PaginationMetadata, error)
 	// UsersByIDs returns minimal user info matching the provided IDs.
 	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
@@ -262,7 +262,7 @@ type Datastore interface {
 	// the given label ID, with no team-based filtering. Intended for internal
 	// activity tracking where the unfiltered membership is needed.
 	LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error)
-	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions, includeHostCounts bool) ([]*Label, error)
+	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions, includeHostCounts bool) ([]*Label, *PaginationMetadata, error)
 	LabelsSummary(ctx context.Context, filter TeamFilter) ([]*LabelSummary, error)
 
 	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
@@ -671,8 +671,8 @@ type Datastore interface {
 	// NewInvite creates and stores a new invitation in a DB.
 	NewInvite(ctx context.Context, i *Invite) (*Invite, error)
 
-	// ListInvites lists all invites in the datastore.
-	ListInvites(ctx context.Context, opt ListOptions) ([]*Invite, error)
+	// ListInvites lists a page of invites in the datastore.
+	ListInvites(ctx context.Context, opt ListOptions) ([]*Invite, *PaginationMetadata, error)
 
 	// Invite retrieves an invite by its ID.
 	Invite(ctx context.Context, id uint) (*Invite, error)
@@ -770,7 +770,7 @@ type Datastore interface {
 	// no such team exists. Pass excludeID=0 to check against all teams.
 	TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
-	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
+	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, *PaginationMetadata, error)
 	// TeamsSummary lists id, name and description for all teams.
 	TeamsSummary(ctx context.Context) ([]*TeamSummary, error)
 	// SearchTeams searches teams using the provided query and ommitting the provided existing selection.

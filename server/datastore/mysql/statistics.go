@@ -185,7 +185,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.AnyFailingPoliciesWebhookEnabled = appConfig.WebhookSettings.FailingPoliciesWebhook.Enable
 
 		stats.MaintenanceWindowsEnabled = false
-		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+		teams, _, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
 			GlobalRole: ptr.String(fleet.RoleAdmin),
 		}}, fleet.ListOptions{})
 		if err != nil {

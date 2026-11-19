@@ -17,8 +17,9 @@ type getGlobalScheduleRequest struct {
 }
 
 type getGlobalScheduleResponse struct {
-	GlobalSchedule []*fleet.ScheduledQuery `json:"global_schedule"`
-	Err            error                   `json:"error,omitempty"`
+	GlobalSchedule []*fleet.ScheduledQuery   `json:"global_schedule"`
+	Meta           *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err            error                     `json:"error,omitempty"`
 }
 
 func (r getGlobalScheduleResponse) Error() error { return r.Err }
@@ -26,26 +27,27 @@ func (r getGlobalScheduleResponse) Error() error { return r.Err }
 func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getGlobalScheduleRequest)
 
-	gp, err := svc.GetGlobalScheduledQueries(ctx, req.ListOptions)
+	gp, meta, err := svc.GetGlobalScheduledQueries(ctx, req.ListOptions)
 	if err != nil {
 		return getGlobalScheduleResponse{Err: err}, nil
 	}
 
 	return getGlobalScheduleResponse{
 		GlobalSchedule: gp,
+		Meta:           meta,
 	}, nil
 }
 
-func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	queries, _, _, _, err := svc.ListQueries(ctx, opts, nil, ptr.Bool(true), false, nil) // teamID == nil means global
+func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error) {
+	queries, _, _, meta, err := svc.ListQueries(ctx, opts, nil, ptr.Bool(true), false, nil) // teamID == nil means global
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scheduledQueries := make([]*fleet.ScheduledQuery, 0, len(queries))
 	for _, query := range queries {
 		scheduledQueries = append(scheduledQueries, fleet.ScheduledQueryFromQuery(query))
 	}
-	return scheduledQueries, nil
+	return scheduledQueries, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

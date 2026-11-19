@@ -35,9 +35,10 @@ func (mw metricsMiddleware) DeleteInvite(ctx context.Context, id uint) error {
 	return err
 }
 
-func (mw metricsMiddleware) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (mw metricsMiddleware) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error) {
 	var (
 		invites []*fleet.Invite
+		meta    *fleet.PaginationMetadata
 		err     error
 	)
 	defer func(begin time.Time) {
@@ -45,8 +46,8 @@ func (mw metricsMiddleware) ListInvites(ctx context.Context, opt fleet.ListOptio
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	invites, err = mw.Service.ListInvites(ctx, opt)
-	return invites, err
+	invites, meta, err = mw.Service.ListInvites(ctx, opt)
+	return invites, meta, err
 }
 
 func (mw metricsMiddleware) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {

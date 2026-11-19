@@ -261,7 +261,7 @@ func (ds *Datastore) CarveByName(ctx context.Context, name string) (*fleet.Carve
 	return &metadata, nil
 }
 
-func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 	stmt := fmt.Sprintf(`
 		SELECT %s
 		FROM carve_metadata`,
@@ -272,14 +272,23 @@ func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions)
 	}
 	stmt, params, err := appendListOptionsToSQLSecure(stmt, &opt.ListOptions, carvesAllowedOrderKeys)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list carves")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list carves")
 	}
 	carves := []*fleet.CarveMetadata{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &carves, stmt, params...); err != nil && err != sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, err, "list carves")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list carves")
 	}
 
-	return carves, nil
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(carves) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			carves = carves[:len(carves)-1]
+		}
+	}
+
+	return carves, metaData, nil
 }
 
 func (ds *Datastore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {

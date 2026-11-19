@@ -1064,40 +1064,42 @@ func (svc *Service) teamAfterUsersChange(ctx context.Context, teamID uint) (*fle
 	return team, nil
 }
 
-func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
+func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	opt.IncludeMetadata = true
 	return svc.ds.ListUsers(ctx, fleet.UserListOptions{ListOptions: opt, TeamID: team.ID})
 }
 
-func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	teams, err := svc.ds.ListTeams(ctx, filter, opt)
+	opt.IncludeMetadata = true
+	teams, meta, err := svc.ds.ListTeams(ctx, filter, opt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err = obfuscateSecrets(vc.User, teams); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return teams, nil
+	return teams, meta, nil
 }
 
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {

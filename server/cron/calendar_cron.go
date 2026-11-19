@@ -142,7 +142,7 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock
 	googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
 	domain := googleCalendarIntegrationConfig.Domain
 
-	teams, err := ds.ListTeams(
+	teams, _, err := ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
 				GlobalRole: ptr.String(fleet.RoleAdmin),
@@ -865,7 +865,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger *
 	// Feature is configured globally, but now we have to check team by team.
 	//
 
-	teams, err := ds.ListTeams(
+	teams, _, err := ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
 				GlobalRole: ptr.String(fleet.RoleAdmin),

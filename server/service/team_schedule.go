@@ -22,8 +22,9 @@ type getTeamScheduleRequest struct {
 }
 
 type getTeamScheduleResponse struct {
-	Scheduled []fleet.ScheduledQuery `json:"scheduled"`
-	Err       error                  `json:"error,omitempty"`
+	Scheduled []fleet.ScheduledQuery    `json:"scheduled"`
+	Meta      *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err       error                     `json:"error,omitempty"`
 }
 
 func (r getTeamScheduleResponse) Error() error { return r.Err }
@@ -31,10 +32,11 @@ func (r getTeamScheduleResponse) Error() error { return r.Err }
 func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamScheduleRequest)
 	resp := getTeamScheduleResponse{Scheduled: []fleet.ScheduledQuery{}}
-	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
+	queries, meta, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return getTeamScheduleResponse{Err: err}, nil
 	}
+	resp.Meta = meta
 	for _, q := range queries {
 		resp.Scheduled = append(resp.Scheduled, *q)
 	}
@@ -49,16 +51,16 @@ func teamIDOrNilForGlobal(teamID uint) *uint {
 	return &teamID
 }
 
-func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	queries, _, _, _, err := svc.ListQueries(ctx, opts, teamIDOrNilForGlobal(teamID), new(true), false, nil)
+func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error) {
+	queries, _, _, meta, err := svc.ListQueries(ctx, opts, teamIDOrNilForGlobal(teamID), new(true), false, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scheduledQueries := make([]*fleet.ScheduledQuery, 0, len(queries))
 	for _, query := range queries {
 		scheduledQueries = append(scheduledQueries, fleet.ScheduledQueryFromQuery(query))
 	}
-	return scheduledQueries, nil
+	return scheduledQueries, meta, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

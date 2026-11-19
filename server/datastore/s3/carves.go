@@ -181,7 +181,7 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	}
 	// Oldest-first and capped so a backlog drains deterministically across runs
 	// without any single run making an unbounded number of S3 requests.
-	nonExpiredCarves, err := c.ListCarves(ctx, fleet.CarveListOptions{
+	nonExpiredCarves, _, err := c.ListCarves(ctx, fleet.CarveListOptions{
 		ListOptions: fleet.ListOptions{
 			PerPage:        uint(maxPerRun), //nolint:gosec // bounded small positive config value
 			OrderKey:       "created_at",
@@ -275,7 +275,7 @@ func (c *CarveStore) CarveByName(ctx context.Context, name string) (*fleet.Carve
 }
 
 // ListCarves returns a list of the currently available carves
-func (c *CarveStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (c *CarveStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 	return c.metadatadb.ListCarves(ctx, opt)
 }
 

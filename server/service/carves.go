@@ -26,23 +26,24 @@ import (
 
 func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ListCarvesRequest)
-	carves, err := svc.ListCarves(ctx, req.ListOptions)
+	carves, meta, err := svc.ListCarves(ctx, req.ListOptions)
 	if err != nil {
 		return fleet.ListCarvesResponse{Err: err}, nil
 	}
 
-	resp := fleet.ListCarvesResponse{}
+	resp := fleet.ListCarvesResponse{Meta: meta}
 	for _, carve := range carves {
 		resp.Carves = append(resp.Carves, *carve)
 	}
 	return resp, nil
 }
 
-func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	opt.IncludeMetadata = true
 	return svc.carveStore.ListCarves(ctx, opt)
 }
 

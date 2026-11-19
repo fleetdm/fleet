@@ -88,8 +88,8 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return admin, nil
 	}
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return users, nil
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
+		return users, nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -469,15 +469,15 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
-	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 		if savedTeams != nil {
 			var result []*fleet.Team
 			for _, t := range savedTeams {
 				result = append(result, *t)
 			}
-			return result, nil
+			return result, nil, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 		summary := make([]*fleet.TeamSummary, 0, len(savedTeams))

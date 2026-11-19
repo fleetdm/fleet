@@ -885,12 +885,12 @@ func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.Tea
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
 // MatchQuery not supported
-func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
 	if opt.After != "" {
-		return nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
+		return nil, nil, &fleet.BadRequestError{Message: "parameter 'after' is not supported"}
 	}
 	if opt.MatchQuery != "" {
-		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
+		return nil, nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
 	}
 
 	query := "SELECT l.* FROM labels l "
@@ -920,25 +920,34 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 
 	query, params, err := applyLabelTeamFilter(query, filter)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	query, params, err = appendListOptionsWithCursorToSQLSecure(query, params, &opt, labelsAllowedOrderKeys)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list labels")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list labels")
 	}
 	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
 		// it's ok if no labels exist
 		if err == sql.ErrNoRows {
-			return labels, nil
+			return labels, nil, nil
 		}
 
-		return nil, ctxerr.Wrap(ctx, err, "selecting labels")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting labels")
 	}
 
-	return labels, nil
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(labels) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			labels = labels[:len(labels)-1]
+		}
+	}
+
+	return labels, metaData, nil
 }
 
 var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")

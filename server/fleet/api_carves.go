@@ -9,8 +9,9 @@ type ListCarvesRequest struct {
 }
 
 type ListCarvesResponse struct {
-	Carves []CarveMetadata `json:"carves"`
-	Err    error           `json:"error,omitempty"`
+	Carves []CarveMetadata     `json:"carves"`
+	Meta   *PaginationMetadata `json:"meta,omitempty"`
+	Err    error               `json:"error,omitempty"`
 }
 
 func (r ListCarvesResponse) Error() error { return r.Err }

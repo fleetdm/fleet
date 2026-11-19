@@ -162,30 +162,32 @@ type listInvitesRequest struct {
 }
 
 type listInvitesResponse struct {
-	Invites []fleet.Invite `json:"invites"`
-	Err     error          `json:"error,omitempty"`
+	Invites []fleet.Invite            `json:"invites"`
+	Meta    *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r listInvitesResponse) Error() error { return r.Err }
 
 func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listInvitesRequest)
-	invites, err := svc.ListInvites(ctx, req.ListOptions)
+	invites, meta, err := svc.ListInvites(ctx, req.ListOptions)
 	if err != nil {
 		return listInvitesResponse{Err: err}, nil
 	}
 
-	resp := listInvitesResponse{Invites: []fleet.Invite{}}
+	resp := listInvitesResponse{Invites: []fleet.Invite{}, Meta: meta}
 	for _, invite := range invites {
 		resp.Invites = append(resp.Invites, *invite)
 	}
 	return resp, nil
 }
 
-func (svc *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (svc *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	opt.IncludeMetadata = true
 	return svc.ds.ListInvites(ctx, opt)
 }
 

@@ -530,7 +530,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
 	syncerLogger := logging.NewNanoDEPLogger(ctx, d.logger.With("component", "nanodep-syncer"))
-	teams, err := d.ds.ListTeams(
+	teams, _, err := d.ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
 				GlobalRole: ptr.String(fleet.RoleAdmin),
@@ -2730,7 +2730,7 @@ computeOSTargets:
 
 	// Get a list of all teams that has latest configured for macOS, iOS, or iPadOS.
 	// We use admin global role to have access to all teams.
-	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+	teams, _, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
 		GlobalRole: new("admin"),
 	}}, fleet.ListOptions{})
 	if err != nil {

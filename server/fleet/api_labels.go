@@ -71,8 +71,9 @@ type ListLabelsRequest struct {
 }
 
 type ListLabelsResponse struct {
-	Labels []LabelResponse `json:"labels"`
-	Err    error           `json:"error,omitempty"`
+	Labels []LabelResponse     `json:"labels"`
+	Meta   *PaginationMetadata `json:"meta,omitempty"`
+	Err    error               `json:"error,omitempty"`
 }
 
 func (r ListLabelsResponse) Error() error { return r.Err }

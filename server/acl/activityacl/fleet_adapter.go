@@ -75,7 +75,7 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	}
 
 	// Search users via Fleet service with the query
-	users, err := a.svc.ListUsers(ctx, fleet.UserListOptions{
+	users, _, err := a.svc.ListUsers(ctx, fleet.UserListOptions{
 		ListOptions: fleet.ListOptions{
 			MatchQuery: query,
 		},

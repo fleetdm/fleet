@@ -60,7 +60,7 @@ type CarveBySessionIdFunc func(ctx context.Context, sessionId string) (*fleet.Ca
 
 type CarveByNameFunc func(ctx context.Context, name string) (*fleet.CarveMetadata, error)
 
-type ListCarvesFunc func(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
+type ListCarvesFunc func(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error)
 
 type NewBlockFunc func(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error
 
@@ -74,7 +74,7 @@ type NewInitialUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User
 
 type HasUsersFunc func(ctx context.Context) (bool, error)
 
-type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
+type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error)
 
 type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
@@ -186,7 +186,7 @@ type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) 
 
 type LabelMembershipHostIDsFunc func(ctx context.Context, labelID uint) ([]uint, error)
 
-type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error)
+type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error)
 
 type LabelsSummaryFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error)
 
@@ -444,7 +444,7 @@ type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule,
 
 type NewInviteFunc func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error)
 
-type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error)
+type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error)
 
 type InviteFunc func(ctx context.Context, id uint) (*fleet.Invite, error)
 
@@ -502,7 +502,7 @@ type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team,
 
 type TeamConflictsWithNameFunc func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error)
 
-type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
+type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error)
 
 type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
 
@@ -6579,7 +6579,7 @@ func (s *DataStore) CarveByName(ctx context.Context, name string) (*fleet.CarveM
 	return s.CarveByNameFunc(ctx, name)
 }
 
-func (s *DataStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (s *DataStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListCarvesFuncInvoked = true
 	s.mu.Unlock()
@@ -6628,7 +6628,7 @@ func (s *DataStore) HasUsers(ctx context.Context) (bool, error) {
 	return s.HasUsersFunc(ctx)
 }
 
-func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListUsersFuncInvoked = true
 	s.mu.Unlock()
@@ -7020,7 +7020,7 @@ func (s *DataStore) LabelMembershipHostIDs(ctx context.Context, labelID uint) ([
 	return s.LabelMembershipHostIDsFunc(ctx, labelID)
 }
 
-func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
@@ -7923,7 +7923,7 @@ func (s *DataStore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invi
 	return s.NewInviteFunc(ctx, i)
 }
 
-func (s *DataStore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (s *DataStore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListInvitesFuncInvoked = true
 	s.mu.Unlock()
@@ -8126,7 +8126,7 @@ func (s *DataStore) TeamConflictsWithName(ctx context.Context, name string, excl
 	return s.TeamConflictsWithNameFunc(ctx, name, excludeID)
 }
 
-func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListTeamsFuncInvoked = true
 	s.mu.Unlock()

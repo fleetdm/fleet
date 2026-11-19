@@ -600,7 +600,7 @@ func (ds *Datastore) UpdateTeamUsers(ctx context.Context, teamID uint, set []fle
 
 // ListTeams lists all teams with limit, sort and offset passed in with
 // fleet.ListOptions
-func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 	query := fmt.Sprintf(
 		`
 			SELECT `+teamColumns+`,
@@ -616,16 +616,25 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 	query, params := searchLike(query, nil, matchQuery, teamSearchColumns...)
 	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opt, teamsAllowedOrderKeys)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list teams")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list teams")
 	}
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list teams")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list teams")
+	}
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		// Drop the sentinel row before the per-team secrets queries below.
+		if len(teams) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			teams = teams[:len(teams)-1]
+		}
 	}
 	if err := loadSecretsForTeamsDB(ctx, ds.reader(ctx), teams); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
 	}
-	return teams, nil
+	return teams, metaData, nil
 }
 
 func loadSecretsForTeamsDB(ctx context.Context, q sqlx.QueryerContext, teams []*fleet.Team) error {

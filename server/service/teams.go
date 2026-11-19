@@ -25,32 +25,33 @@ type listTeamsRequest struct {
 }
 
 type listTeamsResponse struct {
-	Teams []fleet.Team `json:"fleets"`
-	Err   error        `json:"error,omitempty"`
+	Teams []fleet.Team              `json:"fleets"`
+	Meta  *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err   error                     `json:"error,omitempty"`
 }
 
 func (r listTeamsResponse) Error() error { return r.Err }
 
 func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listTeamsRequest)
-	teams, err := svc.ListTeams(ctx, req.ListOptions)
+	teams, meta, err := svc.ListTeams(ctx, req.ListOptions)
 	if err != nil {
 		return listTeamsResponse{Err: err}, nil
 	}
 
-	resp := listTeamsResponse{Teams: []fleet.Team{}}
+	resp := listTeamsResponse{Teams: []fleet.Team{}, Meta: meta}
 	for _, team := range teams {
 		resp.Teams = append(resp.Teams, *team)
 	}
 	return resp, nil
 }
 
-func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -368,24 +369,24 @@ type listTeamUsersRequest struct {
 
 func listTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listTeamUsersRequest)
-	users, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
+	users, meta, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return listUsersResponse{Err: err}, nil
 	}
 
-	resp := listUsersResponse{Users: []fleet.User{}}
+	resp := listUsersResponse{Users: []fleet.User{}, Meta: meta}
 	for _, user := range users {
 		resp.Users = append(resp.Users, *user)
 	}
 	return resp, nil
 }
 
-func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
+func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

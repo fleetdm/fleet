@@ -41,7 +41,7 @@ type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule,
 
 type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 
-type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
+type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, meta *fleet.PaginationMetadata, err error)
 
 type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
@@ -155,7 +155,7 @@ type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.
 
 type ModifyLabelFunc func(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error)
 
-type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) (labels []*fleet.Label, err error)
+type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) (labels []*fleet.Label, meta *fleet.PaginationMetadata, err error)
 
 type LabelsSummaryFunc func(ctx context.Context, teamID *uint) (labels []*fleet.LabelSummary, err error)
 
@@ -341,7 +341,7 @@ type InviteNewUserFunc func(ctx context.Context, payload fleet.InvitePayload) (i
 
 type DeleteInviteFunc func(ctx context.Context, id uint) (err error)
 
-type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) (invites []*fleet.Invite, err error)
+type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) (invites []*fleet.Invite, meta *fleet.PaginationMetadata, err error)
 
 type VerifyInviteFunc func(ctx context.Context, token string) (invite *fleet.Invite, err error)
 
@@ -361,7 +361,7 @@ type CarveBlockFunc func(ctx context.Context, payload fleet.CarveBlockPayload) e
 
 type GetCarveFunc func(ctx context.Context, id int64) (*fleet.CarveMetadata, error)
 
-type ListCarvesFunc func(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
+type ListCarvesFunc func(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error)
 
 type GetBlockFunc func(ctx context.Context, carveId int64, blockId int64) ([]byte, error)
 
@@ -379,9 +379,9 @@ type DeleteTeamUsersFunc func(ctx context.Context, teamID uint, users []fleet.Te
 
 type DeleteTeamFunc func(ctx context.Context, id uint) error
 
-type ListTeamsFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error)
+type ListTeamsFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error)
 
-type ListTeamUsersFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error)
+type ListTeamUsersFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error)
 
 type ListAvailableTeamsForUserFunc func(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error)
 
@@ -429,7 +429,7 @@ type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, te
 
 type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
-type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
+type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error)
 
 type ModifyGlobalScheduledQueriesFunc func(ctx context.Context, id uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error)
 
@@ -439,7 +439,7 @@ type TranslateFunc func(ctx context.Context, payloads []fleet.TranslatePayload) 
 
 type TeamScheduleQueryFunc func(ctx context.Context, teamID uint, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
-type GetTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
+type GetTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error)
 
 type ModifyTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, scheduledQueryID uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error)
 
@@ -2535,7 +2535,7 @@ func (s *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs 
 	return s.ListHostIDsDueForDistributedReadFunc(ctx, hostIDs)
 }
 
-func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error) {
+func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, meta *fleet.PaginationMetadata, err error) {
 	s.mu.Lock()
 	s.ListUsersFuncInvoked = true
 	s.mu.Unlock()
@@ -2934,7 +2934,7 @@ func (s *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modify
 	return s.ModifyLabelFunc(ctx, id, payload)
 }
 
-func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) (labels []*fleet.Label, err error) {
+func (s *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamID *uint, includeHostCounts bool) (labels []*fleet.Label, meta *fleet.PaginationMetadata, err error) {
 	s.mu.Lock()
 	s.ListLabelsFuncInvoked = true
 	s.mu.Unlock()
@@ -3585,7 +3585,7 @@ func (s *Service) DeleteInvite(ctx context.Context, id uint) (err error) {
 	return s.DeleteInviteFunc(ctx, id)
 }
 
-func (s *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) (invites []*fleet.Invite, err error) {
+func (s *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) (invites []*fleet.Invite, meta *fleet.PaginationMetadata, err error) {
 	s.mu.Lock()
 	s.ListInvitesFuncInvoked = true
 	s.mu.Unlock()
@@ -3655,7 +3655,7 @@ func (s *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata,
 	return s.GetCarveFunc(ctx, id)
 }
 
-func (s *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (s *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListCarvesFuncInvoked = true
 	s.mu.Unlock()
@@ -3718,14 +3718,14 @@ func (s *Service) DeleteTeam(ctx context.Context, id uint) error {
 	return s.DeleteTeamFunc(ctx, id)
 }
 
-func (s *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (s *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListTeamsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListTeamsFunc(ctx, opt)
 }
 
-func (s *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
+func (s *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListTeamUsersFuncInvoked = true
 	s.mu.Unlock()
@@ -3893,7 +3893,7 @@ func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQu
 	return s.GlobalScheduleQueryFunc(ctx, sq)
 }
 
-func (s *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+func (s *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.GetGlobalScheduledQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -3928,7 +3928,7 @@ func (s *Service) TeamScheduleQuery(ctx context.Context, teamID uint, sq *fleet.
 	return s.TeamScheduleQueryFunc(ctx, teamID, sq)
 }
 
-func (s *Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+func (s *Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.GetTeamScheduledQueriesFuncInvoked = true
 	s.mu.Unlock()

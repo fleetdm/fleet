@@ -473,20 +473,21 @@ type listUsersRequest struct {
 }
 
 type listUsersResponse struct {
-	Users []fleet.User `json:"users"`
-	Err   error        `json:"error,omitempty"`
+	Users []fleet.User              `json:"users"`
+	Meta  *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Err   error                     `json:"error,omitempty"`
 }
 
 func (r listUsersResponse) Error() error { return r.Err }
 
 func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listUsersRequest)
-	users, err := svc.ListUsers(ctx, req.ListOptions)
+	users, meta, err := svc.ListUsers(ctx, req.ListOptions)
 	if err != nil {
 		return listUsersResponse{Err: err}, nil
 	}
 
-	resp := listUsersResponse{Users: []fleet.User{}}
+	resp := listUsersResponse{Users: []fleet.User{}, Meta: meta}
 	for _, user := range users {
 		resp.Users = append(resp.Users, *user)
 	}
@@ -509,23 +510,24 @@ func filterUserTeamsToRequesterScope(teams []fleet.UserTeam, requester *fleet.Us
 	return filtered
 }
 
-func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, *fleet.PaginationMetadata, error) {
 	user := &fleet.User{}
 	if opt.TeamID != 0 {
 		user.Teams = []fleet.UserTeam{{Team: fleet.Team{ID: opt.TeamID}}}
 	}
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, nil, fleet.ErrNoContext
 	}
 
-	users, err := svc.ds.ListUsers(ctx, opt)
+	opt.IncludeMetadata = true
+	users, meta, err := svc.ds.ListUsers(ctx, opt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// The datastore loads each user's full team membership. A team-scoped
@@ -541,7 +543,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		user.Teams = filterUserTeamsToRequesterScope(user.Teams, vc.User)
 	}
 
-	return users, nil
+	return users, meta, nil
 }
 
 func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
