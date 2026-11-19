@@ -223,9 +223,6 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 				return nil, nil
 			}
-			ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-				return nil, nil
-			}
 			ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
 				return nil, nil
 			}
@@ -1555,9 +1552,6 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return nil, nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
@@ -1573,7 +1567,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) {
 		return "", nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {

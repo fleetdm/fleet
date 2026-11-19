@@ -70,6 +70,7 @@ export interface IUser {
   status?: UserStatus;
   fleets: ITeam[];
   api_endpoints?: IApiEndpointRef[];
+  position?: string;
 }
 
 /**

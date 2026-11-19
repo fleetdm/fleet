@@ -145,27 +145,7 @@ type GetSessionByKeyFunc func(ctx context.Context, key string) (session *fleet.S
 
 type DeleteSessionFunc func(ctx context.Context, id uint) (err error)
 
-type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error)
-
-type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
-
-type GetPackSpecFunc func(ctx context.Context, name string) (*fleet.PackSpec, error)
-
-type NewPackFunc func(ctx context.Context, p fleet.PackPayload) (pack *fleet.Pack, err error)
-
-type ModifyPackFunc func(ctx context.Context, id uint, p fleet.PackPayload) (pack *fleet.Pack, err error)
-
-type ListPacksFunc func(ctx context.Context, opt fleet.PackListOptions) (packs []*fleet.Pack, err error)
-
-type GetPackFunc func(ctx context.Context, id uint) (pack *fleet.Pack, err error)
-
-type DeletePackFunc func(ctx context.Context, name string) (err error)
-
-type DeletePackByIDFunc func(ctx context.Context, id uint) (err error)
-
-type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
-
-type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error
+type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error
 
 type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
@@ -180,8 +160,6 @@ type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uin
 type LabelsSummaryFunc func(ctx context.Context, teamID *uint) (labels []*fleet.LabelSummary, err error)
 
 type GetLabelFunc func(ctx context.Context, id uint) (label *fleet.LabelWithTeamName, hostIDs []uint, err error)
-
-type DeleteLabelFunc func(ctx context.Context, name string) (err error)
 
 type DeleteLabelByIDFunc func(ctx context.Context, id uint) (err error)
 
@@ -317,6 +295,12 @@ type UpdateSoftwareNameFunc func(ctx context.Context, titleID uint, name string)
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error)
 
+type ListHostAISessionsFunc func(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error)
+
+type GetHostAISessionFunc func(ctx context.Context, hostID uint, aiSessionID uint) (*fleet.HostAISession, error)
+
+type ListHostAISessionEventsFunc func(ctx context.Context, hostID uint, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error)
+
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
 type HostDeviceURLFunc func(ctx context.Context, hostID uint) (string, error)
@@ -372,16 +356,6 @@ type UpdateInviteFunc func(ctx context.Context, id uint, payload fleet.InvitePay
 type SearchTargetsFunc func(ctx context.Context, searchQuery string, queryID *uint, targets fleet.HostTargets) (*fleet.TargetSearchResults, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, queryID *uint, targets fleet.HostTargets) (*fleet.TargetMetrics, error)
-
-type GetScheduledQueriesInPackFunc func(ctx context.Context, id uint, opts fleet.ListOptions) (queries []*fleet.ScheduledQuery, err error)
-
-type GetScheduledQueryFunc func(ctx context.Context, id uint) (query *fleet.ScheduledQuery, err error)
-
-type ScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (query *fleet.ScheduledQuery, err error)
-
-type DeleteScheduledQueryFunc func(ctx context.Context, id uint) (err error)
-
-type ModifyScheduledQueryFunc func(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (query *fleet.ScheduledQuery, err error)
 
 type StatusResultStoreFunc func(ctx context.Context) error
 
@@ -480,6 +454,16 @@ type DeleteTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, id ui
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error)
+
+type ListPoliciesFunc func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error)
+
+type CountPoliciesFunc func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error)
+
+type NewPolicyFunc func(ctx context.Context, req fleet.CreatePolicyRequest) (*fleet.Policy, error)
+
+type ModifyPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error)
+
+type DeletePoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
@@ -628,18 +612,6 @@ type SkipAuthFunc func(ctx context.Context)
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
-
-type UploadMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error)
-
-type GetMDMAppleInstallerByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
-
-type DeleteMDMAppleInstallerFunc func(ctx context.Context, id uint) error
-
-type GetMDMAppleInstallerByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
-
-type GetMDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
-
-type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
@@ -965,6 +937,20 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
+type ConnectGoogleConditionalAccessFunc func(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error
+
+type GetGoogleConditionalAccessFunc func(ctx context.Context) (*fleet.GoogleConditionalAccessIntegration, *fleet.ConditionalAccessGoogleStatus, error)
+
+type UpdateGoogleConditionalAccessFunc func(ctx context.Context, customerID *string, adminEmail *string, serviceAccountKey json.RawMessage) error
+
+type DeleteGoogleConditionalAccessFunc func(ctx context.Context) error
+
+type GetGoogleConditionalAccessDeviceStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.GoogleConditionalAccessDeviceStatus, error)
+
+type GoogleConditionalAccessSignInRequiredFunc func(ctx context.Context, host *fleet.Host) (bool, error)
+
+type RegisterGoogleConditionalAccessDeviceFunc func(ctx context.Context, secret string, reg fleet.GoogleConditionalAccessRegistration) (fleet.GoogleConditionalAccessRegisterResult, error)
+
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
 type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
@@ -1216,36 +1202,6 @@ type Service struct {
 	DeleteSessionFunc        DeleteSessionFunc
 	DeleteSessionFuncInvoked bool
 
-	ApplyPackSpecsFunc        ApplyPackSpecsFunc
-	ApplyPackSpecsFuncInvoked bool
-
-	GetPackSpecsFunc        GetPackSpecsFunc
-	GetPackSpecsFuncInvoked bool
-
-	GetPackSpecFunc        GetPackSpecFunc
-	GetPackSpecFuncInvoked bool
-
-	NewPackFunc        NewPackFunc
-	NewPackFuncInvoked bool
-
-	ModifyPackFunc        ModifyPackFunc
-	ModifyPackFuncInvoked bool
-
-	ListPacksFunc        ListPacksFunc
-	ListPacksFuncInvoked bool
-
-	GetPackFunc        GetPackFunc
-	GetPackFuncInvoked bool
-
-	DeletePackFunc        DeletePackFunc
-	DeletePackFuncInvoked bool
-
-	DeletePackByIDFunc        DeletePackByIDFunc
-	DeletePackByIDFuncInvoked bool
-
-	ListPacksForHostFunc        ListPacksForHostFunc
-	ListPacksForHostFuncInvoked bool
-
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
@@ -1269,9 +1225,6 @@ type Service struct {
 
 	GetLabelFunc        GetLabelFunc
 	GetLabelFuncInvoked bool
-
-	DeleteLabelFunc        DeleteLabelFunc
-	DeleteLabelFuncInvoked bool
 
 	DeleteLabelByIDFunc        DeleteLabelByIDFunc
 	DeleteLabelByIDFuncInvoked bool
@@ -1474,6 +1427,15 @@ type Service struct {
 	ListHostCertificatesFunc        ListHostCertificatesFunc
 	ListHostCertificatesFuncInvoked bool
 
+	ListHostAISessionsFunc        ListHostAISessionsFunc
+	ListHostAISessionsFuncInvoked bool
+
+	GetHostAISessionFunc        GetHostAISessionFunc
+	GetHostAISessionFuncInvoked bool
+
+	ListHostAISessionEventsFunc        ListHostAISessionEventsFunc
+	ListHostAISessionEventsFuncInvoked bool
+
 	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
 	GetHostRecoveryLockPasswordFuncInvoked bool
 
@@ -1557,21 +1519,6 @@ type Service struct {
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
-
-	GetScheduledQueriesInPackFunc        GetScheduledQueriesInPackFunc
-	GetScheduledQueriesInPackFuncInvoked bool
-
-	GetScheduledQueryFunc        GetScheduledQueryFunc
-	GetScheduledQueryFuncInvoked bool
-
-	ScheduleQueryFunc        ScheduleQueryFunc
-	ScheduleQueryFuncInvoked bool
-
-	DeleteScheduledQueryFunc        DeleteScheduledQueryFunc
-	DeleteScheduledQueryFuncInvoked bool
-
-	ModifyScheduledQueryFunc        ModifyScheduledQueryFunc
-	ModifyScheduledQueryFuncInvoked bool
 
 	StatusResultStoreFunc        StatusResultStoreFunc
 	StatusResultStoreFuncInvoked bool
@@ -1719,6 +1666,21 @@ type Service struct {
 
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
+
+	ListPoliciesFunc        ListPoliciesFunc
+	ListPoliciesFuncInvoked bool
+
+	CountPoliciesFunc        CountPoliciesFunc
+	CountPoliciesFuncInvoked bool
+
+	NewPolicyFunc        NewPolicyFunc
+	NewPolicyFuncInvoked bool
+
+	ModifyPolicyFunc        ModifyPolicyFunc
+	ModifyPolicyFuncInvoked bool
+
+	DeletePoliciesFunc        DeletePoliciesFunc
+	DeletePoliciesFuncInvoked bool
 
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
@@ -1941,24 +1903,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	UploadMDMAppleInstallerFunc        UploadMDMAppleInstallerFunc
-	UploadMDMAppleInstallerFuncInvoked bool
-
-	GetMDMAppleInstallerByIDFunc        GetMDMAppleInstallerByIDFunc
-	GetMDMAppleInstallerByIDFuncInvoked bool
-
-	DeleteMDMAppleInstallerFunc        DeleteMDMAppleInstallerFunc
-	DeleteMDMAppleInstallerFuncInvoked bool
-
-	GetMDMAppleInstallerByTokenFunc        GetMDMAppleInstallerByTokenFunc
-	GetMDMAppleInstallerByTokenFuncInvoked bool
-
-	GetMDMAppleInstallerDetailsByTokenFunc        GetMDMAppleInstallerDetailsByTokenFunc
-	GetMDMAppleInstallerDetailsByTokenFuncInvoked bool
-
-	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
-	ListMDMAppleInstallersFuncInvoked bool
 
 	ListMDMAppleDevicesFunc        ListMDMAppleDevicesFunc
 	ListMDMAppleDevicesFuncInvoked bool
@@ -2445,6 +2389,27 @@ type Service struct {
 
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	ConnectGoogleConditionalAccessFunc        ConnectGoogleConditionalAccessFunc
+	ConnectGoogleConditionalAccessFuncInvoked bool
+
+	GetGoogleConditionalAccessFunc        GetGoogleConditionalAccessFunc
+	GetGoogleConditionalAccessFuncInvoked bool
+
+	UpdateGoogleConditionalAccessFunc        UpdateGoogleConditionalAccessFunc
+	UpdateGoogleConditionalAccessFuncInvoked bool
+
+	DeleteGoogleConditionalAccessFunc        DeleteGoogleConditionalAccessFunc
+	DeleteGoogleConditionalAccessFuncInvoked bool
+
+	GetGoogleConditionalAccessDeviceStatusFunc        GetGoogleConditionalAccessDeviceStatusFunc
+	GetGoogleConditionalAccessDeviceStatusFuncInvoked bool
+
+	GoogleConditionalAccessSignInRequiredFunc        GoogleConditionalAccessSignInRequiredFunc
+	GoogleConditionalAccessSignInRequiredFuncInvoked bool
+
+	RegisterGoogleConditionalAccessDeviceFunc        RegisterGoogleConditionalAccessDeviceFunc
+	RegisterGoogleConditionalAccessDeviceFuncInvoked bool
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
@@ -2979,81 +2944,11 @@ func (s *Service) DeleteSession(ctx context.Context, id uint) (err error) {
 	return s.DeleteSessionFunc(ctx, id)
 }
 
-func (s *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.ApplyPackSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyPackSpecsFunc(ctx, specs)
-}
-
-func (s *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.GetPackSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackSpecsFunc(ctx)
-}
-
-func (s *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.GetPackSpecFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackSpecFunc(ctx, name)
-}
-
-func (s *Service) NewPack(ctx context.Context, p fleet.PackPayload) (pack *fleet.Pack, err error) {
-	s.mu.Lock()
-	s.NewPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewPackFunc(ctx, p)
-}
-
-func (s *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload) (pack *fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ModifyPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyPackFunc(ctx, id, p)
-}
-
-func (s *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) (packs []*fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ListPacksFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPacksFunc(ctx, opt)
-}
-
-func (s *Service) GetPack(ctx context.Context, id uint) (pack *fleet.Pack, err error) {
-	s.mu.Lock()
-	s.GetPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackFunc(ctx, id)
-}
-
-func (s *Service) DeletePack(ctx context.Context, name string) (err error) {
-	s.mu.Lock()
-	s.DeletePackFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeletePackFunc(ctx, name)
-}
-
-func (s *Service) DeletePackByID(ctx context.Context, id uint) (err error) {
-	s.mu.Lock()
-	s.DeletePackByIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeletePackByIDFunc(ctx, id)
-}
-
-func (s *Service) ListPacksForHost(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ListPacksForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPacksForHostFunc(ctx, hid)
-}
-
-func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
+func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error {
 	s.mu.Lock()
 	s.ApplyLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ApplyLabelSpecsFunc(ctx, specs, teamID, namesToMove)
+	return s.ApplyLabelSpecsFunc(ctx, specs, teamID, labelsToMove)
 }
 
 func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
@@ -3103,13 +2998,6 @@ func (s *Service) GetLabel(ctx context.Context, id uint) (label *fleet.LabelWith
 	s.GetLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLabelFunc(ctx, id)
-}
-
-func (s *Service) DeleteLabel(ctx context.Context, name string) (err error) {
-	s.mu.Lock()
-	s.DeleteLabelFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteLabelFunc(ctx, name)
 }
 
 func (s *Service) DeleteLabelByID(ctx context.Context, id uint) (err error) {
@@ -3581,6 +3469,27 @@ func (s *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fl
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
 }
 
+func (s *Service) ListHostAISessions(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsFunc(ctx, hostID, opts)
+}
+
+func (s *Service) GetHostAISession(ctx context.Context, hostID uint, aiSessionID uint) (*fleet.HostAISession, error) {
+	s.mu.Lock()
+	s.GetHostAISessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAISessionFunc(ctx, hostID, aiSessionID)
+}
+
+func (s *Service) ListHostAISessionEvents(ctx context.Context, hostID uint, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionEventsFunc(ctx, hostID, aiSessionID, opts)
+}
+
 func (s *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
 	s.mu.Lock()
 	s.GetHostRecoveryLockPasswordFuncInvoked = true
@@ -3775,41 +3684,6 @@ func (s *Service) CountHostsInTargets(ctx context.Context, queryID *uint, target
 	s.CountHostsInTargetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountHostsInTargetsFunc(ctx, queryID, targets)
-}
-
-func (s *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) (queries []*fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.GetScheduledQueriesInPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetScheduledQueriesInPackFunc(ctx, id, opts)
-}
-
-func (s *Service) GetScheduledQuery(ctx context.Context, id uint) (query *fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.GetScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetScheduledQueryFunc(ctx, id)
-}
-
-func (s *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (query *fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.ScheduleQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ScheduleQueryFunc(ctx, sq)
-}
-
-func (s *Service) DeleteScheduledQuery(ctx context.Context, id uint) (err error) {
-	s.mu.Lock()
-	s.DeleteScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteScheduledQueryFunc(ctx, id)
-}
-
-func (s *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (query *fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.ModifyScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyScheduledQueryFunc(ctx, id, p)
 }
 
 func (s *Service) StatusResultStore(ctx context.Context) error {
@@ -4153,6 +4027,41 @@ func (s *Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions
 	s.ListGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListGlobalPoliciesFunc(ctx, opts, platform)
+}
+
+func (s *Service) ListPolicies(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ListPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPoliciesFunc(ctx, teamID, mergeInherited, opts, filter)
+}
+
+func (s *Service) CountPolicies(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter fleet.PolicyListFilter) (int, error) {
+	s.mu.Lock()
+	s.CountPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountPoliciesFunc(ctx, teamID, mergeInherited, matchQuery, filter)
+}
+
+func (s *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.NewPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewPolicyFunc(ctx, req)
+}
+
+func (s *Service) ModifyPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+	s.mu.Lock()
+	s.ModifyPolicyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ModifyPolicyFunc(ctx, id, p)
+}
+
+func (s *Service) DeletePolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	s.mu.Lock()
+	s.DeletePoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeletePoliciesFunc(ctx, ids)
 }
 
 func (s *Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
@@ -4671,48 +4580,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.UploadMDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.UploadMDMAppleInstallerFunc(ctx, name, size, installer)
-}
-
-func (s *Service) GetMDMAppleInstallerByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.GetMDMAppleInstallerByIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleInstallerByIDFunc(ctx, id)
-}
-
-func (s *Service) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleInstallerFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleInstallerFunc(ctx, id)
-}
-
-func (s *Service) GetMDMAppleInstallerByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.GetMDMAppleInstallerByTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleInstallerByTokenFunc(ctx, token)
-}
-
-func (s *Service) GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.GetMDMAppleInstallerDetailsByTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleInstallerDetailsByTokenFunc(ctx, token)
-}
-
-func (s *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-	s.mu.Lock()
-	s.ListMDMAppleInstallersFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleInstallersFunc(ctx)
 }
 
 func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
@@ -5847,6 +5714,55 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConnectGoogleConditionalAccess(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error {
+	s.mu.Lock()
+	s.ConnectGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConnectGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
+}
+
+func (s *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.GoogleConditionalAccessIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessFunc(ctx)
+}
+
+func (s *Service) UpdateGoogleConditionalAccess(ctx context.Context, customerID *string, adminEmail *string, serviceAccountKey json.RawMessage) error {
+	s.mu.Lock()
+	s.UpdateGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
+}
+
+func (s *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessFunc(ctx)
+}
+
+func (s *Service) GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *fleet.Host) (*fleet.GoogleConditionalAccessDeviceStatus, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessDeviceStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessDeviceStatusFunc(ctx, host)
+}
+
+func (s *Service) GoogleConditionalAccessSignInRequired(ctx context.Context, host *fleet.Host) (bool, error) {
+	s.mu.Lock()
+	s.GoogleConditionalAccessSignInRequiredFuncInvoked = true
+	s.mu.Unlock()
+	return s.GoogleConditionalAccessSignInRequiredFunc(ctx, host)
+}
+
+func (s *Service) RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg fleet.GoogleConditionalAccessRegistration) (fleet.GoogleConditionalAccessRegisterResult, error) {
+	s.mu.Lock()
+	s.RegisterGoogleConditionalAccessDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.RegisterGoogleConditionalAccessDeviceFunc(ctx, secret, reg)
 }
 
 func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {

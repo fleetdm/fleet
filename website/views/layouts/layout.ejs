@@ -285,7 +285,7 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
                             <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux device management">
@@ -583,7 +583,7 @@
                         </div>
                       </a>
 
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
                             <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux device management">
@@ -877,7 +877,9 @@
       <% } %>
 
 
-      <%- body %>
+      <div purpose="page-body">
+        <%- body %>
+      </div>
       <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
@@ -897,10 +899,12 @@
               <a href="/support">Support</a>
               <a href="/pricing">Pricing</a>
               <a href="/partners">Partners</a>
+              <a href="/login">Login</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
               <a href="/docs">Docs</a>
+              <a href="/guides">Guides</a>
               <a href="/docs/rest-api">API</a>
               <a href="/releases">Release notes</a>
               <a href="/download">Downloads</a>
@@ -1056,6 +1060,8 @@
     <script src="/js/components/open-positions.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
+    <script src="/js/components/teams-chat-graphic.component.js"></script>
+    <script src="/js/utilities/primary-button-spotlight.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
     <script src="/js/pages/admin/email-preview.page.js"></script>
@@ -1121,6 +1127,7 @@
     <script src="/js/pages/landing-pages/apple-mdm.page.js"></script>
     <script src="/js/pages/landing-pages/autonomous-endpoint-management.page.js"></script>
     <script src="/js/pages/landing-pages/on-premise.page.js"></script>
+    <script src="/js/pages/landing-pages/open-by-design.page.js"></script>
     <script src="/js/pages/landing-pages/open-source.page.js"></script>
     <script src="/js/pages/landing-pages/patch-faster.page.js"></script>
     <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>

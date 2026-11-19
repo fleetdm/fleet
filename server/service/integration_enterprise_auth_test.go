@@ -1136,7 +1136,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 		name := fmt.Sprintf("api-only delete report grants %d", reportCount)
 		var resp fleet.CreateQueryResponse
 		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
-		return resp.Query
+		return resp.Report
 	}
 	requireDenied := func(path string) {
 		res := s.Do("DELETE", path, nil, http.StatusForbidden)

@@ -58,6 +58,10 @@ import {
   IHostUpcomingActivity,
 } from "interfaces/activity";
 import {
+  AI_SESSIONS_DEFAULT_SORT,
+  IHostAISession,
+} from "interfaces/ai_sessions";
+import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
@@ -105,6 +109,8 @@ import activitiesAPI, {
 } from "services/entities/activities";
 import commandAPI from "services/entities/command";
 import hostAPI, {
+  IGetHostAISessionsApiParams,
+  IGetHostAISessionsResponse,
   IGetHostCertificatesResponse,
   IGetHostCertsApiParams,
 } from "services/entities/hosts";
@@ -134,6 +140,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
+import AISessionsCard from "../cards/AISessions";
 import CertificatesCard from "../cards/Certificates";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
@@ -159,6 +166,7 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import HostReportsTab from "../HostReportsTab";
+import AISessionModal from "../modals/AISessionModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
 import HostOnlineHistoryModal from "../modals/HostOnlineHistoryModal";
@@ -171,6 +179,7 @@ import { useHostDetailsBanner } from "./components/HostDetailsBanners";
 import ReleaseFromABModal from "./components/ReleaseFromABModal";
 import {
   canShowMyDeviceButton,
+  canViewHostAISessions,
   getErrorMessage,
   hasEverEnrolled,
   getCanManageSelfServiceProfiles,
@@ -289,13 +298,14 @@ interface IHostDetailsSubNavItem {
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
+const DEFAULT_AI_SESSIONS_PAGE_SIZE = 10;
 
 const HostDetailsPage = ({
   router,
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
-  const hostIdFromURL = parseInt(host_id, 10);
+  const hostIdFromURL = /^\d+$/.test(host_id) ? Number(host_id) : NaN;
 
   const {
     config,
@@ -312,6 +322,10 @@ const HostDetailsPage = ({
   } = useContext(AppContext);
 
   const handlePageError = useErrorHandler();
+
+  if (!hostIdFromURL) {
+    handlePageError({ status: 404 });
+  }
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
@@ -487,6 +501,23 @@ const HostDetailsPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
+  // AI sessions states
+  const [
+    selectedAISession,
+    setSelectedAISession,
+  ] = useState<IHostAISession | null>(null);
+  const [aiSessionsPage, setAISessionsPage] = useState(0);
+  const [sortAISessions, setSortAISessions] = useState<IListSort>({
+    ...AI_SESSIONS_DEFAULT_SORT,
+  });
+
+  // The route keeps this page mounted when moving to another host.
+  useEffect(() => {
+    setSelectedAISession(null);
+    setAISessionsPage(0);
+    setSortAISessions({ ...AI_SESSIONS_DEFAULT_SORT });
+  }, [hostIdFromURL]);
+
   const { data: teams, isError: isTeamsError } = useQuery<
     ILoadTeamsResponse,
     Error,
@@ -542,6 +573,10 @@ const HostDetailsPage = ({
   const refetchExtensions = () => {
     macadmins !== null && refetchMacadmins();
     hostCertificates && refetchHostCertificates();
+    // Not on cached data: keepPreviousData holds the last host's sessions
+    // after moving to one whose card is hidden, and refetch ignores enabled.
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    showAISessionsCard && refetchHostAISessions();
   };
 
   // Clears any pending next-poll timer so re-entries into onSuccess (e.g. react-query's
@@ -685,12 +720,49 @@ const HostDetailsPage = ({
     }
   );
 
+  const showAISessionsCard = canViewHostAISessions({
+    isPremiumTier,
+    currentUser,
+    host,
+  });
+
+  const {
+    data: hostAISessions,
+    isLoading: isLoadingHostAISessions,
+    isPreviousData: isPreviousDataHostAISessions,
+    isError: isErrorHostAISessions,
+    refetch: refetchHostAISessions,
+  } = useQuery<
+    IGetHostAISessionsResponse,
+    Error,
+    IGetHostAISessionsResponse,
+    Array<IGetHostAISessionsApiParams & { scope: "host-ai-sessions" }>
+  >(
+    [
+      {
+        scope: "host-ai-sessions",
+        host_id: hostIdFromURL,
+        page: aiSessionsPage,
+        per_page: DEFAULT_AI_SESSIONS_PAGE_SIZE,
+        order_key: sortAISessions.order_key,
+        order_direction: sortAISessions.order_direction,
+      },
+    ],
+    ({ queryKey }) => hostAPI.getHostAISessions(queryKey[0]),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: showAISessionsCard,
+      keepPreviousData: true,
+      staleTime: 15000,
+    }
+  );
+
   // get activities data. This is at the host details level because we want to
   // wait to show the host details page until we have the activities data.
   const {
     data: pastActivities,
-    isFetching: pastActivitiesIsFetching,
     isLoading: pastActivitiesIsLoading,
+    isPreviousData: pastActivitiesIsPreviousData,
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
@@ -702,7 +774,6 @@ const HostDetailsPage = ({
       hostId: number;
       pageIndex: number;
       perPage: number;
-      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -711,7 +782,6 @@ const HostDetailsPage = ({
         hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
-        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
@@ -726,8 +796,8 @@ const HostDetailsPage = ({
 
   const {
     data: upcomingActivities,
-    isFetching: upcomingActivitiesIsFetching,
     isLoading: upcomingActivitiesIsLoading,
+    isPreviousData: upcomingActivitiesIsPreviousData,
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
@@ -739,7 +809,6 @@ const HostDetailsPage = ({
       hostId: number;
       pageIndex: number;
       perPage: number;
-      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -748,7 +817,6 @@ const HostDetailsPage = ({
         hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
-        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
@@ -779,8 +847,8 @@ const HostDetailsPage = ({
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
-    isFetching: pastMDMCommandsIsFetching,
     isLoading: pastMDMCommandsIsLoading,
+    isPreviousData: pastMDMCommandsIsPreviousData,
   } = useQuery(
     [
       {
@@ -788,7 +856,6 @@ const HostDetailsPage = ({
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
-        activeTab: activeActivityTab,
         commandStatus: "ran,failed",
       },
     ],
@@ -811,8 +878,8 @@ const HostDetailsPage = ({
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
-    isFetching: upcomingMDMCommandsIsFetching,
     isLoading: upcomingMDMCommandsIsLoading,
+    isPreviousData: upcomingMDMCommandsIsPreviousData,
   } = useQuery(
     [
       {
@@ -820,7 +887,6 @@ const HostDetailsPage = ({
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         hostUUID: host?.uuid,
-        activeTab: activeActivityTab,
         commandStatus: "pending",
       },
     ],
@@ -1396,8 +1462,10 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
-            : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+            ? mdmConfig?.setup_experience
+                ?.windows_managed_local_account_enabled ?? false
+            : mdmConfig?.setup_experience
+                ?.macos_managed_local_account_enabled ?? false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
@@ -1930,9 +1998,14 @@ const HostDetailsPage = ({
                   }
                   isLoading={
                     activeActivityTab === "past"
-                      ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
-                      : upcomingActivitiesIsFetching ||
-                        upcomingMDMCommandsIsFetching
+                      ? pastActivitiesIsLoading ||
+                        pastMDMCommandsIsLoading ||
+                        pastActivitiesIsPreviousData ||
+                        pastMDMCommandsIsPreviousData
+                      : upcomingActivitiesIsLoading ||
+                        upcomingMDMCommandsIsLoading ||
+                        upcomingActivitiesIsPreviousData ||
+                        upcomingMDMCommandsIsPreviousData
                   }
                   isError={
                     activeActivityTab === "past"
@@ -1996,6 +2069,26 @@ const HostDetailsPage = ({
                     osqueryData={osqueryData}
                     wrapFleetHelper={wrapFleetHelper}
                     isChromeOS={host?.platform === "chrome"}
+                  />
+                )}
+                {showAISessionsCard && (
+                  <AISessionsCard
+                    className={fullWidthCardClass}
+                    data={hostAISessions}
+                    isLoading={isLoadingHostAISessions}
+                    isPreviousData={isPreviousDataHostAISessions}
+                    isError={isErrorHostAISessions}
+                    page={aiSessionsPage}
+                    pageSize={DEFAULT_AI_SESSIONS_PAGE_SIZE}
+                    onSelectSession={setSelectedAISession}
+                    onNextPage={() => setAISessionsPage(aiSessionsPage + 1)}
+                    onPreviousPage={() => setAISessionsPage(aiSessionsPage - 1)}
+                    sortDirection={sortAISessions.order_direction}
+                    sortHeader={sortAISessions.order_key}
+                    onSortChange={(sort) => {
+                      setAISessionsPage(0);
+                      setSortAISessions(sort);
+                    }}
                   />
                 )}
                 {showLocalUserAccountsCard && (
@@ -2077,7 +2170,7 @@ const HostDetailsPage = ({
                     router={router}
                     location={location}
                     saveReportsDisabledInConfig={
-                      config?.server_settings?.query_reports_disabled
+                      config?.server_settings?.discard_reports_data
                     }
                     showReportsEmptyState={showReportsEmptyState}
                     canScheduleReport={canScheduleReport}
@@ -2473,6 +2566,13 @@ const HostDetailsPage = ({
               onExit={() => setSelectedCertificate(null)}
             />
           )}
+          {showAISessionsCard && selectedAISession && (
+            <AISessionModal
+              hostId={host.id}
+              session={selectedAISession}
+              onExit={() => setSelectedAISession(null)}
+            />
+          )}
         </>
         {showUpdateEndUserModal && (
           <UpdateEndUserModal
@@ -2490,10 +2590,6 @@ const HostDetailsPage = ({
             iosOrIpadosDetails={{
               isIosOrIpadosHost,
               hostMdmDeviceStatus,
-            }}
-            onClickLock={() => {
-              setShowLockHostModal(true);
-              setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
           />

@@ -114,6 +114,11 @@ When a Fleetie is blocked from connecting a third-party app to their Google Work
 5. Comment on the issue with the decision, the scopes granted, and the reason, then close the issue. This comment is the audit trail for future access reviews.
 
 
+### Schedule access reviews
+
+IT schedules quarterly and annual access reviews directly in [Vanta](https://www.vanta.com/) using its built-in access review scheduling. These reviews meet the [access authorization and termination policy](https://fleetdm.com/handbook/it/security#access-authorization-and-termination).
+
+
 ### Exclude a host from a screen lock policy
 
 The `macOS - Screen lock after inactivity (15 minutes or less)` and `Windows - Interactive logon screen lock timeout configured` policies, plus their associated configuration profiles (`screen-lock-inactivity.mobileconfig`, `Screen lock timeout.xml`), are deployed to every host on the [💻 Workstations](https://github.com/fleetdm/fleet/blob/main/it-and-security/fleets/workstations.yml) fleet. To exclude a host (e.g., a kiosk, a conference-room display driver, or a host under approved temporary investigation), add its Fleet host ID to the matching exclusion label.

@@ -38,7 +38,44 @@ try {
     Sort-Object { [version]$_.Version } -Descending |
     Select-Object -First 1
   if ($newer) {
-    Write-Host "$softwareName $($newer.Version) is already on this host, which is newer than this installer ($($identity.Version)). Nothing to install."
+    Write-Host "$softwareName $($newer.Version) is already on this host, which is newer than this installer ($($identity.Version))."
+
+    # A copy registered only for other users isn't available to the console user, not even
+    # after they sign in again, so register the copy that's already on the host for them.
+    $userName = (Get-CimInstance Win32_ComputerSystem).UserName
+    if (-not $userName -or $userName -notlike "*\*") {
+      Write-Host "No interactive user logged on. Nothing to install."
+      Exit 0
+    }
+    $registered = {
+      Get-AppxPackage -User $userName -Name $identity.Name |
+        Where-Object { [version]$_.Version -ge [version]$identity.Version }
+    }
+    if (& $registered) {
+      Write-Host "It's already registered for '$userName'. Nothing to install."
+      Exit 0
+    }
+
+    $familyName = (Get-AppxPackage -AllUsers -Name $identity.Name | Select-Object -First 1).PackageFamilyName
+    Write-Host "Registering $familyName for '$userName' via scheduled task..."
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
+      -Argument "-NoProfile -WindowStyle Hidden -Command `"Add-AppxPackage -RegisterByFamilyName -MainPackage '$familyName'`""
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $principal = New-ScheduledTaskPrincipal -UserId $userName -RunLevel Highest
+    $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -User $userName -Force | Out-Null
+    Start-ScheduledTask -TaskName $taskName
+
+    $startDate = Get-Date
+    while (-not (& $registered)) {
+      if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 90) {
+        Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        Write-Host "Error: $softwareName wasn't registered for '$userName' within 90s."
+        Exit 1
+      }
+      Start-Sleep -Seconds 2
+    }
+    Write-Host "Registered $softwareName for '$userName'."
     Exit 0
   }
 

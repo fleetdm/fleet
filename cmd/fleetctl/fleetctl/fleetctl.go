@@ -71,7 +71,6 @@ func CreateApp(
 		},
 		triggerCommand(),
 		mdmCommand(),
-		upgradePacksCommand(),
 		runScriptCommand(),
 		gitopsCommand(),
 		generateGitopsCommand(),

@@ -300,6 +300,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "fluidvoice" {
+		// FluidVoice's updater keeps copies of the versions it replaced under
+		// "~/Library/Application Support/Fluid/RollbackBackups/"; Spotlight indexes
+		// them, so they report the app's bundle identifier at an old version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/Library/Application Support/Fluid/RollbackBackups/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "sonos" {
 		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
 		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
@@ -371,13 +380,33 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			)
 		}
 	}
+	if input.Token == "munki" {
+		// Managed Software Center.app isn't rebuilt on every munkitools release
+		// (7.4.0 and 7.4.1 both ship it as 7.4.0.5891), so its version usually lags
+		// the cask's. The version must be the app's: Fleet flags "Update available"
+		// when inventory reports less than the installer version, which would stick
+		// on up-to-date hosts. The patched query compares the core receipt instead,
+		// which changes every release. Both come from the installer itself. An
+		// installed app with no core receipt counts as outdated, while hosts
+		// without Munki still pass.
+		versions, err := external_refs.MunkiPackageVersions(ctx, out.InstallerURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading Munki versions from installer")
+		}
+		out.Version = versions.App
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core' AND version_compare(version, '%s') < 0) AND (EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core') OR NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s'));",
+			versions.Core, out.UniqueIdentifier,
+		)
+	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
 		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
-		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill":
+		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "redcine-x-pro":
 		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
 		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",
-		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326"),
+		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326",
+		// "65.2" for REDCINE-X PRO's "65.2.1"),
 		// which version_compare sorts below the cask version even for x.y.0 releases.
 		// Axure RP has no short version, and GoToMeeting's and MacVim's is a marketing
 		// version the cask doesn't track. Compare against caskVersion: a shortener in
@@ -523,6 +552,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
 			out.UniqueIdentifier, roboformLegacyBundleID,
 		)
+	case "druva-insync", "druva-insync@govcloud":
+		// The app itself is a launch agent that's always running, so only the
+		// client window nested inside it counts as open.
+		out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", druvaInSyncClientBundleID, "")
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -545,6 +578,9 @@ const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
 
 // roboformLegacyBundleID is the bundle identifier RoboForm used before 10.0.
 const roboformLegacyBundleID = "com.SiberSystems.RoboForm"
+
+// druvaInSyncClientBundleID is the client app nested in Druva inSync.app.
+const druvaInSyncClientBundleID = "com.druva.inSyncClient"
 
 // zenChannelLetters are trimmed from the end of Zen versions ("1.24.1b" → "1.24.1").
 const zenChannelLetters = "abcdefghijklmnopqrstuvwxyz"

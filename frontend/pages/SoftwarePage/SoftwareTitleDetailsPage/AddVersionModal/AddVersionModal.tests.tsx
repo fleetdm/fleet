@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { createMockAppStoreAppIos } from "__mocks__/softwareMock";
+import { createMockAppStoreAppVersionIos } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
@@ -12,7 +12,8 @@ import AddVersionModal from "./AddVersionModal";
 const BASE_PROPS = {
   softwareTitleId: 42,
   teamId: 1,
-  appStore: createMockAppStoreAppIos(),
+  appStore: createMockAppStoreAppVersionIos(),
+  titleDisplayName: "Zoom Workplace",
   existingVersionNames: [],
   onExit: jest.fn(),
   onSuccess: jest.fn(),
@@ -96,7 +97,7 @@ describe("AddVersionModal", () => {
   });
 
   it("hides the Auto updates section on Android titles", () => {
-    const androidApp = createMockAppStoreAppIos({
+    const androidApp = createMockAppStoreAppVersionIos({
       platform: "android",
       app_store_id: "com.example.app",
     });
@@ -105,7 +106,7 @@ describe("AddVersionModal", () => {
   });
 
   it("surfaces the Configuration editor error when Android JSON is invalid", async () => {
-    const androidApp = createMockAppStoreAppIos({
+    const androidApp = createMockAppStoreAppVersionIos({
       platform: "android",
       app_store_id: "com.example.app",
     });
@@ -186,7 +187,7 @@ describe("AddVersionModal", () => {
 
     it("sends the title's VPP token id", async () => {
       const body = await submitVersion({
-        appStore: createMockAppStoreAppIos({
+        appStore: createMockAppStoreAppVersionIos({
           vpp_token: {
             id: 2,
             location: "Acme K.K.",
@@ -200,7 +201,7 @@ describe("AddVersionModal", () => {
 
     it("omits vpp_token_id when the title has no token", async () => {
       const body = await submitVersion({
-        appStore: createMockAppStoreAppIos({ vpp_token: null }),
+        appStore: createMockAppStoreAppVersionIos({ vpp_token: null }),
       });
       expect(body).not.toHaveProperty("vpp_token_id");
     });

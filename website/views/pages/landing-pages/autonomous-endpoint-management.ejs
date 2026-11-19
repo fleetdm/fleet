@@ -26,7 +26,7 @@
             </h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Manage, patch, and secure machines at exploit speed. Humans approve every change.</p>
+            <p>Manage, patch, and secure devices at exploit speed. Say what you need done, AI drafts the change, and a person on your team approves it before it touches a device.</p>
           </div>
           <%/* Hero CTA buttons - hidden for now, may re-enable later
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
@@ -144,8 +144,8 @@
 
       <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h2>Built for modern endpoint teams</h2>
-          <p>Fleet's autonomous capabilities ship in every license. Not as a separate product, not as an upsell.</p>
+          <h2>Built for modern IT and security teams</h2>
+          <p>Fleet's autonomous capabilities ship in every license. It isn’t a separate product or an upsell.</p>
         </div>
         <div purpose="feature-row">
           <div purpose="feature-item">
@@ -170,7 +170,7 @@
           </div>
           <div purpose="feature-item">
             <h5>Every major OS</h5>
-            <p>One platform, one policy engine, one inventory across laptops, phones, and servers running macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS.</p>
+            <p>One platform, one policy engine, one inventory across laptops, phones, and servers running <a href="/apple">macOS</a>, <a href="/windows">Windows</a>, <a href="/linux">Linux</a>, iOS, iPadOS, Android, and ChromeOS.</p>
           </div>
         </div>
       </div>
@@ -188,16 +188,16 @@
       <div purpose="landing-page-section">
         <div purpose="feature-with-image" class="reverse">
           <div purpose="feature-image">
-            <img alt="A screenshot of Fleet's GitOps workflow showing a pull request reviewing a configuration change" src="/images/fleet-gitops-workflow-471x337@2x.png">
+            <img alt="A chat asking to make sure Firefox is up to date, and the change AI proposed, reviewed and approved by a person on the IT team." src="/images/jamf-alternative-feature-image-524x591@2x.png">
           </div>
           <div purpose="feature-text">
             <h3>Autonomous, with humans still in charge</h3>
-            <p>Fleet has prioritized change control and GitOps-mode from the very beginning. As auto-patching becomes inevitable, auditability, undo-ability, and special exceptions matter even more, especially at tens of thousands of devices.</p>
+            <p>Fleet has prioritized change control and GitOps from the very beginning. As auto-patching becomes inevitable, auditing, undo, and special exceptions matter even more, especially at tens of thousands of devices.</p>
             <div purpose="checklist">
-              <p>Manage profiles, policies, and software in version-controlled YAML</p>
-              <p>Review every change in a pull request before it ships</p>
+              <p>Ask for changes to profiles, policies, and software in plain language</p>
+              <p>Review every change before it ships</p>
               <p>Push changes to thousands of devices in one action</p>
-              <p>Roll back any change with a single git revert</p>
+              <p>Undo any change</p>
               <p>Audit every change in the activity log</p>
             </div>
           </div>
@@ -217,7 +217,7 @@
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>AI writes the policies. You approve them.</h3>
-          <p>Describe what you want in plain language and AI drafts the policy as a pull request:</p>
+          <p>Describe what you want in plain language, and AI drafts the policy for your review:</p>
           <div purpose="prompt-card-list">
             <div purpose="prompt-card">
               <img src="/images/icon-speech-bubble-emoji-18x18@2x.png" alt="Prompt">
@@ -232,8 +232,148 @@
               <span>force-install browser updates, except for the finance team during tax season</span>
             </div>
           </div>
-          <p>A human still reviews and approves. The pull request is what makes AI practical at this scale, because the approval layer never disappears.</p>
+          <p>A person on your team still reviews and approves every change. That review is what makes AI practical at this scale, because the approval step never disappears.</p>
         </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Frequently asked questions</h3>
+        </div>
+        <div purpose="faq">
+          <div purpose="accordion">
+            <div purpose="accordion-body">
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body1" aria-controls="aem-faq__body1">
+                  What is autonomous endpoint management?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body1" class="collapse" aria-labelledby="aem-faq__header1">
+                  Autonomous endpoint management (AEM) uses automation to keep devices patched and compliant without waiting on tickets or manual work. With Fleet, policies check every device on a schedule. When a device falls out of compliance, Fleet installs the right version or applies a deeper fix, such as uninstalling the old version.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body2" aria-controls="aem-faq__body2">
+                  Does AI make changes on its own?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body2" class="collapse" aria-labelledby="aem-faq__header2">
+                  No. AI drafts policies and changes from plain-language requests, and a person on your team reviews and approves every change before it touches a device. Fleet keeps a history of every change in the activity log.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body3" aria-controls="aem-faq__body3">
+                  Is autonomous patching a separate product?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body3" class="collapse" aria-labelledby="aem-faq__header3">
+                  No. Fleet’s autonomous capabilities ship in every license. It isn’t a separate product or an upsell.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body4" aria-controls="aem-faq__body4">
+                  Which operating systems does Fleet patch?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body4" class="collapse" aria-labelledby="aem-faq__header4">
+                  Fleet uses one platform, one policy engine, and one inventory for <a href="/apple">macOS</a>, <a href="/windows">Windows</a>, <a href="/linux">Linux</a>, iOS, iPadOS, Android, and ChromeOS.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body5" aria-controls="aem-faq__body5">
+                  How does Fleet avoid breaking people’s work?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body5" class="collapse" aria-labelledby="aem-faq__header5">
+                  Roll out updates in rings, scoped by role, subsidiary, or geography. Fleet can install when apps are idle and notify users before a reboot. Exempt legacy systems or specific people, and patch everything else aggressively.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body6" aria-controls="aem-faq__body6">
+                  How does Fleet keep Fleet-maintained apps safe?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body6" class="collapse" aria-labelledby="aem-faq__header6">
+                  Installers come straight from the vendor and are verified against a pinned SHA-256 hash. Every catalog change is installed and uninstalled on real hosts and reviewed by a person before release, and any version that fails testing is held back.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="aem-faq__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#aem-faq__body7" aria-controls="aem-faq__body7">
+                  Can I report on mean time to patch?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="aem-faq__body7" class="collapse" aria-labelledby="aem-faq__header7">
+                  Yes. Fleet includes out-of-the-box reporting on mean time to patch (MTTP) and exposure windows for critical vulnerabilities. You can also send the data to your data lake for deeper history.
+                </p>
+              </div>
+            </div>
+            <p purpose="contact-note">Have another question? <a href="/docs/get-started/faq">Read the full FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
+          </div>
+        </div>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is autonomous endpoint management?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Autonomous endpoint management (AEM) uses automation to keep devices patched and compliant without waiting on tickets or manual work. With Fleet, policies check every device on a schedule. When a device falls out of compliance, Fleet installs the right version or applies a deeper fix, such as uninstalling the old version."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does AI make changes on its own?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. AI drafts policies and changes from plain-language requests, and a person on your team reviews and approves every change before it touches a device. Fleet keeps a history of every change in the activity log."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is autonomous patching a separate product?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Fleet's autonomous capabilities ship in every license. It isn't a separate product or an upsell."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which operating systems does Fleet patch?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet uses one platform, one policy engine, and one inventory for macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does Fleet avoid breaking people's work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Roll out updates in rings, scoped by role, subsidiary, or geography. Fleet can install when apps are idle and notify users before a reboot. Exempt legacy systems or specific people, and patch everything else aggressively."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does Fleet keep Fleet-maintained apps safe?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Installers come straight from the vendor and are verified against a pinned SHA-256 hash. Every catalog change is installed and uninstalled on real hosts and reviewed by a person before release, and any version that fails testing is held back."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I report on mean time to patch?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet includes out-of-the-box reporting on mean time to patch (MTTP) and exposure windows for critical vulnerabilities. You can also send the data to your data lake for deeper history."
+              }
+            }
+          ]
+        }
+        </script>
       </div>
 
     </div>

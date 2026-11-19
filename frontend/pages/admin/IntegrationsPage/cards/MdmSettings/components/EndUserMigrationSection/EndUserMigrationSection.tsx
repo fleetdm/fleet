@@ -143,7 +143,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     );
   }
 
-  if (!config?.mdm.apple_bm_enabled_and_configured) {
+  if (!config?.mdm.apple_business_enabled_and_configured) {
     return (
       <div className={baseClass}>
         <SectionHeader title="End user migration workflow" />

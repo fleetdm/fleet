@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -24,6 +24,7 @@ import {
   defaultDeviceHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
+  googleConditionalAccessHandler,
   ssoRequiredDeviceCertificatesHandler,
   ssoRequiredDeviceHandler,
   unauthorizedDeviceHandler,
@@ -38,6 +39,12 @@ import {
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
 import DeviceUserPage from "./DeviceUserPage";
+import { replaceLocation } from "./helpers";
+
+jest.mock("./helpers", () => ({
+  ...jest.requireActual("./helpers"),
+  replaceLocation: jest.fn(),
+}));
 
 jest.mock("components/ToastNotification", () => ({
   notify: {
@@ -899,13 +906,13 @@ describe("Device User Page", () => {
           })
         );
         // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
-        await screen.findByText(/fetching fresh vitals/i);
+        await screen.findByText(/refetching\.\.\./i);
         // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
         mockNow += 200000;
         await waitFor(
           () =>
             expect(
-              screen.queryByText(/fetching fresh vitals/i)
+              screen.queryByText(/refetching\.\.\./i)
             ).not.toBeInTheDocument(),
           { timeout: 4000 }
         );
@@ -1493,5 +1500,131 @@ describe("Mobile UI gating", () => {
     );
 
     expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+  });
+});
+
+describe("Device User Page - Google conditional access sign-in", () => {
+  const SIGN_IN_URL =
+    "https://fleetdm.com/api/v1/google-conditional-access/sign-in?token=abc";
+  const SIGN_IN_STATUS = { sign_in_url: SIGN_IN_URL };
+
+  const renderPage = (platform: HostPlatform, isSignInRequired = true) => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = platform;
+    mockServer.use(
+      customDeviceHandler({
+        host,
+        self_service: true,
+        google_conditional_access_sign_in_required: isSignInRequired,
+      })
+    );
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+        }}
+      />
+    );
+  };
+
+  const expectSelfService = async (container: HTMLElement) =>
+    waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each<HostPlatform>(["ios", "ipados"])(
+    "redirects an %s host that should sign in and never renders Self-service",
+    async (platform) => {
+      mockServer.use(googleConditionalAccessHandler(SIGN_IN_STATUS));
+
+      const { container } = renderPage(platform);
+
+      expect(
+        await screen.findByText("Redirecting to Google sign-in...")
+      ).toBeInTheDocument();
+      await waitFor(() =>
+        expect(replaceLocation).toHaveBeenCalledWith(SIGN_IN_URL)
+      );
+      expect(container.querySelector(".device-user-mobile")).toBeNull();
+    }
+  );
+
+  it("renders Self-service for an iOS host that gets no sign-in URL", async () => {
+    // Registered in the meantime, or too many sign-ins started.
+    mockServer.use(googleConditionalAccessHandler());
+
+    const { container } = renderPage("ios");
+
+    await expectSelfService(container);
+    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
+    expect(replaceLocation).not.toHaveBeenCalled();
+  });
+
+  it("renders Self-service when the page is shown again after the redirect", async () => {
+    const signInStarted = jest.fn();
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () => {
+        signInStarted();
+        return HttpResponse.json(SIGN_IN_STATUS);
+      })
+    );
+
+    const { container } = renderPage("ios");
+
+    await waitFor(() =>
+      expect(replaceLocation).toHaveBeenCalledWith(SIGN_IN_URL)
+    );
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event("pageshow"), { persisted: true })
+      );
+    });
+
+    await expectSelfService(container);
+    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
+    expect(replaceLocation).toHaveBeenCalledTimes(1);
+    // Each start mints a token and counts an attempt.
+    expect(signInStarted).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders Self-service when the status request fails", async () => {
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () =>
+        HttpResponse.json({ message: "nope" }, { status: 500 })
+      )
+    );
+
+    const { container } = renderPage("ios");
+
+    await expectSelfService(container);
+    expect(replaceLocation).not.toHaveBeenCalled();
+  });
+
+  it("never calls the status route when the device details don't ask for a sign-in", async () => {
+    const statusCalled = jest.fn();
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () => {
+        statusCalled();
+        return HttpResponse.json(SIGN_IN_STATUS);
+      })
+    );
+
+    const { container } = renderPage("ios", false);
+
+    await expectSelfService(container);
+    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
+    expect(statusCalled).not.toHaveBeenCalled();
+    expect(replaceLocation).not.toHaveBeenCalled();
   });
 });

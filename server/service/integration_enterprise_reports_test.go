@@ -102,7 +102,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	}
 	var createQueryResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
-	defer s.cleanupQuery(createQueryResp.Query.ID)
+	defer s.cleanupQuery(createQueryResp.Report.ID)
 
 	// create team query
 	params = fleet.QueryPayload{
@@ -112,7 +112,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	}
 	createQueryResp = fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
-	defer s.cleanupQuery(createQueryResp.Query.ID)
+	defer s.cleanupQuery(createQueryResp.Report.ID)
 
 	// list team queries
 	var listQueriesResp fleet.ListQueriesResponse
@@ -161,9 +161,9 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 		AutomationsEnabled: &autoOn,
 		LabelsIncludeAll:   []string{lblA.Name, lblB.Name},
 	}, http.StatusOK, &createResp)
-	require.NotNil(t, createResp.Query)
-	require.Len(t, createResp.Query.LabelsIncludeAll, 2)
-	require.Empty(t, createResp.Query.LabelsIncludeAny)
+	require.NotNil(t, createResp.Report)
+	require.Len(t, createResp.Report.LabelsIncludeAll, 2)
+	require.Empty(t, createResp.Report.LabelsIncludeAny)
 
 	// Mutex rejection on create. Assert on the specific validation error so a
 	// generic 400 (e.g., name required) cannot silently satisfy the test.
@@ -187,7 +187,7 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
 
 		payload.Name, payload.Query = nil, nil
-		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Query.ID), payload, http.StatusBadRequest)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Report.ID), payload, http.StatusBadRequest)
 		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
 
 		res = s.Do("POST", "/api/latest/fleet/spec/reports", fleet.ApplyQuerySpecsRequest{Specs: []*fleet.QuerySpec{{
@@ -202,25 +202,25 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	// PATCH: switch from include_all to include_any (clears include_all).
 	includeAny := []string{lblA.Name}
 	var modifyResp fleet.ModifyQueryResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Report.ID), fleet.QueryPayload{
 		LabelsIncludeAny: includeAny,
 	}, http.StatusOK, &modifyResp)
-	require.Empty(t, modifyResp.Query.LabelsIncludeAll)
-	require.Len(t, modifyResp.Query.LabelsIncludeAny, 1)
+	require.Empty(t, modifyResp.Report.LabelsIncludeAll)
+	require.Len(t, modifyResp.Report.LabelsIncludeAny, 1)
 
 	// PATCH mutex rejection. Assert on the specific validation error.
-	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Report.ID), fleet.QueryPayload{
 		LabelsIncludeAny: []string{lblA.Name},
 		LabelsIncludeAll: []string{lblB.Name},
 	}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrQueryConflictingLabels.Error())
 
 	// Switch back to include_all so the end-to-end test below uses it.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Report.ID), fleet.QueryPayload{
 		LabelsIncludeAll: []string{lblA.Name, lblB.Name},
 	}, http.StatusOK, &modifyResp)
-	require.Len(t, modifyResp.Query.LabelsIncludeAll, 2)
-	require.Empty(t, modifyResp.Query.LabelsIncludeAny)
+	require.Len(t, modifyResp.Report.LabelsIncludeAll, 2)
+	require.Empty(t, modifyResp.Report.LabelsIncludeAny)
 
 	// End-to-end: scheduled-query distribution should only return the query
 	// for hosts that are members of BOTH labels.
@@ -239,7 +239,7 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	require.NoError(t, s.ds.AddLabelsToHost(ctx, hostA.ID, []uint{lblA.ID}))
 	require.NoError(t, s.ds.AddLabelsToHost(ctx, hostBoth.ID, []uint{lblA.ID, lblB.ID}))
 
-	queryName := createResp.Query.Name
+	queryName := createResp.Report.Name
 	hasQueryFor := func(hostID uint) bool {
 		queries, err := s.ds.ListScheduledQueriesForAgents(ctx, nil, &hostID, false)
 		require.NoError(t, err)

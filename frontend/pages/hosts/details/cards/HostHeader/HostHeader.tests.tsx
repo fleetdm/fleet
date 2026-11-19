@@ -102,7 +102,9 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus={null}
       />
     );
-    expect(screen.getByText(/Fetching fresh vitals/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("Refetching... This can take up to 1 minute.")
+    ).toBeInTheDocument();
   });
 
   it("calls onRefetchHost when refetch button is clicked", () => {

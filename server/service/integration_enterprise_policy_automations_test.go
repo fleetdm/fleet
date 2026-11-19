@@ -537,6 +537,20 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
 	s.Require().NoError(err)
 	s.Require().Len(pfs, 1)
+
+	// With the fleet's webhook off, policies that have the automation on aren't reset.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
+			Enable:    false,
+			PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+		},
+	}}, http.StatusOK, &tmResp)
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", fleet.ResetAutomationRequest{
+		PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+	}, http.StatusOK, &tmResp)
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	s.Require().NoError(err)
+	s.Require().Empty(pfs)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers() {
@@ -592,10 +606,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "DummyApp",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	dummyInstallerPkgTitleID := resp.SoftwareTitles[0].ID
 	var dummyInstallerPkg struct {
 		ID        uint   `db:"id"`
@@ -657,10 +671,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 	var rubyDeb struct {
 		ID        uint   `db:"id"`
@@ -699,10 +713,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "Fleet osquery",
-		"team_id", fmt.Sprintf("%d", team2.ID),
+		"fleet_id", fmt.Sprintf("%d", team2.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	fleetOsqueryMSITitleID := resp.SoftwareTitles[0].ID
 	var fleetOsqueryMSIInstallerID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -729,10 +743,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "App123",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, resp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := resp.SoftwareTitles[0].ID
 
 	// Populate software for host1Team1 (to have a software title
@@ -751,10 +765,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "Foobar",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.Nil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Empty(t, resp.SoftwareTitles[0].Packages)
 	foobarAppTitleID := resp.SoftwareTitles[0].ID
 
 	// policy0AllTeams is a global policy that runs on all devices.
@@ -1256,9 +1270,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Get the software title and installer ID
 	var resp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &resp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+		http.StatusOK, &resp, "query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	softwareTitleID := resp.SoftwareTitles[0].ID
 
 	var installerID uint
@@ -1732,17 +1746,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
-	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
-	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	require.NotEmpty(t, rubyDetail.SoftwareTitle.Packages)
+	rubyInstallerID := rubyDetail.SoftwareTitle.Packages[0].InstallerID
 
 	policy1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
 		Name:     "policy1",
@@ -1796,17 +1810,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "vim",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	vimTitleID := resp.SoftwareTitles[0].ID
 
 	var vimDetail getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail, "fleet_id", "0")
 	require.NotNil(t, vimDetail.SoftwareTitle)
-	require.NotNil(t, vimDetail.SoftwareTitle.SoftwarePackage)
-	vimInstallerID := vimDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	require.NotEmpty(t, vimDetail.SoftwareTitle.Packages)
+	vimInstallerID := vimDetail.SoftwareTitle.Packages[0].InstallerID
 
 	policy2, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
 		Name:     "policy2",
@@ -1874,17 +1888,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprint(inclAllTeam.ID),
+		"fleet_id", fmt.Sprint(inclAllTeam.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	rubyInclAllTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyInclAllDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyInclAllTitleID), nil, http.StatusOK, &rubyInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyInclAllTitleID), nil, http.StatusOK, &rubyInclAllDetail, "fleet_id", fmt.Sprint(inclAllTeam.ID))
 	require.NotNil(t, rubyInclAllDetail.SoftwareTitle)
-	require.NotNil(t, rubyInclAllDetail.SoftwareTitle.SoftwarePackage)
-	rubyInclAllInstallerID := rubyInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	require.NotEmpty(t, rubyInclAllDetail.SoftwareTitle.Packages)
+	rubyInclAllInstallerID := rubyInclAllDetail.SoftwareTitle.Packages[0].InstallerID
 
 	policy3, err := s.ds.NewTeamPolicy(ctx, inclAllTeam.ID, nil, fleet.PolicyPayload{
 		Name:     "policy3",
@@ -1940,17 +1954,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "vim",
-		"team_id", fmt.Sprint(inclAllTeam.ID),
+		"fleet_id", fmt.Sprint(inclAllTeam.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	vimInclAllTitleID := resp.SoftwareTitles[0].ID
 
 	var vimInclAllDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimInclAllTitleID), nil, http.StatusOK, &vimInclAllDetail, "team_id", fmt.Sprint(inclAllTeam.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimInclAllTitleID), nil, http.StatusOK, &vimInclAllDetail, "fleet_id", fmt.Sprint(inclAllTeam.ID))
 	require.NotNil(t, vimInclAllDetail.SoftwareTitle)
-	require.NotNil(t, vimInclAllDetail.SoftwareTitle.SoftwarePackage)
-	vimInclAllInstallerID := vimInclAllDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	require.NotEmpty(t, vimInclAllDetail.SoftwareTitle.Packages)
+	vimInclAllInstallerID := vimInclAllDetail.SoftwareTitle.Packages[0].InstallerID
 
 	policy4, err := s.ds.NewTeamPolicy(ctx, inclAllTeam.ID, nil, fleet.PolicyPayload{
 		Name:     "policy4",
@@ -2075,17 +2089,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
-	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
-	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
+	require.NotEmpty(t, rubyDetail.SoftwareTitle.Packages)
+	rubyInstallerID := rubyDetail.SoftwareTitle.Packages[0].InstallerID
 
 	policy1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
 		Name:     "policy1",
@@ -3408,7 +3422,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
-		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+		"query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
@@ -3583,7 +3597,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
-		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+		"query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
@@ -3745,7 +3759,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	}, http.StatusOK, "")
 
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
 
@@ -3937,7 +3951,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 	}, http.StatusOK, "")
 
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 
 	var installerID uint
@@ -4320,12 +4334,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 			Platform:    "darwin",
 			ProfileUUID: new(otherAppleProf.ProfileUUID),
 		}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 
 		res = s.Do("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
 			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, otherAppleProf.ProfileUUID)),
 			http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 	})
 
 	t.Run("nonexistent profile is rejected", func(t *testing.T) {
@@ -4413,7 +4427,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 				ProfileUUID: new(otherAppleProf.ProfileUUID),
 			}},
 		}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 	})
 }
 
@@ -4618,4 +4632,316 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRunCountsAfterClean
 			require.Equal(t, c.expected, rows)
 		})
 	}
+}
+
+// TODO(#58577): remove with policy_ids. Until then, settings policy_ids is built from and saved to each policy's
+// webhook or ticket automation flag.
+func (s *integrationEnterpriseTestSuite) TestFailingPoliciesWebhookPolicyIDsFromPolicies() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+	newPolicy := func(name string, teamID *uint) uint {
+		var p *fleet.Policy
+		var err error
+		if teamID == nil {
+			p, err = s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		} else {
+			p, err = s.ds.NewTeamPolicy(ctx, *teamID, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		}
+		require.NoError(t, err)
+		return p.ID
+	}
+	global1, global2 := newPolicy(t.Name()+" global1", nil), newPolicy(t.Name()+" global2", nil)
+	team1, team2 := newPolicy(t.Name()+" team1", &team.ID), newPolicy(t.Name()+" team2", &team.ID)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{global1, global2})
+		require.NoError(t, err)
+	})
+	flag := func(id uint) bool {
+		p, err := s.ds.Policy(ctx, id)
+		require.NoError(t, err)
+		return p.WebhooksAndTicketsEnabled
+	}
+	teamPolicyIDs := func() []uint {
+		var getResp getTeamResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &getResp)
+		var listResp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &listResp)
+		for _, tm := range listResp.Teams {
+			if tm.ID == team.ID {
+				require.Equal(t, getResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs,
+					tm.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+			}
+		}
+		return getResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	}
+
+	// "All fleets": only the global policies in the list get the flag.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil, `{"webhook_settings": {"failing_policies_webhook": {
+		"enable_failing_policies_webhook": true, "destination_url": "https://example.com", "policy_ids": [%d, %d, 999999]}}}`,
+		global1, team1), http.StatusOK)
+	t.Cleanup(func() {
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"webhook_settings": {"failing_policies_webhook": {
+			"enable_failing_policies_webhook": false, "policy_ids": []}}}`), http.StatusOK)
+	})
+	require.Equal(t, []uint{global1}, s.getConfig().WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.True(t, flag(global1))
+	require.False(t, flag(global2))
+	require.False(t, flag(team1))
+
+	// A request without policy_ids keeps the policies.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"webhook_settings": {"failing_policies_webhook": {
+		"destination_url": "https://example.com/other"}}}`), http.StatusOK)
+	config := s.getConfig()
+	require.Equal(t, []uint{global1}, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, "https://example.com/other", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	// Fleet: only the fleet's policies in the list get the flag, and global ones keep theirs.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{PolicyIDs: []uint{team1, team2, global2}},
+	}}, http.StatusOK, &modResp)
+	require.Equal(t, []uint{team1, team2}, modResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, []uint{team1, team2}, teamPolicyIDs())
+	require.False(t, flag(global2))
+	require.True(t, flag(global1))
+
+	// Saving other fleet settings keeps the policies.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{Description: new("changed")},
+		http.StatusOK, &modResp)
+	require.Equal(t, []uint{team1, team2}, teamPolicyIDs())
+
+	// The list is built from the policies, so the settings don't store any IDs (an empty list is saved as null).
+	var stored int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stored, `SELECT
+			(SELECT COUNT(*) FROM app_config_json WHERE JSON_TYPE(json_value->'$.webhook_settings.failing_policies_webhook.policy_ids') = 'ARRAY') +
+			(SELECT COUNT(*) FROM teams WHERE id = ? AND JSON_TYPE(config->'$.webhook_settings.failing_policies_webhook.policy_ids') = 'ARRAY')`,
+			team.ID)
+	})
+	require.Zero(t, stored)
+	require.Equal(t, []uint{global1}, s.getConfig().WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{PolicyIDs: []uint{team2}},
+	}}, http.StatusOK, &modResp)
+	require.Equal(t, []uint{team2}, teamPolicyIDs())
+	require.False(t, flag(team1))
+
+	// Deleting a policy removes it from the list.
+	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{team2})
+	require.NoError(t, err)
+	require.Empty(t, teamPolicyIDs())
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: []uint{global1}}, http.StatusOK,
+		&fleet.DeleteGlobalPoliciesResponse{})
+	require.Empty(t, s.getConfig().WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationType() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID)) })
+	script, err := s.ds.NewScript(ctx, &fleet.Script{Name: t.Name() + ".sh", ScriptContents: "echo hi", TeamID: &team.ID})
+	require.NoError(t, err)
+
+	newUser := func(role string, teamRole bool) string {
+		u := &fleet.User{Name: t.Name() + role, Email: fmt.Sprintf("%s-%s-%t@example.com", t.Name(), role, teamRole)}
+		if teamRole {
+			u.Teams = []fleet.UserTeam{{Team: *team, Role: role}}
+		} else {
+			u.GlobalRole = new(role)
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		return u.Email
+	}
+	teamAdmin, teamMaintainer := newUser(fleet.RoleAdmin, true), newUser(fleet.RoleMaintainer, true)
+	globalMaintainer := newUser(fleet.RoleMaintainer, false)
+	asUser := func(email string) func() {
+		old := s.token
+		s.token = s.getTestToken(email, test.GoodPassword)
+		return func() { s.token = old }
+	}
+
+	type policyResp struct {
+		Policy *fleet.Policy `json:"policy"`
+	}
+	createTeamPolicy := func(teamID uint, body string, wantStatus int) *fleet.Policy {
+		var resp policyResp
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), json.RawMessage(body), wantStatus, &resp)
+		return resp.Policy
+	}
+	modifyTeamPolicy := func(teamID, policyID uint, body string, wantStatus int) *fleet.Policy {
+		var resp policyResp
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", teamID, policyID), json.RawMessage(body), wantStatus, &resp)
+		return resp.Policy
+	}
+	automation := func(p *fleet.Policy) string {
+		require.NotNil(t, p)
+		if p.AutomationType == nil {
+			return ""
+		}
+		return string(*p.AutomationType)
+	}
+	stored := func(id uint) *fleet.Policy {
+		p, err := s.ds.Policy(ctx, id)
+		require.NoError(t, err)
+		return p
+	}
+
+	// Create with automation_type and its companion field.
+	p := createTeamPolicy(team.ID, fmt.Sprintf(`{"name": "%s script", "query": "SELECT 1", "automation_type": "script", "script_id": %d}`,
+		t.Name(), script.ID), http.StatusOK)
+	require.Equal(t, "script", automation(p))
+	require.NotNil(t, p.RunScript)
+	require.Equal(t, script.ID, p.RunScript.ID)
+	policyID := p.ID
+
+	// Companion fields have to match automation_type.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "automation_type": "script"}`, t.Name())), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `automation_type "script" requires script_id`)
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "automation_type": "calendar", "script_id": %d}`, t.Name(), script.ID)),
+		http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `script_id can only be set with automation_type "script"`)
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "automation_type": "scripts"}`, t.Name())), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `invalid automation_type "scripts"`)
+	// Without automation_type, a request that gives a policy two automations fails.
+	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "script_id": %d, "calendar_events_enabled": true}`, t.Name(), script.ID)),
+		http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), errPolicyOneAutomation)
+
+	// A new automation replaces the old one, and null removes it.
+	p = modifyTeamPolicy(team.ID, policyID, `{"automation_type": "webhook_or_ticket"}`, http.StatusOK)
+	require.Equal(t, "webhook_or_ticket", automation(p))
+	require.Nil(t, p.RunScript)
+	require.Nil(t, stored(policyID).ScriptID)
+	require.True(t, stored(policyID).WebhooksAndTicketsEnabled)
+	s.lastActivityMatches(fleet.ActivityTypeEditedPolicy{}.ActivityName(),
+		fmt.Sprintf(`{"policy_id": %d, "policy_name": %q, "fleet_id": %d, "fleet_name": %q}`, policyID, p.Name, team.ID, team.Name), 0)
+	p = modifyTeamPolicy(team.ID, policyID, `{"automation_type": "calendar"}`, http.StatusOK)
+	require.Equal(t, "calendar", automation(p))
+	require.False(t, stored(policyID).WebhooksAndTicketsEnabled)
+	p = modifyTeamPolicy(team.ID, policyID, `{"automation_type": null}`, http.StatusOK)
+	require.Empty(t, automation(p))
+	require.False(t, stored(policyID).CalendarEventsEnabled)
+
+	// Requests without automation_type keep today's meaning, as long as one automation is left.
+	p = modifyTeamPolicy(team.ID, policyID, fmt.Sprintf(`{"script_id": %d, "calendar_events_enabled": false}`, script.ID), http.StatusOK)
+	require.Equal(t, "script", automation(p))
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID),
+		json.RawMessage(`{"calendar_events_enabled": true}`), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), errPolicyOneAutomation)
+
+	// Scope rules: "All fleets" policies only take webhook or ticket, "Unassigned" policies take anything but calendar.
+	res = s.Do("POST", "/api/latest/fleet/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": "%s global", "query": "SELECT 1", "automation_type": "calendar"}`, t.Name())), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policies can only have automation_type "webhook_or_ticket"`)
+	var globalResp policyResp
+	s.DoJSON("POST", "/api/latest/fleet/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": "%s global", "query": "SELECT 1", "automation_type": "webhook_or_ticket"}`, t.Name())),
+		http.StatusOK, &globalResp)
+	require.Equal(t, "webhook_or_ticket", automation(globalResp.Policy))
+	globalID := globalResp.Policy.ID
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{globalID})
+		require.NoError(t, err)
+	})
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalID), json.RawMessage(`{"automation_type": "calendar"}`),
+		http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policies can only have automation_type "webhook_or_ticket"`)
+	res = s.Do("POST", "/api/latest/fleet/fleets/0/policies",
+		json.RawMessage(fmt.Sprintf(`{"name": "%s unassigned", "query": "SELECT 1", "automation_type": "calendar"}`, t.Name())), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"Unassigned" policies can't have automation_type "calendar"`)
+	unassigned := createTeamPolicy(0, fmt.Sprintf(`{"name": "%s unassigned", "query": "SELECT 1"}`, t.Name()), http.StatusOK)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteTeamPolicies(context.Background(), 0, []uint{unassigned.ID})
+		require.NoError(t, err)
+	})
+
+	// Only admins and GitOps users can turn webhook or ticket on or off.
+	webhookPolicy := createTeamPolicy(team.ID, fmt.Sprintf(`{"name": "%s webhook", "query": "SELECT 1", "automation_type": "webhook_or_ticket"}`,
+		t.Name()), http.StatusOK)
+	func() {
+		defer asUser(teamMaintainer)()
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID),
+			json.RawMessage(fmt.Sprintf(`{"name": "%s m", "query": "SELECT 1", "automation_type": "webhook_or_ticket"}`, t.Name())), http.StatusForbidden)
+		modifyTeamPolicy(team.ID, policyID, `{"automation_type": "webhook_or_ticket"}`, http.StatusForbidden)
+		// Switching away from webhook or ticket removes it.
+		modifyTeamPolicy(team.ID, webhookPolicy.ID, `{"automation_type": null}`, http.StatusForbidden)
+		require.True(t, stored(webhookPolicy.ID).WebhooksAndTicketsEnabled)
+		// Everything else can still be edited, including when the unchanged value is sent back.
+		p := modifyTeamPolicy(team.ID, webhookPolicy.ID, `{"description": "edited", "automation_type": "webhook_or_ticket"}`, http.StatusOK)
+		require.Equal(t, "edited", p.Description)
+		p = modifyTeamPolicy(team.ID, policyID, `{"automation_type": "calendar"}`, http.StatusOK)
+		require.Equal(t, "calendar", automation(p))
+	}()
+	func() {
+		defer asUser(globalMaintainer)()
+		modifyTeamPolicy(team.ID, policyID, `{"automation_type": "webhook_or_ticket"}`, http.StatusForbidden)
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalID), json.RawMessage(`{"automation_type": null}`), http.StatusForbidden)
+		// Global maintainers keep the other automations on "Unassigned" policies.
+		p := modifyTeamPolicy(0, unassigned.ID, fmt.Sprintf(`{"automation_type": "script", "script_id": %d}`, script.ID), http.StatusBadRequest)
+		require.Nil(t, p) // the script belongs to another fleet
+		noTeamScript, err := s.ds.NewScript(ctx, &fleet.Script{Name: t.Name() + "-unassigned.sh", ScriptContents: "echo hi"})
+		require.NoError(t, err)
+		p = modifyTeamPolicy(0, unassigned.ID, fmt.Sprintf(`{"automation_type": "script", "script_id": %d}`, noTeamScript.ID), http.StatusOK)
+		require.Equal(t, "script", automation(p))
+	}()
+	func() {
+		defer asUser(teamAdmin)()
+		p := modifyTeamPolicy(team.ID, policyID, `{"automation_type": "webhook_or_ticket"}`, http.StatusOK)
+		require.Equal(t, "webhook_or_ticket", automation(p))
+	}()
+
+	// Spec apply: one automation per policy, nothing applied when a spec breaks the rule, and the same permission.
+	specs := func(webhook bool, extra string) json.RawMessage {
+		return json.RawMessage(fmt.Sprintf(`{"specs": [
+			{"name": "%[1]s spec ok", "query": "SELECT 1", "fleet": %[2]q, "webhooks_and_tickets_enabled": true},
+			{"name": "%[1]s spec", "query": "SELECT 1", "fleet": %[2]q, "webhooks_and_tickets_enabled": %[3]t%[4]s}
+		]}`, t.Name(), team.Name, webhook, extra))
+	}
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", specs(true, fmt.Sprintf(`, "script_id": %d`, script.ID)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), errPolicyOneAutomation)
+	specFlags := func() map[string]bool {
+		flags, err := s.ds.WebhooksAndTicketsByPolicyName(ctx, &team.ID, []string{t.Name() + " spec ok", t.Name() + " spec"})
+		require.NoError(t, err)
+		return flags
+	}
+	require.Empty(t, specFlags())
+	func() {
+		defer asUser(teamMaintainer)()
+		s.Do("POST", "/api/latest/fleet/spec/policies", specs(true, ""), http.StatusForbidden)
+	}()
+	s.Do("POST", "/api/latest/fleet/spec/policies", specs(true, ""), http.StatusOK)
+	require.Equal(t, map[string]bool{t.Name() + " spec ok": true, t.Name() + " spec": true}, specFlags())
+	func() {
+		defer asUser(teamMaintainer)()
+		// Re-applying the same values isn't a change, so maintainers can.
+		s.Do("POST", "/api/latest/fleet/spec/policies", specs(true, ""), http.StatusOK)
+		s.Do("POST", "/api/latest/fleet/spec/policies", specs(false, ""), http.StatusForbidden)
+	}()
+	s.Do("POST", "/api/latest/fleet/spec/policies", specs(false, ""), http.StatusOK)
+	require.Equal(t, map[string]bool{t.Name() + " spec ok": true, t.Name() + " spec": false}, specFlags())
+
+	// The policy_ids settings list can't turn webhook or ticket on for a policy that has another automation.
+	scriptPolicy := createTeamPolicy(team.ID, fmt.Sprintf(`{"name": "%s script 2", "query": "SELECT 1", "automation_type": "script", "script_id": %d}`,
+		t.Name(), script.ID), http.StatusOK)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{PolicyIDs: []uint{webhookPolicy.ID, scriptPolicy.ID}},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "already has an automation")
+	require.False(t, stored(scriptPolicy.ID).WebhooksAndTicketsEnabled)
 }

@@ -4568,7 +4568,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	profileChecksums[excludeAnyManualProf.ProfileUUID] = checksum[:]
 
 	// Connect the host and l1, l4, l5
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}, {l4.ID, host.ID}, {l5.ID, host.ID}})
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{l1.ID, l4.ID, l5.ID})
 	require.NoError(t, err)
 
 	// We should see 3 profiles in the "to install" list
@@ -4615,10 +4615,10 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 
 	// Remove the l1<->host relationship, but add l2<->labelHost. The profile should still show
 	// up since it's "include any"
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}})
+	err = ds.RemoveLabelsFromHost(ctx, host.ID, []uint{l1.ID})
 	require.NoError(t, err)
 
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{l2.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
@@ -4643,7 +4643,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 
 	// Remove the l2<->host relationship. Since the profile is "include-any", it should no longer
 	// show up
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, host.ID}})
+	err = ds.RemoveLabelsFromHost(ctx, host.ID, []uint{l2.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
@@ -4664,7 +4664,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 
 	// Remove the l4<->host relationship. Since the profile is "include-all", it should no longer show
 	// up even though the l5<->host connection is still there.
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l4.ID, host.ID}})
+	err = ds.RemoveLabelsFromHost(ctx, host.ID, []uint{l4.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
@@ -4681,7 +4681,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 
 	// Add a l6<->host relationship. The exclude-any profile with l6 and l7 should be gone now with only
 	// the exclude-any-manual profile remaining.
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, host.ID}})
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{l6.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
@@ -4744,11 +4744,7 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	checksumAllExcl := append([]byte{}, sumAll[:]...)
 
 	// Host in include label, not in exclude -> both profiles should apply
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{incLabel.ID, host.ID},
-		{incAllLabel1.ID, host.ID},
-		{incAllLabel2.ID, host.ID},
-	})
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{incLabel.ID, incAllLabel1.ID, incAllLabel2.ID})
 	require.NoError(t, err)
 
 	// Update label_updated_at so dynamic labels are considered
@@ -4763,14 +4759,14 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	}, profilesToInstall)
 
 	// Add host to exclude label -> neither profile should apply
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{excLabel.ID, host.ID}})
+	err = ds.AddLabelsToHost(ctx, host.ID, []uint{excLabel.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
 	require.Empty(t, profilesToInstall)
 
 	// Remove host from exclude label -> both profiles should apply again
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{excLabel.ID, host.ID}})
+	err = ds.RemoveLabelsFromHost(ctx, host.ID, []uint{excLabel.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
@@ -4780,7 +4776,7 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	}, profilesToInstall)
 
 	// Remove host from one include-all label -> include-all profile should no longer apply
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{incAllLabel1.ID, host.ID}})
+	err = ds.RemoveLabelsFromHost(ctx, host.ID, []uint{incAllLabel1.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)
@@ -4789,7 +4785,7 @@ func testMDMWindowsProfileLabelsCombined(t *testing.T, ds *Datastore) {
 	}, profilesToInstall)
 
 	// Remove host from include-any label -> include-any profile should no longer apply either
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{incLabel.ID, host.ID}})
+	err = ds.RemoveLabelsFromHost(ctx, host.ID, []uint{incLabel.ID})
 	require.NoError(t, err)
 
 	profilesToInstall, _ = windowsReconcileDeltasForTest(t, ds)

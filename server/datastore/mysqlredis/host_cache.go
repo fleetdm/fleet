@@ -17,10 +17,10 @@ import (
 )
 
 // All host-cache keys live under this single versioned prefix so operators can
-// purge with `redis-cli --scan --pattern 'fleet:hostcache:v1:*' | xargs redis-cli DEL`.
+// purge with `redis-cli --scan --pattern 'fleet:hostcache:v2:*' | xargs redis-cli DEL`.
 // Bumping the version on a cached-payload schema change orphans old keys; they
 // TTL out within hostCacheTTL.
-const hostCacheKeyPrefix = "fleet:hostcache:v1"
+const hostCacheKeyPrefix = "fleet:hostcache:v2"
 
 const (
 	// hostCacheNegativeTTL caps how long a "not found" result is cached. The value trades off two forces:

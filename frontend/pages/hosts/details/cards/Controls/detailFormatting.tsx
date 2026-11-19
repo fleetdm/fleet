@@ -5,6 +5,7 @@ import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   IHostMdmProfile,
 } from "interfaces/mdm";
+import { formatFleet5RemovalMessage } from "utilities/helpers";
 
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
@@ -181,28 +182,6 @@ const formatDetailCertificateError = (detail: IHostMdmProfile["detail"]) => {
   return null;
 };
 
-/**
- * formatDetailIdpEmailError generates the formatted detail for certain errors related to
- * host IdP email profiles. It returns a JSX element with the formatted message or null if
- * the detail does not match any of the expected patterns.
- */
-const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
-  if (detail.includes("There is no IdP email for this host.")) {
-    return (
-      <>
-        There is no IdP email for this host. Fleet couldn&apos;t populate
-        $FLEET_VAR_HOST_END_USER_EMAIL_IDP.{" "}
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/idp-email"
-          newTab
-        />
-      </>
-    );
-  }
-  return null;
-};
-
 export interface IDetailGuidance {
   message: React.ReactNode;
   /** True when the message already says everything the raw detail says, so the
@@ -226,9 +205,10 @@ export const getDetailGuidance = (
     return message ? { message, supersedesDetail: false } : null;
   }
 
-  const idpEmailError = formatDetailIdpEmailError(profile.detail);
-  if (idpEmailError) {
-    return { message: idpEmailError, supersedesDetail: true };
+  // A profile or CA saved before the Fleet 5 upgrade that still uses a removed variable.
+  const fleet5Removal = formatFleet5RemovalMessage(profile.detail, "default");
+  if (fleet5Removal) {
+    return { message: fleet5Removal, supersedesDetail: true };
   }
 
   const certificateError = formatDetailCertificateError(profile.detail);

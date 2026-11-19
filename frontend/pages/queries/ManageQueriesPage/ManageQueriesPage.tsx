@@ -169,12 +169,12 @@ const ManageQueriesPage = ({
 
   // Enhance the queries from the response when they are changed.
   const enhancedQueries = useMemo(() => {
-    return queriesResponse?.queries.map(enhanceQuery) || [];
+    return queriesResponse?.reports.map(enhanceQuery) || [];
   }, [queriesResponse]);
 
   const isManageAutomationsEnabled = isAnyTeamSelected
     ? (queriesResponse?.count ?? 0) >
-      (queriesResponse?.inherited_query_count ?? 0)
+      (queriesResponse?.inherited_report_count ?? 0)
     : (queriesResponse?.count ?? 0) > 0;
 
   // Open the Manage automations modal via deep-link (e.g. from the

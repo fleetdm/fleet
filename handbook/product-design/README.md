@@ -14,9 +14,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).)
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).)
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/93) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the 🦢 Product design intake & outtake board](https://github.com/orgs/fleetdm/projects/67) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
@@ -195,8 +195,8 @@ If the story has customer labels, it's up to the Manager of CSA to decide if the
 ### Update a company brand front
 
 Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
-- The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
-- The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
+- The current pitch, found in the "Overall pitch" section of the [Why Fleet?](https://docs.google.com/document/d/1h8N9Icow6g-08EZPQMnbH-bDKDbXoPy-lwlUm9DiPJA/edit?tab=t.0) doc.
+- The current brand imagery, found in the [Imagery section of the brand guidelines](https://fleetdm.com/handbook/company/brand#imagery).
 
 ### Notify Customer Success about new macOS features
 

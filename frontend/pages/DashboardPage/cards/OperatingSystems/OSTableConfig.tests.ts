@@ -10,9 +10,8 @@ const makeRow = (
   version: string
 ): IOperatingSystemVersion => ({
   os_version_id: 1,
-  name: `${platform} ${version}`,
-  name_only: platform,
-  version,
+  os_name: platform,
+  os_version: version,
   platform,
   hosts_count: 0,
   vulnerabilities: [],
@@ -126,7 +125,7 @@ describe("compareOSVersionStrings", () => {
 describe("generateTableHeaders", () => {
   const findVersionColumn = (disableVersionSort?: boolean) =>
     generateTableHeaders(undefined, undefined, { disableVersionSort }).find(
-      (column) => column.accessor === "version"
+      (column) => column.accessor === "os_version"
     );
 
   it("disables the Version column's sort when disableVersionSort is set, so 'All platforms' can't trigger a cross-platform version sort", () => {

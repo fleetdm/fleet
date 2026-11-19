@@ -1,8 +1,9 @@
 - name: Fleet Desktop.app installed
   query: SELECT 1 FROM apps WHERE path = '/Applications/Fleet Desktop.app' AND bundle_identifier = 'com.fleetdm.fleet-desktop';
   critical: false
-  description: This policy ensures Fleet Desktop.app is installed, so end users always have a way to reach self-service.
-  resolution: "Fleet reinstalls Fleet Desktop.app when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it."
+  description: Checks that Fleet Desktop.app is installed, so end users always have a way to reach self-service.
+  resolution: "No action needed from you. Fleet reinstalls Fleet Desktop.app automatically when this policy fails. If it keeps failing, IT reviews the install error in the host's activity."
+  hidden: true
   install_software:
     fleet_maintained_app_slug: fleet-desktop/darwin
   platform: darwin

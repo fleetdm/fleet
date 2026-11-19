@@ -263,13 +263,9 @@
     gap: 24px;
   }
   [purpose='cta-button'] {
-    .cta-button();
+    .primary-button();
     display: flex;
-    height: 36px;
     min-width: 140px;
-    padding: 8px 16px;
-    line-height: 150%;
-    font-size: 14px;
     gap: 4px;
   }
 
@@ -347,6 +343,18 @@
 
   [purpose='feature-with-image'] {
     .feature-with-image();
+    // Holds the Teams demo, which sizes itself to this column's width.
+    [purpose='feature-demo'] {
+      flex: 0 0 calc(~'50% - 32px');
+      min-width: 0;
+      @media (max-width: 991px) {
+        flex-basis: calc(~'50% - 24px');
+      }
+      @media (max-width: 768px) {
+        flex-basis: auto;
+        width: 100%;
+      }
+    }
     [purpose='feature-text'] {
       h3 {
         margin-bottom: 0px;

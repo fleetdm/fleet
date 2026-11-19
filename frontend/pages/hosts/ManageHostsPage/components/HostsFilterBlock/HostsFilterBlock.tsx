@@ -39,6 +39,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { dateAgo } from "utilities/date_format";
+import { getHostOSDisplayName } from "utilities/helpers";
 
 import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
@@ -264,42 +265,35 @@ const HostsFilterBlock = ({
       const vers: string = osVersion;
 
       os = osVersions?.find(
-        ({ name_only, version }) =>
-          name_only.toLowerCase() === name.toLowerCase() &&
-          version.toLowerCase() === vers.toLowerCase()
+        ({ os_name, os_version }) =>
+          os_name.toLowerCase() === name.toLowerCase() &&
+          os_version.toLowerCase() === vers.toLowerCase()
       );
     }
 
     // Some name and version filters match hosts but no OS version entry:
-    // Arch-based distros the OS inventory groups under "Arch Linux", and saved
-    // links with a Windows name that starts with "Microsoft". Label from the URL.
+    // Arch Linux ARM, which the OS inventory groups under "Arch Linux", and
+    // saved links with a Windows name that starts with "Microsoft". Label from
+    // the URL.
     const fallback =
       osName && osVersion
-        ? {
-            name: `${osName} ${osVersion}`,
-            name_only: osName,
-            version: osVersion,
-          }
+        ? { os_name: osName, os_version: osVersion }
         : undefined;
     const match = os ?? fallback;
     if (!match) return null;
 
-    const { name, name_only, version } = match;
-    const label =
-      name_only || version
-        ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`;
+    const { os_name, os_version } = match;
     const TooltipDescription = (
       <span>
-        Hosts with {name_only || name},
+        Hosts with {os_name},
         <br />
-        {version && `${version} installed`}
+        {os_version && `${os_version} installed`}
       </span>
     );
 
     return (
       <FilterPill
-        label={label}
+        label={getHostOSDisplayName(os_name, os_version)}
         tooltipDescription={TooltipDescription}
         onClear={() =>
           handleClearFilter(["os_version_id", "os_name", "os_version"])
@@ -346,13 +340,11 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
-          onClear={() =>
-            handleClearFilter(["macos_settings", "apple_settings"])
-          }
+          onClear={() => handleClearFilter(["apple_settings"])}
         />
       </>
     );
@@ -471,7 +463,7 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
@@ -511,9 +503,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="macOS settings: bootstrap package"
-          onClear={() =>
-            handleClearFilter(["macos_bootstrap_package", "bootstrap_package"])
-          }
+          onClear={() => handleClearFilter(["macos_bootstrap_package"])}
         />
       </>
     );
@@ -534,7 +524,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>
@@ -556,7 +546,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeConfigProfileStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={`OS settings: ${configProfile?.name}`}
@@ -582,7 +572,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeScriptBatchStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {scriptBatchScriptName && (
           <FilterPill

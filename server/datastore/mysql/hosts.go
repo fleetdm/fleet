@@ -18,6 +18,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -67,9 +68,7 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"hardware_vendor":       "h.hardware_vendor",
 	"hardware_model":        "h.hardware_model",
 	"hardware_serial":       "h.hardware_serial",
-	"team_id":               "h.team_id",
 	"fleet_id":              "h.team_id",
-	"team_name":             "t.name",
 	"fleet_name":            "t.name",
 	"primary_ip":            "h.primary_ip",
 	"primary_mac":           "h.primary_mac",
@@ -214,248 +213,58 @@ func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) err
 }
 
 func (ds *Datastore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	return saveHostPackStatsDB(ctx, ds.writer(ctx), teamID, hostID, stats)
-}
-
-func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	// NOTE: this implementation must be kept in sync with the async/batch version
-	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
-	// the behaviour per host must be the same.
-
-	var (
-		userPacksArgs              []interface{}
-		userPacksQueryCount        = 0
-		scheduledQueriesArgs       []interface{}
-		scheduledQueriesQueryCount = 0
-	)
-
+	// Stats for any pack other than the report packs ("Global" and the host's
+	// "team-<id>") can't be attributed to a report and are skipped.
+	type pendingStat struct {
+		name fleet.TeamScopedQueryName
+		stat fleet.ScheduledQueryStats
+	}
+	var pending []pendingStat
 	for _, pack := range stats {
-		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
-			for _, query := range pack.QueryStats {
-				scheduledQueriesQueryCount++
-
-				teamIDArg := uint(0)
-				if pack.PackName != "Global" {
-					teamIDArg = *teamID
-				}
-				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
-				if query.WallTimeMs == 0 && query.WallTime != 0 {
-					query.WallTimeMs = query.WallTime * 1000
-				}
-				scheduledQueriesArgs = append(
-					scheduledQueriesArgs,
-					teamIDArg,
-					query.ScheduledQueryName,
-
-					hostID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTimeMs,
-				)
-			}
-		} else { // User 2017 packs
-			for _, query := range pack.QueryStats {
-				userPacksQueryCount++
-				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
-				if query.WallTimeMs == 0 && query.WallTime != 0 {
-					query.WallTimeMs = query.WallTime * 1000
-				}
-
-				userPacksArgs = append(
-					userPacksArgs,
-					query.PackName,
-					query.ScheduledQueryName,
-
-					hostID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTimeMs,
-				)
-			}
+		var packTeamID *uint
+		switch {
+		case pack.PackName == "Global":
+		case teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID):
+			packTeamID = teamID
+		default:
+			continue
+		}
+		for _, qs := range pack.QueryStats {
+			pending = append(pending, pendingStat{
+				name: fleet.TeamScopedQueryName{TeamID: packTeamID, Name: qs.ScheduledQueryName},
+				stat: qs,
+			})
 		}
 	}
-
-	if userPacksQueryCount == 0 && scheduledQueriesQueryCount == 0 {
+	if len(pending) == 0 {
 		return nil
 	}
 
-	if scheduledQueriesQueryCount > 0 {
-		// This query will import stats for queries (new format).
-		values := strings.TrimSuffix(strings.Repeat("((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),", scheduledQueriesQueryCount), ",")
-		sql := fmt.Sprintf(`
-			INSERT IGNORE INTO scheduled_query_stats (
-				scheduled_query_id,
-				host_id,
-				average_memory,
-				denylisted,
-				executions,
-				schedule_interval,
-				last_executed,
-				output_size,
-				system_time,
-				user_time,
-				wall_time
-			)
-			VALUES %s ON DUPLICATE KEY UPDATE
-				scheduled_query_id = VALUES(scheduled_query_id),
-				host_id = VALUES(host_id),
-				average_memory = VALUES(average_memory),
-				denylisted = VALUES(denylisted),
-				executions = VALUES(executions),
-				schedule_interval = VALUES(schedule_interval),
-				last_executed = VALUES(last_executed),
-				output_size = VALUES(output_size),
-				system_time = VALUES(system_time),
-				user_time = VALUES(user_time),
-				wall_time = VALUES(wall_time)
-		`, values)
-		if _, err := db.ExecContext(ctx, sql, scheduledQueriesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert query schedule stats")
-		}
+	names := make([]fleet.TeamScopedQueryName, 0, len(pending))
+	for _, p := range pending {
+		names = append(names, p.name)
 	}
-
-	if userPacksQueryCount > 0 {
-		// This query will import stats for 2017 packs.
-		// NOTE(lucas): If more than one scheduled query reference the same query then only one of the stats will be written.
-		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", userPacksQueryCount), ",")
-		sql := fmt.Sprintf(`
-				INSERT IGNORE INTO scheduled_query_stats (
-					scheduled_query_id,
-					host_id,
-					average_memory,
-					denylisted,
-					executions,
-					schedule_interval,
-					last_executed,
-					output_size,
-					system_time,
-					user_time,
-					wall_time
-				)
-				VALUES %s ON DUPLICATE KEY UPDATE
-					scheduled_query_id = VALUES(scheduled_query_id),
-					host_id = VALUES(host_id),
-					average_memory = VALUES(average_memory),
-					denylisted = VALUES(denylisted),
-					executions = VALUES(executions),
-					schedule_interval = VALUES(schedule_interval),
-					last_executed = VALUES(last_executed),
-					output_size = VALUES(output_size),
-					system_time = VALUES(system_time),
-					user_time = VALUES(user_time),
-					wall_time = VALUES(wall_time)
-			`, values)
-		if _, err := db.ExecContext(ctx, sql, userPacksArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert pack stats")
-		}
-	}
-
-	return nil
-}
-
-// loadhostPacksStatsDB will load all the "2017 pack" stats for the given host. The scheduled
-// queries that haven't run yet are returned with zero values.
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
-	packs, err := listPacksForHost(ctx, db, hid)
+	// Read the primary so stats for a report created moments ago aren't
+	// dropped because it hasn't reached the replica yet.
+	reports, err := ds.QueriesByName(ctxdb.RequirePrimary(ctx, true), names)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
+		return ctxerr.Wrap(ctx, err, "resolve report ids for host stats")
 	}
-	if len(packs) == 0 {
-		return nil, nil
+	resolved := make([]fleet.ScheduledQueryStats, 0, len(pending))
+	for _, p := range pending {
+		report, ok := reports[p.name.Key()]
+		if !ok || report == nil {
+			continue
+		}
+		p.stat.ScheduledQueryID = report.ID
+		resolved = append(resolved, p.stat)
 	}
-	packIDs := make([]uint, len(packs))
-	packTypes := make(map[uint]*string)
-	for i := range packs {
-		packIDs[i] = packs[i].ID
-		packTypes[packs[i].ID] = packs[i].Type
+	if len(resolved) == 0 {
+		return nil
 	}
-	ds := dialect.From(goqu.I("scheduled_queries").As("sq")).Select(
-		goqu.I("sq.name").As("scheduled_query_name"),
-		goqu.I("sq.id").As("scheduled_query_id"),
-		goqu.I("sq.query_name").As("query_name"),
-		goqu.I("q.description").As("description"),
-		goqu.I("p.name").As("pack_name"),
-		goqu.I("p.id").As("pack_id"),
-		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
-		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
-		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
-		goqu.I("sq.interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", common_mysql.DefaultNonZeroTime)).As("last_executed"),
-		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
-		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
-		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
-		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
-	).Join(
-		dialect.From("packs").As("p").Select(
-			goqu.I("id"),
-			goqu.I("name"),
-		).Where(goqu.I("id").In(packIDs)),
-		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
-	).Join(
-		goqu.I("queries").As("q"),
-		goqu.On(goqu.I("sq.query_id").Eq(goqu.I("q.id"))),
-	).LeftJoin(
-		goqu.L(
-			`
-		(SELECT
-			stats.scheduled_query_id,
-			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
-			MAX(stats.denylisted) AS denylisted,
-			SUM(stats.executions) AS executions,
-			MAX(stats.last_executed) AS last_executed,
-			SUM(stats.output_size) AS output_size,
-			SUM(stats.system_time) AS system_time,
-			SUM(stats.user_time) AS user_time,
-			SUM(stats.wall_time) AS wall_time
-		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs
-		`, hid,
-		),
-		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.query_id"))),
-	).Where(
-		goqu.Or(
-			// sq.platform empty or NULL means the scheduled query is set to
-			// run on all hosts.
-			goqu.I("sq.platform").Eq(""),
-			goqu.I("sq.platform").IsNull(),
-			// scheduled_queries.platform can be a comma-separated list of
-			// platforms, e.g. "darwin,windows".
-			goqu.L("FIND_IN_SET(?, sq.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
-		),
-	)
-	sql, args, err := ds.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sql build")
-	}
-	var stats []fleet.ScheduledQueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load pack stats")
-	}
-	packStats := map[uint]fleet.PackStats{}
-	for _, query := range stats {
-		pack := packStats[query.PackID]
-		pack.PackName = query.PackName
-		pack.PackID = query.PackID
-		pack.Type = getPackTypeFromDBField(packTypes[pack.PackID])
-		pack.QueryStats = append(pack.QueryStats, query)
-		packStats[pack.PackID] = pack
-	}
-	var ps []fleet.PackStats
-	for _, pack := range packStats {
-		ps = append(ps, pack)
-	}
-	return ps, nil
+
+	_, err = saveHostsScheduledQueryStatsDB(ctx, ds.writer(ctx), map[uint][]fleet.ScheduledQueryStats{hostID: resolved}, len(resolved))
+	return err
 }
 
 // loadHostScheduledQueryStatsDB will load all the scheduled query stats for the given host.
@@ -554,13 +363,6 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 	return stats, nil
 }
 
-func getPackTypeFromDBField(t *string) string {
-	if t == nil {
-		return "pack"
-	}
-	return *t
-}
-
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) ([]fleet.HostUser, error) {
 	sql := `SELECT username, groupname, uid, user_type, shell FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	var users []fleet.HostUser
@@ -615,7 +417,6 @@ var hostRefs = []string{
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
 	"host_conditional_access",
-	"host_google_device_ids",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps or vpp apps as the activity contains the MDM
@@ -656,6 +457,10 @@ var hostRefs = []string{
 // MDM-enrolled with Platform SSO active, and its registered keys must keep
 // authenticating token requests. ADE re-enrollment clears them via
 // MDMAppleResetOnReenrollment.
+
+// - host_ai_sessions (and host_ai_session_events, by its foreign key): a host can have too many events
+// to delete with it, so the cleanups cron deletes the sessions of deleted hosts in batches
+// (CleanupHostAISessions).
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
@@ -711,6 +516,31 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
+// hostUUIDsWithoutHostsDB returns the UUIDs that no host row has, compared
+// case-insensitively as the column's collation does. Empty UUIDs are dropped.
+func hostUUIDsWithoutHostsDB(ctx context.Context, tx sqlx.ExtContext, uuids []string) ([]string, error) {
+	uuids = slices.DeleteFunc(slices.Clone(uuids), func(u string) bool { return u == "" })
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building select of remaining host uuids")
+	}
+	var remaining []string
+	if err := sqlx.SelectContext(ctx, tx, &remaining, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting remaining host uuids")
+	}
+	kept := make(map[string]struct{}, len(remaining))
+	for _, u := range remaining {
+		kept[strings.ToLower(u)] = struct{}{}
+	}
+	return slices.DeleteFunc(uuids, func(u string) bool {
+		_, ok := kept[strings.ToLower(u)]
+		return ok
+	}), nil
+}
+
 func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -764,13 +594,21 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
-	stmt, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetHost, hostIDs)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete statement for pack_targets for hosts %v", hostIDs)
+	// Only mobile hosts can register with Google conditional access. A UUID another host
+	// row still has is skipped, since the device is still in Fleet; if that row isn't
+	// enrolled, the sweep of unenrolled hosts unmarks it.
+	var mobileUUIDs []string
+	for _, info := range hostInfos {
+		if fleet.IsMobilePlatform(info.Platform) {
+			mobileUUIDs = append(mobileUUIDs, info.UUID)
+		}
 	}
-	_, err = tx.ExecContext(ctx, stmt, args...)
+	gone, err := hostUUIDsWithoutHostsDB(ctx, tx, mobileUUIDs)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts %v", hostIDs)
+		return err
+	}
+	if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, gone); err != nil {
+		return err
 	}
 
 	// no point trying the uuid-based tables if the host's uuid is missing
@@ -1001,11 +839,6 @@ LIMIT
 	omitUnknownLinuxDiskEncryption(&host)
 	setHostAPIOS(&host)
 
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
 	queriesStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform, host.TeamID)
 	if err != nil {
 		return nil, err
@@ -1449,15 +1282,9 @@ func (ds *Datastore) applyHostFilters(
 
 	softwareStatusJoin := ""
 	softwareFilter := "TRUE"
-	var softwareIDFilter *uint
 	if opt.SoftwareVersionIDFilter != nil {
-		softwareIDFilter = opt.SoftwareVersionIDFilter
-	} else if opt.SoftwareIDFilter != nil {
-		softwareIDFilter = opt.SoftwareIDFilter
-	}
-	if softwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
-		whereParams = append(whereParams, *softwareIDFilter)
+		whereParams = append(whereParams, *opt.SoftwareVersionIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
 		// Reject a version or package filter that isn't one of the title's in the fleet
 		if opt.AppStoreAppVersionIDFilter != nil {
@@ -1726,7 +1553,7 @@ func (ds *Datastore) applyHostFilters(
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
-					Message:     "team is invalid",
+					Message:     "fleet is invalid",
 					InternalErr: err,
 				},
 			)
@@ -1789,7 +1616,7 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 			// A host may have a host_script_results record if the batch started, in which case canceling will set that record's `canceled` field.
 			// Or it may not have one, if it's a scheduled batch, in which case if the batch is marked as canceled then we'll count
 			// the host as canceled as well.
-			batchScriptExecutionFilter += ` AND ((hsr.exit_code IS NULL AND hsr.canceled = 1) OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
+			batchScriptExecutionFilter += ` AND (hsr.canceled = 1 OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
 		}
 	}
 	return batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams
@@ -1877,7 +1704,7 @@ func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}
 		if fleet.IsArchGroupedOSName(*opt.OSNameFilter) {
 			// The OS inventory records these hosts as "Arch Linux"; only their display string has their own name and version.
 			// Requiring the inventory row matches what fleet.HostAPIOS returns and keeps list and count in step.
-			inventoryName, _ := fleet.InventoryOSName(*opt.OSNameFilter)
+			inventoryName := fleet.InventoryOSName(*opt.OSNameFilter)
 			sql += ` AND h.os_version = ? AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ?)`
 			params = append(params, *opt.OSNameFilter+" "+*opt.OSVersionFilter, inventoryName)
 		} else {
@@ -2510,9 +2337,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	// One `now` per `?`: MIA, Missing, offline (mobile + desktop), online
+	// One `now` per `?`: Missing, offline (mobile + desktop), online
 	// (mobile + desktop), new.
-	args := []any{now, now, now, now, now, now, now}
+	args := []any{now, now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
@@ -2536,7 +2363,6 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
-				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE
 					WHEN h.platform IN ('ios','ipados','android')
@@ -2837,14 +2663,32 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		overwrittenHostID = 0
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
 		osqueryIdentifier := hostInfo.OsqueryIdentifier
 		if osqueryIdentifier == "" {
 			osqueryIdentifier = hostInfo.HardwareUUID
+		}
+
+		var (
+			enrolledHostInfo *enrolledHostInfo
+			androidSecret    bool
+			err              error
+		)
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			enrolledHostInfo, androidSecret, err = ds.androidOneTimeSecretHost(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, osqueryIdentifier)
+			if err != nil {
+				return err
+			}
+		}
+		if enrolledHostInfo == nil {
+			enrolledHostInfo, err = matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
+				hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
+		}
+		androidDeviceIDReason := fleet.EnrollmentRejectedSharedSecretForMDMManagedHost
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			androidDeviceIDReason = fleet.EnrollmentRejectedUUIDOfAnotherMDMHost
 		}
 
 		switch {
@@ -2872,6 +2716,16 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOrbit); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -2941,6 +2795,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -3106,6 +2965,15 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
+		var androidSecret bool
+		androidDeviceIDReason := fleet.EnrollmentRejectedSharedSecretForMDMManagedHost
+		if enrollConfig.OneTimeEnrollSecretID != nil {
+			androidDeviceIDReason = fleet.EnrollmentRejectedUUIDOfAnotherMDMHost
+			var err error
+			if androidSecret, err = isAndroidOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID); err != nil {
+				return err
+			}
+		}
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "", "")
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
@@ -3118,6 +2986,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}
@@ -3192,6 +3065,16 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOsquery); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
+			if !androidSecret && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectAndroidDeviceIdentifiers(ctx, tx, androidDeviceIDReason, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}
@@ -4114,12 +3997,6 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	}
 	setHostAPIOS(host)
 
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
-
 	return host, nil
 }
 
@@ -4194,12 +4071,6 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by uuid")
 	}
-
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
 
 	return host, nil
 }
@@ -7075,12 +6946,43 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *flee
 	return row.JSONValue, row.UpdatedAt, nil
 }
 
+// storedOSVersion is an OS version entry as aggregated_stats stores it. Its keys are not the API's, so rows written
+// before the API renamed them still read correctly after an upgrade, until the next aggregation rewrites them.
+type storedOSVersion struct {
+	ID          uint   `json:"id,omitempty"`
+	OSVersionID uint   `json:"os_version_id"`
+	HostsCount  int    `json:"hosts_count"`
+	Name        string `json:"name"`
+	NameOnly    string `json:"name_only"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+}
+
 func (ds *Datastore) unmarshalOSVersions(jsonValue *json.RawMessage) ([]fleet.OSVersion, error) {
-	var versions []fleet.OSVersion
+	var stored []storedOSVersion
 	if jsonValue != nil {
-		if err := json.Unmarshal(*jsonValue, &versions); err != nil {
+		if err := json.Unmarshal(*jsonValue, &stored); err != nil {
 			return nil, err
 		}
+	}
+	versions := make([]fleet.OSVersion, 0, len(stored))
+	for _, s := range stored {
+		platform := s.Platform
+		// Arch Linux's rows include Arch Linux ARM's (archarm) and, until those hosts report again, the CachyOS
+		// and Omarchy hosts an earlier Fleet recorded as Arch Linux, so the merged entry would otherwise take
+		// whichever platform came first.
+		if s.NameOnly == fleet.ArchLinuxOSName {
+			platform = fleet.ArchLinuxPlatform
+		}
+		versions = append(versions, fleet.OSVersion{
+			ID:          s.ID,
+			OSVersionID: s.OSVersionID,
+			HostsCount:  s.HostsCount,
+			Name:        s.Name,
+			NameOnly:    s.NameOnly,
+			Version:     s.Version,
+			Platform:    platform,
+		})
 	}
 	return versions, nil
 }
@@ -7119,12 +7021,12 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 
 	// each team has a slice of stats with team host counts per os version, no
 	// team are grouped under team id 0
-	statsByTeamID := make(map[uint][]fleet.OSVersion)
+	statsByTeamID := make(map[uint][]storedOSVersion)
 	// stats are also aggregated globally per os version
-	globalStats := make(map[uint]fleet.OSVersion)
+	globalStats := make(map[uint]storedOSVersion)
 
 	for _, r := range rows {
-		os := fleet.OSVersion{
+		os := storedOSVersion{
 			HostsCount:  r.HostsCount,
 			Name:        fmt.Sprintf("%s %s", r.Name, r.Version),
 			NameOnly:    r.Name,
@@ -7156,12 +7058,12 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	}
 	for _, id := range teamIDs {
 		if _, ok := statsByTeamID[id]; !ok {
-			statsByTeamID[id] = []fleet.OSVersion{}
+			statsByTeamID[id] = []storedOSVersion{}
 		}
 	}
 	// same for "no team"
 	if _, ok := statsByTeamID[0]; !ok {
-		statsByTeamID[0] = []fleet.OSVersion{}
+		statsByTeamID[0] = []storedOSVersion{}
 	}
 
 	// assemble values as arguments for insert statement
@@ -7175,7 +7077,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	}
 
 	// add the global stats
-	globalArray := make([]fleet.OSVersion, 0, len(globalStats))
+	globalArray := make([]storedOSVersion, 0, len(globalStats))
 	for _, os := range globalStats {
 		globalArray = append(globalArray, os)
 	}

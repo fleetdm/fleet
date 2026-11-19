@@ -178,31 +178,6 @@ func TestRaspberryPiImagerVersionTransformer(t *testing.T) {
 	}
 }
 
-func TestMySQLWorkbenchVersionTransformer(t *testing.T) {
-	tcs := []struct {
-		name     string
-		version  string
-		expected string
-		wantErr  bool
-	}{
-		{name: "empty version", version: "", wantErr: true},
-		{name: "normal version", version: "8.0.46", expected: "8.0.46.CE"},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "mysql-workbench"}
-			result, err := MySQLWorkbenchVersionTransformer(app)
-			if tc.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result.Version)
-		})
-	}
-}
-
 func TestLensVersionTransformer(t *testing.T) {
 	tcs := []struct {
 		name     string
@@ -245,6 +220,33 @@ func TestShottrVersionTransformer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "shottr"}
 			result, err := ShottrVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestUTMVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "rebuild suffix", version: "5.0.9-2", expected: "5.0.9"},
+		{name: "no suffix", version: "5.0.9", expected: "5.0.9"},
+		{name: "non-numeric suffix kept", version: "5.1.0-beta", expected: "5.1.0-beta"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "utm/darwin"}
+			result, err := UTMVersionTransformer(app)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -324,6 +326,8 @@ func TestBundleVersionAppsShortenToShortVersion(t *testing.T) {
 		{slug: "disk-drill/darwin", version: "6.3.2326", expected: "6.3"},
 		{slug: "kdenlive/darwin", version: "26.08.3", expected: "26.08"},
 		{slug: "syncmate/darwin", version: "8.11.604", expected: "8.11"},
+		{slug: "redcine-x-pro/darwin", version: "65.2.1", expected: "65.2"},
+		{slug: "redcine-x-pro/darwin", version: "65.1.3", expected: "65.1"},
 		{slug: "bitrix24/darwin", version: "24.0.37.92", expected: "24.0.37"},
 		{slug: "4k-slideshow-maker/darwin", version: "2.0.1", expected: "2.0"},
 		{slug: "4k-stogram/darwin", version: "4.9.0", expected: "4.9"},
