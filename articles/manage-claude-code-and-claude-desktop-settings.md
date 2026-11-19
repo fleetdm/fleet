@@ -163,7 +163,7 @@ Save this as `claude-desktop-settings.ps1`:
 $ErrorActionPreference = 'Stop'
 
 $key = 'HKLM:\SOFTWARE\Policies\Claude'
-New-Item -Path $key -Force | Out-Null
+if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
 Set-ItemProperty -Path $key -Name 'isLocalDevMcpEnabled' -Value 0 -Type DWord
 ```
 
