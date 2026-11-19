@@ -763,6 +763,31 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", relockHostID), nil, http.StatusConflict)
 		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
 	})
+
+	t.Run("A lock the device rejects through the command's errorCode has no PIN to show", func(t *testing.T) {
+		rejectedHostID := createAndroidHostForTest(t, s.ds, nil, true)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", rejectedHostID), nil, http.StatusOK)
+		_, _, lockOp := lastIssue()
+		deliverPubSubCommand(t, androidmanagement.Operation{
+			Name:     lockOp,
+			Done:     true,
+			Metadata: googleapi.RawMessage(`{"type":"RESET_PASSWORD","resetPasswordFlags":["LOCK_NOW"],"errorCode":"INVALID_VALUE"}`),
+		})
+
+		assertUnlockPINAvailable(t, rejectedHostID, false)
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", rejectedHostID), nil, http.StatusConflict)
+		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
+		var row struct {
+			Status    string  `db:"status"`
+			ErrorCode *string `db:"error_code"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT status, error_code FROM mdm_android_commands WHERE operation_name = ?`, lockOp)
+		})
+		require.Equal(t, string(android.MDMAndroidCommandStatusError), row.Status)
+		require.NotNil(t, row.ErrorCode)
+		require.Equal(t, "INVALID_VALUE", *row.ErrorCode)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {

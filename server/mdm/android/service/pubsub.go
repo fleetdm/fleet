@@ -248,15 +248,30 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 }
 
 // androidOperationTerminalState maps a done AMAPI Operation to the terminal status to write on the
-// mdm_android_commands row, plus the error code/message to record. A nil Operation.Error means the
-// device executed the command successfully; a populated one means AMAPI or the device rejected it.
+// mdm_android_commands row, plus the error code/message to record. The command succeeded only when
+// neither Operation.Error nor the Command's errorCode in the Operation metadata reports a failure.
 func androidOperationTerminalState(op *androidmanagement.Operation) (status string, errCode, errMsg *string) {
-	if op.Error == nil {
-		return string(android.MDMAndroidCommandStatusAcknowledged), nil, nil
+	if op == nil {
+		code, message := "UNKNOWN", "AMAPI returned no operation for the command"
+		return string(android.MDMAndroidCommandStatusError), &code, &message
 	}
-	code := googleStatusCode(op.Error.Code)
-	message := op.Error.Message
-	return string(android.MDMAndroidCommandStatusError), &code, &message
+	if op.Error != nil {
+		code := googleStatusCode(op.Error.Code)
+		message := op.Error.Message
+		return string(android.MDMAndroidCommandStatusError), &code, &message
+	}
+	// AMAPI can report a failed command (e.g. a RESET_PASSWORD the device rejected) only through the
+	// Command's errorCode, with no Operation-level error.
+	var command struct {
+		ErrorCode string `json:"errorCode"`
+	}
+	if len(op.Metadata) > 0 && json.Unmarshal(op.Metadata, &command) == nil &&
+		command.ErrorCode != "" && command.ErrorCode != "COMMAND_ERROR_CODE_UNSPECIFIED" {
+		code := command.ErrorCode
+		message := "The device couldn't run the command: " + command.ErrorCode
+		return string(android.MDMAndroidCommandStatusError), &code, &message
+	}
+	return string(android.MDMAndroidCommandStatusAcknowledged), nil, nil
 }
 
 // setAndroidCommandTerminalState moves a pending mdm_android_commands row to a terminal status and runs

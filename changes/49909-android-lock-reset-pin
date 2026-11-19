@@ -2,3 +2,4 @@
 - `POST /api/v1/fleet/hosts/:id/unlock` now supports Android hosts. It returns the unlock PIN and the time the device acknowledged the lock (`locked_at`) without sending a command, and logs a new `viewed_host_unlock_pin` activity.
 - Added `mdm.unlock_pin_available` to Android host details.
 - Android hosts can't be locked while a Clear passcode is pending, and their passcode can't be cleared while a lock is pending.
+- Android commands the device rejects are now marked as failed even when AMAPI reports the failure only through the command's `errorCode`.

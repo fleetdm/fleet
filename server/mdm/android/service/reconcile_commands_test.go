@@ -74,6 +74,7 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		for _, tc := range []struct {
 			name           string
 			opError        *androidmanagement.Status
+			metadata       string
 			expectedStatus string
 			expectedCode   string
 			expectedMsg    string
@@ -90,13 +91,34 @@ func TestReconcileAndroidCommands(t *testing.T) {
 				expectedCode:   "13",
 				expectedMsg:    "device does not support LOCK",
 			},
+			{
+				name:           "a command errorCode without an Operation error is still a failure",
+				metadata:       `{"type":"RESET_PASSWORD","errorCode":"INVALID_VALUE"}`,
+				expectedStatus: string(android.MDMAndroidCommandStatusError),
+				expectedCode:   "INVALID_VALUE",
+				expectedMsg:    "The device couldn't run the command: INVALID_VALUE",
+			},
+			{
+				name:           "an unspecified command errorCode means no error",
+				metadata:       `{"type":"RESET_PASSWORD","errorCode":"COMMAND_ERROR_CODE_UNSPECIFIED"}`,
+				expectedStatus: string(android.MDMAndroidCommandStatusAcknowledged),
+			},
+			{
+				name:           "command metadata without an errorCode means no error",
+				metadata:       `{"type":"RESET_PASSWORD","resetPasswordFlags":["LOCK_NOW"]}`,
+				expectedStatus: string(android.MDMAndroidCommandStatusAcknowledged),
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				cmd := pendingCommandForReconcile("cmd-done", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
 				mockDS, client, logger := newReconcileFixture(t, cmd)
 				client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 					require.Equal(t, cmd.OperationName, operationName)
-					return &androidmanagement.Operation{Name: operationName, Done: true, Error: tc.opError}, nil
+					op := &androidmanagement.Operation{Name: operationName, Done: true, Error: tc.opError}
+					if tc.metadata != "" {
+						op.Metadata = googleapi.RawMessage(tc.metadata)
+					}
+					return op, nil
 				}
 				var gotStatus string
 				var gotCode, gotMsg, gotRawResult *string
