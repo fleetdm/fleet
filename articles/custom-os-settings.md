@@ -10,6 +10,9 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
+> When you add or edit a configuration profile, Fleet checks that each setting it recognizes has a value of the expected type. For example, a setting Apple or Microsoft documents as a number must be a number. Settings and payload types Fleet doesn't recognize are allowed.
+> To skip this check, turn off **Profile validation** in **Organization settings > Advanced options**.
+
 ### Apple declaration (DDM) profiles
 
 For Apple hosts, Fleet supports uploading declaration (DDM) profiles as `.json` files. Fleet supports the following types:
@@ -115,6 +118,8 @@ On Fleet Premium, you can use labels to scope a profile to a subset of those hos
 When you combine an include mode with **Exclude any**, the profile applies to hosts that match the include labels and have none of the exclude labels. A label can't appear in both lists.
 
 If you don't select any labels, the profile applies to all hosts that support its platform.
+
+On Android, passcode profiles (`passwordPolicies` or `passwordRequirements`) are applied during setup, so the end user sets a passcode before they reach the home screen. Passcode profiles scoped with labels are applied after setup instead, because a host doesn't have labels until it enrolls.
 
 Fleet UI: on the **Add profile** or **Edit profile** page, select **Edit targets**, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
 
@@ -248,7 +253,7 @@ Set `self_service: true` on the profile:
 
 ```yaml
 controls:
-  macos_settings:
+  apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
         self_service: true

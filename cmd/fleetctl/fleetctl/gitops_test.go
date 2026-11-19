@@ -331,6 +331,66 @@ org_settings:
 	}
 }
 
+func TestGitOpsGlobalGoogleConditionalAccessTurnedOff(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// An absent or null google_conditional_access turns the integration off.
+	cases := []struct {
+		name         string
+		integrations string
+	}{
+		{"absent", "  integrations:"},
+		{"null", "  integrations:\n    google_conditional_access:"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t)
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleConditionalAccess = &fleet.GoogleConditionalAccessIntegration{
+					CustomerID: "C02cajzvg", AdminEmail: "admin@example.com",
+				}
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = fmt.Fprintf(tmpFile, `
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GCA Test
+%s
+  secrets:
+`, c.integrations)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			require.Nil(t, savedAppConfig.Integrations.GoogleConditionalAccess)
+		})
+	}
+}
+
 func TestGitOpsQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -596,9 +656,9 @@ software:
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
 
-	// GitOps should not overwrite GitOps UI Mode.
-	assert.Equal(t, savedAppConfig.GitOpsConfig.GitopsModeEnabled, true)
-	assert.Equal(t, savedAppConfig.GitOpsConfig.RepositoryURL, "https://didsomeonesaygitops.biz")
+	// GitOps mode is reset because the YAML omits it; the exceptions are UI-only and survive.
+	assert.False(t, savedAppConfig.GitOpsConfig.GitopsModeEnabled)
+	assert.Empty(t, savedAppConfig.GitOpsConfig.RepositoryURL)
 	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Labels, false)
 	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Software, true)
 	assert.Equal(t, savedAppConfig.GitOpsConfig.Exceptions.Secrets, false)
@@ -849,8 +909,8 @@ software:
 	}
 
 	// include the Windows managed local account toggle in the applied controls
-	globalFile := writeGlobalFile(`  windows_settings:
-    enable_managed_local_account: true`)
+	globalFile := writeGlobalFile(`  setup_experience:
+    windows_managed_local_account_enabled: true`)
 
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
 
@@ -860,11 +920,11 @@ software:
 	require.Equal(t,
 		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
-	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.EnableManagedLocalAccount.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
 
 	// gitops is declarative for the managed local account toggle: re-applying without the key disables it
 	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
-	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.EnableManagedLocalAccount.Value)
+	require.False(t, (*savedAppConfigPtr).MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
 }
 
 // Disk encryption and key escrow moved from the flat controls.enable_disk_encryption
@@ -1564,12 +1624,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 					ID:         30,
 					Name:       "No-Team Package",
 					HashSHA256: ptr.String("eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111"),
-					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Packages: []fleet.SoftwarePackageListItem{{
 						Name:       "noteam-pkg.deb",
 						Platform:   "linux",
 						Version:    "2.0",
 						PackageURL: ptr.String("https://example.com/noteam-pkg.deb"),
-					},
+					}},
 				},
 			}, 1, nil, nil
 		}
@@ -1582,12 +1642,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 					ID:         uint(1000 + i),
 					Name:       fmt.Sprintf("Bogus Package %d", i),
 					HashSHA256: ptr.String(fmt.Sprintf("%064x", i)),
-					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Packages: []fleet.SoftwarePackageListItem{{
 						Name:       fmt.Sprintf("bogus-%d.deb", i),
 						Platform:   "linux",
 						Version:    "0.0.1",
 						PackageURL: ptr.String(fmt.Sprintf("https://example.com/bogus-%d.deb", i)),
-					},
+					}},
 				}
 			}
 			return bogus, int(opt.ListOptions.PerPage), nil, nil //nolint:gosec // dismiss G115
@@ -1598,12 +1658,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				ID:         10,
 				Name:       "Custom Package",
 				HashSHA256: ptr.String("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:       "custom-pkg.deb",
 					Platform:   "linux",
 					Version:    "1.0",
 					PackageURL: ptr.String("https://example.com/custom-pkg.deb"),
-				},
+				}},
 			},
 			{
 				ID:           20,
@@ -1614,12 +1674,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				ID:         40,
 				Name:       "Zoom",
 				HashSHA256: ptr.String("fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "zoom.pkg",
 					Platform:             "darwin",
 					Version:              "6.0",
 					FleetMaintainedAppID: ptr.Uint(100),
-				},
+				}},
 			},
 		}, 3, nil, nil
 	}
@@ -2196,8 +2256,8 @@ policies:
 agent_options:
 software:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
         labels_include_any:
           - new-team-label
@@ -2472,12 +2532,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", path, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
 			}
 			assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 			assert.Empty(t, enrolledSecrets)
@@ -2493,12 +2547,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", path})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
 			}
 			assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
@@ -2815,9 +2863,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Nil(t, savedTeam)
 			assert.Empty(t, enrolledSecrets)
@@ -2836,9 +2881,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			require.NotNil(t, savedTeam)
 			assert.Equal(t, teamName, savedTeam.Name)
@@ -2937,12 +2979,9 @@ software:
 			assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 			assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 			assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
-			assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
-			assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
 			assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 			assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 			assert.False(t, savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
-			assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 			assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 			assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
 		})
@@ -3737,7 +3776,7 @@ func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
 		orgName        = "GitOps Test"
 	)
 
-	// A global config that manages macos_settings and declares a DDM asset. A
+	// A global config that manages apple_settings and declares a DDM asset. A
 	// non-empty asset set forces the client down the (premium-gated) apply path.
 	dir := t.TempDir()
 	assetPath := filepath.Join(dir, "asset.json")
@@ -3750,7 +3789,7 @@ func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
 	globalFilePath := filepath.Join(dir, "global.yml")
 	require.NoError(t, os.WriteFile(globalFilePath, fmt.Appendf(nil, `
 controls:
-  macos_settings:
+  apple_settings:
     assets:
       - path: ./asset.json
 queries:
@@ -4025,16 +4064,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			logs := runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.False(t, ds.SaveAppConfigFuncInvoked)
 			assert.Empty(t, enrolledSecrets)
@@ -4046,16 +4076,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			logs = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
-				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
-				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
-				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
 			}
 			assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
@@ -4085,14 +4106,14 @@ controls:
     - path: ./script.sh
   windows_mdm_enabled: true
   android_enabled_and_configured: true
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
     - path: ./config.json
   windows_settings:
-    custom_settings:
+    configuration_profiles:
     - path: ./config2.xml
   android_settings:
-    custom_settings:
+    configuration_profiles:
     - path: ./config3.json
 policies:
 name: Unassigned
@@ -4143,15 +4164,30 @@ software:
 		assert.False(t, ds.BatchSetScriptsFuncInvoked)
 
 		// Real run
+		var noTeamDecls []*fleet.MDMAppleDeclaration
+		var noTeamWindows []*fleet.MDMWindowsConfigProfile
+		var noTeamAndroid []*fleet.MDMAndroidConfigProfile
+		batchSetMDMProfiles := ds.BatchSetMDMProfilesFunc
+		t.Cleanup(func() { ds.BatchSetMDMProfilesFunc = batchSetMDMProfiles })
+		ds.BatchSetMDMProfilesFunc = func(
+			ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+			macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+		) (fleet.MDMProfilesUpdates, error) {
+			if tmID == nil || *tmID == 0 {
+				noTeamDecls, noTeamWindows, noTeamAndroid = macDecls, winProfiles, androidProfiles
+			}
+			return fleet.MDMProfilesUpdates{}, nil
+		}
 		_ = runAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFile.Name()})
 		assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 		assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
-		require.Len(t, (*savedAppConfigPtr).MDM.MacOSSettings.CustomSettings, 1)
-		assert.Equal(t, filepath.Base(ddmFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.MacOSSettings.CustomSettings[0].Path))
-		require.Len(t, (*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value, 1)
-		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
-		require.Len(t, (*savedAppConfigPtr).MDM.AndroidSettings.CustomSettings.Value, 1)
-		assert.Equal(t, filepath.Base(androidFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.AndroidSettings.CustomSettings.Value[0].Path))
+		// The profiles go to the batch endpoint, read from the paths relative to unassigned.yml.
+		require.Len(t, noTeamDecls, 1)
+		assert.Equal(t, "config", noTeamDecls[0].Name)
+		require.Len(t, noTeamWindows, 1)
+		assert.Equal(t, "config2", noTeamWindows[0].Name)
+		require.Len(t, noTeamAndroid, 1)
+		assert.Equal(t, "config3", noTeamAndroid[0].Name)
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
 
 		// Get applied policies for the team
@@ -4485,51 +4521,10 @@ software:
 		tokens           []*fleet.ABMToken
 	}{
 		{
-			name: "backwards compat",
-			cfgs: []string{
-				global("apple_bm_default_team: 💻 Workstations"),
-				workstations,
-			},
-			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.Contains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Equal(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam, "💻 Workstations")
-				assert.Contains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
-			name: "deprecated config with two tokens in the db fails",
-			cfgs: []string{
-				global("apple_bm_default_team: 💻 Workstations"),
-				workstations,
-			},
-			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}, {OrganizationName: "Second Token LLC"}},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				t.Logf("got: %s", out)
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.NotContains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
-				assert.NotContains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
 			name: "new key all valid",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4543,12 +4538,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4569,7 +4562,7 @@ software:
 			name: "renamed new key all valid",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4583,12 +4576,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4609,7 +4600,7 @@ software:
 			name: "new key multiple elements",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Foo Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4628,12 +4619,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4658,35 +4647,10 @@ software:
 			},
 		},
 		{
-			name: "both keys errors",
+			name: "using an undefined fleet errors",
 			cfgs: []string{
 				global(`
-                                  apple_bm_default_team: "💻 Workstations"
-                                  apple_business_manager:
-                                    - organization_name: Fleet Device Management Inc.
-                                      byod_fleet: "📱🔐 Personal mobile devices"
-                                      macos_fleet: "💻 Workstations"
-                                      ios_fleet: "📱🏢 Company-owned iPhones"
-                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
-				workstations,
-				iosTeam,
-				ipadTeam,
-				byodTeam,
-			},
-			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.NotContains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
-				assert.NotContains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
-			name: "using an undefined team errors",
-			cfgs: []string{
-				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "📱🔐 Personal mobile devices"
                                       macos_fleet: "💻 Workstations"
@@ -4695,17 +4659,17 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business fleet \"📱🏢 Company-owned iPhones\" not found in fleet configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business fleet \"📱🏢 Company-owned iPhones\" not found in fleet configs")
 			},
 		},
 		{
 			name: "no team is supported",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       byod_fleet: "No team"
                                       macos_fleet: "No team"
@@ -4715,12 +4679,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4741,7 +4703,7 @@ software:
 			name: "not provided teams defaults to no team",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"
                                       ios_fleet: ""`),
@@ -4749,12 +4711,10 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.ElementsMatch(
 					t,
 					appCfg.MDM.AppleBusinessManager.Value,
@@ -4775,7 +4735,7 @@ software:
 			name: "non existent org name fails",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Does not exist
                                       macos_fleet: "No team"`),
 			},
@@ -4783,13 +4743,11 @@ software:
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.ErrorContains(t, err, "token with organization name Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.ErrorContains(t, err, "token with organization name Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 		},
@@ -4800,7 +4758,7 @@ software:
 			name: "org name in a different unicode form matches",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: "Café Inc."
                                       macos_fleet: "No team"`),
 			},
@@ -4818,7 +4776,7 @@ software:
 			name: "default on one token applies",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"
                                     - organization_name: Foo Inc.
@@ -4851,7 +4809,7 @@ software:
 			name: "two defaults fails",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       default: true
                                       macos_fleet: "No team"
@@ -4880,7 +4838,7 @@ software:
 			name: "no default on multiple tokens clears it",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"
                                     - organization_name: Foo Inc.
@@ -4910,7 +4868,7 @@ software:
 			name: "single token with no default key stays default",
 			cfgs: []string{
 				global(`
-                                  apple_business_manager:
+                                  apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       macos_fleet: "No team"`),
 			},
@@ -5103,11 +5061,11 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in fleet configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in fleet configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 		},
@@ -5310,16 +5268,14 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
 
-	t.Run("omitted preserves prior value", func(t *testing.T) {
+	t.Run("omitted resets to false", func(t *testing.T) {
 		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-		// Seed the AppConfig with true so we can confirm gitops does not clobber
-		// the value when the field is absent from the YAML.
 		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
 
 		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
 		require.NoError(t, err)
-		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
 }
 
@@ -5400,8 +5356,10 @@ func TestGitOpsGlobalWebhooksAndTicketsEnabled(t *testing.T) {
 
 	// Track applied policies and return them with IDs.
 	var appliedPolicies []*fleet.Policy
+	appliedSpecs := map[string]bool{}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		for i, spec := range specs {
+			appliedSpecs[spec.Name] = spec.WebhooksAndTicketsEnabled
 			appliedPolicies = append(appliedPolicies, &fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					ID:   uint(i + 1),
@@ -5454,15 +5412,16 @@ software:
 	require.True(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com/global-webhook", (*appConfig).WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 
-	// Get the IDs of the policies with webhooks_and_tickets_enabled.
-	policiesWithWebhooksEnabled := []string{"Global Webhook Policy 1", "Global Webhook Policy 2"}
-	expectedIDs := make([]uint, 0)
-	for _, p := range appliedPolicies {
-		if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
-			expectedIDs = append(expectedIDs, p.ID)
-		}
-	}
-	require.ElementsMatch(t, expectedIDs, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	// Each policy spec carries its automation, and no settings write sets it.
+	require.Equal(t, map[string]bool{
+		"Global Webhook Policy 1":  true,
+		"Global Webhook Policy 2":  true,
+		"Global No Webhook Policy": false,
+	}, appliedSpecs)
+	require.Empty(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), nil)
+	require.NoError(t, err)
+	require.Empty(t, webhookPolicyIDs)
 }
 
 func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
@@ -5496,15 +5455,14 @@ agent_options:
 `, fleetName))
 	require.NoError(t, err)
 
+	// policy_ids was removed in Fleet 5, and nothing is applied.
 	_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
-	require.NoError(t, err)
+	require.ErrorContains(t, err, `The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore.`)
 
 	savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 	require.NoError(t, err)
-	require.True(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	// Note -- this codepath doesn't actually verify that the policies with the specified IDs exist, it just saves the IDs from the config.
-	require.Equal(t, []uint{1, 2}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.False(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
 func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
@@ -5519,8 +5477,10 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 
 	// Override ApplyPolicySpecs to track applied policies and assign IDs.
 	var appliedPolicies []*fleet.Policy
+	var appliedSpecs map[string]bool
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		for i, spec := range specs {
+			appliedSpecs[spec.Name] = spec.WebhooksAndTicketsEnabled
 			appliedPolicies = append(appliedPolicies, &fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					ID:   uint(i + 1),
@@ -5538,8 +5498,19 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 		return appliedPolicies, nil, nil
 	}
 
-	t.Run("conflict with policy_ids", func(t *testing.T) {
+	// No settings write sets the fleet's webhook or ticket policies; each policy spec carries its own.
+	requireNoPolicyIDs := func(t *testing.T) {
+		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
+		require.NoError(t, err)
+		require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), &savedFleet.ID)
+		require.NoError(t, err)
+		require.Empty(t, webhookPolicyIDs)
+	}
+
+	t.Run("policy_ids is rejected", func(t *testing.T) {
 		appliedPolicies = nil
+		appliedSpecs = map[string]bool{}
 
 		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -5565,12 +5536,41 @@ agent_options:
 		require.NoError(t, err)
 
 		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids'")
+		require.ErrorContains(t, err, `The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore.`)
+		require.Empty(t, appliedSpecs)
 	})
 
-	t.Run("sets policy_ids from webhooks_and_tickets_enabled", func(t *testing.T) {
+	t.Run("two automations fail before anything is applied", func(t *testing.T) {
+		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = cfgFile.WriteString(fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "testSecret"
+software:
+queries:
+policies:
+  - name: Two automations
+    query: "SELECT 1"
+    calendar_events_enabled: true
+    webhooks_and_tickets_enabled: true
+agent_options:
+`, fleetName))
+		require.NoError(t, err)
+
+		for _, args := range [][]string{{"gitops", "-f", cfgFile.Name(), "--dry-run"}, {"gitops", "-f", cfgFile.Name()}} {
+			appliedSpecs = map[string]bool{}
+			_, err = runAppNoChecks(args)
+			require.ErrorContains(t, err, fmt.Sprintf(`Couldn't apply policy "Two automations" in %s: a policy can only have one automation, `+
+				`but it sets calendar_events_enabled, webhooks_and_tickets_enabled.`, filepath.Base(cfgFile.Name())))
+			require.Empty(t, appliedSpecs)
+		}
+	})
+
+	t.Run("sends webhooks_and_tickets_enabled on each policy", func(t *testing.T) {
 		appliedPolicies = nil
+		appliedSpecs = map[string]bool{}
 
 		cfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -5600,20 +5600,11 @@ agent_options:
 		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 		require.NoError(t, err)
 
-		// Verify the fleet's webhook settings were updated with the correct policy IDs.
 		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 		require.NoError(t, err)
 		require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-
-		// Get the IDs of the policies with webhooks_and_tickets_enabled.
-		policiesWithWebhooksEnabled := []string{"Webhook Policy 1", "Webhook Policy 2"}
-		expectedIDs := make([]uint, 0)
-		for _, p := range appliedPolicies {
-			if slices.Contains(policiesWithWebhooksEnabled, p.Name) {
-				expectedIDs = append(expectedIDs, p.ID)
-			}
-		}
-		require.ElementsMatch(t, expectedIDs, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		require.Equal(t, map[string]bool{"Webhook Policy 1": true, "Webhook Policy 2": true, "No Webhook Policy": false}, appliedSpecs)
+		requireNoPolicyIDs(t)
 	})
 
 	t.Run("does not re-fetch policies when all already exist", func(t *testing.T) {
@@ -5622,6 +5613,7 @@ agent_options:
 			{PolicyData: fleet.PolicyData{ID: 10, Name: "Existing Policy 1"}},
 			{PolicyData: fleet.PolicyData{ID: 20, Name: "Existing Policy 2"}},
 		}
+		appliedSpecs = map[string]bool{}
 
 		// Track how many times ListTeamPolicies is called.
 		listTeamPoliciesCalls := 0
@@ -5663,9 +5655,8 @@ agent_options:
 		// since all policies already existed.
 		require.Equal(t, 1, listTeamPoliciesCalls)
 
-		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
-		require.NoError(t, err)
-		require.ElementsMatch(t, []uint{10, 20}, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		require.Equal(t, map[string]bool{"Existing Policy 1": true, "Existing Policy 2": true}, appliedSpecs)
+		requireNoPolicyIDs(t)
 	})
 }
 
@@ -6074,25 +6065,15 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 		return nil
 	}
 
-	// Do a GitOps run with no smtp settings.
+	// A run with no smtp_settings resets them to the defaults.
 	_, err := runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
-	// Currently we do NOT clear the SMTP settings if they are not in the config,
-	// because the smtp_settings key is not documented in the GitOps config.
-	// TODO - update this test if we change this behavior.
 	require.Equal(t, &fleet.SMTPSettings{
-		SMTPEnabled:              true,
-		SMTPConfigured:           true,
-		SMTPSenderAddress:        "http://example.com",
-		SMTPServer:               "server.example.com",
 		SMTPPort:                 587,
-		SMTPAuthenticationType:   "smoooth",
-		SMTPUserName:             "uzer",
-		SMTPPassword:             "********",
+		SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+		SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
 		SMTPEnableTLS:            true,
-		SMTPAuthenticationMethod: "crunchy",
-		SMTPDomain:               "smtp.example.com",
 		SMTPVerifySSLCerts:       true,
 		SMTPEnableStartTLS:       true,
 	}, appConfig.SMTPSettings)
@@ -7197,17 +7178,13 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
-      custom_settings: null
+    apple_settings:
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7261,17 +7238,13 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
-      custom_settings: null
+    apple_settings:
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7324,17 +7297,13 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
-      custom_settings: null
+    apple_settings:
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7439,17 +7408,13 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
-      custom_settings: null
+    apple_settings:
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -7558,17 +7523,13 @@ settings:
     macos_updates:
       minimum_version: null
       deadline: null
-    macos_settings:
-      custom_settings: null
+    apple_settings:
     setup_experience:
-      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
     windows_settings:
-      custom_settings: null
 agent_options:
   config:
     options:
@@ -9037,6 +8998,109 @@ software:
 	})
 }
 
+func TestGitOpsFleetNameRules(t *testing.T) {
+	// Cannot t.Parallel() — RunServerWithMockedDS sets environment variables.
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License:       license,
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	})
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		return nil, errors.New("no fleet may be created")
+	}
+
+	writeFleet := func(t *testing.T, dir, filename, name string) string {
+		path := filepath.Join(dir, filename)
+		require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `
+controls:
+reports:
+policies:
+agent_options:
+name: %q
+settings:
+  secrets:
+    - secret: %q
+software:
+`, name, filename), 0o600))
+		return path
+	}
+	requireNothingApplied := func(t *testing.T) {
+		require.False(t, ds.NewTeamFuncInvoked)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
+	}
+
+	for _, dryRun := range []bool{true, false} {
+		args := func(files ...string) []string {
+			a := []string{"gitops"}
+			for _, f := range files {
+				a = append(a, "-f", f)
+			}
+			if dryRun {
+				a = append(a, "--dry-run")
+			}
+			return a
+		}
+
+		t.Run(fmt.Sprintf("names that only differ by ignored characters, dry run %t", dryRun), func(t *testing.T) {
+			for _, names := range [][2]string{
+				{"Work Stations", "work-stations"},
+				{"Workstations", "Workstations 💻"},
+				{"Workstations!", "WORK_STATIONS"},
+				{"開発チーム", "開発・チーム"},
+				{"straße", "Strasse"},
+			} {
+				dir := t.TempDir()
+				first := writeFleet(t, dir, "first.yml", names[0])
+				second := writeFleet(t, dir, "second.yml", names[1])
+				// A valid fleet listed first must not be applied before the check runs.
+				valid := writeFleet(t, dir, "valid.yml", "Servers")
+
+				_, err := runAppNoChecks(args(valid, first, second))
+				require.ErrorContains(t, err, fmt.Sprintf(
+					"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Choose a fleet name distinct from other fleets.",
+					first, second), names)
+				requireNothingApplied(t)
+			}
+		})
+
+		t.Run(fmt.Sprintf("name with no letter or number, dry run %t", dryRun), func(t *testing.T) {
+			for _, name := range []string{"🚀", "🚀🚀🚀", "!!!", "---", "「」", "・・・"} {
+				dir := t.TempDir()
+				valid := writeFleet(t, dir, "valid.yml", "Servers")
+				invalid := writeFleet(t, dir, "invalid.yml", name)
+
+				_, err := runAppNoChecks(args(valid, invalid))
+				require.ErrorContains(t, err, "fleet 'name' must include at least one letter or number", name)
+				requireNothingApplied(t)
+			}
+		})
+
+	}
+
+	t.Run("distinct names pass the dry run", func(t *testing.T) {
+		dir := t.TempDir()
+		_, err := runAppNoChecks([]string{
+			"gitops", "--dry-run",
+			"-f", writeFleet(t, dir, "workstations.yml", "Workstations"),
+			"-f", writeFleet(t, dir, "workstations2.yml", "Workstations 2"),
+			"-f", writeFleet(t, dir, "dev.yml", "開発"),
+			"-f", writeFleet(t, dir, "rocket.yml", "Fleet 🚀"),
+			"-f", writeFleet(t, dir, "ram.yml", "राम"),
+			"-f", writeFleet(t, dir, "ram2.yml", "रम"),
+		})
+		require.NoError(t, err)
+	})
+}
+
 // TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict verifies that both
 // dry-run and real gitops runs fail when macos_manual_agent_install is true and
 // macos_script is set. Regression test for
@@ -9490,7 +9554,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
 	})
 
-	t.Run("YAML omitting gitops preserves stored mode and url", func(t *testing.T) {
+	t.Run("YAML omitting gitops resets stored mode and url", func(t *testing.T) {
 		seed := fleet.GitOpsConfig{
 			GitopsModeEnabled: true,
 			RepositoryURL:     "https://prior.example.com",
@@ -9501,8 +9565,8 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
-		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
-		assert.Equal(t, "https://prior.example.com", saved.GitOpsConfig.RepositoryURL)
+		assert.False(t, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Empty(t, saved.GitOpsConfig.RepositoryURL)
 	})
 
 	t.Run("YAML omitting gitops preserves exceptions", func(t *testing.T) {
@@ -9922,9 +9986,7 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 			},
 		}
 		if euaEnabled {
-			cf.Config.Controls.MacOSSetup = &fleet.MacOSSetup{
-				EnableEndUserAuthentication: true,
-			}
+			cf.Config.Controls.MacOSSetup = &fleet.GitOpsMacOSSetup{EnableEndUserAuthentication: true}
 		}
 		return cf
 	}
@@ -9981,7 +10043,7 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 
 	t.Run("global file enables EUA at no-team and has complete IdP: accepted", func(t *testing.T) {
 		global := globalConfig(completeIdP)
-		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		global.Config.Controls.MacOSSetup = &fleet.GitOpsMacOSSetup{EnableEndUserAuthentication: true}
 		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedEmpty, noTeams, false)
 		assert.NoError(t, err)
 	})
@@ -10000,7 +10062,7 @@ func TestValidateGitOpsGroupEUA(t *testing.T) {
 				},
 			},
 		})
-		global.Config.Controls.MacOSSetup = &fleet.MacOSSetup{EnableEndUserAuthentication: true}
+		global.Config.Controls.MacOSSetup = &fleet.GitOpsMacOSSetup{EnableEndUserAuthentication: true}
 		err := validateGitOpsGroupEUA([]ConfigFile{global}, storedConfigured, noTeams, false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "default.yml")
@@ -10306,8 +10368,8 @@ queries:
 agent_options:
 software:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 policies:
   - name: Resend policy

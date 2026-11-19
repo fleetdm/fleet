@@ -334,6 +334,32 @@ describe("InputField Component", () => {
     });
   });
 
+  test("opens value in a new tab when open-in-new-tab button is clicked", async () => {
+    const openMock = jest.spyOn(window, "open").mockImplementation(() => null);
+
+    render(
+      <InputField
+        value="https://example.com/enroll"
+        onChange={mockOnChange}
+        label="Test Input"
+        name="test-input"
+        readOnly
+        enableOpenInNewTab
+      />
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open in new tab" })
+    );
+
+    expect(openMock).toHaveBeenCalledWith(
+      "https://example.com/enroll",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    openMock.mockRestore();
+  });
+
   test("renders show-secret eye toggle with enableCopy and enableShowSecret on password field", async () => {
     render(
       <InputField

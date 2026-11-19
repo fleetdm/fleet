@@ -75,39 +75,11 @@ const LabelForm = ({
   type ParsedTarget = { name: string; value: string };
 
   const onFormChange = ({ name: fieldName, value }: ParsedTarget) => {
-    const nextData =
-      fieldName === "name"
-        ? { name: value, description }
-        : { name, description: value };
-
     if (fieldName === "name") {
       setName(value);
     } else if (fieldName === "description") {
       setDescription(value);
     }
-
-    // full validation for new data
-    const fullValidation = validateLabelFormData(nextData);
-
-    setFormValidation((prev) => {
-      const next: ILabelFormValidation = { ...prev, isValid: true };
-
-      // start from previous errors
-      if (prev.name) next.name = prev.name;
-
-      // ONLY CLEAR existing error on this field if it is now valid.
-      // Do NOT set a new error if there wasn't one before.
-      if (fieldName === "name") {
-        if (prev.name && fullValidation.name?.isValid) {
-          next.name = undefined; // clear existing name error
-        }
-      }
-
-      // recompute isValid from remaining errors
-      next.isValid = !next.name || next.name.isValid;
-
-      return next;
-    });
   };
 
   const onInputBlur = ({ name: fieldName, value }: ParsedTarget) => {
@@ -126,6 +98,15 @@ const LabelForm = ({
   ) => {
     const target = evt.currentTarget as HTMLInputElement;
     onInputBlur({ name: target.name, value: target.value });
+  };
+
+  // Clear the name error on focus, matching the pattern reports and policies
+  // use on their edit pages.
+  const handleNameFocus = () => {
+    setFormValidation((prev) => {
+      if (!prev.name) return prev;
+      return { ...prev, name: undefined, isValid: true };
+    });
   };
 
   const onSubmitForm = (evt: React.FormEvent) => {
@@ -168,6 +149,7 @@ const LabelForm = ({
           name="name"
           onChange={onFormChange}
           onBlur={handleBlur}
+          onFocus={handleNameFocus}
           value={name}
           disabled={disabled}
           inputClassName={`${baseClass}__label-title`}

@@ -47,7 +47,6 @@ integrations:
       username: reed@fleetdm.com
   zendesk: []
 mdm:
-  apple_bm_default_team: ""
   end_user_authentication:
     entity_id: ""
     idp_name: ""
@@ -59,7 +58,6 @@ webhook_settings:
     destination_url: https://host.docker.internal:8080/bozo
     enable_failing_policies_webhook: false
     host_batch_size: 0
-    policy_ids: []
   host_status_webhook:
     days_count: 0
     destination_url: ""

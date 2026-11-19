@@ -2,11 +2,14 @@ package mysql
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -86,4 +89,57 @@ func (ds *Datastore) RevokeOldConditionalAccessCerts(ctx context.Context, graceP
 	}
 
 	return rowsAffected, nil
+}
+
+// newConditionalAccessSCEPChallengeToken returns a challenge in hex rather than the URL-safe base64 of the Apple
+// challenges: Windows sends the challenge as a PrintableString, which has no '_'.
+func newConditionalAccessSCEPChallengeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, err
+	}
+	return hex.AppendEncode(nil, token[:]), nil
+}
+
+func (ds *Datastore) FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx context.Context, enrollmentID uint) (string, error) {
+	var challenge string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var hostUUID string
+		if err := sqlx.GetContext(ctx, tx, &hostUUID, `SELECT host_uuid FROM mdm_windows_enrollments WHERE id = ? FOR UPDATE`, enrollmentID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrollment").WithID(enrollmentID), "creating conditional access scep challenge")
+			}
+			return ctxerr.Wrap(ctx, err, "locking windows enrollment for conditional access scep challenge")
+		}
+		if hostUUID == "" {
+			return ctxerr.Errorf(ctx, "windows enrollment %d has no host to bind a conditional access scep challenge to", enrollmentID)
+		}
+		var err error
+		challenge, err = findOrCreateSCEPChallengeDB(ctx, tx, hostUUID, fleet.ConditionalAccessSCEPChallengePurpose,
+			fleet.ConditionalAccessSCEPChallengeTTL, newConditionalAccessSCEPChallengeToken)
+		return err
+	})
+	return challenge, err
+}
+
+func (ds *Datastore) ConsumeConditionalAccessSCEPChallenge(ctx context.Context, challenge, hostUUID string) error {
+	if challenge == "" || hostUUID == "" {
+		return fleet.NewInvalidArgumentError("challenge", "challenge and host UUID cannot be empty")
+	}
+	// The host is part of the match so another host's attempt fails without using the challenge up.
+	res, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_apple_scep_challenges
+		SET consumed_at = NOW(6)
+		WHERE challenge = ? AND purpose = ? AND host_uuid = ? AND consumed_at IS NULL AND expires_at > NOW(6)`,
+		challenge, fleet.ConditionalAccessSCEPChallengePurpose, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "consume conditional access scep challenge")
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "consume conditional access scep challenge")
+	}
+	if affected == 0 {
+		return ctxerr.Wrap(ctx, notFound("conditional access SCEP challenge"))
+	}
+	return nil
 }

@@ -97,20 +97,17 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			GracePeriodDays: optjson.SetInt(2),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
-			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-			ManualAgentInstall:          optjson.Bool{Set: true},
-			LockEndUserInfo:             optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+			ManualAgentInstall:               optjson.Bool{Set: true},
+			LockEndUserInfo:                  optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), getTmResp.Team.Config.MDM)
 
@@ -489,9 +486,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	// sending macos settings but no macos_updates does not change the macos updates
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
-			"macos_settings": map[string]any{
-				"custom_settings": nil,
-			},
+			"apple_settings": map[string]any{},
 		},
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
