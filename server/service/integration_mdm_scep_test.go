@@ -1054,23 +1054,30 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.True(t, found)
 
+	// Expect the RemoveProfile of N3 (whose install failed) and the InstallProfile of N4. The sync enqueues installs and removes
+	// concurrently, so they can arrive in either order.
+	var gotRemove bool
+	var installRaw []byte
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
-	// first command is the RemoveProfile of N3 (which was install failed)
-	require.NotNil(t, cmd, "Expecting removal of failed N3 install")
-	require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
-
-	// second command is the InstallProfile of N4
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
-	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
-	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-	fullCmd = micromdm.CommandPayload{}
-	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
+	for range 2 {
+		require.NotNil(t, cmd, "Expecting removal of failed N3 install and PKCS12 certificate")
+		switch cmd.Command.RequestType {
+		case "RemoveProfile":
+			gotRemove = true
+		case "InstallProfile":
+			installRaw = cmd.Raw
+		default:
+			require.Failf(t, "unexpected command", "request type %s", cmd.Command.RequestType)
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 	assert.Nil(t, cmd)
+	require.True(t, gotRemove, "Expecting removal of failed N3 install")
+	require.NotNil(t, installRaw, "Expecting PKCS12 certificate")
+	fullCmd = micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(installRaw, &fullCmd))
 
 	require.NotNil(t, fullCmd.Command)
 	require.NotNil(t, fullCmd.Command.InstallProfile)
