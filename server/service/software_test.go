@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -248,4 +253,72 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailGetByID, err)
 		})
 	}
+}
+
+func TestStreamSoftwareVersionsResponse(t *testing.T) {
+	updatedAt := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	lastOpened := time.Date(2026, 9, 30, 8, 0, 0, 0, time.UTC)
+	software := []fleet.Software{
+		{
+			ID: 1, Name: "Google Chrome", Version: "120.0", Source: "apps", LastOpenedAt: &lastOpened,
+			Vulnerabilities: fleet.Vulnerabilities{
+				{
+					CVE:               "CVE-2026-0001",
+					DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2026-0001",
+					CVSSScore:         new(new(7.5)),
+					Description:       new(new("a \"quoted\" description")),
+					ResolvedInVersion: new(new("121.0")),
+				},
+				{CVE: "CVE-2026-0002", DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2026-0002"},
+			},
+		},
+		// MarshalJSON fills browser from extension_for, so it must still be used.
+		{ID: 2, Name: "ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "edge", ExtensionID: "abc"},
+	}
+
+	for _, tc := range []struct {
+		name string
+		resp listSoftwareVersionsResponse
+	}{
+		{"software with CVEs", listSoftwareVersionsResponse{
+			Count: 12345, CountsUpdatedAt: &updatedAt, Software: software,
+			Meta: &fleet.PaginationMetadata{HasNextResults: true},
+		}},
+		{"no software", listSoftwareVersionsResponse{Meta: &fleet.PaginationMetadata{}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			want, err := json.Marshal(tc.resp)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			streamSoftwareVersionsResponse{listSoftwareVersionsResponse: tc.resp}.HijackRender(t.Context(), rr)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+			require.JSONEq(t, string(want), rr.Body.String())
+		})
+	}
+
+	t.Run("stops writing once the client is gone", func(t *testing.T) {
+		many := make([]fleet.Software, 1000)
+		for i := range many {
+			many[i] = software[0]
+		}
+		w := &failingResponseWriter{header: http.Header{}}
+		streamSoftwareVersionsResponse{Count: len(many), Software: many}.HijackRender(t.Context(), w)
+		require.Equal(t, 1, w.writes)
+	})
+}
+
+// failingResponseWriter fails every write, like a connection the client has closed.
+type failingResponseWriter struct {
+	header http.Header
+	writes int
+}
+
+func (w *failingResponseWriter) Header() http.Header { return w.header }
+func (w *failingResponseWriter) WriteHeader(int)     {}
+func (w *failingResponseWriter) Write([]byte) (int, error) {
+	w.writes++
+	return 0, errors.New("connection closed")
 }

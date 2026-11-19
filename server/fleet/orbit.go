@@ -116,6 +116,18 @@ type OrbitConfig struct {
 	// persistent WebSocket to the server as a check-in notification channel
 	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
 	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+	// EntraDeviceTokenRequest, when set, asks fleetd on macOS to get an Entra ID token
+	// proving the device's Entra device ID and post it to the server, for the Microsoft
+	// "Conditional access" integration. Its values only change with the integration.
+	EntraDeviceTokenRequest *OrbitEntraDeviceTokenRequest `json:"entra_device_token_request,omitempty"`
+}
+
+// OrbitEntraDeviceTokenRequest holds the parameters of the Entra device token request.
+type OrbitEntraDeviceTokenRequest struct {
+	TenantID string `json:"tenant_id"`
+	ClientID string `json:"client_id"`
+	// Nonce binds the token to the host. It's prefixed with the host's hardware UUID.
+	Nonce string `json:"nonce"`
 }
 
 // OrbitWebSocketTransportConfig is the WebSocket transport directive delivered
@@ -203,6 +215,8 @@ type DatastoreEnrollOrbitConfig struct {
 	RejectSharedSecretForAppleMDMHosts bool
 	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that would claim a Windows host enrolled in Fleet MDM.
 	RejectSharedSecretForWindowsMDMHosts bool
+	// RejectSharedSecretForAndroidMDMHosts refuses a shared enroll secret that would claim an Android host enrolled in Fleet MDM.
+	RejectSharedSecretForAndroidMDMHosts bool
 
 	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
 	Created *bool
@@ -268,6 +282,12 @@ func WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(reject bool) DatastoreEnr
 func WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(reject bool) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.RejectSharedSecretForWindowsMDMHosts = reject
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForAndroidMDMHosts = reject
 	}
 }
 

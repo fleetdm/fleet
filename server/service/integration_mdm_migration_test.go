@@ -356,8 +356,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLDarkMode, getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -442,8 +442,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLDarkMode, getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -535,8 +535,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.True(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLDarkMode, getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -577,8 +577,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLDarkMode, getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -609,8 +609,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLDarkMode, getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -641,8 +641,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLDarkMode, getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)

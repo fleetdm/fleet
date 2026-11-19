@@ -23,10 +23,6 @@ import (
 
 const setupExperienceSoftwareInstallsRetries uint = 2 // 3 attempts = 1 initial + 2 retries
 
-func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
-}
-
 func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	return ds.listUpcomingSoftwareInstalls(ctx, hostID, true)
 }
@@ -232,7 +228,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
-			Platform:        payload.Platform,
 			ValidatedLabels: payload.ValidatedLabels,
 			CategoryIDs:     payload.CategoryIDs,
 			Version:         payload.Version,
@@ -424,7 +419,7 @@ INSERT INTO software_installers (
 }
 
 func (ds *Datastore) getTeamName(ctx context.Context, teamID *uint) (string, error) {
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if teamID != nil && *teamID > 0 {
 		tm, err := ds.TeamLite(ctx, *teamID)
 		if err != nil {
@@ -588,16 +583,29 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		if err := sqlx.GetContext(ctx, tx, &current, `SELECT name, upgrade_code FROM software_titles WHERE id = ? FOR SHARE`, titleID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "load software title")
 		}
-		if ptr.ValOrZero(current.UpgradeCode) == payload.UpgradeCode && (payload.FleetMaintainedAppID == nil || current.Name == payload.Title) {
+		// Name the title after a Windows FMA with an upgrade code. We already update software titles with
+		// macOS FMA names on FMA catalog sync, so we only do Windows here.
+		renameToFMA := payload.FleetMaintainedAppID != nil && current.Name != payload.Title
+		if renameToFMA && strings.HasSuffix(payload.Title, " (ARM64)") {
+			// The x64 and ARM64 builds of an MSI can share an upgrade code, putting two FMAs (in different
+			// fleets) on one title. The x64 name wins regardless of add order, since x64 hosts' inventory
+			// lands on the same title; renaming on every add would flip it back and forth.
+			var otherFMAOwnsTitle bool
+			if err := sqlx.GetContext(ctx, tx, &otherFMAOwnsTitle,
+				`SELECT EXISTS (SELECT 1 FROM software_installers WHERE title_id = ? AND fleet_maintained_app_id != ?)`,
+				titleID, *payload.FleetMaintainedAppID); err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "check for another fleet-maintained app on software title")
+			}
+			renameToFMA = !otherFMAOwnsTitle
+		}
+		if ptr.ValOrZero(current.UpgradeCode) == payload.UpgradeCode && !renameToFMA {
 			return titleID, nil
 		}
 
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
 
-		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
-		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
-		if payload.FleetMaintainedAppID != nil {
+		if renameToFMA {
 			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
 			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
 		}
@@ -2344,6 +2352,8 @@ SELECT
 	stdn.display_name AS software_display_name,
 	hsi.software_title_id,
 	hsi.software_installer_id,
+	si.global_or_team_id AS installer_global_or_team_id,
+	h.team_id AS host_team_id,
 	si.storage_id AS hash_sha256,
 	COALESCE(hsi.execution_status, '') AS status,
 	hsi.installer_filename AS software_package,
@@ -2387,6 +2397,8 @@ SELECT
 	stdn.display_name AS software_display_name,
 	siua.software_title_id,
 	siua.software_installer_id,
+	si.global_or_team_id AS installer_global_or_team_id,
+	h.team_id AS host_team_id,
 	si.storage_id AS hash_sha256,
 	'pending_install' AS status,
 	ua.payload->>'$.installer_filename' AS software_package,
@@ -3034,7 +3046,18 @@ LIMIT ?`
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeInstalledSoftware{}, ids, olderThan)
+			if err != nil {
+				return err
+			}
+
+			n, err = deleteHostSoftwareInstallsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
 		if err != nil {
 			return deleted, err
 		}
@@ -3158,19 +3181,22 @@ WHERE
 
 	const checkExistingActiveInstaller = `
 SELECT
-	id,
-	storage_id != ? is_package_modified,
-	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
-	COALESCE(post_install_script_content_id != ? OR
-		(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
-		(? IS NULL AND post_install_script_content_id IS NOT NULL)
-	, FALSE) is_metadata_modified
+	si.id,
+	si.storage_id != ? is_package_modified,
+	si.install_script_content_id != ? OR si.uninstall_script_content_id != ? OR si.pre_install_query != ? OR
+	COALESCE(si.post_install_script_content_id != ? OR
+		(si.post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
+		(? IS NULL AND si.post_install_script_content_id IS NOT NULL)
+	, FALSE) is_metadata_modified,
+	si.fleet_maintained_app_id,
+	fma.name AS fleet_maintained_app_name
 FROM
-	software_installers
+	software_installers si
+	LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
 WHERE
-	global_or_team_id = ? AND
-	title_id = ?
-ORDER BY is_active DESC, id DESC
+	si.global_or_team_id = ? AND
+	si.title_id = ?
+ORDER BY si.is_active DESC, si.id DESC
 `
 
 	const insertNewOrEditedInstaller = `
@@ -3379,7 +3405,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
 		tm, err := ds.TeamLite(ctx, *tmID)
@@ -3626,15 +3652,29 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// The flags describe existing[0], which is the active installer for an FMA or the
 			// same-hash row for a custom package, not whichever row this apply updates.
 			type existingInstallerUpdateCheckResult struct {
-				InstallerID        uint `db:"id"`
-				IsPackageModified  bool `db:"is_package_modified"`
-				IsMetadataModified bool `db:"is_metadata_modified"`
+				InstallerID            uint    `db:"id"`
+				IsPackageModified      bool    `db:"is_package_modified"`
+				IsMetadataModified     bool    `db:"is_metadata_modified"`
+				FleetMaintainedAppID   *uint   `db:"fleet_maintained_app_id"`
+				FleetMaintainedAppName *string `db:"fleet_maintained_app_name"`
 			}
 			var existing []existingInstallerUpdateCheckResult
 			err = sqlx.SelectContext(ctx, tx, &existing, wasUpdatedStmt, wasUpdatedArgs...)
 			if err != nil {
 				if !errors.Is(err, sql.ErrNoRows) {
 					return ctxerr.Wrapf(ctx, err, "checking for existing installer with name %q", installer.Filename)
+				}
+			}
+
+			// Prevent an installer with a different FMA ID from being added.
+			// TODO: this should probably be supported, as long as we make sure every software installer row
+			// for a title has the same FMA ID and we remove the old ones.
+			for _, existingInstaller := range existing {
+				if installer.FleetMaintainedAppID != nil && existingInstaller.FleetMaintainedAppID != nil &&
+					*existingInstaller.FleetMaintainedAppID != *installer.FleetMaintainedAppID {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, ptr.ValOrZero(existingInstaller.FleetMaintainedAppName), installer.FMADisplayName()),
+					}, "different fleet-maintained app already exists on the title")
 				}
 			}
 
@@ -4502,7 +4542,25 @@ WHERE
 		return nil
 	}
 
-	return ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false)
+	if err := ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false); err != nil {
+		return err
+	}
+
+	// Sync the title's patch policy now rather than at the next auto-update run.
+	var policyID uint
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &policyID, `
+SELECT p.id
+FROM policies p
+JOIN software_installers si ON si.global_or_team_id = p.team_id AND si.title_id = p.patch_software_title_id
+WHERE si.id = ? AND p.type = ?
+`, installerID, fleet.PolicyTypePatch)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy for installer")
+	}
+	return ds.syncPatchPolicyQuery(ctx, policyID)
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,
@@ -4623,10 +4681,6 @@ WHERE
 
 func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
 	return ds.isSoftwareLabelScoped(ctx, installerID, hostID, softwareTypeInstaller)
-}
-
-func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-	return ds.isSoftwareLabelScoped(ctx, vppAppTeamID, hostID, softwareTypeVPP)
 }
 
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
@@ -4839,41 +4893,6 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error) {
-	return ds.getIncludedHostUUIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
-}
-
-// getIncludedHostUUIDMapForSoftware returns the Android hosts in the software's label scope, as host
-// UUID to the ID of the host's own policy (named after the host UUID). Hosts that haven't reported
-// applying their own policy yet are left out: they may still be on the default policy every device
-// enrolls with, and the setup experience gives them their in-scope apps when it moves them off it.
-func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]string, error) {
-	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
-	stmt := fmt.Sprintf(`SELECT
-		h.uuid AS uuid
-FROM
-		hosts h
-		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
-		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
-WHERE
-		EXISTS (%s)
-		AND h.platform = 'android'
-		AND ad.applied_policy_id = h.uuid
-`, filter)
-
-	var uuids []string
-	if err := sqlx.SelectContext(ctx, tx, &uuids, stmt, softwareID, softwareID, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
-	}
-
-	res := make(map[string]string, len(uuids))
-	for _, uuid := range uuids {
-		res[uuid] = uuid
-	}
-
-	return res, nil
-}
-
 func (ds *Datastore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
 	return ds.getExcludedHostIDMapForSoftware(ctx, installerID, softwareTypeInstaller)
 }
@@ -4974,7 +4993,7 @@ WHERE
 			tmID = *installer.TeamID
 		}
 		if _, ok := byTeam[tmID]; ok && installer.Extension != "ipa" {
-			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
+			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one fleet", sha256))
 		}
 		if installer.PackageIDList != "" {
 			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
@@ -5261,7 +5280,7 @@ func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *f
 		}
 
 		if cat.TeamID != ptr.ValOrZero(host.TeamID) {
-			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category team does not match host team"})
+			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "software category fleet does not match host fleet"})
 		}
 		categoryName = &cat.Name
 	}
@@ -5339,13 +5358,6 @@ func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID
 		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
 	}
 	return &version, nil
-}
-
-func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
-	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
-		return ctxerr.Wrap(ctx, err, "set pinned version")
-	}
-	return nil
 }
 
 func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {

@@ -77,7 +77,6 @@ const ProfileFormPage = ({
   const isManualPath =
     location.pathname === PATHS.CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL;
   const showAIView =
-    featureFlags.showAIProfileBuilder === "true" &&
     !profileUUID &&
     !isManualPath &&
     !gitOpsModeEnabled &&

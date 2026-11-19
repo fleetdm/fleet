@@ -25,17 +25,23 @@ func claudeResult(id, ts string) string {
 	return fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":%q,"content":"ok"}]}}`, ts, id)
 }
 
+// claudeCalls is n Bash calls of session id, numbered from first, each
+// followed by its result, one second apart from start.
+func claudeCalls(id string, first, n int, start time.Time, padding int) []string {
+	var ls []string
+	for i := range n {
+		at := start.Add(time.Duration(i) * time.Second)
+		callID := fmt.Sprintf("%s-%d", id, first+i)
+		ls = append(ls, claudeCall(callID, at.Format(time.RFC3339Nano), padding), claudeResult(callID, at.Add(500*time.Millisecond).Format(time.RFC3339Nano)))
+	}
+	return ls
+}
+
 // writeClaudeToolCalls writes session id as n Bash calls, each followed by
 // its result, one second apart from 2026-08-01T10:00:00Z.
 func writeClaudeToolCalls(t *testing.T, home, id string, n, padding int) string {
 	t.Helper()
-	var ls []string
-	for i := range n {
-		at := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Second)
-		callID := fmt.Sprintf("%s-%d", id, i)
-		ls = append(ls, claudeCall(callID, at.Format(time.RFC3339Nano), padding), claudeResult(callID, at.Add(500*time.Millisecond).Format(time.RFC3339Nano)))
-	}
-	return writeClaudeTranscript(t, home, id, ls...)
+	return writeClaudeTranscript(t, home, id, claudeCalls(id, 0, n, time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC), padding)...)
 }
 
 // callIndexes maps each tool call's id to its tool_call_index.

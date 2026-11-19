@@ -192,7 +192,7 @@ const makeVersionSuffix = (
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
-    const { targets_count: count, query_name: queryName, stats } =
+    const { targets_count: count, report_name: queryName, stats } =
       activity.details || {};
 
     const impactDescription = stats
@@ -689,11 +689,20 @@ const TAGGED_TEMPLATES = {
     );
   },
   setHostGoogleDeviceId: (activity: IActivity) => {
+    const googleEmail = activity.details?.google_email;
     return (
       <>
         {" "}
         marked <b>{activity.details?.host_display_name}</b> as company-owned in
-        Google.
+        Google
+        {googleEmail ? (
+          <>
+            {" "}
+            when <b>{googleEmail}</b> signed in.
+          </>
+        ) : (
+          "."
+        )}
       </>
     );
   },
@@ -1007,28 +1016,20 @@ const TAGGED_TEMPLATES = {
   editedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return getEditedProfileMessage(activity, isPremiumTier, "windows");
   },
-  enabledDiskEncryption: (activity: IActivity) => {
-    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
-    return <> enforced disk encryption for hosts {suffix}.</>;
-  },
-  disabledEncryption: (activity: IActivity) => {
-    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
-    return <>removed disk encryption enforcement for hosts {suffix}.</>;
-  },
   editedDiskEncryptionSettings: (activity: IActivity) => {
     // this activity's platform detail is "macos" | "windows" | "linux" — the
     // settings-key naming, not the osquery-style "darwin" of other activities
-    const platform = activity.details?.platform as string | undefined;
+    const platform = activity.details?.platform as string | null | undefined;
     const displayNames: Record<string, string> = {
       macos: "macOS",
       windows: "Windows",
       linux: "Linux",
     };
-    // an unexpected value renders as-is and a missing one as "unknown", so
-    // either degrades visibly rather than leaving a gap in the sentence
+    // a null platform means the activity was recorded before Fleet 4.92, when
+    // one setting covered every platform. An unexpected value renders as-is.
     const platformDisplay = platform
       ? displayNames[platform] ?? platform
-      : "unknown";
+      : "all";
     const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return (
       <>
@@ -1063,9 +1064,7 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type)
-      .replace(" saved", "")
-      .replace("team", "fleet");
+    const activityType = lowerCase(activity.type).replace(" saved", "");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
@@ -1968,6 +1967,15 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
+  addedConditionalAccessGoogle: () => (
+    <> configured Google conditional access.</>
+  ),
+  editedConditionalAccessGoogle: () => (
+    <> edited Google conditional access configuration.</>
+  ),
+  deletedConditionalAccessGoogle: () => (
+    <> deleted Google conditional access configuration.</>
+  ),
   addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
@@ -2132,7 +2140,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a report <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2154,7 +2162,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the report <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2176,7 +2184,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the report <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2727,7 +2735,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AppliedSpecSoftware: {
       return TAGGED_TEMPLATES.editSoftwareCtlActivityTemplate();
     }
-    case ActivityType.AppliedSpecTeam: {
+    case ActivityType.AppliedSpecFleet: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
     case ActivityType.EditedAgentOptions: {
@@ -2760,10 +2768,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.UserDeletedGlobalRole: {
       return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
     }
-    case ActivityType.UserChangedTeamRole: {
+    case ActivityType.UserChangedFleetRole: {
       return TAGGED_TEMPLATES.userChangedTeamRole(activity);
     }
-    case ActivityType.UserDeletedTeamRole: {
+    case ActivityType.UserDeletedFleetRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
     }
     case ActivityType.FleetEnrolled: {
@@ -2799,7 +2807,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RetrievedHostMyDeviceURL: {
       return TAGGED_TEMPLATES.retrievedHostMyDeviceURL(activity);
     }
-    case ActivityType.ViewedHostRecoveryLockPassword: {
+    case ActivityType.ReadHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);
     }
     case ActivityType.SetHostRecoveryLockPassword: {
@@ -2912,14 +2920,6 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
-    }
-    // Note: This activity is generated for all platforms.
-    case ActivityType.EnabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
-    }
-    // Note: This activity is generated for all platforms.
-    case ActivityType.DisabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
     case ActivityType.EditedDiskEncryptionSettings: {
       return TAGGED_TEMPLATES.editedDiskEncryptionSettings(activity);
@@ -3141,6 +3141,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
     }
+    case ActivityType.AddedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.addedConditionalAccessGoogle();
+    }
+    case ActivityType.EditedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.editedConditionalAccessGoogle();
+    }
+    case ActivityType.DeletedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessGoogle();
+    }
     case ActivityType.AddedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.addedConditionalAccessOkta();
     }
@@ -3344,8 +3353,8 @@ const GlobalActivityItem = ({
     switch (activity.type) {
       case ActivityType.UserChangedGlobalRole:
       case ActivityType.UserDeletedGlobalRole:
-      case ActivityType.UserChangedTeamRole:
-      case ActivityType.UserDeletedTeamRole:
+      case ActivityType.UserChangedFleetRole:
+      case ActivityType.UserDeletedFleetRole:
         return isPassiveRoleActivity(activity) ? (
           <b>{activity.details?.user_email} </b>
         ) : (

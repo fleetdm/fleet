@@ -31,12 +31,12 @@ export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
 }
 
 interface ICreateQueryResponse {
-  query: ISchedulableQuery;
+  report: ISchedulableQuery;
 }
 export interface IQueriesResponse {
-  queries: ISchedulableQuery[];
+  reports: ISchedulableQuery[];
   count: number;
-  inherited_query_count: number;
+  inherited_report_count: number;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -56,7 +56,7 @@ export default {
   },
   destroy: (id: string | number) => {
     const { QUERIES } = endpoints;
-    const path = `${QUERIES}/id/${id}`;
+    const path = `${QUERIES}/${id}`;
 
     return sendRequest("DELETE", path);
   },

@@ -66,13 +66,6 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 			return nil, fmt.Errorf("decoding %s %s response: %w, body: %s", verb, path, err, b)
 		}
 	case http.StatusForbidden:
-		errMsg, err := extractServerErrMsg(verb, path, res)
-		if err != nil {
-			return nil, err
-		}
-		if strings.Contains(errMsg, fleet.RunScriptScriptsDisabledGloballyErrMsg) {
-			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
-		}
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
 	// It's possible we get a GatewayTimeout error message from nginx or another
 	// proxy server, so we want to return a more helpful error message in that
@@ -81,7 +74,7 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 		return nil, errors.New(fleet.RunScriptGatewayTimeoutErrMsg)
 	case http.StatusPaymentRequired:
 		if teamID > 0 {
-			return nil, errors.New("Team id parameter requires Fleet Premium license.")
+			return nil, errors.New("The --fleet flag requires Fleet Premium.")
 		}
 		fallthrough // if no team id, fall through to default error message
 	default:

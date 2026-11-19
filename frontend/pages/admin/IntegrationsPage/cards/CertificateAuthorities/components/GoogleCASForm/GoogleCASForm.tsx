@@ -29,8 +29,9 @@ const EMPTY_FORM_DATA: IGoogleCASFormData = {
 
 interface IGoogleCASFormProps {
   certAuthorities?: ICertificateAuthorityPartial[];
-  /** The saved CA's values. Passing them makes this the edit form. */
+  /** The saved CA's values, when editing */
   defaultData?: IGoogleCASFormData;
+  editingCertAuthorityId?: number;
   submitBtnText: string;
   isSubmitting: boolean;
   onSubmit: (formData: IGoogleCASFormData) => void | Promise<unknown>;
@@ -40,13 +41,12 @@ interface IGoogleCASFormProps {
 const GoogleCASForm = ({
   certAuthorities = [],
   defaultData,
+  editingCertAuthorityId,
   submitBtnText,
   isSubmitting: isSubmittingProp,
   onSubmit,
   onCancel,
 }: IGoogleCASFormProps) => {
-  const isEditing = defaultData !== undefined;
-
   const {
     getTextFieldProps,
     handleSubmit,
@@ -54,7 +54,10 @@ const GoogleCASForm = ({
   } = useFormValidation<IGoogleCASFormData>({
     initialFormData: defaultData ?? EMPTY_FORM_DATA,
     validate: (formData) =>
-      validateGoogleCASForm(formData, { certAuthorities, isEditing }),
+      validateGoogleCASForm(formData, {
+        certAuthorities,
+        editingId: editingCertAuthorityId,
+      }),
     isSubmitting: isSubmittingProp,
   });
 

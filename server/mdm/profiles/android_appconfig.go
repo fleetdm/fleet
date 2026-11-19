@@ -91,19 +91,6 @@ func SubstituteFleetVarsAndVitalsInAndroidAppConfig(
 		case fleet.FleetVarHostPlatform:
 			contents = replaceJSONSafe(contents, name, host.Platform)
 
-		case fleet.FleetVarHostEndUserEmailIDP:
-			emails, err := ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get host idp email for android app config")
-			}
-			if len(emails) == 0 {
-				return nil, &UnresolvableAndroidAppConfigVarError{
-					FleetVar: name,
-					Detail:   fmt.Sprintf("There is no IdP email for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
-				}
-			}
-			contents = replaceJSONSafe(contents, name, emails[0])
-
 		case fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
@@ -124,7 +111,12 @@ func SubstituteFleetVarsAndVitalsInAndroidAppConfig(
 			contents = replaceJSONSafe(contents, name, value)
 
 		default:
-			return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name}
+			// A profile or configuration saved before the upgrade can still use a variable Fleet 5 removed.
+			var detail string
+			if err := fleet.FindRemovedFleetVariable(name); err != nil {
+				detail = err.Error()
+			}
+			return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name, Detail: detail}
 		}
 	}
 

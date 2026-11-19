@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"os"
 	"reflect"
 	"regexp"
 	"slices"
@@ -31,7 +32,7 @@ type MDMAndroidConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Android profiles, it is the letter "g" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID           *uint                       `db:"team_id" json:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
 	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
@@ -140,6 +141,69 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		return err
 	}
 
+	if err := ValidateAndroidPasscodeProfileVariables(m.RawJSON); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AndroidPasscodeKeys are the policy keys that make an Android profile a passcode profile. A label-less
+// passcode profile is copied into its fleet's default policy, which every host of the fleet enrolls with.
+var AndroidPasscodeKeys = []string{"passwordPolicies", "passwordRequirements"}
+
+// IsAndroidPasscodeProfile reports whether the profile JSON sets any of AndroidPasscodeKeys at its top
+// level. Invalid JSON isn't a passcode profile; ValidateUserProvided rejects it on its own.
+func IsAndroidPasscodeProfile(rawJSON []byte) bool {
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(rawJSON, &keys); err != nil {
+		return false
+	}
+	for _, k := range AndroidPasscodeKeys {
+		if _, ok := keys[k]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateAndroidPasscodeProfileVariables rejects passcode profiles that use Fleet variables, secrets, or
+// custom host vitals. Their settings go into the fleet's default policy, which is shared by every host
+// and applies during setup, before Fleet knows the host. Callers that expand secrets before validating
+// must pass the content as the user provided it.
+func ValidateAndroidPasscodeProfileVariables(rawJSON []byte) error {
+	prefixes := []string{ServerVarPrefix, ServerSecretPrefix, CustomHostVitalPrefix}
+	// An unquoted variable (e.g. a number from a secret) makes the raw JSON invalid, so the passcode keys are
+	// also looked for with every variable replaced by a value. os.Expand can swallow JSON (an unclosed "${"
+	// consumes the rest), so the raw JSON is checked too.
+	withValues := os.Expand(string(rawJSON), func(name string) string {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(name, prefix) {
+				return "0"
+			}
+		}
+		return "$" + name
+	})
+	if !IsAndroidPasscodeProfile(rawJSON) && !IsAndroidPasscodeProfile([]byte(withValues)) {
+		return nil
+	}
+
+	// JSON escapes (\u0024) would hide a variable from a scan of the raw text; re-encoding decodes them.
+	texts := []string{string(rawJSON)}
+	var decoded any
+	if err := json.Unmarshal(rawJSON, &decoded); err == nil {
+		if b, err := json.Marshal(decoded); err == nil {
+			texts = append(texts, string(b))
+		}
+	}
+	for _, text := range texts {
+		for _, prefix := range prefixes {
+			if names := ContainsPrefixVars(text, prefix); len(names) > 0 {
+				return fmt.Errorf(`Profiles with "passwordPolicies" or "passwordRequirements" can't include variables ($%s%s). `+
+					"Passcode settings are enforced during setup, before Fleet knows which host it is.", prefix, names[0])
+			}
+		}
+	}
 	return nil
 }
 
@@ -183,6 +247,9 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	}
 
 	if len(varNames) > 0 {
+		if err := FindRemovedFleetVariable(varNames...); err != nil {
+			return err
+		}
 		if name := FindUnsupportedAndroidFleetVar(contents); name != "" {
 			return fmt.Errorf("Unsupported Fleet variable $FLEET_VAR_%s.", name)
 		}
@@ -357,7 +424,6 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostPlatform,
-	FleetVarHostEndUserEmailIDP,
 	FleetVarHostEndUserIDPUsername,
 	FleetVarHostEndUserIDPUsernameLocalPart,
 	FleetVarHostEndUserIDPGroups,
@@ -629,6 +695,9 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return err
 	}
 
+	if err := FindRemovedFleetVariable(variables.Find(string(config))...); err != nil {
+		return err
+	}
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
 		return &BadRequestError{
 			Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
