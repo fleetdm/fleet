@@ -1449,6 +1449,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"label_membership",
+			func(ctx context.Context) error {
+				return ds.CleanupOrphanedLabelMembership(ctx)
+			},
+		),
+		schedule.WithJob(
 			"cleanup_host_issues",
 			func(ctx context.Context) error {
 				return ds.CleanupHostIssues(ctx)

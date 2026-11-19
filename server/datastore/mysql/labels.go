@@ -841,7 +841,7 @@ func (ds *Datastore) deleteMembershipOfDeletedLabels(ctx context.Context, labelI
 	// The labels are already gone, so a client disconnect must not leave their rows behind.
 	ctx = context.WithoutCancel(ctx)
 	if err := ds.deleteLabelMembershipInBatches(ctx, labelIDs); err != nil {
-		// Logged only: the labels' deletion is already committed.
+		// Logged only: the labels' deletion is already committed. CleanupOrphanedLabelMembership removes what's left.
 		ds.logger.ErrorContext(ctx, "deleting membership of deleted labels", "label_ids", labelIDs, "err", err)
 		ctxerr.Handle(ctx, err)
 	}
@@ -853,8 +853,8 @@ func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelID
 		var afterHostID uint
 		for {
 			var hostIDs []uint
-			// Pages are read from the primary: this cleanup runs once, so rows a lagging replica hasn't caught up on
-			// would never be deleted. The host_id cursor seeks past deleted rows instead of rescanning them while purge
+			// Pages are read from the primary: rows a lagging replica hasn't caught up on would be skipped and left
+			// for the next orphan cleanup. The host_id cursor seeks past deleted rows instead of rescanning them while purge
 			// catches up. The index is forced because for ORDER BY host_id the optimizer may walk the primary key
 			// (host_id, label_id) instead, scanning every host's labels to find this label's rows.
 			if err := sqlx.SelectContext(ctx, db, &hostIDs, `
@@ -883,6 +883,22 @@ func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelID
 		}
 	}
 	return nil
+}
+
+func (ds *Datastore) CleanupOrphanedLabelMembership(ctx context.Context) error {
+	var labelIDs []uint
+	// NOT EXISTS rather than LEFT JOIN ... IS NULL: MySQL then skips through idx_lm_label_id one label at a time,
+	// where the join reads every membership row before deduplicating.
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelIDs, `
+		SELECT DISTINCT lm.label_id
+		FROM label_membership lm
+		WHERE NOT EXISTS (SELECT 1 FROM labels l WHERE l.id = lm.label_id)`); err != nil {
+		return ctxerr.Wrap(ctx, err, "select label ids of orphaned label_membership")
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	return ds.deleteLabelMembershipInBatches(ctx, labelIDs)
 }
 
 // Label returns a fleet.LabelWithTeamName identified by lid if one exists and is accessible to the specified user.

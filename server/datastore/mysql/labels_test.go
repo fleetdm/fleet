@@ -94,6 +94,7 @@ func TestLabels(t *testing.T) {
 		{"RecordLabelQueryExecutionsQueryErrorKeepsMembership", testRecordLabelQueryExecutionsQueryErrorKeepsMembership},
 		{"DeleteLabel", testDeleteLabel},
 		{"DeleteLabelMembership", testDeleteLabelMembership},
+		{"CleanupOrphanedLabelMembership", testCleanupOrphanedLabelMembership},
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
@@ -1693,6 +1694,78 @@ func testDeleteLabelMembership(t *testing.T, ds *Datastore) {
 	err = ds.DeleteLabel(ctx, kept.ID)
 	require.True(t, fleet.IsForeignKey(err))
 	assert.Equal(t, len(hosts), membershipCount(kept.ID))
+}
+
+func testCleanupOrphanedLabelMembership(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	prevBatchSize := labelMembershipDeleteBatchSize
+	labelMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { labelMembershipDeleteBatchSize = prevBatchSize })
+
+	var hosts []*fleet.Host
+	for i := range 5 {
+		name := fmt.Sprintf("orphaned-membership-%d", i)
+		hosts = append(hosts, test.NewHost(t, ds, name, "", name, name, time.Now()))
+	}
+	newLabelWithAllHosts := func(name string) *fleet.Label {
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: name, Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+		require.NoError(t, err)
+		for _, h := range hosts {
+			require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+		}
+		return label
+	}
+	membershipCount := func(labelID uint) int {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`, labelID)
+		})
+		return count
+	}
+
+	kept := newLabelWithAllHosts("orphaned-membership-kept")
+
+	t.Run("nothing to clean up", func(t *testing.T) {
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+		assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	})
+
+	t.Run("label deletion interrupted after its first batch", func(t *testing.T) {
+		interrupted := newLabelWithAllHosts("orphaned-membership-interrupted")
+		neverStarted := newLabelWithAllHosts("orphaned-membership-never-started")
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `DELETE FROM labels WHERE id IN (?, ?)`, interrupted.ID, neverStarted.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ? ORDER BY host_id LIMIT ?`,
+				interrupted.ID, labelMembershipDeleteBatchSize)
+			return err
+		})
+		// One batch was removed before the interruption, so the rest of the label's rows are orphaned.
+		require.Equal(t, len(hosts)-labelMembershipDeleteBatchSize, membershipCount(interrupted.ID))
+		// The interruption came before this label's cleanup began, so all of its rows are orphaned.
+		require.Equal(t, len(hosts), membershipCount(neverStarted.ID))
+
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+
+		assert.Zero(t, membershipCount(interrupted.ID))
+		assert.Zero(t, membershipCount(neverStarted.ID))
+		assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	})
+
+	t.Run("host reports a label after its deletion", func(t *testing.T) {
+		deleted := newLabelWithAllHosts("orphaned-membership-reported-late")
+		require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
+		require.Zero(t, membershipCount(deleted.ID))
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{deleted.ID: new(true)}, time.Now(), false))
+		require.Equal(t, 1, membershipCount(deleted.ID))
+
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+
+		assert.Zero(t, membershipCount(deleted.ID))
+		assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	})
 }
 
 func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
