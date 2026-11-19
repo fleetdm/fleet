@@ -46,7 +46,9 @@ struct PSSOLoginRequestBuilder {
         let serverEncPoint = try Self.rawPublicPoint(serverEncryptionKey)
 
         let responseAPV = Self.applePartyInfo([Data("Apple".utf8), deviceEncPoint, sessionNonce])
-        let assertionAPV = Self.applePartyInfo([Data("Apple".utf8), serverEncPoint, sessionNonce])
+        // request_nonce rather than the session nonce: Fleet issues it and accepts it only once, so the assertion can't
+        // be reused in another request.
+        let assertionAPV = Self.applePartyInfo([Data("Apple".utf8), serverEncPoint, Data(requestNonce.utf8)])
 
         let assertionPlaintext = try Self.jsonData(["password": password])
         let assertion = try Self.encryptECDHES(

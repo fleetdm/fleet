@@ -1,5 +1,7 @@
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
+
+import { getCANameConflictError } from "../helpers";
 
 import { IHydrantFormData } from "./HydrantForm";
 
@@ -34,7 +36,7 @@ type IFormValidations = Record<
 
 export const generateFormValidations = (
   certAuthorities: ICertificateAuthorityPartial[],
-  isEditing: boolean
+  editingId?: number
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -55,15 +57,15 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: IHydrantFormData) => {
-            return (
-              isEditing ||
-              certAuthorities.find(
-                (cert) => cert.type === "hydrant" && cert.name === formData.name
-              ) === undefined
-            );
-          },
-          message: "Name is already used by another Hydrant CA.",
+          isValid: (formData: IHydrantFormData) =>
+            getCANameConflictError(
+              formData.name,
+              certAuthorities,
+              editingId
+            ) === undefined,
+          message: (formData: IHydrantFormData) =>
+            getCANameConflictError(formData.name, certAuthorities, editingId) ??
+            "",
         },
       ],
     },
@@ -78,7 +80,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: IHydrantFormData) => {
-            return valid_url({ url: formData.url });
+            return isValidURL({ url: formData.url });
           },
           message: "Must be a valid URL.",
         },

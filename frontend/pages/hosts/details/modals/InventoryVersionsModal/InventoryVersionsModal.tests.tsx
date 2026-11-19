@@ -25,7 +25,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Version")).toBeVisible();
     expect(screen.getByText("1.0.0")).toBeVisible();
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("macOS app")).toBeVisible();
+    expect(screen.getByText("App (macOS)")).toBeVisible();
     expect(screen.getByText("Bundle identifier")).toBeVisible();
     expect(screen.getByText("com.test.mock")).toBeVisible();
     expect(screen.getByText("Last opened")).toBeVisible();
@@ -45,7 +45,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getAllByText(/CVE-2020-0001/).length).toBeGreaterThan(0);
 
     // Close button
-    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
+    expect(screen.getByText("Close")).toBeVisible();
   });
 
   it("does not render hash if signature_information is missing", () => {
@@ -75,7 +75,7 @@ describe("SoftwareDetailsModal", () => {
       <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("macOS app")).toBeVisible();
+    expect(screen.getByText("App (macOS)")).toBeVisible();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
     expect(screen.queryByText("Path:")).not.toBeInTheDocument();
   });

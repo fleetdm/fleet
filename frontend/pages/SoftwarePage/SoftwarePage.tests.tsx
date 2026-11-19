@@ -89,7 +89,7 @@ describe("SoftwarePage tab configuration", () => {
   describe("getOSTabSortHeader", () => {
     it("defaults to version once a single platform is selected on the OS tab", () => {
       expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "darwin", undefined)).toBe(
-        "version"
+        "os_version"
       );
     });
 
@@ -99,14 +99,23 @@ describe("SoftwarePage tab configuration", () => {
       );
     });
 
-    it("ignores a crafted/stale order_key=version on 'All platforms', instead of sending a nonsensical cross-platform version sort to the API", () => {
+    it("ignores a crafted/stale order_key=os_version on 'All platforms', instead of sending a nonsensical cross-platform version sort to the API", () => {
       // Comparing OS versions across platforms isn't meaningful, and the
       // Version column is unclickable on this view — but this page is
       // server-driven, so a URL with both params together (typed by hand,
       // bookmarked, or restored via browser back/forward) would otherwise
-      // still reach the API as a real order_key=version request.
+      // still reach the API as a real order_key=os_version request.
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "all", "os_version")).toBe(
+        "hosts_count"
+      );
       expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "all", "version")).toBe(
         "hosts_count"
+      );
+    });
+
+    it("reads a saved order_key=version on the OS tab as os_version, which the API now requires", () => {
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "darwin", "version")).toBe(
+        "os_version"
       );
     });
 
@@ -132,7 +141,7 @@ const GLOBAL_ADMIN = { isGlobalAdmin: true, isOnGlobalTeam: true };
 const FLEET_ADMIN = {
   currentUser: createMockUser({
     global_role: null,
-    teams: [{ id: 7, name: "Workstations", role: "admin" }],
+    fleets: [{ id: 7, name: "Workstations", role: "admin" }],
   }) as IUser,
 };
 
@@ -243,7 +252,7 @@ describe("SoftwarePage type filter", () => {
       screen
         .getAllByRole("checkbox", { checked: true })
         .map((el) => el.textContent)
-    ).toEqual(["Brave extension", "macOS app"]);
+    ).toEqual(["App (macOS)", "Browser extension (Brave)"]);
 
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
@@ -256,11 +265,113 @@ describe("SoftwarePage type filter", () => {
     const { router, user } = renderInventoryTab({ types: "macos_app" });
 
     await user.click(screen.getByRole("button", { name: "Open filters" }));
-    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(router.replace).toHaveBeenLastCalledWith(
       expect.not.stringContaining("types=")
     );
+  });
+});
+
+describe("SoftwarePage AI tools filter", () => {
+  const FiltersProbe = ({
+    onAddFiltersClick,
+    filters,
+  }: {
+    onAddFiltersClick?: () => void;
+    filters?: Record<string, unknown>;
+  }) => (
+    <>
+      <button type="button" onClick={onAddFiltersClick}>
+        Open filters
+      </button>
+      <output>{JSON.stringify(filters)}</output>
+    </>
+  );
+
+  const renderInventoryTab = (
+    query: Record<string, string>,
+    app: Record<string, unknown>
+  ) =>
+    renderPage({
+      pathname: PATHS.SOFTWARE_INVENTORY,
+      query,
+      app: { ...app, ...GLOBAL_ADMIN },
+      children: <FiltersProbe />,
+    });
+
+  const passedFilters = () =>
+    JSON.parse(screen.getByRole("status").textContent || "{}");
+
+  it("writes ai_tool to the URL and resets the page on Apply", async () => {
+    const { router, user } = renderInventoryTab(
+      { page: "3" },
+      { isPremiumTier: true }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+    await user.click(screen.getByRole("switch", { name: "AI tools" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.stringMatching(/page=0.*ai_tool=true|ai_tool=true.*page=0/)
+    );
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.not.stringContaining("vulnerable=")
+    );
+  });
+
+  it("restores the toggle from the URL", async () => {
+    const { user } = renderInventoryTab(
+      { ai_tool: "true" },
+      { isPremiumTier: true }
+    );
+
+    expect(passedFilters().aiTool).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+
+    expect(screen.getByRole("switch", { name: "AI tools" })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "MCP server" })
+    ).toBeInTheDocument();
+  });
+
+  it("waits for the license tier before rendering the tab", () => {
+    renderInventoryTab(
+      { ai_tool: "true", types: "mcp_server" },
+      { isPremiumTier: undefined }
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open filters" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores the AI tools filter and AI types on Fleet Free", async () => {
+    const { user } = renderInventoryTab(
+      { ai_tool: "true", types: "mcp_server,macos_app" },
+      { isPremiumTier: false, isFreeTier: true }
+    );
+
+    expect(passedFilters()).toEqual(
+      expect.objectContaining({ aiTool: false, types: ["macos_app"] })
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+
+    expect(
+      screen.queryByRole("switch", { name: "AI tools" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "MCP server" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "AI CLI tool" })
+    ).not.toBeInTheDocument();
   });
 });

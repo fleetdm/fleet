@@ -91,7 +91,12 @@ class CertificateEnrollmentHandlerTest {
 
         // Verify failure result - enrollment failures are not retryable
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
-        assertFalse((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertEquals(
+            "The certificate authority didn't issue the certificate. Check your certificate authority configuration. Mock enrollment failed",
+            failure.reason,
+        )
     }
 
     @Test
@@ -107,21 +112,40 @@ class CertificateEnrollmentHandlerTest {
 
         // Verify failure result - network failures are retryable
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
-        assertTrue((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertTrue(failure.isRetryable)
+        assertEquals("Couldn't reach the certificate authority. Mock network error", failure.reason)
+    }
+
+    @Test
+    fun `handler handles unexpected SCEP exception`() = runTest {
+        mockScepClient.shouldSucceed = false
+
+        val template = TestCertificateTemplateFactory.create()
+
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+
+        assertFalse(mockInstaller.wasInstallCalled)
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertEquals("Something went wrong while getting the certificate. Mock general error", failure.reason)
     }
 
     @Test
     fun `handler handles installation failure`() = runTest {
         mockInstaller.shouldSucceed = false
 
-        val template = TestCertificateTemplateFactory.create()
+        val template = TestCertificateTemplateFactory.create(name = "device-cert")
 
         val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Verify enrollment succeeded but installation failed - installation failures are not retryable
         assertTrue(mockInstaller.wasInstallCalled)
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
-        assertFalse((result as CertificateEnrollmentHandler.EnrollmentResult.Failure).isRetryable)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertEquals("Couldn't install the \"device-cert\" certificate on the host.", failure.reason)
     }
 
     @Test
@@ -153,7 +177,7 @@ class CertificateEnrollmentHandlerTest {
         val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
         assertFalse(failure.isRetryable)
         assertTrue(failure.reason.contains("CERT_INSTALL delegation not granted"))
-        assertTrue(failure.reason.startsWith("Certificate installation failed:"))
+        assertTrue(failure.reason.startsWith("Couldn't install the \"device-cert\" certificate on the host."))
     }
 
     @Test

@@ -59,6 +59,7 @@ type cronSchedulesDeps struct {
 	chartSvc               chart_api.Service
 	auditLogger            fleet.JSONLogger
 	distributedLock        fleet.Lock
+	googleCAClients        *service.GoogleConditionalAccessClient
 	initFatal              func(err error, msg string)
 }
 
@@ -215,7 +216,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
-		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc, deps.svc)
+		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc)
 	})
 }
 
@@ -269,6 +270,8 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			deps.config.MDM.AndroidAgent,
 			deps.config.MDM.AndroidBatchSize,
+			deps.redisPool,
+			deps.config.MDM.AndroidOneTimeEnrollSecrets,
 		)
 	})
 
@@ -302,6 +305,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register migrate_to_per_host_policy cron", func() (fleet.CronSchedule, error) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
+	})
+
+	deps.register("failed to register reencrypt_windows_disk_encryption_keys cron", func() (fleet.CronSchedule, error) {
+		return newReencryptWindowsDiskEncryptionKeysSchedule(ctx, deps.instanceID, deps.ds, deps.config, deps.logger)
 	})
 
 	// The APNs sweep replaces the legacy per-minute pending-commands pusher;
@@ -341,7 +348,8 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	// CertificateList) and BYOD-enrolled device APNs revival, both of which the
 	// BYOD enrollment flow (a Free feature) depends on.
 	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
+		return newIPhoneIPadRefetcher(ctx, deps.instanceID, time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity,
+			deps.config.MDM.IOSIPadOSRefetchBatchSize)
 	})
 
 	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
@@ -351,12 +359,17 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
 		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
+
+	deps.register("failed to register app store app configuration reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAppStoreAppConfigurationReconcilerSchedule(ctx, deps.instanceID, deps.ds, deps.svc.(fleet.AppleMDMVPPInstaller), deps.redisPool, deps.logger)
+	})
 }
 
 // registerPremiumCrons covers the Fleet Premium schedules: Microsoft Autopilot
-// sync, maintained apps, VPP app version refresh (and the one-shot VPP country
-// backfill), recovery lock passwords, managed local account rotation,
-// activities streaming, and the calendar schedule.
+// sync, the Google conditional access sync and Android retry, maintained apps, VPP
+// app version refresh (and the one-shot VPP country backfill), recovery lock
+// passwords, managed local account rotation, activities streaming, and the
+// calendar schedule.
 func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if !deps.license.IsPremium() {
 		return
@@ -364,6 +377,14 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register microsoft_autopilot_sync schedule", func() (fleet.CronSchedule, error) {
 		return cron.NewMicrosoftAutopilotSchedule(ctx, deps.instanceID, deps.ds, msgraph.NewClient, deps.logger)
+	})
+
+	deps.register("failed to register google_conditional_access schedule", func() (fleet.CronSchedule, error) {
+		return newGoogleConditionalAccessSchedule(ctx, deps.instanceID, deps.ds, deps.googleCAClients, deps.svc.NewActivity, deps.logger)
+	})
+
+	deps.register("failed to register google_conditional_access_android_retry schedule", func() (fleet.CronSchedule, error) {
+		return newGoogleConditionalAccessAndroidRetrySchedule(ctx, deps.instanceID, deps.ds, deps.googleCAClients, deps.svc.NewActivity, deps.logger)
 	})
 
 	deps.register("failed to register maintained apps schedule", func() (fleet.CronSchedule, error) {

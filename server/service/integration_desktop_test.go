@@ -28,7 +28,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	hosts := s.createHosts(t)
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	ac.OrgInfo.OrgLogoURLDarkMode = "http://example.com/logo"
 	ac.OrgInfo.ContactURL = "http://example.com/contact"
 	ac.Features.EnableSoftwareInventory = true
 	err = s.ds.SaveAppConfig(context.Background(), ac)
@@ -82,7 +82,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, res.Body.Close())
 	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
 	require.False(t, getHostResp.Host.RefetchRequested)
-	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURLDarkMode)
 	require.Equal(t, "http://example.com/contact", getHostResp.OrgContactURL)
 	require.Nil(t, getHostResp.Host.Policies)
 	require.NotNil(t, getHostResp.Host.Batteries)
@@ -200,6 +200,10 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
 	var deviceSoftwareResp getDeviceSoftwareResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK,
 		"source", "chrome_extensions", "extension_for", "brave,edge", "per_page", "1")

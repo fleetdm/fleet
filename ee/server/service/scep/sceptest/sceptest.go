@@ -31,7 +31,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
 
@@ -162,7 +161,7 @@ func newSCEPHTTPServer(t *testing.T, svc scepserver.Service) *httptest.Server {
 	logger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
 	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)
 	t.Cleanup(server.Close)

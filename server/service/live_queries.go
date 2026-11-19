@@ -18,7 +18,7 @@ import (
 )
 
 type runLiveQueryRequest struct {
-	QueryIDs []uint `json:"query_ids" renameto:"report_ids"`
+	QueryIDs []uint `json:"report_ids" removedkey:"query_ids"`
 	HostIDs  []uint `json:"host_ids"`
 }
 
@@ -46,13 +46,13 @@ type runLiveQueryResponse struct {
 	Summary summaryPayload `json:"summary"`
 	Err     error          `json:"error,omitempty"`
 
-	Results []fleet.QueryCampaignResult `json:"live_query_results" renameto:"live_report_results"`
+	Results []fleet.QueryCampaignResult `json:"live_report_results"`
 }
 
 func (r runLiveQueryResponse) Error() error { return r.Err }
 
 type runOneLiveQueryResponse struct {
-	QueryID            uint                `json:"query_id" renameto:"report_id"`
+	QueryID            uint                `json:"report_id"`
 	TargetedHostCount  int                 `json:"targeted_host_count"`
 	RespondedHostCount int                 `json:"responded_host_count"`
 	Results            []fleet.QueryResult `json:"results"`
@@ -198,18 +198,32 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 	return res, nil
 }
 
+const defaultLiveQueryRestPeriod = 25 * time.Second
+
+// LiveQueryRestPeriod is how long the synchronous live query endpoints wait for
+// hosts to report. It should always be less than the request timeout for any
+// load balancer/proxy between Fleet and the API client. An invalid or
+// non-positive value falls back to the default and is returned as the error.
+func LiveQueryRestPeriod() (time.Duration, error) {
+	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
+	if period == "" {
+		return defaultLiveQueryRestPeriod, nil
+	}
+	d, err := time.ParseDuration(period)
+	if err != nil {
+		return defaultLiveQueryRestPeriod, err
+	}
+	if d <= 0 {
+		return defaultLiveQueryRestPeriod, fmt.Errorf("FLEET_LIVE_QUERY_REST_PERIOD must be positive, got %s", period)
+	}
+	return d, nil
+}
+
 func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, query string, hostIDs []uint) (
 	[]fleet.QueryCampaignResult, int, error,
 ) {
-	// The period used here should always be less than the request timeout for any load
-	// balancer/proxy between Fleet and the API client.
-	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
-	if period == "" {
-		period = "25s"
-	}
-	duration, err := time.ParseDuration(period)
+	duration, err := LiveQueryRestPeriod()
 	if err != nil {
-		duration = 25 * time.Second
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 

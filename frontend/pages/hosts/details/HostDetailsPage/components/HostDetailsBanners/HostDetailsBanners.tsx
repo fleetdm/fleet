@@ -46,9 +46,10 @@ export interface IHostBannersBaseProps {
   onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
- * Handles the displaying of banners on the host details page
+ * Returns the banner to show on the host details page, or null if none applies.
+ * The page uses this to know whether it has a banner before rendering.
  */
-const HostDetailsBanners = ({
+export const useHostDetailsBanner = ({
   mdmEnrollmentStatus,
   hostPlatform,
   hostOsVersion,
@@ -62,7 +63,7 @@ const HostDetailsBanners = ({
   detailUpdatedAt,
   depAssignedToFleet,
   onlyAllowAppleBusinessEnrollment,
-}: IHostBannersBaseProps) => {
+}: IHostBannersBaseProps): JSX.Element | null => {
   const { config } = useContext(AppContext);
 
   const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
@@ -108,8 +109,8 @@ const HostDetailsBanners = ({
         <InfoBanner color="yellow">
           This host can&apos;t enroll in Apple MDM. Only current devices listed
           in Apple Business can enroll. To allow manual enrollment, turn off the
-          &quot;Only allow Apple Business enrollment&quot; setting <br /> in{" "}
-          <strong>Organization settings &gt; Advanced options</strong>.
+          <strong>Allow only Apple Business enrollments</strong> setting <br />{" "}
+          in <strong>Organization settings &gt; Advanced options</strong>.
         </InfoBanner>
       </div>
     );
@@ -126,8 +127,8 @@ const HostDetailsBanners = ({
         <InfoBanner color="yellow">
           This host is no longer eligible for Apple MDM. It was enrolled
           manually, but only Apple Business devices can enroll now. To allow
-          manual enrollment, turn off the &quot;Only allow Apple Business
-          enrollment&quot; setting in{" "}
+          manual enrollment, turn off the{" "}
+          <strong>Allow only Apple Business enrollments</strong> setting in{" "}
           <strong>Organization settings &gt; Advanced options</strong>.
         </InfoBanner>
       </div>
@@ -221,5 +222,11 @@ const HostDetailsBanners = ({
 
   return null;
 };
+
+/**
+ * Handles the displaying of banners on the host details page
+ */
+const HostDetailsBanners = (props: IHostBannersBaseProps) =>
+  useHostDetailsBanner(props);
 
 export default HostDetailsBanners;

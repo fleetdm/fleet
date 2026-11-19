@@ -3,6 +3,43 @@
 
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
+## ai_agent_session_events
+
+- Description: Fleet Premium only. Built for each host at every refresh from the AI sessions Fleet already stored, so a session's tool calls trail the session by a refresh. Asks for the tool calls of up to 5 sessions that still need them, resuming after the calls Fleet already has, up to the session's first 10,000 by default (`osquery_ai_session_max_tool_calls`) and, when `osquery_ai_session_max_tool_calls_per_refresh` is set, at most that many new calls per session. Each session's tool calls are preceded by a constant row naming the session as requested, so Fleet can tell a session that returned no calls from one it didn't ask for. After 3 requests in a row return no calls for a session, such as when its transcript is gone from the host, Fleet stops asking until the session is active again. Requires `fleetd`
+
+- Platforms: darwin, windows, linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_agent_session_messages') AND EXISTS (SELECT 1 FROM pragma_table_info('ai_agent_session_messages') WHERE name = 'tool_call_index')
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## ai_agent_sessions
+
+- Description: Fleet Premium only. Reads the AI coding agent sessions active in the last 7 days, by the host's clock. Sessions that are gone from the host's result are kept until 30 days after they were last active. Requires `fleetd`
+
+- Platforms: darwin, windows, linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_agent_sessions') AND EXISTS (SELECT 1 FROM pragma_table_info('ai_agent_sessions') WHERE name = 'account_identifier')
+```
+
+- Query:
+```sql
+SELECT
+  agent, session_id, agent_version, username, account_identifier, model, project_path, git_repository, git_branch,
+  started_at, ended_at, user_messages, assistant_messages, tool_calls, input_tokens, output_tokens, cache_read_tokens,
+  cache_write_tokens, transcript_path, transcript_size_bytes
+FROM ai_agent_sessions
+WHERE ended_at >= (SELECT unix_time FROM time) - 604800
+```
+
 ## battery
 
 - Platforms: windows, darwin
@@ -76,20 +113,6 @@ SELECT
 - Query:
 ```sql
 SELECT email FROM users
-```
-
-## conditional_access_microsoft_device_id
-
-- Platforms: darwin
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'app_sso_platform'
-```
-
-- Query:
-```sql
-SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
 ```
 
 ## conditional_access_microsoft_device_id_windows
@@ -610,6 +633,11 @@ WITH display_version_table AS (
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+		),
 		installation_type_table AS (
 			SELECT data AS installation_type
 			FROM registry
@@ -617,7 +645,7 @@ WITH display_version_table AS (
 		)
 		SELECT
 			os.name,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
@@ -625,6 +653,8 @@ WITH display_version_table AS (
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it
 ```
@@ -642,6 +672,11 @@ WITH display_version_table AS (
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+		),
 		installation_type_table AS (
 			SELECT data AS installation_type
 			FROM registry
@@ -653,13 +688,15 @@ WITH display_version_table AS (
 			os.arch,
 			k.version as kernel_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it
 ```
@@ -715,6 +752,41 @@ SELECT
   '' AS last_opened_at,
   path AS installed_path
 FROM adobe_plugins
+```
+
+## software_ai_tools
+
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_tools'
+```
+
+- Query:
+```sql
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
+  CASE type
+    WHEN 'agents' THEN 'ai_clis'
+    WHEN 'mcp_server' THEN 'mcp_servers'
+    WHEN 'agent_instruction' THEN 'ai_skills'
+    WHEN 'skill' THEN 'ai_skills'
+    ELSE 'ai_tools'
+  END AS source,
+  '' AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path,
+  type AS ai_type,
+  source AS ai_install_method
+FROM ai_tools
+WHERE type IN ('agents', 'mcp_server', 'agent_instruction', 'skill', 'apps', 'ide_plugins', 'browser_extension')
+  AND NOT (type = 'agents' AND evidence NOT LIKE '%catalog%')
+  AND NOT (type = 'mcp_server' AND source = 'process')
 ```
 
 ## software_chrome
@@ -825,6 +897,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM deb_packages
 WHERE status LIKE '% ok installed'
@@ -838,6 +911,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM portage_packages
 UNION
@@ -850,6 +924,7 @@ SELECT
   release AS release,
   vendor AS vendor,
   arch AS arch,
+  epoch AS epoch,
   '' AS installed_path
 FROM rpm_packages
 UNION
@@ -862,6 +937,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM npm_packages
 UNION
@@ -874,6 +950,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
@@ -886,6 +963,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
 ```
@@ -1024,7 +1102,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -1389,9 +1467,36 @@ WHERE (
 select * from system_info limit 1
 ```
 
+## timezone_unix
+
+- Description: Reads the target of the `/etc/localtime` symlink, which requires osquery 5.17.0 or later. Hosts where `/etc/localtime` is a copied file report no timezone.
+
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'
+```
+
+- Query:
+```sql
+SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'
+```
+
+## timezone_windows
+
+- Description: Reads the Windows time zone name from the registry and maps it to an IANA name using the CLDR windowsZones table.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\TimeZoneKeyName'
+```
+
 ## uptime
 
-- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows, chrome
 
 - Query:
 ```sql

@@ -15,6 +15,8 @@ import (
 //go:generate go run ./mockimpl/impl.go -o scep/config.go "s *SCEPConfigService" "fleet.SCEPConfigService"
 //go:generate go run ./mockimpl/impl.go -o scep/enrollment_client.go "c *SCEPEnrollmentClient" "fleet.SCEPEnrollmentClient"
 //go:generate go run ./mockimpl/impl.go -o digicert/digicert.go "s *Service" "fleet.DigiCertService"
+//go:generate go run ./mockimpl/impl.go -o ejbca/ejbca.go "s *Service" "fleet.EJBCAService"
+//go:generate go run ./mockimpl/impl.go -o googlecas/googlecas.go "s *Service" "fleet.GoogleCASService"
 //go:generate go run ./mockimpl/impl.go -o mdm/bootstrap_package_store.go "s *MDMBootstrapPackageStore" "fleet.MDMBootstrapPackageStore"
 //go:generate go run ./mockimpl/impl.go -o software/software_installer_store.go "s *SoftwareInstallerStore" "fleet.SoftwareInstallerStore"
 
@@ -38,6 +40,32 @@ func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string)
 	return nil, &mockNotFoundError{}
 }
 
+// RefreshMDMWindowsProfilesStatusRollup is a no-op unless a test mocks it: the Windows profile reconciler calls it on every window with
+// work, and most of its tests do not care about the rollup.
+func (m *Store) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	if m.RefreshMDMWindowsProfilesStatusRollupFunc != nil {
+		return m.DataStore.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs)
+	}
+	return nil
+}
+
+// AllLabelIDsByName falls back to the LabelIDsByName mock unless a test mocks it, so a test's label fixture serves both
+// lookups.
+func (m *Store) AllLabelIDsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+	if m.AllLabelIDsByNameFunc != nil {
+		return m.DataStore.AllLabelIDsByName(ctx, names, filter)
+	}
+	ids, err := m.LabelIDsByName(ctx, names, filter)
+	if err != nil {
+		return nil, err
+	}
+	all := make(map[string][]uint, len(ids))
+	for name, id := range ids {
+		all[name] = []uint{id}
+	}
+	return all, nil
+}
+
 type mockNotFoundError struct{}
 
 func (e *mockNotFoundError) Error() string    { return "not found" }
@@ -49,7 +77,6 @@ func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
 
 func (m *Store) Drop() error                             { return nil }
 func (m *Store) MigrateTables(ctx context.Context) error { return nil }
-func (m *Store) MigrateData(ctx context.Context) error   { return nil }
 func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	return &fleet.MigrationStatus{}, nil
 }

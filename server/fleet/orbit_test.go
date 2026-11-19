@@ -165,3 +165,16 @@ func TestFilterByHostPlatform(t *testing.T) {
 	require.Len(t, extensions, 1)
 	require.Contains(t, extensions, "hello_world_0")
 }
+
+func TestOrbitConfigNotificationsIsQuiet(t *testing.T) {
+	require.True(t, OrbitConfigNotifications{}.IsQuiet())
+	require.True(t, OrbitConfigNotifications{
+		WindowsMDMDiscoveryEndpoint: "https://example.com",
+		PendingScriptExecutionIDs:   []string{},
+	}.IsQuiet())
+
+	require.False(t, OrbitConfigNotifications{PendingScriptExecutionIDs: []string{"a"}}.IsQuiet())
+	require.False(t, OrbitConfigNotifications{PendingSoftwareInstallerIDs: []string{"a"}}.IsQuiet())
+	require.False(t, OrbitConfigNotifications{RunSetupExperience: true}.IsQuiet())
+	require.False(t, OrbitConfigNotifications{NeedsProgrammaticWindowsMDMEnrollment: true, WindowsMDMDiscoveryEndpoint: "x"}.IsQuiet())
+}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -40,6 +41,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"ListSoftwareTitlesTypeFilter", testListSoftwareTitlesTypeFilter},
+		{"ListSoftwareTitlesAIToolFilter", testListSoftwareTitlesAIToolFilter},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
@@ -51,6 +53,8 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesSearchByBundleAndDisplayName", testListSoftwareTitlesSearchByBundleAndDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
+		{"ListSoftwareTitlesAppStoreApps", testListSoftwareTitlesAppStoreApps},
+		{"ListSoftwareTitlesPackages", testListSoftwareTitlesPackages},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
@@ -381,13 +385,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	for i := range 3 {
 		assert.Equal(t, uint(2), titles[i].HostsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 4 {
 		i := j + 3
 		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 3 {
 		i := j + 7
@@ -397,13 +401,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	// Verify installer/VPP attributes by name.
 	inst1 := titleByName(titles, "installer1")
 	require.NotNil(t, inst1.SoftwarePackage)
-	require.Nil(t, inst1.AppStoreApp)
+	require.Nil(t, inst1.AppStoreApps)
 	inst2 := titleByName(titles, "installer2")
 	require.NotNil(t, inst2.SoftwarePackage)
-	require.Nil(t, inst2.AppStoreApp)
+	require.Nil(t, inst2.AppStoreApps)
 	vpp := titleByName(titles, "vpp1")
 	require.Nil(t, vpp.SoftwarePackage)
-	require.NotNil(t, vpp.AppStoreApp)
+	require.Len(t, vpp.AppStoreApps, 1)
 
 	// The optimized path sorts by hosts_count ASC, software_title_id ASC.
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
@@ -694,11 +698,11 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	assert.Equal(t, uint(1), titles[0].HostsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
+	require.Nil(t, titles[0].AppStoreApps)
 	require.Equal(t, uint(2), titles[1].VersionsCount)
 	assert.Equal(t, uint(2), titles[1].HostsCount)
 	require.Nil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
+	require.Nil(t, titles[1].AppStoreApps)
 	barTitle := titles[0]
 	fooTitle := titles[1]
 
@@ -717,9 +721,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Equal(t, "vpp3", titles[0].Name)
-	require.NotNil(t, titles[0].AppStoreApp)
-	require.NotNil(t, titles[0].AppStoreApp.SelfService)
-	require.True(t, *titles[0].AppStoreApp.SelfService)
+	require.Len(t, titles[0].AppStoreApps, 1)
+	require.True(t, titles[0].AppStoreApps[0].SelfService)
 
 	// Get title of bar software.
 	title, err := ds.SoftwareTitleByID(context.Background(), barTitle.ID, nil, globalTeamFilter)
@@ -742,6 +745,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 			VersionsCount:   title.VersionsCount,
 			Versions:        title.Versions,
 			CountsUpdatedAt: title.CountsUpdatedAt,
+			AITool:          title.AITool,
 		},
 	)
 
@@ -777,10 +781,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foo.bar", *titles[1].BundleIdentifier)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
+	require.Nil(t, titles[0].AppStoreApps)
 	require.Equal(t, uint(0), titles[1].VersionsCount)
 	require.NotNil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
+	require.Nil(t, titles[1].AppStoreApps)
 
 	title, err = ds.SoftwareTitleByID(context.Background(), titles[1].ID, &team1.ID, team1TeamFilter)
 	require.NoError(t, err)
@@ -794,7 +798,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
+	assert.Equal(t, fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt, AITool: title.AITool}, titles[0])
 
 	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
@@ -812,7 +816,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
 		assert.Equal(t, uint(1), titles[i].VersionsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 2 {
 		i := j + 2
@@ -821,10 +825,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	}
 	inst2 := titleByName(titles, "installer2")
 	require.NotNil(t, inst2.SoftwarePackage)
-	require.Nil(t, inst2.AppStoreApp)
+	require.Nil(t, inst2.AppStoreApps)
 	vpp2Title := titleByName(titles, "vpp2")
 	require.Nil(t, vpp2Title.SoftwarePackage)
-	require.NotNil(t, vpp2Title.AppStoreApp)
+	require.Len(t, vpp2Title.AppStoreApps, 1)
 
 	// Testing the team 1 user with self-service only
 	titles, _, _, err = ds.ListSoftwareTitles(
@@ -948,6 +952,14 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
 	require.NoError(t, err)
 	require.Equal(t, 2, title.SoftwareInstallersCount)
+
+	// list available for install, the title with two active packages should appear once
+	titles, count, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, AvailableForInstall: true}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	require.Equal(t, "Multi App", titles[0].Name)
+	require.Len(t, titles[0].Packages, 2)
 }
 
 // Regression guard for the per-installer policy dispatch loop in
@@ -1005,6 +1017,307 @@ func testListSoftwareTitlesPolicyDispatchPerInstaller(t *testing.T, ds *Datastor
 
 	require.Equal(t, installer2ID, titles[0].Packages[1].InstallerID)
 	assert.Empty(t, titles[0].Packages[1].AutomaticInstallPolicies, "installer 2 should NOT carry any policies (regression: aggregate title-level list)")
+}
+
+func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "AppStoreApps", "app-store-apps@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "app-store-apps-team"})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	const iosAdamID = "77770001"
+	const macAdamID = "77770002"
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add an iOS app with a default version and a "Beta" version, and a macOS app with one version
+		iosFirstVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           iosAdamID,
+			Platform:         fleet.IOSPlatform,
+			SelfService:      true,
+			Name:             "iOS Versions App",
+			BundleIdentifier: "com.example." + iosAdamID,
+			LatestVersion:    "2.6.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		iosSecondVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           iosAdamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
+			Name:             "iOS Versions App",
+			BundleIdentifier: "com.example." + iosAdamID,
+			LatestVersion:    "2.6.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		macVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           macAdamID,
+			Platform:         fleet.MacOSPlatform,
+			Name:             "macOS App",
+			BundleIdentifier: "com.example." + macAdamID,
+			LatestVersion:    "1.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+
+		// add an automatic install policy for the macOS app
+		policy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "app-store-apps-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		policy.VPPAppsTeamsID = new(macVersion.AppTeamID)
+		err = ds.SavePolicy(ctx, policy, false, false)
+		require.NoError(t, err)
+
+		// list titles for the fleet, the iOS title should list both versions first-added first
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 2)
+		titlesByID := map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
+
+		iosTitle := titlesByID[iosFirstVersion.TitleID]
+		require.Equal(t, []fleet.AppStoreAppListItem{
+			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true},
+			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0"},
+		}, iosTitle.AppStoreApps)
+		// read app_store_app from the titles list, it should only be set for setup experience
+		require.Nil(t, iosTitle.AppStoreApp)
+
+		// read the macOS title, the policy should be on its only version
+		macTitle := titlesByID[macVersion.TitleID]
+		require.Len(t, macTitle.AppStoreApps, 1)
+		require.Equal(t, macVersion.AppTeamID, macTitle.AppStoreApps[0].ID)
+		require.Len(t, macTitle.AppStoreApps[0].AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, macTitle.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
+
+		// add an automatic install policy for the iOS "Beta" version and list titles, only the "Beta" version should have it
+		iosPolicy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "app-store-apps-ios-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		iosPolicy.VPPAppsTeamsID = new(iosSecondVersion.AppTeamID)
+		err = ds.SavePolicy(ctx, iosPolicy, false, false)
+		require.NoError(t, err)
+		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 2)
+		titlesByID = map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
+		iosTitle = titlesByID[iosFirstVersion.TitleID]
+		require.Empty(t, iosTitle.AppStoreApps[0].AutomaticInstallPolicies)
+		require.Len(t, iosTitle.AppStoreApps[1].AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, iosTitle.AppStoreApps[1].AutomaticInstallPolicies[0].ID)
+
+		// read the iOS title's versions, only the "Beta" version should have the policy
+		iosVersions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, iosFirstVersion.TitleID)
+		require.NoError(t, err)
+		require.Len(t, iosVersions, 2)
+		require.Empty(t, iosVersions[0].AutomaticInstallPolicies)
+		require.Len(t, iosVersions[1].AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, iosVersions[1].AutomaticInstallPolicies[0].ID)
+
+		// select the iOS title for setup experience and list setup experience software, every version should have install_during_setup
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, []uint{iosFirstVersion.TitleID})
+		require.NoError(t, err)
+		setupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, setupTitles, 1)
+		require.Len(t, setupTitles[0].AppStoreApps, 2)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApps[0].InstallDuringSetup)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApps[1].InstallDuringSetup)
+		// read app_store_app from the setup experience list, it should be the first-added self-service version
+		require.NotNil(t, setupTitles[0].AppStoreApp)
+		require.Equal(t, iosAdamID, setupTitles[0].AppStoreApp.AppStoreID)
+		require.Equal(t, string(fleet.IOSPlatform), setupTitles[0].AppStoreApp.Platform)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApp.SelfService)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApp.InstallDuringSetup)
+		// read the automatic install policies on app_store_app, the "Beta" version's policy should be listed for the whole title
+		require.Len(t, setupTitles[0].AppStoreApp.AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, setupTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID)
+	}
+}
+
+func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Packages", "packages@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "packages-team"})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Packages FMA",
+		Slug:             "packages-fma/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example.packages-fma",
+	})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add a custom package, a Fleet-maintained app package, and a Linux script package
+		customInstallerID, customTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Custom App",
+			Source:           "apps",
+			BundleIdentifier: "com.example.custom",
+			Platform:         "darwin",
+			Extension:        "pkg",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			Filename:         "custom.pkg",
+			StorageID:        "custom-storage-" + c.name,
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &fleetID,
+		})
+		require.NoError(t, err)
+		_, maintainedAppTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:                "Packages FMA",
+			Source:               "apps",
+			BundleIdentifier:     "com.example.packages-fma",
+			Platform:             "darwin",
+			Extension:            "pkg",
+			Version:              "2.0",
+			InstallScript:        "echo",
+			Filename:             "fma.pkg",
+			StorageID:            "fma-storage-" + c.name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &fleetID,
+			FleetMaintainedAppID: new(maintainedApp.ID),
+		})
+		require.NoError(t, err)
+		_, scriptTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:           "Script Package",
+			Source:          "sh_packages",
+			Platform:        "linux",
+			Extension:       "sh",
+			Version:         "1.0",
+			InstallScript:   "echo",
+			Filename:        "script.sh",
+			StorageID:       "script-storage-" + c.name,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			TeamID:          &fleetID,
+		})
+		require.NoError(t, err)
+
+		// add an automatic install policy for the custom package
+		policy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "packages-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		policy.SoftwareInstallerID = new(customInstallerID)
+		err = ds.SavePolicy(ctx, policy, false, false)
+		require.NoError(t, err)
+
+		// add an in-house app whose iPadOS id matches the custom package's installer id
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, fmt.Sprintf("ALTER TABLE in_house_apps AUTO_INCREMENT = %d", customInstallerID))
+			return err
+		})
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "In-House App",
+			Filename:         "in-house.ipa",
+			BundleIdentifier: "com.example.in-house",
+			Extension:        "ipa",
+			Version:          "3.0",
+			SelfService:      true,
+			UserID:           user.ID,
+			TeamID:           &fleetID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		// list titles for the fleet, every title should have its package in packages
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 5)
+		titlesByID := make(map[uint]fleet.SoftwareTitleListResult, len(titles))
+		inHouseTitlesByPlatform := make(map[string]fleet.SoftwareTitleListResult)
+		for _, title := range titles {
+			titlesByID[title.ID] = title
+			if title.Name == "In-House App" {
+				inHouseTitlesByPlatform[title.Packages[0].Platform] = title
+			}
+		}
+
+		// read the custom package, it should have the policy and no Fleet-maintained app id
+		customTitle := titlesByID[customTitleID]
+		require.Len(t, customTitle.Packages, 1)
+		require.Equal(t, customInstallerID, customTitle.Packages[0].InstallerID)
+		require.Equal(t, "custom.pkg", customTitle.Packages[0].Name)
+		require.Len(t, customTitle.Packages[0].AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, customTitle.Packages[0].AutomaticInstallPolicies[0].ID)
+		require.Nil(t, customTitle.Packages[0].FleetMaintainedAppID)
+		require.Nil(t, customTitle.Packages[0].FleetMaintainedVersions)
+		require.Nil(t, customTitle.Packages[0].InstallDuringSetup)
+
+		// read the Fleet-maintained app package, it should have the Fleet-maintained app id
+		maintainedAppTitle := titlesByID[maintainedAppTitleID]
+		require.Len(t, maintainedAppTitle.Packages, 1)
+		require.Equal(t, new(maintainedApp.ID), maintainedAppTitle.Packages[0].FleetMaintainedAppID)
+		require.Equal(t, maintainedAppTitle.SoftwarePackage.FleetMaintainedAppID, maintainedAppTitle.Packages[0].FleetMaintainedAppID)
+		require.Len(t, maintainedAppTitle.Packages[0].FleetMaintainedVersions, 1)
+		require.Equal(t, maintainedAppTitle.SoftwarePackage.FleetMaintainedVersions, maintainedAppTitle.Packages[0].FleetMaintainedVersions)
+
+		// read the in-house app titles, each should list the .ipa once without the custom package's policy
+		require.Len(t, inHouseTitlesByPlatform, 2)
+		iosInHouseTitle := inHouseTitlesByPlatform["ios"]
+		ipadosInHouseTitle := inHouseTitlesByPlatform["ipados"]
+		require.Len(t, iosInHouseTitle.Packages, 1)
+		require.Len(t, ipadosInHouseTitle.Packages, 1)
+		require.Equal(t, "in-house.ipa", iosInHouseTitle.Packages[0].Name)
+		require.Equal(t, "in-house.ipa", ipadosInHouseTitle.Packages[0].Name)
+		require.Equal(t, customInstallerID, ipadosInHouseTitle.Packages[0].InstallerID)
+		require.Empty(t, iosInHouseTitle.Packages[0].AutomaticInstallPolicies)
+		require.Empty(t, ipadosInHouseTitle.Packages[0].AutomaticInstallPolicies)
+		require.Equal(t, "3.0", iosInHouseTitle.Packages[0].Version)
+		require.Equal(t, new(true), iosInHouseTitle.Packages[0].SelfService)
+		require.Nil(t, iosInHouseTitle.Packages[0].FleetMaintainedAppID)
+		require.Nil(t, iosInHouseTitle.Packages[0].InstallDuringSetup)
+		require.Equal(t, "in-house.ipa", iosInHouseTitle.SoftwarePackage.Name)
+
+		// select the custom package and the Linux script for macOS setup, both should have install_during_setup on macOS
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", fleetID, []uint{customTitleID, scriptTitleID})
+		require.NoError(t, err)
+		macOSSetupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, macOSSetupTitles, 3)
+		macOSSetupTitlesByID := make(map[uint]fleet.SoftwareTitleListResult, len(macOSSetupTitles))
+		for _, title := range macOSSetupTitles {
+			macOSSetupTitlesByID[title.ID] = title
+		}
+		require.Equal(t, new(true), macOSSetupTitlesByID[customTitleID].Packages[0].InstallDuringSetup)
+		require.Equal(t, new(true), macOSSetupTitlesByID[scriptTitleID].Packages[0].InstallDuringSetup)
+		require.Equal(t, new(false), macOSSetupTitlesByID[maintainedAppTitleID].Packages[0].InstallDuringSetup)
+		require.Equal(t, macOSSetupTitlesByID[scriptTitleID].SoftwarePackage.InstallDuringSetup, macOSSetupTitlesByID[scriptTitleID].Packages[0].InstallDuringSetup)
+
+		// list Linux setup software, the script should not have install_during_setup on Linux
+		linuxSetupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, linuxSetupTitles, 1)
+		require.Equal(t, new(false), linuxSetupTitles[0].Packages[0].InstallDuringSetup)
+
+		// select the iOS in-house app for setup, it should have install_during_setup on iOS
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", fleetID, []uint{iosInHouseTitle.ID})
+		require.NoError(t, err)
+		iosSetupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "ios", fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, iosSetupTitles, 1)
+		require.Len(t, iosSetupTitles[0].Packages, 1)
+		require.Equal(t, new(true), iosSetupTitles[0].Packages[0].InstallDuringSetup)
+	}
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
@@ -1214,9 +1527,10 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	for _, title := range titles {
 		names = append(names, nameSource{name: title.Name, source: title.Source})
 		if title.ID == vpp2.TitleID {
-			assert.Len(t, title.AppStoreApp.AutomaticInstallPolicies, 1)
-			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].Name, "VPP Policy")
-			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].ID, vppPolicy.ID)
+			require.Len(t, title.AppStoreApps, 1)
+			assert.Len(t, title.AppStoreApps[0].AutomaticInstallPolicies, 1)
+			assert.Equal(t, "VPP Policy", title.AppStoreApps[0].AutomaticInstallPolicies[0].Name)
+			assert.Equal(t, vppPolicy.ID, title.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
 		}
 	}
 	assert.ElementsMatch(t, []nameSource{
@@ -2318,7 +2632,7 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 			PackagesOnly: true,
 		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "packages_only can only be provided with team_id")
+		require.Contains(t, err.Error(), "packages_only can only be provided with fleet_id")
 	})
 
 	t.Run("packages_only=false with team_id", func(t *testing.T) {
@@ -2383,7 +2697,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}
 
 	// install software on host
-	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "", "", "")
 	require.NoError(t, err)
 
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{}) //nolint:gosec // dismiss G602
@@ -2396,7 +2710,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -2650,13 +2964,15 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			switch {
 			case want[i] == nil:
 				require.Nil(t, sw.SoftwarePackage)
-				require.Nil(t, sw.AppStoreApp)
+				require.Nil(t, sw.AppStoreApps)
 			case want[i].AppStoreID != "":
 				require.Nil(t, sw.SoftwarePackage)
-				require.NotNil(t, sw.AppStoreApp)
-				require.Equal(t, want[i], sw.AppStoreApp)
+				require.Len(t, sw.AppStoreApps, 1)
+				require.Equal(t, want[i].AppStoreID, sw.AppStoreApps[0].AppStoreID)
+				require.Equal(t, want[i].Platform, string(sw.AppStoreApps[0].Platform))
+				require.Equal(t, *want[i].SelfService, sw.AppStoreApps[0].SelfService)
 			default:
-				require.Nil(t, sw.AppStoreApp)
+				require.Nil(t, sw.AppStoreApps)
 				require.NotNil(t, sw.SoftwarePackage)
 				require.Equal(t, want[i], sw.SoftwarePackage)
 			}
@@ -2963,47 +3279,17 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Nil(t, titleResult.AutoUpdateStartTime)
 	require.Nil(t, titleResult.AutoUpdateEndTime)
 
-	// Attempt to enable auto-update with invalid start time.
-	startTime := "26:00"
-	endTime := "12:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
-
-	// Attempt to enable auto-update with invalid end time.
-	startTime = "12:00"
-	endTime = "abc"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
-
-	// Attempt to enable auto-update with less than an hour between start and end time.
-	startTime = "12:00"
-	endTime = "12:30"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "The update window must be at least one hour long")
-
 	// Enable auto-update.
-	startTime = "02:00"
-	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	startTime := "02:00"
+	endTime := "04:00"
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3051,11 +3337,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, endTime, *listedByName.AutoUpdateEndTime)
 
 	// Save a disabled auto-update schedule for the other VPP app, the window is not stored for a disabled schedule so the app should not be listed.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		AdamID:              "adam_vpp_app_2",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(false),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// List the iPadOS schedules, only the enabled app should be returned.
@@ -3084,9 +3373,12 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Empty(t, schedules)
 
 	// Disable auto-update.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled: ptr.Bool(false),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:            "adam_vpp_app_1",
+		Platform:          fleet.IPadOSPlatform,
+		AutoUpdateEnabled: new(false),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3108,11 +3400,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update back for the iPadOS app.
 	startTime = "02:00"
 	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// Get scheduled updates for iOS, should return none.
@@ -3123,11 +3418,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update for the iOS app.
 	startTime = "00:00"
 	endTime = "05:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title3ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		AdamID:              "adam_vpp_app_3",
+		Platform:            fleet.IOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// Should still get 1 for iPadOS.
@@ -3472,4 +3770,153 @@ func testListSoftwareTitlesTypeFilter(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, c.want, listAll(t, opts))
 		})
 	}
+}
+
+func testListSoftwareTitlesAIToolFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	teamHost := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	noTeamHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{teamHost.ID})))
+
+	res, err := ds.UpdateHostSoftware(ctx, teamHost.ID, []fleet.Software{
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	// The second codex version isn't flagged; the title still is.
+	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "github", Version: "", Source: "mcp_servers", AITool: new(true)},
+		{Name: "codex", Version: "2.0", Source: "ai_clis"},
+	})
+	require.NoError(t, err)
+	for _, s := range res.Inserted {
+		if s.Name == "Claude" || s.Name == "Slack" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: s.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "setup script",
+		Source:          "sh_packages",
+		InstallScript:   "echo",
+		Filename:        "setup.sh",
+		Extension:       "sh",
+		Platform:        "linux",
+		TeamID:          &tm.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	// listAll lists every page with a small page size, asserts the reported count matches the list
+	// and returns each title's ai_tool by name.
+	listAll := func(t *testing.T, opts fleet.SoftwareTitleListOptions) map[string]bool {
+		t.Helper()
+		opts.ListOptions.IncludeMetadata = true
+		opts.ListOptions.PerPage = 2
+
+		got := make(map[string]bool)
+		var totalCount int
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			titles, count, meta, err := ds.ListSoftwareTitles(ctx, opts, tmFilter)
+			require.NoError(t, err)
+			if page == 0 {
+				totalCount = count
+			}
+			require.Equal(t, totalCount, count)
+			for _, title := range titles {
+				require.NotContains(t, got, title.Name)
+				require.NotNil(t, title.AITool, title.Name)
+				got[title.Name] = *title.AITool
+			}
+			require.NotNil(t, meta)
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, titles, 2)
+		}
+		require.Len(t, got, totalCount)
+		return got
+	}
+
+	for _, teamID := range []*uint{nil, &tm.ID} {
+		t.Run(fmt.Sprintf("ai_tool field team=%v", teamID != nil), func(t *testing.T) {
+			want := map[string]bool{"Claude": true, "Slack": false, "codex": true}
+			if teamID == nil {
+				want["github"] = true
+			} else {
+				want["setup script"] = false
+			}
+			require.Equal(t, want, listAll(t, fleet.SoftwareTitleListOptions{TeamID: teamID}))
+		})
+	}
+
+	cases := []struct {
+		name       string
+		source     string
+		vulnerable bool
+		query      string
+		noTeam     []string
+		team       []string
+	}{
+		{name: "ai_tool", noTeam: []string{"Claude", "codex", "github"}, team: []string{"Claude", "codex"}},
+		{name: "with source", source: "apps", noTeam: []string{"Claude"}, team: []string{"Claude"}},
+		{name: "with AI source", source: "mcp_servers", noTeam: []string{"github"}, team: nil},
+		{name: "with vulnerable", vulnerable: true, noTeam: []string{"Claude"}, team: []string{"Claude"}},
+		{name: "with search", query: "c", noTeam: []string{"Claude", "codex"}, team: []string{"Claude", "codex"}},
+	}
+	for _, c := range cases {
+		filter, err := fleet.ParseSoftwareTypeFilter(c.source, "")
+		require.NoError(t, err)
+		for _, teamID := range []*uint{nil, &tm.ID} {
+			want := c.noTeam
+			if teamID != nil {
+				want = c.team
+			}
+			for _, orderKey := range []string{"hosts_count", "name"} {
+				t.Run(fmt.Sprintf("%s team=%v order=%s", c.name, teamID != nil, orderKey), func(t *testing.T) {
+					opts := fleet.SoftwareTitleListOptions{
+						ListOptions:    fleet.ListOptions{OrderKey: orderKey, MatchQuery: c.query},
+						TeamID:         teamID,
+						VulnerableOnly: c.vulnerable,
+						TypeFilter:     filter,
+						AITool:         true,
+					}
+					if orderKey == "hosts_count" && !c.vulnerable && c.query == "" {
+						require.True(t, canUseOptimizedListTitlesQuery(opts))
+					}
+					got := listAll(t, opts)
+					require.ElementsMatch(t, want, slices.Collect(maps.Keys(got)))
+					for name, aiTool := range got {
+						require.True(t, aiTool, name)
+					}
+				})
+			}
+		}
+	}
+
+	t.Run("by id", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &tm.ID}, tmFilter)
+		require.NoError(t, err)
+		require.NotEmpty(t, titles)
+		for _, listed := range titles {
+			title, err := ds.SoftwareTitleByID(ctx, listed.ID, &tm.ID, tmFilter)
+			require.NoError(t, err)
+			require.NotNil(t, title.AITool, listed.Name)
+			require.Equal(t, *listed.AITool, *title.AITool, listed.Name)
+		}
+	})
 }

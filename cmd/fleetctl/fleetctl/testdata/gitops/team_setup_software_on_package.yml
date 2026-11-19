@@ -1,5 +1,5 @@
 name: "${TEST_TEAM_NAME}"
-team_settings:
+settings:
   secrets:
     - secret: "ABC"
   features:
@@ -10,8 +10,8 @@ team_settings:
     host_expiry_window: 30
 agent_options:
 controls:
-  macos_setup:
-    script: lib/setup_script.sh
+  setup_experience:
+    macos_script: lib/setup_script.sh
 policies:
 queries:
 software:

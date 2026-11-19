@@ -33,7 +33,7 @@ func TestSearchTargets(t *testing.T) {
 		{Name: "team1"},
 	}
 
-	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 		assert.Equal(t, user, filter.User)
 		return hosts, nil
 	}
@@ -82,7 +82,7 @@ func TestSearchTargetsStripsSecretsAndAgentOptions(t *testing.T) {
 		},
 	}
 
-	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 		return nil, nil
 	}
 	ds.SearchLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
@@ -115,7 +115,7 @@ func TestSearchWithOmit(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
 		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{1, 2}, omit)
 		return nil, nil
@@ -133,4 +133,27 @@ func TestSearchWithOmit(t *testing.T) {
 
 	_, err := svc.SearchTargets(ctx, "foo", nil, fleet.HostTargets{HostIDs: []uint{1, 2}, LabelIDs: []uint{3, 4}, TeamIDs: []uint{5, 6}})
 	require.NoError(t, err)
+}
+
+func TestSearchTargetsExcludesMobileHosts(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
+		assert.True(t, excludeMobile)
+		return nil, nil
+	}
+	ds.SearchLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+
+	_, err := svc.SearchTargets(ctx, "local", nil, fleet.HostTargets{})
+	require.NoError(t, err)
+	require.True(t, ds.SearchHostsFuncInvoked)
 }

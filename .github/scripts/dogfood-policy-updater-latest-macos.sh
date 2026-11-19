@@ -4,8 +4,8 @@
 REPO_OWNER="fleetdm"
 REPO_NAME="fleet"
 POLICY_FILE_PATH="it-and-security/lib/macos/policies/latest-macos.yml"
-WORKSTATIONS_FILE="it-and-security/teams/workstations.yml"
-WORKSTATIONS_CANARY_FILE="it-and-security/teams/workstations-canary.yml"
+WORKSTATIONS_FILE="it-and-security/fleets/workstations.yml"
+WORKSTATIONS_CANARY_FILE="it-and-security/fleets/workstations-canary.yml"
 BRANCH="main"
 
 # Ensure required environment variables are set
@@ -50,14 +50,14 @@ fetch_file_content() {
     echo "$response"
 }
 
-# Function to extract current minimum version from team file content
+# Function to extract current minimum version from fleet file content
 extract_minimum_version() {
     local content="$1"
     local minimum_version=$(echo "$content" | grep -A 5 "macos_updates:" | grep "minimum_version:" | sed 's/.*minimum_version: *"\([^"]*\)".*/\1/')
     echo "$minimum_version"
 }
 
-# Function to extract current deadline from team file content
+# Function to extract current deadline from fleet file content
 # COMMENTED OUT: Deadline extraction logic temporarily disabled
 # extract_deadline() {
 #     local content="$1"
@@ -65,9 +65,9 @@ extract_minimum_version() {
 #     echo "$deadline"
 # }
 
-# Function to update team file content with new version and deadline
-# COMMENTED OUT: Team file update logic temporarily disabled
-# update_team_file_content() {
+# Function to update fleet file content with new version and deadline
+# COMMENTED OUT: Fleet file update logic temporarily disabled
+# update_fleet_file_content() {
 #     local content="$1"
 #     local new_version="$2"
 #     local new_deadline="$3"
@@ -120,8 +120,8 @@ fi
 
 # Initialize update flags
 policy_update_needed=false
-# COMMENTED OUT: Team updates flag temporarily disabled
-# team_updates_needed=false
+# COMMENTED OUT: Fleet updates flag temporarily disabled
+# fleet_updates_needed=false
 updates_needed=false
 
 # Check policy file
@@ -172,16 +172,16 @@ if [ "$policy_needs_update" = true ]; then
     updates_needed=true
 fi
 
-# COMMENTED OUT: Team files check logic temporarily disabled
-# Check team files
-# echo "Checking team files..."
+# COMMENTED OUT: Fleet files check logic temporarily disabled
+# Check fleet files
+# echo "Checking fleet files..."
 # workstations_content=$(fetch_file_content "$WORKSTATIONS_FILE")
 # if [ $? -ne 0 ]; then
-#     echo "Warning: Could not fetch workstations file, skipping team updates."
+#     echo "Warning: Could not fetch workstations file, skipping fleet updates."
 # else
 #     workstations_canary_content=$(fetch_file_content "$WORKSTATIONS_CANARY_FILE")
 #     if [ $? -ne 0 ]; then
-#         echo "Warning: Could not fetch workstations-canary file, skipping team updates."
+#         echo "Warning: Could not fetch workstations-canary file, skipping fleet updates."
 #     else
 #         # Extract current versions and deadlines
 #         current_workstations_version=$(extract_minimum_version "$workstations_content")
@@ -198,23 +198,23 @@ fi
 #         new_deadline=$(calculate_deadline)
 #         echo "New deadline (4 Sundays from today): $new_deadline"
 # 
-#         # Check if team updates are needed
+#         # Check if fleet updates are needed
 #         # Only update deadline if there's a new macOS version
 #         if [ "$current_workstations_version" != "$latest_macos_version" ]; then
-#             team_updates_needed=true
+#             fleet_updates_needed=true
 #             updates_needed=true
 #         elif [ "$current_workstations_deadline" != "$new_deadline" ] && [ "$policy_update_needed" = true ]; then
 #             # Only update deadline if policy was updated (meaning there's a new version)
-#             team_updates_needed=true
+#             fleet_updates_needed=true
 #             updates_needed=true
 #         fi
 # 
 #         if [ "$current_workstations_canary_version" != "$latest_macos_version" ]; then
-#             team_updates_needed=true
+#             fleet_updates_needed=true
 #             updates_needed=true
 #         elif [ "$current_workstations_canary_deadline" != "$new_deadline" ] && [ "$policy_update_needed" = true ]; then
 #             # Only update deadline if policy was updated (meaning there's a new version)
-#             team_updates_needed=true
+#             fleet_updates_needed=true
 #             updates_needed=true
 #         fi
 #     fi
@@ -246,17 +246,17 @@ if [ "$updates_needed" = true ]; then
         echo "Policy file updated: $POLICY_FILE_PATH"
     fi
 
-    # COMMENTED OUT: Team files update logic temporarily disabled
-    # Update team files if needed
-    # if [ "$team_updates_needed" = true ]; then
-    #     echo "Updating team files..."
-    #     updated_workstations_content=$(update_team_file_content "$workstations_content" "$latest_macos_version" "$new_deadline")
-    #     updated_canary_content=$(update_team_file_content "$workstations_canary_content" "$latest_macos_version" "$new_deadline")
+    # COMMENTED OUT: Fleet files update logic temporarily disabled
+    # Update fleet files if needed
+    # if [ "$fleet_updates_needed" = true ]; then
+    #     echo "Updating fleet files..."
+    #     updated_workstations_content=$(update_fleet_file_content "$workstations_content" "$latest_macos_version" "$new_deadline")
+    #     updated_canary_content=$(update_fleet_file_content "$workstations_canary_content" "$latest_macos_version" "$new_deadline")
     #     
     #     echo "$updated_workstations_content" > "$WORKSTATIONS_FILE"
     #     echo "$updated_canary_content" > "$WORKSTATIONS_CANARY_FILE"
     #     
-    #     echo "Team files updated"
+    #     echo "Fleet files updated"
     # fi
 
     echo "Files updated successfully. PR will be created by GitHub Actions workflow."

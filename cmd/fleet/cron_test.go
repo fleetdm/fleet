@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -433,6 +434,61 @@ func TestCleanupHostScriptResultsCronJob(t *testing.T) {
 		}
 		err := cleanupHostScriptResultsCronJob(t.Context(), ds, logger, time.Hour)
 		require.ErrorContains(t, err, "boom")
+	})
+}
+
+func TestUnblockHostsUpcomingActivityQueueCronJob(t *testing.T) {
+	const maxHosts = 500
+
+	unblockReturning := func(t *testing.T, unblocked int, retErr error) (*mock.Store, *bytes.Buffer, error) {
+		t.Helper()
+		var logs bytes.Buffer
+		ds := new(mock.Store)
+		var gotMaxHosts int
+		var gotSkipFleetInitiated bool
+		ds.UnblockHostsUpcomingActivityQueueFunc = func(ctx context.Context, m int, skipFleetInitiated bool) (int, error) {
+			gotMaxHosts, gotSkipFleetInitiated = m, skipFleetInitiated
+			return unblocked, retErr
+		}
+		err := unblockHostsUpcomingActivityQueueCronJob(
+			t.Context(), ds, slog.New(slog.NewTextHandler(&logs, nil)), maxHosts, true,
+		)
+		require.True(t, ds.UnblockHostsUpcomingActivityQueueFuncInvoked)
+		require.Equal(t, maxHosts, gotMaxHosts)
+		require.True(t, gotSkipFleetInitiated)
+		return ds, &logs, err
+	}
+
+	t.Run("logs the count it unblocked", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 7, nil)
+		require.NoError(t, err)
+		require.Contains(t, logs.String(), "hosts_unblocked=7")
+		require.Contains(t, logs.String(), "max_hosts=500")
+		require.Contains(t, logs.String(), "cap_reached=false")
+	})
+
+	t.Run("flags a run that hit its cap, since more hosts are still blocked", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, maxHosts, nil)
+		require.NoError(t, err)
+		require.Contains(t, logs.String(), "cap_reached=true")
+	})
+
+	t.Run("stays quiet when nothing was blocked", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 0, nil)
+		require.NoError(t, err)
+		require.Empty(t, logs.String())
+	})
+
+	t.Run("reports partial progress before returning the error", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 3, errors.New("boom"))
+		require.ErrorContains(t, err, "boom")
+		require.Contains(t, logs.String(), "hosts_unblocked=3")
+	})
+
+	t.Run("propagates datastore errors", func(t *testing.T) {
+		_, logs, err := unblockReturning(t, 0, errors.New("boom"))
+		require.ErrorContains(t, err, "boom")
+		require.Empty(t, logs.String())
 	})
 }
 

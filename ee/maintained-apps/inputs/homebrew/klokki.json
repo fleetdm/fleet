@@ -1,6 +1,6 @@
 {
   "name": "Klokki",
-  "unique_identifier": "com.klokki-launcher",
+  "unique_identifier": "com.klokki.macos",
   "token": "klokki",
   "installer_format": "dmg",
   "slug": "klokki/darwin",

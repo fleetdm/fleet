@@ -2,12 +2,11 @@
   "name": "XnViewMP",
   "slug": "xnviewmp/windows",
   "package_identifier": "XnSoft.XnViewMP",
-  "unique_identifier": "XnView MP",
+  "unique_identifier": "XnView MP (x64)",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",
   "default_categories": ["Productivity"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/xnviewmp_install.ps1",
-  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/xnviewmp_uninstall.ps1",
-  "frozen": true
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/xnviewmp_uninstall.ps1"
 }

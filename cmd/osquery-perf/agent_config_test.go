@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -624,4 +625,31 @@ func TestConfigETag_IoReadAll(t *testing.T) {
 	data, err := io.ReadAll(reader)
 	require.NoError(t, err)
 	require.Equal(t, body, data)
+}
+
+func TestConfigOrbitFallbackChangeReported(t *testing.T) {
+	etags := []string{"v1", "v2", "v2"}
+	var headers []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers = append(headers, r.Header.Get(fleet.OsqueryConfigFallbackChangeHeader))
+		etag := etags[min(len(headers), len(etags))-1]
+		if got := requestETag(r); got != nil && *got == etag {
+			_, _ = w.Write([]byte(unchangedBody))
+			return
+		}
+		_, _ = w.Write(withETagKey([]byte(`{"packs":{}}`), etag))
+	}))
+	defer server.Close()
+
+	a := newTestAgent(false)
+	a.serverAddress = server.URL
+	a.orbitNodeKey = new("orbit-node-key")
+	a.osqueryConfigPollInterval.Store(600)
+
+	require.NoError(t, a.fetchConfig(false))
+	// A fallback poll finds a change, reported on the next fetch only.
+	require.NoError(t, a.fetchConfig(true))
+	require.NoError(t, a.fetchConfig(false))
+	require.Equal(t, []string{"", "", "1"}, headers)
+	require.False(t, a.osqueryConfigFallbackChange)
 }

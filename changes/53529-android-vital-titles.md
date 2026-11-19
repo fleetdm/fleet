@@ -1,1 +1,0 @@
-- Renamed the "Play Protect enabled" and "USB debugging enabled" Android host vitals to "Play Protect" and "USB debugging," and changed their values from "True"/"False" to "Enabled"/"Disabled."

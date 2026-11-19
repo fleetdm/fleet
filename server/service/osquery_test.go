@@ -195,6 +195,18 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 	require.Equal(t, 0, run(t, true), "filling the cap must not let an unscheduled query through")
 }
 
+func TestSubmitResultLogsDropsOverlongNames(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		return map[string]*fleet.Query{}, nil
+	}
+
+	name := "pack/Global/" + strings.Repeat("a", maxScheduledQueryNameLen)
+	result := fmt.Sprintf(`{"snapshot":[{"a":"b"}],"action":"snapshot","name":%q,"hostIdentifier":"h","unixTime":1484078931}`, name)
+	require.NoError(t, serv.SubmitResultLogs(ctx, []json.RawMessage{json.RawMessage(result)}))
+	assert.Empty(t, serv.osqueryLogWriter.Result.(*testJSONLogger).logs)
+}
+
 // TestSubmitResultLogsCapWarningOnlyWhenNamesDropped pins the cap's warning to
 // names actually left unresolved: a submission landing exactly on the cap uses
 // every slot without breaching it and must not report one.
@@ -236,27 +248,6 @@ func TestGetClientConfig(t *testing.T) {
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{}, nil
-	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-		tru := true
-		fals := false
-		fortytwo := uint(42)
-		switch pid {
-		case 1:
-			return []*fleet.ScheduledQuery{
-				{Name: "time", Query: "select * from time", Interval: 30, Removed: &fals},
-			}, nil
-		case 4:
-			return []*fleet.ScheduledQuery{
-				{Name: "foobar", Query: "select 3", Interval: 20, Shard: &fortytwo},
-				{Name: "froobing", Query: "select 'guacamole'", Interval: 60, Snapshot: &tru},
-			}, nil
-		default:
-			return []*fleet.ScheduledQuery{}, nil
-		}
-	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
@@ -297,90 +288,17 @@ func TestGetClientConfig(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ctx1 := hostctx.NewContext(ctx, &fleet.Host{ID: 1})
-	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2})
-	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1)})
+	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2, TeamID: new(uint(1))})
 
-	expectedOptions := map[string]interface{}{
-		"baz": "bar",
-	}
-
-	expectedConfig := map[string]interface{}{
-		"options": expectedOptions,
-	}
-
-	// No packs loaded yet
+	// No reports in scope: no packs key at all.
 	conf, err := svc.GetClientConfig(ctx1)
 	require.NoError(t, err)
-	assert.Equal(t, expectedConfig, conf)
+	assert.Equal(t, map[string]any{"options": map[string]any{"baz": "bar"}}, conf)
 
+	// Only the team-N report entry is served.
 	conf, err = svc.GetClientConfig(ctx2)
 	require.NoError(t, err)
-	assert.Equal(t, expectedConfig, conf)
-
-	// Now add packs
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		switch hid {
-		case 1:
-			return []*fleet.Pack{
-				{ID: 1, Name: "pack_by_label"},
-				{ID: 4, Name: "pack_by_other_label"},
-			}, nil
-
-		case 2:
-			return []*fleet.Pack{
-				{ID: 1, Name: "pack_by_label"},
-			}, nil
-		}
-		return []*fleet.Pack{}, nil
-	}
-
-	conf, err = svc.GetClientConfig(ctx1)
-	require.NoError(t, err)
-	assert.Equal(t, expectedOptions, conf["options"])
 	assert.JSONEq(t, `{
-		"pack_by_other_label": {
-			"queries": {
-				"foobar":{"query":"select 3","interval":20,"shard":42},
-				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
-			}
-		},
-		"pack_by_label": {
-			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
-			}
-		}
-	}`,
-		string(conf["packs"].(json.RawMessage)),
-	)
-
-	conf, err = svc.GetClientConfig(ctx2)
-	require.NoError(t, err)
-	assert.Equal(t, expectedOptions, conf["options"])
-	assert.JSONEq(t, `{
-		"pack_by_label": {
-			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
-			}
-		}
-	}`,
-		string(conf["packs"].(json.RawMessage)),
-	)
-
-	// Check scheduled queries are loaded properly
-	conf, err = svc.GetClientConfig(ctx3)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-		"pack_by_label": {
-			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
-			}
-		},
-		"pack_by_other_label": {
-			"queries": {
-				"foobar":{"query":"select 3","interval":20,"shard":42},
-				"froobing":{"query":"select 'guacamole'","interval":60,"snapshot":true}
-			}
-		},
 		"team-1": {
 			"queries": {
 				"Some strings carry more weight than others": {
@@ -406,24 +324,17 @@ func TestGetClientConfig(t *testing.T) {
 
 // TestGetClientConfigNullConfig is a regression test for a panic
 // ("assignment to entry in nil map") that occurred when a host's agent options
-// had a null "config" and the host also had packs/scheduled queries. See
-// https://github.com/fleetdm/fleet/issues/47388.
+// had a null "config" and the host also had scheduled reports.
 func TestGetClientConfigNullConfig(t *testing.T) {
 	ds := new(mock.Store)
 
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{{ID: 1, Name: "pack_by_label"}}, nil
-	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-		return []*fleet.ScheduledQuery{
-			{Name: "time", Query: "select * from time", Interval: 30, Removed: new(false)},
-		}, nil
-	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
-		return nil, nil
+		return []*fleet.Query{
+			{Name: "time", Query: "select * from time", Interval: 30, Logging: fleet.LoggingSnapshot},
+		}, nil
 	}
 	// Global agent options with a null config. This unmarshals into a nil map,
 	// which previously caused a panic once packs were added to the config.
@@ -440,9 +351,9 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 	conf, err := svc.GetClientConfig(ctx)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
-		"pack_by_label": {
+		"Global": {
 			"queries":{
-				"time":{"query":"select * from time","interval":30,"removed":false}
+				"time":{"query":"select * from time","interval":30,"platform":"","version":"","snapshot":true}
 			}
 		}
 	}`,
@@ -453,9 +364,6 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 func TestGetClientConfigStripsDistributedPluginWhenWebSocketTransportEnabled(t *testing.T) {
 	setup := func(t *testing.T, wsEnabled bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
-		ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-			return nil, nil
-		}
 		ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 			return nil, nil
 		}
@@ -825,7 +733,7 @@ func TestEnrollOsqueryDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -886,7 +794,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 
 func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	cfg := config.TestConfig()
 	cfg.WebSocket.TransportEnabled = true
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Task: task})
@@ -1073,7 +981,7 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 
 func TestAuthenticateHostRejectsNonOsqueryPlatforms(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -1353,7 +1261,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
-		// If a global query belongs to a 2017/legacy pack, it should be automated even if the global query has automations turned off.
+		// Results for a pack that isn't Global or team-N (e.g. a removed 2017 pack still in a host's cached config) pass through to the log destination.
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Some Pack Name/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
 		// The "name" field has invalid format, so this result will be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
@@ -2002,6 +1910,7 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
 		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
 		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
+		{"pack123😁123team-1123😁123GlobalQuery", new(uint(1)), "GlobalQuery", false},        // pack_delimiter=123😁123, query name contains Global
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
@@ -2037,6 +1946,19 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetQueryNameAndTeamIDFromResultMaxLength(t *testing.T) {
+	prefix := "pack/Global/Global"
+	atMax := prefix + strings.Repeat("a", maxScheduledQueryNameLen-len(prefix))
+
+	teamID, name, err := getQueryNameAndTeamIDFromResult(atMax)
+	require.NoError(t, err)
+	assert.Nil(t, teamID)
+	assert.Equal(t, atMax[len("pack/Global/"):], name)
+
+	_, _, err = getQueryNameAndTeamIDFromResult(atMax + "a")
+	require.ErrorIs(t, err, errScheduledQueryNameTooLong)
 }
 
 func TestGetMostRecentResults(t *testing.T) {
@@ -2115,6 +2037,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
 		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
 		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
+		hostDetailQueryPrefix + "timezone_unix":                             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -2356,6 +2279,9 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
+	}
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
+		return nil, nil
 	}
 
 	lq := live_query_mock.New(t)
@@ -2740,6 +2666,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
+	ds.OtherMDMHostIDWithUUIDFunc = func(ctx context.Context, uuid string, excludeHostID uint) (uint, error) {
+		return 0, nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
@@ -2929,6 +2858,9 @@ func TestDetailQueries(t *testing.T) {
 
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
 		return fleet.DeviceNameNotRetried, nil
+	}
+	ds.OtherMDMHostIDWithUUIDFunc = func(ctx context.Context, uuid string, excludeHostID uint) (uint, error) {
+		return 0, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Features: fleet.Features{
@@ -3169,7 +3101,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 	var gotSoftware []fleet.Software
-	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 		if hostID != 1 {
 			return nil, errors.New("not found")
 		}
@@ -3181,6 +3113,9 @@ func TestDetailQueries(t *testing.T) {
 		result *fleet.UpdateHostSoftwareDBResult,
 	) error {
 		return nil
+	}
+	ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+		return nil, newNotFoundError()
 	}
 
 	// Verify that results are ingested properly
@@ -3962,9 +3897,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{}, nil
-	}
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, 0, nil, nil
 	}
@@ -5083,11 +5015,21 @@ func TestPolicyWebhooks(t *testing.T) {
 			},
 			WebhookSettings: fleet.WebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					Enable:    true,
-					PolicyIDs: []uint{1, 2, 3},
+					Enable: true,
 				},
 			},
 		}, nil
+	}
+
+	// Policies 1, 2 and 3 are "All fleets" policies with the webhook or ticket automation on.
+	ds.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+		var policies []fleet.PolicyIDAndTeam
+		for _, id := range policyIDs {
+			if id >= 1 && id <= 3 {
+				policies = append(policies, fleet.PolicyIDAndTeam{ID: id})
+			}
+		}
+		return policies, nil
 	}
 
 	// Since the host doesn't have a team, DefaultTeamConfig will be called
@@ -5098,8 +5040,7 @@ func TestPolicyWebhooks(t *testing.T) {
 				Config: fleet.TeamConfigLite{
 					WebhookSettings: fleet.TeamWebhookSettings{
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-							Enable:    true,
-							PolicyIDs: []uint{1, 2, 3},
+							Enable: true,
 						},
 					},
 				},
@@ -5461,7 +5402,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.zoobar.foobar",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "",
 		"last_opened_at":    "0",
@@ -5473,7 +5414,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.acme.zoobar",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "",
 		"last_opened_at":    "0",
@@ -5485,7 +5426,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "IDE extension (VS Code)",
 		"bundle_identifier": "",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "vscode_extensions",
 		"vendor":            "VendorX",
 		"last_opened_at":    "",
@@ -5497,7 +5438,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "IDE extension (VS Code)",
 		"bundle_identifier": "",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "vscode_extensions",
 		"vendor":            "VendorX",
 		"last_opened_at":    "",
@@ -5530,7 +5471,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"version":           "2.46.0",
 		"bundle_identifier": "",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "homebrew_packages",
 		"vendor":            "",
 		"last_opened_at":    "",
@@ -5550,7 +5491,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.zoobar.overrideme",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "OverrideMe",
 		"last_opened_at":    "0",
@@ -5563,7 +5504,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"type":              "Application (macOS)",
 		"bundle_identifier": "com.zoobar.overrideme",
 		"extension_id":      "",
-		"browser":           "",
+		"extension_for":     "",
 		"source":            "apps",
 		"vendor":            "OverrideMe",
 		"last_opened_at":    "0",
@@ -5574,7 +5515,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"name":           "cryptography",
 		"version":        "41.0.7",
 		"extension_id":   "",
-		"browser":        "",
+		"extension_for":  "",
 		"source":         "python_packages",
 		"vendor":         "",
 		"installed_path": "/usr/lib/python3/dist-packages",
@@ -5583,7 +5524,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"name":           "pip",
 		"version":        "25.0.1",
 		"extension_id":   "",
-		"browser":        "",
+		"extension_for":  "",
 		"source":         "python_packages",
 		"vendor":         "",
 		"installed_path": "/Users/fleetdm/.pyenv/versions/3.13.1/lib/python3.13/site-packages",
@@ -5598,6 +5539,9 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		overrides  map[string]osquery_utils.DetailQuery
 
 		resultsExpected fleet.OsqueryDistributedQueryResults
+		// extra query names expected in, and absent from, the returned skipped list
+		skipped []string
+		ran     []string
 	}{
 		{
 			name: "python packages using original query in extras adds results",
@@ -6203,6 +6147,187 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ai_tools rows are merged after the other extra queries",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_go_binaries": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools":    fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+				hostDetailQueryPrefix + "software_go_binaries": []map[string]string{
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "Claude", "source": "ai_tools", "ai_type": "apps", "installed_path": "/Applications/Claude.app"},
+					{"name": "crush", "source": "ai_clis", "ai_type": "agents", "installed_path": "/Users/a/go/bin/crush"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app", "ai_tool": "1"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush", "ai_tool": "1"},
+					{"name": "github", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json", "ai_tool": "1"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host without ai_tools results is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_go_binaries": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app", "ai_tool": "1"},
+				},
+				hostDetailQueryPrefix + "software_go_binaries": []map[string]string{
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app"},
+					{"name": "crush", "version": "v0.1.0", "source": "go_binaries", "installed_path": "/Users/a/go/bin/crush"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host in software_chrome is dropped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_chrome": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions", "ai_tool": "1"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_chrome": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "chrome_extensions"},
+				},
+			},
+		},
+		{
+			name: "ai_tool reported by the host is replaced by the ai_tools match",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app", "ai_tool": "1"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "Claude", "source": "ai_tools", "ai_type": "apps", "installed_path": "/Applications/Claude.app"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Google Chrome", "version": "130.0", "source": "apps", "installed_path": "/Applications/Google Chrome.app"},
+					{"name": "Claude", "version": "1.2.4", "source": "apps", "installed_path": "/Applications/Claude.app", "ai_tool": "1"},
+				},
+			},
+		},
+		{
+			name:      "ai_tools rows can flag software added by the override queries",
+			host:      &fleet.Host{ID: 1, Platform: "windows"},
+			overrides: osquery_utils.SoftwareOverrideQueries,
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_windows":                    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_windows_program_files_scan": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools":                   fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					{"name": "Notepad++", "version": "8.0", "source": "programs", "installed_path": `C:\Program Files\Notepad++`},
+				},
+				hostDetailQueryPrefix + "software_windows_program_files_scan": []map[string]string{
+					{"path": `C:\Program Files\ChatGPT\ChatGPT.exe`, "filename": "ChatGPT.exe", "product_version": "1.2025.209"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{
+					{"name": "ChatGPT", "source": "ai_tools", "ai_type": "apps", "installed_path": `C:\Program Files\ChatGPT`},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					{"name": "Notepad++", "version": "8.0", "source": "programs", "installed_path": `C:\Program Files\Notepad++`},
+					{
+						"name": "ChatGPT.exe", "version": "1.2025.209", "source": "programs", "vendor": "",
+						"installed_path": `C:\Program Files\ChatGPT`, "extension_id": "", "extension_for": "",
+						"upgrade_code": "", "release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+						"ai_tool": "1",
+					},
+				},
+			},
+		},
+		{
+			name: "ai_tools discovery found no table: no status, the query is skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			skipped: []string{"software_ai_tools"},
+		},
+		{
+			name: "ai_tools query failed: the query is skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": 1,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			skipped: []string{"software_ai_tools"},
+		},
+		{
+			name: "ai_tools query ran and found nothing: the query is not skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			ran: []string{"software_ai_tools"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
@@ -6210,8 +6335,14 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				host = tc.host
 			}
 			// mutates tc.resultsIn
-			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
+			skipped := preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
+			for _, name := range tc.skipped {
+				require.Contains(t, skipped, name)
+			}
+			for _, name := range tc.ran {
+				require.NotContains(t, skipped, name)
+			}
 		})
 	}
 }
@@ -6562,10 +6693,10 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 
 	var installCalled bool
 	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-			return "vpp-token", nil
+		CheckCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+			return nil
 		},
-		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			installCalled = true
 			return "command-uuid", nil
 		},
@@ -6654,10 +6785,10 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 		installPolicyIDs []uint
 	)
 	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-			return "vpp-token", nil
+		CheckCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+			return nil
 		},
-		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			installs = append(installs, vppApp.AdamID)
 			if opts.PolicyID != nil {
 				installPolicyIDs = append(installPolicyIDs, *opts.PolicyID)
@@ -6736,6 +6867,82 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", outOfScope, noNewlyFailing))
 	require.Empty(t, installs, "an out-of-scope app must not be installed")
 	require.Nil(t, outOfScope[policyID], "an out-of-scope app must clear the policy result")
+}
+
+// TestProcessVPPForNewlyFailingPoliciesExpiredTokenFailsOnlyItsApp verifies that an install failing
+// on one app's bound token does not stop another app on the same host, bound to a valid token, from
+// queuing.
+func TestProcessVPPForNewlyFailingPoliciesExpiredTokenFailsOnlyItsApp(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		hostID        = uint(42)
+		expiredTokID  = uint(2)
+		validTokID    = uint(3)
+		expiredAdamID = "adam-expired"
+		validAdamID   = "adam-valid"
+	)
+	titleIDs := map[string]uint{expiredAdamID: 10, validAdamID: 11}
+	tokenIDs := map[uint]uint{10: expiredTokID, 11: validTokID}
+
+	ds.GetPoliciesWithAssociatedVPPFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+		// The expired app sorts first, so the valid one is only reached if the loop continues.
+		return []fleet.PolicyVPPData{
+			{ID: 1, AdamID: expiredAdamID, Platform: fleet.MacOSPlatform},
+			{ID: 2, AdamID: validAdamID, Platform: fleet.MacOSPlatform},
+		}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+	}
+	empty := func(ctx context.Context, hostID uint) (map[string]struct{}, error) { return map[string]struct{}{}, nil }
+	ds.MapAdamIDsPendingInstallFunc = empty
+	ds.MapAdamIDsQueuedInstallsFunc = empty
+	ds.MapAdamIDsRecentlyVerifiedInstallsFunc = func(ctx context.Context, hostID uint, seconds int) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{TitleID: titleIDs[adamID], AdamID: adamID, Platform: platform}, nil
+	}
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{
+			10: {VPPAppTeamID: 1, AdamID: expiredAdamID, InScope: true},
+			11: {VPPAppTeamID: 2, AdamID: validAdamID, InScope: true},
+		}, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+		adamID := expiredAdamID
+		if titleID == 11 {
+			adamID = validAdamID
+		}
+		return &fleet.VPPApp{
+			TitleID:    titleID,
+			AppTeamID:  vppAppTeamID,
+			AdamID:     adamID,
+			Platform:   fleet.MacOSPlatform,
+			VPPTokenID: new(tokenIDs[titleID]),
+		}, nil
+	}
+
+	var installedTokenIDs []uint
+	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+		CheckCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+			return nil
+		},
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			if *vppApp.VPPTokenID == expiredTokID {
+				return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+			}
+			installedTokenIDs = append(installedTokenIDs, *vppApp.VPPTokenID)
+			return "command-uuid", nil
+		},
+	})
+
+	failing := map[uint]*bool{1: new(false), 2: new(false)}
+	require.NoError(t, svcImpl.processVPPForNewlyFailingPolicies(ctx, hostID, nil, "darwin", failing, map[uint]struct{}{1: {}, 2: {}}))
+	require.Equal(t, []uint{validTokID}, installedTokenIDs)
 }
 
 // TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience verifies that a failing install-software policy does
@@ -7405,6 +7612,20 @@ func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 		assert.Nil(t, req.ETag)
 	})
 
+	t.Run("fallback change header", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		result, err := decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.False(t, result.(*getClientConfigRequest).fallbackChange)
+
+		r = httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		r.Header.Set(fleet.OsqueryConfigFallbackChangeHeader, "1")
+		result, err = decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.True(t, result.(*getClientConfigRequest).fallbackChange)
+	})
+
 	t.Run("If-None-Match header is ignored", func(t *testing.T) {
 		body := []byte(`{"node_key": "test-key"}`)
 		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
@@ -7633,4 +7854,59 @@ func TestPolicyAutomationSkipsDeletedInstaller(t *testing.T) {
 			require.Equal(t, []uint{200}, queued)
 		})
 	}
+}
+
+func TestWebhookAndTicketPolicyResults(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	ctx := t.Context()
+
+	// Policies 1 (global) and 10, 11 (the host's fleet) have the automation on.
+	var filterCalls [][]uint
+	ds.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+		filterCalls = append(filterCalls, policyIDs)
+		var out []fleet.PolicyIDAndTeam
+		for _, id := range policyIDs {
+			switch id {
+			case 1:
+				out = append(out, fleet.PolicyIDAndTeam{ID: id})
+			case 10, 11:
+				out = append(out, fleet.PolicyIDAndTeam{ID: id, TeamID: new(uint(3))})
+			}
+		}
+		return out, nil
+	}
+	teamEnabled := true
+	var teamLoads int
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		teamLoads++
+		require.Equal(t, uint(3), id)
+		return &fleet.TeamLite{ID: id, Config: fleet.TeamConfigLite{WebhookSettings: fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: teamEnabled},
+		}}}, nil
+	}
+	globalOn := &fleet.AppConfig{WebhookSettings: fleet.WebhookSettings{FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true}}}
+	results := map[uint]*bool{1: new(false), 2: new(false), 10: new(true), 11: new(false), 12: new(true)}
+
+	// No flipped policies: no lookup at all.
+	require.Empty(t, svc.webhookAndTicketPolicyResults(ctx, globalOn, results, nil, nil))
+	require.Empty(t, filterCalls)
+	require.Zero(t, teamLoads)
+
+	// Only the flipped IDs are looked up, and the fleet is loaded once.
+	got := svc.webhookAndTicketPolicyResults(ctx, globalOn, results, []uint{1, 2, 11}, []uint{10, 12})
+	require.Equal(t, [][]uint{{1, 2, 11, 10, 12}}, filterCalls)
+	require.Equal(t, map[uint]*bool{1: new(false), 10: new(true), 11: new(false)}, got)
+	require.Equal(t, 1, teamLoads)
+
+	// A scope whose destinations are off sends nothing.
+	teamEnabled = false
+	got = svc.webhookAndTicketPolicyResults(ctx, &fleet.AppConfig{}, results, []uint{1, 11}, []uint{10})
+	require.Empty(t, got)
+
+	// Only global policies flipped: the fleet isn't loaded.
+	teamLoads = 0
+	got = svc.webhookAndTicketPolicyResults(ctx, globalOn, results, []uint{1}, nil)
+	require.Equal(t, map[uint]*bool{1: new(false)}, got)
+	require.Zero(t, teamLoads)
 }

@@ -16,7 +16,7 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 ## Use AI
 
-This repository includes a `CLAUDE.md` and a `fleet-gitops` skill so Claude Code can write policies, reports, and configuration profiles for you. See [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) to sign up and get started, with or without GitOps. Codex and Copilot support is coming soon.
+This repository includes an `AGENTS.md` and a `fleet-gitops` skill so AI coding agents can write policies, reports, software, and configuration profiles for you and validate them before a pull request. The skill lives in `.agents/skills/`, where Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code discover it; Claude Code finds it through `.claude/skills/` and reads `AGENTS.md` through `CLAUDE.md`. Some agents ask you to trust the repository's skills the first time. See [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) to get started, with or without GitOps.
 
 ## Tips
 

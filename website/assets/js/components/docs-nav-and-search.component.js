@@ -37,6 +37,7 @@ parasails.registerComponent('docsNavAndSearch', {
         <div purpose="docs-links" class="d-flex flex-row">
           <a :class="[currentSection === 'docs' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/docs" style="text-decoration: none; text-decoration-line: none;">Get started</a>
           <a :class="[currentSection === 'software' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/software-catalog" style="text-decoration: none; text-decoration-line: none;">Apps</a>
+          <a :class="[currentSection === 'software-inventory' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/software-inventory" style="text-decoration: none; text-decoration-line: none;">Software inventory</a>
           <a :class="[currentSection === 'controls' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/mdm-commands" style="text-decoration: none; text-decoration-line: none;">Controls</a>
           <a :class="[currentSection === 'vitals' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/vitals" style="text-decoration: none; text-decoration-line: none;">Vitals</a>
           <a :class="[currentSection === 'reports' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/reports" style="text-decoration: none; text-decoration-line: none;">Reports</a>

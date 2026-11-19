@@ -5,7 +5,7 @@ import React from "react";
 import PlatformField from "./PlatformField";
 
 describe("PlatformField component", () => {
-  it("renders all platform options, including generic Linux", async () => {
+  it("renders all platform options, without distro-specific Linux options", async () => {
     const onChange = jest.fn();
     render(<PlatformField platform="" onChange={onChange} />);
 
@@ -15,8 +15,8 @@ describe("PlatformField component", () => {
     expect(screen.getByText("macOS")).toBeInTheDocument();
     expect(screen.getByText("Windows")).toBeInTheDocument();
     expect(screen.getByText("Linux")).toBeInTheDocument();
-    expect(screen.getByText("Ubuntu (Linux)")).toBeInTheDocument();
-    expect(screen.getByText("CentOS (Linux)")).toBeInTheDocument();
+    expect(screen.queryByText(/ubuntu/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/centos/i)).not.toBeInTheDocument();
   });
 
   it("calls onChange with the platform value when Linux is selected", async () => {
@@ -33,13 +33,5 @@ describe("PlatformField component", () => {
     render(<PlatformField platform="linux" isEditing />);
 
     expect(screen.getByText("Linux")).toBeInTheDocument();
-  });
-
-  it("renders updated display text for ubuntu and centos when editing", () => {
-    const { rerender } = render(<PlatformField platform="ubuntu" isEditing />);
-    expect(screen.getByText("Ubuntu (Linux)")).toBeInTheDocument();
-
-    rerender(<PlatformField platform="centos" isEditing />);
-    expect(screen.getByText("CentOS (Linux)")).toBeInTheDocument();
   });
 });

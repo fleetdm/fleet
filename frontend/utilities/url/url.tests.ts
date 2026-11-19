@@ -54,19 +54,19 @@ describe("url utilities > getPathWithQueryParams", () => {
   it("appends query string when query params are provided", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: 25,
+      software_version_id: 25,
       team_id: 10,
       order_key: "issues",
     };
     expect(getPathWithQueryParams(endpoint, queryParams)).toBe(
-      "/hosts/manage?software_id=25&team_id=10&order_key=issues"
+      "/hosts/manage?software_version_id=25&team_id=10&order_key=issues"
     );
   });
 
   it("filters out undefined, null, and empty string values from query params", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: undefined,
+      software_version_id: undefined,
       team_id: null,
       policy_response: "",
       policy_id: 4,
@@ -79,7 +79,7 @@ describe("url utilities > getPathWithQueryParams", () => {
   it("returns only the endpoint when all query params are filtered out", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: undefined,
+      software_version_id: undefined,
       team_id: null,
       policy_response: "",
     };
@@ -210,6 +210,22 @@ describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
       })
     ).toEqual({
       os_settings_disk_encryption: "verified",
+    });
+  });
+
+  it("keeps the App Store app version filter with a software title and status", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        teamId: 3,
+        softwareTitleId: 12,
+        softwareStatus: "failed",
+        appStoreAppVersionId: 5,
+      })
+    ).toEqual({
+      software_title_id: 12,
+      software_status: "failed",
+      app_store_app_version_id: 5,
+      fleet_id: 3,
     });
   });
 });

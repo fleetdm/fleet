@@ -769,7 +769,6 @@ type WindowsMDMAccessTokenPayload struct {
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
 		OrbitNodeKey string `json:"orbit_node_key"`
-		AuthToken    string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -779,21 +778,16 @@ type WindowsMDMEnrollmentType int
 
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
-	WindowsMDMAutomaticEnrollmentType    WindowsMDMEnrollmentType = 2
 )
 
 func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != WindowsMDMProgrammaticEnrollmentType && t.Type != WindowsMDMAutomaticEnrollmentType {
+	if t.Type != WindowsMDMProgrammaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.OrbitNodeKey) == 0 {
+	if len(t.Payload.OrbitNodeKey) == 0 {
 		return errors.New("invalid binary security payload content")
-	}
-
-	if t.Type == WindowsMDMAutomaticEnrollmentType && len(t.Payload.AuthToken) == 0 {
-		return errors.New("invalid STS auth token payload content")
 	}
 
 	return nil
@@ -871,8 +865,7 @@ type WindowsMDMEnrollType int
 const (
 	// WindowsMDMEnrollTypeProgrammatic is enrollment via fleetd/orbit using an orbit node key.
 	WindowsMDMEnrollTypeProgrammatic WindowsMDMEnrollType = iota
-	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT or WSTEP STS auth token (Autopilot, Entra join,
-	// Settings app).
+	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT (Autopilot, Entra join, Settings app).
 	WindowsMDMEnrollTypeAutomatic
 )
 
@@ -1727,8 +1720,6 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	switch typeID {
 	case WindowsMDMProgrammaticEnrollmentType:
 		pld.Payload.OrbitNodeKey = payload
-	case WindowsMDMAutomaticEnrollmentType:
-		pld.Payload.AuthToken = payload
 	default:
 		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
 	}
@@ -2317,7 +2308,8 @@ func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bo
 	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
 	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
 	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
-	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
+	// XML references (e.g. "&#101;") only decode to the node name when parsed, so any "&" takes the slow path.
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) && !bytes.Contains(profileBytes, []byte("&")) {
 		return false
 	}
 	// Confirm a real Add/Replace Target LocURI targets the node

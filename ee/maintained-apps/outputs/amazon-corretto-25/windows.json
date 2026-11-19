@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "25.0.4.10",
+      "version": "25.0.5.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '25.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '25.%' AND version_compare(version, '25.0.4.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto (x64)' AND publisher = 'Amazon' AND version LIKE '25.%' AND version_compare(version, '25.0.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon corretto 25.exe');"
       },
-      "installer_url": "https://corretto.aws/downloads/resources/25.0.4.10.1/amazon-corretto-25.0.4.10.1-windows-x64.msi",
+      "installer_url": "https://corretto.aws/downloads/resources/25.0.5.1.2/amazon-corretto-25.0.5.1.2-windows-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "59d14df9",
-      "sha256": "23b18e6f346abbad2655cb492292d5071a7ec28b3057c2911239968751ed908e",
+      "sha256": "ded32dedfc8a2e3d15017700e29ecb08edb29b3a852c82ee3d6443dc9c354b61",
       "default_categories": [
         "Developer tools"
       ],

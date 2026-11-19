@@ -1,6 +1,6 @@
 # Fleet REST API conventions
 
-These patterns were mined from `docs/REST API/rest-api.md` on 2026-10-06 (552 documented routes). The counts show how strong each convention is. Re-mine before trusting a count for a close call, using the commands at the bottom.
+These patterns were mined from `docs/API/rest-api.md` on 2026-10-06 (552 documented routes). The counts show how strong each convention is. Re-mine before trusting a count for a close call, using the commands at the bottom.
 
 **Majority** means follow it. **Split** means existing endpoints disagree: flag it for the API design DRI and don't enforce either side.
 
@@ -113,7 +113,7 @@ Use `#### Example (<variant>)` for multiple examples. Add the endpoint to the se
 ## Re-mining
 
 ```bash
-F="docs/REST API/rest-api.md"
+F="docs/API/rest-api.md"
 # Methods
 grep -oE '^`(GET|POST|PATCH|PUT|DELETE) /api/[^`]+`' "$F" | awk '{print $1}' | sort | uniq -c
 # Parameter name/type/in

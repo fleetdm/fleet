@@ -10,7 +10,10 @@ import {
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
-import { INITIAL_FLEET_DATE } from "utilities/constants";
+import {
+  INITIAL_FLEET_DATE,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 const baseClass = "device-user-banners";
 
@@ -143,8 +146,9 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <CustomLink
-                url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/encrypt-linux-device`}
                 text="Guide"
+                newTab
                 variant="banner-link"
               />
             }

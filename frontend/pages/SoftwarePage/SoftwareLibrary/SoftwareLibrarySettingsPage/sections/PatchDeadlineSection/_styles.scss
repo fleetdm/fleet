@@ -1,0 +1,31 @@
+.patch-deadline-section {
+  @include vertical-page-tab-panel-layout;
+  align-items: flex-start;
+
+  // Stretches the SectionHeader to full width (parent uses flex-start on cross
+  // axis, which otherwise shrinks the header to its text content).
+  &__header {
+    align-self: stretch;
+  }
+
+  // The <form> wraps the Days + Time + Save stack. Keep the same 24px vertical
+  // rhythm the section had before the wrap so visuals don't shift.
+  &__form {
+    @include vertical-page-tab-panel-layout;
+    align-items: flex-start;
+    align-self: stretch;
+  }
+
+  &__days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-small;
+
+    // Each Checkbox is wrapped by .form-field (width: 100% globally), which
+    // forces vertical stacking inside a flex row. Shrink to content so the
+    // weekdays sit side-by-side and wrap on narrow panels.
+    .form-field {
+      width: auto;
+    }
+  }
+}

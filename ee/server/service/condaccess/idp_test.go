@@ -697,6 +697,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 		samlReq *saml.IdpAuthnRequest
 
 		// Expectations
+		wantPlatform   string // if set, the platform conditional access policies are looked up for
 		wantSession    bool
 		wantNameID     string
 		wantStatusCode int
@@ -712,6 +713,20 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
 			},
+			wantSession:    true,
+			wantNameID:     "host-123",
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:        "returns session for compliant Windows device",
+			hostID:      123,
+			host:        &fleet.Host{ID: 123, TeamID: ptr.Uint(1), Platform: "windows"},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{ID: 10, Response: "pass"},
+				{ID: 30, Response: "fail"}, // Not conditional access
+			},
+			wantPlatform:   "windows",
 			wantSession:    true,
 			wantNameID:     "host-123",
 			wantStatusCode: http.StatusOK,
@@ -949,6 +964,9 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			}
 
 			ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint, platform string) ([]uint, error) {
+				if tt.wantPlatform != "" {
+					require.Equal(t, tt.wantPlatform, platform)
+				}
 				return tt.caPolicyIDs, nil
 			}
 
@@ -1027,6 +1045,9 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			}
 			if tt.bypassMustNotBeCalled {
 				require.False(t, ds.ConditionalAccessConsumeBypassFuncInvoked)
+			}
+			if tt.wantPlatform != "" {
+				require.True(t, ds.GetPoliciesForConditionalAccessFuncInvoked)
 			}
 		})
 	}

@@ -1,50 +1,14 @@
 ---
 name: fleet-gitops
-description: Help with Fleet GitOps configuration files including queries, profiles, software, and DDM declarations with validation against upstream references.
-allowed-tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+description: Make changes to a Fleet GitOps repository (default.yml, fleets/*.yml or teams/*.yml, and the policies, reports, labels, scripts, software, configuration profiles, and DDM declarations they reference). Use this whenever a task touches Fleet-managed devices through YAML, even if the user never says "GitOps" - adding, scoping, or updating software (Fleet-maintained apps, custom packages, App Store or Google Play apps), writing a policy or report, remediating a CVE, creating or editing a .mobileconfig, DDM .json, Windows CSP .xml, or Android policy .json, changing labels, controls, OS update deadlines, or org settings, or reviewing a GitOps pull request. Covers the layout rules fleetctl enforces, validation against upstream schemas (osquery tables, Apple, Microsoft, Google), and fleetctl dry runs.
+allowed-tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch, Bash(python3:*), Bash(plutil:*), Bash(xmllint:*), Bash(jq:*), Bash(contour:*), Bash(git diff:*), Bash(git status:*), Bash(git log:*), Bash(ls:*), Bash(find:*)
 effort: high
 ---
 
-You are helping with Fleet GitOps configuration files: $ARGUMENTS
+# Fleet GitOps
 
-Focus on the `it-and-security` folder. Apply the following constraints for all work in this session.
+Task: $ARGUMENTS
 
-## Queries & Reports
+The `fleet-gitops` skill lives at `cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops/`, the copy `fleetctl new` scaffolds into customer repositories. Keeping one copy there means this repository and customers' repositories follow the same instructions.
 
-- Only use **Fleet tables and supported columns** when writing osquery queries or Fleet reports.
-- Do not reference tables or columns that are not present in the Fleet schema for the target platform.
-- Validate table and column names against the Fleet schema before including them in a query:
-  - https://github.com/fleetdm/fleet/tree/main/schema
-
-## Configuration Profiles
-
-When generating or modifying configuration profiles:
-
-- **First-party Apple payloads** (`.mobileconfig`) — validate payload keys, types, and allowed values against the Apple Device Management reference:
-  - https://github.com/apple/device-management/tree/release/mdm/profiles
-- **Third-party Apple payloads** (`.mobileconfig`) — validate against the ProfileManifests community reference:
-  - https://github.com/ProfileManifests/ProfileManifests
-- **Windows CSPs** (`.xml`) — validate CSP paths, formats, and allowed values against Microsoft's MDM protocol reference:
-  - https://learn.microsoft.com/en-us/windows/client-management/mdm/
-- **Android profiles** (`.json`) — validate keys and values against the Android Management API `enterprises.policies` reference:
-  - https://developers.google.com/android/management/reference/rest/v1/enterprises.policies
-
-## Software
-
-- When adding software for macOS or Windows hosts, **always check the Fleet-maintained app catalog first** before using a custom package:
-  - https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps
-- In GitOps YAML, use the `fleet_maintained_apps` key with the app's `slug` to reference a Fleet-maintained app.
-- When remediating a CVE, use Fleet's built-in vulnerability detection to identify affected software, then follow the Software section above to deploy a fix — preferring a Fleet-maintained app update where available, otherwise a custom package.
-
-## Declarative Device Management (DDM)
-
-When generating or modifying DDM declarations:
-
-- Validate declaration types, keys, and values against the Apple DDM reference:
-  - https://github.com/apple/device-management/tree/release/declarative/declarations
-- Ensure the `Type` identifier matches a supported declaration type from the reference.
-
-## References
-
-- Fleet GitOps documentation: https://fleetdm.com/docs/configuration/yaml-files
-- Fleet API documentation: https://fleetdm.com/docs/rest-api/rest-api
+Read `cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops/SKILL.md` now and follow it exactly as if it were this file. Its relative references (`references/...`, `scripts/validate.py`) resolve from that folder.

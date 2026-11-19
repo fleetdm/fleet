@@ -28,13 +28,19 @@
     height: 24px; // Noticeable with help text below slider
 
     &--disabled {
-      .fleet-slider {
-        @include disabled;
+      // Mirror Checkbox's filled-indicator pattern: pill reads as
+      // $ui-fleet-black-25 so ON vs OFF is still legible via dot position
+      // without the compounding opacity/grayscale filter.
+      .fleet-slider,
+      .fleet-slider:hover,
+      .fleet-slider--active,
+      .fleet-slider--active:hover {
+        background-color: $ui-fleet-black-25;
+        cursor: default;
       }
 
       .fleet-slider__label {
-        @include disabled;
-        pointer-events: initial; // Allow label interaction when slider is disabled to view tooltip
+        color: $ui-fleet-black-50;
       }
     }
   }

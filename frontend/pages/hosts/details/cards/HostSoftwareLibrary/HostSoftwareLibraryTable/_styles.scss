@@ -4,15 +4,27 @@
   .controls {
     display: flex;
     align-items: center;
-    gap: $pad-small;
+    gap: $gap-table-elements;
   }
 
+  .table-container__results-count {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  // The search and dropdown shrink on narrow cards (768px viewport). The
+  // search stops at its input's 305px min-width (set in the card's
+  // stylesheet), so the dropdown absorbs the rest down to its own floor.
   .table-container__header .table-container__search {
-    flex: 0 0 auto;
-    width: 315px;
+    flex: 0 1 315px;
   }
 
   &__filter-controls {
-    width: 230px;
+    flex: 0 1 230px;
+    min-width: 160px;
+  }
+
+  &__add-software-button {
+    flex-shrink: 0;
   }
 }

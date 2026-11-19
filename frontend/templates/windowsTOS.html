@@ -3,7 +3,7 @@ windows mdm enrollment flow. -->
 <!DOCTYPE html>
 <html>
   <head>
-    <style>
+    <style nonce="{{.CSPNonce}}">
       body {
         margin: 0;
       }
@@ -30,9 +30,17 @@ windows mdm enrollment flow. -->
 
       .eula {
         font-size: 18px;
+        /* Centered in a flex column, the box would otherwise grow to fit
+           content that can't wrap, such as a wide table, past the screen's
+           edges. */
+        width: 100%;
+        box-sizing: border-box;
         max-width: 600px;
         height: 400px;
         overflow-y: scroll;
+        /* The enrollment web view (EdgeHTML) defaults to a scrollbar that
+           floats over the text; this one takes its own space. */
+        -ms-overflow-style: scrollbar;
       }
 
       .eula ul {
@@ -73,9 +81,17 @@ windows mdm enrollment flow. -->
         padding-left: 24px;
       }
 
+      /* Long words break instead of overflowing, and a table wider than the
+         box scrolls on its own, the way GitHub shows markdown. */
+      .eula-custom {
+        overflow-wrap: break-word;
+        padding-right: 8px;
+      }
+
       .eula-custom table {
+        display: block;
+        overflow-x: auto;
         border-collapse: collapse;
-        width: 100%;
         margin: 8px 0;
       }
 
@@ -104,25 +120,23 @@ windows mdm enrollment flow. -->
         font-size: 16px;
       }
 
-      button {
-        border: none;
+      .agree-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
         border-radius: 4px;
-        cursor: pointer;
         color: white;
         background-color: #192147;
+        text-decoration: none;
         margin-top: 16px;
         padding: 8px 16px;
+        font-family: system-ui, "Segoe UI", sans-serif;
         font-size: 18px;
         width: 341px;
         height: 78px;
       }
     </style>
-    <script type="text/javascript">
-      const agreeToTerms = () => {
-        window.location =
-          "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
-      };
-    </script>
   </head>
   <body>
     <div class="main-content">
@@ -305,7 +319,13 @@ windows mdm enrollment flow. -->
             </ol>
             {{end}}
           </div>
-          <button onClick="agreeToTerms()">Agree and continue</button>
+          <!-- A link rather than a scripted button so it works when CSP blocks inline scripts. -->
+          <a
+            class="agree-button"
+            href="{{.RedirectURL}}?IsAccepted=true&amp;OpaqueBlob={{.ClientData}}"
+          >
+            Agree and continue
+          </a>
         </div>
       </div>
     </div>

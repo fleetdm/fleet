@@ -11,7 +11,6 @@ import (
 	platform_endpointer "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,8 +101,8 @@ func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 	platform_endpointer.EncodeError(ctx, err, w, nil)
 }
 
-func setupTestRouter() *mux.Router {
-	r := mux.NewRouter()
+func setupTestRouter() *platform_endpointer.Router {
+	r := platform_endpointer.NewRouter()
 
 	// Mock service that should never be called (validation fails before reaching service)
 	mockSvc := &mockService{}
@@ -140,6 +139,10 @@ func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger) erro
 
 func (m *mockService) NewActivity(_ context.Context, _ *api.User, _ api.ActivityDetails) error {
 	panic("mockService.NewActivity should not be called in validation tests")
+}
+
+func (m *mockService) NewActivities(_ context.Context, _ *api.User, _ []api.ActivityDetails) error {
+	panic("mockService.NewActivities should not be called in validation tests")
 }
 
 func (m *mockService) CleanupExpiredActivities(_ context.Context, _ int, _ int) error {

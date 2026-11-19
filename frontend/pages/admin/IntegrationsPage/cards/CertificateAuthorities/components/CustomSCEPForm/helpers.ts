@@ -1,5 +1,7 @@
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
+
+import { getCANameConflictError } from "../helpers";
 
 import { ICustomSCEPFormData } from "./CustomSCEPForm";
 
@@ -29,7 +31,7 @@ type IFormValidations = Record<
 
 export const generateFormValidations = (
   certAuthorities: ICertificateAuthorityPartial[],
-  isEditing: boolean
+  editingId?: number
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -50,17 +52,15 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: ICustomSCEPFormData) => {
-            return (
-              isEditing ||
-              certAuthorities.find(
-                (cert) =>
-                  cert.type === "custom_scep_proxy" &&
-                  cert.name === formData.name
-              ) === undefined
-            );
-          },
-          message: "Name is already used by another custom SCEP CA.",
+          isValid: (formData: ICustomSCEPFormData) =>
+            getCANameConflictError(
+              formData.name,
+              certAuthorities,
+              editingId
+            ) === undefined,
+          message: (formData: ICustomSCEPFormData) =>
+            getCANameConflictError(formData.name, certAuthorities, editingId) ??
+            "",
         },
       ],
     },
@@ -75,7 +75,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ICustomSCEPFormData) => {
-            return valid_url({ url: formData.scepURL });
+            return isValidURL({ url: formData.scepURL });
           },
           message: "Must be a valid URL.",
         },

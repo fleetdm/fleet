@@ -22,6 +22,7 @@ import {
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
   routeVersionNameError,
+  rewriteVariableErrorReason,
   getSoftwareListName,
 } from "./helpers";
 
@@ -39,7 +40,7 @@ it("keeps custom software names while identifying script filenames", () => {
     name: "hello",
     display_name: "Setup script",
     source: "py_packages",
-    software_package: createMockSoftwarePackage({ name: "hello.py" }),
+    packages: [createMockSoftwarePackage({ name: "hello.py" })],
   });
 
   expect(getSoftwareListName(title)).toBe("Setup script (hello.py)");
@@ -107,31 +108,34 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
   policyCounts.forEach((count) => {
     describe(`when there are ${count} automatic install policies`, () => {
-      it(`returns ${count} for software_package (ISoftwareTitle)`, () => {
+      it(`returns ${count} for packages (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
-          software_package: {
-            ...createMockSoftwarePackage(),
-            automatic_install_policies: makePolicies(count),
-          },
-          app_store_app: null,
+          packages: [
+            {
+              ...createMockSoftwarePackage(),
+              automatic_install_policies: makePolicies(count),
+            },
+          ],
+          app_store_apps: null,
         });
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
       });
 
-      it(`returns ${count} for app_store_app (ISoftwareTitle)`, () => {
+      it(`returns ${count} for app_store_apps[0] (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
-          software_package: null,
-          app_store_app: {
-            ...createMockAppStoreApp(),
-            automatic_install_policies: makePolicies(count),
-          },
+          packages: null,
+          app_store_apps: [
+            createMockAppStoreAppVersion({
+              automatic_install_policies: makePolicies(count),
+            }),
+          ],
         });
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
       });
 
-      it(`returns ${count} for software_package (IHostSoftware)`, () => {
+      it(`returns ${count} for package (IHostSoftware)`, () => {
         const hostSoftware = createMockHostSoftware({
-          software_package: {
+          package: {
             ...createMockHostSoftwarePackage(),
             automatic_install_policies: makePolicies(count),
           },
@@ -142,7 +146,7 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
       it(`returns ${count} for app_store_app (IHostSoftware)`, () => {
         const hostSoftware = createMockHostSoftware({
-          software_package: null,
+          package: null,
           app_store_app: {
             ...createMockHostAppStoreApp(),
             automatic_install_policies: makePolicies(count),
@@ -153,20 +157,20 @@ describe("getAutomaticInstallPoliciesCount", () => {
     });
   });
 
-  it("returns 0 if neither software_package nor app_store_app is present (IHostSoftware)", () => {
+  it("returns 0 if neither package nor app_store_app is present (IHostSoftware)", () => {
     const hostSoftware = createMockHostSoftware({
-      software_package: null,
+      package: null,
       app_store_app: null,
     });
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
   });
 
-  it("returns 0 if neither software_package nor app_store_app is present (ISoftwareTitle)", () => {
-    const hostSoftware = createMockSoftwareTitle({
-      software_package: null,
-      app_store_app: null,
+  it("returns 0 if neither packages nor app_store_apps is present (ISoftwareTitle)", () => {
+    const softwareTitle = createMockSoftwareTitle({
+      packages: null,
+      app_store_apps: null,
     });
-    expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
+    expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(0);
   });
 });
 
@@ -357,6 +361,27 @@ describe("getDefaultAutoUpdateFromVersions", () => {
   });
 });
 
+describe("rewriteVariableErrorReason", () => {
+  it("links the guide in a Fleet 5 removed variable error", () => {
+    render(
+      <div>
+        {rewriteVariableErrorReason(
+          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade'
+        )}
+      </div>
+    );
+
+    expect(
+      screen.getByText(
+        /Couldn't edit\. The "\$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable/
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /fleet-5-upgrade/ })
+    ).toBeInTheDocument();
+  });
+});
+
 describe("routeVersionNameError", () => {
   const setServerErrors = jest.fn();
   const notifyError = notify.error as jest.Mock;
@@ -404,8 +429,7 @@ describe("routeVersionNameError", () => {
           errors: [
             {
               name: "base",
-              reason:
-                "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+              reason: "Unsupported variable $FLEET_VAR_NOT_A_USERNAME",
             },
           ],
         },
@@ -420,10 +444,159 @@ describe("routeVersionNameError", () => {
 
     expect(setServerErrors).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith(
+      "Unsupported variable $FLEET_VAR_NOT_A_USERNAME",
+      {
+        response: err,
+      }
+    );
+  });
+
+  // Regression guard: when the backend refuses a configuration (e.g. unknown
+  // top-level key in an Android managed config), the toast must name the
+  // reason instead of the generic "Please try again."
+  it("surfaces the server reason in the toast when present", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+      { response: err }
+    );
+  });
+
+  // Falls back to the generic message when the server returned no reason
+  // (e.g. a network error with no error body).
+  it("falls back to the generic message when no reason is returned", () => {
+    const err = { response: undefined };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
       "Couldn't update. Please try again.",
       {
         response: err,
       }
+    );
+  });
+
+  // iOS/iPadOS BE phrases the error as lowercase "unsupported variable ...".
+  // Must be rewritten so the admin sees the same copy Edit configuration uses
+  // ("Couldn't edit. Variable \"...\" doesn't exist.") instead of the raw BE
+  // reason.
+  it("rewrites an unknown $FLEET_VAR_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_PW_BOGUS",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_PW_BOGUS" doesn't exist.`,
+      { response: err }
+    );
+  });
+
+  // A profile-only variable (e.g. NDES_SCEP_CHALLENGE) in a managed
+  // configuration gets the profile-only explanation, matching Edit
+  // configuration.
+  it("rewrites a profile-only $FLEET_VAR_ reason with the profile-only copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_CHALLENGE" isn't supported in managed configuration. It can only be used in configuration profiles.`,
+      { response: err }
+    );
+  });
+
+  // Missing $FLEET_SECRET_ reasons also get the Edit configuration rewrite.
+  it("rewrites a missing $FLEET_SECRET_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t add. Secret variable "$FLEET_SECRET_BLA" missing from database',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA" doesn't exist.`,
+      { response: err }
     );
   });
 });

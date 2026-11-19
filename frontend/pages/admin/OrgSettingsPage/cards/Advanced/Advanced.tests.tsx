@@ -10,12 +10,21 @@ const renderAdvanced = (
   overrides: {
     historicalData?: { uptime: boolean; vulnerabilities: boolean };
     handleSubmit?: jest.Mock;
+    gitOpsModeEnabled?: boolean;
+    tier?: string;
+    mcpDisabled?: boolean;
+    aiSessionsDisabled?: boolean;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
   const config = {
     ...baseConfig,
-    license: { ...baseConfig.license, tier: "premium" },
+    license: { ...baseConfig.license, tier: overrides.tier ?? "premium" },
+    server_settings: {
+      ...baseConfig.server_settings,
+      mcp_disabled: overrides.mcpDisabled ?? false,
+      ai_sessions_disabled: overrides.aiSessionsDisabled ?? false,
+    },
     features: {
       ...baseConfig.features,
       historical_data:
@@ -25,7 +34,18 @@ const renderAdvanced = (
   const handleSubmit =
     overrides.handleSubmit ?? jest.fn().mockResolvedValue(true);
   const render = createCustomRenderer({
-    context: { app: { isPremiumTier: true } },
+    context: {
+      app: {
+        isPremiumTier: (overrides.tier ?? "premium") === "premium",
+        config: {
+          ...config,
+          gitops: {
+            ...config.gitops,
+            gitops_mode_enabled: !!overrides.gitOpsModeEnabled,
+          },
+        },
+      },
+    },
   });
   const utils = render(
     <Advanced
@@ -138,5 +158,81 @@ describe("Advanced settings — Host lifecycle", () => {
     await user.click(screen.getByText("Host expiry"));
 
     expect(screen.getByLabelText("Host expiry window")).toBeEnabled();
+  });
+});
+
+describe("Advanced settings — Features", () => {
+  it("disables the Profile validation checkbox in GitOps mode", () => {
+    renderAdvanced({ gitOpsModeEnabled: true });
+
+    expect(screen.getByLabelText("Profile validation")).toBeDisabled();
+  });
+});
+
+describe("Advanced settings — MCP server", () => {
+  it("shows the MCP server checkbox checked by default on Premium", () => {
+    renderAdvanced();
+    expect(screen.getByLabelText(/MCP server/)).toBeChecked();
+  });
+
+  it("links the MCP server help text to the guide", () => {
+    renderAdvanced();
+    expect(screen.getByText(/ask questions about your fleet/)).toBeVisible();
+    const guideLinks = screen
+      .getAllByRole("link", { name: /learn more/i })
+      .filter(
+        (link) =>
+          link.getAttribute("href") === "https://fleetdm.com/guides/fleet-mcp"
+      );
+    expect(guideLinks).toHaveLength(1);
+  });
+
+  it("sends mcp_disabled true after unchecking it", async () => {
+    const { user, handleSubmit } = renderAdvanced();
+    await user.click(screen.getByRole("checkbox", { name: "disableMCP" }));
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    expect(handleSubmit.mock.calls[0][0].server_settings.mcp_disabled).toBe(
+      true
+    );
+  });
+
+  it("starts unchecked when the MCP server is disabled in config", () => {
+    renderAdvanced({ mcpDisabled: true });
+    expect(screen.getByLabelText(/MCP server/)).not.toBeChecked();
+  });
+
+  it("hides the MCP server checkbox on Fleet Free", () => {
+    renderAdvanced({ tier: "free" });
+    expect(screen.queryByLabelText(/MCP server/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Advanced settings — AI sessions", () => {
+  it("shows the Store host AI sessions checkbox checked by default on Premium", () => {
+    renderAdvanced();
+    expect(screen.getByLabelText(/Store host AI sessions/)).toBeChecked();
+  });
+
+  it("sends ai_sessions_disabled true after unchecking it", async () => {
+    const { user, handleSubmit } = renderAdvanced();
+    await user.click(
+      screen.getByRole("checkbox", { name: "disableAISessions" })
+    );
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    expect(
+      handleSubmit.mock.calls[0][0].server_settings.ai_sessions_disabled
+    ).toBe(true);
+  });
+
+  it("starts unchecked when AI sessions are disabled in config", () => {
+    renderAdvanced({ aiSessionsDisabled: true });
+    expect(screen.getByLabelText(/Store host AI sessions/)).not.toBeChecked();
+  });
+
+  it("hides the Store host AI sessions checkbox on Fleet Free", () => {
+    renderAdvanced({ tier: "free" });
+    expect(
+      screen.queryByLabelText(/Store host AI sessions/)
+    ).not.toBeInTheDocument();
   });
 });

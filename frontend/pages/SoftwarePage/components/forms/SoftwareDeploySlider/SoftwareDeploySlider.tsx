@@ -12,12 +12,14 @@ interface ISoftwareDeploySliderProps {
   deploySoftware: boolean;
   onToggleDeploySoftware: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 const SoftwareDeploySlider = ({
   deploySoftware,
   onToggleDeploySoftware,
   className,
+  disabled,
 }: ISoftwareDeploySliderProps) => {
   const sliderClassNames = classnames(`${baseClass}__container`, className);
 
@@ -30,6 +32,7 @@ const SoftwareDeploySlider = ({
         inactiveText="Deploy"
         className={`${baseClass}__deploy-slider`}
         labelTooltip={LABEL_TOOLTIP}
+        disabled={disabled}
       />
     </div>
   );

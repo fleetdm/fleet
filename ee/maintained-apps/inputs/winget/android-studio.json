@@ -3,6 +3,7 @@
   "slug": "android-studio/windows",
   "package_identifier": "Google.AndroidStudio",
   "unique_identifier": "Android Studio",
+  "open_process_names": ["studio64.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/android_studio_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/android_studio_uninstall.ps1",
   "installer_arch": "x64",

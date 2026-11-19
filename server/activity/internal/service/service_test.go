@@ -63,6 +63,10 @@ func (m *mockDatastore) NewActivity(ctx context.Context, user *api.User, activit
 	return nil
 }
 
+func (m *mockDatastore) NewActivities(ctx context.Context, user *api.User, activities []api.ActivityDetails, details [][]byte, createdAt time.Time) error {
+	return nil
+}
+
 func (m *mockDatastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
 	return nil
 }
@@ -210,6 +214,37 @@ func TestListActivitiesBasic(t *testing.T) {
 	// Verify options were passed correctly
 	assert.Equal(t, uint(10), ts.ds.lastOpt.PerPage)
 	assert.Equal(t, uint(0), ts.ds.lastOpt.Page)
+}
+
+func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
+	t.Parallel()
+	// The output is compared as exact text, which also keeps numbers from losing precision.
+	cases := []struct {
+		name, stored, want string
+	}{
+		{"old keys", `{"team_id": 7, "team_name": "Old", "n": 1}`, `{"fleet_id":7,"fleet_name":"Old","n":1}`},
+		{"old and new keys keep the new ones", `{"team_id": 7, "fleet_id": 8, "team_name": null, "fleet_name": "New"}`,
+			`{"fleet_id":8,"fleet_name":"New"}`},
+		{"new keys", `{"fleet_id": 7, "fleet_name": "New"}`, `{"fleet_id": 7, "fleet_name": "New"}`},
+		{"removed key names as values", `{"fleet_name": "team_id", "other": "teams"}`, `{"fleet_name":"team_id","other":"teams"}`},
+		{"nested keys are left alone", `{"teams": [{"id": 1, "team_id": 2}], "x": {"team_name": "n"}}`,
+			`{"fleets":[{"id":1,"team_id":2}],"x":{"team_name":"n"}}`},
+		{"app-owned configuration", `{"team_id": 1, "configuration": {"managedConfiguration": {"team_id": 5, "teams": [1]}}}`,
+			`{"configuration":{"managedConfiguration":{"team_id":5,"teams":[1]}},"fleet_id":1}`},
+		{"large ids", `{"team_id": 9007199254740993}`, `{"fleet_id":9007199254740993}`},
+		{"malformed details", `{"team_id": `, `{"team_id": `},
+		{"details that are not an object", `[{"team_id": 1}]`, `[{"team_id": 1}]`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			stored := json.RawMessage(c.stored)
+			ts := setupTest(withActivities([]*api.Activity{{ID: 1, Type: "test_activity", Details: &stored}, {ID: 2, Type: "no_details"}}))
+			activities, _, err := ts.svc.ListActivities(t.Context(), api.ListOptions{PerPage: 10})
+			require.NoError(t, err)
+			assert.Equal(t, c.want, string(*activities[0].Details))
+			assert.Nil(t, activities[1].Details)
+		})
+	}
 }
 
 func TestListActivitiesWithUserEnrichment(t *testing.T) {
@@ -531,6 +566,10 @@ func (m *mockStreamingDatastore) MarkActivitiesAsStreamed(ctx context.Context, a
 }
 
 func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	panic("not implemented")
+}
+
+func (m *mockStreamingDatastore) NewActivities(ctx context.Context, user *api.User, activities []api.ActivityDetails, details [][]byte, createdAt time.Time) error {
 	panic("not implemented")
 }
 

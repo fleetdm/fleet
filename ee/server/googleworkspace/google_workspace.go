@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"golang.org/x/oauth2/google"
@@ -43,8 +44,9 @@ const (
 )
 
 // tokenURIKey is the key holding the OAuth2 token endpoint in a service-account
-// JSON. Real Google service-account JSON always includes it; we honor it so a
-// QA/load-test fake can route the token exchange to a stub endpoint.
+// JSON. Real Google service-account JSON always includes it. It is only honored
+// under endpointOverrideEnv, so a QA/load-test fake can route the token exchange
+// to a stub; otherwise the exchange always goes to Google's endpoint.
 const tokenURIKey = "token_uri"
 
 // endpointOverrideEnv, when set, redirects the Admin SDK Directory API base URL
@@ -397,24 +399,37 @@ type googleAPI struct {
 	limits  Limits
 }
 
-func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger, limits Limits) (*googleAPI, error) {
-	// Honor token_uri from the service-account JSON (real GSA JSON always carries
-	// it). Falls back to Google's endpoint when absent.
-	tokenURL := google.JWTTokenURL
-	if v := intg.ApiKey.Values[tokenURIKey]; v != "" {
-		tokenURL = v
+// resolveTokenURL picks the OAuth token endpoint. The service-account JSON is
+// operator-supplied, so its token_uri is not a trusted destination: it is only
+// honored under the QA/load-test override. Otherwise the exchange is pinned to
+// Google's current endpoint, which also covers older keys that still carry
+// Google's legacy accounts.google.com URL.
+func resolveTokenURL(ctx context.Context, values map[string]string, override string, logger *slog.Logger) string {
+	v := values[tokenURIKey]
+	if v == "" || v == google.JWTTokenURL {
+		return google.JWTTokenURL
 	}
+	if override != "" {
+		return v
+	}
+	if logger != nil {
+		logger.InfoContext(ctx, "ignoring service account token_uri; using Google's token endpoint", "token_url", google.JWTTokenURL)
+	}
+	return google.JWTTokenURL
+}
 
+func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, logger *slog.Logger, limits Limits) (*googleAPI, error) {
+	endpoint := os.Getenv(endpointOverrideEnv)
 	conf := &jwt.Config{
 		Email:      intg.ApiKey.Values[fleet.GoogleCalendarEmail],
 		Scopes:     directoryScopes,
 		PrivateKey: []byte(intg.ApiKey.Values[fleet.GoogleCalendarPrivateKey]),
-		TokenURL:   tokenURL,
+		TokenURL:   resolveTokenURL(ctx, intg.ApiKey.Values, endpoint, logger),
 		Subject:    intg.ImpersonatedUserEmail,
 	}
 
-	opts := []option.ClientOption{option.WithHTTPClient(conf.Client(ctx))}
-	if endpoint := os.Getenv(endpointOverrideEnv); endpoint != "" {
+	opts := []option.ClientOption{option.WithHTTPClient(conf.Client(fleethttp.WithOAuth2Client(ctx)))}
+	if endpoint != "" {
 		// QA/load-test only: redirect the Directory API to a fake server.
 		if logger != nil {
 			logger.WarnContext(ctx, "using Google Workspace Directory API endpoint override; do not use in production",

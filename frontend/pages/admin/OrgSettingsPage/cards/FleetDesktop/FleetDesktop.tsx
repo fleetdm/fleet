@@ -4,8 +4,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import validHostname from "components/forms/validators/valid_hostname";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidHostname, isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -82,12 +81,12 @@ const FleetDesktop = ({
 
     if (
       transparencyURL &&
-      !validUrl({ url: transparencyURL, protocols: ["http", "https"] })
+      !isValidURL({ url: transparencyURL, protocols: ["http", "https"] })
     ) {
       errors.transparencyURL = `Custom transparency URL must include protocol (e.g. https://)`;
     }
 
-    if (alternativeBrowserHost && !validHostname(alternativeBrowserHost)) {
+    if (alternativeBrowserHost && !isValidHostname(alternativeBrowserHost)) {
       errors.alternativeBrowserHost = `Browser host must be a valid hostname or IP address (e.g. example.com, 192.168.1.50) and may include a port.`;
     }
 
