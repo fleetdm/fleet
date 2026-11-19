@@ -65,6 +65,7 @@ org_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
+      policy_ids: []
     host_status_webhook:
       days_count: 5
       destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
