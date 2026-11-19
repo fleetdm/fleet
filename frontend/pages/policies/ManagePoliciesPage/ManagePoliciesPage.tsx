@@ -42,8 +42,9 @@ import {
   API_ALL_TEAMS_ID,
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
 } from "interfaces/team";
-import { getTicketOrWebhookInfo } from "pages/policies/helpers";
+import { getTicketOrWebhookState } from "pages/policies/helpers";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import policiesAPI, {
@@ -684,26 +685,15 @@ const ManagePolicyPage = ({
     isErrorTeamOwnPoliciesCount,
   ]);
 
-  const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
-  // Inherited (global) policies are listed in team views, but their webhook
-  // membership lives on the *global* config — not the team's. Union both
-  // so an inherited policy with a global-config webhook/ticket still shows
-  // the correct data.
-  const inheritedAutomationInfo = !isAllTeamsSelected
-    ? getTicketOrWebhookInfo(globalConfig)
-    : { state: "disabled" as const, policyIds: [] };
-  const currentAutomatedPolicies: number[] = Array.from(
-    new Set([
-      ...fleetAutomationInfo.policyIds,
-      ...inheritedAutomationInfo.policyIds,
-    ])
-  );
-  const ticketOrWebhookState =
-    fleetAutomationInfo.state !== "disabled"
-      ? fleetAutomationInfo.state
-      : inheritedAutomationInfo.state;
-  const otherAutomationType: OtherAutomationType | undefined =
-    ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
+  const toOtherAutomationType = (
+    config: IConfig | ITeamConfig | undefined
+  ): OtherAutomationType | undefined => {
+    const state = getTicketOrWebhookState(config);
+    return state === "disabled" ? undefined : state;
+  };
+  const otherAutomationType = toOtherAutomationType(automationsConfig);
+  // Inherited policies use the "All fleets" webhook or ticket destination.
+  const inheritedOtherAutomationType = toOtherAutomationType(globalConfig);
 
   const renderPoliciesCountAndLastUpdated = (
     count?: number,
@@ -859,7 +849,6 @@ const ManagePolicyPage = ({
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
@@ -879,6 +868,7 @@ const ManagePolicyPage = ({
           queryParams={queryParams}
           platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
@@ -906,7 +896,6 @@ const ManagePolicyPage = ({
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
               teamPoliciesCountMergeInherited,
@@ -926,6 +915,7 @@ const ManagePolicyPage = ({
           queryParams={queryParams}
           platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }

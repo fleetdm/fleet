@@ -42,6 +42,18 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
   });
 });
 
+const selectAutomation = async (
+  user: { click: (element: Element) => Promise<void> },
+  label: string
+) => {
+  await user.click(screen.getByRole("combobox", { name: "Automation" }));
+  const option = Array.from(
+    document.querySelectorAll(".react-select__option")
+  ).find((o) => o.textContent?.startsWith(label));
+  if (!option) throw new Error(`No "${label}" automation option`);
+  await user.click(option);
+};
+
 describe("PolicyForm - component", () => {
   afterEach(() => jest.restoreAllMocks());
 
@@ -200,7 +212,10 @@ describe("PolicyForm - component", () => {
 
     it("disables Hide from end user when the policy uses conditional access", async () => {
       renderEditForm(
-        createMockPolicy({ fleet_id: 2, conditional_access_enabled: true }),
+        createMockPolicy({
+          fleet_id: 2,
+          automation_type: "conditional_access",
+        }),
         false
       );
 
@@ -233,24 +248,22 @@ describe("PolicyForm - component", () => {
         createMockPolicy({
           fleet_id: 2,
           platform: "darwin",
-          conditional_access_enabled: true,
+          automation_type: "conditional_access",
         }),
         true,
         { onUpdate }
       );
 
-      const conditionalAccess = await screen.findByRole("checkbox", {
-        name: "conditional_access",
-      });
-      expect(conditionalAccess).toBeChecked();
-      await user.click(conditionalAccess);
+      await screen.findByText("Conditional access");
+      await selectAutomation(user, "None");
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
       expect(onUpdate.mock.calls[0][0]).toMatchObject({
         hidden: true,
-        conditional_access_enabled: false,
+        automation_type: null,
       });
+      expect(policiesAPI.update).not.toHaveBeenCalled();
     });
 
     it("offers Hide from end user for an All fleets policy", async () => {
@@ -1077,7 +1090,7 @@ describe("PolicyForm - component", () => {
         // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
-            software_title_id: 42,
+            automation_type: "software",
             patch_when_closed: false,
             notify_before_patching: false,
             patch_deadline: true,
@@ -1085,6 +1098,41 @@ describe("PolicyForm - component", () => {
           })
         );
         expect(onUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it("keeps a manual patch policy's script before automation configuration loads", async () => {
+        jest
+          .spyOn(teamsAPI, "load")
+          .mockReturnValue(new Promise(() => undefined));
+        const updatePolicySpy = jest
+          .spyOn(policiesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          fleet_id: 1,
+          automation_type: "script" as const,
+          run_script: { id: 1, name: "Rotate keys" },
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            patch_when_closed: false,
+            notify_before_patching: false,
+            patch_deadline: false,
+          })
+        );
       });
 
       it("saves Force patch with Deadline through the loaded automation configuration", async () => {
@@ -1110,8 +1158,8 @@ describe("PolicyForm - component", () => {
           />
         );
 
-        // The conditional access checkbox renders once the configuration loads.
-        await screen.findByRole("checkbox", { name: "conditional_access" });
+        // The Automation dropdown renders once the configuration loads.
+        await screen.findByRole("combobox", { name: "Automation" });
         await user.click(screen.getByRole("radio", { name: "Force patch" }));
         await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -1245,23 +1293,20 @@ describe("PolicyForm - component", () => {
             storedPolicy={{
               ...patchPolicy,
               fleet_id: 2,
-              conditional_access_enabled: true,
+              automation_type: "conditional_access",
             }}
             onUpdate={onUpdate}
           />
         );
 
-        const conditionalAccess = await screen.findByRole("checkbox", {
-          name: "conditional_access",
-        });
-        expect(conditionalAccess).toBeChecked();
-        await user.click(conditionalAccess);
+        await screen.findByText("Conditional access");
+        await selectAutomation(user, "None");
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
         expect(onUpdate.mock.calls[0][0]).toMatchObject({
           hidden: true,
-          conditional_access_enabled: false,
+          automation_type: null,
         });
       });
 

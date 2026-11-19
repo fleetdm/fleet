@@ -183,7 +183,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: true,
         patch_deadline: false,
@@ -339,7 +339,7 @@ describe("DeployModal", () => {
     // hits Save gets patch_deadline: true + continuous automations locked on.
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: true,
@@ -371,11 +371,62 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: null,
+        automation_type: null,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,
         continuous_automations_enabled: false,
+      })
+    );
+  });
+
+  it("keeps another automation on a manual patch policy saved unchanged", async () => {
+    const onSuccess = jest.fn();
+    const { user } = renderModal({
+      onSuccess,
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        // A script automation with continuous on: not a software install.
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    expect(policiesAPI.update).not.toHaveBeenCalled();
+  });
+
+  it("clears stale patch flags on a manual patch policy without touching its automation", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: true,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(
+      screen.getByRole("radio", { name: "End user initiated (manual)" })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: false,
       })
     );
   });
@@ -405,7 +456,7 @@ describe("DeployModal", () => {
     // because the user never re-clicks the radio.
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
-        software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,

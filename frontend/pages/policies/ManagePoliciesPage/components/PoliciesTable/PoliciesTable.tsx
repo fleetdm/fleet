@@ -68,7 +68,6 @@ interface IPoliciesTableProps {
   canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
-  currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   renderPoliciesCount: () => JSX.Element | null;
   onQueryChange: (newTableQuery: ITableQueryData) => void;
@@ -91,6 +90,8 @@ interface IPoliciesTableProps {
   };
   platform?: SelectedPlatform;
   otherAutomationType?: OtherAutomationType;
+  /** For "All fleets" policies listed in a fleet. */
+  inheritedOtherAutomationType?: OtherAutomationType;
   onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
@@ -102,7 +103,6 @@ const PoliciesTable = ({
   canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
-  currentAutomatedPolicies,
   isPremiumTier,
   onQueryChange,
   renderPoliciesCount,
@@ -117,6 +117,7 @@ const PoliciesTable = ({
   queryParams,
   platform = "all",
   otherAutomationType,
+  inheritedOtherAutomationType,
   onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
@@ -221,6 +222,7 @@ const PoliciesTable = ({
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
             otherAutomationType,
+            inheritedOtherAutomationType,
             onOpenManageAutomationsModal,
           },
           isPremiumTier,
@@ -228,7 +230,6 @@ const PoliciesTable = ({
         )}
         data={generateDataSet(
           policiesList,
-          currentAutomatedPolicies,
           config?.update_interval?.osquery_policy
         )}
         isLoading={isLoading}
