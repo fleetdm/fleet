@@ -18,6 +18,10 @@ This handbook page details processes specific to working [with](#contact-us) and
 - To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.)
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
+- To **request content**, like a guide, article, blog post, or sales collateral, [create an issue with the `:mktg-content` label](https://github.com/fleetdm/confidential/issues/new?labels=%3Amktg-content&title=Content%20request%3A+_______________________) in the fleetdm/confidential repository. In the issue, include:
+  - **What you need:** the type of content, the topic, who it's for, and any source material or examples.
+  - **When you need it by:** the date, and what it's for (for example, a customer meeting or an event).
+  - Any Fleet team member can track content requests on the [Content planning board](https://github.com/orgs/fleetdm/projects/114).
 
 
 ### Press boilerplate text
