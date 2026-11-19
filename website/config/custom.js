@@ -99,8 +99,8 @@ module.exports.custom = {
   // Other integrations:
   // anthropicSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
-  // salesforceIntegrationUsername: undefined,
-  // salesforceIntegrationPasskey: undefined,
+  // salesforceIntegrationClientId: undefined, // The consumer key of the "Fleet website" External Client App in Salesforce (uses the OAuth 2.0 client credentials flow).
+  // salesforceIntegrationClientSecret: undefined, // The consumer secret of that External Client App.
 
   // For cleaning up LinkedIn URLs before creating CRM records.
   RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
