@@ -476,6 +476,10 @@ type GoogleCalendarIntegration struct {
 type GoogleWorkspaceIntegration struct {
 	// Domain is the Google Workspace primary domain whose directory is synced.
 	Domain string `json:"domain"`
+	// AdditionalDomains are other domains in the same Google Workspace account
+	// (secondary domains) whose users and groups are synced alongside Domain. The
+	// Directory API only lists users whose primary email is in the requested domain.
+	AdditionalDomains []string `json:"additional_domains,omitempty"`
 	// ImpersonatedUserEmail is the Google Workspace admin user that the service
 	// account impersonates via domain-wide delegation. The Admin SDK Directory API
 	// only accepts requests on behalf of a real admin user (the JWT Subject).
@@ -484,6 +488,11 @@ type GoogleWorkspaceIntegration struct {
 	// the GoogleCalendarApiKey masking type because the credential format and the
 	// masking/preserve-on-update behavior are identical.
 	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
+}
+
+// Domains returns the primary domain followed by any additional domains.
+func (i *GoogleWorkspaceIntegration) Domains() []string {
+	return append([]string{i.Domain}, i.AdditionalDomains...)
 }
 
 // Integrations configures the integrations with external systems.
@@ -780,6 +789,24 @@ func ValidateGoogleWorkspaceIntegrations(intgs []*GoogleWorkspaceIntegration, in
 		intg.Domain = strings.TrimSpace(intg.Domain)
 		if intg.Domain == "" {
 			invalid.Append("integrations.google_workspace.domain", "domain is required")
+		}
+		seen := map[string]struct{}{strings.ToLower(intg.Domain): {}}
+		for j, d := range intg.AdditionalDomains {
+			d = strings.TrimSpace(d)
+			intg.AdditionalDomains[j] = d
+			if d == "" {
+				invalid.Append("integrations.google_workspace.additional_domains", "additional_domains cannot contain blank values")
+				continue
+			}
+			if strings.ContainsAny(d, ", \t\n") {
+				invalid.Append("integrations.google_workspace.additional_domains", fmt.Sprintf("invalid domain %q: list each domain as a separate entry", d))
+				continue
+			}
+			if _, dup := seen[strings.ToLower(d)]; dup {
+				invalid.Append("integrations.google_workspace.additional_domains", fmt.Sprintf("duplicate domain %q", d))
+				continue
+			}
+			seen[strings.ToLower(d)] = struct{}{}
 		}
 		intg.ImpersonatedUserEmail = strings.TrimSpace(intg.ImpersonatedUserEmail)
 		if intg.ImpersonatedUserEmail == "" {

@@ -133,7 +133,7 @@ func TestMapUser(t *testing.T) {
 
 func TestDirectoryListUsers(t *testing.T) {
 	dir := &Directory{
-		domain: "example.com",
+		domains: []string{"example.com"},
 		api: &fakeAPI{users: []*directory.User{
 			{Id: "1", PrimaryEmail: "a@example.com"},
 			{Id: "", PrimaryEmail: "noid@example.com"}, // skipped: no ID
@@ -149,14 +149,14 @@ func TestDirectoryListUsers(t *testing.T) {
 }
 
 func TestDirectoryListUsersError(t *testing.T) {
-	dir := &Directory{domain: "example.com", api: &fakeAPI{usersErr: errors.New("boom")}}
+	dir := &Directory{domains: []string{"example.com"}, api: &fakeAPI{usersErr: errors.New("boom")}}
 	_, err := dir.ListUsers(t.Context())
 	require.Error(t, err)
 }
 
 func TestDirectoryListGroups(t *testing.T) {
 	dir := &Directory{
-		domain: "example.com",
+		domains: []string{"example.com"},
 		api: &fakeAPI{
 			groups: []*directory.Group{
 				{Id: "g1", Name: "Engineering", Email: "eng@example.com"},
@@ -188,7 +188,7 @@ func TestDirectoryListGroups(t *testing.T) {
 
 func TestDirectoryListGroupsMemberError(t *testing.T) {
 	dir := &Directory{
-		domain: "example.com",
+		domains: []string{"example.com"},
 		api: &fakeAPI{
 			groups:    []*directory.Group{{Id: "g1", Name: "Eng"}},
 			memberErr: errors.New("members boom"),
@@ -196,4 +196,97 @@ func TestDirectoryListGroupsMemberError(t *testing.T) {
 	}
 	_, err := dir.ListGroups(t.Context())
 	require.Error(t, err)
+}
+
+// perDomainAPI serves users and groups keyed by the requested domain.
+type perDomainAPI struct {
+	users     map[string][]*directory.User
+	groups    map[string][]*directory.Group
+	members   map[string][]*directory.Member
+	errDomain string
+}
+
+func (f *perDomainAPI) ListUsers(_ context.Context, domain string, forEachPage func([]*directory.User) error) error {
+	if domain == f.errDomain {
+		return errors.New("users boom")
+	}
+	return forEachPage(f.users[domain])
+}
+
+func (f *perDomainAPI) ListGroups(_ context.Context, domain string) ([]*directory.Group, error) {
+	if domain == f.errDomain {
+		return nil, errors.New("groups boom")
+	}
+	return f.groups[domain], nil
+}
+
+func (f *perDomainAPI) ListGroupMembers(_ context.Context, groupKey string) ([]*directory.Member, error) {
+	return f.members[groupKey], nil
+}
+
+func TestDirectoryMultipleDomains(t *testing.T) {
+	newAPI := func() *perDomainAPI {
+		return &perDomainAPI{
+			users: map[string][]*directory.User{
+				"example.com": {{Id: "1", PrimaryEmail: "a@example.com"}, {Id: "2", PrimaryEmail: "b@example.com"}},
+				"example.org": {{Id: "3", PrimaryEmail: "c@example.org"}, {Id: "1", PrimaryEmail: "a@example.com"}},
+			},
+			groups: map[string][]*directory.Group{
+				"example.com": {{Id: "g1", Name: "Eng"}},
+				"example.org": {{Id: "g2", Name: "Ops"}, {Id: "g1", Name: "Eng"}},
+			},
+			members: map[string][]*directory.Member{
+				"g1": {{Id: "1", Type: "USER"}, {Id: "3", Type: "USER"}},
+				"g2": {{Id: "3", Type: "USER"}},
+			},
+		}
+	}
+	domains := []string{"example.com", "example.org"}
+
+	t.Run("users and groups from every domain, de-duplicated by ID", func(t *testing.T) {
+		dir := &Directory{domains: domains, api: newAPI()}
+
+		users, err := dir.ListUsers(t.Context())
+		require.NoError(t, err)
+		var names []string
+		for _, u := range users {
+			names = append(names, u.UserName)
+		}
+		assert.Equal(t, []string{"a@example.com", "b@example.com", "c@example.org"}, names)
+
+		groups, err := dir.ListGroups(t.Context())
+		require.NoError(t, err)
+		require.Len(t, groups, 2)
+		assert.Equal(t, "g1", groups[0].ExternalID)
+		assert.Equal(t, []string{"1", "3"}, groups[0].MemberExternalIDs)
+		assert.Equal(t, "g2", groups[1].ExternalID)
+	})
+
+	t.Run("failure in any domain fails the whole pull", func(t *testing.T) {
+		api := newAPI()
+		api.errDomain = "example.org"
+		dir := &Directory{domains: domains, api: api}
+
+		users, err := dir.ListUsers(t.Context())
+		require.ErrorContains(t, err, "example.org")
+		assert.Nil(t, users)
+
+		groups, err := dir.ListGroups(t.Context())
+		require.ErrorContains(t, err, "example.org")
+		assert.Nil(t, groups)
+	})
+
+	t.Run("limits apply across domains", func(t *testing.T) {
+		dir := &Directory{domains: domains, api: newAPI(), limits: Limits{MaxUsers: 3, MaxGroups: 2}}
+		_, err := dir.ListUsers(t.Context())
+		require.ErrorContains(t, err, maxUsersSetting)
+		_, err = dir.ListGroups(t.Context())
+		require.ErrorContains(t, err, maxGroupsSetting)
+
+		dir.limits = Limits{MaxUsers: 4, MaxGroups: 3}
+		_, err = dir.ListUsers(t.Context())
+		require.NoError(t, err)
+		_, err = dir.ListGroups(t.Context())
+		require.NoError(t, err)
+	})
 }

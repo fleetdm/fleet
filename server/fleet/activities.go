@@ -2172,6 +2172,10 @@ func (a ActivityTypeAddedGoogleWorkspaceIntegration) ActivityName() string {
 
 type ActivityTypeEditedGoogleWorkspaceIntegration struct {
 	Domain string `json:"domain"`
+	// AddedDomains and RemovedDomains are the synced domains (primary or additional)
+	// added or removed by the edit.
+	AddedDomains   []string `json:"added_domains,omitempty"`
+	RemovedDomains []string `json:"removed_domains,omitempty"`
 }
 
 func (a ActivityTypeEditedGoogleWorkspaceIntegration) ActivityName() string {

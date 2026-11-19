@@ -3831,4 +3831,57 @@ describe("opt-in configuration profile activities", () => {
       expect(container).not.toHaveTextContent("Fooday");
     });
   });
+
+  describe("edited_google_workspace_integration", () => {
+    const renderEdited = (editedDetails: IActivityDetails) =>
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.EditedGoogleWorkspaceIntegration,
+            details: editedDetails,
+          })}
+          isPremiumTier
+        />
+      ).container;
+
+    it("renders without domain changes", () => {
+      expect(renderEdited({ domain: "example.com" })).toHaveTextContent(
+        "edited the Google Workspace integration for example.com."
+      );
+    });
+
+    it("renders added domains", () => {
+      expect(
+        renderEdited({
+          domain: "example.com",
+          added_domains: ["example.org", "example.net"],
+        })
+      ).toHaveTextContent(
+        "edited the Google Workspace integration for example.com, adding example.org, example.net."
+      );
+    });
+
+    it("renders removed domains", () => {
+      expect(
+        renderEdited({
+          domain: "example.com",
+          removed_domains: ["example.org"],
+        })
+      ).toHaveTextContent(
+        "edited the Google Workspace integration for example.com, removing example.org."
+      );
+    });
+
+    it("renders added and removed domains", () => {
+      expect(
+        renderEdited({
+          domain: "example.com",
+          added_domains: ["example.org"],
+          removed_domains: ["example.net"],
+        })
+      ).toHaveTextContent(
+        "edited the Google Workspace integration for example.com, adding example.org and removing example.net."
+      );
+    });
+  });
 });

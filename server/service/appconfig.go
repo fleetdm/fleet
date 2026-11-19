@@ -2334,7 +2334,8 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 
 // googleWorkspaceActivity returns the activity to record when the Google
 // Workspace IdP integration is added, edited, or removed, or nil when it is
-// unchanged. Only the (non-secret) domain is compared/recorded.
+// unchanged. Only the (non-secret) fields are compared; an edit records the
+// primary domain and the synced domains it added or removed.
 func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) fleet.ActivityDetails {
 	oldConfigured := len(old) > 0
 	newConfigured := len(current) > 0
@@ -2344,8 +2345,14 @@ func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) f
 	case oldConfigured && !newConfigured:
 		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: old[0].Domain}
 	case oldConfigured && newConfigured:
-		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail {
-			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail ||
+			!slices.Equal(old[0].AdditionalDomains, current[0].AdditionalDomains) {
+			added, removed := diffStringSlices(old[0].Domains(), current[0].Domains())
+			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{
+				Domain:         current[0].Domain,
+				AddedDomains:   added,
+				RemovedDomains: removed,
+			}
 		}
 	}
 	return nil

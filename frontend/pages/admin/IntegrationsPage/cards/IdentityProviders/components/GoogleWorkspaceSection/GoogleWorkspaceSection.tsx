@@ -3,15 +3,22 @@ import { useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
+import EmptyState from "components/EmptyState";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import ListItem from "components/ListItem";
 import PageDescription from "components/PageDescription";
 import { notify } from "components/ToastNotification";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import UploadList from "components/UploadList";
 import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import configAPI from "services/entities/config";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+
+import AddGoogleWorkspaceDomainModal from "./AddGoogleWorkspaceDomainModal";
+import DeleteGoogleWorkspaceDomainModal from "./DeleteGoogleWorkspaceDomainModal";
 
 const API_KEY_JSON_PLACEHOLDER = `{
   "type": "service_account",
@@ -72,6 +79,11 @@ const GoogleWorkspaceSection = ({
   });
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<IGoogleWorkspaceFormErrors>({});
+  const [showAddDomainModal, setShowAddDomainModal] = useState(false);
+  const [deletingDomain, setDeletingDomain] = useState<string | null>(null);
+
+  const savedIntegration = appConfig?.integrations.google_workspace?.[0];
+  const savedAdditionalDomains = savedIntegration?.additional_domains ?? [];
 
   // Sync form state from the config prop.
   useEffect(() => {
@@ -155,6 +167,8 @@ const GoogleWorkspaceSection = ({
       if (!isDisconnect) {
         const entry: Record<string, unknown> = {
           domain,
+          // Domains are added and deleted from the list below, so keep the saved ones.
+          additional_domains: savedAdditionalDomains,
           impersonated_user_email: impersonatedUserEmail,
         };
         // Only send api_key_json when it changed (masked value => preserve existing).
@@ -180,6 +194,67 @@ const GoogleWorkspaceSection = ({
     } finally {
       setIsUpdatingSettings(false);
     }
+  };
+
+  const renderAddButton = (variant?: "secondary") => (
+    <GitOpsModeTooltipWrapper
+      position="left"
+      renderChildren={(disableChildren) => (
+        <Button
+          disabled={disableChildren}
+          variant={variant}
+          className={`${baseClass}__add-domain-button`}
+          onClick={() => setShowAddDomainModal(true)}
+          icon={variant ? "plus" : undefined}
+        >
+          Add
+        </Button>
+      )}
+    />
+  );
+
+  const renderAdditionalDomains = () => {
+    if (savedAdditionalDomains.length === 0) {
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No additional domains"
+          info="Add other domains in this Google Workspace account to sync users whose primary email is in those domains."
+          primaryButton={renderAddButton()}
+        />
+      );
+    }
+    return (
+      <UploadList
+        listItems={savedAdditionalDomains}
+        HeadingComponent={() => (
+          <div className={`${baseClass}__domains-header`}>
+            <span className={`${baseClass}__domains-header-name`}>Domains</span>
+            {renderAddButton("secondary")}
+          </div>
+        )}
+        ListItemComponent={({ listItem }) => (
+          <ListItem
+            title={<TooltipTruncatedText value={listItem} />}
+            actions={
+              <GitOpsModeTooltipWrapper
+                position="left"
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={() => setDeletingDomain(listItem)}
+                    className={`${baseClass}__delete-domain-button`}
+                    variant="subdued"
+                    ariaLabel={`Delete domain ${listItem}`}
+                    icon="trash"
+                  />
+                )}
+              />
+            }
+          />
+        )}
+      />
+    );
   };
 
   return (
@@ -254,6 +329,25 @@ const GoogleWorkspaceSection = ({
           </div>
         </Card>
       </form>
+      {savedIntegration && (
+        <section className={`${baseClass}__additional-domains`}>
+          <h3>Additional domains</h3>
+          {renderAdditionalDomains()}
+        </section>
+      )}
+      {showAddDomainModal && savedIntegration && (
+        <AddGoogleWorkspaceDomainModal
+          integration={savedIntegration}
+          onExit={() => setShowAddDomainModal(false)}
+        />
+      )}
+      {deletingDomain && savedIntegration && (
+        <DeleteGoogleWorkspaceDomainModal
+          integration={savedIntegration}
+          domain={deletingDomain}
+          onExit={() => setDeletingDomain(null)}
+        />
+      )}
     </SettingsSection>
   );
 };

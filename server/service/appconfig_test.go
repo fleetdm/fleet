@@ -4805,3 +4805,67 @@ func TestValidateSMTPPasswordForNewDestination(t *testing.T) {
 		require.False(t, invalid.HasErrors())
 	})
 }
+
+func TestGoogleWorkspaceActivity(t *testing.T) {
+	base := func() *fleet.GoogleWorkspaceIntegration {
+		return &fleet.GoogleWorkspaceIntegration{
+			Domain:                "example.com",
+			AdditionalDomains:     []string{"example.org"},
+			ImpersonatedUserEmail: "admin@example.com",
+		}
+	}
+	edited := func(mut func(*fleet.GoogleWorkspaceIntegration)) []*fleet.GoogleWorkspaceIntegration {
+		g := base()
+		mut(g)
+		return []*fleet.GoogleWorkspaceIntegration{g}
+	}
+	old := []*fleet.GoogleWorkspaceIntegration{base()}
+
+	assert.Equal(t, fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: "example.com"}, googleWorkspaceActivity(nil, old))
+	assert.Equal(t, fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: "example.com"}, googleWorkspaceActivity(old, nil))
+	assert.Nil(t, googleWorkspaceActivity(old, []*fleet.GoogleWorkspaceIntegration{base()}))
+	assert.Nil(t, googleWorkspaceActivity(nil, nil))
+
+	cases := []struct {
+		name string
+		mut  func(*fleet.GoogleWorkspaceIntegration)
+		want fleet.ActivityTypeEditedGoogleWorkspaceIntegration
+	}{
+		{
+			name: "primary domain",
+			mut:  func(g *fleet.GoogleWorkspaceIntegration) { g.Domain = "example.net" },
+			want: fleet.ActivityTypeEditedGoogleWorkspaceIntegration{
+				Domain: "example.net", AddedDomains: []string{"example.net"}, RemovedDomains: []string{"example.com"},
+			},
+		},
+		{
+			name: "impersonated user email",
+			mut:  func(g *fleet.GoogleWorkspaceIntegration) { g.ImpersonatedUserEmail = "other@example.com" },
+			want: fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: "example.com"},
+		},
+		{
+			name: "additional domain added",
+			mut: func(g *fleet.GoogleWorkspaceIntegration) {
+				g.AdditionalDomains = append(g.AdditionalDomains, "example.net")
+			},
+			want: fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: "example.com", AddedDomains: []string{"example.net"}},
+		},
+		{
+			name: "additional domains cleared",
+			mut:  func(g *fleet.GoogleWorkspaceIntegration) { g.AdditionalDomains = nil },
+			want: fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: "example.com", RemovedDomains: []string{"example.org"}},
+		},
+		{
+			name: "additional domain replaced",
+			mut:  func(g *fleet.GoogleWorkspaceIntegration) { g.AdditionalDomains = []string{"example.net"} },
+			want: fleet.ActivityTypeEditedGoogleWorkspaceIntegration{
+				Domain: "example.com", AddedDomains: []string{"example.net"}, RemovedDomains: []string{"example.org"},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, googleWorkspaceActivity(old, edited(c.mut)))
+		})
+	}
+}

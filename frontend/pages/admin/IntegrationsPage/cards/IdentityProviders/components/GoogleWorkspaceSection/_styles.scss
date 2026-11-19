@@ -24,4 +24,24 @@
   .button-wrap {
     align-self: flex-end;
   }
+
+  &__domains-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__domains-header-name {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__add-domain-button {
+    height: auto;
+  }
+
+  &__delete-domain-button {
+    width: 40px;
+    height: 40px;
+  }
 }
