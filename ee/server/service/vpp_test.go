@@ -1556,22 +1556,23 @@ func TestUpdateAppStoreAppActivityKeepsStoredSettings(t *testing.T) {
 
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+	calls := 0
 	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
-		return []*fleet.VPPAppStoreApp{{
-			AdamID:           "100",
-			Platform:         fleet.IOSPlatform,
-			Name:             "Canva",
-			VPPAppsTeamsID:   1,
-			Configuration:    json.RawMessage(`<dict></dict>`),
-			LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelID: 3, LabelName: "Staging"}},
-		}}, nil
+		calls++
+		app := &fleet.VPPAppStoreApp{AdamID: "100", Platform: fleet.IOSPlatform, Name: "Canva", VPPAppsTeamsID: 1}
+		if calls == 1 {
+			app.Configuration = json.RawMessage(`<dict></dict>`)
+			app.LabelsIncludeAny = []fleet.SoftwareScopeLabel{{LabelID: 3, LabelName: "Staging"}}
+		}
+		// later reads simulate a lagging replica that still shows no labels or configuration
+		return []*fleet.VPPAppStoreApp{app}, nil
 	}
 	ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{AppTeamID: 1}, nil
 	}
 	ds.GetVPPTokenFunc = func(context.Context, uint) (*fleet.VPPTokenDB, error) { return nil, nil }
 
-	// A partial edit (no labels, no configuration) still reports the stored ones.
+	// A partial edit (no labels, no configuration) still reports the stored ones, taken from the pre-update read.
 	_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
 	require.NoError(t, err)
 	require.Equal(t, []fleet.ActivitySoftwareLabel{{ID: 3, Name: "Staging"}}, act.LabelsIncludeAny)

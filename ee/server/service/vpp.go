@@ -2046,20 +2046,24 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	// Wrap iOS / iPadOS plist as a JSON string for the response.
-	if len(updatedAppMeta.Configuration) > 0 {
-		switch updatedAppMeta.Platform {
+	// Build the activity's labels and configuration from the pre-update read and the request, not from
+	// the re-read above (which can hit a lagging replica): a partial edit keeps the stored values.
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
+	if validatedLabels != nil {
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	}
+	actConfiguration := payload.Configuration
+	if actConfiguration == nil && len(meta.Configuration) > 0 {
+		actConfiguration = meta.Configuration
+		switch meta.Platform {
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
-			wrapped, err := json.Marshal(string(updatedAppMeta.Configuration))
+			wrapped, err := json.Marshal(string(meta.Configuration))
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for activity")
 			}
-			updatedAppMeta.Configuration = wrapped
+			actConfiguration = wrapped
 		}
 	}
-
-	// Use the stored values (re-read above) so a partial edit still reports the version's labels and configuration.
-	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(updatedAppMeta.LabelsIncludeAny, updatedAppMeta.LabelsExcludeAny, updatedAppMeta.LabelsIncludeAll)
 
 	act := fleet.ActivityEditedAppStoreApp{
 		VPPToken:            actVPPToken,
@@ -2075,7 +2079,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: updatedAppMeta.DisplayName,
-		Configuration:       updatedAppMeta.Configuration,
+		Configuration:       actConfiguration,
 	}
 
 	act.VersionName = updatedAppMeta.VersionName
@@ -2084,6 +2088,18 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if *updatedAppMeta.AutoUpdateEnabled {
 			act.AutoUpdateStartTime = updatedAppMeta.AutoUpdateStartTime
 			act.AutoUpdateEndTime = updatedAppMeta.AutoUpdateEndTime
+		}
+	}
+
+	// Wrap iOS / iPadOS plist as a JSON string for the response.
+	if len(updatedAppMeta.Configuration) > 0 {
+		switch updatedAppMeta.Platform {
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			wrapped, err := json.Marshal(string(updatedAppMeta.Configuration))
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+			}
+			updatedAppMeta.Configuration = wrapped
 		}
 	}
 
