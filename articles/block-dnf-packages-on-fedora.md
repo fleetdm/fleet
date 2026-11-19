@@ -264,7 +264,7 @@ Changing the variable doesn't update hosts that already have the blocking files.
 
 Other installed packages need it. Fleet retries the script up to 3 times, and the host keeps failing the policy until the dependent packages are gone. Remove the dependent packages first, or add them to your blocked packages.
 
-Some packages are needed by the operating system. For example, on Fedora 45 Workstation, `jq` is required by `clevis`, `dracut-network`, and `lvm2`. Don't block packages that system tools depend on.
+Some packages are needed by the operating system. Don't block packages that system tools depend on. To check what needs a package, run `dnf repoquery --installed --whatrequires <package>`.
 
 **Your own removal script can't remove an excluded package**
 
