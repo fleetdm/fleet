@@ -51,15 +51,16 @@ const OSRequirementDescription = ({
         </>
       );
     case "ios":
-      return (
-        <>
-          <h3>End user experience</h3>
-        </>
-      );
     case "ipados":
       return (
         <>
           <h3>End user experience</h3>
+          <p>End users are notified an hour before the deadline.</p>
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/os-updates-apple"
+            newTab
+          />
         </>
       );
     default:
