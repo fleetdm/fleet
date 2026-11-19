@@ -4,6 +4,8 @@ Most admins build configuration profiles in a GUI. In Intune you pick a setting 
 
 Every one of those pickers is a GUI over a published schema. Apple's payload keys come from apple/device-management and ProfileManifests. Intune's settings catalog is generated from Microsoft's CSP Device Description Framework (DDF) files. Android's settings are the fields of the Android Management API `Policy` object, which Google publishes as a discovery document. This guide points an AI agent at those same schemas, so you describe the setting you want in a sentence and get a validated profile, scoped and wired into your repo, as a pull request you review. You do the setup once, per platform you manage. After that the unit of work is intent, not XML.
 
+> **Note:** The quickest way to start is in Fleet itself. In the Fleet UI, go to **Controls > OS settings > Configuration profiles**, select **Add profile**, and describe the setting you want. Fleet generates and validates an Apple or Windows profile you can review, target, and add without leaving the page. Learn how in [Configuration profiles](https://fleetdm.com/guides/custom-os-settings#enforce). Use this guide when your profiles live in a GitOps repo, or when you want an agent to build Android profiles or check its work against the schema in CI.
+
 ## Prerequisites
 
 - Fleet, with your configuration in a Git repository. An agent needs that reviewable, schema-legible structure to act against, something a GUI can't give it (see [why AI-powered device management requires GitOps](https://fleetdm.com/articles/why-ai-powered-device-management-requires-gitops)). Start with the [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files), which documents every key you can manage as code. To scaffold a new repo, run `fleetctl new`. To convert an existing Fleet instance, follow [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl).
@@ -113,7 +115,7 @@ Write these as sentences with reasoning rather than nested bullets, since a rule
 
 ## Step 3: Ground the agent in real references
 
-Fleet maintains a [`fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/main/.claude/skills/fleet-gitops/SKILL.md) that points an agent at the reference for each platform:
+Fleet maintains a [`fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops/SKILL.md) that points an agent at the reference for each platform:
 
 | What you're building | Reference to validate against |
 |---|---|
@@ -127,7 +129,7 @@ Fleet maintains a [`fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/m
 
 ProfileManifests is the same community manifest repo that powers ProfileCreator and iMazing Profile Editor, and the DDF files are what Intune's settings catalog is built from. Pointing your agent at both gives you the setting coverage those GUIs have, from the same source they use.
 
-Copy the whole `.claude/skills/fleet-gitops/` folder (`SKILL.md`, its `references/`, and the `scripts/validate.py` checker it runs) into your repo as `.agents/skills/fleet-gitops/`, the location Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code read; for Claude Code, add a `.claude/skills/fleet-gitops/SKILL.md` with the same frontmatter that tells it to read the `.agents` copy, or copy the folder there instead. As of fleetctl 4.95.0, a repo created with `fleetctl new` already includes both. Earlier versions scaffold only the Claude Code skill. Otherwise, paste the table into your instructions file.
+Copy the whole [`fleet-gitops` folder](https://github.com/fleetdm/fleet/tree/main/cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops) (`SKILL.md`, its `references/`, and the `scripts/validate.py` checker it runs) into your repo as `.agents/skills/fleet-gitops/`, the location Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code read; for Claude Code, add a `.claude/skills/fleet-gitops/SKILL.md` with the same frontmatter that tells it to read the `.agents` copy, or copy the folder there instead. As of fleetctl 4.95.0, a repo created with `fleetctl new` already includes both. Earlier versions scaffold only the Claude Code skill. Otherwise, paste the table into your instructions file.
 
 > **Note:** If you're coming from Group Policy, you can search the DDF files by the Group Policy name you already know. Roughly 900 nodes carry a `MSFT:GpMapping` with a `GpEnglishName` attribute, so "find the CSP node for Allow enhanced PINs for startup" is a question the agent can answer against the schema.
 
@@ -312,7 +314,7 @@ WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\dev
 - [Custom OS settings](https://fleetdm.com/guides/custom-os-settings): how Fleet delivers and verifies profiles, declarations, and CSPs.
 - [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files): every key you can manage as code.
 - [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl): convert an existing Fleet instance to a repo.
-- [Fleet's `fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/main/.claude/skills/fleet-gitops/SKILL.md): the reference-grounding skill from step 3.
+- [Fleet's `fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops/SKILL.md): the reference-grounding skill from step 3.
 - [Creating Windows configuration profiles (CSPs)](https://fleetdm.com/guides/creating-windows-csps): ADMX-backed policies and SyncML structure by hand.
 - [Migrating Intune policies to Fleet with the CSP converter](https://fleetdm.com/guides/migrating-intune-policies-to-fleet-csp-converter): bulk migration of an existing Intune baseline.
 - [Configuration service provider DDF files](https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-ddf): the Windows schema, including the DDF v2 field definitions.

@@ -73,6 +73,9 @@ fleet_desktop:
   alternative_browser_host: musica.alternativa
   sso_enabled: false
   transparency_url: https://fleetdm.com/transparency
+gitops:
+  gitops_mode_enabled: false
+  repository_url: https://github.com/fleetdm/fleet/tree/main/it-and-security
 host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
@@ -152,6 +155,19 @@ server_settings:
   report_cap: 1
   discard_reports_data: false
   server_url: https://dogfood.fleetdm.com
+smtp_settings:
+  authentication_method: authmethod_plain
+  authentication_type: authtype_username_password
+  domain: ""
+  enable_smtp: false
+  enable_ssl_tls: false
+  enable_start_tls: false
+  password: ""
+  port: 587
+  sender_address: ""
+  server: localhost
+  user_name: ""
+  verify_ssl_certs: false
 sso_settings:
   enable_jit_provisioning: true
   enable_sso: true

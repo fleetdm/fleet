@@ -100,7 +100,7 @@ For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure F
 
 To enable for a team:
 
-1. Select the team you're configuring (or **No team**) from the team dropdown.
+1. Select the fleet you're configuring (or **Unassigned**) from the fleet dropdown.
 
 2. Go to **Controls** > **Setup experience** > **Install software**.
 
@@ -161,8 +161,8 @@ running an earlier fleetd are skipped, and no error is reported for them.
 
 4. Press **Save**.
 
-You can also turn it on with Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or
-[GitOps](https://fleetdm.com/docs/configuration/yaml-files), using `windows_settings.enable_managed_local_account`.
+You can also turn it on with Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or
+[GitOps](https://fleetdm.com/docs/configuration/yaml-files#setup-experience), using `windows_managed_local_account_enabled`.
 
 Hosts create their account on their next check-in, usually within a couple of minutes. Fleet stops asking a host once it has
 reported the password back.

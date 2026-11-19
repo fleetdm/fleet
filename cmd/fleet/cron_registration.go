@@ -270,6 +270,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.config.MDM.AndroidAgent,
 			deps.config.MDM.AndroidBatchSize,
 			deps.redisPool,
+			deps.config.MDM.AndroidOneTimeEnrollSecrets,
 		)
 	})
 

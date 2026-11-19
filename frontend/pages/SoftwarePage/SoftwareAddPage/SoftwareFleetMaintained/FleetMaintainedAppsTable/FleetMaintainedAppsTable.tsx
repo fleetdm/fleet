@@ -48,6 +48,19 @@ const EmptyFleetAppsTable = () => (
  * name stay as separate rows. */
 const PLATFORM_NAME_SUFFIX = / for (macOS|Mac|Windows)$/;
 
+// Windows slugs whose slug token differs from the macOS slug of the same app
+export const WINDOWS_TO_MACOS_SLUGS = new Map<string, string>([
+  ["docker/windows", "docker-desktop/darwin"],
+  ["burp-suite-community/windows", "burp-suite/darwin"],
+  ["chrome-remote-desktop/windows", "chrome-remote-desktop-host/darwin"],
+  ["github-desktop/windows", "github/darwin"],
+  ["handbrake/windows", "handbrake-app/darwin"],
+  ["tableau-desktop/windows", "tableau/darwin"],
+  ["tailscale/windows", "tailscale-app/darwin"],
+  ["wireshark/windows", "wireshark-app/darwin"],
+  ["zen-browser/windows", "zen/darwin"],
+]);
+
 export const combineAppsByPlatform = (
   fmaList: IFleetMaintainedApp[]
 ): ICombinedFMA[] => {
@@ -56,7 +69,8 @@ export const combineAppsByPlatform = (
 
   fmaList.forEach((app: IFleetMaintainedApp) => {
     const { name, platform, ...rest } = app;
-    const appToken = app.slug.split("/")[0];
+    const rowSlug = WINDOWS_TO_MACOS_SLUGS.get(app.slug) ?? app.slug;
+    const appToken = rowSlug.split("/")[0];
 
     if (!combinedApps[appToken]) {
       combinedApps[appToken] = {

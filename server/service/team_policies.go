@@ -67,7 +67,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("user must be authenticated to create team policies")
+		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
 
 	p, err := svc.newTeamPolicyPayloadToPolicyPayload(ctx, teamID, tp)
@@ -612,7 +612,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	for _, policy := range policiesByID {
 		if t := policy.PolicyData.TeamID; t == nil || *t != teamID {
 			return nil, authz.ForbiddenWithInternal(
-				fmt.Sprintf("attempting to delete policy that does not belong to team %s", strconv.Itoa(int(teamID))),
+				fmt.Sprintf("attempting to delete policy that does not belong to fleet %s", strconv.Itoa(int(teamID))),
 				authz.UserFromContext(ctx),
 				policy,
 				fleet.ActionWrite,
@@ -714,7 +714,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if ok := checkTeamID(teamID, policy); !ok {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "policy does not belong to team/global",
+			Message:     "policy does not belong to fleet/global",
 			InternalErr: fmt.Errorf("teamID: %+v, policy: %+v", teamID, policy),
 		})
 	}
@@ -737,6 +737,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ProfileUUID.Set && p.ProfileUUID.Valid && p.ProfileUUID.Value != "" && teamID == nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", errPolicyAllFleetsForProfiles),
+		})
+	}
+
+	if p.ScriptID.Set && p.ScriptID.Valid && p.ScriptID.Value != 0 && teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", errPolicyAllFleetsForScripts),
 		})
 	}
 
@@ -1047,7 +1053,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 			}
 		}
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Software installer with ID %d does not belong to software title ID %d on team ID %d", *chosenInstallerID, *softwareTitleID, *teamID),
+			Message: fmt.Sprintf("Software installer with ID %d does not belong to software title ID %d on fleet ID %d", *chosenInstallerID, *softwareTitleID, *teamID),
 		})
 	}
 
@@ -1055,31 +1061,31 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("Software title with ID %d does not belong to team ID %d", *softwareTitleID, *teamID),
+				Message: fmt.Sprintf("Software title with ID %d does not belong to fleet ID %d", *softwareTitleID, *teamID),
 			})
 		}
 		return nil, nil, ctxerr.Wrap(ctx, err, "software title by id")
 	}
-	if softwareTitle.AppStoreApp != nil {
-		if softwareTitle.AppStoreApp.Platform != fleet.MacOSPlatform {
+	if len(softwareTitle.AppStoreApps) > 0 {
+		if softwareTitle.AppStoreApps[0].Platform != fleet.MacOSPlatform {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf(
-					"Software title with ID %d on team ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
+					"Software title with ID %d on fleet ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
 					*softwareTitleID,
 					*teamID,
 				),
 			})
 		}
 
-		return nil, &softwareTitle.AppStoreApp.VPPAppsTeamsID, nil
+		return nil, &softwareTitle.AppStoreApps[0].VPPAppsTeamsID, nil
 	}
-	if softwareTitle.SoftwarePackage == nil {
+	if len(softwareTitle.Packages) == 0 {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("Software title with ID %d on team ID %d does not have an associated package", *softwareTitleID, *teamID),
+			Message: fmt.Sprintf("Software title with ID %d on fleet ID %d does not have an associated package", *softwareTitleID, *teamID),
 		})
 	}
 
-	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
+	// At this point we assume *softwareTitle.Packages[0].TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
-	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil, nil
+	return new(softwareTitle.Packages[0].InstallerID), nil, nil
 }

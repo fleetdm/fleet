@@ -473,6 +473,23 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
+			// Only a placeholder is stored with the command; the challenge is created when the command is sent.
+			name:     "conditional access scep challenge becomes a host secret placeholder",
+			hostUUID: "condaccess-challenge-host",
+			profileContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
+				`<Data>${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE}</Data></Item></Add>`,
+			expectedContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/` + profileUUID + `/Install/ServerURL</LocURI></Target>` +
+				`<Data>https://test-fleet.com/api/fleet/conditional_access/scep</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/` + profileUUID + `/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_HOST_SECRET_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data></Item></Add>`,
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, fleet.CAConfigConditionalAccess, managedCerts[0].Type)
+			},
+		},
+		{
 			name:            "ndes not configured",
 			hostUUID:        "ndes-noconfig-host",
 			profileContents: `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,

@@ -1,3 +1,6 @@
+import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { getPastDate, getFutureDate } from "test/test-utils";
 
@@ -6,8 +9,10 @@ import helpers, {
   compareVersions,
   willExpireWithinXDays,
   humanLastSeen,
+  humanHostMemory,
   internationalTimeOnlyFormat,
   formatSelectedTargetsForApi,
+  formatFleet5RemovalMessage,
 } from "./helpers";
 
 describe("helpers utilities", () => {
@@ -115,6 +120,18 @@ describe("helpers utilities", () => {
     });
   });
 
+  describe("humanHostMemory function", () => {
+    it("returns --- when the memory is unavailable", () => {
+      expect(humanHostMemory(-1)).toEqual("---");
+      expect(humanHostMemory(-1024)).toEqual("---");
+    });
+
+    it("formats bytes in GB", () => {
+      expect(humanHostMemory(8589934592)).toEqual("8.0 GB");
+      expect(humanHostMemory(0)).toEqual("0.0 GB");
+    });
+  });
+
   describe("setupData function", () => {
     it("excludes the org logo file from the JSON setup payload", () => {
       const formData: IRegistrationFormData = {
@@ -207,6 +224,33 @@ describe("helpers utilities", () => {
       setLanguage("en-US");
       expect(internationalTimeOnlyFormat("00:00")).toMatch(/12:00\s?AM/i);
       expect(internationalTimeOnlyFormat("23:59")).toMatch(/11:59\s?PM/i);
+    });
+  });
+
+  describe("formatFleet5RemovalMessage function", () => {
+    const guideURL = "https://fleetdm.com/learn-more-about/fleet-5-migration";
+
+    it("returns null for any other message", () => {
+      expect(formatFleet5RemovalMessage("Couldn't add. Learn more")).toBeNull();
+    });
+
+    it("links the guide and keeps the text around it", () => {
+      render(
+        <div>
+          {formatFleet5RemovalMessage(
+            `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: ${guideURL} Trailing note.`
+          )}
+        </div>
+      );
+
+      expect(screen.getByRole("link", { name: guideURL })).toHaveAttribute(
+        "href",
+        guideURL
+      );
+      expect(
+        screen.getByText(/variable is not available anymore/)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Trailing note\./)).toBeInTheDocument();
     });
   });
 });

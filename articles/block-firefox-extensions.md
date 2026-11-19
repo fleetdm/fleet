@@ -74,7 +74,7 @@ Newer Firefox versions make `install_url` optional for extensions hosted on addo
 </plist>
 ```
 
-2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+2. In Fleet, go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 3. Choose the `.mobileconfig` file and select **Add profile** to upload it.
 
 > **Warning:** Firefox ignores enterprise policies on macOS unless `EnterprisePoliciesEnabled` is `true`. Keep it in the profile.
@@ -140,7 +140,7 @@ Firefox policies on Windows are ADMX-backed. Put the Firefox ADMX file and the e
 </Replace>
 ```
 
-3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+3. In Fleet, go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 4. Choose the `.xml` file and select **Add profile** to upload it.
 
 > **Note:** `<?xml ...?>` at the start of the ADMX file must stay on the same line as `<![CDATA[`, with no line break or spaces in between. Otherwise the profile fails with `status 500`. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).

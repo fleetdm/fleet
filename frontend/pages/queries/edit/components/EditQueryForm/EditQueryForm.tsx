@@ -190,7 +190,7 @@ const EditQueryForm = ({
   } = useContext(AppContext);
 
   const isExistingQuery = !!queryIdForEdit;
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined

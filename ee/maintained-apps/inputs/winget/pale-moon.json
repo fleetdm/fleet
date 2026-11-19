@@ -3,6 +3,7 @@
   "slug": "pale-moon/windows",
   "package_identifier": "MoonchildProductions.PaleMoon",
   "unique_identifier": "Pale Moon",
+  "fuzzy_match_name": true,
   "open_process_names": ["palemoon.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",

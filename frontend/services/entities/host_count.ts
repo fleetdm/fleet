@@ -40,7 +40,6 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: string;
@@ -73,7 +72,6 @@ export default {
     const policyResponse = options?.policyResponse;
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
-    const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
@@ -116,7 +114,6 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareStatus,
         appStoreAppVersionId,

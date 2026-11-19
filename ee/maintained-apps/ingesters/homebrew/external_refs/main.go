@@ -38,7 +38,6 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"royal-tsx/darwin":                  {RoyalTSXVersionShortener},
 	"sublime-text/darwin":               {SublimeVersionTransformer},
 	"sublime-merge/darwin":              {SublimeVersionTransformer},
-	"mysqlworkbench/darwin":             {MySQLWorkbenchVersionTransformer},
 	"lens/darwin":                       {LensVersionTransformer},
 	"grammarly-desktop/darwin":          {GrammarlyDesktopVersionShortener},
 	"logitune/darwin":                   {LogiTunePKGInstaller},
@@ -51,6 +50,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"harmony-sase/darwin":               {HarmonySASEVersionShortener},
 	"visual-studio-code/darwin":         {VSCodeUniversalInstaller},
 	"shottr/darwin":                     {ShottrVersionTransformer},
+	"utm/darwin":                        {UTMVersionTransformer},
 	"outset/darwin":                     {OutsetVersionShortener},
 	"updf/darwin":                       {UPDFInstallerHost},
 	"expressvpn/darwin":                 {ExpressVPNVersionShortener},
@@ -91,6 +91,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"malwarebytes/darwin":               {MalwarebytesVersionShortener},
 	"plex-media-server/darwin":          {PlexMediaServerVersionShortener},
 	"sigmaos/darwin":                    {SigmaOSVersionShortener},
+	"redcine-x-pro/darwin":              {REDCINEXProVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

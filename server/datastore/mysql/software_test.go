@@ -9923,6 +9923,56 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, sw, 1)
 	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
+
+	// A host with no inventory can install chrome, whose only version (on the first host) is
+	// vulnerable. The install record keeps the title listed for it.
+	noInventoryHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithTeamID(tm.ID))
+	installerID, chromeTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "chrome",
+		Source:           "apps",
+		BundleIdentifier: "com.example.chrome",
+		InstallScript:    "echo",
+		Filename:         "chrome.pkg",
+		Extension:        "pkg",
+		Platform:         "darwin",
+		Version:          "2.0",
+		StorageID:        "chrome-storage",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, noInventoryHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	opts = fleet.HostSoftwareTitleListOptions{
+		IncludeAvailableForInstall: true,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", MatchQuery: "chrome"},
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, chromeTitleID, sw[0].ID)
+	require.Len(t, sw[0].InstalledVersions, 1)
+
+	// It finds the title by name, without the other host's version.
+	sw, _, err = ds.ListHostSoftware(ctx, noInventoryHost, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, chromeTitleID, sw[0].ID)
+	require.Empty(t, sw[0].InstalledVersions)
+
+	// The other host's CVE and vulnerable version do not match it.
+	opts.ListOptions.MatchQuery = "CVE-2024-0001"
+	sw, _, err = ds.ListHostSoftware(ctx, noInventoryHost, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+
+	opts.ListOptions.MatchQuery = ""
+	opts.VulnerableOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, noInventoryHost, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
 }
 
 func testListHostSoftwareSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
@@ -10503,6 +10553,7 @@ func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 				require.Len(t, sw, 1)
 				require.Len(t, sw[0].InstalledVersions, 2)
+				require.Less(t, sw[0].InstalledVersions[0].SoftwareID, sw[0].InstalledVersions[1].SoftwareID)
 
 				for _, installedVersion := range sw[0].InstalledVersions {
 					version := installedVersion.Version
@@ -11749,17 +11800,17 @@ func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
 }
 
 // testUpdateHostBrowserExtensions explicitly tests browser extension handling.
-// Browser extensions have extension IDs and browser fields, but no bundle identifiers.
+// Browser extensions have extension IDs but no bundle identifiers.
 func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "ext-test-host", "", "extkey", "extuuid", time.Now())
 
 	// Test Case 1: Add multiple browser extensions
 	extensions := []fleet.Software{
-		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},
-		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"},
-		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen", Browser: "chrome"},
-		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"}, // Same ext ID, different browser
+		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb"},
+		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen"},
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, extensions)
@@ -11787,11 +11838,11 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 
 	// Test Case 2: Update extension version (same extension ID, new version)
 	updatedExtensions := []fleet.Software{
-		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},             // Version update
-		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"}, // No change
+		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},             // Version update
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb"}, // No change
 		// Grammarly removed
-		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"},
-		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb", Browser: "chrome"}, // New extension
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
+		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb"}, // New extension
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, updatedExtensions)
@@ -11815,9 +11866,9 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	// Test Case 3: Extensions with same name but different browsers/extension IDs
 	// This simulates cross-browser extensions
 	crossBrowserExtensions := []fleet.Software{
-		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom", Browser: "chrome"},
-		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg", Browser: "firefox"},
-		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh", Browser: "edge"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg"},
+		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh"},
 	}
 
 	host2 := test.NewHost(t, ds, "ext-test-host2", "", "extkey2", "extuuid2", time.Now())
@@ -14566,6 +14617,59 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "zzz-installer", hostSw[0].Name, "AAA Script (zzz-installer) should sort first")
 	assert.Equal(t, "bravo", hostSw[1].Name, "bravo (no display name) should sort second")
 	assert.Equal(t, "alpha", hostSw[2].Name, "Zulu (alpha) should sort last")
+
+	// Details are looked up per page: alpha, alone on the second page, keeps its CVE, icon, display
+	// name and install policy.
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	installerID, installerTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "alpha",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "alpha.pkg",
+		Extension:       "pkg",
+		Platform:        "darwin",
+		Version:         "2.0",
+		StorageID:       "alpha-storage",
+		TeamID:          &team.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.Equal(t, alphaID, installerTitleID)
+	_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name: "install alpha", Query: "SELECT 1", SoftwareInstallerID: &installerID,
+	})
+	require.NoError(t, err)
+	_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID: team.ID, TitleID: alphaID, StorageID: "icon-storage", Filename: "alpha.png",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	for _, hs := range host.Software {
+		if hs.Name == "alpha" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+
+	lastPage, meta, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		IncludeAvailableForInstall: true,
+		ListOptions: fleet.ListOptions{
+			Page: 1, PerPage: 2, IncludeMetadata: true, OrderKey: "name", OrderDirection: fleet.OrderAscending,
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.Len(t, lastPage, 1)
+	require.Equal(t, "alpha", lastPage[0].Name)
+	require.Equal(t, "Zulu", lastPage[0].DisplayName)
+	require.NotNil(t, lastPage[0].IconUrl)
+	require.Len(t, lastPage[0].InstalledVersions, 1)
+	require.Equal(t, []string{"CVE-2024-0001"}, lastPage[0].InstalledVersions[0].Vulnerabilities)
+	require.NotNil(t, lastPage[0].SoftwarePackage)
+	require.Len(t, lastPage[0].SoftwarePackage.AutomaticInstallPolicies, 1)
+	require.Equal(t, "install alpha", lastPage[0].SoftwarePackage.AutomaticInstallPolicies[0].Name)
 }
 
 func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {

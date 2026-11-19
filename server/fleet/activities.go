@@ -109,6 +109,9 @@ func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
 	return "disabled_activity_automations"
 }
 
+// The 2017 pack activity types below are no longer emitted. They're kept so
+// existing activities still render.
+
 type ActivityTypeCreatedPack struct {
 	ID   uint   `json:"pack_id"`
 	Name string `json:"pack_name"`
@@ -205,8 +208,8 @@ func (a ActivityTypeAppliedSpecPolicy) ActivityName() string {
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -216,8 +219,8 @@ func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -227,7 +230,7 @@ func (a ActivityTypeEditedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name     string  `json:"query_name" renameto:"report_name"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -237,7 +240,7 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs      []uint  `json:"query_ids" renameto:"report_ids"`
+	IDs      []uint  `json:"report_ids"`
 	Teamid   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -308,8 +311,8 @@ func (a ActivityTypeEditedAgentOptions) ActivityName() string {
 
 type ActivityTypeLiveQuery struct {
 	TargetsCount uint             `json:"targets_count"`
-	QuerySQL     string           `json:"query_sql" renameto:"query"`
-	QueryName    *string          `json:"query_name,omitempty" renameto:"report_name"`
+	QuerySQL     string           `json:"query"`
+	QueryName    *string          `json:"report_name,omitempty"`
 	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
@@ -636,16 +639,16 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-type ActivityTypeViewedHostRecoveryLockPassword struct {
+type ActivityTypeReadHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
-	return "viewed_host_recovery_lock_password"
+func (a ActivityTypeReadHostRecoveryLockPassword) ActivityName() string {
+	return "read_host_recovery_lock_password"
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+func (a ActivityTypeReadHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -1710,7 +1713,7 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 
 type ActivityDeletedAppStoreApp struct {
 	SoftwareTitle       string                    `json:"software_title"`
-	SoftwareDisplayName *string                   `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string                    `json:"software_display_name"`
 	AppStoreID          string                    `json:"app_store_id"`
 	TeamName            *string                   `json:"fleet_name"`
 	TeamID              *uint                     `json:"fleet_id"`

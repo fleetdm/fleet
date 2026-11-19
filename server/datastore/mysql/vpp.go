@@ -311,6 +311,20 @@ attempts AS (
 	JOIN hosts h ON h.id = li.host_id
 	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
 	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
+
+	UNION ALL
+
+	-- deleting a version sets its installs' vpp_app_team_id to NULL, select them so they still supersede older installs of the remaining versions
+	SELECT
+		hvsi.host_id,
+		NULL,
+		MAX(IF(hvsi.verification_at IS NOT NULL, hvsi.id, NULL)),
+		MAX(IF(hvsi.verification_at IS NULL AND hvsi.verification_failed_at IS NOT NULL, hvsi.id, NULL)),
+		NULL
+	FROM host_vpp_software_installs hvsi
+	JOIN (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
+	WHERE hvsi.vpp_app_team_id IS NULL AND hvsi.canceled = 0 AND hvsi.removed = 0
+	GROUP BY hvsi.host_id
 ),
 
 -- keep the version with the latest install of each status on each host
@@ -345,6 +359,7 @@ FROM latest l
 LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
 WHERE
 	l.rn = 1
+	AND l.vpp_app_team_id IS NOT NULL
 	AND (l.status != :software_status_failed OR i.host_id IS NULL OR l.install_id > i.install_id)`
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
@@ -1209,7 +1224,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		if installDuringSetup {
 			return errDeleteInstallerInstalledDuringSetup
 		}
-		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
+		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for fleet id %d", appID.AdamID, appID.Platform,
 			globalOrTeamID))
 	}
 
@@ -2142,7 +2157,7 @@ TEAMLOOP:
 			// This should only be possible if there are no other teams
 			// Make sure something array is non-nil
 			if len(tokTeams) != 1 {
-				return nil, ctxerr.Errorf(ctx, "team \"%s\" belongs to All teams, and %d other team(s)", tok.OrgName, len(tokTeams)-1)
+				return nil, ctxerr.Errorf(ctx, "fleet \"%s\" belongs to All fleets, and %d other fleet(s)", tok.OrgName, len(tokTeams)-1)
 			}
 			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP
@@ -2406,11 +2421,14 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	}
 
 	for _, team := range teams {
-		token := tokens[team.VPPTokenID]
+		token, ok := tokens[team.VPPTokenID]
+		if !ok {
+			continue // the token was added between the two reads
+		}
 		if token.Teams != nil && len(token.Teams) == 0 {
 			// Token was already assigned to All Teams, we should not
 			// see it again in a loop
-			return nil, fmt.Errorf("vpp token \"%s\" has been assigned to All teams, and another team", token.OrgName)
+			return nil, fmt.Errorf("vpp token \"%s\" has been assigned to All fleets, and another fleet", token.OrgName)
 		}
 		switch team.NullTeam {
 		case fleet.NullTeamAllTeams:
@@ -2419,7 +2437,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 			if token.Teams != nil {
 				// This team has already been assigned something, this
 				// should not happen
-				return nil, fmt.Errorf("vpp token \"%s\" has been asssigned to All teams, and another team", token.OrgName)
+				return nil, fmt.Errorf("vpp token \"%s\" has been asssigned to All fleets, and another fleet", token.OrgName)
 			}
 			token.Teams = []fleet.TeamTuple{}
 		case fleet.NullTeamNoTeam:
@@ -2531,7 +2549,7 @@ TEAMLOOP:
 			// This should only be possible if there are no other teams
 			// Make sure something array is non-nil
 			if len(tokTeams) != 1 {
-				return nil, ctxerr.Errorf(ctx, "team \"%s\" belongs to All teams, and %d other team(s)", tok.OrgName, len(tokTeams)-1)
+				return nil, ctxerr.Errorf(ctx, "fleet \"%s\" belongs to All fleets, and %d other fleet(s)", tok.OrgName, len(tokTeams)-1)
 			}
 			tok.Teams = []fleet.TeamTuple{}
 			break TEAMLOOP

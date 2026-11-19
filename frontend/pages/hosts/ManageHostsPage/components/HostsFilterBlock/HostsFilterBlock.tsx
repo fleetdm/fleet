@@ -64,7 +64,6 @@ interface IHostsFilterBlockProps {
     policyId?: string | number;
     policy?: IPolicy;
     macSettingsStatus?: MacSettingsStatusQueryParam;
-    softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
     mdmId?: number;
@@ -130,7 +129,6 @@ const HostsFilterBlock = ({
   params: {
     policyId,
     macSettingsStatus,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     mdmId,
@@ -348,13 +346,11 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
-          onClear={() =>
-            handleClearFilter(["macos_settings", "apple_settings"])
-          }
+          onClear={() => handleClearFilter(["apple_settings"])}
         />
       </>
     );
@@ -369,11 +365,7 @@ const HostsFilterBlock = ({
       label += ` ${formatSoftwareVersion({ ...softwareDetails, version })}`;
     }
 
-    const clearParams = [
-      "software_id",
-      "software_version_id",
-      "software_title_id",
-    ];
+    const clearParams = ["software_version_id", "software_title_id"];
 
     if (additionalClearParams?.length) {
       clearParams.push(...additionalClearParams);
@@ -477,7 +469,7 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
@@ -517,9 +509,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="macOS settings: bootstrap package"
-          onClear={() =>
-            handleClearFilter(["macos_bootstrap_package", "bootstrap_package"])
-          }
+          onClear={() => handleClearFilter(["macos_bootstrap_package"])}
         />
       </>
     );
@@ -540,7 +530,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>
@@ -562,7 +552,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeConfigProfileStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={`OS settings: ${configProfile?.name}`}
@@ -588,7 +578,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeScriptBatchStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {scriptBatchScriptName && (
           <FilterPill
@@ -691,7 +681,6 @@ const HostsFilterBlock = ({
     showSelectedLabel ||
     policyId ||
     macSettingsStatus ||
-    softwareId ||
     softwareTitleId ||
     softwareVersionId ||
     softwareStatus ||
@@ -767,7 +756,7 @@ const HostsFilterBlock = ({
           return renderMacSettingsStatusFilterBlock();
         case !!softwareStatus:
           return renderSoftwareInstallStatusBlock();
-        case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+        case !!softwareVersionId || !!softwareTitleId:
           // Software version can be combined with os name and os version
           // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
           // Note: This is our only double filter available in the UI, are there others?

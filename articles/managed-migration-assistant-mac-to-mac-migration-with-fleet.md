@@ -99,12 +99,12 @@ Then target that label when you add the profile, as shown below.
 
 1. Save your declaration as a `.json` file in your repository.
 
-2. Reference it under `controls.macos_settings.custom_settings` in your team YAML, scoped to the label:
+2. Reference it under `controls.apple_settings.configuration_profiles` in your team YAML, scoped to the label:
 
 ```yaml
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./platforms/macos/declaration-profiles/migration-assistant.json
         labels_include_any:
           - macOS 26.4+
@@ -120,7 +120,7 @@ controls:
 
 3. Select the fleet you want to add the profile to.
 
-4. Select **Add profile** and upload your `.json` file.
+4. Select **Add profile**, select **Create manually**, and upload your `.json` file.
 
 5. Under **Target**, select **Include any** and choose the `macOS 26.4+` label.
 

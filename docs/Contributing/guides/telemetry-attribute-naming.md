@@ -43,7 +43,7 @@ When an [OTEL semantic convention](https://opentelemetry.io/docs/specs/semconv/g
 | `host.platform` | string | OS platform (darwin, windows, ubuntu, etc.) |
 | `user.id` | uint | User database primary key |
 | `user.email` | string | User email address |
-| `fleet.id` | uint | Fleet (team) database primary key |
+| `fleet.id` | uint | Fleet database primary key |
 | `report.id` | uint | Report (query) database primary key |
 | `report.name` | string | Report (query) name |
 | `policy.id` | uint | Policy database primary key |

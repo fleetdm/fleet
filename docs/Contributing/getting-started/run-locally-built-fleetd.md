@@ -24,7 +24,6 @@ PKG_TUF_URL=http://localhost:8081 \
 GENERATE_PKG=1 \
 ENROLL_SECRET=<REPLACE WITH REAL SECRET KEY> \
 FLEET_DESKTOP=1 \
-USE_FLEET_SERVER_CERTIFICATE=1 \
 ./tools/tuf/test/main.sh
 ```
 
@@ -54,7 +53,7 @@ chmod +x my_build.sh
 - Push these three things to the local TUF repository
 - Create a local file server to serve the local TUF repository
 - Run fleetctl package but instead of the official TUF, it fetches the target from the local TUF
-- → the end result is the installer located in ```/Your-Repo-Folder/fleet/fleet-osquery.pkg```
+- → the end result is the installer located in ```/Your-Repo-Folder/fleet/fleet-macos.pkg``` (if you're logged in to fleetctl and the enroll secret belongs to a fleet, the fleet name is added, like `fleet-macos-workstations.pkg`)
 
 ### Install it
 Double-click this pkg file and install the local fleetd.

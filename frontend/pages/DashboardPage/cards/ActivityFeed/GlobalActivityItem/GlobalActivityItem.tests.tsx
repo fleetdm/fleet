@@ -109,8 +109,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.LiveQuery,
       details: {
-        query_name: "Test Query",
-        query_sql: "SELECT * FROM users",
+        report_name: "Test Query",
+        query: "SELECT * FROM users",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -122,8 +122,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.LiveQuery,
       details: {
-        query_name: "Test Query",
-        query_sql: "SELECT * FROM users",
+        report_name: "Test Query",
+        query: "SELECT * FROM users",
         targets_count: 10,
         stats: {
           system_time_p50: 0,
@@ -146,8 +146,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.LiveQuery,
       details: {
-        query_name: "Test Query",
-        query_sql: "SELECT * FROM users",
+        report_name: "Test Query",
+        query: "SELECT * FROM users",
         targets_count: 10,
         stats: {
           system_time_p50: 0,
@@ -858,9 +858,9 @@ describe("Activity Feed", () => {
     });
   });
 
-  it("renders a 'viewed_host_recovery_lock_password' type activity", () => {
+  it("renders a 'read_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.ViewedHostRecoveryLockPassword,
+      type: ActivityType.ReadHostRecoveryLockPassword,
       details: { host_display_name: "Anna's MacBook Pro" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -2267,7 +2267,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedMultipleSavedQuery,
       details: {
-        query_ids: [1, 2, 3],
+        report_ids: [1, 2, 3],
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);

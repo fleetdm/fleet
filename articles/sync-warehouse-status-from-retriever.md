@@ -45,7 +45,7 @@ Setting a host's custom host vital value requires the admin or maintainer role. 
 
 > **Note:** A maintainer on a specific fleet can only update hosts in that fleet, and can't update hosts in **Unassigned**. If all your Retriever devices are in known fleets, you can assign **Maintainer** on those fleets instead of the global role.
 
-This guide doesn't use [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), even though it would save a request. When several host records share a serial number, for example after a device is wiped and re-enrolled, it returns only one of them.
+This guide doesn't look up hosts by serial number with [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), even though it would save a request. When several host records share a serial number, for example after a device is wiped and re-enrolled, it returns only one of them.
 
 ## Step 3: Get a Retriever API key
 

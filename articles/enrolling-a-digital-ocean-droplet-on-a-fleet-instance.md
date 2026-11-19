@@ -96,7 +96,7 @@ From the output we know that a .deb file was generated in the root directory of 
 Finally, let’s execute that installer.
 
 ```sh
-sudo apt install ./fleet-osquery_0.0.11_amd64.deb
+sudo apt install ./fleet-linux-amd64.deb
 ```
 
 This will execute the installer which will, in turn, install the osquery agent and connect to your Fleet instance.
