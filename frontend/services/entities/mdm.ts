@@ -101,8 +101,9 @@ interface IUpdateSetupExperienceFormData {
   macos_enable_bootstrap_package_during_manual_enrollment?: boolean;
   macos_enable_bootstrap_package_during_migration?: boolean;
   macos_manual_agent_install?: boolean;
-  enable_managed_local_account?: boolean;
-  end_user_local_account_type?: EndUserLocalAccountType;
+  macos_managed_local_account_enabled?: boolean;
+  macos_end_user_local_account_type?: EndUserLocalAccountType;
+  windows_managed_local_account_enabled?: boolean;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {

@@ -56,6 +56,7 @@ type oneTimeEnrollFixture struct {
 	rejections *[]fleet.ActivityTypeHostEnrollmentRejected
 	enrolled   *int
 	logs       *bytes.Buffer
+	kv         *akvmock.AdvancedKeyValueStore
 }
 
 func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTimeEnrollFixture {
@@ -78,7 +79,8 @@ func newOneTimeEnrollFixtureWithMDM(t *testing.T, setMDM func(*config.MDMConfig)
 	cfg := config.TestConfig()
 	setMDM(&cfg.MDM)
 	var logs bytes.Buffer
-	opts := &TestServerOpts{KeyValueStore: memoryKVStore(), Logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	kv := memoryKVStore()
+	opts := &TestServerOpts{KeyValueStore: kv, Logger: slog.New(slog.NewTextHandler(&logs, nil))}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
 	var rejections []fleet.ActivityTypeHostEnrollmentRejected
@@ -130,7 +132,7 @@ func newOneTimeEnrollFixtureWithMDM(t *testing.T, setMDM func(*config.MDMConfig)
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.SerialUpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 
-	return &oneTimeEnrollFixture{ds: ds, svc: svc, ctx: ctx, row: row, rejections: &rejections, enrolled: &enrolled, logs: &logs}
+	return &oneTimeEnrollFixture{ds: ds, svc: svc, ctx: ctx, row: row, rejections: &rejections, enrolled: &enrolled, logs: &logs, kv: kv}
 }
 
 func (f *oneTimeEnrollFixture) orbitInfo() fleet.OrbitHostInfo {
@@ -635,55 +637,84 @@ func TestEnsureFleetdConfigRemovesPlaceholderProfilesWhenOff(t *testing.T) {
 	})
 }
 
-func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
-	for _, tc := range []struct {
-		name                        string
-		windowsOneTimeEnrollSecrets bool
-		windowsMDMEnabled           bool
-		wantRejectOnWindows         bool
+// TestEnrollRejectSharedSecretForMDMHosts covers when the service asks the datastore to refuse shared secrets for a platform's
+// MDM hosts: only with the platform's setting on and its MDM on, since otherwise a refused host's credential can't be resent.
+func TestEnrollRejectSharedSecretForMDMHosts(t *testing.T) {
+	type rejectFlags struct{ windows, android bool }
+	platforms := []struct {
+		name        string
+		setOneTime  func(*config.MDMConfig, bool)
+		setMDM      func(*fleet.AppConfig, bool)
+		rejectFlags func(on bool) rejectFlags
 	}{
-		{name: "enabled, Windows MDM on", windowsOneTimeEnrollSecrets: true, windowsMDMEnabled: true, wantRejectOnWindows: true},
-		// with Windows MDM off the profile cannot be resent, so a refused host would have no way back
-		{name: "enabled, Windows MDM off", windowsOneTimeEnrollSecrets: true, windowsMDMEnabled: false},
-		{name: "disabled", windowsOneTimeEnrollSecrets: false, windowsMDMEnabled: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newOneTimeEnrollFixtureWithMDM(t, func(mdmConfig *config.MDMConfig) {
-				mdmConfig.WindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
+		{
+			name:        "Windows",
+			setOneTime:  func(c *config.MDMConfig, on bool) { c.WindowsOneTimeEnrollSecrets = on },
+			setMDM:      func(ac *fleet.AppConfig, on bool) { ac.MDM.WindowsEnabledAndConfigured = on },
+			rejectFlags: func(on bool) rejectFlags { return rejectFlags{windows: on} },
+		},
+		{
+			name:        "Android",
+			setOneTime:  func(c *config.MDMConfig, on bool) { c.AndroidOneTimeEnrollSecrets = on },
+			setMDM:      func(ac *fleet.AppConfig, on bool) { ac.MDM.AndroidEnabledAndConfigured = on },
+			rejectFlags: func(on bool) rejectFlags { return rejectFlags{android: on} },
+		},
+	}
+	cases := []struct {
+		name       string
+		oneTime    bool
+		mdmEnabled bool
+		wantReject bool
+	}{
+		{name: "enabled, MDM on", oneTime: true, mdmEnabled: true, wantReject: true},
+		// With the platform's MDM off its credential can't be resent, so a refused host would have no way back.
+		{name: "enabled, MDM off", oneTime: true, mdmEnabled: false},
+		{name: "disabled", oneTime: false, mdmEnabled: true},
+	}
+	for _, platform := range platforms {
+		for _, tc := range cases {
+			t.Run(platform.name+", "+tc.name, func(t *testing.T) {
+				f := newOneTimeEnrollFixtureWithMDM(t, func(mdmConfig *config.MDMConfig) {
+					platform.setOneTime(mdmConfig, tc.oneTime)
+				})
+				f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					ac := &fleet.AppConfig{}
+					ac.MDM.EnabledAndConfigured = true
+					platform.setMDM(ac, tc.mdmEnabled)
+					return ac, nil
+				}
+				var orbitCfg *fleet.DatastoreEnrollOrbitConfig
+				f.ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+					orbitCfg = orbitEnrollConfig(opts)
+					return &fleet.Host{ID: 1, UUID: "other", Platform: "darwin"}, nil
+				}
+				var osqueryCfg *fleet.DatastoreEnrollOsqueryConfig
+				f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+					osqueryCfg = osqueryEnrollConfig(opts)
+					return &fleet.Host{ID: 1, OsqueryHostID: new(osqueryCfg.OsqueryHostID), NodeKey: new(osqueryCfg.NodeKey)}, nil
+				}
+				want := platform.rejectFlags(tc.wantReject)
+
+				_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
+				require.NoError(t, err)
+				require.False(t, orbitCfg.RejectSharedSecretForAppleMDMHosts)
+				require.Equal(t, want.windows, orbitCfg.RejectSharedSecretForWindowsMDMHosts)
+				require.Equal(t, want.android, orbitCfg.RejectSharedSecretForAndroidMDMHosts)
+
+				_, err = f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
+				require.NoError(t, err)
+				require.False(t, osqueryCfg.RejectSharedSecretForAppleMDMHosts)
+				require.Equal(t, want.windows, osqueryCfg.RejectSharedSecretForWindowsMDMHosts)
+				require.Equal(t, want.android, osqueryCfg.RejectSharedSecretForAndroidMDMHosts)
 			})
-			f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				ac := &fleet.AppConfig{}
-				ac.MDM.EnabledAndConfigured = true
-				ac.MDM.WindowsEnabledAndConfigured = tc.windowsMDMEnabled
-				return ac, nil
-			}
-			var orbitCfg *fleet.DatastoreEnrollOrbitConfig
-			f.ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-				orbitCfg = orbitEnrollConfig(opts)
-				return &fleet.Host{ID: 1, UUID: "other", Platform: "darwin"}, nil
-			}
-			var osqueryCfg *fleet.DatastoreEnrollOsqueryConfig
-			f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
-				osqueryCfg = osqueryEnrollConfig(opts)
-				return &fleet.Host{ID: 1, OsqueryHostID: new(osqueryCfg.OsqueryHostID), NodeKey: new(osqueryCfg.NodeKey)}, nil
-			}
-
-			_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
-			require.NoError(t, err)
-			require.Equal(t, tc.wantRejectOnWindows, orbitCfg.RejectSharedSecretForWindowsMDMHosts)
-			require.False(t, orbitCfg.RejectSharedSecretForAppleMDMHosts)
-
-			_, err = f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
-			require.NoError(t, err)
-			require.Equal(t, tc.wantRejectOnWindows, osqueryCfg.RejectSharedSecretForWindowsMDMHosts)
-			require.False(t, osqueryCfg.RejectSharedSecretForAppleMDMHosts)
-		})
+		}
 	}
 }
 
 func TestExpandWindowsHostSecrets(t *testing.T) {
 	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
 	withPlaceholder := `<Data>FLEET_SECRET="` + placeholder + `"</Data>`
+	withCAChallenge := `<Data>` + fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge) + `</Data>`
 	for _, tc := range []struct {
 		name    string
 		doc     string
@@ -697,15 +728,23 @@ func TestExpandWindowsHostSecrets(t *testing.T) {
 		// Nothing minted: the host gets an empty value, which fleetd reads as nothing waiting.
 		{name: "nothing minted resolves to empty", doc: withPlaceholder, want: `<Data>FLEET_SECRET=""</Data>`},
 		{name: "failed lookup is an error, not an empty secret", doc: withPlaceholder, liveErr: errors.New("db down"), wantErr: "db down"},
+		{name: "conditional access challenge is resolved", doc: withCAChallenge, live: "0a1b", want: `<Data>0a1b</Data>`},
+		{name: "conditional access challenge failure is an error", doc: withCAChallenge, liveErr: errors.New("db down"), wantErr: "db down"},
 		// The lookup func is set only when the document needs it; an unset mock func panics if called.
 		{name: "document without host secrets never reaches the datastore", doc: `<Data>plain</Data>`, want: `<Data>plain</Data>`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			if tc.doc == withPlaceholder {
+			switch tc.doc {
+			case withPlaceholder:
 				ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
 					require.EqualValues(t, 7, enrollmentID)
 					require.True(t, ctxdb.IsPrimaryRequired(ctx), "the secret may have been minted moments ago")
+					return tc.live, tc.liveErr
+				}
+			case withCAChallenge:
+				ds.FindOrCreateWindowsConditionalAccessSCEPChallengeFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+					require.EqualValues(t, 7, enrollmentID)
 					return tc.live, tc.liveErr
 				}
 			}

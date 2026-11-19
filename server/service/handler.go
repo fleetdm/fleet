@@ -49,13 +49,12 @@ import (
 
 	"github.com/docker/go-units"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/klauspost/compress/gzhttp"
 	nanomdm_log "github.com/micromdm/nanolib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/realclientip/realclientip-go"
 	"github.com/throttled/throttled/v2"
-	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.ResponseWriter) context.Context {
@@ -75,7 +74,7 @@ type extraHandlerOpts struct {
 	loginRateLimit  *throttled.Rate
 	mdmSsoRateLimit *throttled.Rate
 	ssoRateLimit    *throttled.Rate
-	httpSigVerifier mux.MiddlewareFunc
+	httpSigVerifier func(http.Handler) http.Handler
 	agentWSHub      *agentws.Hub
 	mcpConn         *MCPConn
 	mcpHandler      http.Handler
@@ -107,7 +106,7 @@ func WithSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	}
 }
 
-func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
+func WithHTTPSigVerifier(m func(http.Handler) http.Handler) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.httpSigVerifier = m
 	}
@@ -139,6 +138,12 @@ func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestF
 
 // apiVersions are the versions the Fleet API routes are registered for, in addition to "latest".
 var apiVersions = []string{"v1", "2022-04"}
+
+// FeatureRoutes lists the routes of the bounded contexts that MakeHandler serves next to the core API. cmd/fleet and the route
+// tests both build the list with it, so a context added to one can't be left out of the other.
+func FeatureRoutes(android, activity, notifications, acme, chart endpointer.HandlerRoutesFunc) []endpointer.HandlerRoutesFunc {
+	return []endpointer.HandlerRoutesFunc{android, activity, notifications, acme, chart}
+}
 
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(
@@ -178,48 +183,8 @@ func MakeHandler(
 		),
 	}
 
-	r := mux.NewRouter()
-
-	if config.OTELEnabled() {
-		// otelmux takes the route from r.Pattern when it is set, so this runs first to give it the readable template.
-		r.Use(cleanRoutePattern)
-		r.Use(otmiddleware.Middleware(
-			"service",
-			otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
-				// Use the guideline for span names: {method} {target}
-				// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-				return r.Method + " " + route
-			}),
-		))
-	}
-
-	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
-	var middlewares []mux.MiddlewareFunc
-
-	if config.Server.GzipResponses {
-		middlewares = append(middlewares, func(h http.Handler) http.Handler {
-			return gzhttp.GzipHandler(h)
-		})
-	}
-
-	// Add middleware to extract the client IP and set it in the request context.
-	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
-			if ip != "" {
-				r.RemoteAddr = ip
-			}
-			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
-		})
-	})
-
-	if eopts.httpSigVerifier != nil {
-		middlewares = append(middlewares, eopts.httpSigVerifier)
-	}
-
-	for _, mw := range middlewares {
-		r.Use(mw)
-	}
+	r := endpointer.NewRouter()
+	useRouteMiddleware(r, config, ipStrategy, eopts.httpSigVerifier)
 
 	if eopts.mcpConn == nil {
 		eopts.mcpConn = NewMCPConn()
@@ -233,24 +198,39 @@ func MakeHandler(
 	for _, featureRoute := range featureRoutes {
 		featureRoute(r, fleetAPIOptions)
 	}
-	// Last, so the wildcard of an overlap never shadows a live route in gorilla, which takes the first match.
 	endpointer.RegisterRemovedPaths(r, apiVersions, logger, removedPaths())
 	addMetrics(r)
 
-	return newFastPathHandler(r, middlewares, config)
+	return r, nil
 }
 
-// cleanRoutePattern sets r.Pattern to the matched gorilla route template without its regex syntax, so spans read
-// "GET /api/_version_/fleet/hosts/{id}" instead of "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}".
-func cleanRoutePattern(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if route := mux.CurrentRoute(r); route != nil {
-			if tpl, err := route.GetPathTemplate(); err == nil {
-				r.Pattern = tracing.CleanRouteTemplate(tpl)
+// useRouteMiddleware adds the route-agnostic middleware, outermost first. It is route middleware rather than a wrapper around
+// the router, so a request no route matches (a 404 or 405) never reaches it.
+func useRouteMiddleware(r *endpointer.Router, cfg config.FleetConfig, ipStrategy realclientip.Strategy,
+	httpSigVerifier func(http.Handler) http.Handler,
+) {
+	if cfg.OTELEnabled() {
+		r.Use(func(rt endpointer.Route, next http.Handler) http.Handler {
+			// Spans read "GET /api/_version_/fleet/hosts/{id}" instead of the full template.
+			route := tracing.CleanRouteTemplate(rt.Template())
+			return otel.WrapHandler(otel.WithRouteTag(route, next), route, cfg)
+		})
+	}
+	if cfg.Server.GzipResponses {
+		r.Use(func(_ endpointer.Route, next http.Handler) http.Handler { return gzhttp.GzipHandler(next) })
+	}
+	r.Use(func(_ endpointer.Route, next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ip := ipStrategy.ClientIP(req.Header, req.RemoteAddr)
+			if ip != "" {
+				req.RemoteAddr = ip
 			}
-		}
-		next.ServeHTTP(w, r)
+			next.ServeHTTP(w, req.WithContext(publicip.NewContext(req.Context(), ip)))
+		})
 	})
+	if httpSigVerifier != nil {
+		r.Use(func(_ endpointer.Route, next http.Handler) http.Handler { return httpSigVerifier(next) })
+	}
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -325,12 +305,10 @@ func PrometheusMetricsHandler(name string, handler http.Handler) http.Handler {
 }
 
 // addMetrics decorates each handler with prometheus instrumentation
-func addMetrics(r *mux.Router) {
-	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
-		return nil
-	}
-	r.Walk(walkFn) //nolint:errcheck
+func addMetrics(r *endpointer.Router) {
+	r.WrapHandlers(func(rt endpointer.Route, h http.Handler) http.Handler {
+		return PrometheusMetricsHandler(rt.Name, h)
+	})
 }
 
 // These are defined as const so that they can be used in tests.
@@ -351,7 +329,7 @@ const (
 	DeviceIPBanTime                                     = 1 * time.Minute
 )
 
-func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
+func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config.FleetConfig,
 	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
@@ -413,17 +391,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, fleet.GlobalPolicyRequest{})
-	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies", globalPolicyEndpoint, fleet.GlobalPolicyRequest{})
 	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, fleet.ListGlobalPoliciesRequest{})
-	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies", listGlobalPoliciesEndpoint, fleet.ListGlobalPoliciesRequest{})
-	ue.GET("/api/_version_/fleet/policies/count", countGlobalPoliciesEndpoint, fleet.CountGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
-	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
-	ue.GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
-	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
-	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
+	// Policies in any scope; fleet_id picks "All fleets" (none), "Unassigned" (0), or a fleet.
+	ue.POST("/api/_version_/fleet/policies", createPolicyEndpoint, fleet.CreatePolicyRequest{})
+	ue.GET("/api/_version_/fleet/policies", listPoliciesEndpoint, fleet.ListPoliciesRequest{})
+	ue.GET("/api/_version_/fleet/policies/count", countPoliciesEndpoint, fleet.CountPoliciesRequest{})
+	ue.GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
+	ue.GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
+	ue.POST("/api/_version_/fleet/policies/delete", deletePoliciesEndpoint, fleet.DeletePoliciesRequest{})
+	ue.PATCH("/api/_version_/fleet/policies/{policy_id}", modifyPolicyEndpoint, fleet.ModifyPolicyRequest{})
 	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
@@ -539,7 +518,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/google_device_id", putHostGoogleDeviceIDEndpoint, putHostGoogleDeviceIDRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/google_device_id", deleteHostGoogleDeviceIDEndpoint, deleteHostGoogleDeviceIDRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
-	// {id} also accepts other host identifiers, so it has to stay after the literal GET /hosts/<word> routes: gorilla takes the first match.
 	ue.GET("/api/_version_/fleet/hosts/{id}", getHostEndpoint, getHostRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
@@ -551,6 +529,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates/{template_id:[0-9]+}/resend", resendHostCertificateTemplateEndpoint, resendHostCertificateTemplateRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ai_sessions", listHostAISessionsEndpoint, listHostAISessionsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ai_sessions/{ai_session_id:[0-9]+}", getHostAISessionEndpoint, getHostAISessionRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ai_sessions/{ai_session_id:[0-9]+}/events", listHostAISessionEventsEndpoint, listHostAISessionEventsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password", getHostRecoveryLockPasswordEndpoint, getHostRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_url", getHostDeviceURLEndpoint, getHostDeviceURLRequest{})
 
@@ -581,20 +562,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
 	ue.POST("/api/_version_/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-
-	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
-	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
-	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
-	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
-	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
-	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
-	ue.EndingAtVersion("v1").DELETE("/api/_version_/fleet/global/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
-	ue.StartingAtVersion("2022-04").DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
-
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
-	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	ue.PATCH("/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	ue.DELETE("/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
 	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, fleet.ListCarvesRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, fleet.GetCarveRequest{})
@@ -664,6 +631,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateEndpoint, conditionalAccessMicrosoftCreateRequest{})
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmEndpoint, conditionalAccessMicrosoftConfirmRequest{})
 	ue.DELETE("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftDeleteEndpoint, conditionalAccessMicrosoftDeleteRequest{})
+	ue.POST("/api/_version_/fleet/conditional_access/google", connectGoogleConditionalAccessEndpoint, connectGoogleConditionalAccessRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/google", getGoogleConditionalAccessEndpoint, nil)
+	ue.PATCH("/api/_version_/fleet/conditional_access/google", updateGoogleConditionalAccessEndpoint, updateGoogleConditionalAccessRequest{})
+	ue.DELETE("/api/_version_/fleet/conditional_access/google", deleteGoogleConditionalAccessEndpoint, nil)
 
 	// Okta Conditional Access
 	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
@@ -687,15 +658,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/automatic/default", getDefaultMDMAppleSetupAssistantProfileEndpoint, nil)
 	mdmAppleMW.POST("/api/_version_/fleet/enrollment_profiles/automatic/rotate_token", rotateMDMAppleAutomaticEnrollmentTokenEndpoint, rotateMDMAppleAutomaticEnrollmentTokenRequest{})
 	mdmAppleMW.DELETE("/api/_version_/fleet/enrollment_profiles/automatic", deleteMDMAppleSetupAssistantEndpoint, deleteMDMAppleSetupAssistantRequest{})
-
-	// TODO: are those undocumented endpoints still needed? I think they were only used
-	// by 'fleetctl apple-mdm' sub-commands.
-	// Generous limit for these unknown old unused endpoints-
-	mdmAppleMW.WithRequestBodySizeLimit(512*units.MiB).POST("/api/_version_/fleet/mdm/apple/installers", uploadAppleInstallerEndpoint, uploadAppleInstallerRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", getAppleInstallerEndpoint, getAppleInstallerDetailsRequest{})
-	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", deleteAppleInstallerEndpoint, deleteAppleInstallerDetailsRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/installers", listMDMAppleInstallersEndpoint, listMDMAppleInstallersRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 
 	// Deprecated: GET /enrollment_profiles/manual is deprecated and will be removed in a future major release.
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/manual", getManualEnrollmentProfileEndpoint, getManualEnrollmentProfileRequest{})
@@ -853,6 +815,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/disk_encryption_pin", submitDiskEncryptionPINEndpoint, submitDiskEncryptionPINRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/conditional_access/google", getDeviceGoogleConditionalAccessEndpoint, getDeviceGoogleConditionalAccessRequest{})
 
 	// Endpoints exempt from the Fleet Desktop SSO gate.
 	deNoSSO := newDeviceSSOExemptEndpointer(svc, logger, opts, r, apiVersions...)
@@ -1018,8 +981,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 	neAppleMDM.POST(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 
-	neAppleMDM.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
-	neAppleMDM.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
 	neAppleMDM.POST("/api/_version_/fleet/ota_enrollment", mdmAppleOTAEndpoint, mdmAppleOTARequest{})
 
 	// Deprecated: GET /mdm/bootstrap is replaced by GET /bootstrap. Fleet no longer sends hosts this URL, but it stays for hosts that
@@ -1159,6 +1120,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
 
 	ne.HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, fleet.OrbitPingRequest{})
+
+	// Called by fleetdm.com with this server's secret after an end user signs in to Google.
+	ne.WithCustomMiddleware(limiter.Limit("google_conditional_access_register",
+		throttled.RateQuota{MaxRate: throttled.PerMin(600), MaxBurst: 100})).
+		POST("/api/_version_/fleet/google_conditional_access/register", registerGoogleConditionalAccessDeviceEndpoint, registerGoogleConditionalAccessDeviceRequest{})
 
 	// This is a callback endpoint for calendar integration -- it is called to notify an event change in a user calendar
 	ne.POST("/api/_version_/fleet/calendar/webhook/{event_uuid}", calendarWebhookEndpoint, calendarWebhookRequest{})
@@ -1660,7 +1626,7 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 				return
 			}
 			// Runs the forced password reset and API-only checks that follow decode, in the same order.
-			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(auth.RouteTemplateRequestFunc(ctx, r), r), *v)
+			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(ctx, r), *v)
 			noop := func(context.Context, any) (any, error) { return nil, nil }
 			if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
 				reject(err)

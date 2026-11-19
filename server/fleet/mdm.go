@@ -124,9 +124,12 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// FleetVarConditionalAccessSCEPURL points a Windows SCEP profile at Fleet's conditional access SCEP server and marks
-	// its certificate as Fleet-tracked. The challenge is a global enroll secret the admin writes into the profile.
+	// FleetVarConditionalAccessSCEPURL points a SCEP profile at Fleet's conditional access SCEP server. On Windows it
+	// also marks the certificate as Fleet-tracked.
 	FleetVarConditionalAccessSCEPURL FleetVarName = "CONDITIONAL_ACCESS_SCEP_URL"
+	// FleetVarConditionalAccessSCEPChallenge is filled in with a one-time challenge for the host when the profile is
+	// sent. Profiles written before it existed carry a global enroll secret instead.
+	FleetVarConditionalAccessSCEPChallenge FleetVarName = "CONDITIONAL_ACCESS_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
@@ -143,7 +146,7 @@ func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
 			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
-			v == string(FleetVarConditionalAccessSCEPURL) ||
+			v == string(FleetVarConditionalAccessSCEPURL) || v == string(FleetVarConditionalAccessSCEPChallenge) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarEJBCADataPrefix)) || strings.HasPrefix(v, string(FleetVarEJBCAPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
@@ -178,6 +181,8 @@ var (
 	FleetVarSCEPWindowsCertificateIDRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 	FleetVarConditionalAccessSCEPURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPURL))
+	// nolint:gosec // G101: variable name, not a credential
+	FleetVarConditionalAccessSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPChallenge))
 
 	IDPFleetVariables = []FleetVarName{
 		FleetVarHostEndUserIDPUsername,
@@ -1087,134 +1092,6 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 	return &clone
 }
 
-func labelCountMap(labels []string) map[string]int {
-	counts := make(map[string]int)
-	for _, label := range labels {
-		counts[label]++
-	}
-	return counts
-}
-
-// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
-// regardless of order.
-//
-// Precondition: each slice must contain at most one entry per Path.
-func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
-	mustNotHaveDuplicatePaths("a", a)
-	mustNotHaveDuplicatePaths("b", b)
-	if len(a) != len(b) {
-		return false
-	}
-
-	type profileMetadata struct {
-		Name        string
-		Description string
-		Hidden      bool
-		SelfService bool
-	}
-	metadata := func(v MDMProfileSpec) profileMetadata {
-		return profileMetadata{
-			Name:        strings.TrimSpace(v.Name),
-			Description: strings.TrimSpace(v.Description),
-			Hidden:      v.Hidden,
-			SelfService: v.SelfService,
-		}
-	}
-
-	pathMetadata := make(map[string]profileMetadata, len(a))
-	pathLabelIncludeCounts := make(map[string]map[string]int)
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
-		// the deprecated Labels field is only relevant if LabelsIncludeAll is
-		// empty.
-		if len(v.LabelsIncludeAll) > 0 {
-			pathLabelIncludeCounts[v.Path] = labelCountMap(v.LabelsIncludeAll)
-		} else {
-			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
-		}
-		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
-
-		pathMetadata[v.Path] = metadata(v)
-	}
-
-	for _, v := range b {
-		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
-		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
-		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
-		if !okIncl || !okExcl || !okInclAny {
-			return false
-		}
-		if pathMetadata[v.Path] != metadata(v) {
-			return false
-		}
-
-		var bLabelIncludeCounts map[string]int
-		if len(v.LabelsIncludeAll) > 0 {
-			bLabelIncludeCounts = labelCountMap(v.LabelsIncludeAll)
-		} else {
-			bLabelIncludeCounts = labelCountMap(v.Labels)
-		}
-		for label, count := range bLabelIncludeCounts {
-			if includeLabels[label] != count {
-				return false
-			}
-			includeLabels[label] -= count
-		}
-		for _, count := range includeLabels {
-			if count != 0 {
-				return false
-			}
-		}
-
-		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
-		for label, count := range bLabelIncludeAnyCounts {
-			if includeAnyLabels[label] != count {
-				return false
-			}
-			includeAnyLabels[label] -= count
-		}
-		for _, count := range includeAnyLabels {
-			if count != 0 {
-				return false
-			}
-		}
-
-		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
-		for label, count := range bLabelExcludeCounts {
-			if excludeLabels[label] != count {
-				return false
-			}
-			excludeLabels[label] -= count
-		}
-		for _, count := range excludeLabels {
-			if count != 0 {
-				return false
-			}
-		}
-
-		delete(pathLabelIncludeCounts, v.Path)
-		delete(pathLabelsIncludeAnyCounts, v.Path)
-		delete(pathLabelExcludeCounts, v.Path)
-	}
-
-	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
-}
-
-func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
-	if len(specs) < 2 {
-		return
-	}
-	seen := make(map[string]struct{}, len(specs))
-	for _, s := range specs {
-		if _, dup := seen[s.Path]; dup {
-			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
-		}
-		seen[s.Path] = struct{}{}
-	}
-}
-
 type MDMLabelsMode string
 
 const (
@@ -1300,6 +1177,9 @@ const (
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
 	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
+	// MDMAssetGoogleConditionalAccessServiceAccountKey is the customer's Google
+	// service account key JSON, delegated for the cloud-identity.devices scope.
+	MDMAssetGoogleConditionalAccessServiceAccountKey MDMAssetName = "google_conditional_access_service_account_key" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -1541,17 +1421,6 @@ const (
 	// VPP token is available only for "No team" team.
 	NullTeamNoTeam NullTeamType = "noteam"
 )
-
-func (n NullTeamType) PrettyName() string {
-	switch n {
-	case NullTeamAllTeams:
-		return ReservedNameAllTeams
-	case NullTeamNoTeam:
-		return ReservedNameNoTeam
-	default:
-		return string(n)
-	}
-}
 
 type AppleDevice int
 

@@ -5,7 +5,7 @@ package fleet
 /////////////////////////////////////////////////////////////////////////////////
 
 type GlobalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id" renameto:"report_id"`
+	_                struct{} `json:"-" removedkey:"query_id"`
 	Query            string   `json:"query"`
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
@@ -17,6 +17,8 @@ type GlobalPolicyRequest struct {
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
+	// AutomationType can only be "webhook_or_ticket" for "All fleets" policies.
+	AutomationType *PolicyAutomation `json:"automation_type"`
 }
 
 type GlobalPolicyResponse struct {
@@ -105,6 +107,22 @@ type ModifyGlobalPolicyResponse struct {
 func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Policy - Modify (any scope)
+/////////////////////////////////////////////////////////////////////////////////
+
+type ModifyPolicyRequest struct {
+	PolicyID uint `url:"policy_id"`
+	ModifyPolicyPayload
+}
+
+type ModifyPolicyResponse struct {
+	Policy *Policy `json:"policy,omitempty"`
+	Err    error   `json:"error,omitempty"`
+}
+
+func (r ModifyPolicyResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
 // Reset policy
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -169,35 +187,36 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type TeamPolicyRequest struct {
-	TeamID                uint   `url:"fleet_id"`
-	QueryID               *uint  `json:"query_id" renameto:"report_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
+	TeamID                uint     `url:"fleet_id"`
+	_                     struct{} `json:"-" removedkey:"query_id"`
+	Query                 string   `json:"query"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Resolution            string   `json:"resolution"`
+	Platform              string   `json:"platform"`
+	Critical              bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint    `json:"software_title_id"`
 	// SoftwareInstallerID optionally selects which package of the title to install on failure.
 	// When omitted, the policy defaults to the title's first-added package. The wire
 	// key is `software_package_id`; the endpointer's renameto layer accepts the
 	// legacy `software_installer_id` alias and logs a deprecation warning.
-	SoftwareInstallerID          *uint    `json:"software_installer_id" renameto:"software_package_id"`
-	ScriptID                     *uint    `json:"script_id"`
-	ProfileUUID                  *string  `json:"profile_uuid" premium:"true"`
-	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
-	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
-	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
-	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
-	Hidden                       bool     `json:"hidden" premium:"true"`
-	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
-	Type                         *string  `json:"type"`
-	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
-	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
-	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
-	PatchDeadline                bool     `json:"patch_deadline" premium:"true"`
+	SoftwareInstallerID          *uint             `json:"software_installer_id" renameto:"software_package_id"`
+	ScriptID                     *uint             `json:"script_id"`
+	ProfileUUID                  *string           `json:"profile_uuid" premium:"true"`
+	LabelsIncludeAny             []string          `json:"labels_include_any" premium:"true"`
+	LabelsIncludeAll             []string          `json:"labels_include_all" premium:"true"`
+	LabelsExcludeAny             []string          `json:"labels_exclude_any" premium:"true"`
+	LabelsExcludeAll             []string          `json:"labels_exclude_all" premium:"true"`
+	ConditionalAccessEnabled     bool              `json:"conditional_access_enabled"`
+	Hidden                       bool              `json:"hidden" premium:"true"`
+	ContinuousAutomationsEnabled bool              `json:"continuous_automations_enabled" premium:"true"`
+	Type                         *string           `json:"type"`
+	PatchSoftwareTitleID         *uint             `json:"patch_software_title_id"`
+	PatchWhenClosed              bool              `json:"patch_when_closed" premium:"true"`
+	NotifyBeforePatching         bool              `json:"notify_before_patching" premium:"true"`
+	PatchDeadline                bool              `json:"patch_deadline" premium:"true"`
+	AutomationType               *PolicyAutomation `json:"automation_type"`
 }
 
 type TeamPolicyResponse struct {
@@ -345,3 +364,85 @@ type ListPolicyAutomationActivitiesResponse struct {
 }
 
 func (r ListPolicyAutomationActivitiesResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Policies in any scope
+/////////////////////////////////////////////////////////////////////////////////
+
+// ListPoliciesRequest lists the policies of a scope: no fleet_id is "All fleets", 0 is "Unassigned".
+type ListPoliciesRequest struct {
+	Opts           ListOptions      `url:"list_options"`
+	TeamID         *uint            `query:"fleet_id,optional"`
+	MergeInherited bool             `query:"merge_inherited,optional"`
+	AutomationType PolicyAutomation `query:"automation_type,optional"`
+	Type           string           `query:"type,optional"`
+	Platform       string           `query:"platform,optional"`
+}
+
+type ListPoliciesResponse struct {
+	Policies []*Policy `json:"policies"`
+	Err      error     `json:"error,omitempty"`
+}
+
+func (r ListPoliciesResponse) Error() error { return r.Err }
+
+type CountPoliciesRequest struct {
+	ListOptions    ListOptions      `url:"list_options"`
+	TeamID         *uint            `query:"fleet_id,optional"`
+	MergeInherited bool             `query:"merge_inherited,optional"`
+	AutomationType PolicyAutomation `query:"automation_type,optional"`
+	Type           string           `query:"type,optional"`
+	Platform       string           `query:"platform,optional"`
+}
+
+type CountPoliciesResponse struct {
+	Count int   `json:"count"`
+	Err   error `json:"error,omitempty"`
+}
+
+func (r CountPoliciesResponse) Error() error { return r.Err }
+
+// CreatePolicyRequest creates a policy in any scope: no fleet_id is "All fleets", 0 is "Unassigned".
+type CreatePolicyRequest struct {
+	TeamID                *uint    `json:"fleet_id"`
+	_                     struct{} `json:"-" removedkey:"query_id"`
+	Query                 string   `json:"query"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Resolution            string   `json:"resolution"`
+	Platform              string   `json:"platform"`
+	Critical              bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint    `json:"software_title_id"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted, the policy defaults to the title's first-added package. The wire
+	// key is `software_package_id`; the endpointer's renameto layer accepts the
+	// legacy `software_installer_id` alias and logs a deprecation warning.
+	SoftwareInstallerID          *uint             `json:"software_installer_id" renameto:"software_package_id"`
+	ScriptID                     *uint             `json:"script_id"`
+	ProfileUUID                  *string           `json:"profile_uuid" premium:"true"`
+	LabelsIncludeAny             []string          `json:"labels_include_any" premium:"true"`
+	LabelsIncludeAll             []string          `json:"labels_include_all" premium:"true"`
+	LabelsExcludeAny             []string          `json:"labels_exclude_any" premium:"true"`
+	LabelsExcludeAll             []string          `json:"labels_exclude_all" premium:"true"`
+	ConditionalAccessEnabled     bool              `json:"conditional_access_enabled"`
+	Hidden                       bool              `json:"hidden" premium:"true"`
+	ContinuousAutomationsEnabled bool              `json:"continuous_automations_enabled" premium:"true"`
+	Type                         *string           `json:"type"`
+	PatchSoftwareTitleID         *uint             `json:"patch_software_title_id"`
+	PatchWhenClosed              bool              `json:"patch_when_closed" premium:"true"`
+	NotifyBeforePatching         bool              `json:"notify_before_patching" premium:"true"`
+	PatchDeadline                bool              `json:"patch_deadline" premium:"true"`
+	AutomationType               *PolicyAutomation `json:"automation_type"`
+}
+
+type DeletePoliciesRequest struct {
+	IDs []uint `json:"ids"`
+}
+
+type DeletePoliciesResponse struct {
+	Deleted []uint `json:"deleted,omitempty"`
+	Err     error  `json:"error,omitempty"`
+}
+
+func (r DeletePoliciesResponse) Error() error { return r.Err }

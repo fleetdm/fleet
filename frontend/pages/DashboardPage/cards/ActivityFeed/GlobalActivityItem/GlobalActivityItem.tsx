@@ -192,7 +192,7 @@ const makeVersionSuffix = (
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
-    const { targets_count: count, query_name: queryName, stats } =
+    const { targets_count: count, report_name: queryName, stats } =
       activity.details || {};
 
     const impactDescription = stats
@@ -700,11 +700,20 @@ const TAGGED_TEMPLATES = {
     );
   },
   setHostGoogleDeviceId: (activity: IActivity) => {
+    const googleEmail = activity.details?.google_email;
     return (
       <>
         {" "}
         marked <b>{activity.details?.host_display_name}</b> as company-owned in
-        Google.
+        Google
+        {googleEmail ? (
+          <>
+            {" "}
+            when <b>{googleEmail}</b> signed in.
+          </>
+        ) : (
+          "."
+        )}
       </>
     );
   },
@@ -1066,9 +1075,7 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type)
-      .replace(" saved", "")
-      .replace("team", "fleet");
+    const activityType = lowerCase(activity.type).replace(" saved", "");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
@@ -1971,6 +1978,15 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
+  addedConditionalAccessGoogle: () => (
+    <> configured Google conditional access.</>
+  ),
+  editedConditionalAccessGoogle: () => (
+    <> edited Google conditional access configuration.</>
+  ),
+  deletedConditionalAccessGoogle: () => (
+    <> deleted Google conditional access configuration.</>
+  ),
   addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
@@ -2135,7 +2151,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a report <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2157,7 +2173,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the report <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2179,7 +2195,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the report <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -3138,6 +3154,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.addedConditionalAccessGoogle();
+    }
+    case ActivityType.EditedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.editedConditionalAccessGoogle();
+    }
+    case ActivityType.DeletedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessGoogle();
     }
     case ActivityType.AddedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.addedConditionalAccessOkta();

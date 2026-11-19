@@ -11,8 +11,8 @@ export const renderAppleManualEnrollmentDisabled = (
       <p>
         {isGlobalAdmin ? (
           <>
-            To allow manual enrollment, turn off the &ldquo;Only allow Apple
-            Business enrollment&rdquo; setting in{" "}
+            To allow manual enrollment, turn off the{" "}
+            <b>Allow only Apple Business enrollments</b> setting in{" "}
             <b>Organization settings &gt; Advanced options</b>.
           </>
         ) : (

@@ -574,7 +574,7 @@ func (s *Store) LabelScopes(ctx context.Context, load func(ctx context.Context) 
 	// Bounded state-write log: at most once per gateStateTTL/reset per
 	// container (only the elected loader reaches this line).
 	s.logger.InfoContext(ctx, "config etag gate state written",
-		"kind", "label_scopes", "global", scopes.Global, "team_count", len(scopes.TeamIDs))
+		"kind", "label_scopes", "global", scopes.Global, "fleet_count", len(scopes.TeamIDs))
 	return scopes, nil
 }
 

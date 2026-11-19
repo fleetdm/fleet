@@ -3,12 +3,12 @@ queries:
 agent_options:
   path: ./lib/agent-options.yml
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/macos-password-secret.mobileconfig
   windows_mdm_enabled: true
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/windows-screenlock-secret.xml
   scripts:
     - path: ./lib/fleet-secret.sh

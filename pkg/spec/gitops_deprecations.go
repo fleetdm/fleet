@@ -12,7 +12,6 @@ import (
 // DeprecatedKeyMapping defines a mapping from an old YAML key path to a new one.
 // Paths use dot notation for nested keys, with [] to indicate "all array elements".
 // Examples:
-//   - "controls.macos_settings" -> "controls.apple_settings"
 //   - "queries" -> "reports"
 //   - "org_settings.mdm.apple_business_manager" -> "org_settings.mdm.apple_business"
 type DeprecatedKeyMapping struct {
@@ -31,24 +30,6 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Top-level gitops keys
 	{"queries", "reports"},
 
-	// Controls: macos_settings -> apple_settings (parent first, then children)
-	{"controls.macos_settings", "controls.apple_settings"},
-	{"controls.apple_settings.custom_settings", "controls.apple_settings.configuration_profiles"},
-
-	// Controls: windows_settings children
-	{"controls.windows_settings.custom_settings", "controls.windows_settings.configuration_profiles"},
-
-	// Controls: android_settings children
-	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
-
-	// Controls: macos_setup -> setup_experience (parent first, then children)
-	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
-
-	// Org settings: server_settings
-	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
-	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
-	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
-
 	// The following entries are renameto tags on struct fields that appear in serialized
 	// API output (fleetctl get and fleetctl apply) but are not gitops input keys. They are
 	// included here so that buildAliasRules can derive them. The paths are leaf-only (no dots)
@@ -56,18 +37,13 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"available_teams", "available_fleets"},
 	{"default_team", "default_fleet"},
 	{"host_team_id", "host_fleet_id"},
-	{"inherited_query_count", "inherited_report_count"},
 	{"ios_team_id", "ios_fleet_id"},
 	{"ipados_team_id", "ipados_fleet_id"},
-	{"live_query_results", "live_report_results"},
 	{"macos_team_id", "macos_fleet_id"},
 	{"query_count", "report_count"},
 	{"query_id", "report_id"},
 	{"query_ids", "report_ids"},
 	{"query_name", "report_name"},
-	{"query_stats", "report_stats"},
-	{"scheduled_query_id", "scheduled_report_id"},
-	{"scheduled_query_name", "scheduled_report_name"},
 	{"team", "fleet"},
 	{"team_id", "fleet_id"},
 	{"team_ids_by_name", "fleet_ids_by_name"},
@@ -81,14 +57,10 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 // that happens to use it.
 //
 // Keep in sync with the `renamescope` struct tags, which do the same job for the API request/response layer.
-var DeprecatedGitOpsKeyScopes = map[string][]string{
-	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
-	// windows_settings.
-	"enable_managed_local_account": {"setup_experience"},
-}
+var DeprecatedGitOpsKeyScopes = map[string][]string{}
 
-// RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated
-// (RejectRemovedKeys), and buildAliasRules also reads them, because the structs that fleetctl serializes still carry the old names.
+// RemovedGitOpsKeys are the keys that Fleet 5 removed from GitOps files. They are rejected, not migrated (RejectRemovedKeys), and
+// buildAliasRules also reads the ones with a replacement, because the structs that fleetctl serializes still carry the old names.
 // Every path has an entry in pkg/removednames, which supplies the error message.
 var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 	{"team_settings", "settings"},
@@ -97,6 +69,8 @@ var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
 	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
 	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
+	{"org_settings.webhook_settings.failing_policies_webhook.policy_ids", ""},
+	{"settings.webhook_settings.failing_policies_webhook.policy_ids", ""},
 }
 
 // removedKeyParents are the old spellings of a parent key in RemovedGitOpsKeys that ApplyDeprecatedKeyMappings renames, so a removed key

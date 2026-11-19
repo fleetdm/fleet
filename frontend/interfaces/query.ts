@@ -2,7 +2,7 @@ import { IFormField } from "./form_field";
 import { ISchedulableQuery, ISchedulableQueryStats } from "./schedulable_query";
 
 export interface IStoredQueryResponse {
-  query: ISchedulableQuery;
+  report: ISchedulableQuery;
 }
 
 export interface IQuery {

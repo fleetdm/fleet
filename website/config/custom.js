@@ -144,6 +144,12 @@ module.exports.custom = {
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': 'allenhouchins',
 
+    // 🤖 fleet-gitops and fleet-maintained-apps agent skills
+    '.claude/skills/fleet-gitops': 'allenhouchins',
+    '.claude/skills/fleet-maintained-apps': 'allenhouchins',
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins', //« The one fleet-gitops skill copy (.claude/skills/fleet-gitops points here)
+    'cmd/fleetctl/fleetctl/templates/new/.claude/skills/fleet-gitops': 'allenhouchins',
+
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
     'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
@@ -224,6 +230,8 @@ module.exports.custom = {
   ***************************************************************************/
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
     '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+    '.github/workflows/market-research-check.yml': 'lukeheath',// « rebuilds and checks the market research explorer, DMs the build on Slack
+    '.github/workflows/market-research-revenue.yml': 'lukeheath',// « weekly Fleet revenue pull from Salesforce for the market research
   },
 
 
@@ -550,6 +558,10 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
 
+  // Google conditional access proxy
+  // googleConditionalAccessOauthClientId: '…',
+  // googleConditionalAccessOauthClientSecret: '…',
+  // googleConditionalAccessPartnerId: '…',
 
   // Android proxy
   // androidEnterpriseProjectId: '…',

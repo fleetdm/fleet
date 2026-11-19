@@ -1,7 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"mime/multipart"
 	"net/http"
 	"testing"
 
@@ -16,7 +19,8 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	t := s.T()
 	reportsBefore := len(s.listReports())
 
-	reject := func(method, path, body, key string, query ...string) {
+	// rejectNamed expects the error to name the field param, which differs from key only when key is a removed value.
+	rejectNamed := func(method, path, body, param, key string, query ...string) {
 		t.Run(method+" "+path+" "+key, func(t *testing.T) {
 			resp := s.DoRaw(method, "/api/latest/fleet"+path, []byte(body), http.StatusUnprocessableEntity, query...)
 			var got struct {
@@ -26,9 +30,12 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
 			require.Equal(t, "Validation Failed", got.Message)
 			require.Equal(t, []map[string]string{{
-				"name": key, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+				"name": param, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
 			}}, got.Errors)
 		})
+	}
+	reject := func(method, path, body, key string, query ...string) {
+		rejectNamed(method, path, body, key, key, query...)
 	}
 
 	// Request body keys: fleet roles, selected fleets and the fleet of a created or targeted entity.
@@ -54,8 +61,71 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"POST", "/software/app_store_apps", `{"app_store_id": "a", "team_id": 1}`, "team_id"},
 		{"PATCH", "/software/titles/1/app_store_app", `{"team_id": 1}`, "team_id"},
 		{"PATCH", "/fleets/1/secrets", `{"secrets": [{"secret": "a", "team_id": 1}]}`, "team_id"},
+		{"POST", "/software/fleet_maintained_apps", `{"fleet_maintained_app_id": 1, "team_id": 1}`, "team_id"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
+	}
+
+	// Keys inside the free-form host filters and the AB and VPP token arrays of the config, with force too, which skips strict
+	// decoding.
+	for _, tc := range [][]string{
+		{"POST", "/hosts/transfer/filter", `{"fleet_id": null, "filters": {"team_id": 1}}`, "team_id"},
+		{"POST", "/hosts/delete", `{"filters": {"team_id": 1}}`, "team_id"},
+		{"PATCH", "/config", `{"mdm": {"apple_business": [{"organization_name": "a", "macos_team": "a"}]}}`, "macos_team"},
+		{"PATCH", "/config?force=true", `{"mdm": {"apple_business": [{"organization_name": "a", "byod_team": "a"}]}}`, "byod_team"},
+		{"PATCH", "/config?force=true", `{"mdm": {"volume_purchasing_program": [{"location": "a", "teams": ["a"]}]}}`, "teams"},
+	} {
+		reject(tc[0], tc[1], tc[2], tc[3])
+	}
+	// The old names of Unassigned and All fleets, used as fleet names, in any letter case.
+	for _, tc := range [][]string{
+		{"PATCH", "/config", `{"mdm": {"apple_business": [{"organization_name": "a", "macos_fleet": "No team"}]}}`, "mdm.apple_business", "No team", "Unassigned"},
+		{"PATCH", "/config", `{"mdm": {"volume_purchasing_program": [{"location": "a", "fleets": ["All teams"]}]}}`, "mdm.volume_purchasing_program", "All teams", "All fleets"},
+		{"POST", "/spec/policies", `{"specs": [{"name": "a", "query": "SELECT 1", "fleet": "no team"}]}`, "specs.fleet", "No team", "Unassigned"},
+	} {
+		t.Run(tc[0]+" "+tc[1]+" "+tc[4], func(t *testing.T) {
+			resp := s.DoRaw(tc[0], "/api/latest/fleet"+tc[1], []byte(tc[2]), http.StatusUnprocessableEntity)
+			var got struct {
+				Errors []map[string]string `json:"errors"`
+			}
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			require.Equal(t, []map[string]string{{"name": tc[3], "reason": removednames.Message(`"`+tc[4]+`"`, `"`+tc[5]+`"`)}}, got.Errors)
+		})
+	}
+	// Policies never took "All fleets" as a fleet name, so "All teams" stays an unknown fleet.
+	s.DoRaw("POST", "/api/latest/fleet/spec/policies", []byte(`{"specs": [{"name": "a", "query": "SELECT 1", "fleet": "All teams"}]}`),
+		http.StatusNotFound)
+	// Filters never took other old names, so those stay unknown keys.
+	s.DoRaw("POST", "/api/latest/fleet/hosts/delete", []byte(`{"filters": {"teams": 1}}`), http.StatusBadRequest)
+
+	// Multipart uploads: the old field is rejected whether or not fleet_id is also sent, and in the query string too.
+	for _, path := range []string{"/software/package", "/scripts", "/configuration_profiles", "/setup_experience/script", "/bootstrap"} {
+		for _, tc := range []struct {
+			query  string
+			fields map[string]string
+		}{
+			{fields: map[string]string{"team_id": "0"}},
+			{fields: map[string]string{"fleet_id": "0", "team_id": "0"}},
+			{query: "?team_id=0", fields: map[string]string{"fleet_id": "0"}},
+		} {
+			t.Run("POST "+path+tc.query+" form field team_id", func(t *testing.T) {
+				var body bytes.Buffer
+				w := multipart.NewWriter(&body)
+				for name, value := range tc.fields {
+					require.NoError(t, w.WriteField(name, value))
+				}
+				require.NoError(t, w.Close())
+				resp := s.DoRawWithHeaders("POST", "/api/latest/fleet"+path+tc.query, body.Bytes(), http.StatusUnprocessableEntity,
+					map[string]string{"Content-Type": w.FormDataContentType(), "Authorization": "Bearer " + s.token})
+				var got struct {
+					Errors []map[string]string `json:"errors"`
+				}
+				require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+				require.Equal(t, []map[string]string{{
+					"name": "team_id", "reason": `The "team_id" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+				}}, got.Errors)
+			})
+		}
 	}
 
 	// Query parameters are rejected before the body is read, so these requests carry none. The new name next to the old one does not win.
@@ -68,15 +138,42 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"GET", "/hosts"}, {"GET", "/hosts/count"}, {"GET", "/hosts/report"}, {"GET", "/users"},
 		{"GET", "/vulnerabilities"}, {"GET", "/vulnerabilities/CVE-2021-1234"},
 		{"GET", "/software/fleet_maintained_apps"}, {"GET", "/software/fleet_maintained_apps/1"}, {"GET", "/software/app_store_apps"},
-		{"GET", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
+		{"GET", "/software/titles/1/icon"}, {"PUT", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
 	} {
 		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
 	}
 	reject("POST", "/scripts/batch", "", "team_name", "team_name", "a")
 	reject("POST", "/software/app_store_apps/batch", "", "team_name", "team_name", "a")
 
+	// Removed sort keys are values of order_key, so the error names that parameter.
+	for _, tc := range [][]string{
+		{"/hosts", "team_name"}, {"/hosts", "team_id"}, {"/labels", "team_id"}, {"/labels/1/hosts", "team_name"},
+		{"/fleets/0/policies", "team_id"}, {"/reports", "team_id"}, {"/configuration_profiles", "team_id"},
+	} {
+		rejectNamed("GET", tc[0], "", "order_key", tc[1], "order_key", tc[1])
+	}
+	rejectNamed("GET", "/fleets/0/policies", "", "inherited_order_key", "team_id", "inherited_order_key", "team_id")
+	rejectNamed("POST", "/translate", `{"list": [{"type": "team", "payload": {"identifier": "a"}}]}`, "type", "team")
+
 	// The rejected create calls did not create anything, and the new name is accepted.
 	require.Len(t, s.listReports(), reportsBefore)
+
+	// A report's result column can be called team_id, so sorting its results by it is allowed.
+	var created fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(t.Name()), Query: new("SELECT 1 AS team_id")}, http.StatusOK,
+		&created)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d/report", created.Report.ID), nil, http.StatusOK, "order_key", "team_id")
+
+	// Uploads take fleet_id from the query string, like they took team_id there.
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	body, headers := generateNewScriptMultipartRequest(t, "query_fleet_id.sh", []byte("echo"), s.token, nil)
+	resp := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/scripts?fleet_id=%d", team.ID), body.Bytes(), http.StatusOK, headers)
+	var createScriptResp fleet.CreateScriptResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&createScriptResp))
+	script, err := s.ds.Script(t.Context(), createScriptResp.ScriptID)
+	require.NoError(t, err)
+	require.Equal(t, &team.ID, script.TeamID)
 }
 
 func (s *integrationEnterpriseTestSuite) listReports() []fleet.Query {

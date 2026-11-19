@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"reflect"
@@ -15,6 +16,8 @@ import (
 // SetRemovedKeyMessage. It renders as the usual 422 validation error, {"message", "errors": [{"name", "reason"}]}.
 type RemovedKeyError struct {
 	Key string
+	// Param is the parameter whose value is the removed name, such as order_key; empty when Key is the parameter itself.
+	Param string
 }
 
 var removedKeyMessage atomic.Pointer[func(key string) string]
@@ -31,7 +34,7 @@ func (e *RemovedKeyError) Error() string {
 }
 
 func (e *RemovedKeyError) Invalid() []map[string]string {
-	return []map[string]string{{"name": e.Key, "reason": e.Error()}}
+	return []map[string]string{{"name": cmp.Or(e.Param, e.Key), "reason": e.Error()}}
 }
 
 func (e *RemovedKeyError) IsClientError() bool { return true }
@@ -59,10 +62,8 @@ var removedKeyRulesCache sync.Map // reflect.Type → []RemovedKeyRule
 //
 //	RequireAllSoftware bool `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
 //
-// Unlike `renameto`, the old name is rejected instead of accepted. A key removed without a replacement goes on a blank
-// placeholder field:
-//
-//	_ struct{} `json:"-" removedkey:"some_removed_key"`
+// Unlike `renameto`, the old name is rejected instead of accepted. A removed key that moved to another object goes on a
+// blank `_ struct{}` field tagged `json:"-"` in the object it was removed from.
 func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 	if iface == nil {
 		return nil

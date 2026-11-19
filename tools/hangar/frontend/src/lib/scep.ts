@@ -11,6 +11,11 @@ export function scepProcId(profileId: string): string {
   return `scep:${profileId}`;
 }
 
+/// The profile id a SCEP process id belongs to, or null for other processes.
+export function scepProfileIdOf(procId: string): string | null {
+  return procId.startsWith("scep:") ? procId.slice("scep:".length) : null;
+}
+
 export function scepChannel(profileId: string): string {
   return `scep-${profileId}`;
 }

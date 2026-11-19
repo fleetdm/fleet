@@ -2,10 +2,35 @@ package android
 
 import (
 	"database/sql"
+	"strconv"
+	"strings"
 	"time"
 )
 
+// DefaultAndroidPolicyID is the global policy that enrollment tokens pointed at before fleets got their own
+// default policy. Zero-touch tokens created back then still point at it.
 const DefaultAndroidPolicyID = 1
+
+// fleetDefaultPolicyPrefix is letters only, since AMAPI doesn't document which characters policy IDs allow.
+const fleetDefaultPolicyPrefix = "fleet"
+
+// FleetDefaultPolicyID returns the ID of the policy a fleet's hosts enroll with. teamID 0 is Unassigned.
+func FleetDefaultPolicyID(teamID uint) string {
+	return fleetDefaultPolicyPrefix + strconv.FormatUint(uint64(teamID), 10)
+}
+
+// IsDefaultPolicyID reports whether policyID is an enrollment policy rather than a host's own policy.
+func IsDefaultPolicyID(policyID string) bool {
+	if policyID == strconv.Itoa(DefaultAndroidPolicyID) {
+		return true
+	}
+	digits, ok := strings.CutPrefix(policyID, fleetDefaultPolicyPrefix)
+	if !ok {
+		return false
+	}
+	teamID, err := strconv.ParseUint(digits, 10, 32)
+	return err == nil && FleetDefaultPolicyID(uint(teamID)) == policyID
+}
 
 type SignupDetails struct {
 	Url  string
@@ -51,6 +76,8 @@ type ZeroTouchToken struct {
 	ExpiresAt  time.Time `db:"expires_at" json:"expires_at"`
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
+	// UsesFleetPolicy is false for tokens created against the global DefaultAndroidPolicyID.
+	UsesFleetPolicy bool `db:"uses_fleet_policy" json:"-"`
 }
 
 type Device struct {

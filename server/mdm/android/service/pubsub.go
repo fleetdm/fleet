@@ -887,7 +887,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
 	if host != nil {
-		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
+		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating fleet if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		if err := svc.verifyReenrollment(ctx, device); err != nil {
 			return 0, err
@@ -1135,7 +1135,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 // experience replaces them. On failure the setup experience still replaces them before it
 // moves the device, so this only logs.
 func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName string, hostID uint, hostUUID string, appliedPolicyID *string) {
-	if appliedPolicyID != nil && *appliedPolicyID != fmt.Sprint(android.DefaultAndroidPolicyID) {
+	if appliedPolicyID != nil && !android.IsDefaultPolicyID(*appliedPolicyID) {
 		return
 	}
 	// Don't hold the Pub/Sub push on quota errors, this is best-effort.

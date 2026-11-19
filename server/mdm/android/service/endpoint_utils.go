@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
@@ -52,12 +51,9 @@ func (e *androidEndpointer) Service() any {
 	return e.svc
 }
 
-func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
-	// Full-slice expression prevents aliasing into the caller's backing array
-	// if it happens to have spare capacity.
-	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(auth.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &androidEndpointer{
 			svc: svc,
@@ -73,7 +69,7 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 	}
 }
 
-func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *eu.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
