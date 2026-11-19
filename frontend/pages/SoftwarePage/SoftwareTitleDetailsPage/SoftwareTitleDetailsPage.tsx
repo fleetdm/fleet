@@ -140,6 +140,7 @@ const SoftwareTitleDetailsPage = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddPackageModal, setShowAddPackageModal] = useState(false);
   const [showAddVersionModal, setShowAddVersionModal] = useState(false);
+  const [iconUploadedAt, setIconUploadedAt] = useState("");
   // When set, opens a PoliciesModal scoped to a single package's policies
   // (the auto-install icon on a custom-package row). Distinct from the
   // SoftwareSummaryCard's title-aggregate PoliciesModal — that one stays
@@ -318,6 +319,8 @@ const SoftwareTitleDetailsPage = ({
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onClickVersions={() => setShowVersionsModal(true)}
+        iconUploadedAt={iconUploadedAt}
+        setIconUploadedAt={setIconUploadedAt}
         canActivateMultiplePackages={canActivateMultiplePackages}
         canActivateMultipleVersions={canActivateMultipleVersions}
       />
@@ -450,6 +453,7 @@ const SoftwareTitleDetailsPage = ({
                 name={title.name}
                 source={title.source}
                 url={title.icon_url}
+                uploadedAt={iconUploadedAt}
                 size="medium"
               />
             ) : undefined

@@ -733,9 +733,6 @@ const EditIconModal = ({
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-library" }],
         });
-        // Custom icons keep the same API URL after a re-upload, so cached
-        // blobs (e.g. Library rows) must be dropped explicitly.
-        queryClient.invalidateQueries({ queryKey: ["softwareIcon"] });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
@@ -747,7 +744,6 @@ const EditIconModal = ({
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-library" }],
         });
-        queryClient.invalidateQueries({ queryKey: ["softwareIcon"] });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();

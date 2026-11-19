@@ -41,6 +41,10 @@ interface ISoftwareSummaryCard {
   /** Opens the page-owned Versions modal; the Actions item is gated here by
    * `canManageVersions`. */
   onClickVersions: () => void;
+  /** Bumped after an Edit appearance save so every icon of this title
+   * (summary and the web app Library row) refetches. Owned by the page. */
+  iconUploadedAt: string;
+  setIconUploadedAt: (timestamp: string) => void;
   /** Canonical "this title can hold multiple custom packages" flag. When
    * true the card hides its Self-service / Auto install / Patch chips
    * (Library accordion rows show per-package icons instead) and collapses
@@ -77,13 +81,14 @@ const SoftwareSummaryCard = ({
   router,
   refetchSoftwareTitle,
   onClickVersions,
+  iconUploadedAt,
+  setIconUploadedAt,
   canActivateMultiplePackages = false,
   canActivateMultipleVersions = false,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
 
-  const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
