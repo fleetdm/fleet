@@ -74,6 +74,8 @@ describe("getInstallErrorMessage", () => {
     expect(container.textContent).not.toContain(
       "Please renew it and try again"
     );
+    // One period before "Go to", not two.
+    expect(container.textContent).not.toContain("..");
   });
 
   it("surfaces an expired VPP token whose name contains quotes", () => {

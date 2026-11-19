@@ -41,7 +41,7 @@ const createOnlyInstallableOnMacOSMessage = (reason: string) =>
 // back to the generic install error.
 const createVPPTokenExpiredMessage = (apiReason: string) => (
   <>
-    {apiReason.replace(/\s*Please renew it and try again\.?$/, "")}. Go to{" "}
+    {apiReason.replace(/\.?\s*Please renew it and try again\.?$/, "")}. Go to{" "}
     <b>
       Settings {">"} Integration {">"} Volume Purchasing Program
     </b>{" "}
