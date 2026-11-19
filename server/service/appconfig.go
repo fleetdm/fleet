@@ -2904,7 +2904,7 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
-				if reason, removed := removedFleetName(tmName); removed {
+				if reason, removed := removedFleetName(tmName, false); removed {
 					invalid.Append("mdm.apple_business", reason)
 					return nil, nil, nil
 				}
@@ -2988,7 +2988,7 @@ func (svc *Service) validateVPPAssignments(
 	repeated := make(map[uint]struct{})
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
-			if reason, removed := removedFleetName(tmName); removed {
+			if reason, removed := removedFleetName(tmName, true); removed {
 				invalid.Append("mdm.volume_purchasing_program", reason)
 				return nil, nil
 			}

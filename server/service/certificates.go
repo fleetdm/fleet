@@ -443,7 +443,7 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 			continue
 		}
 
-		if reason, removed := removedFleetName(spec.Team); removed {
+		if reason, removed := removedFleetName(spec.Team, false); removed {
 			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
 		}
 		if spec.Team == "" || fleet.IsUnassignedFleetName(spec.Team) {

@@ -92,6 +92,9 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 			require.Equal(t, []map[string]string{{"name": tc[3], "reason": removednames.Message(`"`+tc[4]+`"`, `"`+tc[5]+`"`)}}, got.Errors)
 		})
 	}
+	// Policies never took "All fleets" as a fleet name, so "All teams" stays an unknown fleet.
+	s.DoRaw("POST", "/api/latest/fleet/spec/policies", []byte(`{"specs": [{"name": "a", "query": "SELECT 1", "fleet": "All teams"}]}`),
+		http.StatusNotFound)
 	// Filters never took other old names, so those stay unknown keys.
 	s.DoRaw("POST", "/api/latest/fleet/hosts/delete", []byte(`{"filters": {"teams": 1}}`), http.StatusBadRequest)
 

@@ -388,7 +388,7 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 	checkGlobalPolicyAuth := false
 	teamIDsByName := make(map[string]uint)
 	for _, policy := range policies {
-		if reason, removed := removedFleetName(policy.Team); removed {
+		if reason, removed := removedFleetName(policy.Team, false); removed {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
 		}

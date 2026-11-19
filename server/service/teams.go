@@ -496,12 +496,13 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	return nil, fleet.ErrMissingLicense
 }
 
-// removedFleetName returns the error reason when name is "No team" or "All teams", the old names of Unassigned and All fleets.
-func removedFleetName(name string) (string, bool) {
-	for _, names := range [][2]string{{fleet.ReservedNameNoTeam, fleet.DisplayNameNoTeam}, {fleet.ReservedNameAllTeams, fleet.DisplayNameAllTeams}} {
-		if strings.EqualFold(name, names[0]) {
-			return removednames.Message(fmt.Sprintf("%q", names[0]), fmt.Sprintf("%q", names[1])), true
-		}
+// removedFleetName returns the error reason when name is "No team", or "All teams" for a caller that accepts "All fleets".
+func removedFleetName(name string, acceptsAllFleets bool) (string, bool) {
+	switch {
+	case strings.EqualFold(name, fleet.ReservedNameNoTeam):
+		return removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameNoTeam), fmt.Sprintf("%q", fleet.DisplayNameNoTeam)), true
+	case acceptsAllFleets && strings.EqualFold(name, fleet.ReservedNameAllTeams):
+		return removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameAllTeams), fmt.Sprintf("%q", fleet.DisplayNameAllTeams)), true
 	}
 	return "", false
 }
