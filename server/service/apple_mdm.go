@@ -5252,7 +5252,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
 				// for app verification, we always request only managed apps
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
-					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+					// A failed push leaves the command queued, so it still needs to be associated with the install.
+					if _, pushFailed := errors.AsType[*apple_mdm.NotificationFailedError](err); !pushFailed {
+						return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+					}
+					svc.logger.ErrorContext(r.Context, "sending push notification for install verification", "host_uuid", cmdResult.Identifier(), "err", err)
 				}
 
 				// update the install record
