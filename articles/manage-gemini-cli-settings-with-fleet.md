@@ -230,7 +230,7 @@ Each policy below passes when both files match what you intend. A host that fail
 
 To do the same in the Fleet UI, go to **Policies**, select your fleet, and select **Add policy** for each query. Then select **Manage automations > Run script**, check each policy, and pick its script.
 
-> **Note:** Changing the JSON or TOML in a script changes the files' hashes, so update the placeholders in the policy at the same time. Hosts then fail the policy and pick up the new files. Fleet runs the script when a policy newly fails and retries it up to three times. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+> **Note:** Changing the JSON or TOML in a script changes the files' hashes, so update the placeholders in the policy at the same time. Hosts then fail the policy and pick up the new files. Fleet runs the script when a policy newly fails, and if the script fails, tries it up to three times in total. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
 ## What your users see
 
