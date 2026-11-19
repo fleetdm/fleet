@@ -22,6 +22,12 @@
     }
   }
 
+  // Overrides Modal's built-in isHidden (visibility: hidden + opacity fade),
+  // which browsers routinely skip when visibility flips hidden→visible, leaving
+  // a jarring opacity-0 half-frame as this modal reappears behind a closing
+  // Preview / Save changes / File progress dialog. display: none snaps cleanly.
+  // isHidden is still passed on the Modal so its React focus logic fires on
+  // the transition.
   &--hidden {
     display: none;
   }
