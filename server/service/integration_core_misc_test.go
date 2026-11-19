@@ -594,48 +594,22 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	t := s.T()
 
-	// create a query that can be scheduled
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "TestQuery2",
-		Query:          "select * from osquery;",
-		ObserverCanRun: true,
-		Saved:          true,
-		Logging:        fleet.LoggingSnapshot,
+	// global/policies ends at v1, so it is not found on 2022-04
+	res := s.DoRaw("POST", "/api/2022-04/fleet/global/policies", jsonMustMarshal(t, fleet.GlobalPolicyRequest{Name: t.Name(), Query: "SELECT 1"}), http.StatusNotFound)
+	res.Body.Close()
+	var createResp fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", fleet.GlobalPolicyRequest{Name: t.Name(), Query: "SELECT 1"}, http.StatusOK, &createResp)
+	require.NotNil(t, createResp.Policy)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{createResp.Policy.ID})
+		require.NoError(t, err)
 	})
-	require.NoError(t, err)
 
-	// try to schedule that query on the endpoint that is deprecated
-	// in that version
-	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
-	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
+	res = s.DoRaw("GET", "/api/2022-04/fleet/global/policies", nil, http.StatusNotFound)
 	res.Body.Close()
-	// use the correct version for that deprecated API
-	createResp := globalScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/global/schedule", gsParams, http.StatusOK, &createResp)
-	require.NotZero(t, createResp.Scheduled.ID)
-
-	// list the scheduled queries with the new endpoint, but the old version
-	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusNotFound)
-	res.Body.Close()
-
-	// list again, this time with the correct version
-	gs := fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Len(t, gs.GlobalSchedule, 1)
-
-	// the removed pack GET /schedule/{id} shares its path with the report-backed
-	// PATCH and DELETE on 2022-04+, so it is 405 there and 404 on v1
-	res = s.DoRaw("GET", fmt.Sprintf("/api/2022-04/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusMethodNotAllowed)
-	res.Body.Close()
-	res = s.DoRaw("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
-	res.Body.Close()
-
-	// delete using the old endpoint but on the wrong new version
-	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
-	res.Body.Close()
-	// properly delete with old endpoint and old version
-	var delResp deleteGlobalScheduleResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusOK, &delResp)
+	var listResp fleet.ListGlobalPoliciesResponse
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &listResp)
+	require.NotEmpty(t, listResp.Policies)
 }
 
 func (s *integrationTestSuite) TestDebugDB() {

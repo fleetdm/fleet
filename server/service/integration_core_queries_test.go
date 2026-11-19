@@ -96,71 +96,6 @@ func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
 	}, http.StatusPaymentRequired, &applyResp)
 }
 
-func (s *integrationTestSuite) TestGlobalSchedule() {
-	t := s.T()
-
-	// list the existing global schedules (none yet)
-	gs := fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Empty(t, gs.GlobalSchedule)
-
-	// create a query that can be scheduled
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "TestQuery1",
-		Description:    "Some description",
-		Query:          "select * from osquery;",
-		ObserverCanRun: true,
-		Saved:          true,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	// schedule that query
-	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
-	r := globalScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/schedule", gsParams, http.StatusOK, &r)
-
-	// list the scheduled queries, get the one just created
-	gs = fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Len(t, gs.GlobalSchedule, 1)
-	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
-	assert.Contains(t, gs.GlobalSchedule[0].Name, "Copy of TestQuery1 (")
-	id := gs.GlobalSchedule[0].ID
-
-	// list page 2, should be empty
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs, "page", "2", "per_page", "4")
-	require.Empty(t, gs.GlobalSchedule)
-
-	// update the scheduled query
-	gs = fleet.GlobalSchedulePayload{}
-	gsParams = fleet.ScheduledQueryPayload{Interval: new(uint(55))}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", id), gsParams, http.StatusOK, &gs)
-
-	// update a non-existing schedule
-	gsParams = fleet.ScheduledQueryPayload{Interval: new(uint(66))}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", id+1), gsParams, http.StatusNotFound, &gs)
-
-	// read back that updated scheduled query
-	gs = fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Len(t, gs.GlobalSchedule, 1)
-	assert.Equal(t, id, gs.GlobalSchedule[0].ID)
-	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
-
-	// delete the scheduled query
-	r = globalScheduleQueryResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/schedule/%d", id), nil, http.StatusOK, &r)
-
-	// delete a non-existing schedule
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/schedule/%d", id+1), nil, http.StatusNotFound, &r)
-
-	// list the scheduled queries, back to none
-	gs = fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Empty(t, gs.GlobalSchedule)
-}
-
 func (s *integrationTestSuite) TestQueriesCRUD() {
 	t := s.T()
 
@@ -1814,17 +1749,6 @@ func (s *integrationTestSuite) TestRemovedQueryKeys() {
 	reportOnly("GET", fmt.Sprintf("/api/latest/fleet/reports/%d", reportID), nil)
 	reportOnly("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", reportID), fleet.QueryPayload{Description: new("updated")})
 
-	res = s.Do("POST", "/api/latest/fleet/schedule", map[string]any{"report_id": reportID, "interval": 60}, http.StatusOK)
-	var scheduled struct {
-		Scheduled map[string]json.RawMessage `json:"scheduled"`
-	}
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&scheduled))
-	res.Body.Close()
-	assert.Contains(t, scheduled.Scheduled, "report_id")
-	assert.NotContains(t, scheduled.Scheduled, "query_id")
-	assert.Contains(t, scheduled.Scheduled, "report_name")
-	assert.NotContains(t, scheduled.Scheduled, "query_name")
-
 	for _, c := range []struct {
 		method, path, key string
 		body              map[string]any
@@ -1834,8 +1758,6 @@ func (s *integrationTestSuite) TestRemovedQueryKeys() {
 		{"POST", "/api/latest/fleet/targets", "query_id", map[string]any{"query_id": 1, "selected": map[string]any{}}},
 		{"POST", "/api/latest/fleet/reports/run", "query_id", map[string]any{"query_id": 1, "selected": map[string]any{}}},
 		{"GET", "/api/latest/fleet/reports/run", "query_ids", map[string]any{"query_ids": []uint{1}, "host_ids": []uint{1}}},
-		{"POST", "/api/latest/fleet/schedule", "query_id", map[string]any{"query_id": reportID, "interval": 60}},
-		{"PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", reportID), "query_id", map[string]any{"query_id": reportID}},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			res := s.Do(c.method, c.path, c.body, http.StatusUnprocessableEntity)

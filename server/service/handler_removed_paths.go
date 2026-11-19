@@ -60,6 +60,12 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/packs/{id}/scheduled",
 	"/api/_version_/fleet/spec/packs",
 	"/api/_version_/fleet/spec/packs/{name}",
+	"/api/_version_/fleet/global/schedule",
+	"/api/_version_/fleet/global/schedule/{id}",
+	"/api/_version_/fleet/schedule",
+	"/api/_version_/fleet/schedule/{id}",
+	"/api/_version_/fleet/fleets/{fleet_id}/schedule",
+	"/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}",
 
 	"/api/_version_/fleet/mdm/commands",
 	"/api/_version_/fleet/mdm/apple/commands",
