@@ -10,8 +10,10 @@
 .dash { display: grid; grid-row: span 3; grid-template-rows: subgrid; gap: 16px; }
 .dash > * { min-width: 0; }
 .dash h3 { margin: 0 0 4px; font-size: 16px; }
+.dash { cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.dash:hover, .dash:has(h3 a:focus-visible) { border-color: var(--line-2); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
 .dash h3 a { color: var(--ink); }
-.dash h3 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dash:hover h3 a, .dash h3 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .dash h3 a span { color: var(--ink-2); font-weight: 400; margin-left: 4px; }
 .dash .about { margin: 0; color: var(--ink-2); }
 .dash .big { margin-top: 2px; }
@@ -211,9 +213,14 @@ function render() {
         : spark(rows, c.spark, { yMax: c.yMax, yFmt: keyFmt, label: `${c.title}: ${c.label()}` }));
     const details = h("div", { class: "rail" }, last ? c.rows(last, rows).map(([label, value, bad]) =>
       h("div", { class: "rail-row" }, h("span", {}, label), h("b", { class: bad ? "hl-bad" : null }, value))) : null);
-    return h("div", { class: `panel dash${c.wide ? " wide" : ""}` },
-      h("div", {}, h("h3", {}, pageLink(DATA.links[c.page], {}, c.title)),
-        h("p", { class: "about" }, c.about)),
+    const link = pageLink(DATA.links[c.page], {}, c.title);
+    // The whole card opens its dashboard, but the title stays the one link, for keyboards and
+    // screen readers. A stretched link would cover the sparkline's tooltip.
+    return h("div", { class: `panel dash${c.wide ? " wide" : ""}`, onclick: (e) => {
+      if (e.target.closest("a") || e.metaKey || e.ctrlKey || e.shiftKey || String(getSelection())) return;
+      link.click();
+    } },
+      h("div", {}, h("h3", {}, link), h("p", { class: "about" }, c.about)),
       main, details);
   }));
 
