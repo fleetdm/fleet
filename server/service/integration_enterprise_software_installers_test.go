@@ -355,7 +355,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// patch the software installer to change the labels
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":            {"0"},
+			"fleet_id":           {"0"},
 			"labels_exclude_any": {t.Name()},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -375,7 +375,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// patch the software installer again but this time change the pre install query and leave the labels as is
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":           {"0"},
+			"fleet_id":          {"0"},
 			"pre_install_query": {"some other pre install query"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -387,7 +387,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// update the label to be "include any". This should allow for the installation to happen.
 		var b3 bytes.Buffer
 		w3 := multipart.NewWriter(&b3)
-		require.NoError(t, w3.WriteField("team_id", "0"))
+		require.NoError(t, w3.WriteField("fleet_id", "0"))
 		require.NoError(t, w3.WriteField("pre_install_query", "some other pre install query"))
 		require.NoError(t, w3.WriteField("labels_include_any", lblA.Name))
 		w3.Close()
@@ -406,7 +406,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// update the installer succeeds
 		body, headers = generateMultipartRequest(t, "software",
-			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "team_id": {"0"}})
+			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "fleet_id": {"0"}})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null,
@@ -909,7 +909,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// patch the software installer to change the categories and self-service
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":      {"0"},
+			"fleet_id":     {"0"},
 			"categories":   {"Browsers", "Productivity"},
 			"self_service": {"true"},
 		})
@@ -928,7 +928,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// patch the software installer to change the categories and nothing else
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":    {"0"},
+			"fleet_id":   {"0"},
 			"categories": {"Browsers"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -944,7 +944,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// patch the software installer to change the self-service and nothing else
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":      {"0"},
+			"fleet_id":     {"0"},
 			"self_service": {"false"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -2067,7 +2067,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptOnlyPackageAdvancedOptions() 
 	// PATCH new advanced-option values; they should persist. A PATCH to
 	// install_script is ignored for script-only packages (file-driven).
 	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-		"team_id":             {"0"},
+		"fleet_id":            {"0"},
 		"pre_install_query":   {"SELECT 2 FROM osquery_info;"},
 		"post_install_script": {"#!/bin/sh\necho post-install-2\n"},
 		"uninstall_script":    {"#!/bin/sh\necho uninstall-2\n"},
@@ -2855,7 +2855,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 		require.NoError(t, err)
 		_, err = io.Copy(fw, fr)
 		require.NoError(t, err)
-		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", team.ID)))
+		require.NoError(t, w.WriteField("fleet_id", fmt.Sprintf("%d", team.ID)))
 		require.NoError(t, w.WriteField("fleet_id", fmt.Sprintf("%d", team.ID)))
 		for k, v := range extra {
 			require.NoError(t, w.WriteField(k, v))
@@ -3067,7 +3067,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	// categories, not the union across sibling packages.
 	var noopBody bytes.Buffer
 	noopW := multipart.NewWriter(&noopBody)
-	require.NoError(t, noopW.WriteField("team_id", fmt.Sprintf("%d", team.ID)))
+	require.NoError(t, noopW.WriteField("fleet_id", fmt.Sprintf("%d", team.ID)))
 	require.NoError(t, noopW.WriteField("installer_id", fmt.Sprintf("%d", installerA)))
 	require.NoError(t, noopW.Close())
 	noopResp := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID),
@@ -3728,8 +3728,10 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   respTitle.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0].ID,
-		Name: respTitle.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0].Name,
+		ID:       respTitle.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0].ID,
+		Name:     respTitle.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0].Name,
+		TeamID:   new(int64(team1.ID)), //nolint:gosec // dismiss G115
+		TeamName: &team1.Name,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -3787,6 +3789,18 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
 	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
 	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
+
+	// Upload dummy_installer.pkg to "No fleet" with automatic policy.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some pkg install script 4",
+		Filename:         "dummy_installer.pkg",
+		AutomaticInstall: true,
+	}, http.StatusOK, "")
+	ts = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleet.PolicyNoTeamID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 1)
+	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software] DummyApp (pkg)"}`, ts.Policies[0].ID), 0)
 }
 
 // test for #26668
@@ -4305,7 +4319,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// patch the in house app to change labels, categories
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":            {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"fleet_id":           {fmt.Sprintf("%d", createTeamResp.Team.ID)},
 			"labels_exclude_any": {"iha_label"},
 			"categories":         {"Productivity", "Browsers"},
 		})
@@ -4323,7 +4337,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// patch only the categories (test fix for https://github.com/fleetdm/fleet/issues/36069)
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":    {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"fleet_id":   {fmt.Sprintf("%d", createTeamResp.Team.ID)},
 			"categories": {"Browsers"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -4338,7 +4352,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// patch only the self-service
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":      {fmt.Sprintf("%d", createTeamResp.Team.ID)},
+			"fleet_id":     {fmt.Sprintf("%d", createTeamResp.Team.ID)},
 			"self_service": {"false"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -4394,7 +4408,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// Update with a new configuration.
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"fleet_id":      {fmt.Sprintf("%d", teamResp.Team.ID)},
 			"configuration": {validPlist2},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -4415,7 +4429,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// Update with empty configuration → cleared.
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"fleet_id":      {fmt.Sprintf("%d", teamResp.Team.ID)},
 			"configuration": {""},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
@@ -4425,14 +4439,14 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// Update with invalid plist → 422.
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"fleet_id":      {fmt.Sprintf("%d", teamResp.Team.ID)},
 			"configuration": {"not actually a plist"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
 
 		// Update with disallowed Fleet variable → 422.
 		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
-			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"fleet_id":      {fmt.Sprintf("%d", teamResp.Team.ID)},
 			"configuration": {`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)

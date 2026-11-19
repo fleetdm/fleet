@@ -261,11 +261,10 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 func (fc *FleetClient) campaignResultRow(r wsDistributedResult, endpointByID map[uint]Endpoint) map[string]interface{} {
 	// A result frame means the host reported, so it is online — mirror the
 	// single-host path, which always carries a "status" field. The server
-	// injects host_hostname/host_display_name into every result row; strip them
+	// injects host_display_name into every result row; strip it
 	// so the campaign rows match the single-host shape (host identity lives in
 	// the row's own host_id/host_name keys, not inside the osquery columns).
 	for _, qr := range r.Rows {
-		delete(qr, "host_hostname")
 		delete(qr, "host_display_name")
 	}
 

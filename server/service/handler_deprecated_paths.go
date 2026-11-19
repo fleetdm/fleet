@@ -12,7 +12,6 @@ import (
 //   - queries → reports: query CRUD, spec, report data
 //   - host queries → reports
 //   - live queries → reports: run, run_by_identifiers, run_by_names
-//   - ABM/VPP token teams → fleets
 var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 	// ---- queries → reports ----
 	{
@@ -85,11 +84,5 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 	{
 		Method: "POST", PrimaryPath: "/api/_version_/fleet/reports/run_by_names",
 		DeprecatedPaths: []string{"/api/_version_/fleet/queries/run_by_names"},
-	},
-
-	// ---- ABM/VPP token teams → fleets ----
-	{
-		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/vpp_tokens/{id}/fleets",
-		DeprecatedPaths: []string{"/api/_version_/fleet/vpp_tokens/{id}/teams"},
 	},
 }

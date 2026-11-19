@@ -186,6 +186,56 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
+// TODO(#58577): remove with policy_ids.
+func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+	})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	enabled := []uint{2, 1}
+	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
+		require.Nil(t, teamID)
+		return enabled, nil
+	}
+	var setCalls [][]uint
+	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
+		require.Nil(t, teamID)
+		setCalls = append(setCalls, policyIDs)
+		return nil
+	}
+
+	// Requests that leave the list as it is don't write the policies, so they can't undo a concurrent change.
+	for _, body := range []string{
+		`{"org_info": {"org_name": "Changed"}}`,
+		`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`,
+		`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
+	} {
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.NoError(t, err, body)
+	}
+	require.Empty(t, setCalls)
+
+	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [3]}}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	require.Equal(t, [][]uint{{3}, {}}, setCalls)
+
+	// Dry runs don't write the policies.
+	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [4]}}}`), fleet.ApplySpecOptions{DryRun: true})
+	require.NoError(t, err)
+	require.Len(t, setCalls, 2)
+}
+
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The
@@ -1477,29 +1527,23 @@ func TestMDMConfig(t *testing.T) {
 			},
 			AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:                 optjson.String{Set: true},
-				MacOSSetupAssistant:              optjson.String{Set: true},
 				EnableReleaseDeviceManually:      optjson.SetBool(false),
 				EnableManagedLocalAccount:        optjson.SetBool(false),
 				EndUserLocalAccountType:          optjson.SetString("admin"),
 				LockEndUserInfo:                  optjson.SetBool(false),
 				Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-				Script:                           optjson.String{Set: true},
 				ManualAgentInstall:               optjson.Bool{Set: true},
 				EnableManagedLocalAccountWindows: optjson.SetBool(false),
 			},
-			MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-			IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
-			IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
-			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+			MacOSUpdates:   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+			IOSUpdates:     fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
+			IPadOSUpdates:  fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
+			WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:      optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				RequireBitLockerPIN: optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
-				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 			RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 			EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
@@ -2687,7 +2731,7 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 		// check that fires only when the flag changes) -> euaStrict fires.
 		incoming := fleet.SSOProviderSettings{MetadataURL: "https://idp.example.com/metadata"}
 		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, true), mkMDM(incoming, true), invalid, true)
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, true), mkMDM(incoming, true), optjson.String{}, invalid, true)
 		require.NoError(t, err)
 		require.True(t, invalid.HasErrors())
 		require.Contains(t, errFields(invalid), "entity_id")
@@ -2705,7 +2749,7 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 		}
 		degraded := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta"} // metadata/url blank
 		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), invalid, true)
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), optjson.String{}, invalid, true)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
 	})
@@ -2715,7 +2759,7 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 			return []uint{}, nil
 		}
 		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), invalid, true)
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), optjson.String{}, invalid, true)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
 	})
@@ -3721,6 +3765,65 @@ func TestModifyAppConfigGitOpsMCPDisabled(t *testing.T) {
 	}
 }
 
+// Unlike the rest of server_settings, ai_sessions_disabled follows the YAML in overwrite mode: a GitOps payload
+// without it turns collection back on.
+func TestModifyAppConfigGitOpsAISessionsDisabled(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name      string
+		initial   bool
+		payload   string
+		overwrite bool
+		expected  bool
+	}{
+		{"omitted enables it", true, `{"server_settings":{"server_url":"https://example.org"}}`, true, false},
+		{"no server_settings enables it", true, `{"org_info":{"org_name":"Renamed"}}`, true, false},
+		{"explicit true keeps it disabled", true, `{"server_settings":{"ai_sessions_disabled":true}}`, true, true},
+		{"explicit true disables it", false, `{"server_settings":{"ai_sessions_disabled":true}}`, true, true},
+		{"explicit false enables it", true, `{"server_settings":{"ai_sessions_disabled":false}}`, true, false},
+		{"omitted outside overwrite mode keeps it disabled", true, `{"org_info":{"org_name":"Renamed"}}`, false, true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo: fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{
+					ServerURL:          "https://example.org",
+					AISessionsDisabled: tt.initial,
+					MCPDisabled:        true,
+				},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+				return false, nil
+			}
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: tt.overwrite})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, updated.ServerSettings.AISessionsDisabled)
+			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.AISessionsDisabled)
+			// The reset is scoped to ai_sessions_disabled: its siblings are still kept when omitted.
+			require.True(t, dsAppConfig.ServerSettings.MCPDisabled)
+			require.Equal(t, "https://example.org", dsAppConfig.ServerSettings.ServerURL)
+		})
+	}
+}
+
 // TestDiffStringSlices covers the helper that computes per-value added/removed activity emissions for the Entra
 // tenant ID and client ID allowlists, including the deduplication that prevents a repeated config entry from
 // producing duplicate activities.
@@ -3748,50 +3851,6 @@ func TestDiffStringSlices(t *testing.T) {
 			assert.Equal(t, tc.wantRemoved, removed)
 		})
 	}
-}
-
-// TestModifyAppConfigClearBootstrapPackageAlreadyDeleted verifies that clearing
-// a bootstrap package via ModifyAppConfig succeeds even when the actual package
-// row has already been deleted (e.g. via the GUI), leaving a stale URL in
-// appconfig.
-func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
-	ds := new(mock.Store)
-	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-
-	dsAppConfig := &fleet.AppConfig{
-		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
-		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
-		MDM: fleet.MDM{
-			MacOSSetup: fleet.MacOSSetup{
-				// Stale URL: the DB row is gone but appconfig still has it.
-				BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
-			},
-		},
-	}
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return dsAppConfig, nil
-	}
-	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-		*dsAppConfig = *conf
-		return nil
-	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{}, nil
-	}
-	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{}, nil
-	}
-	// The bootstrap package row was already deleted via the GUI.
-	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-		return nil, newNotFoundError()
-	}
-
-	raw := []byte(`{"mdm":{"setup_experience":{"macos_bootstrap_package":""}}}`)
-	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-	require.NoError(t, err)
 }
 
 // TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path through PATCH /config for both managed
@@ -4515,6 +4574,16 @@ func TestAuthSettings(t *testing.T) {
 		require.Equal(t, &fleet.AuthSettings{MDMWindowsOneTimeEnrollSecrets: true}, settings)
 	})
 
+	t.Run("reported when only the Android flag is on", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.MDM.AndroidOneTimeEnrollSecrets = true
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
+		require.NoError(t, err)
+		require.Equal(t, &fleet.AuthSettings{MDMAndroidOneTimeEnrollSecrets: true}, settings)
+	})
+
 	t.Run("requires an authenticated user", func(t *testing.T) {
 		svc, ctx := newSvc(t, true, false)
 		_, err := svc.AuthSettings(ctx)
@@ -4542,6 +4611,77 @@ func TestStagedUploadAvailable(t *testing.T) {
 	}
 }
 
+func TestValidateAssignmentsFleetNames(t *testing.T) {
+	newSvc := func(teams ...*fleet.TeamSummary) *Service {
+		ds := new(mock.Store)
+		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+			return teams, nil
+		}
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}}, nil
+		}
+		ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1, OrganizationName: "HQ"}}, nil
+		}
+		return &Service{ds: ds}
+	}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	// AB takes fleet names like VPP, so it is checked with the same fleets.
+	validateABM := func(svc *Service, macOSFleet string) ([]*fleet.ABMToken, *fleet.InvalidArgumentError) {
+		var mdm fleet.MDM
+		mdm.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "HQ", MacOSTeam: macOSFleet}})
+		invalid := &fleet.InvalidArgumentError{}
+		tokens, _, err := svc.validateABMAssignments(t.Context(), &mdm, &fleet.MDM{}, invalid, lic)
+		require.NoError(t, err)
+		return tokens, invalid
+	}
+
+	t.Run("a fleet name in decomposed form resolves to that fleet", func(t *testing.T) {
+		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Caf\u00e9 Macs"})
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Cafe\u0301 Macs"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Equal(t, map[uint][]uint{1: {1}}, got)
+	})
+
+	t.Run("Unassigned is rejected while fleets are named Unassigned", func(t *testing.T) {
+		svc := newSvc(
+			&fleet.TeamSummary{ID: 1, Name: "Workstations"},
+			&fleet.TeamSummary{ID: 7, Name: "unassigned"},
+			&fleet.TeamSummary{ID: 8, Name: "Unassigned"},
+		)
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: "Unassigned", "unassigned"`)
+		_, invalid = validateABM(svc, "unassigned")
+		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign an Apple Business token to Unassigned: "Unassigned", "unassigned"`)
+	})
+
+	t.Run("AB takes Unassigned in any letter case as fleet 0", func(t *testing.T) {
+		tokens, invalid := validateABM(newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}), "UNASSIGNED")
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Nil(t, tokens[0].MacOSDefaultTeamID)
+	})
+
+	t.Run("other fleets still work while a fleet is named Unassigned", func(t *testing.T) {
+		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}, &fleet.TeamSummary{ID: 7, Name: "unassigned"})
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Equal(t, map[uint][]uint{1: {1}}, got)
+	})
+}
+
 func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 	ds := new(mock.Store)
 	ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
@@ -4556,12 +4696,24 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 	t.Run("a fleet under two tokens passes", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
-			{Location: "HQ", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
-			{Location: "EU", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+			{Location: "HQ", Teams: []string{"Workstations", fleet.DisplayNameNoTeam}},
+			{Location: "EU", Teams: []string{"Workstations", fleet.DisplayNameNoTeam}},
 		}, invalid, lic)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
 		require.Equal(t, map[uint][]uint{1: {1, 0}, 2: {1, 0}}, got)
+	})
+
+	t.Run("Unassigned is the same as No team", func(t *testing.T) {
+		for _, name := range []string{fleet.DisplayNameNoTeam, "unassigned"} {
+			invalid := &fleet.InvalidArgumentError{}
+			got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "HQ", Teams: []string{name, "Workstations"}},
+			}, invalid, lic)
+			require.NoError(t, err)
+			require.False(t, invalid.HasErrors(), invalid.Error())
+			require.Equal(t, map[uint][]uint{1: {0, 1}}, got)
+		}
 	})
 
 	t.Run("All fleets can't mix with other fleets on one token", func(t *testing.T) {
@@ -4571,5 +4723,85 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		}, invalid, lic)
 		require.NoError(t, err)
 		require.True(t, invalid.HasErrors())
+	})
+
+	t.Run("a token listed twice is rejected", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+			{Location: "EU", Teams: []string{fleet.DisplayNameNoTeam}},
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		require.ErrorContains(t, invalid, `VPP token "HQ" is listed more than once`)
+	})
+
+	t.Run("every repeated token is reported once", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+			{Location: "EU", Teams: []string{"Workstations"}},
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam}},
+			{Location: "EU", Teams: []string{fleet.DisplayNameNoTeam}},
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		reason := func(loc string) map[string]string {
+			return map[string]string{
+				"name":   "mdm.volume_purchasing_program",
+				"reason": fmt.Sprintf("Couldn't apply. VPP token %q is listed more than once. List each token once, with all of its fleets.", loc),
+			}
+		}
+		require.Equal(t, []map[string]string{reason("HQ"), reason("EU")}, invalid.Invalid())
+	})
+}
+
+func TestValidateSMTPPasswordForNewDestination(t *testing.T) {
+	t.Parallel()
+
+	stored := fleet.SMTPSettings{
+		SMTPServer: "smtp.example.com", SMTPPort: 587, SMTPUserName: "user", SMTPPassword: "stored",
+		SMTPAuthenticationType: fleet.AuthTypeNameUserNamePassword,
+	}
+	for _, c := range []struct {
+		name    string
+		payload string
+		invalid bool
+	}{
+		{"unrelated field", `{"sender_address": "a@example.com"}`, false},
+		{"server", `{"server": "smtp.attacker.example"}`, true},
+		{"port", `{"port": 2525}`, true},
+		{"user name", `{"user_name": "other"}`, true},
+		{"server with the password", `{"server": "smtp2.example.com", "password": "stored"}`, false},
+		{"server with a new password", `{"server": "smtp2.example.com", "password": "new"}`, false},
+		{"server with the password cleared", `{"server": "smtp2.example.com", "password": ""}`, false},
+		{"server without password auth", `{"server": "smtp2.example.com", "authentication_type": "authtype_none"}`, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var incoming fleet.SMTPSettings
+			require.NoError(t, json.Unmarshal([]byte(c.payload), &incoming))
+			merged := stored
+			require.NoError(t, json.Unmarshal([]byte(c.payload), &merged))
+
+			invalid := &fleet.InvalidArgumentError{}
+			validateSMTPPasswordForNewDestination(&incoming, stored, &merged, invalid)
+			require.Equal(t, c.invalid, invalid.HasErrors())
+		})
+	}
+
+	t.Run("password auth turned on", func(t *testing.T) {
+		old := stored
+		old.SMTPAuthenticationType = fleet.AuthTypeNameNone
+		invalid := &fleet.InvalidArgumentError{}
+		validateSMTPPasswordForNewDestination(&fleet.SMTPSettings{}, old, &stored, invalid)
+		require.True(t, invalid.HasErrors())
+	})
+
+	t.Run("smtp_settings not in the request", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSMTPPasswordForNewDestination(nil, stored, &stored, invalid)
+		require.False(t, invalid.HasErrors())
 	})
 }

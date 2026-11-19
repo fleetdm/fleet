@@ -14,14 +14,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// conditionalAccessWindowsChallengePlaceholder stands in for the global enroll secret in the rendered SCEP profile. An
-// XML comment parses as an empty challenge, so the profile is rejected at upload until the admin replaces it with the
-// secret or a secret variable.
-const conditionalAccessWindowsChallengePlaceholder = "<!-- Replace with a global enroll secret -->"
-
 // Fleet requires a SCEP profile to contain only SCEP nodes and its Enroll Exec, so the browser configuration is a
 // separate profile. The SCEP URL is a Fleet variable filled in at delivery, which makes Fleet track the certificate like
-// a proxied certificate authority's. The challenge is a global enroll secret the admin writes in.
+// a proxied certificate authority's. The challenge variable becomes a one-time challenge for the host when the command
+// is sent.
 const conditionalAccessWindowsSCEPProfileTemplate = `<!-- Fleet conditional access for Okta: SCEP certificate (user store) -->
 <Add>
   <Item>
@@ -40,7 +36,7 @@ const conditionalAccessWindowsSCEPProfileTemplate = `<!-- Fleet conditional acce
   <Item>
     <Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>
     <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-    <Data>` + conditionalAccessWindowsChallengePlaceholder + `</Data>
+    <Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data>
   </Item>
 </Add>
 <Add>

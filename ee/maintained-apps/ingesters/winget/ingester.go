@@ -168,6 +168,22 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 	return out
 }
 
+// filterVersionPrefix keeps the version dirs in the release line named by prefix, matching
+// whole dot-separated segments so "24" keeps "24.22.1" but not "240.1". An empty prefix
+// keeps everything.
+func filterVersionPrefix(dirs []*github.RepositoryContent, prefix string) []*github.RepositoryContent {
+	if prefix == "" {
+		return dirs
+	}
+	var out []*github.RepositoryContent
+	for _, d := range dirs {
+		if name := d.GetName(); name == prefix || strings.HasPrefix(name, prefix+".") {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // wingetManifests reads the newest installer and en-US locale manifests for the app's winget package.
 func (i *wingetIngester) wingetManifests(ctx context.Context, input inputApp) (installerManifest, localeManifest, error) {
 	// this is the path within the winget GitHub repo where the manifests are located
@@ -187,10 +203,11 @@ func (i *wingetIngester) wingetManifests(ctx context.Context, input inputApp) (i
 		return installerManifest{}, localeManifest{}, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
-	versionDirs := wingetVersionManifestDirs(repoContents)
+	versionDirs := filterVersionPrefix(wingetVersionManifestDirs(repoContents), input.VersionPrefix)
 	if len(versionDirs) == 0 {
 		return installerManifest{}, localeManifest{}, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
-			"path": dirPath,
+			"path":           dirPath,
+			"version_prefix": input.VersionPrefix,
 		})
 	}
 
@@ -519,7 +536,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// Adobe Creative Cloud runs its own node.exe), so match only this app's install dir:
 	// another copy running shouldn't block its updates.
 	switch input.Slug {
-	case "nodejs/windows":
+	case "nodejs/windows", "nodejs-22/windows", "nodejs-24/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`
 	case "python-3.13/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313\%');`
@@ -527,8 +544,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313-arm64\%');`
 	case "python-3.14/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python314\%');`
-	case "nodejs-22/windows":
-		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`
 	}
 
 	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open
@@ -740,6 +755,9 @@ type inputApp struct {
 	// The version is the installer's ProductVersion, and a new release is picked up when
 	// the redirect target changes. Set it instead of PackageIdentifier.
 	LatestInstallerURL string `json:"latest_installer_url"`
+	// VersionPrefix limits the package to one release line (e.g. "24" for Node.js 24) when
+	// winget has no per-line package and publishes several lines under one identifier.
+	VersionPrefix string `json:"version_prefix"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`
 	InstallScriptPath   string     `json:"install_script_path"`

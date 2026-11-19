@@ -43,6 +43,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/ab_tokens/{id}/teams",
 	"/api/_version_/fleet/abm_tokens/{id}/fleets",
 	"/api/_version_/fleet/abm_tokens/{id}/teams",
+	"/api/_version_/fleet/vpp_tokens/{id}/teams",
 	"/api/_version_/fleet/mdm/apple_bm",
 	"/api/_version_/fleet/mdm/apple/abm_public_key",
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
@@ -60,6 +61,12 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/packs/{id}/scheduled",
 	"/api/_version_/fleet/spec/packs",
 	"/api/_version_/fleet/spec/packs/{name}",
+	"/api/_version_/fleet/global/schedule",
+	"/api/_version_/fleet/global/schedule/{id}",
+	"/api/_version_/fleet/schedule",
+	"/api/_version_/fleet/schedule/{id}",
+	"/api/_version_/fleet/fleets/{fleet_id}/schedule",
+	"/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}",
 
 	"/api/_version_/fleet/mdm/commands",
 	"/api/_version_/fleet/mdm/apple/commands",
@@ -102,6 +109,9 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/setup/eula/{token}",
 	"/api/_version_/fleet/mdm/apple/setup/eula/{token}",
 	"/api/_version_/fleet/labels/{name}",
+	"/api/_version_/fleet/mdm/apple/installers",
+	"/api/_version_/fleet/mdm/apple/installers/{installer_id}",
+	"/api/mdm/apple/installer",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
