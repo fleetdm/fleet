@@ -1071,7 +1071,7 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 				}, fleet.ApplyTeamSpecOptions{DryRun: dryRun})
 				var conflict *fleet.ConflictError
 				require.ErrorAs(t, err, &conflict)
-				require.Contains(t, err.Error(), `fleet name "Work-stations" conflicts with existing fleet "Workstations". `+fleet.TeamNameConflictHint)
+				require.Contains(t, err.Error(), fleet.TeamNameConflictMessage("Work-stations", "Workstations"))
 			}
 		}
 	})
