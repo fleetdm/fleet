@@ -230,6 +230,7 @@ To learn more, see [Custom variables](https://fleetdm.com/guides/secrets-in-scri
 | Blocked dependency | If a package depends on a blocked package, apt stops the install with `E: Unable to satisfy dependencies` and names the blocked dependency. |
 | Download | `apt-get download` stops with `E: Can't select candidate version from package sshpass as it has no candidate`. |
 | Removed package | The package is removed without a prompt. If users try to install it again, apt blocks it. |
+| User without `sudo` | apt stops any install: `Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?` |
 
 ## Verify
 
