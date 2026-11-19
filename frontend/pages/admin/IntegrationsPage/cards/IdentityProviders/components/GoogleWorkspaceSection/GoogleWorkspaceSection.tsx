@@ -208,7 +208,7 @@ const GoogleWorkspaceSection = ({
       position="left"
       renderChildren={(disableChildren) => (
         <Button
-          disabled={disableChildren}
+          disabled={disableChildren || isUpdatingSettings}
           variant={variant}
           className={`${baseClass}__add-domain-button`}
           onClick={() => setShowAddDomainModal(true)}
@@ -251,7 +251,7 @@ const GoogleWorkspaceSection = ({
                 position="left"
                 renderChildren={(disableChildren) => (
                   <Button
-                    disabled={disableChildren}
+                    disabled={disableChildren || isUpdatingSettings}
                     onClick={() => setDeletingDomain(listItem)}
                     className={`${baseClass}__delete-domain-button`}
                     variant="subdued"

@@ -211,6 +211,24 @@ describe("GoogleWorkspaceSection", () => {
     expect(screen.getByDisplayValue("admin@example.com")).toBeInTheDocument();
   });
 
+  it("disables adding and deleting domains while Save is in flight", async () => {
+    updateSpy.mockReturnValue(new Promise(() => undefined));
+    const render = renderWith();
+    const { user } = render(
+      <GoogleWorkspaceSection appConfig={configuredConfig(["example.org"])} />
+    );
+
+    expect(screen.getByRole("button", { name: /Add/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Add/ })).toBeDisabled()
+    );
+    expect(
+      screen.getByRole("button", { name: "Delete domain example.org" })
+    ).toBeDisabled();
+  });
+
   it("deletes a domain from the modal", async () => {
     const render = renderWith();
     const { user } = render(
