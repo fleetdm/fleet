@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -46,6 +47,11 @@ func writeClaudeTranscript(t *testing.T, home, id string, records ...string) str
 	path := claudePath(home, id)
 	writeFile(t, path, lines(records...))
 	return path
+}
+
+// claudePromptAt is a prompt record written at ts.
+func claudePromptAt(ts time.Time, prompt string) string {
+	return fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"role":"user","content":%q}}`, ts.UTC().Format(time.RFC3339Nano), prompt)
 }
 
 // writeClaudePrompts writes a Claude Code transcript made of plain prompts.

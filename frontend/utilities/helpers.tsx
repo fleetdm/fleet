@@ -9,7 +9,6 @@ import md5 from "js-md5";
 import {
   isEmpty,
   flatMap,
-  omit,
   pick,
   reduce,
   trim,
@@ -23,7 +22,6 @@ import CustomLink from "components/CustomLink";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IPack } from "interfaces/pack";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 import {
@@ -31,13 +29,8 @@ import {
   ISchedulableQueryStats,
 } from "interfaces/schedulable_query";
 import {
-  IScheduledQuery,
-  IPackQueryFormData,
-} from "interfaces/scheduled_query";
-import {
   ISelectTargetsEntity,
   ISelectedTargetsForApi,
-  IPackTargets,
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
@@ -87,10 +80,15 @@ export const addGravatarUrlToResource = (resource: any): any => {
   };
 };
 
-/** Removes Apple OS Prefix from host.os_version. */
-export const removeOSPrefix = (version: string): string => {
-  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
-};
+/** A host's operating system as the UI shows it, e.g. "macOS 15.2". Unknown parts (empty, or normalized to the
+ * empty-cell value) are left out. */
+export const getHostOSDisplayName = (
+  osName?: string,
+  osVersion?: string
+): string =>
+  [osName, osVersion]
+    .filter((part) => part && part !== DEFAULT_EMPTY_CELL_VALUE)
+    .join(" ");
 
 /** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
 export const compareVersions = (version1: string, version2: string) => {
@@ -192,216 +190,13 @@ export const formatSelectedTargetsForApi = (
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));
   const labelIds = flatMap(targets, filterTarget("labels"));
-  const teamIds = flatMap(targets, filterTarget("teams"));
+  const fleetIds = flatMap(targets, filterTarget("teams"));
 
   return {
     hosts: hostIds.sort(),
     labels: labelIds.sort(),
-    teams: teamIds.sort(),
+    fleets: fleetIds.sort(),
   };
-};
-
-export const formatPackTargetsForApi = (
-  targets: ISelectTargetsEntity[]
-): IPackTargets => {
-  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
-  return { host_ids: hosts, label_ids: labels, fleet_ids: teams };
-};
-
-export const formatScheduledQueryForServer = (
-  scheduledQuery: IPackQueryFormData
-) => {
-  const {
-    interval,
-    logging_type: loggingType,
-    pack_id: packID,
-    platform,
-    query_id: queryID,
-    shard,
-  } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
-
-  if (platform === "all") {
-    result.platform = "";
-  }
-
-  if (interval) {
-    result.interval = Number(interval);
-  }
-
-  if (loggingType) {
-    result.removed = loggingType === "differential";
-    result.snapshot = loggingType === "snapshot";
-  }
-
-  if (packID) {
-    result.pack_id = Number(packID);
-  }
-
-  if (queryID) {
-    (result as any).report_id = Number(queryID);
-  }
-
-  if (shard) {
-    result.shard = Number(shard);
-  }
-
-  return result;
-};
-
-export const formatScheduledQueryForClient = (
-  scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
-  if (scheduledQuery.platform === "") {
-    scheduledQuery.platform = "all";
-  }
-
-  if (scheduledQuery.snapshot) {
-    scheduledQuery.logging_type = "snapshot";
-  } else {
-    scheduledQuery.snapshot = false;
-    if (scheduledQuery.removed === false) {
-      scheduledQuery.logging_type = "differential_ignore_removals";
-    } else {
-      // If both are unset, we should default to differential (like osquery does)
-      scheduledQuery.logging_type = "differential";
-    }
-  }
-
-  if (scheduledQuery.shard === null) {
-    scheduledQuery.shard = undefined;
-  }
-
-  return scheduledQuery;
-};
-
-export const formatGlobalScheduledQueryForServer = (
-  scheduledQuery: IScheduledQuery
-) => {
-  const {
-    interval,
-    logging_type: loggingType,
-    platform,
-    query_id: queryID,
-    shard,
-  } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
-
-  if (platform === "all") {
-    result.platform = "";
-  }
-
-  if (interval) {
-    result.interval = Number(interval);
-  }
-
-  if (loggingType) {
-    result.removed = loggingType === "differential";
-    result.snapshot = loggingType === "snapshot";
-  }
-
-  if (queryID) {
-    (result as any).report_id = Number(queryID);
-  }
-
-  if (shard) {
-    result.shard = Number(shard);
-  }
-
-  return result;
-};
-
-export const formatGlobalScheduledQueryForClient = (
-  scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
-  if (scheduledQuery.platform === "") {
-    scheduledQuery.platform = "all";
-  }
-
-  if (scheduledQuery.snapshot) {
-    scheduledQuery.logging_type = "snapshot";
-  } else {
-    scheduledQuery.snapshot = false;
-    if (scheduledQuery.removed === false) {
-      scheduledQuery.logging_type = "differential_ignore_removals";
-    } else {
-      // If both are unset, we should default to differential (like osquery does)
-      scheduledQuery.logging_type = "differential";
-    }
-  }
-
-  if (scheduledQuery.shard === null) {
-    scheduledQuery.shard = undefined;
-  }
-
-  return scheduledQuery;
-};
-
-export const formatTeamScheduledQueryForServer = (
-  scheduledQuery: IScheduledQuery
-) => {
-  const {
-    interval,
-    logging_type: loggingType,
-    platform,
-    query_id: queryID,
-    shard,
-    fleet_id: teamID,
-  } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type", "query_id", "fleet_id"]);
-
-  if (platform === "all") {
-    result.platform = "";
-  }
-
-  if (interval) {
-    result.interval = Number(interval);
-  }
-
-  if (loggingType) {
-    result.removed = loggingType === "differential";
-    result.snapshot = loggingType === "snapshot";
-  }
-
-  if (queryID) {
-    (result as any).report_id = Number(queryID);
-  }
-
-  if (shard) {
-    result.shard = Number(shard);
-  }
-
-  if (teamID) {
-    (result as any).fleet_id = Number(teamID);
-  }
-
-  return result;
-};
-
-export const formatTeamScheduledQueryForClient = (
-  scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
-  if (scheduledQuery.platform === "") {
-    scheduledQuery.platform = "all";
-  }
-
-  if (scheduledQuery.snapshot) {
-    scheduledQuery.logging_type = "snapshot";
-  } else {
-    scheduledQuery.snapshot = false;
-    if (scheduledQuery.removed === false) {
-      scheduledQuery.logging_type = "differential_ignore_removals";
-    } else {
-      // If both are unset, we should default to differential (like osquery does)
-      scheduledQuery.logging_type = "differential";
-    }
-  }
-
-  if (scheduledQuery.shard === null) {
-    scheduledQuery.shard = undefined;
-  }
-
-  return scheduledQuery;
 };
 
 export const formatTeamForClient = (team: ITeam): ITeam => {
@@ -409,13 +204,6 @@ export const formatTeamForClient = (team: ITeam): ITeam => {
     team.display_text = team.name;
   }
   return team;
-};
-
-export const formatPackForClient = (pack: IPack): IPack => {
-  pack.host_ids ||= [];
-  pack.label_ids ||= [];
-  pack.fleet_ids ||= [];
-  return pack;
 };
 
 export const formatSeverity = (float?: number | null): string => {
@@ -580,6 +368,9 @@ export const humanHostEnrolled = (enrolled: string): string => {
 };
 
 export const humanHostMemory = (bytes: number): string => {
+  if (bytes < 0) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
   return `${inGigaBytes(bytes)} GB`;
 };
 
@@ -1052,22 +843,40 @@ export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
   return errMsg;
 };
 
+const FLEET_5_REMOVAL_MESSAGE = /^(.*? What to use instead: )(https:\/\/\S+)(.*)$/;
+
+/**
+ * Formats any Fleet 5 removal message from the API ("The ... is not available anymore. What to use
+ * instead: <guide URL>") with the guide URL as a link. Returns null for any other message. Pass the
+ * "default" link variant outside toasts.
+ */
+export const formatFleet5RemovalMessage = (
+  message: string,
+  linkVariant: "flash-message-link" | "default" = "flash-message-link"
+) => {
+  const match = message.match(FLEET_5_REMOVAL_MESSAGE);
+  if (!match) {
+    return null;
+  }
+  const [, before, url, after] = match;
+  return (
+    <>
+      {before}
+      <CustomLink url={url} text={url} variant={linkVariant} newTab />
+      {after}
+    </>
+  );
+};
+
 export default {
   addGravatarUrlToResource,
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   formatLabelResponse,
   formatFloatAsPercentage,
   formatSeverity,
-  formatScheduledQueryForClient,
-  formatScheduledQueryForServer,
   formatScriptNameForActivityItem,
-  formatGlobalScheduledQueryForClient,
-  formatGlobalScheduledQueryForServer,
-  formatTeamScheduledQueryForClient,
-  formatTeamScheduledQueryForServer,
   formatSelectedTargetsForApi,
-  formatPackTargetsForApi,
   generateRole,
   generateRoleGroups,
   generateTeam,

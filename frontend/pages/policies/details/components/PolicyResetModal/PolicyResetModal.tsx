@@ -14,7 +14,6 @@ interface IPolicyResetModalProps {
   policy: IPolicy;
   /** Set when the reset is scoped to a single host. */
   host?: { displayName: string };
-  currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
   isResetting: boolean;
   onSubmit: () => void;
@@ -24,7 +23,6 @@ interface IPolicyResetModalProps {
 const PolicyResetModal = ({
   policy,
   host,
-  currentAutomatedPolicies,
   otherAutomationType,
   isResetting,
   onSubmit,
@@ -40,9 +38,7 @@ const PolicyResetModal = ({
     target = host.displayName ? <b>{host.displayName}</b> : "this host";
   }
   const hasAutomations =
-    isHostScoped &&
-    mapAutomationRows(policy, currentAutomatedPolicies, otherAutomationType)
-      .length > 0;
+    isHostScoped && mapAutomationRows(policy, otherAutomationType).length > 0;
 
   return (
     <Modal title="Reset policy" onExit={onCancel} className={baseClass}>
@@ -57,7 +53,6 @@ const PolicyResetModal = ({
               <span>Automations will re-run if the host fails the policy:</span>
               <PolicyAutomationsList
                 storedPolicy={policy}
-                currentAutomatedPolicies={currentAutomatedPolicies}
                 otherAutomationType={otherAutomationType}
               />
             </>

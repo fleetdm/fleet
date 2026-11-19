@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,31 +67,16 @@ func TestEvalMigrationStatus(t *testing.T) {
 			wantOut:  "unrecognized migrations",
 		},
 		{
-			name:         "needs v4732 fix exits unless allowed",
-			status:       &fleet.MigrationStatus{StatusCode: fleet.NeedsFleetv4732Fix},
-			allowMissing: false,
-			wantExit:     true,
-			wantOut:      "automatically perform this fix",
+			name:     "unknown migrations newer than the fleet 5 baseline",
+			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownMigrations, UnknownTable: []int64{tables.Fleet5BaselineVersion + 1}},
+			wantExit: false,
+			wantOut:  "migrations from a newer Fleet release",
 		},
 		{
-			name:         "needs v4732 fix tolerated when missing allowed still warns",
-			status:       &fleet.MigrationStatus{StatusCode: fleet.NeedsFleetv4732Fix},
-			allowMissing: true,
-			wantExit:     false,
-			wantOut:      "automatically perform this fix",
-		},
-		{
-			name:     "unknown v4732 state exits unless allowed",
-			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownFleetv4732State},
-			wantExit: true,
-			wantOut:  "contact Fleet support",
-		},
-		{
-			name:         "unknown v4732 state tolerated when missing allowed still warns",
-			status:       &fleet.MigrationStatus{StatusCode: fleet.UnknownFleetv4732State},
-			allowMissing: true,
-			wantExit:     false,
-			wantOut:      "contact Fleet support",
+			name:     "unknown migrations older than the fleet 5 baseline",
+			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownMigrations, UnknownTable: []int64{tables.Fleet5BaselineVersion - 1, tables.Fleet5BaselineVersion + 1}},
+			wantExit: false,
+			wantOut:  "unrecognized migrations",
 		},
 		{
 			name:     "some migrations completed exits unless allowed",

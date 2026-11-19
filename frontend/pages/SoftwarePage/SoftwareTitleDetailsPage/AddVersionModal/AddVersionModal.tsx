@@ -9,7 +9,7 @@ import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
-import { IAppStoreApp } from "interfaces/software";
+import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import {
   buildLabelsForPayload,
@@ -30,9 +30,11 @@ const baseClass = "add-version-modal";
 
 interface IAddVersionModalProps {
   teamId: number;
-  /** The title's back-compat `app_store_app` envelope. The new version
-   * inherits `app_store_id` and `platform` from this. */
-  appStore: IAppStoreApp;
+  /** The title's first `app_store_apps` entry. The new version inherits
+   * `app_store_id`, `platform`, and `vpp_token` from this. */
+  appStore: IAppStoreAppVersion;
+  /** Title name / display name, shown in form microcopy. */
+  titleDisplayName: string;
   /** Existing version names on this title, used for client-side uniqueness
    * validation before the request hits the backend. */
   existingVersionNames: string[];
@@ -55,6 +57,7 @@ interface IAddVersionModalProps {
 const AddVersionModal = ({
   teamId,
   appStore,
+  titleDisplayName,
   existingVersionNames,
   defaultTargetCustom = false,
   defaultAutoUpdate,
@@ -192,7 +195,7 @@ const AddVersionModal = ({
               commitFields={commitFields}
               getError={getError}
               platform={appStore.platform}
-              appDisplayName={appStore.display_name || appStore.name}
+              appDisplayName={titleDisplayName}
               labels={labels ?? []}
               teamId={teamId}
               onClickPreviewEndUserExperience={() =>

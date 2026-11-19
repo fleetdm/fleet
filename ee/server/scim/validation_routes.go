@@ -3,8 +3,8 @@ package scim
 import (
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // CAVEAT — keep this in sync with scim.go. The route list below mirrors
@@ -38,8 +38,8 @@ type servedRoute struct {
 
 // servedRoutes returns the routes served by the prefix-mounted SCIM handler.
 // The github.com/elimity-com/scim library routes these internally in
-// (scim.Server).ServeHTTP, so they never reach gorilla/mux and cannot be
-// discovered by walking the router. We reconstruct them from the resource
+// (scim.Server).ServeHTTP, so they never reach the API router and are not in
+// its route table. We reconstruct them from the resource
 // endpoints the server is configured with plus the discovery endpoints the
 // library hardcodes per RFC 7644. Keep this in sync with RegisterSCIM's
 // resource types and the library's ServeHTTP switch.
@@ -72,8 +72,10 @@ func servedRoutes() []servedRoute {
 // apiendpoints.Validate can confirm the api_endpoints catalog stays in sync
 // with what SCIM actually serves; the handlers are never invoked, only their
 // path templates and methods are inspected.
-func RegisterValidationRoutes(r *mux.Router, _ []kithttp.ServerOption) {
+func RegisterValidationRoutes(r *endpointer.Router, _ []kithttp.ServerOption) {
+	// Registered through the endpointer, which records the routes that Validate reads. The stubs need no auth or encoding.
+	ep := &endpointer.CommonEndpointer[any]{Router: r}
 	for _, rt := range servedRoutes() {
-		r.Handle(rt.tpl, http.NotFoundHandler()).Methods(rt.method)
+		ep.HandleHTTPHandler(rt.tpl, http.NotFoundHandler(), rt.method)
 	}
 }

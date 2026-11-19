@@ -49,14 +49,12 @@ const STATUS_FILTER_OPTIONS: CustomOptionType[] = [
 
 interface IPolicyAutomationsActivitiesTableProps {
   policy: IPolicy;
-  currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
   canResetPolicy: boolean;
 }
 
 const PolicyAutomationsActivitiesTable = ({
   policy,
-  currentAutomatedPolicies,
   otherAutomationType,
   canResetPolicy,
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
@@ -233,7 +231,7 @@ const PolicyAutomationsActivitiesTable = ({
               <Button
                 variant="subdued"
                 onClick={onClickResetPolicy}
-                icon="refresh"
+                icon="retry"
                 iconPosition="right"
               >
                 Reset policy
@@ -303,7 +301,6 @@ const PolicyAutomationsActivitiesTable = ({
         <PolicyResetModal
           policy={policy}
           host={resetHost}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           isResetting={isResetting}
           onSubmit={resetPolicy}

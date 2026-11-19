@@ -77,8 +77,8 @@
   }
 }
 
-// Override the chevron icon stroke to inherit the button's text color
+// Override the chevron icon fill to inherit the button's text color
 // so it adapts correctly in dark mode
 .dropdown-button .icon svg path {
-  stroke: currentColor;
+  fill: currentColor;
 }

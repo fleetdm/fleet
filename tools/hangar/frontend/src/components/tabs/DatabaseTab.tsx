@@ -8,6 +8,7 @@ import {
 import { noAutocorrect } from "../../lib/noAutocorrect";
 import { startServe, waitForExit } from "../../lib/orchestration";
 import {
+  apnsMockLiveUrl,
   dbBackupCommand,
   dbRestoreCommand,
   prepareDbArgsFor,
@@ -357,7 +358,8 @@ function StatusHeader({
     setServeBusy("starting");
     setError(null);
     try {
-      await startServe(server);
+      // Pushes go to the server's mock APNs if it's running now.
+      await startServe(server, apnsMockLiveUrl(server, await api.listProcesses()));
     } catch (e) {
       setError(String(e));
       setServeBusy(null);

@@ -37,6 +37,7 @@ Use these variables in a template to give each host a unique name:
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | The local part of the IdP username (before `@`). |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | The end user's IdP groups, comma-separated. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | The end user's IdP department. |
+| `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` | The end user's immutable IdP user ID (SCIM `externalId`). |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME` | The end user's IdP full name. |
 
 Each variable also works in its `${FLEET_VAR_...}` form. For more on built-in variables, see [Built-in variables](https://fleetdm.com/guides/fleet-variables).
@@ -56,8 +57,6 @@ The custom variable must already exist when you save the template, or the save f
 ### Variables that aren't supported
 
 Certificate authority variables — for example `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_DIGICERT_DATA_<CA>`, `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA>`, `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` — and the Platform SSO device registration token can't be used in a name template. They resolve to one-time challenges, proxy URLs, or certificate data: values that are meaningless as a device name and would expose secrets in a name that's visible on the device, in reports, and in the Fleet UI. Fleet rejects a template that references them.
-
-The deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable also isn't supported; use the `HOST_END_USER_IDP_*` variables above instead.
 
 ### Renaming when a variable's value changes
 

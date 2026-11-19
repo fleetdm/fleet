@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,7 @@ import (
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
 
@@ -45,6 +47,17 @@ func (g *googleForwarder) ForwardDevicesGet(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, device)
+}
+
+// ForwardOperationsGet forwards a GET .../devices/{id}/operations/{oid} request to Google.
+func (g *googleForwarder) ForwardOperationsGet(w http.ResponseWriter, r *http.Request) {
+	name := deviceName(r) + "/operations/" + r.PathValue("oid")
+	op, err := g.svc.Enterprises.Devices.Operations.Get(name).Context(r.Context()).Do()
+	if err != nil {
+		writeGoogleError(w, err)
+		return
+	}
+	writeJSON(w, op)
 }
 
 // ForwardDevicesPatch forwards a PATCH .../devices/{id} request to Google.
@@ -211,9 +224,16 @@ func writeJSON(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v) //nolint:errcheck
 }
 
+// writeGoogleError passes Google's own error response through, so Fleet can tell a 404 or 429 from a
+// failure to reach Google, which is reported as a 502.
 func writeGoogleError(w http.ResponseWriter, err error) {
 	log.Printf("googleForwarder: Google API error: %v", err)
 	w.Header().Set("Content-Type", "application/json")
+	if gerr, ok := errors.AsType[*googleapi.Error](err); ok && gerr.Code >= 400 && gerr.Code < 600 && gerr.Body != "" {
+		w.WriteHeader(gerr.Code)
+		_, _ = io.WriteString(w, gerr.Body)
+		return
+	}
 	w.WriteHeader(http.StatusBadGateway)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]any{

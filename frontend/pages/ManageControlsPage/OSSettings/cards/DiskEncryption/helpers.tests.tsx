@@ -76,19 +76,6 @@ describe("getDiskEncryptionSettings", () => {
     });
   });
 
-  it("reads the Apple settings from a fleet list response, which still spells them macos_settings", () => {
-    const settings = getDiskEncryptionSettings({
-      ...perPlatform,
-      macos_settings: {
-        enable_disk_encryption: true,
-        enable_escrow_disk_encryption_key: false,
-      },
-    });
-
-    expect(settings.macOSEnabled).toBe(true);
-    expect(settings.macOSEscrowEnabled).toBe(false);
-  });
-
   it("falls back to the deprecated top-level key when per-platform fields are absent", () => {
     const settings = getDiskEncryptionSettings({
       enable_disk_encryption: true,

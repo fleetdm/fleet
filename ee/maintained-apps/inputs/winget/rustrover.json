@@ -3,6 +3,7 @@
   "slug": "rustrover/windows",
   "package_identifier": "JetBrains.RustRover",
   "unique_identifier": "RustRover",
+  "open_process_names": ["rustrover.exe", "rustrover64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/rustrover_install.ps1",

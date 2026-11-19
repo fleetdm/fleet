@@ -62,8 +62,6 @@ const (
 	// them.
 	//
 
-	// ActionSelectiveRead allows targeted read access of an entity.
-	ActionSelectiveRead = "selective_read"
 	// ActionSelectiveList allows targeted list access of an entity.
 	ActionSelectiveList = "selective_list"
 )

@@ -1,0 +1,1 @@
+- Certificate authority (CA) names are now unique across all CA types, without regard to case. CAs that already share a name keep working, but neither can be edited, in the UI, API, or GitOps, until one of them is renamed. The certificate authorities page shows a warning for them.

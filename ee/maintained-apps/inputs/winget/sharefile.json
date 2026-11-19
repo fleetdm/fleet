@@ -2,7 +2,7 @@
   "name": "ShareFile",
   "slug": "sharefile/windows",
   "package_identifier": "ShareFile.ShareFileForWindows",
-  "unique_identifier": "ShareFile For Windows",
+  "unique_identifier": "ShareFile",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

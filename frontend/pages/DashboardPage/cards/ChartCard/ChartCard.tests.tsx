@@ -278,7 +278,7 @@ describe("ChartCard", () => {
       user: ReturnType<typeof renderPremium>["user"]
     ) => {
       Element.prototype.getBoundingClientRect = origGetBCR;
-      await user.hover(screen.getByTestId("info-outline-icon"));
+      await user.hover(screen.getByTestId("info-icon"));
       await waitFor(
         () => expect(screen.getByRole("tooltip")).toBeInTheDocument(),
         { timeout: 3000 }

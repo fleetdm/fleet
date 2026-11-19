@@ -1,8 +1,10 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { ErrorBoundary, FallbackProps } from "react-error-boundary";
 
 import { createMockActivity } from "__mocks__/activityMock";
+import { createMockGetHostAISessionsResponse } from "__mocks__/aiSessionsMock";
 import createMockConfig from "__mocks__/configMock";
 import createMockHost, {
   createMockGetHostSoftwareResponse,
@@ -21,6 +23,7 @@ import local from "utilities/local";
 
 import HostDetailsPage, {
   getMDMCommandsToggleLocalState,
+  REFETCH_HOST_DETAILS_POLLING_INTERVAL,
   setMDMCommandsToggleLocalState,
 } from "./HostDetailsPage";
 
@@ -96,6 +99,9 @@ const stubQueries = (host: IHost) => {
     certificates: [],
     meta: { has_next_results: false, has_previous_results: false },
   });
+  (hostAPI.getHostAISessions as jest.Mock).mockResolvedValue(
+    createMockGetHostAISessionsResponse()
+  );
   (hostAPI.refetch as jest.Mock).mockResolvedValue({});
   (hostAPI.apnsPing as jest.Mock).mockResolvedValue({});
   (activitiesAPI.getHostPastActivities as jest.Mock).mockResolvedValue({
@@ -107,7 +113,7 @@ const stubQueries = (host: IHost) => {
     count: 0,
     meta: { has_next_results: false, has_previous_results: false },
   });
-  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ teams: [] });
+  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ fleets: [] });
   (commandAPI.getCommands as jest.Mock).mockResolvedValue({
     results: [],
     count: 0,
@@ -120,12 +126,14 @@ const renderHostDetails = (overrides?: {
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   location?: typeof mockLocation;
+  hostId?: string;
 }) => {
   const {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
     location = mockLocation,
+    hostId = "1",
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -141,12 +149,19 @@ const renderHostDetails = (overrides?: {
     },
   });
 
+  // App.tsx wraps every page in an ErrorBoundary; its overlay reads the status.
+  const ErrorStatus = ({ error }: FallbackProps) => (
+    <div>error status {(error as Error & { status?: number }).status}</div>
+  );
+
   return render(
-    <HostDetailsPage
-      router={createMockRouter()}
-      location={location}
-      params={{ host_id: "1" }}
-    />
+    <ErrorBoundary FallbackComponent={ErrorStatus}>
+      <HostDetailsPage
+        router={createMockRouter()}
+        location={location}
+        params={{ host_id: hostId }}
+      />
+    </ErrorBoundary>
   );
 };
 
@@ -246,8 +261,46 @@ describe("HostDetailsPage - MDM status modal Check in now", () => {
   });
 });
 
-describe("HostDetailsPage - pending hosts", () => {
+describe("HostDetailsPage - AI sessions", () => {
   afterEach(() => {
+    jest.useRealTimers();
+    jest.resetAllMocks();
+  });
+
+  it("refetches the AI sessions along with the host vitals", async () => {
+    stubQueries(mockWindowsHost());
+    renderHostDetails({ currentUser: ADMIN, isGlobalAdmin: true });
+
+    expect(await screen.findByText("1 session")).toBeInTheDocument();
+    const refetchButton = await screen.findByRole("button", {
+      name: /refetch/i,
+    });
+    const callsBeforeRefetch = (hostAPI.getHostAISessions as jest.Mock).mock
+      .calls.length;
+
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await user.click(refetchButton);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(
+        REFETCH_HOST_DETAILS_POLLING_INTERVAL
+      );
+    });
+
+    expect(
+      (hostAPI.getHostAISessions as jest.Mock).mock.calls.length
+    ).toBeGreaterThan(callsBeforeRefetch);
+  });
+});
+
+describe("HostDetailsPage - pending hosts", () => {
+  // Fake from before the render: the refetch poll is scheduled on first load.
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
     jest.resetAllMocks();
   });
 
@@ -264,13 +317,13 @@ describe("HostDetailsPage - pending hosts", () => {
     });
     await screen.findByText("Vitals");
     // Give the poll timer (2s) room to fire if it was scheduled.
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
 
-    expect(
-      screen.queryByText(/fetching fresh vitals/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/refetching\.\.\./i)).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
-  }, 15000);
+  });
 
   it("still reports back when the user asks for the refetch", async () => {
     stubQueries(mockPendingWindowsHost("online"));
@@ -278,10 +331,11 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    const { user } = renderHostDetails({
+    renderHostDetails({
       currentUser: ADMIN,
       isGlobalAdmin: true,
     });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -295,7 +349,7 @@ describe("HostDetailsPage - pending hosts", () => {
       },
       { timeout: 10000 }
     );
-  }, 20000);
+  });
 });
 
 describe("HostDetailsPage - hosts that haven't reported vitals", () => {
@@ -304,6 +358,8 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
   let dateNowSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    // Date stays real: these tests move the clock themselves through the spy.
+    jest.useFakeTimers({ doNotFake: ["Date"] });
     elapsedMs = 0;
     dateNowSpy = jest
       .spyOn(Date, "now")
@@ -311,6 +367,7 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     dateNowSpy.mockRestore();
     jest.resetAllMocks();
   });
@@ -334,20 +391,19 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
         currentUser: ADMIN,
         isGlobalAdmin: true,
       });
-      await screen.findByText(/fetching fresh vitals/i);
+      await screen.findByText(/refetching\.\.\./i);
       elapsedMs = pollMs;
       // The spinner clears only once the next response has gone through the toast decision.
       await waitFor(
         () =>
           expect(
-            screen.queryByText(/fetching fresh vitals/i)
+            screen.queryByText(/refetching\.\.\./i)
           ).not.toBeInTheDocument(),
         { timeout: 5000 }
       );
 
       expect(notify.error).not.toHaveBeenCalled();
-    },
-    15000
+    }
   );
 });
 
@@ -667,4 +723,22 @@ describe("HostDetailsPage - enrollment rejection details", () => {
     expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
     expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
   });
+});
+
+describe("HostDetailsPage - invalid host id", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it.each(["abc", "0", "1abc", "1.5"])(
+    "shows the not found page for /hosts/%s",
+    async (id) => {
+      stubQueries(createMockHost());
+
+      renderHostDetails({ hostId: id });
+
+      expect(await screen.findByText("error status 404")).toBeInTheDocument();
+      expect(hostAPI.loadHostDetails).not.toHaveBeenCalled();
+    }
+  );
 });

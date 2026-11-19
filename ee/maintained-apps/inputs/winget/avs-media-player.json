@@ -3,6 +3,7 @@
   "slug": "avs-media-player/windows",
   "package_identifier": "Ascensio.AVSMediaPlayer",
   "unique_identifier": "AVS Media Player",
+  "open_process_names": ["avsmediaplayer.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x86",
   "installer_type": "exe",

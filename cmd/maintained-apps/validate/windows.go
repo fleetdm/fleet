@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"golang.org/x/sys/windows/registry"
 )
 
 var preInstalled = []string{
@@ -25,7 +27,38 @@ var preInstalled = []string{
 	"microsoft-edge/windows",
 }
 
-func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
+// After an install that needs a restart (e.g. one that replaced the in-use
+// VC++ runtime), Burn writes a volatile "<bundle key>.RebootRequired" key and
+// refuses to touch that bundle again (exit 3010, nothing changed) until the
+// restart clears it. The runner can't restart before the uninstall check, so
+// clear the markers in its place.
+func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, _ string) error {
+	for _, uninstallKey := range []string{
+		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`,
+		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
+	} {
+		k, err := registry.OpenKey(registry.LOCAL_MACHINE, uninstallKey, registry.ENUMERATE_SUB_KEYS)
+		if errors.Is(err, registry.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", uninstallKey, err)
+		}
+		names, err := k.ReadSubKeyNames(-1)
+		k.Close()
+		if err != nil {
+			return fmt.Errorf("listing %s: %w", uninstallKey, err)
+		}
+		for _, name := range names {
+			if !strings.HasSuffix(name, ".RebootRequired") {
+				continue
+			}
+			if err := registry.DeleteKey(registry.LOCAL_MACHINE, uninstallKey+`\`+name); err != nil {
+				return fmt.Errorf("deleting Burn restart marker %s: %w", name, err)
+			}
+			appLogger.InfoContext(ctx, fmt.Sprintf("Cleared Burn restart marker %s to stand in for a restart", name))
+		}
+	}
 	return nil
 }
 
@@ -48,9 +81,13 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-// appExists reports whether the app is installed at the expected version. When
-// it's only found somewhere the manifest's exists query doesn't read, the
-// second value says why the exists query can't be checked on this runner.
+const patchedQueryFixHint = "Compare the Found app lines above with the version. The patched query compares osquery's raw version, shown as \"osquery:\" when ingestion rewrites it. A DisplayVersion that's a shorter form of the version, or in another format, needs an enricher in ee/maintained-apps/ingesters/winget/external_refs, or use_display_version_for_patch if the winget manifest has a DisplayVersion. Another programs entry at an older version that the patched query also matches (a leftover from an earlier major, a bundled component) needs the query narrowed."
+
+// appExists reports whether the app is installed at the expected version. It
+// logs every programs row it finds, so a failing patched query can be traced to
+// the entry that fails it. When it's only found somewhere the manifest's exists
+// query doesn't read, the second value says why the exists query can't be
+// checked on this runner.
 func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, patchedQuery, appPath, existsQuery string) (bool, string, error) {
 	patchVersion := patchedQueryVersion(patchedQuery)
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -109,8 +146,13 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
+	// An ARM64 build gets the same per-app exceptions as its x64 sibling.
+	catalogName := strings.TrimSuffix(appName, " (ARM64)")
+
+	found := false
 	if len(results) > 0 {
 		for _, result := range results {
+			rawVersion := result.Version
 			// Vendor is populated so name/version sanitizers that key off the
 			// publisher (e.g. JetBrains build-number normalization in
 			// MutateSoftwareOnIngestion) behave as they do in production.
@@ -124,42 +166,47 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			result.Version = software.Version
 			result.Name = software.Name
 
-			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, foundVersion(result.Version, rawVersion)))
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
-			if appName == "Sublime Text" && result.Version == "" {
+			if catalogName == "Sublime Text" && result.Version == "" {
 				logger.InfoContext(ctx, "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
-				return true, "", nil
+				found = true
+				continue
 			}
 
 			// Check exact match first
 			if result.Version == appVersion {
-				return true, "", nil
+				found = true
+				continue
 			}
 			// Check if found version starts with expected version (handles suffixes like ".0")
 			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
 			if strings.HasPrefix(result.Version, appVersion+".") {
-				return true, "", nil
-			}
-			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
-			if strings.HasPrefix(appVersion, result.Version+".") {
-				return true, "", nil
+				found = true
+				continue
 			}
 			// Some installers register a DisplayVersion in a different format
 			// from the package version (.NET SDK 9.0.320 registers 9.3.2026.52328).
 			// The patch policy compares against that DisplayVersion, so accept it.
 			if patchVersion != "" && result.Version == patchVersion {
-				return true, "", nil
+				found = true
+				continue
+			}
+			// A shorter version ("6.4" for "6.4.0") is not a match: version_compare
+			// sorts it lower, so the patch policy would fail on up-to-date hosts.
+			if strings.HasPrefix(appVersion, result.Version+".") {
+				logger.ErrorContext(ctx, fmt.Sprintf("osquery reports version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with an enricher in ee/maintained-apps/ingesters/winget/external_refs, or set use_display_version_for_patch if the winget manifest has a DisplayVersion.", result.Version, appVersion))
 			}
 
 			// Google Chrome auto-updates immediately after installation, so the
 			// installed version may be newer than the installer version. If
 			// version didn't match above, fall back to existence-only check.
-			if appName == "Google Chrome" {
+			if catalogName == "Google Chrome" {
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
-				return true, "", nil
+				found = true
+				continue
 			}
 			// Microsoft Office is a Click-to-Run product: the bootstrap setup.exe
 			// always pulls the latest channel build from Microsoft's CDN, so the
@@ -175,14 +222,19 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// manifest's exists/patched queries (publisher = 'Microsoft
 			// Corporation'), so a third-party app that happens to match a name
 			// prefix can't bypass the version check.
-			if appName == "Microsoft Office" &&
+			if catalogName == "Microsoft Office" &&
 				result.Publisher == "Microsoft Corporation" &&
 				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
 					strings.HasPrefix(result.Name, "Microsoft Office")) {
 				logger.InfoContext(ctx, "Microsoft Office detected - version mismatch but app is installed, skipping version check due to Click-to-Run always installing the latest build")
-				return true, "", nil
+				found = true
+				continue
 			}
 		}
+	}
+
+	if found {
+		return true, "", nil
 	}
 
 	// For AppX packages, check if the package is provisioned

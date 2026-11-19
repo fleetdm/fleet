@@ -70,6 +70,6 @@ describe("RotatedManagedLocalAccountPasswordActivityItem", () => {
       />
     );
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 });

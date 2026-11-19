@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -67,4 +67,33 @@ export const getCustomTargetOptions = ({
     });
   }
   return options;
+};
+
+// getLabelsRequiredError returns the inline error text that replaces the
+// scope help text when the user clicks Save without selecting any label.
+export const getLabelsRequiredError = (scope: LabelScope): ReactNode => {
+  switch (scope) {
+    case "labelsIncludeAll":
+      return (
+        <>
+          Select at least one label to target hosts that <b>have all</b> of
+          these labels:
+        </>
+      );
+    case "labelsExcludeAny":
+      return (
+        <>
+          Select at least one label to target hosts that{" "}
+          <b>don&rsquo;t have any</b> of these labels:
+        </>
+      );
+    case "labelsIncludeAny":
+    default:
+      return (
+        <>
+          Select at least one label to target hosts that <b>have any</b> of
+          these labels:
+        </>
+      );
+  }
 };

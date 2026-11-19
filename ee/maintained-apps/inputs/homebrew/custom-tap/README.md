@@ -9,11 +9,11 @@ It is laid out like a Homebrew tap:
 ```
 custom-tap/
 ├── Casks/                # Cask DSL sources (.rb). Edit these.
-│   ├── fleet-desktop.rb
-│   └── druva-insync.rb
+│   ├── druva-insync.rb
+│   └── zoom-rooms.rb
 ├── api/                  # Generated cask metadata (.json). Do not hand-edit.
-│   ├── fleet-desktop.json
-│   └── druva-insync.json
+│   ├── druva-insync.json
+│   └── zoom-rooms.json
 ├── regenerate.sh         # Regenerates api/*.json from Casks/*.rb.
 └── README.md             # You are here.
 ```
@@ -29,13 +29,13 @@ CI.
 
 Each app here has an input manifest one directory up
 (`../<token>.json`) with a `cask_path` field pointing at the generated JSON.
-Example — [`../fleet-desktop.json`](../fleet-desktop.json):
+Example — [`../druva-insync.json`](../druva-insync.json):
 
 ```json
 {
-  "name": "Fleet Desktop",
-  "token": "fleet-desktop",
-  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/fleet-desktop.json",
+  "name": "Druva inSync",
+  "token": "druva-insync",
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/druva-insync.json",
   ...
 }
 ```
@@ -52,7 +52,7 @@ reads the local file, and skips the brew API entirely. Apps without
 3. Create an input manifest at
    `ee/maintained-apps/inputs/homebrew/<token>.json` that points
    `cask_path` at the new JSON. Follow the template in
-   `../fleet-desktop.json`.
+   `../druva-insync.json`.
 4. Generate the FMA output manifest:
    `go run cmd/maintained-apps/main.go --slug="<token>/darwin"` from the repo
    root.

@@ -1,0 +1,3 @@
+- Added Google conditional access (Fleet Premium): Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google can block sign-in from hosts Fleet doesn't manage. Connect Google in **Settings > Integrations > Conditional access**, through the REST API, or with GitOps.
+- iOS and iPadOS end users sign in to Google once from the Self-service web clip. Android hosts are registered with no sign-in.
+- `PUT /api/v1/fleet/hosts/:id/google_device_id` now requires Google conditional access to be connected and a company-owned host, and marks the device as managed in Google. `DELETE` unmarks it.

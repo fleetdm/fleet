@@ -44,13 +44,6 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
 		}
-		// we dont want to include the InstallDuringSetup field in the response
-		// for software titles list.
-		if sw.SoftwarePackage != nil {
-			sw.SoftwarePackage.InstallDuringSetup = nil
-		} else if sw.AppStoreApp != nil {
-			sw.AppStoreApp.InstallDuringSetup = nil
-		}
 	}
 	if len(titles) == 0 {
 		titles = []fleet.SoftwareTitleListResult{}
@@ -118,6 +111,10 @@ func (svc *Service) ListSoftwareTitles(
 			titles[i].AITool = nil
 		}
 	}
+	// Clear the deprecated software_package object from every response except setup experience
+	for i := range titles {
+		titles[i].SoftwarePackage = nil
+	}
 
 	return titles, count, meta, nil
 }
@@ -128,7 +125,7 @@ func (svc *Service) ListSoftwareTitles(
 
 type getSoftwareTitleRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getSoftwareTitleResponse struct {
@@ -164,7 +161,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -218,7 +215,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 				// Key policies by installer_id so each package on a multi-package
 				// title only surfaces the ones actually bound to it. VPP-backed
-				// policies have nil InstallerID and dispatch via AppStoreApp.
+				// policies have nil InstallerID and carry a VPPAppsTeamsID instead.
 				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 				if titleMeta != nil {
 					for _, p := range titleMeta.AutomaticInstallPolicies {
@@ -273,12 +270,10 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 				}
 
-				// software_package is kept for backwards compatibility and equals the first-added package.
 				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
 				for i, pkg := range pkgs {
 					software.Packages[i] = *pkg
 				}
-				software.SoftwarePackage = pkgs[0]
 			}
 		}
 
@@ -292,8 +287,23 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 			}
+			vppTokensByID := make(map[uint]*fleet.VPPTokenSummary)
 			for _, meta := range versions {
 				meta.Status = summaries[meta.VPPAppsTeamsID]
+
+				if meta.VPPTokenID != nil {
+					if _, ok := vppTokensByID[*meta.VPPTokenID]; !ok {
+						var tok *fleet.VPPTokenDB
+						tok, err = svc.ds.GetVPPToken(ctx, *meta.VPPTokenID)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get vpp token for app store app")
+						}
+						if tok != nil {
+							vppTokensByID[*meta.VPPTokenID] = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
+						}
+					}
+					meta.VPPToken = vppTokensByID[*meta.VPPTokenID]
+				}
 
 				// Wrap iOS / iPadOS plist as a JSON string for the response.
 				if len(meta.Configuration) > 0 {
@@ -306,22 +316,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						meta.Configuration = wrapped
 					}
 				}
-
-				software.AppStoreApps = append(software.AppStoreApps, meta.AppStoreAppVersion())
 			}
-			// Set app_store_app to the first-added version for backwards compatibility.
-			if len(versions) > 0 {
-				software.AppStoreApp = versions[0]
-				if id := software.AppStoreApp.VPPTokenID; id != nil {
-					tok, err := svc.ds.GetVPPToken(ctx, *id)
-					if err != nil && !fleet.IsNotFound(err) {
-						return nil, ctxerr.Wrap(ctx, err, "get vpp token for app store app")
-					}
-					if tok != nil {
-						software.AppStoreApp.VPPToken = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
-					}
-				}
-			}
+			software.AppStoreApps = versions
 		}
 
 		// add in house app data if needed
@@ -349,8 +345,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 					meta.Configuration = wrapped
 				}
+				software.Packages = []fleet.SoftwareInstaller{*meta}
 			}
-			software.SoftwarePackage = meta
 		}
 	}
 
@@ -382,15 +378,8 @@ func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *u
 		installer.Configuration = nil
 	}
 
-	// Packages holds copies while SoftwarePackage is a pointer, so filter both.
 	for i := range title.Packages {
 		filterInstaller(&title.Packages[i])
-	}
-	if title.SoftwarePackage != nil {
-		filterInstaller(title.SoftwarePackage)
-	}
-	if title.AppStoreApp != nil {
-		title.AppStoreApp.Configuration = nil
 	}
 	for i := range title.AppStoreApps {
 		title.AppStoreApps[i].Configuration = nil

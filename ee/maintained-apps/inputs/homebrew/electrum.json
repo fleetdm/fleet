@@ -1,6 +1,6 @@
 {
   "name": "Electrum",
-  "unique_identifier": "org.org.pythonmac.unspecified.Electrum",
+  "unique_identifier": "Electrum",
   "token": "electrum",
   "installer_format": "dmg",
   "slug": "electrum/darwin",
