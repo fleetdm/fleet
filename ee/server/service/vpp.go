@@ -169,7 +169,7 @@ func (svc *Service) getVPPTokenByID(ctx context.Context, id *uint) (*fleet.VPPTo
 	}
 
 	if time.Now().After(token.RenewDate) {
-		return nil, fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(fmt.Errorf("Couldn't install. VPP token %q is expired. Please renew it and try again.", token.Location), http.StatusUnprocessableEntity)
 	}
 
 	return token, nil
@@ -673,7 +673,7 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 		}
 	}
 	if unexpired == 0 {
-		return fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return fleet.NewInvalidArgumentError("app_store_apps", "Couldn't apply. All VPP tokens are expired. Please renew one and try again.")
 	}
 	if readable == 0 {
 		return ctxerr.Wrap(ctx, fetchErr, "unable to retrieve assets")
@@ -687,8 +687,11 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 	}
 	if len(missing) != 0 {
 		sort.Strings(missing)
-		reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missing, ", "))
-		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+		lines := make([]string, 0, len(missing))
+		for _, adamID := range missing {
+			lines = append(lines, fmt.Sprintf(`Couldn't apply. App %q isn't available in any VPP token. Please purchase a license in Apple Business and try again.`, adamID))
+		}
+		return fleet.NewInvalidArgumentError("app_store_apps", strings.Join(lines, "\n"))
 	}
 	return nil
 }

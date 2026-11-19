@@ -564,7 +564,7 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	const missing = "1107542306"
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload(missing, fleet.IPadOSPlatform), true)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
+	require.ErrorContains(t, err, fmt.Sprintf(`Couldn't apply. App %q isn't available in any VPP token. Please purchase a license in Apple Business and try again.`, missing))
 
 	// Play Store apps are not VPP assets and are not checked against VPP tokens.
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload("com.example.android", fleet.AndroidPlatform), true)
@@ -737,7 +737,7 @@ func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T
 	calls.Store(0)
 	tokens = []*fleet.VPPTokenDB{token("good", expired)}
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
-	require.ErrorContains(t, err, "VPP token expired")
+	require.ErrorContains(t, err, "Couldn't apply. All VPP tokens are expired. Please renew one and try again.")
 	require.Zero(t, calls.Load())
 
 	// An expired token next to a valid one is ignored.
@@ -2135,13 +2135,13 @@ func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
 		require.NoError(t, fx.apply(true, batchIOS("2", ""), batchIOS("3", "")))
 
 		err := fx.apply(true, batchIOS("9", ""))
-		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+		require.ErrorContains(t, err, `Couldn't apply. App "9" isn't available in any VPP token. Please purchase a license in Apple Business and try again.`)
 	})
 
 	t.Run("located and unlocated apps are both checked", func(t *testing.T) {
 		fx := setup(t, batchUSToken(), batchJPToken())
 		err := fx.apply(true, batchIOS("3", "Acme Japan"), batchIOS("9", ""))
-		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+		require.ErrorContains(t, err, `Couldn't apply. App "9" isn't available in any VPP token. Please purchase a license in Apple Business and try again.`)
 		require.ElementsMatch(t, []string{"jp-secret", "us-secret"}, fx.assetCalls, "one assets call per token")
 	})
 
