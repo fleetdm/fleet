@@ -47,8 +47,6 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
-> If **Allow only zero-touch enrollments** is on, end users can't enroll with a QR code or a work profile. Only company-owned devices can enroll, through [zero-touch](https://fleetdm.com/guides/android-zero-touch-enrollment#allow-only-zero-touch-enrollments). To allow other enrollments, turn the setting off in **Settings > Organization settings > Advanced options**.
-
 ### Re-enrolling Android hosts
 
 An Android host re-enrolls after a wipe, or after an end user removes and re-adds the work profile. When it does, Fleet automatically:
