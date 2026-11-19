@@ -83,12 +83,27 @@ func TestUp_20261117195808(t *testing.T) {
 	execNoErr(t, db, `INSERT INTO in_house_app_configurations (in_house_app_id, configuration) VALUES (?, 'uploaded-config'), (?, 'gitops-config')`,
 		teamUploadedApp, teamGitOpsApp)
 
+	// Second team iOS title where both rows have the same file, with a verified install on the row that is deleted.
+	sameFileTeamID := execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES ('team2')`)
+	sameFileKeptApp := execNoErrLastID(t, db, `
+		INSERT INTO in_house_apps (title_id, team_id, global_or_team_id, filename, version, storage_id, platform, bundle_identifier)
+		VALUES (?, ?, ?, 'AHelloWorld.ipa', '1.0', 'storage-same-file', 'ios', 'com.example.helloworld')`,
+		iosTitleID, sameFileTeamID, sameFileTeamID)
+	sameFileDuplicateApp := execNoErrLastID(t, db, `
+		INSERT INTO in_house_apps (title_id, team_id, global_or_team_id, filename, version, storage_id, platform, bundle_identifier)
+		VALUES (?, ?, ?, 'HelloWorld.ipa', '1.0', 'storage-same-file', 'ios', 'com.example.helloworld')`,
+		iosTitleID, sameFileTeamID, sameFileTeamID)
+	execNoErr(t, db, `
+		INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform, verification_at)
+		VALUES (7, ?, 'same-file-verified-install', 'ios', NOW(6))`,
+		sameFileDuplicateApp)
+
 	applyNext(t, db)
 
 	var remainingInHouseAppIDs []int64
 	err := db.Select(&remainingInHouseAppIDs, `SELECT id FROM in_house_apps ORDER BY id`)
 	require.NoError(t, err)
-	expectedRemainingInHouseAppIDs := []int64{teamGitOpsApp, teamIpadOSApp, teamNoTitleApp1, teamNoTitleApp2, unassignedUploadedApp}
+	expectedRemainingInHouseAppIDs := []int64{teamGitOpsApp, teamIpadOSApp, teamNoTitleApp1, teamNoTitleApp2, unassignedUploadedApp, sameFileKeptApp}
 	require.Equal(t, expectedRemainingInHouseAppIDs, remainingInHouseAppIDs)
 
 	// Every install of the team title is on the kept team row, and the unassigned install is on the kept unassigned row.
@@ -103,7 +118,32 @@ func TestUp_20261117195808(t *testing.T) {
 	var totalInstallCount int
 	err = db.Get(&totalInstallCount, `SELECT COUNT(*) FROM host_in_house_software_installs`)
 	require.NoError(t, err)
-	require.Equal(t, hostInHouseInstallsBatchSize+3, totalInstallCount)
+	require.Equal(t, hostInHouseInstallsBatchSize+4, totalInstallCount)
+
+	// The installs moved from a row with a different file are marked removed, and the install
+	// already on the kept team row is not.
+	var teamRemovedInstallCount int
+	err = db.Get(&teamRemovedInstallCount, `SELECT COUNT(*) FROM host_in_house_software_installs WHERE in_house_app_id = ? AND removed = 1`, teamGitOpsApp)
+	require.NoError(t, err)
+	require.Equal(t, hostInHouseInstallsBatchSize+1, teamRemovedInstallCount)
+	var teamNotRemovedInstallCommandUUIDs []string
+	err = db.Select(&teamNotRemovedInstallCommandUUIDs, `SELECT command_uuid FROM host_in_house_software_installs WHERE in_house_app_id = ? AND removed = 0`, teamGitOpsApp)
+	require.NoError(t, err)
+	require.Equal(t, []string{"team-gitops-install"}, teamNotRemovedInstallCommandUUIDs)
+	var unassignedInstallRemoved bool
+	err = db.Get(&unassignedInstallRemoved, `SELECT removed FROM host_in_house_software_installs WHERE command_uuid = 'unassigned-gitops-install'`)
+	require.NoError(t, err)
+	require.True(t, unassignedInstallRemoved)
+
+	// The verified install moved from a row with the same file is on the kept row and not marked removed.
+	var sameFileInstall struct {
+		InHouseAppID int64 `db:"in_house_app_id"`
+		Removed      bool  `db:"removed"`
+	}
+	err = db.Get(&sameFileInstall, `SELECT in_house_app_id, removed FROM host_in_house_software_installs WHERE command_uuid = 'same-file-verified-install'`)
+	require.NoError(t, err)
+	require.Equal(t, sameFileKeptApp, sameFileInstall.InHouseAppID)
+	require.False(t, sameFileInstall.Removed)
 
 	// The upcoming installs point to the kept rows.
 	var teamUpcomingInHouseAppID int64

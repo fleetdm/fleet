@@ -25,10 +25,12 @@ func Up_20261117195808(tx *sql.Tx) error {
 		TitleID          uint   `db:"title_id"`
 		Filename         string `db:"filename"`
 		Version          string `db:"version"`
+		StorageID        string `db:"storage_id"`
 		KeepInHouseAppID uint   `db:"keep_in_house_app_id"`
+		KeepStorageID    string `db:"keep_storage_id"`
 	}
 	err := txx.Select(&duplicateInHouseApps, `
-		SELECT id, global_or_team_id, title_id, filename, version, keep_in_house_app_id
+		SELECT id, global_or_team_id, title_id, filename, version, storage_id, keep_in_house_app_id, keep_storage_id
 		FROM (
 			SELECT
 				id,
@@ -36,7 +38,9 @@ func Up_20261117195808(tx *sql.Tx) error {
 				title_id,
 				filename,
 				version,
-				FIRST_VALUE(id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY filename, id) AS keep_in_house_app_id
+				storage_id,
+				FIRST_VALUE(id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY filename, id) AS keep_in_house_app_id,
+				FIRST_VALUE(storage_id) OVER (PARTITION BY global_or_team_id, title_id ORDER BY filename, id) AS keep_storage_id
 			FROM in_house_apps
 			WHERE title_id IS NOT NULL
 		) in_house_apps_with_keep_id
@@ -47,13 +51,15 @@ func Up_20261117195808(tx *sql.Tx) error {
 
 	for _, duplicate := range duplicateInHouseApps {
 		// Move installs to the row to keep so they are not deleted with the duplicate.
+		moveInstallsStatement := `UPDATE host_in_house_software_installs SET in_house_app_id = ? WHERE in_house_app_id = ? LIMIT ?`
+		if duplicate.StorageID != duplicate.KeepStorageID {
+			// Mark installs of a different file removed, the same as when an in-house app's file is edited.
+			moveInstallsStatement = `UPDATE host_in_house_software_installs SET in_house_app_id = ?, removed = TRUE WHERE in_house_app_id = ? LIMIT ?`
+		}
 		for {
 			var result sql.Result
 			var rowsAffected int64
-			result, err = tx.Exec(
-				`UPDATE host_in_house_software_installs SET in_house_app_id = ? WHERE in_house_app_id = ? LIMIT ?`,
-				duplicate.KeepInHouseAppID, duplicate.ID, hostInHouseInstallsBatchSize,
-			)
+			result, err = tx.Exec(moveInstallsStatement, duplicate.KeepInHouseAppID, duplicate.ID, hostInHouseInstallsBatchSize)
 			if err != nil {
 				return fmt.Errorf("move host in-house installs from in-house app %d: %w", duplicate.ID, err)
 			}
