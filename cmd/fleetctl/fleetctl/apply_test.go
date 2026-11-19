@@ -3997,7 +3997,7 @@ spec:
     enable_recovery_lock_password: true
 `,
 			wantErr: `The "enable_recovery_lock_password" parameter is not available anymore. ` +
-				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "fleet with a removed key cannot be forced",
@@ -4013,7 +4013,7 @@ spec:
 `,
 			flags: []string{"--force"},
 			wantErr: `The "require_all_software_windows" parameter is not available anymore. ` +
-				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config windows_updates.grace_period_days not a number",
@@ -4256,7 +4256,7 @@ spec:
   mdm:
     windows_migration_enabled: true
 `,
-			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config removed windows mdm enabled key",
@@ -4267,7 +4267,7 @@ spec:
   mdm:
     windows_enabled_and_configured: true
 `,
-			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config with the removed macos_settings key",
@@ -4316,7 +4316,7 @@ spec:
   server_settings:
     query_report_cap: 200
 `,
-			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config with a removed server setting and its new name",
@@ -4328,7 +4328,7 @@ spec:
     live_query_disabled: true
     live_reporting_disabled: true
 `,
-			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

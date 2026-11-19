@@ -144,7 +144,7 @@ func (s *integrationTestSuite) TestRemovedReportServerSettingsKeys() {
 		[]byte(`{"server_settings": {"live_reporting_disabled": true, "discard_reports_data": true, "report_cap": 1234}}`), http.StatusOK)
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	for _, tc := range []struct{ name, path, body, want string }{
 		{"live_query_disabled", "/api/latest/fleet/config", `{"server_settings": {"live_query_disabled": false}}`, removedMsg("live_query_disabled")},
@@ -2110,7 +2110,7 @@ func (s *integrationTestSuite) TestRemovedOrgLogoConfigKeys() {
 	})
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	for _, tc := range []struct{ name, key string }{
 		{"dark", "org_logo_url"},

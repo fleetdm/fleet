@@ -174,6 +174,16 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = false
 	}
 
+	_, googleStatus, err := svc.GetGoogleConditionalAccess(ctx)
+	if err != nil {
+		return nil, err
+	}
+	appConfig.ConditionalAccess.Google = googleStatus
+	// The key lives in mdm_config_assets, so show it masked whenever one is stored.
+	if gca := appConfig.Integrations.GoogleConditionalAccess; gca != nil && googleStatus != nil && googleStatus.ServiceAccountKeyConfigured {
+		gca.APIKeyJSON = fleet.MaskedPassword
+	}
+
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
@@ -782,12 +792,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableProfileValidation = true
 	}
 
+	// Copied before the merge below, which writes into the same struct. Read from
+	// appConfig rather than oldAppConfig, which nilaway can't prove non-nil.
+	oldGoogleConditionalAccess := copyGoogleConditionalAccessSettings(appConfig.Integrations.GoogleConditionalAccess)
+	oldServerURL := appConfig.ServerSettings.ServerURL
+
 	// We apply the config that is incoming to the old one
 	appConfig.EnableStrictDecoding()
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	gcaRequested := mergeGoogleConditionalAccessSettings(appConfig, oldGoogleConditionalAccess,
+		newAppConfig.Integrations.GoogleConditionalAccess, applyOpts.Overwrite, p)
 
 	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
@@ -823,6 +841,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// Google Workspace IdP is a premium-only feature.
 	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
 		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	if newAppConfig.Integrations.GoogleConditionalAccess != nil && !lic.IsPremium() {
+		invalid.Append("integrations.google_conditional_access", ErrMissingLicense.Error())
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
@@ -1167,6 +1190,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
 	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
+	fleet.ValidateGoogleConditionalAccessIntegration(appConfig.Integrations.GoogleConditionalAccess, invalid)
+	gcaKey := svc.takeGoogleConditionalAccessKey(appConfig.Integrations.GoogleConditionalAccess, invalid)
 	fleet.ValidateCertIdPIntrospectionAllowlists(&appConfig.Integrations, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
@@ -1235,6 +1260,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if err := svc.verifyChangedAppleAccountProvisioning(ctx, oldAAP, mergedAAP, newAAPSecretProvided, newAAPSecret); err != nil {
+		return nil, err
+	}
+
+	gcaPlan, err := svc.planVerifiedGoogleConditionalAccess(ctx, lic.IsPremium(), oldGoogleConditionalAccess,
+		appConfig.Integrations.GoogleConditionalAccess, gcaRequested, gcaKey, oldServerURL, appConfig.ServerSettings.ServerURL)
+	if err != nil {
 		return nil, err
 	}
 
@@ -1424,6 +1455,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	if err := svc.applyGoogleConditionalAccessPlan(ctx, gcaPlan); err != nil {
+		return nil, err
+	}
+	dropGoogleConditionalAccessStatus(appConfig)
+
 	// TODO(#58577): remove with policy_ids, see loadGlobalWebhookPolicyIDs. The list lives on the policies, so it isn't
 	// stored, and only a changed list is written, so a request that doesn't change it can't undo a concurrent change.
 	newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
@@ -1431,6 +1467,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
+
+	// Returned once the rest of the update is done: the config is already saved.
+	gcaErr := svc.finishGoogleConditionalAccessPlan(ctx, gcaPlan)
+
 	if !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
 		if err := svc.ds.SetWebhooksAndTicketsPolicies(ctx, nil, newIDs); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "set webhook and ticket policies from policy_ids")
@@ -1628,7 +1668,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.processSavedAppConfigChanges(ctx, oldAppConfig, appConfig, lic, oldAgentOptions, newAgentOptions,
 		conditionalAccessNoTeamUpdated); err != nil {
+		svc.logGoogleConditionalAccessUpdateError(ctx, gcaErr)
 		return nil, err
+	}
+	if gcaErr != nil {
+		return nil, gcaErr
 	}
 
 	return obfuscatedAppConfig, nil
@@ -3047,6 +3091,20 @@ type gitopsHistoricalDataView struct {
 			Vulnerabilities *bool `json:"vulnerabilities"`
 		} `json:"historical_data"`
 	} `json:"features"`
+}
+
+// googleConditionalAccessInPayload reports whether the payload has
+// integrations.google_conditional_access, even as null, which the decoded config can't tell
+// apart from a missing key.
+func googleConditionalAccessInPayload(p []byte) bool {
+	var view struct {
+		Integrations map[string]json.RawMessage `json:"integrations"`
+	}
+	if err := json.Unmarshal(p, &view); err != nil {
+		return false // the main decode surfaces the error
+	}
+	_, ok := view.Integrations["google_conditional_access"]
+	return ok
 }
 
 // applyHistoricalDataOverwriteDefaults defaults absent

@@ -2132,6 +2132,24 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName()
 	return "deleted_conditional_access_integration_microsoft"
 }
 
+type ActivityTypeAddedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "added_conditional_access_integration_google"
+}
+
+type ActivityTypeDeletedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "deleted_conditional_access_integration_google"
+}
+
+type ActivityTypeEditedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeEditedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "edited_conditional_access_integration_google"
+}
+
 type ActivityTypeAddedConditionalAccessOkta struct{}
 
 func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
@@ -2433,6 +2451,12 @@ type ActivityTypeSetHostGoogleDeviceID struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	GoogleDeviceID  string `json:"google_device_id"`
+	// GoogleEmail is the Google account that signed in. A sign-in is the only record of who
+	// bound the host; a Fleet user setting the ID names no account.
+	GoogleEmail string `json:"google_email,omitempty"`
+	// Automated is set when the end user's Google sign-in or the sync cron bound the host,
+	// not a Fleet user.
+	Automated bool `json:"-"`
 }
 
 func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
@@ -2441,6 +2465,10 @@ func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
 
 func (a ActivityTypeSetHostGoogleDeviceID) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) WasFromAutomation() bool {
+	return a.Automated
 }
 
 type ActivityTypeDeletedHostGoogleDeviceID struct {

@@ -18,6 +18,7 @@ export default {
   // Conditional access
   CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
   CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
+  CONDITIONAL_ACCESS_GOOGLE: `/${API_VERSION}/fleet/conditional_access/google`,
   CONDITIONAL_ACCESS_IDP_SIGNING_CERT: `/${API_VERSION}/fleet/conditional_access/idp/signing_cert`,
   CONDITIONAL_ACCESS_IDP_APPLE_PROFILE: `/${API_VERSION}/fleet/conditional_access/idp/apple/profile`,
   CONDITIONAL_ACCESS_IDP_WINDOWS_PROFILES: `/${API_VERSION}/fleet/conditional_access/idp/windows/profiles`,
@@ -86,6 +87,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/install`,
   DEVICE_UNINSTALL_PROFILE: (token: string, profileUUID: string) =>
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/uninstall`,
+  DEVICE_GOOGLE_CONDITIONAL_ACCESS: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/conditional_access/google`,
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
   DEVICE_NOTIFICATION: (token: string, notificationUuid: string) =>

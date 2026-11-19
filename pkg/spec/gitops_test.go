@@ -2515,7 +2515,7 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 		_, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
 self_service: true
 `, hashA))
-		expectedErr := `The single package format in "software/pkgs.yml" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		expectedErr := `The single package format in "software/pkgs.yml" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 		require.ErrorContains(t, err, expectedErr)
 	})
 
@@ -4464,7 +4464,7 @@ software:
 					"  windows_enabled_and_configured: true\n  windows_migration_enabled: false\n"+
 					"  setup_experience:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
 				want: []string{
-					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					// the path names the parent by its current name, not the file's alias
 					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
 					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
@@ -4536,7 +4536,7 @@ software:
 				name: "org_settings report server settings", file: "default.yml",
 				config: scriptsDisabledFile("    live_query_disabled: false\n    query_reports_disabled: true\n    Query_Report_Cap: 2000\n"),
 				want: []string{
-					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					`The "org_settings.server_settings.query_reports_disabled" key is not available anymore.`,
 					`The "org_settings.server_settings.query_report_cap" key is not available anymore.`,
 				},
@@ -4557,7 +4557,7 @@ software:
 				name: "org_settings org_info logo URLs", file: "default.yml",
 				config: orgInfoFile("    org_logo_url: https://example.com/dark.png\n    org_logo_url_light_background: https://example.com/light.png\n"),
 				want: []string{
-					`The "org_settings.org_info.org_logo_url" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.org_info.org_logo_url" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					`The "org_settings.org_info.org_logo_url_light_background" key is not available anymore.`,
 				},
 			},
@@ -4591,7 +4591,7 @@ software:
 					"  windows_settings:\n    custom_settings:\n      - path: ./a.xml\n"+
 					"  android_settings:\n    Custom_Settings:\n      - path: ./a.json\n", ""),
 				want: []string{
-					`The "controls.macos_settings" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "controls.macos_settings" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					`The "controls.windows_settings.custom_settings" key is not available anymore.`,
 					`The "controls.android_settings.custom_settings" key is not available anymore.`,
 				},
@@ -4675,7 +4675,7 @@ software:
 				result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
 				require.NoError(t, err)
 				require.Contains(t, logMessages, `[!] in "`+warningFile+`": The "org_settings.server_settings.scripts_disabled" key is not available anymore. `+
-					"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration\n")
+					"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade\n")
 
 				// read the parsed org settings, the removed key should be dropped and the rest kept
 				serverSettings, ok := result.OrgSettings["server_settings"].(map[string]any)
@@ -5603,7 +5603,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
-		expectedErr := fmt.Sprintf(`install_software.package_path: The single package format in %q is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, path)
+		expectedErr := fmt.Sprintf(`install_software.package_path: The single package format in %q is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, path)
 		assert.Equal(t, expectedErr, errs[0].Error())
 	})
 

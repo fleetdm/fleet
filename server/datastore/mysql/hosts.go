@@ -417,7 +417,6 @@ var hostRefs = []string{
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
 	"host_conditional_access",
-	"host_google_device_ids",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps or vpp apps as the activity contains the MDM
@@ -517,6 +516,31 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
+// hostUUIDsWithoutHostsDB returns the UUIDs that no host row has, compared
+// case-insensitively as the column's collation does. Empty UUIDs are dropped.
+func hostUUIDsWithoutHostsDB(ctx context.Context, tx sqlx.ExtContext, uuids []string) ([]string, error) {
+	uuids = slices.DeleteFunc(slices.Clone(uuids), func(u string) bool { return u == "" })
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building select of remaining host uuids")
+	}
+	var remaining []string
+	if err := sqlx.SelectContext(ctx, tx, &remaining, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting remaining host uuids")
+	}
+	kept := make(map[string]struct{}, len(remaining))
+	for _, u := range remaining {
+		kept[strings.ToLower(u)] = struct{}{}
+	}
+	return slices.DeleteFunc(uuids, func(u string) bool {
+		_, ok := kept[strings.ToLower(u)]
+		return ok
+	}), nil
+}
+
 func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -568,6 +592,23 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		if err != nil {
 			return err
 		}
+	}
+
+	// Only mobile hosts can register with Google conditional access. A UUID another host
+	// row still has is skipped, since the device is still in Fleet; if that row isn't
+	// enrolled, the sweep of unenrolled hosts unmarks it.
+	var mobileUUIDs []string
+	for _, info := range hostInfos {
+		if fleet.IsMobilePlatform(info.Platform) {
+			mobileUUIDs = append(mobileUUIDs, info.UUID)
+		}
+	}
+	gone, err := hostUUIDsWithoutHostsDB(ctx, tx, mobileUUIDs)
+	if err != nil {
+		return err
+	}
+	if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, gone); err != nil {
+		return err
 	}
 
 	// no point trying the uuid-based tables if the host's uuid is missing

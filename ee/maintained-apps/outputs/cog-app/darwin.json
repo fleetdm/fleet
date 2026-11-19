@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3902",
+      "version": "3915",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.cogx.cog';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cogx.cog' AND version_compare(bundle_short_version, '3902') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cogx.cog' AND version_compare(bundle_short_version, '3915') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.cogx.cog' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cogcdn.cog.losno.co/Cog-1d75c10ab.zip",
+      "installer_url": "https://cogcdn.cog.losno.co/Cog-dac15aba9.zip",
       "install_script_ref": "61dadc52",
       "uninstall_script_ref": "4a48be63",
-      "sha256": "bbe32425270772d3d4d103360d9c53ac16e5cac3c8fc761cca97b4c0cc022333",
+      "sha256": "c4a899fde240c625a970ab7040456c90786631bd932f1f9b31b940e32fb51af8",
       "default_categories": [
         "Productivity"
       ]

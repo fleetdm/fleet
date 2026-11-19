@@ -40,7 +40,7 @@ CACHE_MAX_AGE = 7 * 24 * 3600
 TOP_LEVEL_KEYS = {"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports",
                   "software", "labels", "custom_host_vitals"}
 DEPRECATED_TOP_LEVEL = {"queries": "reports"}
-MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 # Keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
 REMOVED_KEYS = [
     "team_settings",
@@ -829,7 +829,7 @@ def check_software(ctx, fs, software):
                 if data is None:
                     continue
                 if isinstance(data, dict):
-                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration")
+                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
                     continue
                 pkgs = data if isinstance(data, list) else [data]
                 for pkg in pkgs:
