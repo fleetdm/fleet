@@ -186,6 +186,56 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
+// TODO(#58577): remove with policy_ids.
+func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+	})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+	enabled := []uint{2, 1}
+	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
+		require.Nil(t, teamID)
+		return enabled, nil
+	}
+	var setCalls [][]uint
+	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
+		require.Nil(t, teamID)
+		setCalls = append(setCalls, policyIDs)
+		return nil
+	}
+
+	// Requests that leave the list as it is don't write the policies, so they can't undo a concurrent change.
+	for _, body := range []string{
+		`{"org_info": {"org_name": "Changed"}}`,
+		`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`,
+		`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
+	} {
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.NoError(t, err, body)
+	}
+	require.Empty(t, setCalls)
+
+	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [3]}}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	require.Equal(t, [][]uint{{3}, {}}, setCalls)
+
+	// Dry runs don't write the policies.
+	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [4]}}}`), fleet.ApplySpecOptions{DryRun: true})
+	require.NoError(t, err)
+	require.Len(t, setCalls, 2)
+}
+
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The

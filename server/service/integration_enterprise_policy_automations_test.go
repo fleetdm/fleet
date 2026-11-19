@@ -537,6 +537,20 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
 	s.Require().NoError(err)
 	s.Require().Len(pfs, 1)
+
+	// With the fleet's webhook off, policies that have the automation on aren't reset.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
+			Enable:    false,
+			PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+		},
+	}}, http.StatusOK, &tmResp)
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", fleet.ResetAutomationRequest{
+		PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+	}, http.StatusOK, &tmResp)
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	s.Require().NoError(err)
+	s.Require().Empty(pfs)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers() {
@@ -4618,4 +4632,101 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRunCountsAfterClean
 			require.Equal(t, c.expected, rows)
 		})
 	}
+}
+
+// TODO(#58577): remove with policy_ids. Until then, settings policy_ids is built from and saved to each policy's
+// webhook or ticket automation flag.
+func (s *integrationEnterpriseTestSuite) TestFailingPoliciesWebhookPolicyIDsFromPolicies() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+	newPolicy := func(name string, teamID *uint) uint {
+		var p *fleet.Policy
+		var err error
+		if teamID == nil {
+			p, err = s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		} else {
+			p, err = s.ds.NewTeamPolicy(ctx, *teamID, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		}
+		require.NoError(t, err)
+		return p.ID
+	}
+	global1, global2 := newPolicy(t.Name()+" global1", nil), newPolicy(t.Name()+" global2", nil)
+	team1, team2 := newPolicy(t.Name()+" team1", &team.ID), newPolicy(t.Name()+" team2", &team.ID)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{global1, global2})
+		require.NoError(t, err)
+	})
+	flag := func(id uint) bool {
+		p, err := s.ds.Policy(ctx, id)
+		require.NoError(t, err)
+		return p.WebhooksAndTicketsEnabled
+	}
+	teamPolicyIDs := func() []uint {
+		var getResp getTeamResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &getResp)
+		var listResp listTeamsResponse
+		s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &listResp)
+		for _, tm := range listResp.Teams {
+			if tm.ID == team.ID {
+				require.Equal(t, getResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs,
+					tm.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+			}
+		}
+		return getResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	}
+
+	// "All fleets": only the global policies in the list get the flag.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil, `{"webhook_settings": {"failing_policies_webhook": {
+		"enable_failing_policies_webhook": true, "destination_url": "https://example.com", "policy_ids": [%d, %d, 999999]}}}`,
+		global1, team1), http.StatusOK)
+	t.Cleanup(func() {
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"webhook_settings": {"failing_policies_webhook": {
+			"enable_failing_policies_webhook": false, "policy_ids": []}}}`), http.StatusOK)
+	})
+	require.Equal(t, []uint{global1}, s.getConfig().WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.True(t, flag(global1))
+	require.False(t, flag(global2))
+	require.False(t, flag(team1))
+
+	// A request without policy_ids keeps the policies.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"webhook_settings": {"failing_policies_webhook": {
+		"destination_url": "https://example.com/other"}}}`), http.StatusOK)
+	config := s.getConfig()
+	require.Equal(t, []uint{global1}, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, "https://example.com/other", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	// Fleet: only the fleet's policies in the list get the flag, and global ones keep theirs.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{PolicyIDs: []uint{team1, team2, global2}},
+	}}, http.StatusOK, &modResp)
+	require.Equal(t, []uint{team1, team2}, modResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, []uint{team1, team2}, teamPolicyIDs())
+	require.False(t, flag(global2))
+	require.True(t, flag(global1))
+
+	// Saving other fleet settings keeps the policies.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{Description: new("changed")},
+		http.StatusOK, &modResp)
+	require.Equal(t, []uint{team1, team2}, teamPolicyIDs())
+
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{PolicyIDs: []uint{team2}},
+	}}, http.StatusOK, &modResp)
+	require.Equal(t, []uint{team2}, teamPolicyIDs())
+	require.False(t, flag(team1))
+
+	// Deleting a policy removes it from the list.
+	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{team2})
+	require.NoError(t, err)
+	require.Empty(t, teamPolicyIDs())
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: []uint{global1}}, http.StatusOK,
+		&fleet.DeleteGlobalPoliciesResponse{})
+	require.Empty(t, s.getConfig().WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }

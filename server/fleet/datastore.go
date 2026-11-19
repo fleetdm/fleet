@@ -1923,6 +1923,17 @@ type Datastore interface {
 	// MDM protocol seen time, and whether the enrollment is hardware attested for the host with the given UUID
 	GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*NanoMDMEnrollmentDetails, error)
 
+	// FilterWebhooksAndTicketsPolicies returns the policies among policyIDs that have the webhook or ticket automation on.
+	FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]PolicyIDAndTeam, error)
+	// WebhooksAndTicketsPolicyIDs returns the IDs of the policies in the scope that have the webhook or ticket automation
+	// on. A nil teamID is "All fleets", and 0 is "Unassigned".
+	WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error)
+	// WebhooksAndTicketsPolicyIDsByTeam is WebhooksAndTicketsPolicyIDs for several fleets at once, keyed by fleet ID.
+	WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
+	// SetWebhooksAndTicketsPolicies turns the webhook or ticket automation on for exactly the policies in policyIDs that
+	// belong to the scope, and off for the scope's other policies.
+	SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error
+
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
 

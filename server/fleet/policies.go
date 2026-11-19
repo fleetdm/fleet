@@ -556,6 +556,9 @@ type PolicyData struct {
 	ScriptID                 *uint   `json:"-" db:"script_id"`
 	ResendAppleProfileUUID   *string `json:"-" db:"resend_apple_profile_uuid"`
 	ResendWindowsProfileUUID *string `json:"-" db:"resend_windows_profile_uuid"`
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or
+	// Zendesk destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool `json:"-" db:"webhooks_and_tickets_enabled"`
 
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
@@ -715,6 +718,12 @@ type PolicyLite struct {
 	Description string `db:"description"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `db:"resolution"`
+}
+
+// PolicyIDAndTeam identifies a policy and its fleet. TeamID is nil for "All fleets" policies and 0 for "Unassigned".
+type PolicyIDAndTeam struct {
+	ID     uint  `db:"id"`
+	TeamID *uint `db:"team_id"`
 }
 
 func (p Policy) AuthzType() string {

@@ -45,6 +45,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 					Platform:    "darwin",
 					Critical:    true,
 					Type:        "dynamic",
+
+					WebhooksAndTicketsEnabled: true,
 				},
 			}, nil
 		}
@@ -67,7 +69,6 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:         true,
 				DestinationURL: ts.URL,
-				PolicyIDs:      []uint{1, 3},
 			},
 		},
 		ServerSettings: fleet.ServerSettings{
@@ -204,6 +205,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 				Platform:              "darwin",
 				CalendarEventsEnabled: true,
 				Type:                  "dynamic",
+
+				WebhooksAndTicketsEnabled: true,
 			},
 		},
 		2: {
@@ -254,7 +257,6 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 							Enable:         true,
 							DestinationURL: ts.URL,
-							PolicyIDs:      []uint{1},
 						},
 					},
 				},
