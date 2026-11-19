@@ -1851,9 +1851,6 @@ type Datastore interface {
 	// GetMDMAppleEnrollmentProfileByType loads the enrollment profile from its type (e.g. manual, automatic).
 	GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ MDMAppleEnrollmentType) (*MDMAppleEnrollmentProfile, error)
 
-	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
-
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a
 	// CommandUUID. If a hostUUID is provided, it filters the results for that host.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
@@ -1861,9 +1858,6 @@ type Datastore interface {
 	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
-
-	// MDMAppleListDevices lists all the MDM enrolled devices.
-	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
 	// UpsertMDMAppleHostDEPAssignments ensures there's an entry in
 	// `host_dep_assignments` for all the provided hosts. mdmMigrationDeadlinesByHostID
@@ -4423,9 +4417,11 @@ type Datastore interface {
 	// UpdateCertificateAuthorityByID updates the certificate authority of the provided ID, returns not found if it does not exist
 	UpdateCertificateAuthorityByID(ctx context.Context, id uint, certificateAuthority *CertificateAuthority) error
 	// BatchApplyCertificateAuthorities applies a batch of certificate authority changes (add,
-	// update, delete). Deletes are processed first based on name and type. Adds and updates are
-	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
-	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
+	// update, delete) in one transaction. Adds and updates are upserted first, using INSERT...ON
+	// DUPLICATE KEY UPDATE. Then the deletes run by name and type, along with the certificate
+	// templates that use them when DeleteCertificateTemplates is set. It returns the IDs of the
+	// fleets whose certificate templates were deleted.
+	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) (templateFleetIDs []uint, err error)
 	// UpsertCertificateStatus allows a host to update the installation status of a certificate given its template.
 	UpsertCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error
 

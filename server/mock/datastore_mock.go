@@ -1148,13 +1148,9 @@ type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newTok
 
 type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
 
-type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
-
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
-
-type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error
 
@@ -2478,7 +2474,7 @@ type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthori
 
 type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certificateAuthority *fleet.CertificateAuthority) error
 
-type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
+type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) (templateFleetIDs []uint, err error)
 
 type UpsertCertificateStatusFunc func(ctx context.Context, update *fleet.CertificateStatusUpdate) error
 
@@ -4343,17 +4339,11 @@ type DataStore struct {
 	GetMDMAppleEnrollmentProfileByTypeFunc        GetMDMAppleEnrollmentProfileByTypeFunc
 	GetMDMAppleEnrollmentProfileByTypeFuncInvoked bool
 
-	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
-	ListMDMAppleEnrollmentProfilesFuncInvoked bool
-
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
 
 	GetVPPCommandResultsFunc        GetVPPCommandResultsFunc
 	GetVPPCommandResultsFuncInvoked bool
-
-	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
-	MDMAppleListDevicesFuncInvoked bool
 
 	UpsertMDMAppleHostDEPAssignmentsFunc        UpsertMDMAppleHostDEPAssignmentsFunc
 	UpsertMDMAppleHostDEPAssignmentsFuncInvoked bool
@@ -10542,13 +10532,6 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ 
 	return s.GetMDMAppleEnrollmentProfileByTypeFunc(ctx, typ)
 }
 
-func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	s.mu.Lock()
-	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
-}
-
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandResultsFuncInvoked = true
@@ -10561,13 +10544,6 @@ func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string
 	s.GetVPPCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPCommandResultsFunc(ctx, commandUUID, hostUUID)
-}
-
-func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	s.mu.Lock()
-	s.MDMAppleListDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleListDevicesFunc(ctx)
 }
 
 func (s *DataStore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error {
@@ -15197,7 +15173,7 @@ func (s *DataStore) UpdateCertificateAuthorityByID(ctx context.Context, id uint,
 	return s.UpdateCertificateAuthorityByIDFunc(ctx, id, certificateAuthority)
 }
 
-func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) (templateFleetIDs []uint, err error) {
 	s.mu.Lock()
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()

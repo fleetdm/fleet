@@ -641,30 +641,40 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemove(
 	certificateTemplateID uint,
 ) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Delete rows with status in (pending, failed) and operation_type=install
-		// These certificates were never successfully installed on the device
-		deleteStmt := fmt.Sprintf(`
-			DELETE FROM host_certificate_templates
-			WHERE certificate_template_id = ? AND status IN ('%s', '%s') AND operation_type = '%s'
-		`, fleet.CertificateTemplatePending, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
-		if _, err := tx.ExecContext(ctx, deleteStmt, certificateTemplateID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending/failed host certificate templates")
-		}
-
-		// Update rows with operation_type=install to status=pending, operation_type=remove with new UUID
-		// Only generate new UUID when transitioning from install to remove
-		// Rows already in remove state are left unchanged (idempotent)
-		updateStmt := fmt.Sprintf(`
-			UPDATE host_certificate_templates
-			SET status = '%s', operation_type = '%s', uuid = UUID_TO_BIN(UUID(), true)
-			WHERE certificate_template_id = ? AND operation_type = '%s'
-		`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
-		if _, err := tx.ExecContext(ctx, updateStmt, certificateTemplateID); err != nil {
-			return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove")
-		}
-
-		return nil
+		return setHostCertificateTemplatesToPendingRemoveDB(ctx, tx, []uint{certificateTemplateID})
 	})
+}
+
+func setHostCertificateTemplatesToPendingRemoveDB(ctx context.Context, tx sqlx.ExtContext, certificateTemplateIDs []uint) error {
+	// Delete rows with status in (pending, failed) and operation_type=install
+	// These certificates were never successfully installed on the device
+	deleteStmt, args, err := sqlx.In(fmt.Sprintf(`
+		DELETE FROM host_certificate_templates
+		WHERE certificate_template_id IN (?) AND status IN ('%s', '%s') AND operation_type = '%s'
+	`, fleet.CertificateTemplatePending, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall), certificateTemplateIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare delete pending/failed host certificate templates")
+	}
+	if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending/failed host certificate templates")
+	}
+
+	// Update rows with operation_type=install to status=pending, operation_type=remove with new UUID
+	// Only generate new UUID when transitioning from install to remove
+	// Rows already in remove state are left unchanged (idempotent)
+	updateStmt, args, err := sqlx.In(fmt.Sprintf(`
+		UPDATE host_certificate_templates
+		SET status = '%s', operation_type = '%s', uuid = UUID_TO_BIN(UUID(), true)
+		WHERE certificate_template_id IN (?) AND operation_type = '%s'
+	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall), certificateTemplateIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare update host certificate templates to pending remove")
+	}
+	if _, err := tx.ExecContext(ctx, updateStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "update host certificate templates to pending remove")
+	}
+
+	return nil
 }
 
 // SetHostCertificateTemplatesToPendingRemoveForHost prepares all certificate templates
