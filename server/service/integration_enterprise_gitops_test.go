@@ -402,14 +402,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &removeLabelsFromHostResp)
 
 	// Attempt to run live queries synchronously, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
+	s.DoJSON("GET", "/api/latest/fleet/reports/run", runLiveQueryRequest{
 		HostIDs:  []uint{h1.ID},
 		QueryIDs: []uint{q1.ID},
 	}, http.StatusForbidden, &runLiveQueryResponse{},
 	)
 
 	// Attempt to run live queries asynchronously (new unsaved query), should fail.
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports/run", createDistributedQueryCampaignRequest{
 		QuerySQL: "SELECT * FROM time;",
 		Selected: fleet.HostTargets{
 			HostIDs: []uint{h1.ID},
@@ -417,7 +417,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &runLiveQueryResponse{})
 
 	// Attempt to run live queries asynchronously (saved query), should fail.
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports/run", createDistributedQueryCampaignRequest{
 		QueryID: new(q1.ID),
 		Selected: fleet.HostTargets{
 			HostIDs: []uint{h1.ID},
@@ -426,41 +426,41 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to create queries, should allow.
 	cqr := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * from osquery_info;"),
 	}, http.StatusOK, &cqr)
 	cqr2 := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo5"),
 		Query: new("SELECT * from os_version;"),
 	}, http.StatusOK, &cqr2)
 	cqr3 := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo6"),
 		Query: new("SELECT * from processes;"),
 	}, http.StatusOK, &cqr3)
 	cqr4 := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo7"),
 		Query: new("SELECT * from managed_policies;"),
 	}, http.StatusOK, &cqr4)
 
 	// Attempt to edit queries, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Report.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr.Report.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to view a query, should work.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Report.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr.Report.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
 
 	// Attempt to list all queries, should work.
-	s.DoJSON("GET", "/api/latest/fleet/queries", fleet.ListQueriesRequest{}, http.StatusOK, &fleet.ListQueriesResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/reports", fleet.ListQueriesRequest{}, http.StatusOK, &fleet.ListQueriesResponse{})
 
 	// Attempt to delete queries, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
-	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Report.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/reports/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Report.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr3.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to create a global policy, should allow.
@@ -633,43 +633,43 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to create queries in global domain, should fail.
 	tcqr := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo600"),
 		Query: new("SELECT * from orbit_info;"),
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to create queries in its team, should allow.
 	tcqr = fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:   new("foo600"),
 		Query:  new("SELECT * from orbit_info;"),
 		TeamID: &t1.ID,
 	}, http.StatusOK, &tcqr)
 
 	// Attempt to edit own query, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Report.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", tcqr.Report.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete own query, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", tcqr.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to edit query created by somebody else, should fail. A team
 	// GitOps user can't read global queries either (unlike every other team
 	// role), so this reports not-found rather than forbidden: a forbidden
 	// would confirm the global query exists to a caller with no view of it.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Report.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr4.Report.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr4.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to create a fleet report, should allow.
 	cqrt1 := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:   new("foo8"),
 		Query:  new("SELECT * from managed_policies;"),
 		TeamID: &t1.ID,

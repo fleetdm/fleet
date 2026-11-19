@@ -11,7 +11,7 @@ import (
 // RemovedPath is a URL path that no longer exists. A request to it with any usual method (or one of Methods, when set) gets 410 Gone and
 // Message, without authentication, because the path is gone for everyone and the response says nothing about the caller's data.
 type RemovedPath struct {
-	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
+	// Path may contain the _version_ placeholder and mux variables, like the path of a route.
 	Path string
 	// Methods limits the 410 to these methods, for a path that shares its shape with routes that are still served: a 410 on every method
 	// would answer wrong-method requests to those routes, which should get 405. Empty means every method in removedPathMethods.

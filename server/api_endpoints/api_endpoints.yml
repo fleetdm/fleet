@@ -427,10 +427,6 @@
 - method: "DELETE"
   path: "/api/v1/fleet/reports/:id"
   display_name: "Delete report by ID"
-- method: "DELETE"
-  path: "/api/v1/fleet/reports/id/:id"
-  display_name: "Delete report by ID"
-  deprecated: true
 - method: "POST"
   path: "/api/v1/fleet/reports/delete"
   display_name: "Delete reports"
@@ -441,7 +437,7 @@
   path: "/api/v1/fleet/reports/run"
   display_name: "Run live report (async)"
 - method: "GET"
-  path: "/api/v1/fleet/queries/run"
+  path: "/api/v1/fleet/reports/run"
   display_name: "Run live report"
   deprecated: true
 - method: "POST"

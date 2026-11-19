@@ -3,7 +3,7 @@ package removednames
 func init() { register(teamEntries...) }
 
 // teamEntries are the names removed by renaming teams to fleets. They mirror what the code accepted as deprecated aliases before Fleet 5
-// (the renameto struct tags, deprecatedPathAliases, the fleetctl flag aliases, and pkg/spec GitOps key mappings);
+// (the renameto struct tags, the deprecated URL path aliases, the fleetctl flag aliases, and pkg/spec GitOps key mappings);
 // TestEntriesCoverDeprecatedSources fails if any of those sources has a team-related name that is missing here.
 var teamEntries = []Entry{
 	// JSON keys in request and response bodies.

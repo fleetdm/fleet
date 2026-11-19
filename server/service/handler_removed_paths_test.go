@@ -28,33 +28,15 @@ func TestRemovedPaths(t *testing.T) {
 	require.Len(t, removedPaths(), len(removedPathTemplates))
 
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
-	// Aliases write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
+	// A template can write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
 	shape := func(path string) string { return pathVar.ReplaceAllString(path, "{}") }
-	// The reverse: a path entry without a template would keep its old route, or a deprecated alias of it, serving requests.
+	// The reverse: a path entry without a template would keep its old route serving requests.
 	served := make(map[string]struct{}, len(removedPathTemplates))
 	for _, template := range removedPathTemplates {
 		served[shape(template)] = struct{}{}
 	}
 	for _, entry := range removednames.Filter(removednames.KindPath, 0) {
 		assert.Contains(t, served, shape(entry.Old))
-	}
-	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions}
-	// A removed path limited to some methods only collides with aliases of those methods.
-	removedRoutes := make(map[string]struct{})
-	for _, removed := range removedPaths() {
-		methods := removed.Methods
-		if len(methods) == 0 {
-			methods = allMethods
-		}
-		for _, method := range methods {
-			removedRoutes[method+" "+shape(removed.Path)] = struct{}{}
-		}
-	}
-	for _, alias := range deprecatedPathAliases {
-		for _, deprecated := range alias.DeprecatedPaths {
-			assert.NotContains(t, removedRoutes, alias.Method+" "+shape(deprecated),
-				"a removed path must not also be served as an alias of %s %s", alias.Method, alias.PrimaryPath)
-		}
 	}
 
 	// A router of its own, not MakeHandler's: that one instruments every route with global Prometheus counters, which TestAPIRoutesMetrics
@@ -122,6 +104,9 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		{"/api/latest/fleet/packs/schedule/7", "/packs/schedule/{id}"},
 		{"/api/v1/fleet/packs/id/7", "/packs/id/{id}"},
 		{"/api/v1/fleet/packs/my-pack", "/packs/{id}"},
+		{"/api/v1/fleet/queries/run", "/queries/run"}, // a literal next to {id}
+		{"/api/latest/fleet/queries/delete", "/queries/delete"},
+		{"/api/v1/fleet/queries/my-report", "/queries/{id}"},
 		{"/api/mdm/apple/installer", "/api/mdm/apple/installer"}, // outside the Fleet API
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {

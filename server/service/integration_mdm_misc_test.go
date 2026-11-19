@@ -1258,7 +1258,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{l1t1.Name},
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusBadRequest, &createQueryResp)
 
 		// 2.A.2 Attempt to create global query with global label (should succeed).
 		createQueryResp = fleet.CreateQueryResponse{}
@@ -1267,18 +1267,18 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusOK, &createQueryResp)
 		globalQueryID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit global query with team label (should fail).
 		modifyQueryResp := fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", globalQueryID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusBadRequest, &modifyQueryResp)
 
 		// 2.A.4 Attempt to edit global query with global label (should succeed).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", globalQueryID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &modifyQueryResp)
 
@@ -1291,7 +1291,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 			TeamID: &t1.ID,
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusBadRequest, &createQueryResp)
 
 		// 2.B.2 Attempt to create a team query with a label of the same team (should succeed).
 		createQueryResp = fleet.CreateQueryResponse{}
@@ -1302,18 +1302,18 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 			TeamID: &t1.ID,
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusOK, &createQueryResp)
 		team1LabelID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", team1LabelID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{l2t2.Name, globalLabel.Name},
 		}, http.StatusBadRequest, &modifyQueryResp)
 
 		// 2.A.4 Attempt to edit team query with a label of the same team (should succeed).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", team1LabelID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &modifyQueryResp)
 	})

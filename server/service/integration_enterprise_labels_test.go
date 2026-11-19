@@ -147,7 +147,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNamesLiveReport() {
 			ranOn = args.Get(2).([]uint)
 		})
 		var resp createDistributedQueryCampaignResponse
-		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierRequest{
+		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierRequest{
 			QuerySQL: "SELECT 1",
 			Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: []string{shared}},
 		}, http.StatusOK, &resp)

@@ -11,7 +11,7 @@ import (
 
 // removedPathTemplates are the paths that Fleet 5 removed, as they appear in pkg/removednames. A request to one gets 410 Gone with the
 // message of its table entry, for every method, or only for the entry's Context when it names one. A path moves here from
-// deprecatedPathAliases, or from its own route, in the change that stops serving it. A path that a later template also matches
+// its own route in the change that stops serving it. A path that a later template also matches
 // (/mdm/profiles/summary and /mdm/profiles/{profile_uuid}) must come first to get its own message. A path variable can add a regex
 // constraint that the table entry leaves out.
 var removedPathTemplates = []string{
@@ -52,7 +52,21 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/software/count",
 	"/api/_version_/fleet/software/{id:[0-9]+}",
 	"/api/_version_/fleet/hosts/identifier/{identifier}",
-	"/api/_version_/fleet/queries/{name}",
+	"/api/_version_/fleet/queries/{id}",
+	"/api/_version_/fleet/queries",
+	"/api/_version_/fleet/queries/{id}/report",
+	"/api/_version_/fleet/queries/id/{id}",
+	"/api/_version_/fleet/queries/delete",
+	"/api/_version_/fleet/queries/{id}/run",
+	"/api/_version_/fleet/queries/run",
+	"/api/_version_/fleet/queries/run_by_identifiers",
+	"/api/_version_/fleet/queries/run_by_names",
+	"/api/_version_/fleet/spec/queries",
+	"/api/_version_/fleet/spec/queries/{name}",
+	"/api/_version_/fleet/hosts/{id}/queries",
+	"/api/_version_/fleet/hosts/{id}/queries/{report_id}",
+	"/api/_version_/fleet/reports/id/{id}",
+	"/api/_version_/fleet/reports/run_by_names",
 	"/api/_version_/fleet/packs",
 	"/api/_version_/fleet/packs/schedule",
 	"/api/_version_/fleet/packs/schedule/{id}",
