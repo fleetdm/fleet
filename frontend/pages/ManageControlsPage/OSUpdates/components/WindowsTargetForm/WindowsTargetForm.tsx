@@ -198,7 +198,7 @@ const WindowsTargetForm = ({
       />{" "}
       {isPremiumTier && (
         <p className={`${baseClass}__profile-builder-note`}>
-          Looking to customize active hours and driver updates? Leave these
+          Looking to customize active hours or deployment rings? Leave these
           settings empty, and instead use the{" "}
           <CustomLink
             url={getPathWithQueryParams(PATHS.CONTROLS_CUSTOM_SETTINGS_NEW, {
