@@ -1087,6 +1087,13 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 						)
 					} else {
 						raw = fileBytes
+						var fileTeamSettings map[string]any
+						if err := YamlUnmarshal(fileBytes, &fileTeamSettings); err == nil {
+							if err := RejectRemovedKeys(map[string]any{"settings": fileTeamSettings}, *teamSettingsTop.Path); err != nil {
+								noError = false
+								multiError = multierror.Append(multiError, err)
+							}
+						}
 					}
 				}
 			}
@@ -1117,14 +1124,8 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 
 		// Validate failing_policies_webhook if present
 		if fpw, hasFPW := webhookMap["failing_policies_webhook"]; hasFPW && fpw != nil {
-			fpwMap, ok := fpw.(map[string]any)
-			if !ok {
+			if _, ok := fpw.(map[string]any); !ok {
 				multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.failing_policies_webhook' must be an object or null"))
-			} else {
-				// Validate failing_policies_webhook structure
-				if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
-					multiError = multierror.Append(multiError, err)
-				}
 			}
 		}
 
@@ -1142,20 +1143,6 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
 	}
 	return multiError
-}
-
-// validateFailingPoliciesWebhook validates the failing_policies_webhook configuration.
-// It ensures policy_ids is an array if present.
-func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error {
-	// Validate policy_ids is an array if present
-	if policyIDs, hasPolicyIDs := fpwMap["policy_ids"]; hasPolicyIDs && policyIDs != nil {
-		// Check if it's an array
-		_, isArray := policyIDs.([]any)
-		if !isArray {
-			return fmt.Errorf("'%s.policy_ids' must be an array, got %T", keyPath, policyIDs)
-		}
-	}
-	return nil
 }
 
 func validateHostActivitiesWebhook(hawMap map[string]any, keyPath string) error {
@@ -1222,14 +1209,8 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 			}
 			// If present, ensure failing_policies_webhook is an object or null
 			if fpw, ok := webhookMap["failing_policies_webhook"]; ok && fpw != nil {
-				fpwMap, ok := fpw.(map[string]any)
-				if !ok {
+				if _, ok := fpw.(map[string]any); !ok {
 					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.failing_policies_webhook' must be an object or null"))
-				} else {
-					// Validate failing_policies_webhook structure
-					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
-						multiError = multierror.Append(multiError, err)
-					}
 				}
 			}
 			if haw, ok := webhookMap["host_activities_webhook"]; ok && haw != nil {
@@ -2250,6 +2231,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
 		if item.Path == nil {
+			if err := checkPolicyAutomationKeys(parentFilePath, result.TeamName, &item.GitOpsPolicySpec); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
 			if errs := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps, fmasBySlug); errs != nil {
 				multiError = multierror.Append(multiError, errs...)
 				continue
@@ -2290,6 +2275,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
+							if err := checkPolicyAutomationKeys(*item.Path, result.TeamName, &pp.GitOpsPolicySpec); err != nil {
+								multiError = multierror.Append(multiError, err)
+								continue
+							}
 							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps, fmasBySlug); errs != nil {
 								multiError = multierror.Append(multiError, errs...)
 								continue
@@ -2398,6 +2387,38 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, fmt.Errorf(`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": %q.`, slug))
 	}
 	return multiError
+}
+
+// checkPolicyAutomationKeys checks that the policy turns on at most one automation, and that "All fleets" policies only
+// turn on webhooks and tickets. The server checks this too; checking here names the file and fails before anything is
+// applied.
+func checkPolicyAutomationKeys(filePath string, teamName *string, policy *GitOpsPolicySpec) error {
+	var keys []string
+	for _, k := range []struct {
+		on  bool
+		key string
+	}{
+		{policy.InstallSoftware.Bool || (policy.InstallSoftware.IsOther && policy.InstallSoftware.Other != nil), "install_software"},
+		{policy.RunScript != nil, "run_script"},
+		{strings.TrimSpace(policy.ResendConfigurationProfile) != "", "resend_configuration_profile"},
+		{policy.CalendarEventsEnabled, "calendar_events_enabled"},
+		{policy.ConditionalAccessEnabled, "conditional_access_enabled"},
+		{policy.WebhooksAndTicketsEnabled, "webhooks_and_tickets_enabled"},
+	} {
+		if k.on {
+			keys = append(keys, k.key)
+		}
+	}
+	file := filepath.Base(filePath)
+	if len(keys) > 1 {
+		return fmt.Errorf("Couldn't apply policy %q in %s: a policy can only have one automation, but it sets %s.",
+			policy.Name, file, strings.Join(keys, ", "))
+	}
+	if teamName == nil && len(keys) == 1 && (keys[0] == "calendar_events_enabled" || keys[0] == "conditional_access_enabled") {
+		return fmt.Errorf("Couldn't apply policy %q in %s: %q policies can only have webhooks_and_tickets_enabled, not %s.",
+			policy.Name, file, fleet.DisplayNameAllTeams, keys[0])
+	}
+	return nil
 }
 
 func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *string, policy *Policy, scripts []fleet.BaseItem) error {

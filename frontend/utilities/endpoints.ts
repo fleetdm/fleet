@@ -134,6 +134,10 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
   HOST_CERTIFICATES: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/certificates`,
+  HOST_AI_SESSIONS: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions`,
+  HOST_AI_SESSION_EVENTS: (id: number, aiSessionId: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions/${aiSessionId}/events`,
   HOST_DEVICE_MAPPING: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>

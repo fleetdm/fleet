@@ -2053,14 +2053,14 @@ type OSVersion struct {
 	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
-	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
-	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field will no longer include the alphanumeric version.
-	Name string `json:"name"`
+	// Name is the name and alphanumeric version of the operating system, e.g., "macOS 14.1.2". The API doesn't
+	// return it.
+	Name string `json:"-"`
 	// NameOnly is the name of the operating system, e.g., "Microsoft Windows 11 Enterprise",
-	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field be removed.
-	NameOnly string `json:"name_only"`
+	// "Ubuntu", or "macOS".
+	NameOnly string `json:"os_name"`
 	// Version is the alphanumeric version of the operating system, e.g., "21H2", "20.4.0", or "12.5".
-	Version string `json:"version"`
+	Version string `json:"os_version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
 	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
@@ -2082,10 +2082,9 @@ type OSVersion struct {
 	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
-// UseAPINames switches Name and NameOnly to the form API responses show (see APIOSName). Only call it on a value that is
-// about to be written to a response: the stored names are the keys for OS vulnerability lookups.
+// UseAPINames switches NameOnly to the form API responses show (see APIOSName). Only call it on a value that is about
+// to be written to a response: the stored names are the keys for OS vulnerability lookups.
 func (o *OSVersion) UseAPINames() {
-	o.Name = APIOSName(o.Name)
 	o.NameOnly = APIOSName(o.NameOnly)
 }
 

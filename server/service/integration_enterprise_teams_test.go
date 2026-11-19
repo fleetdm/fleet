@@ -3002,3 +3002,38 @@ func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {
 	s.lastActivityOfTypeMatches(activityName,
 		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, newTeam.ID, newTeam.Name, tmpl), 0)
 }
+
+func (s *integrationEnterpriseTestSuite) TestTeamSpecCreateFailingPoliciesWebhook() {
+	t := s.T()
+	teamName := t.Name()
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"webhook_settings": map[string]any{
+					"failing_policies_webhook": map[string]any{
+						"enable_failing_policies_webhook": true,
+						"destination_url":                 "https://example.com/failing",
+						"host_batch_size":                 10,
+						"policy_ids":                      []uint{1},
+					},
+				},
+			},
+		},
+	}
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	team, err := s.ds.TeamByName(t.Context(), teamName)
+	require.NoError(t, err)
+	webhook := team.Config.WebhookSettings.FailingPoliciesWebhook
+	require.True(t, webhook.Enable)
+	require.Equal(t, "https://example.com/failing", webhook.DestinationURL)
+	require.Equal(t, 10, webhook.HostBatchSize)
+	// The new fleet has no policies, so no policy gets the automation.
+	require.Empty(t, webhook.PolicyIDs)
+	policyIDs, err := s.ds.WebhooksAndTicketsPolicyIDs(t.Context(), &team.ID)
+	require.NoError(t, err)
+	require.Empty(t, policyIDs)
+}

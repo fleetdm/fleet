@@ -150,8 +150,10 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 
 	// create a global policy
 	gpParams := fleet.GlobalPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some global resolution",
+		Name:        qr.Name,
+		Query:       qr.Query,
+		Description: qr.Description,
+		Resolution:  "some global resolution",
 	}
 	gpResp := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
@@ -260,14 +262,17 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	// Cannot set both QueryID and Query.
-	gpParams0 := fleet.GlobalPolicyRequest{
-		QueryID: &qr.ID,
-		Query:   "select * from osquery;",
-	}
+	// report_id no longer copies a report into the policy: alone it leaves nothing to save, and with a body the
+	// body's SQL is saved, never the report's.
 	gpResp0 := fleet.GlobalPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams0, http.StatusBadRequest, &gpResp0)
+	s.DoJSON("POST", "/api/latest/fleet/policies", map[string]any{"report_id": qr.ID}, http.StatusBadRequest, &gpResp0)
 	require.Nil(t, gpResp0.Policy)
+	s.DoJSON("POST", "/api/latest/fleet/policies", map[string]any{"report_id": qr.ID, "name": "From body", "query": "SELECT 2;"},
+		http.StatusOK, &gpResp0)
+	require.NotNil(t, gpResp0.Policy)
+	require.Equal(t, "From body", gpResp0.Policy.Name)
+	require.Equal(t, "SELECT 2;", gpResp0.Policy.Query)
+	s.Do("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{IDs: []uint{gpResp0.Policy.ID}}, http.StatusOK)
 
 	gpParams := fleet.GlobalPolicyRequest{
 		Name:        "TestQuery3",
@@ -648,18 +653,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	for _, tc := range []struct {
 		tname      string
 		testUpdate bool
-		queryID    *uint
 		name       string
 		query      string
 		platforms  string
 	}{
-		{
-			tname:      "set both QueryID and Query",
-			testUpdate: false,
-			queryID:    new(uint(1)),
-			name:       "Some name",
-			query:      "select * from osquery;",
-		},
 		{
 			tname:      "empty query",
 			testUpdate: true,
@@ -687,7 +684,6 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			tpReq := fleet.TeamPolicyRequest{
-				QueryID:  tc.queryID,
 				Name:     tc.name,
 				Query:    tc.query,
 				Platform: tc.platforms,
@@ -696,9 +692,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
 			require.Nil(t, tpResp.Policy)
 
-			testUpdate := tc.queryID == nil
-
-			if testUpdate {
+			if tc.testUpdate {
 				tpReq := fleet.ModifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  new(tc.name),
@@ -711,7 +705,6 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			}
 
 			gpReq := fleet.GlobalPolicyRequest{
-				QueryID:  tc.queryID,
 				Name:     tc.name,
 				Query:    tc.query,
 				Platform: tc.platforms,
@@ -720,7 +713,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			s.DoJSON("POST", "/api/latest/fleet/policies", gpReq, http.StatusBadRequest, &gpResp)
 			require.Nil(t, tpResp.Policy)
 
-			if testUpdate {
+			if tc.testUpdate {
 				gpReq := fleet.ModifyPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 						Name:  new(tc.name),
