@@ -458,8 +458,8 @@ var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
 	"Team package install policy": fleet.PolicyAutomationSoftware,
 }
 
-func (m MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
-	policies, err := m.mockPolicies(teamID)
+func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+	policies, err := c.mockPolicies(teamID)
 	for _, p := range policies {
 		if a, ok := mockPolicyAutomations[p.Name]; ok {
 			p.AutomationType = new(a)
