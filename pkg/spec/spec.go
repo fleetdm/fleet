@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -60,7 +61,6 @@ func lookupEnv(key string) (string, bool) {
 type Group struct {
 	Queries  []*fleet.QuerySpec
 	Teams    []json.RawMessage
-	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
 	Software []*fleet.SoftwarePackageSpec
@@ -68,7 +68,6 @@ type Group struct {
 	// server like the user explicitly set the zero values.
 	AppConfig              interface{}
 	EnrollSecret           *fleet.EnrollSecretSpec
-	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 	CertificateAuthorities *fleet.GroupedCertificateAuthorities
 	// MicrosoftGraphCredentials is applied through its own endpoint rather than the app config.
@@ -86,7 +85,10 @@ type Metadata struct {
 // key names back to old (json tag) names so that structs can be unmarshaled
 // correctly when input uses the new key names.
 func rewriteNewToOldKeys(raw json.RawMessage, target any) (json.RawMessage, map[string]string, error) {
-	rules := endpointer.ExtractAliasRules(target)
+	return rewriteNewToOldKeysWithRules(raw, endpointer.ExtractAliasRules(target))
+}
+
+func rewriteNewToOldKeysWithRules(raw json.RawMessage, rules []endpointer.AliasRule) (json.RawMessage, map[string]string, error) {
 	if len(rules) == 0 {
 		return raw, nil, nil
 	}
@@ -95,6 +97,49 @@ func rewriteNewToOldKeys(raw json.RawMessage, target any) (json.RawMessage, map[
 		return nil, nil, err // fall back to original on error
 	}
 	return result, deprecatedKeysMap, nil
+}
+
+// Since Fleet 5 the config and fleet API types don't have the profiles, scripts, and setup
+// experience items, but config and fleet specs still list them next to the settings, so their
+// renamed and removed key names come from the GitOps types.
+var gitOpsOnlyKeyTypes = []any{
+	fleet.GitOpsMacOSSettings{},
+	fleet.GitOpsWindowsSettings{},
+	fleet.GitOpsAndroidSettings{},
+	fleet.GitOpsMacOSSetup{},
+}
+
+// SpecAliasRules returns the renamed keys of a config or fleet spec, whose API type is target.
+func SpecAliasRules(target any) []endpointer.AliasRule {
+	rules := endpointer.ExtractAliasRules(target)
+	for _, t := range gitOpsOnlyKeyTypes {
+		rules = append(rules, endpointer.ExtractAliasRules(t)...)
+	}
+	return uniqueRules(rules)
+}
+
+// SpecRemovedKeyRules returns the removed keys of a config or fleet spec, whose API type is target.
+func SpecRemovedKeyRules(target any) []endpointer.RemovedKeyRule {
+	rules := endpointer.ExtractRemovedKeyRules(target)
+	for _, t := range gitOpsOnlyKeyTypes {
+		rules = append(rules, endpointer.ExtractRemovedKeyRules(t)...)
+	}
+	return uniqueRules(rules)
+}
+
+// The GitOps types embed the API types, so their rules repeat some of target's.
+func uniqueRules[T any](rules []T) []T {
+	seen := make(map[string]struct{}, len(rules))
+	unique := rules[:0:0]
+	for _, r := range rules {
+		key := fmt.Sprintf("%+v", r)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		unique = append(unique, r)
+	}
+	return unique
 }
 
 type GroupFromBytesOpts struct {
@@ -142,17 +187,9 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.Queries = append(specs.Queries, querySpec)
 
-		case fleet.PackKind:
-			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
-			if err != nil {
-				return nil, fmt.Errorf("in %s spec: %w", kind, err)
-			}
-			var packSpec *fleet.PackSpec
-			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			specs.Packs = append(specs.Packs, packSpec)
+		case "pack":
+			// Reject the whole file so a pack is never silently dropped from an apply.
+			return nil, removedNameError(removednames.KindSpecKind, "pack")
 
 		case fleet.LabelKind:
 			var err error
@@ -188,7 +225,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 
 		case fleet.AppConfigKind:
 			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.AppConfig{})
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeysWithRules(s.Spec, SpecAliasRules(fleet.AppConfig{}))
 			if err != nil {
 				return nil, fmt.Errorf("in %s spec: %w", kind, err)
 			}
@@ -214,21 +251,12 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
-			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
-			if err != nil {
-				return nil, fmt.Errorf("in %s spec: %w", kind, err)
-			}
-			var userRoleSpec *fleet.UsersRoleSpec
-			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			specs.UsersRoles = userRoleSpec
+			return nil, removedNameError(removednames.KindSpecKind, fleet.UserRolesKind)
 
-		case fleet.TeamKind, fleet.FleetKind:
-			if logFn != nil && kind == fleet.TeamKind {
-				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
-			}
+		case fleet.TeamKind:
+			return nil, removedNameError(removednames.KindSpecKind, "team")
+
+		case fleet.FleetKind:
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/fleets
 			// endpoint so that it is enforced for both the API and the CLI.
@@ -236,14 +264,15 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			// Support `team` (for backwards compatibility) but defer to `fleet` if available.
-			teamRaw := rawTeam["team"]
-			if fleetRaw, ok := rawTeam["fleet"]; ok {
-				teamRaw = fleetRaw
+			if _, ok := rawTeam["team"]; ok {
+				return nil, removedNameError(removednames.KindYAMLKey, "spec.team")
 			}
 
-			var err error
-			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
+			var (
+				teamRaw json.RawMessage
+				err     error
+			)
+			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeysWithRules(rawTeam["fleet"], SpecAliasRules(fleet.TeamSpec{}))
 			if err != nil {
 				return nil, fmt.Errorf("in %s spec: %w", kind, err)
 			}
@@ -265,6 +294,14 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 		}
 	}
 	return specs, nil
+}
+
+// removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
+func removedNameError(kind removednames.Kind, name string) error {
+	if entry, ok := removednames.Find(kind, name, ""); ok {
+		return errors.New(entry.Message())
+	}
+	return fmt.Errorf("%q is not available anymore", name)
 }
 
 // SplitYaml splits a text file into separate yaml documents divided by ---

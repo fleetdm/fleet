@@ -1,91 +1,368 @@
-$softwareNameLike = "Antigravity*"
-$publisherLike    = "*Google*"
+# Antigravity IDE installs per user, so its uninstall entry is in the installing
+# user's registry hive rather than SYSTEM's, and its uninstaller reads the
+# directory to remove out of the hive of whoever runs it -- run as SYSTEM against
+# a user's install it exits 0 and deletes nothing. So search every hive and run
+# the uninstaller as the user who owns the entry. A copy belonging to a user who
+# isn't signed in can't be removed and fails the uninstall.
 
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
-)
-
-$ExpectedExitCodes = @(0, 3010, 1641)
+$displayNamePattern = '^Antigravity IDE \(User\)$'
+$publisher = "Google"
+$taskName = "fleet-uninstall-antigravity-ide"
+$appDir = "AppData\Local\Programs\Antigravity IDE"  # in each user's profile
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$timeoutSeconds = 300
 $exitCode = 0
 
-try {
+function Get-AppEntries {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
+    # LocalService and NetworkService can write their own hives, and an entry
+    # there would run as SYSTEM.
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
 
-[array]$uninstallKeys = Get-ChildItem `
-    -Path $paths `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
+    $entries = @()
+    foreach ($root in $roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            # Some installers pad these values with nulls (Fork writes "Fork" + 15 of them).
+            $name = ($key.DisplayName -replace "`0", "").Trim()
+            if ($name -notmatch $displayNamePattern) { continue }
+            if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
 
-$selected = $null
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {
-        $selected = $key
-        break
+            # Only a real user's entry needs the uninstaller run for them; HKLM and
+            # SYSTEM's hive are already in the right context.
+            $sid = $null
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
+
+            $entries += [PSCustomObject]@{
+                DisplayName = $name
+                KeyPath     = $sub.PSPath
+                Sid         = $sid
+                Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+                Location    = "$($key.InstallLocation)".Trim().TrimEnd('\')
+            }
+        }
+    }
+    return $entries
+}
+
+# Registry hives of users who aren't signed in aren't loaded, so find their
+# copies by the app folder in their profiles instead.
+function Get-SignedOutInstalls {
+    foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
+        $sid = $profileKey.PSChildName
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
+        if (-not $profilePath) { continue }
+        if (-not (Test-Path -LiteralPath (Join-Path $profilePath "$appDir\Antigravity IDE.exe"))) { continue }
+        try {
+            (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
+        } catch {
+            $sid
+        }
     }
 }
 
-if (-not $selected -or (-not $selected.UninstallString -and -not $selected.QuietUninstallString)) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 0
+function Resolve-Uninstaller {
+    param([string]$Command)
+
+    $exePath = ""
+    $arguments = ""
+    if ($Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    }
+
+    # A user's entry could point at a share that collects the computer account's
+    # credentials, so only a drive-letter path is touched as SYSTEM. PowerShell
+    # also reaches a share without a leading \\, as FileSystem::\\host\share.
+    if ($exePath -and $exePath -notmatch '^[A-Za-z]:[\\/]') { return $null }
+
+    # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
+    # unredirected system32 path that 64-bit PowerShell cannot resolve.
+    if ($exePath -and -not (Test-Path -LiteralPath $exePath)) {
+        $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+        if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
+            Write-Host "  Uninstaller is under SysWOW64, not the recorded $exePath"
+            $exePath = $redirected
+        }
+    }
+
+    foreach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')) {
+        if ($arguments -notmatch "(?i)(^|\s)$flag(\s|$)") { $arguments = "$arguments $flag".Trim() }
+    }
+
+    return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
 }
 
-# Stop Antigravity and any helpers running out of the install dir so the
-# uninstaller doesn't fail on locked files.
-Stop-Process -Name "Antigravity" -Force -ErrorAction SilentlyContinue
-if ($selected.InstallLocation -and (Test-Path -LiteralPath $selected.InstallLocation)) {
-    $loc = $selected.InstallLocation.TrimEnd('\')
-    Get-Process | Where-Object { $_.Path -and $_.Path -like "$loc\*" } |
-        ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
-}
-Start-Sleep -Seconds 2
+function Invoke-AsUser {
+    param([string]$Sid, [string]$ExePath, [string]$Arguments)
 
-# Prefer QuietUninstallString -- Inno populates it with /VERYSILENT
-# /SUPPRESSMSGBOXES already, so we just add /NORESTART if missing.
-$uninstallCommand = if ($selected.QuietUninstallString) {
-    $selected.QuietUninstallString
-} else {
-    $selected.UninstallString
-}
+    $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
+        [System.Security.Principal.NTAccount]).Value
+    Write-Host "  Running as ${account}: $ExePath $Arguments"
 
-# Parse the uninstaller exe path. Inno usually quotes it.
-$exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} else {
-    Throw "Could not parse uninstall string: $uninstallCommand"
-}
+    try {
+        $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $account
+        $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
 
-$argumentList = @()
-if ($existingArgs) { $argumentList += ($existingArgs -split '\s+') }
-foreach ($s in @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")) {
-    if ($argumentList -notcontains $s) { $argumentList += $s }
-}
+        $startDate = Get-Date
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop).LastRunTime
+        Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 
-Write-Host "Selected entry DisplayName: $($selected.DisplayName)"
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $($argumentList -join ' ')"
-
-$processOptions = @{
-    FilePath     = $exePath
-    ArgumentList = $argumentList
-    PassThru     = $true
-    Wait         = $true
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls. A task that's still queued hasn't updated
+        # LastRunTime yet.
+        Start-Sleep -Seconds 2
+        while ($true) {
+            $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
+            if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+                return $info.LastTaskResult
+            }
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
+                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the task to finish."
+                return 1460  # ERROR_TIMEOUT
+            }
+            Start-Sleep -Seconds 5
+        }
+    } finally {
+        if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 }
 
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
-Write-Host "Uninstall exit code: $exitCode"
+# A user can write to their own profile, including swapping a folder for a link
+# elsewhere, so their folder is removed as them rather than as SYSTEM. cmd
+# expands %VAR% even inside quotes, so a path containing % is never passed to it.
+function Remove-AppDir {
+    param([string]$Path, [string]$Sid)
 
-if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }
-Exit $exitCode
+    if ($Sid -and $Path.Contains('%')) {
+        Write-Host "  Could not remove $Path."
+        return $false
+    }
+    if ($Sid) {
+        try {
+            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c rd /s /q `"$Path`""
+        } catch {
+            Write-Host "  $_"
+        }
+    } else {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path -LiteralPath $Path) {
+        Write-Host "  Could not remove $Path."
+        return $false
+    }
+    return $true
+}
+
+# Shortcuts the uninstaller didn't get to. Match on where they point rather than on
+# a filename, which also catches the vendor subfolders some installers create. Read
+# as SYSTEM, a user's shortcut resolves its target through SYSTEM's profile, so the
+# working directory is checked too, and only the owning profile is searched. A
+# user's shortcuts are deleted as that user, like their folder.
+function Remove-Shortcuts {
+    param([string]$Dir, [string]$ProfilePath, [string]$Sid)
+
+    if ($ProfilePath) {
+        $roots = @((Join-Path $ProfilePath 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'), (Join-Path $ProfilePath 'Desktop'))
+    } else {
+        $roots = @('Programs', 'Desktop', 'CommonPrograms', 'CommonDesktopDirectory') | ForEach-Object { [Environment]::GetFolderPath($_) }
+    }
+    $found = @()
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($root in $roots) {
+        if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
+        foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+            try { $link = $shell.CreateShortcut($lnk.FullName) } catch { continue }
+            foreach ($path in @($link.TargetPath, $link.WorkingDirectory)) {
+                if ($path -and ($path -eq $Dir -or $path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase))) {
+                    $found += $lnk.FullName
+                    break
+                }
+            }
+        }
+    }
+    if (-not $found) { return }
+    if ($Sid) {
+        $quoted = ($found | Where-Object { -not $_.Contains('%') } | ForEach-Object { "`"$_`"" }) -join ' '
+        if ($quoted) {
+            try {
+                $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c del /f /q $quoted"
+            } catch {
+                Write-Host "  $_"
+            }
+        }
+    } else {
+        $found | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
+    }
+    $found | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Write-Host "  Could not remove shortcut $_." }
+}
+
+try {
+    $entries = @(Get-AppEntries)
+
+    foreach ($entry in $entries) {
+        Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
+        $uninstaller = Resolve-Uninstaller $entry.Command
+        if (-not $uninstaller) {
+            Write-Host "  Skipping this copy: its uninstaller isn't on a local drive."
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
+        $hasUninstaller = $uninstaller.ExePath -and (Test-Path -LiteralPath $uninstaller.ExePath)
+
+        # A user's uninstall string comes from a hive that user can write to, so only
+        # touch the app's folder in that user's own profile.
+        $installDir = ""
+        if ($uninstaller.ExePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $uninstaller.ExePath -Parent)) } catch {} }
+        # Resolve-Uninstaller redirects only an uninstaller it can find, so without one
+        # a 32-bit installer's SYSTEM-profile copy still points into system32.
+        if (-not $entry.Sid -and $installDir -and -not (Test-Path -LiteralPath $installDir)) {
+            $redirected = $installDir -replace '(?i)\\system32\\', '\SysWOW64\'
+            if (Test-Path -LiteralPath $redirected) { $installDir = $redirected }
+        }
+        $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq (Split-Path $appDir -Leaf)
+        $profilePath = $null
+        if ($entry.Sid) {
+            $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($entry.Sid)" -ErrorAction SilentlyContinue).ProfileImagePath
+            $userAppDir = if ($profilePath) { Join-Path $profilePath $appDir } else { "" }
+            if (-not $hasUninstaller) { $installDir = $userAppDir }
+            $isAppDir = $userAppDir -and $installDir -eq $userAppDir
+        }
+
+        if ($isAppDir) {
+            # Anything running out of this install directory blocks removal. Matching on the
+            # directory rather than a process name keeps another install of the same app,
+            # in another user's profile, running.
+            Get-Process -ErrorAction SilentlyContinue |
+                Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+                Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+
+        if (-not $hasUninstaller) {
+            Write-Host "  Uninstaller is missing; removing what's left of this copy."
+            if ($installDir -and (Test-Path -LiteralPath $installDir) -and
+                -not ($isAppDir -and (Remove-AppDir $installDir $entry.Sid))) {
+                Write-Host "  Leaving this copy registered because $installDir is still there."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+            # Antigravity IDE.exe can be in another folder: the SYSTEM-profile copy can
+            # keep its uninstaller elsewhere, and users can choose where to install.
+            $payloadDir = ""
+            if ($entry.Location -match '^[A-Za-z]:[\\/]') {
+                try { $payloadDir = [System.IO.Path]::GetFullPath($entry.Location) } catch {}
+            }
+            if ($payloadDir -and $payloadDir -ne $installDir -and (Test-Path -LiteralPath (Join-Path $payloadDir "Antigravity IDE.exe"))) {
+                if (-not $entry.Sid -and (Split-Path $payloadDir -Leaf) -eq (Split-Path $appDir -Leaf)) {
+                    Get-Process -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Path -and $_.Path.StartsWith("$payloadDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+                        Stop-Process -Force -ErrorAction SilentlyContinue
+                    $null = Remove-AppDir $payloadDir $null
+                }
+                if (Test-Path -LiteralPath (Join-Path $payloadDir "Antigravity IDE.exe")) {
+                    Write-Host "  Leaving this copy registered because Antigravity IDE.exe is still in $payloadDir."
+                    if ($exitCode -eq 0) { $exitCode = 1 }
+                    continue
+                }
+            }
+            if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        # Caught here so one copy's failure doesn't skip the others.
+        try {
+            if ($entry.Sid) {
+                $result = Invoke-AsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+            } else {
+                Write-Host "  Uninstall command: $($uninstaller.ExePath) $($uninstaller.Arguments)"
+                $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                    -NoNewWindow -PassThru -ErrorAction Stop
+                $null = $process.Handle  # keeps ExitCode readable after the process exits
+                if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                    $result = $process.ExitCode
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Timed out waiting for the uninstaller to finish."
+                    $result = 1460  # ERROR_TIMEOUT
+                }
+            }
+        } catch {
+            Write-Host "  Could not run the uninstaller: $_"
+            $result = 1
+        }
+        Write-Host "  Uninstall exit code: $result"
+        if ($result -ne 0) {
+            Write-Host "  Leaving this copy registered so the uninstall can be retried."
+            if ($exitCode -eq 0) { $exitCode = $result }
+            continue
+        }
+
+        # An uninstaller that relaunches itself from %TEMP% exits while removal is
+        # still in flight. Either the directory or the registration going away means
+        # it got there.
+        for ($waited = 0; $waited -lt 60; $waited++) {
+            if (-not (Test-Path -LiteralPath $installDir)) { break }
+            if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 3
+                break
+            }
+            Start-Sleep -Seconds 1
+        }
+
+        if ($isAppDir -and (Test-Path -LiteralPath $installDir)) {
+            Write-Host "  Uninstaller left $installDir behind; removing it."
+            if (-not (Remove-AppDir $installDir $entry.Sid)) {
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+        }
+        if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
+
+        if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
+            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    $remaining = @(Get-AppEntries)
+    $signedOut = @(Get-SignedOutInstalls)
+    if ($remaining.Count -gt 0) {
+        Write-Host "WARNING: $($remaining.Count) Antigravity IDE registration(s) still present:"
+        $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($signedOut.Count -gt 0) {
+        Write-Host "Antigravity IDE is still installed for users who aren't signed in: $($signedOut -join ', '). Run the uninstall again while they're signed in."
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($exitCode -eq 0) {
+        if ($entries.Count) { Write-Host "Antigravity IDE removed." } else { Write-Host "Antigravity IDE is not installed." }
+    }
 
 } catch {
-    Write-Host "Error: $_"
-    Exit 1
+    Write-Host "Error running uninstaller: $_"
+    $exitCode = 1
 }
+
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
+Exit $exitCode

@@ -277,9 +277,20 @@ func run(cfg *Config) error {
 			}
 		}
 
+		patchedQueryFailed := false
+		if err := checkPatchedQuery(ctx, ac.PatchedQuery); err != nil {
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Patched query check failed: %v", err))
+			if errors.Is(err, errPatchedQueryNoRows) {
+				appLogger.ErrorContext(ctx, patchedQueryFixHint)
+			}
+			patchedQueryFailed = true
+		} else {
+			appLogger.InfoContext(ctx, "Patched query check passed")
+		}
+
 		// Uninstall
 		uninstalled := ac.uninstallApp(ctx)
-		if !uninstalled || existsQueryFailed || gatekeeperErr != nil {
+		if !uninstalled || existsQueryFailed || patchedQueryFailed || gatekeeperErr != nil {
 			appWithError = append(appWithError, ac.Name)
 			cleanupTmpDir()
 			continue
@@ -427,7 +438,9 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp
 }
 
 func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Match Fleet's own limit: large installers from slow CDNs (WeChat's ~550 MB
+	// DMG) can take longer than a few minutes on a runner.
+	ctx, cancel := context.WithTimeout(context.Background(), mdm_maintained_apps.InstallerTimeout)
 	defer cancel()
 
 	cfg.logger.InfoContext(ctx, "Downloading...")
@@ -528,7 +541,10 @@ var runOsqueryi = func(ctx context.Context, query string) ([]byte, error) {
 	return output, err
 }
 
-var errExistsQueryNoRows = errors.New("exists query returned no rows with the app installed")
+var (
+	errExistsQueryNoRows  = errors.New("exists query returned no rows with the app installed")
+	errPatchedQueryNoRows = errors.New("patched query returned no rows with the app installed, so the patch policy would fail on every host that installs this version")
+)
 
 // checkExistsQuery runs the manifest's exists query, which is how Fleet
 // detects the app on hosts, and fails if it returns no rows. appExists finds
@@ -536,23 +552,45 @@ var errExistsQueryNoRows = errors.New("exists query returned no rows with the ap
 // never matches the installed app, which leaves the app undetected and its
 // patch policy always passing.
 func checkExistsQuery(ctx context.Context, existsQuery string) error {
-	if strings.TrimSpace(existsQuery) == "" {
-		return errors.New("manifest has no exists query")
+	return checkManifestQuery(ctx, "exists", existsQuery, errExistsQueryNoRows)
+}
+
+// checkPatchedQuery runs the manifest's patched query, which Fleet runs on
+// hosts as the patch policy, and fails if it returns no rows. appExists accepts
+// versions the patched query can sort lower (a shorter form, or one only in
+// another column), and doesn't see older copies that the query also counts.
+func checkPatchedQuery(ctx context.Context, patchedQuery string) error {
+	return checkManifestQuery(ctx, "patched", patchedQuery, errPatchedQueryNoRows)
+}
+
+// foundVersion formats a version for the Found app log lines. The patched query
+// compares the raw osquery value, not the one MutateSoftwareOnIngestion rewrites
+// (R, Raspberry Pi Imager, JetBrains on Windows), so show both when they differ.
+func foundVersion(sanitized, raw string) string {
+	if sanitized == raw {
+		return sanitized
+	}
+	return fmt.Sprintf("%s (osquery: %s)", sanitized, raw)
+}
+
+func checkManifestQuery(ctx context.Context, kind, query string, errNoRows error) error {
+	if strings.TrimSpace(query) == "" {
+		return fmt.Errorf("manifest has no %s query", kind)
 	}
 
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	output, err := runOsqueryi(execTimeout, existsQuery)
+	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
-		return fmt.Errorf("executing exists query: %w", err)
+		return fmt.Errorf("executing %s query: %w", kind, err)
 	}
 	var rows []json.RawMessage
 	if err := json.Unmarshal(output, &rows); err != nil {
-		return fmt.Errorf("parsing exists query output %q: %w", output, err)
+		return fmt.Errorf("parsing %s query output %q: %w", kind, output, err)
 	}
 	if len(rows) == 0 {
-		return fmt.Errorf("%w: %s", errExistsQueryNoRows, existsQuery)
+		return fmt.Errorf("%w: %s", errNoRows, query)
 	}
 	return nil
 }

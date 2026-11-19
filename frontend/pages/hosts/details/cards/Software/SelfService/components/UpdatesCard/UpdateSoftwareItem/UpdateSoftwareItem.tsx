@@ -37,7 +37,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
       `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
   pending_install: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Installing...",
     tooltip: () => "Fleet is installing software.",
   },
@@ -64,7 +64,7 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
     display_name,
     source,
     icon_url: iconUrl,
-    software_package: installerPackage,
+    package: installerPackage,
     app_store_app: vppApp,
   } = software;
   return (
@@ -117,7 +117,7 @@ const InstallerStatus = ({
         tipOffset={8}
       >
         <div className={`${baseClass}__status-with-tooltip`}>
-          {displayConfig.iconName === "pending-outline" && (
+          {displayConfig.iconName === "pending" && (
             <Spinner size="x-small" centered={false} delay={0} />
           )}
           {last_install && displayConfig.displayText === "Failed" && (
@@ -149,13 +149,12 @@ interface IInstallerStatusActionProps {
 }
 
 const InstallerStatusAction = ({
-  software: { status, software_package, app_store_app, ui_status },
+  software: { status, package: pkg, app_store_app, ui_status },
   onInstall,
   onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {
   // TODO: update this if/when we support self-service app store apps
-  const lastInstall =
-    software_package?.last_install ?? app_store_app?.last_install ?? null;
+  const lastInstall = pkg?.last_install ?? app_store_app?.last_install ?? null;
   // localStatus is used to track the status of the any user-initiated install action
 
   const isMountedRef = useRef(false);

@@ -44,16 +44,6 @@ func setupPackConfigCacheTest(t *testing.T, cfgs ...config.FleetConfig) (
 		return nil, nil
 	}
 
-	// No legacy packs by default.
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{}, nil
-	}
-
-	// Default: no scheduled queries in packs.
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
-		return []*fleet.ScheduledQuery{}, nil
-	}
-
 	// Scheduled queries for agents -- this is the main DB call we track.
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		callCounter.Add(1)
@@ -323,43 +313,6 @@ func TestPackConfigCacheTeamIsolation(t *testing.T) {
 
 	assert.Equal(t, callsAfterAllFetched, callCounter.Load(),
 		"expected no additional DB calls -- all three team configs should be cached independently")
-}
-
-// TestPackConfigCacheLegacyPacksBypass verifies that when a host has legacy
-// packs assigned, the cache is bypassed entirely (every call hits the DB).
-func TestPackConfigCacheLegacyPacksBypass(t *testing.T) {
-	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	// Assign a legacy pack to host 1.
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		if hid == 1 {
-			return []*fleet.Pack{{ID: 10, Name: "legacy_pack"}}, nil
-		}
-		return []*fleet.Pack{}, nil
-	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
-		if packID == 10 {
-			return []*fleet.ScheduledQuery{
-				{Name: "legacy_q", Query: "SELECT 'legacy'", Interval: 30},
-			}, nil
-		}
-		return []*fleet.ScheduledQuery{}, nil
-	}
-
-	legacyHost := &fleet.Host{ID: 1}
-	ctx := hostctx.NewContext(t.Context(), legacyHost)
-
-	// First call.
-	conf1, err := svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	callsAfterFirst := callCounter.Load()
-	assert.Contains(t, string(conf1["packs"].(json.RawMessage)), "legacy_pack")
-
-	// Second call -- should still hit DB because legacy packs bypass cache.
-	_, err = svc.GetClientConfig(ctx)
-	require.NoError(t, err)
-	assert.Greater(t, callCounter.Load(), callsAfterFirst,
-		"expected DB call even on second request when legacy packs are present")
 }
 
 // TestPackConfigCacheLabelScopedBypass verifies that when label-scoped scheduled

@@ -15,6 +15,8 @@ import {
   type Settings,
 } from "./ipc";
 import {
+  apnsMockProcId,
+  apnsMockStartArgs,
   dockerEnvFor,
   dockerUpArgs,
   prepareDbArgsFor,
@@ -23,6 +25,7 @@ import {
   serveChannel,
   serveEnvFor,
   serveLabelFor,
+  serveMetaFor,
 } from "./servers";
 
 // Re-export the serve helpers so existing call sites (ServerTab) can keep
@@ -72,6 +75,14 @@ export function pythonArgsFor(settings: Settings): string[] {
   ];
 }
 
+/// The port and folder a running http.server was started with (its command
+/// is `python3 <pythonArgsFor>`). Settings can change after it starts, and the
+/// card must show where it actually serves.
+export function pythonServedFrom(command: string): { port: number; directory: string } | null {
+  const m = / http\.server (\d+) --directory (.+)$/.exec(command);
+  return m ? { port: Number(m[1]), directory: m[2] } : null;
+}
+
 export function ngrokIsLaunchable(settings: Settings): boolean {
   const cfg = settings.ngrok;
   return cfg.enabled && (cfg.start_all || cfg.default_tunnels.length > 0);
@@ -107,6 +118,7 @@ export async function startServe(server: ServerProfile): Promise<void> {
     args: serveArgsFor(server),
     log_channel: serveChannel(server.id),
     env: serveEnvFor(server).length > 0 ? serveEnvFor(server) : null,
+    meta: serveMetaFor(server),
   });
 }
 
@@ -115,6 +127,8 @@ export type SystemHealth = {
   dockerUp: boolean;
   ngrokRunning: boolean;
   pythonRunning: boolean;
+  /// This server's mock APNs process (per-server, unlike ngrok/python).
+  apnsMockRunning: boolean;
 };
 
 export type StartAllArgs = {
@@ -160,6 +174,20 @@ export async function startAll(args: StartAllArgs): Promise<void> {
     });
     const ok = await waitForExit(procId(server.id, "fleet-prepare-db"));
     if (!ok) return;
+  }
+  // The mock needs the server's Redis (up by now) and must be listening
+  // before Fleet's first push; pushes sent before it's up are retried by
+  // Fleet's apns_push_to_pending_hosts cron.
+  // Optional for serve to boot, so a failure here mustn't stop the rest.
+  if (server.mock_apns && !health.apnsMockRunning) {
+    const mock = apnsMockStartArgs(server, settings);
+    if (mock) {
+      try {
+        await api.startProcess(mock);
+      } catch (e) {
+        console.error("mock APNs start failed", e);
+      }
+    }
   }
   if (!health.serveUp) {
     await startServe(server);
@@ -212,6 +240,11 @@ export async function stopAll(args: StopAllArgs): Promise<void> {
   if (health.serveUp) {
     try {
       await api.stopProcess(procId(server.id, "fleet-serve"));
+    } catch {}
+  }
+  if (health.apnsMockRunning) {
+    try {
+      await api.stopProcess(apnsMockProcId(server));
     } catch {}
   }
   if (health.dockerUp && server.worktree_path) {

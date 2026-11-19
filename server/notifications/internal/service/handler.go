@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // errMissingHost means the request reached the handler without the host ID
@@ -22,12 +21,12 @@ import (
 var errMissingHost = errors.New("internal error: missing host from request context")
 
 func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
-	return func(r *mux.Router, opts []kithttp.ServerOption) {
+	return func(r *eu.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *eu.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	de := newDeviceAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
 	de.GET("/api/_version_/fleet/device/{token}/notifications/{uuid}", getNotificationEndpoint, api_http.GetNotificationRequest{})

@@ -23,7 +23,7 @@
             <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
 
             <div class="pt-2">
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info">Reset trial</ajax-button>
+              <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-primary">Reset trial</ajax-button>
             </div>
           </ajax-form>
         </div>
@@ -33,7 +33,7 @@
             <p>Trial reset!</p>
           </div>
           <div class="pt-4">
-            <ajax-button style="height: 40px;" spinner="true" :syncing="syncing" purpose="submit-button" class="btn btn-block btn-lg btn-info" @click="clickClearFormFields()">Reset another trial</ajax-button>
+            <ajax-button spinner="true" :syncing="syncing" purpose="submit-button" class="btn btn-block btn-primary" @click="clickClearFormFields()">Reset another trial</ajax-button>
           </div>
         </div>
         </div>

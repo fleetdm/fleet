@@ -89,7 +89,7 @@ const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 // The OS tab defaults to sorting by version (latest first) instead, once a
 // single platform is selected — see getOSTabSortHeader below.
-const OS_TAB_DEFAULT_SORT_HEADER = "version";
+const OS_TAB_DEFAULT_SORT_HEADER = "os_version";
 // Increased from 20 to 50 per design spec (#32128). Load test the software
 // endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
@@ -97,12 +97,14 @@ const DEFAULT_PAGE = 0;
 
 /** Comparing OS versions across different platforms isn't meaningful, so the
  * OS tab's "All platforms" view can't sort by version — the Version column
- * itself is unclickable there. But `order_key=version` could still reach
+ * itself is unclickable there. But `order_key=os_version` could still reach
  * this page via a crafted/bookmarked URL, or a stale one restored by
  * browser back/forward, bypassing that UI restriction entirely (this page
  * is server-driven — whatever order_key is used here becomes the API
  * request). Guard against that specific combination rather than trusting
- * order_key verbatim whenever platform is "all". */
+ * order_key verbatim whenever platform is "all". Links saved before the API
+ * renamed this sort key still say `order_key=version`, which the API now
+ * rejects, so the OS tab reads it as `os_version`. */
 export const getOSTabSortHeader = (
   pathname: string,
   platform: string,
@@ -113,13 +115,21 @@ export const getOSTabSortHeader = (
     isOnOSTab && platform !== "all"
       ? OS_TAB_DEFAULT_SORT_HEADER
       : DEFAULT_SORT_HEADER;
-  if (!orderKeyParam) {
+  const orderKey =
+    isOnOSTab && orderKeyParam === "version"
+      ? OS_TAB_DEFAULT_SORT_HEADER
+      : orderKeyParam;
+  if (!orderKey) {
     return defaultSortHeader;
   }
-  if (isOnOSTab && platform === "all" && orderKeyParam === "version") {
+  if (
+    isOnOSTab &&
+    platform === "all" &&
+    orderKey === OS_TAB_DEFAULT_SORT_HEADER
+  ) {
     return defaultSortHeader;
   }
-  return orderKeyParam;
+  return orderKey;
 };
 
 const baseClass = "software-page";
@@ -259,7 +269,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     },
     {
       enabled: isRouteOk,
-      select: (data) => ("team" in data ? data.team : data),
+      select: (data) => ("fleet" in data ? data.fleet : data),
     }
   );
 
@@ -283,7 +293,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
     setPendingDeepLinkAutomations(true);
-    const { manage_automations, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [queryParams, location.pathname, router]);
 

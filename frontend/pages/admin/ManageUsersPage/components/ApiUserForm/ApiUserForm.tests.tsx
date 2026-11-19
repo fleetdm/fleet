@@ -3,6 +3,8 @@ import { noop } from "lodash";
 import React from "react";
 
 import createMockTeam from "__mocks__/teamMock";
+import { IApiEndpoint } from "interfaces/api_endpoint";
+import apiEndpointsAPI from "services/entities/api_endpoints";
 import { createCustomRenderer } from "test/test-utils";
 
 import ApiUserForm from "./ApiUserForm";
@@ -22,6 +24,24 @@ const ENDPOINTS_SELECTED = {
   global_role: null,
   fleets: [createMockTeam({ id: 1, name: "Fleet 1", role: "observer" })],
   api_endpoints: [{ method: "GET", path: "/api/v1/fleet/hosts" }],
+};
+
+const LIST_HOSTS: IApiEndpoint = {
+  method: "GET",
+  path: "/api/v1/fleet/hosts",
+  display_name: "List hosts",
+  deprecated: false,
+};
+
+const LIST_HOSTS_GRANT = { method: "GET", path: "/api/v1/fleet/hosts" };
+const REMOVED_ROUTE_GRANT = {
+  method: "GET",
+  path: "/api/v1/fleet/mdm/profiles",
+};
+
+const WITH_REMOVED_ROUTE_GRANT = {
+  ...ENDPOINTS_SELECTED,
+  api_endpoints: [LIST_HOSTS_GRANT, REMOVED_ROUTE_GRANT],
 };
 
 describe("ApiUserForm - component", () => {
@@ -143,7 +163,7 @@ describe("ApiUserForm - component", () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       name: "CI token",
-      global_role: "observer",
+      global_role: "gitops",
       fleets: [],
       api_endpoints: undefined,
     });
@@ -224,5 +244,93 @@ describe("ApiUserForm - component", () => {
     expect(
       screen.getByPlaceholderText("Search by name or path")
     ).toBeDisabled();
+  });
+});
+
+describe("ApiUserForm - stored grants the catalog no longer lists", () => {
+  const defaultProps = {
+    onCancel: noop,
+    availableTeams: [createMockTeam({ id: 1, name: "Fleet 1" })],
+    isPremiumTier: true,
+    defaultData: WITH_REMOVED_ROUTE_GRANT,
+  };
+
+  // A fresh QueryClient per test keeps one test's catalog out of the next.
+  let render: ReturnType<typeof createCustomRenderer>;
+  beforeEach(() => {
+    render = createCustomRenderer({ withBackendMock: true });
+  });
+
+  afterEach(() => {
+    (apiEndpointsAPI.loadAll as jest.Mock).mockReset();
+  });
+
+  it("drops a grant the catalog no longer lists on save", async () => {
+    (apiEndpointsAPI.loadAll as jest.Mock).mockResolvedValue([LIST_HOSTS]);
+    const onSubmit = jest.fn();
+    const { user } = render(
+      <ApiUserForm {...defaultProps} onSubmit={onSubmit} />
+    );
+
+    await screen.findByText("List hosts");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ api_endpoints: [LIST_HOSTS_GRANT] })
+    );
+  });
+
+  it("requires an endpoint when only unlisted grants are left", async () => {
+    (apiEndpointsAPI.loadAll as jest.Mock).mockResolvedValue([LIST_HOSTS]);
+    const onSubmit = jest.fn();
+    const { user } = render(
+      <ApiUserForm {...defaultProps} onSubmit={onSubmit} />
+    );
+
+    await screen.findByText("List hosts");
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      screen.getByText("Select at least one API endpoint")
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("keeps every grant when the catalog hasn't loaded", async () => {
+    (apiEndpointsAPI.loadAll as jest.Mock).mockReturnValue(new Promise(noop));
+    const onSubmit = jest.fn();
+    const { user } = render(
+      <ApiUserForm {...defaultProps} onSubmit={onSubmit} />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        api_endpoints: [LIST_HOSTS_GRANT, REMOVED_ROUTE_GRANT],
+      })
+    );
+  });
+
+  it("keeps every grant when the catalog fails to load", async () => {
+    (apiEndpointsAPI.loadAll as jest.Mock).mockRejectedValue(
+      new Error("Failed to load")
+    );
+    const onSubmit = jest.fn();
+    const { user } = render(
+      <ApiUserForm {...defaultProps} onSubmit={onSubmit} />
+    );
+
+    // The selector only surfaces the load error in its search dropdown.
+    await user.type(screen.getByPlaceholderText("Search by name or path"), "h");
+    await screen.findByText("Something's gone wrong.");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        api_endpoints: [LIST_HOSTS_GRANT, REMOVED_ROUTE_GRANT],
+      })
+    );
   });
 });

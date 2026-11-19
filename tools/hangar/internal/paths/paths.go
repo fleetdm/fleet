@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -84,6 +85,47 @@ func expand(p, home string) string {
 		return home
 	}
 	return p
+}
+
+// OnDisk returns the absolute path p with each element spelled as it is on
+// disk; a relative p is returned unchanged. On a case-insensitive volume (the
+// macOS default) ~/code/fleet opens ~/Code/fleet, so a guessed or typed
+// spelling can differ from the real one and the same folder would compare as
+// two. Elements that can't be read are kept as given.
+func OnDisk(p string) string {
+	if !filepath.IsAbs(p) {
+		return p
+	}
+	// Clean drops ".." lexically, but the OS applies it after following
+	// symlinks: with link -> /elsewhere/sub, link/../fleet is /elsewhere/fleet.
+	if slices.Contains(strings.Split(p, string(filepath.Separator)), "..") {
+		if resolved, err := filepath.EvalSymlinks(p); err == nil {
+			p = resolved
+		}
+	}
+	p = filepath.Clean(p)
+	out := string(filepath.Separator)
+	for _, elem := range strings.Split(p, string(filepath.Separator))[1:] {
+		out = filepath.Join(out, onDiskName(out, elem))
+	}
+	return out
+}
+
+func onDiskName(dir, name string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return name
+	}
+	match := name
+	for _, e := range entries {
+		if e.Name() == name {
+			return name
+		}
+		if match == name && strings.EqualFold(e.Name(), name) {
+			match = e.Name()
+		}
+	}
+	return match
 }
 
 // UnderHome reports an error if the (already shell-expanded) path is not

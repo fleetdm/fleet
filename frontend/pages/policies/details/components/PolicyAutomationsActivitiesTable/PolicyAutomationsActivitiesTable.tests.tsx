@@ -239,13 +239,13 @@ describe("getAutomationStatusIcon", () => {
           },
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(getAutomationStatusIcon(mockActivity({ status: "error" }))).toEqual({
-      name: "error-outline",
+      name: "error",
     });
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
-    ).toEqual({ name: "success-outline" });
+    ).toEqual({ name: "success" });
   });
 
   it("uses the grey error glyph for a successful 'end user notified' row and red for the failure row", () => {
@@ -256,7 +256,7 @@ describe("getAutomationStatusIcon", () => {
           status: "success",
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(
       getAutomationStatusIcon(
         mockActivity({
@@ -264,7 +264,7 @@ describe("getAutomationStatusIcon", () => {
           status: "error",
         })
       )
-    ).toEqual({ name: "error-outline" });
+    ).toEqual({ name: "error" });
   });
 });
 
@@ -550,7 +550,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -584,7 +583,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -603,7 +601,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     const { rerender } = render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -613,11 +610,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     ).not.toBeInTheDocument();
 
     rerender(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
     expect(
       screen.getByRole("button", { name: /reset policy/i })
@@ -632,7 +625,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -647,11 +639,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
 
     const { user } = render(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
 
     await user.click(screen.getByRole("button", { name: "Reset policy" }));
@@ -669,11 +657,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
 
     const { user } = render(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
 
     await user.click(await screen.findByText("Software installed (1Password)"));
@@ -699,11 +683,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
 
     const { user } = render(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
 
     await user.click(await screen.findByText("Software installed (1Password)"));

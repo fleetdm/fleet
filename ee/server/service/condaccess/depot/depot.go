@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net/url"
 	"strings"
 	"time"
 
@@ -166,13 +167,21 @@ var deviceUUIDURIPrefixes = []string{"urn:device:apple:uuid:", "urn:device:fleet
 // extractUUIDFromCert extracts the device UUID from the SAN URI field.
 // Returns the UUID portion or empty string if not found.
 func extractUUIDFromCert(crt *x509.Certificate) string {
-	for _, uri := range crt.URIs {
+	_, uuid := DeviceURI(crt.URIs)
+	return uuid
+}
+
+// DeviceURI returns the first URI with one of the deviceUUIDURIPrefixes and the device UUID it names, or nil and "" if
+// there is none. The SCEP server checks a one-time challenge against it and puts only it in the certificate, so the
+// depot binds the certificate to the same host.
+func DeviceURI(uris []*url.URL) (*url.URL, string) {
+	for _, uri := range uris {
 		s := uri.String()
 		for _, prefix := range deviceUUIDURIPrefixes {
 			if uuid, ok := strings.CutPrefix(s, prefix); ok {
-				return uuid
+				return uri, uuid
 			}
 		}
 	}
-	return ""
+	return nil, ""
 }

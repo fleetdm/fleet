@@ -746,6 +746,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-17 18:43:57
 
+### [CVE-2026-102554](https://nvd.nist.gov/vuln/detail/CVE-2026-102554)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that deserialize attacker-controlled input with Guava. guava is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never deserializes untrusted data.
+- **Products:** `fleetctl`,`pkg:maven/com.google.guava/guava`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-05 14:16:41
+
 ### [CVE-2026-0968](https://nvd.nist.gov/vuln/detail/CVE-2026-0968)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1011,6 +1019,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-10-26 09:29:45
 
+### [CVE-2026-85091](https://nvd.nist.gov/vuln/detail/CVE-2026-85091)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** zlib1g is only reached through its gz* file API (gzwrite/gzprintf), where this heap overflow lives, by apt, dpkg-deb and wget, which run only at image build time, and by libxml2, which is only a dependency of media/desktop libraries never loaded by a WiX run. When fleetctl uses fleetdm/wix to generate MSI packages, the container only runs WiX heat/candle/light under Wine and osslsigncode; Wine's DLLs and osslsigncode only use zlib's inflate/deflate stream API, never the gz* write functions.
+- **Products:** `wix`,`pkg:deb/debian/zlib1g`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-09 19:35:28
+
 ### [CVE-2026-84782](https://nvd.nist.gov/vuln/detail/CVE-2026-84782)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1082,6 +1098,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libexpat1`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-10-26 09:29:45
+
+### [CVE-2026-76844](https://nvd.nist.gov/vuln/detail/CVE-2026-76844)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** zlib1g is only reached through its gz* file API (gzwrite/gzprintf), where this heap overflow lives, by apt, dpkg-deb and wget, which run only at image build time, and by libxml2, which is only a dependency of media/desktop libraries never loaded by a WiX run. When fleetctl uses fleetdm/wix to generate MSI packages, the container only runs WiX heat/candle/light under Wine and osslsigncode; Wine's DLLs and osslsigncode only use zlib's inflate/deflate stream API, never the gz* write functions.
+- **Products:** `wix`,`pkg:deb/debian/zlib1g`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-09 19:35:28
 
 ### [CVE-2026-7598](https://nvd.nist.gov/vuln/detail/CVE-2026-7598)
 - **Author:** @lucasmrod
@@ -1762,6 +1786,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libbrotli1`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-10-26 09:29:44
+
+### [CVE-2026-109518](https://nvd.nist.gov/vuln/detail/CVE-2026-109518)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** apt and libapt-pkg7.0 are only used at image build time to install packages. When fleetctl uses fleetdm/wix to generate MSI packages, the container only runs WiX heat/candle/light under Wine; apt is never invoked and no package repositories are fetched.
+- **Products:** `wix`,`pkg:deb/debian/apt`,`pkg:deb/debian/libapt-pkg7.0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-06 13:40:33
 
 ### [CVE-2026-103111](https://nvd.nist.gov/vuln/detail/CVE-2026-103111)
 - **Author:** @lucasmrod

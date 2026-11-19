@@ -64,7 +64,6 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 		}
 		if teamID != nil {
 			payload["data"].(map[string]any)["fleet_id"] = *teamID
-			payload["data"].(map[string]any)["team_id"] = *teamID
 		}
 
 		err = server.PostJSONWithTimeout(ctx, url, &payload, logger)

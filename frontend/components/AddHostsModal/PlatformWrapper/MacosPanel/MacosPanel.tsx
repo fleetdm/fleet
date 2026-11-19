@@ -10,14 +10,8 @@ import { getPathWithQueryParams } from "utilities/url";
 
 type DeviceType = "companyOwned" | "personalBYOD";
 
-const generateInstallerString = (
-  serverUrl: string,
-  enrollSecret: string,
-  scriptsDisabled: boolean
-) => {
-  return `fleetctl package --type=pkg ${
-    !scriptsDisabled ? "--enable-scripts " : ""
-  }--fleet-desktop --fleet-url=${serverUrl} --enroll-secret=${enrollSecret}`;
+const generateInstallerString = (serverUrl: string, enrollSecret: string) => {
+  return `fleetctl package --type=pkg --enable-scripts --fleet-desktop --fleet-url=${serverUrl} --enroll-secret=${enrollSecret}`;
 };
 
 const baseClass = "macos-panel";
@@ -83,6 +77,7 @@ const MacosPanel = ({
             inputWrapperClass={`${baseClass}__enroll-link`}
             name="enroll-link"
             enableCopy
+            enableOpenInNewTab
             label="Share this link with your end users:"
             value={enrollUrl}
             helpText={helpText}
@@ -94,8 +89,7 @@ const MacosPanel = ({
 
   const installerString = generateInstallerString(
     config.server_settings.server_url,
-    enrollSecret,
-    config.server_settings.scripts_disabled
+    enrollSecret
   );
 
   return (

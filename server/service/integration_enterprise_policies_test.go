@@ -19,6 +19,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,7 +69,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.token = s.getTestToken(email, password)
 
 	ts := fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Empty(t, ts.Policies)
 	require.Empty(t, ts.InheritedPolicies)
 
@@ -90,14 +91,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.NoError(t, err)
 
 	tpParams := fleet.TeamPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some team resolution",
+		Name:        qr.Name,
+		Query:       qr.Query,
+		Description: qr.Description,
+		Resolution:  "some team resolution",
 	}
 	r := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &r)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), tpParams, http.StatusOK, &r)
 
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
 	assert.Equal(t, "select * from osquery;", ts.Policies[0].Query)
@@ -109,7 +112,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
 	tc := fleet.CountTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
 	require.NoError(t, tc.Err)
 	require.Equal(t, 1, tc.Count)
 	require.Equal(t, 0, tc.InheritedPolicyCount)
@@ -121,7 +124,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	// Test merge inherited
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, ts.Policies, 2)
 	require.Nil(t, ts.InheritedPolicies)
 	assert.Equal(t, "TestQuery2", ts.Policies[0].Name)
@@ -133,7 +136,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, gpol.ID, ts.Policies[1].ID)
 
 	countResp := fleet.CountTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.NoError(t, countResp.Err)
 	require.Equal(t, 2, countResp.Count)
 	require.Equal(t, 1, countResp.InheritedPolicyCount)
@@ -141,10 +144,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	// Test delete
 	deletePolicyParams := fleet.DeleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := fleet.DeleteTeamPoliciesResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Empty(t, ts.Policies)
 }
 
@@ -259,7 +262,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 
 	// List "No team" policies.
 	ts := fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts)
 	require.Empty(t, ts.Policies)
 	require.Empty(t, ts.InheritedPolicies)
 	// Create a placeholder global policy.
@@ -274,23 +277,23 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 		Query: "SELECT 1;",
 	}
 	r := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &r)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &r)
 	require.NotNil(t, r.Policy.TeamID)
 	require.Zero(t, *r.Policy.TeamID)
 	// Test that we can't create a policy with the same name under "No team" domain.
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusConflict, &r)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusConflict, &r)
 	// Create a second "No team" policy.
 	tpParams = fleet.TeamPolicyRequest{
 		Name:  "noTeamPolicy2",
 		Query: "SELECT 2;",
 	}
 	r = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &r)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &r)
 	require.NotNil(t, r.Policy.TeamID)
 	require.Zero(t, *r.Policy.TeamID)
 	// List "No team" policies.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 2)
 	assert.Equal(t, "noTeamPolicy1", ts.Policies[0].Name)
 	assert.Equal(t, "SELECT 1;", ts.Policies[0].Query)
@@ -306,12 +309,12 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	assert.Nil(t, ts.InheritedPolicies[0].TeamID)
 	// Test policy count for "No team" policies.
 	tc := fleet.CountTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &tc)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies/count", nil, http.StatusOK, &tc)
 	require.Equal(t, 2, tc.Count)
 	require.Equal(t, 0, tc.InheritedPolicyCount)
 	// Test merge inherited for "No team" policies.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, ts.Policies, 3)
 	require.Nil(t, ts.InheritedPolicies)
 	assert.Equal(t, "noTeamPolicy1", ts.Policies[0].Name)
@@ -322,7 +325,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	assert.Equal(t, "SELECT 0;", ts.Policies[2].Query)
 	// Test merge inherited count for "No team" policies.
 	countResp := fleet.CountTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.NoError(t, countResp.Err)
 	require.Equal(t, 3, countResp.Count)
 	require.Equal(t, 1, countResp.InheritedPolicyCount)
@@ -331,9 +334,9 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 		IDs: []uint{ts.Policies[0].ID},
 	}
 	deletePolicyResp := fleet.DeleteTeamPoliciesResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	assert.Equal(t, "noTeamPolicy2", ts.Policies[0].Name)
 	assert.Equal(t, "SELECT 2;", ts.Policies[0].Query)
@@ -371,19 +374,19 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	s.token = s.getTestToken(email, password)
 
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusForbidden, &ts)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", nil, http.StatusForbidden, &ts)
 	tpParams = fleet.TeamPolicyRequest{
 		Name:  "noTeamPolicy1",
 		Query: "SELECT 1;",
 	}
 	r = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusForbidden, &r)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusForbidden, &r)
 	tc = fleet.CountTeamPoliciesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusForbidden, &tc)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies/count", nil, http.StatusForbidden, &tc)
 	deletePolicyParams = fleet.DeleteTeamPoliciesRequest{
 		IDs: []uint{noTeamPolicy2.ID},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies/delete", deletePolicyParams, http.StatusForbidden, &fleet.DeleteTeamPoliciesResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies/delete", deletePolicyParams, http.StatusForbidden, &fleet.DeleteTeamPoliciesResponse{})
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
@@ -429,7 +432,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	require.Len(t, listPolByName.Policies, 1)
 	require.Equal(t, "name1", listPolByName.Policies[0].Name)
 
-	patchPol1Req := &fleet.ModifyGlobalPolicyRequest{
+	patchPol1Req := &fleet.ModifyPolicyRequest{
 		Name:        new("newName1"),
 		Query:       new("newQuery"),
 		Description: new("newDescription"),
@@ -437,11 +440,11 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Platform:    new("windows"),
 		Critical:    new(false),
 	}
-	patchPol1 := &fleet.ModifyGlobalPolicyResponse{}
+	patchPol1 := &fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
 	allEqual(t, patchPol1Req, patchPol1.Policy, fields...)
 
-	patchPol2Req := &fleet.ModifyGlobalPolicyRequest{
+	patchPol2Req := &fleet.ModifyPolicyRequest{
 		Name:        new("newName2"),
 		Query:       new("newQuery"),
 		Description: new("newDescription"),
@@ -449,7 +452,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 		Platform:    new("windows"),
 		Critical:    new(true),
 	}
-	patchPol2 := &fleet.ModifyGlobalPolicyResponse{}
+	patchPol2 := &fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
 	allEqual(t, patchPol2Req, patchPol2.Policy, fields...)
 
@@ -489,7 +492,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		CalendarEventsEnabled: true,
 		Hidden:                true,
 	}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &fleet.TeamPolicyResponse{}
@@ -502,11 +505,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Critical:              false,
 		CalendarEventsEnabled: false,
 	}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
 
 	listPol := &fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, listPol)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, listPol)
 	s.Require().Len(listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
@@ -525,7 +528,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Hidden:                new(false),
 	}
 	patchPol1 := &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
 	allEqual(s.T(), patchPol1Req, patchPol1.Policy, fields...)
 
 	patchPol2Req := &fleet.ModifyTeamPolicyRequest{
@@ -539,11 +542,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Hidden:                new(true),
 	}
 	patchPol2 := &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
 	allEqual(s.T(), patchPol2Req, patchPol2.Policy, fields...)
 
 	listPol = &fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, listPol)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, listPol)
 	s.Require().Len(listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
@@ -553,28 +556,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
 
 	getPol2 := &fleet.GetPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	s.Require().Equal(listPol.Policies[1], getPol2.Policy)
 
 	// A patch that omits hidden leaves it untouched.
 	patchPol2 = &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol2.Policy.ID),
 		json.RawMessage(`{"name": "newName2b"}`), http.StatusOK, patchPol2)
 	s.Require().True(patchPol2.Policy.Hidden)
 
 	// hidden and conditional_access_enabled are mutually exclusive, on create and on either side of a patch.
-	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), &fleet.TeamPolicyRequest{
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), &fleet.TeamPolicyRequest{
 		Query: "query", Name: "hidden-ca", Platform: "darwin", Hidden: true, ConditionalAccessEnabled: true,
 	}, http.StatusBadRequest)
 	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
 
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID),
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol2.Policy.ID),
 		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusBadRequest)
 	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
 
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol1.Policy.ID),
 		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusOK)
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, createPol1.Policy.ID),
 		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
 	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
 
@@ -584,7 +587,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Name: "hidden global", Query: "SELECT 1;", Hidden: true,
 	}, http.StatusOK, &gpResp)
 	s.Require().True(gpResp.Policy.Hidden)
-	modGP := &fleet.ModifyGlobalPolicyResponse{}
+	modGP := &fleet.ModifyPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID),
 		json.RawMessage(`{"hidden": false}`), http.StatusOK, modGP)
 	s.Require().False(modGP.Policy.Hidden)
@@ -820,8 +823,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 	// 3. PATCH: switch existing include_all policy to include_any. Other slices should clear.
 	switchAny := []string{lblA.Name}
-	var patchResp fleet.ModifyGlobalPolicyResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	var patchResp fleet.ModifyPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyPolicyRequest{
 		LabelsIncludeAny: switchAny,
 	}, http.StatusOK, &patchResp)
 	require.Empty(t, patchResp.Policy.LabelsIncludeAll)
@@ -830,8 +833,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 	// Switch back to include_all so end-to-end targeting test below uses it.
 	switchAll := []string{lblA.Name, lblB.Name}
-	patchResp = fleet.ModifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	patchResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyPolicyRequest{
 		LabelsIncludeAll: switchAll,
 	}, http.StatusOK, &patchResp)
 	require.Len(t, patchResp.Policy.LabelsIncludeAll, 2)
@@ -839,7 +842,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 
 	// PATCH mutex rejection. Assert on the specific validation error so a
 	// generic 400 cannot silently satisfy the test.
-	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyPolicyRequest{
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)
@@ -1152,11 +1155,11 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getGlobalResp.Policy.PassingHostCount)
 
 	// A reset_policy activity was recorded; global policies emit team_id/fleet_id: -1.
-	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","team_id":-1,"fleet_id":-1}`, globalPolicy.ID), 0)
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-global","fleet_id":-1}`, globalPolicy.ID), 0)
 
 	// --- no-team policy ---
 	createNoTeamResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 		Name:  "reset-test-no-team",
 		Query: "SELECT 1;",
 	}, http.StatusOK, &createNoTeamResp)
@@ -1185,14 +1188,14 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getNoTeamResp.Policy.PassingHostCount)
 
 	// Activity emitted with team_id/fleet_id: 0 and no team_name.
-	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","team_id":0,"fleet_id":0}`, noTeamPolicy.ID), 0)
+	s.lastActivityMatches("reset_policy", fmt.Sprintf(`{"policy_id":%d,"policy_name":"reset-test-no-team","fleet_id":0}`, noTeamPolicy.ID), 0)
 
 	// --- team policy ---
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-policy-team"})
 	require.NoError(t, err)
 
 	createTeamResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
 		Name:  "reset-test-team",
 		Query: "SELECT 1;",
 	}, http.StatusOK, &createTeamResp)
@@ -1223,8 +1226,8 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// A reset_policy activity was recorded with team fields (both team_id/fleet_id and team_name/fleet_name).
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-team","team_id":%d,"fleet_id":%d,"team_name":"reset-policy-team","fleet_name":"reset-policy-team"}`,
-		teamPolicy.ID, team.ID, team.ID,
+		`{"policy_id":%d,"policy_name":"reset-test-team","fleet_id":%d,"fleet_name":"reset-policy-team"}`,
+		teamPolicy.ID, team.ID,
 	), 0)
 
 	// 404 for a nonexistent policy.
@@ -1261,7 +1264,7 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 	require.Equal(t, uint(0), getHostScopedResp.Policy.PassingHostCount)
 
 	s.lastActivityMatches("reset_policy", fmt.Sprintf(
-		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","team_id":-1,"fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
+		`{"policy_id":%d,"policy_name":"reset-test-host-scoped","fleet_id":-1,"host_id":%d,"host_display_name":%q}`,
 		hostScopedPolicy.ID, globalHost.ID, globalHost.DisplayName(),
 	), 0)
 
@@ -1326,7 +1329,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 	// A script on the policy's own team is accepted.
 	s.Do("POST", specURL, spec("gitops script", team.Name, teamScript.ID), http.StatusOK)
 	list := &fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, list)
 	require.Len(t, list.Policies, 1)
 	require.NotNil(t, list.Policies[0].RunScript)
 	require.Equal(t, teamScript.ID, list.Policies[0].RunScript.ID)
@@ -1337,7 +1340,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 
 	// A script owned by another team is rejected.
 	res = s.Do("POST", specURL, spec("gitops cross team script", team.Name, otherTeamScript.ID), http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+	require.Contains(t, extractServerErrorText(res.Body), "does not belong to fleet ID")
 
 	// A script that does not exist is rejected with a clear message rather than a database error.
 	res = s.Do("POST", specURL, spec("gitops missing script", team.Name, otherTeamScript.ID+999), http.StatusBadRequest)
@@ -1345,11 +1348,270 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 
 	// None of the rejected specs created a policy.
 	list = &fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, list)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, list)
 	require.Len(t, list.Policies, 1)
 	globalList := &fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, globalList)
 	for _, p := range globalList.Policies {
 		require.NotEqual(t, "gitops global script", p.Name)
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestAllFleetsPolicyAutomationsBadRequest() {
+	t := s.T()
+	ctx := t.Context()
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{Name: t.Name() + ".sh", ScriptContents: "echo"})
+	require.NoError(t, err)
+	policy, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID)
+
+	res := s.Do("PATCH", policyURL, json.RawMessage(fmt.Sprintf(`{"script_id": %d}`, script.ID)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "cannot have script_id set")
+	s.Do("PATCH", policyURL, json.RawMessage(`{"script_id": null}`), http.StatusOK)
+	s.Do("PATCH", policyURL, json.RawMessage(`{"script_id": 0}`), http.StatusOK)
+
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{Name: t.Name() + " spec", Query: "SELECT 1;", SoftwareTitleID: new(uint(1))}},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "cannot have software_title_id set")
+}
+
+func (s *integrationEnterpriseTestSuite) TestCombinedPolicyEndpoints() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), otherTeam.ID))
+	})
+	script, err := s.ds.NewScript(ctx, &fleet.Script{Name: t.Name() + ".sh", ScriptContents: "echo hi", TeamID: &team.ID})
+	require.NoError(t, err)
+
+	type policyResp struct {
+		Policy *fleet.Policy `json:"policy"`
+	}
+	create := func(version, body string, wantStatus int) *fleet.Policy {
+		var resp policyResp
+		s.DoJSON("POST", "/api/"+version+"/fleet/policies", json.RawMessage(body), wantStatus, &resp)
+		return resp.Policy
+	}
+	names := func(policies []*fleet.Policy) []string {
+		out := make([]string, 0, len(policies))
+		for _, p := range policies {
+			if strings.HasPrefix(p.Name, t.Name()) {
+				out = append(out, strings.TrimPrefix(p.Name, t.Name()+" "))
+			}
+		}
+		return out
+	}
+	list := func(query ...string) []string {
+		var resp fleet.ListPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &resp, query...)
+		return names(resp.Policies)
+	}
+	count := func(query ...string) int {
+		var resp fleet.CountPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &resp, append(query, "query", t.Name())...)
+		return resp.Count
+	}
+
+	// Create in each scope, on v1 and latest.
+	global := create("v1", fmt.Sprintf(`{"name": "%s global", "query": "SELECT 1", "automation_type": "webhook_or_ticket"}`, t.Name()), http.StatusOK)
+	require.Nil(t, global.TeamID)
+	globalPlain := create("latest", fmt.Sprintf(`{"name": "%s global plain", "query": "SELECT 1"}`, t.Name()), http.StatusOK)
+	teamScript := create("v1", fmt.Sprintf(`{"name": "%s fleet script", "query": "SELECT 1", "fleet_id": %d, "automation_type": "script", "script_id": %d}`,
+		t.Name(), team.ID, script.ID), http.StatusOK)
+	require.Equal(t, team.ID, *teamScript.TeamID)
+	teamPlain := create("latest", fmt.Sprintf(`{"name": "%s fleet plain", "query": "SELECT 1", "fleet_id": %d}`, t.Name(), team.ID), http.StatusOK)
+	unassigned := create("latest", fmt.Sprintf(`{"name": "%s unassigned", "query": "SELECT 1", "fleet_id": 0}`, t.Name()), http.StatusOK)
+	require.Equal(t, uint(0), *unassigned.TeamID)
+	other := create("latest", fmt.Sprintf(`{"name": "%s other fleet", "query": "SELECT 1", "fleet_id": %d}`, t.Name(), otherTeam.ID), http.StatusOK)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{global.ID, globalPlain.ID})
+		require.NoError(t, err)
+		_, err = s.ds.DeleteTeamPolicies(context.Background(), 0, []uint{unassigned.ID})
+		require.NoError(t, err)
+	})
+
+	// "All fleets" policies reject fleet-only fields and automations.
+	for _, body := range []string{
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "calendar_events_enabled": true}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "platform": "darwin", "conditional_access_enabled": true}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "script_id": %d}`, t.Name(), script.ID),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "software_package_id": 1}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "patch_when_closed": true}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "notify_before_patching": true}`, t.Name()),
+		fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "patch_deadline": true}`, t.Name()),
+	} {
+		create("latest", body, http.StatusBadRequest)
+	}
+
+	// List and count by scope.
+	require.ElementsMatch(t, []string{"global", "global plain"}, list("query", t.Name()))
+	require.Equal(t, 2, count())
+	require.ElementsMatch(t, []string{"fleet script", "fleet plain"}, list("fleet_id", fmt.Sprint(team.ID)))
+	require.Equal(t, 2, count("fleet_id", fmt.Sprint(team.ID)))
+	require.ElementsMatch(t, []string{"fleet script", "fleet plain", "global", "global plain"},
+		list("fleet_id", fmt.Sprint(team.ID), "merge_inherited", "true"))
+	require.Equal(t, 4, count("fleet_id", fmt.Sprint(team.ID), "merge_inherited", "true"))
+	require.ElementsMatch(t, []string{"unassigned"}, list("fleet_id", "0"))
+	require.Equal(t, 1, count("fleet_id", "0"))
+	var v1List fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/v1/fleet/policies", nil, http.StatusOK, &v1List, "fleet_id", fmt.Sprint(otherTeam.ID))
+	require.Equal(t, []string{"other fleet"}, names(v1List.Policies))
+	// Clients such as fleetctl send these GETs without a body.
+	res := s.DoRaw("GET", "/api/latest/fleet/policies", nil, http.StatusOK, "fleet_id", fmt.Sprint(otherTeam.ID))
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&v1List))
+	require.Equal(t, []string{"other fleet"}, names(v1List.Policies))
+	s.DoRaw("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, "fleet_id", fmt.Sprint(otherTeam.ID))
+
+	// Filters work with and without fleet_id, and on inherited policies.
+	require.Equal(t, []string{"global"}, list("automation_type", "webhook_or_ticket", "query", t.Name()))
+	require.Equal(t, []string{"fleet script"}, list("fleet_id", fmt.Sprint(team.ID), "automation_type", "script"))
+	require.Equal(t, []string{"global"}, list("fleet_id", fmt.Sprint(team.ID), "merge_inherited", "true", "automation_type", "webhook_or_ticket"))
+	require.Equal(t, 1, count("fleet_id", fmt.Sprint(team.ID), "merge_inherited", "true", "automation_type", "webhook_or_ticket"))
+	require.ElementsMatch(t, []string{"fleet script", "fleet plain"}, list("fleet_id", fmt.Sprint(team.ID), "type", "dynamic"))
+	require.Empty(t, list("fleet_id", fmt.Sprint(team.ID), "type", "patch"))
+	for _, q := range [][]string{{"automation_type", "scripts"}, {"automation_type", "other"}, {"automation_type", "patch"}, {"type", "nope"}} {
+		res := s.Do("GET", "/api/latest/fleet/policies", nil, http.StatusUnprocessableEntity, q...)
+		require.Contains(t, extractServerErrorText(res.Body), q[0], q)
+		s.Do("GET", "/api/latest/fleet/policies/count", nil, http.StatusUnprocessableEntity, q...)
+	}
+
+	// Get and update by ID in any scope; fleet_id on update doesn't move the policy.
+	var getResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/policies/%d", teamScript.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, script.ID, getResp.Policy.RunScript.ID)
+	var modResp policyResp
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/policies/%d", teamPlain.ID),
+		json.RawMessage(fmt.Sprintf(`{"description": "moved?", "fleet_id": %d}`, otherTeam.ID)), http.StatusOK, &modResp)
+	require.Equal(t, team.ID, *modResp.Policy.TeamID)
+	require.Equal(t, "moved?", modResp.Policy.Description)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", unassigned.ID), json.RawMessage(`{"automation_type": "webhook_or_ticket"}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modResp.Policy.AutomationType)
+
+	// Users with only fleet roles: a missing fleet_id is named, other fleets and "All fleets" can't be written, and a
+	// delete that includes a policy they can't delete deletes nothing.
+	fleetAdmin := &fleet.User{Name: t.Name(), Email: strings.ToLower(t.Name()) + "-admin@example.com",
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}}}
+	require.NoError(t, fleetAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, fleetAdmin)
+	require.NoError(t, err)
+	func() {
+		old := s.token
+		s.token = s.getTestToken(fleetAdmin.Email, test.GoodPassword)
+		defer func() { s.token = old }()
+
+		res := s.Do("POST", "/api/latest/fleet/policies", json.RawMessage(fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1"}`, t.Name())),
+			http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "fleet_id")
+		create("latest", fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "fleet_id": %d}`, t.Name(), otherTeam.ID), http.StatusForbidden)
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", global.ID), json.RawMessage(`{"description": "x"}`), http.StatusForbidden)
+		require.ElementsMatch(t, []string{"global", "global plain"}, list("query", t.Name()))
+
+		s.Do("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{IDs: []uint{teamPlain.ID, other.ID}}, http.StatusForbidden)
+		_, err := s.ds.Policy(ctx, teamPlain.ID)
+		require.NoError(t, err)
+	}()
+
+	// Permission is checked before the "All fleets" fields.
+	observer := &fleet.User{Name: t.Name() + " observer", Email: strings.ToLower(t.Name()) + "-observer@example.com",
+		GlobalRole: new(fleet.RoleObserver)}
+	require.NoError(t, observer.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, observer)
+	require.NoError(t, err)
+	func() {
+		old := s.token
+		s.token = s.getTestToken(observer.Email, test.GoodPassword)
+		defer func() { s.token = old }()
+		create("latest", fmt.Sprintf(`{"name": "%s x", "query": "SELECT 1", "script_id": %d}`, t.Name(), script.ID), http.StatusForbidden)
+	}()
+
+	// Delete across scopes in one request.
+	var delResp fleet.DeletePoliciesResponse
+	s.DoJSON("POST", "/api/v1/fleet/policies/delete", fleet.DeletePoliciesRequest{IDs: []uint{teamPlain.ID, other.ID, globalPlain.ID}},
+		http.StatusOK, &delResp)
+	require.ElementsMatch(t, []uint{teamPlain.ID, other.ID, globalPlain.ID}, delResp.Deleted)
+	require.ElementsMatch(t, []string{"global"}, list("query", t.Name()))
+	s.Do("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{IDs: []uint{teamScript.ID, 999999}}, http.StatusNotFound)
+	_, err = s.ds.Policy(ctx, teamScript.ID)
+	require.NoError(t, err)
+
+	// Patch policies: software_title_id names the app, and automation_type decides whether it patches.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", Filename: "dummy_installer.pkg", TeamID: &team.ID,
+	}, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			VALUES ('DummyApp', ?, 'darwin', 'com.example.dummy')`, strings.ToLower(t.Name())+"/darwin")
+		if err != nil {
+			return err
+		}
+		fmaID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE title_id = ? AND global_or_team_id = ?`,
+			fmaID, titleID, team.ID)
+		return err
+	})
+	installerID := func(policyID uint) *uint {
+		p, err := s.ds.Policy(ctx, policyID)
+		require.NoError(t, err)
+		return p.SoftwareInstallerID
+	}
+
+	reportOnly := create("latest", fmt.Sprintf(`{"type": "patch", "fleet_id": %d, "software_title_id": %d}`, team.ID, titleID), http.StatusOK)
+	require.Equal(t, titleID, reportOnly.PatchSoftware.SoftwareTitleID)
+	require.Nil(t, reportOnly.AutomationType)
+	require.Nil(t, installerID(reportOnly.ID))
+	var patchList fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &patchList, "fleet_id", fmt.Sprint(team.ID), "type", "patch")
+	require.Len(t, patchList.Policies, 1)
+	require.Equal(t, reportOnly.ID, patchList.Policies[0].ID)
+
+	// A different app is rejected, and automation_type alone turns patching on for the policy's app.
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": "software", "software_title_id": %d}`, titleID+1000)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be changed")
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID), json.RawMessage(`{"automation_type": "software"}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.NotNil(t, installerID(reportOnly.ID))
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(`{"patch_when_closed": true, "notify_before_patching": true, "continuous_automations_enabled": true}`), http.StatusBadRequest)
+
+	// With another automation_type, the policy's own app can be sent back and only names the app.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": null, "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	require.Nil(t, installerID(reportOnly.ID))
+	require.Equal(t, titleID, modResp.Policy.PatchSoftware.SoftwareTitleID)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": "webhook_or_ticket", "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *modResp.Policy.AutomationType)
+	require.Nil(t, installerID(reportOnly.ID))
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": null, "software_title_id": %d}`, titleID+1000)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "can't be changed")
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
+		json.RawMessage(fmt.Sprintf(`{"automation_type": "software", "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.NotNil(t, installerID(reportOnly.ID))
+
+	// Created with automation_type "software", it patches right away.
+	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{reportOnly.ID})
+	require.NoError(t, err)
+	patching := create("latest", fmt.Sprintf(`{"type": "patch", "fleet_id": %d, "software_title_id": %d, "automation_type": "software"}`,
+		team.ID, titleID), http.StatusOK)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *patching.AutomationType)
+	require.NotNil(t, installerID(patching.ID))
 }

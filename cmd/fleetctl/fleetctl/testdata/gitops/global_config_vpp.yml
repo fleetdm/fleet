@@ -6,7 +6,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - "${TEST_TEAM_NAME}"
   server_settings:
     server_url: https://example.com
