@@ -1537,7 +1537,7 @@ Connects Fleet to Google to mark company-owned iOS, iPadOS, and Android hosts as
 
 If Google is already connected, this replaces the settings and the key. To change only some of them, use [Update Google](#update-google).
 
-Requires the global admin role and a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+Requires the global admin or GitOps role and a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
 `POST /api/v1/fleet/conditional_access/google`
 
@@ -1659,7 +1659,7 @@ Changing `admin_email` or `service_account_key` doesn't change which hosts are m
 
 An empty request body tries a connection that didn't complete again.
 
-Requires the global admin role.
+Requires the global admin or GitOps role.
 
 `PATCH /api/v1/fleet/conditional_access/google`
 
@@ -1709,7 +1709,7 @@ _Available in Fleet Premium._
 
 Disconnects Fleet from Google and deletes the service account key. This won't unmark hosts: they stay marked as managed in Google. Learn how to [disable Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration#disable).
 
-Requires the global admin role.
+Requires the global admin or GitOps role.
 
 `DELETE /api/v1/fleet/conditional_access/google`
 
@@ -3061,7 +3061,7 @@ _Available in Fleet Premium._
 
 _Available in Fleet Premium._
 
-`integrations.google_conditional_access` is an object with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+`integrations.google_conditional_access` is an object with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins and GitOps users can set it. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
 
 | Name         | Type   | Description |
 | ------------ | ------ | ----------- |
@@ -6753,6 +6753,24 @@ Also returned, with the reason "This device has no users in Google.", when no Go
     {
       "name": "google_device_id",
       "reason": "Google has no device with this ID."
+    }
+  ]
+}
+```
+
+##### Google device isn't the Android host's device
+
+Only checked for Android hosts.
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google device ID doesn't match this host's device in Google."
     }
   ]
 }

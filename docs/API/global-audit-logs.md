@@ -512,6 +512,7 @@ This activity contains the following fields:
 - [added_conditional_access_okta](#added-conditional-access-okta)
 - [deleted_conditional_access_okta](#deleted-conditional-access-okta)
 - [added_conditional_access_integration_google](#added-conditional-access-integration-google)
+- [edited_conditional_access_integration_google](#edited-conditional-access-integration-google)
 - [deleted_conditional_access_integration_google](#deleted-conditional-access-integration-google)
 - [enabled_conditional_access_automations](#enabled-conditional-access-automations)
 - [disabled_conditional_access_automations](#disabled-conditional-access-automations)
@@ -542,13 +543,21 @@ This activity does not contain any detail fields.
 
 ### added_conditional_access_integration_google
 
-Generated when Google conditional access is configured. Also generated, after `deleted_conditional_access_integration_google`, when the Google customer ID is changed.
+Generated when Google conditional access is configured.
+
+This activity does not contain any detail fields.
+
+### edited_conditional_access_integration_google
+
+Generated when the Google customer ID, the admin email, or the service account key of a connected Google conditional access integration is changed.
 
 This activity does not contain any detail fields.
 
 ### deleted_conditional_access_integration_google
 
 Generated when Google conditional access is removed. Hosts stay marked as managed in Google.
+
+Also generated when a change of Google customer ID disconnects Fleet from the previous customer and Fleet can't connect to the new one. The next successful connection generates `added_conditional_access_integration_google`.
 
 This activity does not contain any detail fields.
 
