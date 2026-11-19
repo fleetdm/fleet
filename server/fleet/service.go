@@ -791,6 +791,17 @@ type Service interface {
 
 	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
+	// ListPolicies lists the policies of a scope: a nil teamID is "All fleets", 0 is "Unassigned". With mergeInherited, a
+	// fleet's list also has the "All fleets" policies.
+	ListPolicies(ctx context.Context, teamID *uint, mergeInherited bool, opts ListOptions, filter PolicyListFilter) ([]*Policy, error)
+	// CountPolicies counts the policies ListPolicies returns.
+	CountPolicies(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter PolicyListFilter) (int, error)
+	// NewPolicy creates a policy in the scope of the request's fleet_id.
+	NewPolicy(ctx context.Context, req CreatePolicyRequest) (*Policy, error)
+	// ModifyPolicy updates a policy in any scope.
+	ModifyPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
+	// DeletePolicies deletes policies from any scopes, or none if the user can't delete one of them.
+	DeletePolicies(ctx context.Context, ids []uint) ([]uint, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)

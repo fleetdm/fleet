@@ -146,15 +146,6 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 // Count
 // ///////////////////////////////////////////////////////////////////////////////
 
-func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.CountGlobalPoliciesRequest)
-	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery, req.Platform)
-	if err != nil {
-		return fleet.CountGlobalPoliciesResponse{Err: err}, nil
-	}
-	return fleet.CountGlobalPoliciesResponse{Count: resp}, nil
-}
-
 func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return 0, err
@@ -274,6 +265,8 @@ const (
 	errPolicyAllFleetsForProfiles                        = "\"All fleets\" policy cannot have profile_uuid set"
 	errPolicyAllFleetsForScripts                         = "\"All fleets\" policy cannot have script_id set"
 	errPolicyAllFleetsForSoftware                        = "\"All fleets\" policy cannot have software_title_id set"
+	errPolicyAllFleetsForSoftwarePackage                 = "\"All fleets\" policy cannot have software_package_id set"
+	errPolicyAllFleetsForPatchOptions                    = "\"All fleets\" policy cannot have patch_when_closed, notify_before_patching, or patch_deadline set"
 	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errPatchDeadlineRequiresContinuousAutomations        = "If \"patch_deadline\" is true, \"continuous_automations_enabled\" can't be set to false."

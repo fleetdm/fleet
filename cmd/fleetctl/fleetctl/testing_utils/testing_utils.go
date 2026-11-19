@@ -104,6 +104,7 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		return nil, "", nil
 	}
 	MockWebhookPolicyIDs(ds)
+	mockPoliciesInScope(ds)
 	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 		return nil, nil
 	}
@@ -548,6 +549,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil, &notFoundError{}
 	}
 	MockWebhookPolicyIDs(ds)
+	mockPoliciesInScope(ds)
 	// Stateful default for the Windows enrollment default fleet config row. Tests can override.
 	var windowsEnrollmentDefaultTeamID *uint
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
@@ -1135,5 +1137,30 @@ func MockWebhookPolicyIDs(ds *mock.Store) {
 	}
 	ds.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
 		return nil, nil
+	}
+}
+
+// mockPoliciesInScope serves the combined policy list and count from the per-scope mocks a test sets, so tests written
+// against those keep working.
+func mockPoliciesInScope(ds *mock.Store) {
+	ds.ListPoliciesInScopeFunc = func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions,
+		filter fleet.PolicyListFilter,
+	) ([]*fleet.Policy, error) {
+		switch {
+		case teamID == nil && ds.ListGlobalPoliciesFunc != nil:
+			return ds.ListGlobalPolicies(ctx, opts, filter.Platform)
+		case teamID != nil && mergeInherited && ds.ListMergedTeamPoliciesFunc != nil:
+			return ds.ListMergedTeamPolicies(ctx, *teamID, opts, fleet.PolicyAutomationTypeNone, filter.Platform)
+		case teamID != nil && ds.ListTeamPoliciesFunc != nil:
+			policies, _, err := ds.ListTeamPolicies(ctx, *teamID, opts, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, filter.Platform)
+			return policies, err
+		}
+		return nil, nil
+	}
+	ds.CountPoliciesInScopeFunc = func(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string,
+		filter fleet.PolicyListFilter,
+	) (int, error) {
+		policies, err := ds.ListPoliciesInScope(ctx, teamID, mergeInherited, fleet.ListOptions{MatchQuery: matchQuery}, filter)
+		return len(policies), err
 	}
 }

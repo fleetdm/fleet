@@ -1067,6 +1067,23 @@ func CheckWebhookOrTicketPolicyIDs(ctx context.Context, ds Datastore, teamID *ui
 	return nil
 }
 
+// PolicyListFilter narrows a list or count of policies. Empty fields don't filter.
+type PolicyListFilter struct {
+	AutomationType PolicyAutomation
+	Type           string
+	Platform       string
+}
+
+func (f PolicyListFilter) Validate() error {
+	if f.AutomationType != "" && !f.AutomationType.IsValid() {
+		return NewInvalidArgumentError("automation_type", fmt.Sprintf("unknown automation_type %q", f.AutomationType))
+	}
+	if f.Type != "" && f.Type != PolicyTypeDynamic && f.Type != PolicyTypePatch {
+		return NewInvalidArgumentError("type", fmt.Sprintf("type must be %q or %q", PolicyTypeDynamic, PolicyTypePatch))
+	}
+	return ValidatePolicyPlatformFilter(f.Platform)
+}
+
 // PolicyAutomation is what Fleet does when a host fails a policy. A policy has at most one.
 type PolicyAutomation string
 

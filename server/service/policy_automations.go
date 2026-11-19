@@ -215,3 +215,48 @@ func (svc *Service) authorizeWebhookOrTicketSpecChanges(ctx context.Context, spe
 	}
 	return nil
 }
+
+// normalizePatchPolicyCreate maps a new patch policy's software_title_id, which names the app it checks, onto the fields
+// the rest of create uses: patch_software_title_id for that app, and software_title_id for its install, kept only when
+// automation_type turns patching on. Requests with patch_software_title_id keep their meaning.
+func normalizePatchPolicyCreate(tp *fleet.NewTeamPolicyPayload) error {
+	if tp.Type == nil || *tp.Type != fleet.PolicyTypePatch {
+		return nil
+	}
+	patching := tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationSoftware
+	titleSet := tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0
+	switch {
+	case tp.PatchSoftwareTitleID == nil && titleSet:
+		tp.PatchSoftwareTitleID = new(*tp.SoftwareTitleID)
+		if !patching {
+			tp.SoftwareTitleID = nil
+		}
+	case tp.PatchSoftwareTitleID != nil && titleSet && *tp.SoftwareTitleID != *tp.PatchSoftwareTitleID:
+		return &fleet.BadRequestError{Message: "software_title_id and patch_software_title_id must be the same app"}
+	}
+	if patching && !titleSet && tp.PatchSoftwareTitleID != nil {
+		tp.SoftwareTitleID = new(*tp.PatchSoftwareTitleID)
+	}
+	return nil
+}
+
+// normalizePatchPolicyUpdate applies the update rules of a patch policy: its app can't change, so automation_type
+// "software" alone turns patching on for that app. With another automation_type, software_title_id only names the
+// app; without automation_type it keeps its legacy meaning of installing the app.
+func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPayload) error {
+	if policy.Type != fleet.PolicyTypePatch || policy.PatchSoftwareTitleID == nil {
+		return nil
+	}
+	titleSet := p.SoftwareTitleID.Valid && p.SoftwareTitleID.Value != 0
+	if titleSet && p.SoftwareTitleID.Value != *policy.PatchSoftwareTitleID {
+		return &fleet.BadRequestError{Message: "a patch policy's software_title_id can't be changed"}
+	}
+	patching := p.AutomationType.Valid && p.AutomationType.Value == fleet.PolicyAutomationSoftware
+	switch {
+	case patching && !titleSet:
+		p.SoftwareTitleID = optjson.Any[uint]{Set: true, Valid: true, Value: *policy.PatchSoftwareTitleID}
+	case p.AutomationType.Set && !patching && titleSet:
+		p.SoftwareTitleID = optjson.Any[uint]{}
+	}
+	return nil
+}

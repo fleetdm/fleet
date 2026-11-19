@@ -74,6 +74,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	if err := checkAutomationTypeLicense(ctx, tp.AutomationType); err != nil {
 		return nil, err
 	}
+	if err := normalizePatchPolicyCreate(&tp); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
+	}
 	if tp.AutomationType != nil {
 		if err := checkAutomationTypeCompanions(tp.AutomationType, policyAutomationCompanions{
 			softwareTitleID: tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0,
@@ -743,6 +746,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if err := normalizePatchPolicyUpdate(policy, &p); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
+	}
 	automationsBefore := policy.Automations()
 	webhookOrTicketBefore := policy.WebhooksAndTicketsEnabled
 	webhookOrTicketAfter := webhookOrTicketBefore
