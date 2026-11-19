@@ -377,7 +377,7 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 		// CVE-2017-2744 (published January 2018) lists HP Support Assistant "before 12.7.26.1" as affected.
 		// HP Support Assistant releases are versioned 8.x and 9.x, and the 9.x line is years newer than
 		// this advisory, so a plain version comparison flags every current install. Ignore the CVE for
-		// versions 9.x through 11.x. See #57255.
+		// versions 9.x through 11.x.
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
 				"CVE-2017-2744": {},
