@@ -967,8 +967,8 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Omarchy reports its own platform and a versioned BUILD_ID. Unlike the OS
-	// inventory row, the host keeps the distro name and its real version.
+	// Omarchy reports its own platform and a versioned BUILD_ID, which the host
+	// keeps as its version.
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "omarchy-host",
@@ -2114,7 +2114,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 		{
 			// CachyOS is an Arch-based rolling-release distribution. It reports a
 			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
-			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			// so it gets its own row with a "rolling" version.
 			data: []map[string]string{
 				{
 					"name":           "CachyOS Linux",
@@ -2128,16 +2128,15 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				},
 			},
 			expected: fleet.OperatingSystem{
-				Name:          "Arch Linux",
+				Name:          "CachyOS Linux",
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
 		{
-			// Omarchy is an Arch-based rolling-release distribution. Unlike CachyOS it
-			// reports a versioned BUILD_ID rather than "rolling", so it should still
-			// aggregate onto the "Arch Linux" row with a "rolling" version.
+			// Omarchy is an Arch-based distribution. Unlike CachyOS it reports a
+			// versioned BUILD_ID rather than "rolling", so its row has that version.
 			data: []map[string]string{
 				{
 					"name":           "Omarchy",
@@ -2151,8 +2150,8 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				},
 			},
 			expected: fleet.OperatingSystem{
-				Name:          "Arch Linux",
-				Version:       "rolling",
+				Name:          "Omarchy",
+				Version:       "4.0.0",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-arch1-1",
 			},

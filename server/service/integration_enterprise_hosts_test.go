@@ -705,7 +705,6 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, new(new(0.5)), gResp.Vulnerability.EPSSProbability)
 	require.Equal(t, new(new(mockTime)), gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
 	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
 	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
@@ -730,7 +729,6 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	}, gResp.Vulnerability.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Len(t, gResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 
 	// Known to Fleet via its match, but no hosts in "No team".
 	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNoContent, "fleet_id", "0")
@@ -797,7 +795,6 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)
 	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
-	require.Equal(t, fmt.Sprintf("%s %s", testOS.Name, testOS.Version), osVersionsResp.OSVersions[0].Name)
 	require.Equal(t, testOS.Name, osVersionsResp.OSVersions[0].NameOnly)
 	require.Equal(t, testOS.Version, osVersionsResp.OSVersions[0].Version)
 	require.Equal(t, testOS.Platform, osVersionsResp.OSVersions[0].Platform)

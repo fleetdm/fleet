@@ -2302,9 +2302,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
-	// version in hosts.os_version (the os_version detail query), which the host API returns.
-	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
+	// Arch Linux ARM is recorded as "Arch Linux" in the OS inventory. The host keeps its own name and version in
+	// hosts.os_version (the os_version detail query), which the host API returns.
+	name := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2317,9 +2317,6 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
-	if forceRollingVersion {
-		hostOS.Version = "rolling"
-	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
