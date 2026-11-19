@@ -103,7 +103,9 @@ New-ItemProperty -Path $key -Name 'ChatToolsAutoApprove' -PropertyType DWord -Va
 
 ### Linux
 
-VS Code reads policy from `/etc/vscode/policy.json`. The keys are policy names, not setting IDs.
+VS Code reads policy from `/etc/vscode/policy.json`. The keys are policy names, not setting IDs. Policies that take an object or a list go in as JSON strings with escaped quotes, the same as on macOS and Windows. VS Code also accepts plain JSON objects here, but strings keep the file usable by Devin Desktop, which reads it too.
+
+> **Note:** Devin Desktop (formerly Windsurf) reads this same file, so every policy in it applies to both editors. If you manage both, keep all their Linux policies in this one script. See [Manage Windsurf (Devin Desktop) settings with Fleet](https://fleetdm.com/guides/manage-windsurf-settings-with-fleet).
 
 Save this as `vscode-settings.sh`:
 
@@ -118,8 +120,8 @@ trap 'rm -f "$tmp"' EXIT
 
 cat > "$tmp" <<'JSON'
 {
-  "AllowedExtensions": { "microsoft": true, "github": true, "esbenp.prettier-vscode": true },
-  "ChatAllowedMcpServers": [ { "serverUrl": "https://api.githubcopilot.com/*" } ],
+  "AllowedExtensions": "{\"microsoft\": true, \"github\": true, \"esbenp.prettier-vscode\": true}",
+  "ChatAllowedMcpServers": "[{\"serverUrl\": \"https://api.githubcopilot.com/*\"}]",
   "ChatAllowManagedMcpServersOnly": true,
   "ChatToolsAutoApprove": false
 }
@@ -130,7 +132,7 @@ chown root:root "$tmp"
 mv "$tmp" "$dir/policy.json"
 ```
 
-> **Warning:** VS Code skips a policy whose value has a syntax error. Check your JSON with `jq . policy.json` before you upload the script.
+> **Warning:** VS Code skips a policy whose value has a syntax error. Check your JSON with `jq . policy.json`, and check each string value with `jq -r .AllowedExtensions policy.json | jq .`, before you upload the script.
 
 ## Deploy with Fleet
 
@@ -253,6 +255,10 @@ Its value probably has a JSON syntax error, so VS Code skipped it. Run **Develop
 **A user's extension stopped working after rollout**
 
 It isn't on your `AllowedExtensions` list. Check the VS Code extensions report, add the extension ID or publisher, and redeploy.
+
+**The Linux policy fails on every check, and Fleet keeps rerunning the script**
+
+Two scripts write `/etc/vscode/policy.json`, for example this guide's and the one in the Windsurf (Devin Desktop) guide. Each overwrites the other, so one hash policy always fails. Keep one script with every policy for both editors, and delete the other script and its policy.
 
 **The Windows policy fails on a host that ran the script**
 
