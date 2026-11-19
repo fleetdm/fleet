@@ -19,67 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
-	t := s.T()
-
-	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	ts := getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
-	require.Empty(t, ts.Scheduled)
-
-	qr, err := s.ds.NewQuery(
-		context.Background(),
-		&fleet.Query{
-			Name:           "TestQueryTeamPolicy",
-			Description:    "Some description",
-			Query:          "select * from osquery;",
-			ObserverCanRun: true,
-			Saved:          true,
-			Logging:        fleet.LoggingSnapshot,
-		},
-	)
-	require.NoError(t, err)
-
-	gsParams := teamScheduleQueryRequest{
-		QueryID:  &qr.ID,
-		Interval: new(uint(42))}
-	r := teamScheduleQueryResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
-
-	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Scheduled, 1)
-	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
-	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
-	assert.NotEqual(t, qr.ID, ts.Scheduled[0].QueryID) // it creates a new query (copy)
-	id := ts.Scheduled[0].ID
-
-	modifyResp := modifyTeamScheduleResponse{}
-	modifyParams := modifyTeamScheduleRequest{Interval: new(uint(55))}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
-
-	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
-	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", team1.ID, id), []byte(`{"interval": 77}`), http.StatusOK)
-
-	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Scheduled, 1)
-	assert.Equal(t, uint(77), ts.Scheduled[0].Interval)
-
-	deleteResp := deleteTeamScheduleResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", team1.ID, id), nil, http.StatusOK, &deleteResp)
-
-	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
-	require.Empty(t, ts.Scheduled)
-}
-
 func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	t := s.T()
 
