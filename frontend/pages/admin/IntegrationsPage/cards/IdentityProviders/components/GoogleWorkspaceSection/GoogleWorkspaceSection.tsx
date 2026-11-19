@@ -19,6 +19,7 @@ import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 import AddGoogleWorkspaceDomainModal from "./AddGoogleWorkspaceDomainModal";
 import DeleteGoogleWorkspaceDomainModal from "./DeleteGoogleWorkspaceDomainModal";
+import { updateCachedIntegrations } from "./helpers";
 
 const API_KEY_JSON_PLACEHOLDER = `{
   "type": "service_account",
@@ -188,7 +189,7 @@ const GoogleWorkspaceSection = ({
       const updatedConfig: IConfig = await configAPI.update({
         integrations: { google_workspace: googleWorkspace },
       });
-      queryClient.setQueryData(["config"], updatedConfig);
+      updateCachedIntegrations(queryClient, updatedConfig);
       notify.success(
         "Successfully saved Google Workspace integration settings."
       );

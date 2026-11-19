@@ -8,7 +8,10 @@ import { IConfig } from "interfaces/config";
 import { IGlobalGoogleWorkspaceIntegration } from "interfaces/integration";
 import configAPI from "services/entities/config";
 
-import buildAdditionalDomainsUpdate from "../helpers";
+import {
+  buildAdditionalDomainsUpdate,
+  updateCachedIntegrations,
+} from "../helpers";
 
 const baseClass = "delete-google-workspace-domain-modal";
 
@@ -35,7 +38,7 @@ const DeleteGoogleWorkspaceDomainModal = ({
           (integration.additional_domains ?? []).filter((d) => d !== domain)
         )
       );
-      queryClient.setQueryData(["config"], updatedConfig);
+      updateCachedIntegrations(queryClient, updatedConfig);
       notify.success("Domain deleted successfully.");
       onExit();
     } catch (e) {

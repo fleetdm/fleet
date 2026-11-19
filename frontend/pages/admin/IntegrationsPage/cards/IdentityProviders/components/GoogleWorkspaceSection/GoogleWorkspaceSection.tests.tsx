@@ -148,7 +148,7 @@ describe("GoogleWorkspaceSection", () => {
     expect(submit).toBeEnabled();
     await user.click(submit);
 
-    expect(screen.getByText("Domain is required")).toBeInTheDocument();
+    expect(screen.getByText("Enter a domain")).toBeInTheDocument();
     expect(updateSpy).not.toHaveBeenCalled();
   });
 
@@ -162,17 +162,25 @@ describe("GoogleWorkspaceSection", () => {
     const input = screen.getByLabelText("Domain");
     await user.type(input, "EXAMPLE.com");
     // No error while typing.
-    expect(screen.queryByText("Domain already added")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Enter a domain that hasn't been added")
+    ).not.toBeInTheDocument();
 
     await user.tab();
-    expect(screen.getByText("Domain already added")).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter a domain that hasn't been added")
+    ).toBeInTheDocument();
 
     await user.click(screen.getByDisplayValue("EXAMPLE.com"));
-    expect(screen.queryByText("Domain already added")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Enter a domain that hasn't been added")
+    ).not.toBeInTheDocument();
 
     const addButtons = screen.getAllByRole("button", { name: /Add/ });
     await user.click(addButtons[addButtons.length - 1]);
-    expect(screen.getByText("Domain already added")).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter a domain that hasn't been added")
+    ).toBeInTheDocument();
     expect(updateSpy).not.toHaveBeenCalled();
   });
 

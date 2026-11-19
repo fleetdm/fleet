@@ -10,7 +10,10 @@ import { IConfig } from "interfaces/config";
 import { IGlobalGoogleWorkspaceIntegration } from "interfaces/integration";
 import configAPI from "services/entities/config";
 
-import buildAdditionalDomainsUpdate from "../helpers";
+import {
+  buildAdditionalDomainsUpdate,
+  updateCachedIntegrations,
+} from "../helpers";
 
 const baseClass = "add-google-workspace-domain-modal";
 
@@ -32,7 +35,7 @@ const AddGoogleWorkspaceDomainModal = ({
   const validate = ({ domain }: IAddDomainFormData): IFormErrors => {
     const value = domain.trim();
     if (!value) {
-      return { domain: "Domain is required" };
+      return { domain: "Enter a domain" };
     }
     if (/[\s,]/.test(value)) {
       return { domain: "Enter a single domain without spaces or commas" };
@@ -42,7 +45,7 @@ const AddGoogleWorkspaceDomainModal = ({
       ...(integration.additional_domains ?? []),
     ].map((d) => d.toLowerCase());
     if (existing.includes(value.toLowerCase())) {
-      return { domain: "Domain already added" };
+      return { domain: "Enter a domain that hasn't been added" };
     }
     return {};
   };
@@ -64,7 +67,7 @@ const AddGoogleWorkspaceDomainModal = ({
           domain,
         ])
       );
-      queryClient.setQueryData(["config"], updatedConfig);
+      updateCachedIntegrations(queryClient, updatedConfig);
       notify.success("Successfully added domain.");
       onExit();
     } catch (e) {
