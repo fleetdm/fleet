@@ -39,9 +39,12 @@ import (
 
 const batchSize = 100
 
-// clientUserAgent tells Fleet that the client is fleetctl 5 or later. Fleet refuses the version check of fleetctl 4, which sends Go's
-// default User-Agent.
-var clientUserAgent = "fleetctl/" + version.Version().Version
+var (
+	clientVersion = version.Version().Version
+	// clientUserAgent tells Fleet that the client is fleetctl 5 or later. Fleet refuses the version check of fleetctl 4, which sends
+	// Go's default User-Agent.
+	clientUserAgent = "fleetctl/" + clientVersion
+)
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -142,6 +145,8 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 	for k, v := range c.customHeaders {
 		request.Header.Set(k, v)
 	}
+	// Set after the custom headers, so that they can't override it.
+	request.Header.Set(fleet.HeaderClientVersion, clientVersion)
 	for k, v := range headers {
 		request.Header.Set(k, v)
 	}
