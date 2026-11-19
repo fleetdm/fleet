@@ -173,7 +173,7 @@ To run a script on many hosts at once, see [batch script execution](https://flee
 
 ### GitOps
 
-1. Save the profile in `platforms/macos/configuration-profiles/`, where the default fleet file already picks up `.mobileconfig` files.
+1. Save the profile in `platforms/macos/configuration-profiles/`. The `fleets/workstations.yml` file that `fleetctl new` creates already picks up `.mobileconfig` files there.
 2. Save the scripts in `lib/codex/` and add them to your fleet file, for example `fleets/workstations.yml`:
 
    ```yaml
@@ -217,7 +217,7 @@ Each policy below passes when the requirements file matches what you intend. A h
 
 To do the same in the Fleet UI, go to **Policies**, select your fleet, and select **Add policy** for each query. Then select **Manage automations > Run script**, check each policy, and pick its script.
 
-> **Note:** The same requirements live in three files: the profile, the shell script, and the PowerShell script. When you change them, update all three, re-encode the base64 string, and update both hashes. Hosts then fail the policy and pick up the new file. Fleet runs the script when a policy newly fails and retries it up to three times. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+> **Note:** The same requirements live in three files: the profile, the shell script, and the PowerShell script. When you change them, update all three, re-encode the base64 string, and update both hashes. Hosts then fail the policy and pick up the new file. Fleet runs the script when a policy newly fails and makes up to three attempts in total. See [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
 ## What your users see
 
