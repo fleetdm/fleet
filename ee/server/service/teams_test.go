@@ -781,6 +781,9 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 		webhookPolicyIDs = policyIDs
 		return nil
 	}
+	ds.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 	var saved fleet.TeamWebhookSettings
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team", Config: fleet.TeamConfig{WebhookSettings: stored()}}, nil

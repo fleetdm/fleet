@@ -41,6 +41,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		LabelsExcludeAny: req.LabelsExcludeAny,
 		LabelsExcludeAll: req.LabelsExcludeAll,
 		Type:             fleet.PolicyTypeDynamic,
+		AutomationType:   req.AutomationType,
 	})
 	if err != nil {
 		return fleet.GlobalPolicyResponse{Err: err}, nil
@@ -61,6 +62,19 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
+	}
+
+	if p.AutomationType != nil {
+		if !p.AutomationType.IsValid() {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid automation_type %q", *p.AutomationType)})
+		}
+		if err := checkPolicyAutomations(nil, nil, []fleet.PolicyAutomation{*p.AutomationType}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check policy automations")
+		}
+		p.WebhooksAndTicketsEnabled = true
+	}
+	if err := svc.checkNewPolicyAutomations(ctx, nil, p); err != nil {
+		return nil, err
 	}
 
 	if p.QueryID != nil {
@@ -474,6 +488,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if err := checkPolicyAutomations(policySpecTeamID(policy, teamIDsByName), nil, policy.Automations()); err != nil {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: policy %q: %s", policy.Name, err),
+			})
+		}
+
 		if (len(policy.LabelsIncludeAll) > 0 || len(policy.LabelsExcludeAll) > 0 || len(policy.LabelsIncludeAny) > 0 || len(policy.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
@@ -532,6 +552,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			policies[i].Critical = false
 			policies[i].Hidden = false
 		}
+	}
+
+	if err := svc.authorizeWebhookOrTicketSpecChanges(ctx, policies, teamIDsByName); err != nil {
+		return err
 	}
 
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {

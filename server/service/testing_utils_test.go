@@ -137,6 +137,21 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.SetWebhooksAndTicketsPoliciesFunc == nil {
 			mockDS.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
 		}
+		if mockDS.PoliciesWithOtherAutomationsFunc == nil {
+			mockDS.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
+			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPolicyNameFunc == nil {
+			mockDS.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
 		if mockDS.FilterWebhooksAndTicketsPoliciesFunc == nil {
 			mockDS.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
 				return nil, nil

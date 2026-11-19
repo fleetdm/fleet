@@ -149,10 +149,12 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, hidden, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, hidden, webhooks_and_tickets_enabled, checksum)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, args.Hidden,
+		args.WebhooksAndTicketsEnabled,
 	)
 	switch {
 	case err == nil:
@@ -502,7 +504,7 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
 			conditional_access_enabled = ?, continuous_automations_enabled = ?, patch_when_closed = ?,
 			notify_before_patching = ?, patch_deadline = ?,
-			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?, hidden = ?,
+			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?, hidden = ?, webhooks_and_tickets_enabled = ?,
 			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
@@ -511,7 +513,7 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 		p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID,
 		p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled,
 		p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline,
-		p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID, p.Hidden,
+		p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID, p.Hidden, p.WebhooksAndTicketsEnabled,
 		p.ID,
 	)
 	if err != nil {
@@ -1789,15 +1791,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
 				type, patch_software_title_id, continuous_automations_enabled, patch_when_closed,
 				notify_before_patching, patch_deadline,
-				resend_apple_profile_uuid, resend_windows_profile_uuid, hidden
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				resend_apple_profile_uuid, resend_windows_profile_uuid, hidden, webhooks_and_tickets_enabled
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
 		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled, args.PatchWhenClosed,
 		args.NotifyBeforePatching, args.PatchDeadline,
-		resendProf.AppleUUID, resendProf.WindowsUUID, args.Hidden,
+		resendProf.AppleUUID, resendProf.WindowsUUID, args.Hidden, args.WebhooksAndTicketsEnabled,
 	)
 	switch {
 	case err == nil:
@@ -2090,12 +2092,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		ResendAppleProfileUUID       *string `db:"resend_apple_profile_uuid"`
 		ResendWindowsProfileUUID     *string `db:"resend_windows_profile_uuid"`
 		Hidden                       bool    `db:"hidden"`
+		WebhooksAndTicketsEnabled    bool    `db:"webhooks_and_tickets_enabled"`
 		NeedsFullMembershipCleanup   bool    `db:"needs_full_membership_cleanup"`
 	}
 	const policyLiteColumns = `name, query, description, author_id, resolution, platforms, critical, calendar_events_enabled,
 		software_installer_id, vpp_apps_teams_id, script_id, conditional_access_enabled, type, patch_software_title_id,
 		continuous_automations_enabled, patch_when_closed, notify_before_patching, patch_deadline, resend_apple_profile_uuid,
-		resend_windows_profile_uuid, hidden, needs_full_membership_cleanup`
+		resend_windows_profile_uuid, hidden, webhooks_and_tickets_enabled, needs_full_membership_cleanup`
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	teamIDToPolicyLabelsByName := make(map[*uint]map[string]map[policyLabelScope]struct{}, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -2189,8 +2192,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			patch_deadline,
 			resend_apple_profile_uuid,
 			resend_windows_profile_uuid,
-			hidden
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hidden,
+			webhooks_and_tickets_enabled
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -2211,7 +2215,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			patch_deadline = VALUES(patch_deadline),
 			resend_apple_profile_uuid = VALUES(resend_apple_profile_uuid),
 			resend_windows_profile_uuid = VALUES(resend_windows_profile_uuid),
-			hidden = VALUES(hidden)
+			hidden = VALUES(hidden),
+			webhooks_and_tickets_enabled = VALUES(webhooks_and_tickets_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -2354,7 +2359,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					prev.PatchDeadline == spec.PatchDeadline &&
 					ptr.Equal(prev.ResendAppleProfileUUID, resendProf.AppleUUID) &&
 					ptr.Equal(prev.ResendWindowsProfileUUID, resendProf.WindowsUUID) &&
-					prev.Hidden == spec.Hidden {
+					prev.Hidden == spec.Hidden &&
+					prev.WebhooksAndTicketsEnabled == spec.WebhooksAndTicketsEnabled {
 					continue
 				}
 
@@ -2381,7 +2387,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
 					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled, spec.PatchWhenClosed,
 					spec.NotifyBeforePatching, spec.PatchDeadline,
-					resendProf.AppleUUID, resendProf.WindowsUUID, spec.Hidden,
+					resendProf.AppleUUID, resendProf.WindowsUUID, spec.Hidden, spec.WebhooksAndTicketsEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -3002,6 +3008,81 @@ func (ds *Datastore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, team
 		byTeam[*p.TeamID] = append(byTeam[*p.TeamID], p.ID)
 	}
 	return byTeam, nil
+}
+
+func (ds *Datastore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+	if len(policyIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args := `SELECT `+policyCols+` FROM policies p WHERE p.team_id IS NULL AND p.id IN (?) AND p.webhooks_and_tickets_enabled = 0`,
+		[]any{policyIDs}
+	if teamID != nil {
+		stmt, args = `SELECT `+policyCols+` FROM policies p WHERE p.team_id = ? AND p.id IN (?) AND p.webhooks_and_tickets_enabled = 0`,
+			[]any{*teamID, policyIDs}
+	}
+	query, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build policies with other automations query")
+	}
+	var policies []*fleet.Policy
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies with other automations")
+	}
+	// Which columns count as an automation is decided in one place, Automations.
+	return slices.DeleteFunc(policies, func(p *fleet.Policy) bool { return len(p.Automations()) == 0 }), nil
+}
+
+func (ds *Datastore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	stmt, args := `SELECT name, webhooks_and_tickets_enabled FROM policies WHERE team_id IS NULL AND name IN (?)`, []any{names}
+	if teamID != nil {
+		stmt, args = `SELECT name, webhooks_and_tickets_enabled FROM policies WHERE team_id = ? AND name IN (?)`, []any{*teamID, names}
+	}
+	query, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build webhooks and tickets by policy name query")
+	}
+	var rows []struct {
+		Name    string `db:"name"`
+		Enabled bool   `db:"webhooks_and_tickets_enabled"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get webhooks and tickets by policy name")
+	}
+	byName := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		byName[r.Name] = r.Enabled
+	}
+	return byName, nil
+}
+
+func (ds *Datastore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+	if len(slugs) == 0 {
+		return nil, nil
+	}
+	// The same app-to-title lookup spec apply uses to match a patch policy.
+	query, args, err := sqlx.In(`SELECT fma.slug, p.webhooks_and_tickets_enabled
+		FROM policies p
+		JOIN software_installers si ON si.title_id = p.patch_software_title_id AND si.global_or_team_id = p.team_id
+		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		WHERE p.team_id = ? AND p.type = ? AND fma.slug IN (?)`, teamID, fleet.PolicyTypePatch, slugs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build webhooks and tickets by patch policy slug query")
+	}
+	var rows []struct {
+		Slug    string `db:"slug"`
+		Enabled bool   `db:"webhooks_and_tickets_enabled"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get webhooks and tickets by patch policy slug")
+	}
+	bySlug := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		bySlug[r.Slug] = r.Enabled
+	}
+	return bySlug, nil
 }
 
 func (ds *Datastore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
