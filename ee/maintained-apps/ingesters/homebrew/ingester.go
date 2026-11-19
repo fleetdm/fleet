@@ -386,15 +386,17 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// the cask's. The version must be the app's: Fleet flags "Update available"
 		// when inventory reports less than the installer version, which would stick
 		// on up-to-date hosts. The patched query compares the core receipt instead,
-		// which changes every release. Both come from the installer itself.
+		// which changes every release. Both come from the installer itself. An
+		// installed app with no core receipt counts as outdated, while hosts
+		// without Munki still pass.
 		versions, err := external_refs.MunkiPackageVersions(ctx, out.InstallerURL)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading Munki versions from installer")
 		}
 		out.Version = versions.App
 		out.Queries.Patched = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core' AND version_compare(version, '%s') < 0);",
-			versions.Core,
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core' AND version_compare(version, '%s') < 0) AND (EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core') OR NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s'));",
+			versions.Core, out.UniqueIdentifier,
 		)
 	}
 	switch input.Token {
