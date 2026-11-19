@@ -170,10 +170,13 @@ func (d *Directory) ListUsers(ctx context.Context) ([]*fleet.ScimUser, error) {
 	logger := d.log()
 	var out []*fleet.ScimUser
 	seen := make(map[string]struct{})
+	// Counts raw records, duplicates included, so the limit doesn't depend on how
+	// results are paginated. The low-level API only enforces MaxUsers per domain.
+	received := 0
 	for _, domain := range d.domains {
 		if err := d.api.ListUsers(ctx, domain, func(users []*directory.User) error {
-			// The low-level API enforces MaxUsers per domain; this enforces it across domains.
-			if d.limits.MaxUsers > 0 && len(out)+len(users) > d.limits.MaxUsers {
+			received += len(users)
+			if d.limits.MaxUsers > 0 && received > d.limits.MaxUsers {
 				return ctxerr.Errorf(ctx, "exceeded the limit of %d users; raise %s to sync these domains",
 					d.limits.MaxUsers, maxUsersSetting)
 			}

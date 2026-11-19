@@ -204,13 +204,24 @@ type perDomainAPI struct {
 	groups    map[string][]*directory.Group
 	members   map[string][]*directory.Member
 	errDomain string
+	// pageSize splits each domain's users into pages of this size when set.
+	pageSize int
 }
 
 func (f *perDomainAPI) ListUsers(_ context.Context, domain string, forEachPage func([]*directory.User) error) error {
 	if domain == f.errDomain {
 		return errors.New("users boom")
 	}
-	return forEachPage(f.users[domain])
+	users := f.users[domain]
+	if f.pageSize == 0 {
+		return forEachPage(users)
+	}
+	for start := 0; start < len(users); start += f.pageSize {
+		if err := forEachPage(users[start:min(start+f.pageSize, len(users))]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (f *perDomainAPI) ListGroups(_ context.Context, domain string) ([]*directory.Group, error) {
@@ -288,5 +299,18 @@ func TestDirectoryMultipleDomains(t *testing.T) {
 		require.NoError(t, err)
 		_, err = dir.ListGroups(t.Context())
 		require.NoError(t, err)
+	})
+
+	t.Run("user limit counts duplicates regardless of page size", func(t *testing.T) {
+		api := newAPI()
+		api.pageSize = 1
+		dir := &Directory{domains: domains, api: api, limits: Limits{MaxUsers: 3}}
+		_, err := dir.ListUsers(t.Context())
+		require.ErrorContains(t, err, maxUsersSetting)
+
+		dir.limits = Limits{MaxUsers: 4}
+		users, err := dir.ListUsers(t.Context())
+		require.NoError(t, err)
+		assert.Len(t, users, 3)
 	})
 }

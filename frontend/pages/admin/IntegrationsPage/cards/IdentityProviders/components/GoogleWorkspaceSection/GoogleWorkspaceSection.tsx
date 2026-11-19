@@ -85,20 +85,26 @@ const GoogleWorkspaceSection = ({
   const savedIntegration = appConfig?.integrations.google_workspace?.[0];
   const savedAdditionalDomains = savedIntegration?.additional_domains ?? [];
 
-  // Sync form state from the config prop.
+  // Sync form state from the saved fields only, so adding or deleting an
+  // additional domain doesn't discard unsaved edits in the form.
+  const savedDomain = savedIntegration?.domain;
+  const savedEmail = savedIntegration?.impersonated_user_email;
+  const savedApiKey = savedIntegration
+    ? JSON.stringify(savedIntegration.api_key_json)
+    : undefined;
   useEffect(() => {
-    const integrations = appConfig?.integrations.google_workspace;
-    if (Array.isArray(integrations) && integrations.length > 0) {
-      const { domain, impersonated_user_email, api_key_json } = integrations[0];
-      setFormData({
-        domain,
-        impersonatedUserEmail: impersonated_user_email,
-        apiKeyJson: isObfuscatedApiKey(api_key_json)
-          ? UNCHANGED_PASSWORD_API_RESPONSE
-          : JSON.stringify(api_key_json, null, "\t"),
-      });
+    if (savedDomain === undefined || savedApiKey === undefined) {
+      return;
     }
-  }, [appConfig]);
+    const apiKey = JSON.parse(savedApiKey);
+    setFormData({
+      domain: savedDomain,
+      impersonatedUserEmail: savedEmail ?? "",
+      apiKeyJson: isObfuscatedApiKey(apiKey)
+        ? UNCHANGED_PASSWORD_API_RESPONSE
+        : JSON.stringify(apiKey, null, "\t"),
+    });
+  }, [savedDomain, savedEmail, savedApiKey]);
 
   const gomEnabled = appConfig.gitops.gitops_mode_enabled;
   const { apiKeyJson, domain, impersonatedUserEmail } = formData;
@@ -179,13 +185,13 @@ const GoogleWorkspaceSection = ({
         googleWorkspace = [entry];
       }
 
-      await configAPI.update({
+      const updatedConfig: IConfig = await configAPI.update({
         integrations: { google_workspace: googleWorkspace },
       });
+      queryClient.setQueryData(["config"], updatedConfig);
       notify.success(
         "Successfully saved Google Workspace integration settings."
       );
-      await queryClient.invalidateQueries(["config"]);
       await queryClient.invalidateQueries(["scim_details"]);
     } catch (e) {
       notify.error("Could not save Google Workspace integration settings.", {
@@ -237,6 +243,7 @@ const GoogleWorkspaceSection = ({
         )}
         ListItemComponent={({ listItem }) => (
           <ListItem
+            className={`${baseClass}__domain-row`}
             title={<TooltipTruncatedText value={listItem} />}
             actions={
               <GitOpsModeTooltipWrapper

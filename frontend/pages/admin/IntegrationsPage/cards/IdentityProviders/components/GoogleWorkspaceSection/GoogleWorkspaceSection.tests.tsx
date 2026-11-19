@@ -16,16 +16,24 @@ const renderWith = () =>
     context: { app: { config: createMockConfig() } },
   });
 
-const configuredConfig = (additionalDomains?: string[]): IConfig => {
+const configuredConfig = (
+  additionalDomains?: string[],
+  domain = "example.com"
+): IConfig => {
   const config = createMockConfig();
-  config.integrations.google_workspace = [
-    {
-      domain: "example.com",
-      additional_domains: additionalDomains,
-      impersonated_user_email: "admin@example.com",
-      api_key_json: { client_email: "********", private_key: "********" },
-    },
-  ];
+  // createMockConfig copies only the top level, so copy integrations before
+  // changing it to keep the shared default mock unconfigured.
+  config.integrations = {
+    ...config.integrations,
+    google_workspace: [
+      {
+        domain,
+        additional_domains: additionalDomains,
+        impersonated_user_email: "admin@example.com",
+        api_key_json: { client_email: "********", private_key: "********" },
+      },
+    ],
+  };
   return config;
 };
 
@@ -128,18 +136,71 @@ describe("GoogleWorkspaceSection", () => {
     );
   });
 
-  it("rejects a domain that's already added", async () => {
+  it("requires a domain on submit", async () => {
     const render = renderWith();
     const { user } = render(
       <GoogleWorkspaceSection appConfig={configuredConfig(["example.org"])} />
     );
 
     await user.click(screen.getByRole("button", { name: /Add/ }));
-    await user.type(screen.getByLabelText("Domain"), "EXAMPLE.com");
-
-    expect(screen.getByText("Domain already added")).toBeInTheDocument();
     const addButtons = screen.getAllByRole("button", { name: /Add/ });
-    expect(addButtons[addButtons.length - 1]).toBeDisabled();
+    const submit = addButtons[addButtons.length - 1];
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    expect(screen.getByText("Domain is required")).toBeInTheDocument();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a domain that's already added on blur and clears the error on focus", async () => {
+    const render = renderWith();
+    const { user } = render(
+      <GoogleWorkspaceSection appConfig={configuredConfig(["example.org"])} />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Add/ }));
+    const input = screen.getByLabelText("Domain");
+    await user.type(input, "EXAMPLE.com");
+    // No error while typing.
+    expect(screen.queryByText("Domain already added")).not.toBeInTheDocument();
+
+    await user.tab();
+    expect(screen.getByText("Domain already added")).toBeInTheDocument();
+
+    await user.click(screen.getByDisplayValue("EXAMPLE.com"));
+    expect(screen.queryByText("Domain already added")).not.toBeInTheDocument();
+
+    const addButtons = screen.getAllByRole("button", { name: /Add/ });
+    await user.click(addButtons[addButtons.length - 1]);
+    expect(screen.getByText("Domain already added")).toBeInTheDocument();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps unsaved form edits when only the additional domains change", async () => {
+    const render = renderWith();
+    const { user, rerender } = render(
+      <GoogleWorkspaceSection appConfig={configuredConfig(["example.org"])} />
+    );
+
+    const email = screen.getByLabelText("Admin email to impersonate");
+    await user.clear(email);
+    await user.type(email, "other@example.com");
+
+    rerender(
+      <GoogleWorkspaceSection
+        appConfig={configuredConfig(["example.org", "example.net"])}
+      />
+    );
+    expect(screen.getByDisplayValue("other@example.com")).toBeInTheDocument();
+
+    // A change to a saved form field still resets the form.
+    rerender(
+      <GoogleWorkspaceSection
+        appConfig={configuredConfig(["example.org"], "example.io")}
+      />
+    );
+    expect(screen.getByDisplayValue("example.io")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("admin@example.com")).toBeInTheDocument();
   });
 
   it("deletes a domain from the modal", async () => {

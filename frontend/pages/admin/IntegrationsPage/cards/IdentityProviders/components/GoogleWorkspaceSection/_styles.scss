@@ -40,6 +40,15 @@
     height: auto;
   }
 
+  // Lets a long domain truncate instead of pushing the delete button out.
+  &__domain-row {
+    .list-item__main-content,
+    .list-item__info {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
   &__delete-domain-button {
     width: 40px;
     height: 40px;

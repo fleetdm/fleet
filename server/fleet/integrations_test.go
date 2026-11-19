@@ -109,6 +109,16 @@ func TestValidateGoogleWorkspaceIntegrations(t *testing.T) {
 			wantField: "integrations.google_workspace.additional_domains",
 		},
 		{
+			name: "non-breaking space in additional domain",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"exam\u00a0ple.org"},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+			wantField: "integrations.google_workspace.additional_domains",
+		},
+		{
 			name: "duplicate additional domains",
 			intgs: []*GoogleWorkspaceIntegration{{
 				Domain:                "example.com",

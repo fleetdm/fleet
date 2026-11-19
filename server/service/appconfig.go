@@ -862,6 +862,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				} else {
 					appConfig.Integrations.GoogleWorkspace[i].ApiKey = newGW.ApiKey
 				}
+				// The merge above decodes into the saved entry, which keeps an omitted
+				// list; GitOps must treat a removed additional_domains key as empty.
+				if applyOpts.Overwrite {
+					appConfig.Integrations.GoogleWorkspace[i].AdditionalDomains = newGW.AdditionalDomains
+				}
 			}
 		}
 	}

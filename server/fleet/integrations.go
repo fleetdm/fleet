@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -798,7 +799,7 @@ func ValidateGoogleWorkspaceIntegrations(intgs []*GoogleWorkspaceIntegration, in
 				invalid.Append("integrations.google_workspace.additional_domains", "additional_domains cannot contain blank values")
 				continue
 			}
-			if strings.ContainsAny(d, ", \t\n") {
+			if strings.ContainsRune(d, ',') || strings.IndexFunc(d, unicode.IsSpace) >= 0 {
 				invalid.Append("integrations.google_workspace.additional_domains", fmt.Sprintf("invalid domain %q: list each domain as a separate entry", d))
 				continue
 			}

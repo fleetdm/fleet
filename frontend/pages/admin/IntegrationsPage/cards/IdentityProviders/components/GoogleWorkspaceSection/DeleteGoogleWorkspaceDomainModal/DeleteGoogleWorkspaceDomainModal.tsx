@@ -4,6 +4,7 @@ import { useQueryClient } from "react-query";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { IConfig } from "interfaces/config";
 import { IGlobalGoogleWorkspaceIntegration } from "interfaces/integration";
 import configAPI from "services/entities/config";
 
@@ -28,13 +29,13 @@ const DeleteGoogleWorkspaceDomainModal = ({
   const onDelete = async () => {
     setIsDeleting(true);
     try {
-      await configAPI.update(
+      const updatedConfig: IConfig = await configAPI.update(
         buildAdditionalDomainsUpdate(
           integration,
           (integration.additional_domains ?? []).filter((d) => d !== domain)
         )
       );
-      await queryClient.invalidateQueries(["config"]);
+      queryClient.setQueryData(["config"], updatedConfig);
       notify.success("Domain deleted successfully.");
       onExit();
     } catch (e) {
