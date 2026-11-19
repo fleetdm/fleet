@@ -24,7 +24,10 @@ func TestRemovedKeyMessage(t *testing.T) {
 // A removed key's error message comes from pkg/removednames, so every removedkey tag on a request type needs an entry
 // there.
 func TestRemovedKeyTagsRegistered(t *testing.T) {
-	for _, typ := range []any{fleet.AppConfig{}, fleet.TeamPayload{}, fleet.TeamSpec{}, fleet.MDMAppleSetupPayload{}} {
+	for _, typ := range []any{
+		fleet.AppConfig{}, fleet.TeamPayload{}, fleet.TeamSpec{}, fleet.MDMAppleSetupPayload{},
+		fleet.CreatePolicyRequest{}, fleet.ModifyPolicyRequest{},
+	} {
 		rules := endpointer.ExtractRemovedKeyRules(typ)
 		require.NotEmpty(t, rules, "%T", typ)
 		for _, rule := range rules {

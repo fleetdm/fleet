@@ -3761,8 +3761,6 @@ spec:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
       destination_url: ""
-      policy_ids:
-        - 1
       host_batch_size: 1000
     interval: 1h
 `,
@@ -4014,6 +4012,39 @@ spec:
 			flags: []string{"--force"},
 			wantErr: `The "require_all_software_windows" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
+		},
+		{
+			desc: "app config with failing policies webhook policy_ids",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://example.com/webhook
+      policy_ids: [1]
+`,
+			wantErr: `The "policy_ids" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "fleet with failing policies webhook policy_ids cannot be forced",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    webhook_settings:
+      failing_policies_webhook:
+        enable_failing_policies_webhook: true
+        destination_url: https://example.com/webhook
+        policy_ids: [1]
+`,
+			flags: []string{"--force"},
+			wantErr: `The "policy_ids" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "app config windows_updates.grace_period_days not a number",

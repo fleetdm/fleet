@@ -1482,14 +1482,20 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
-	mtplr := fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
+	mtplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy1Team1.ID), fleet.ModifyPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
+		},
 	}, http.StatusOK, &mtplr)
 
 	// Associate ruby.deb in team2 to policy2Team2.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team2.ID, policy2Team2.ID), fleet.ModifyTeamPolicyRequest{
-		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy2Team2.ID), fleet.ModifyPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
+		},
 	}, http.StatusOK, &mtplr)
 
 	// Get rid of all installers in team1.
@@ -2148,8 +2154,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	)
 
 	// Verify the patch policy exists.
-	listPolResp := fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+	listPolResp := fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 	require.Len(t, listPolResp.Policies, 1)
 	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
 	require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
@@ -2165,8 +2171,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
 	// Verify the patch policy still exists but no longer references a software title.
-	listPolResp = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+	listPolResp = fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 	require.Len(t, listPolResp.Policies, 1)
 	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
 	require.Nil(t, listPolResp.Policies[0].PatchSoftware)

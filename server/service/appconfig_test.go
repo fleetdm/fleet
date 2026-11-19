@@ -24,6 +24,7 @@ import (
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -186,8 +187,7 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
-// TODO(#58577): remove with policy_ids.
-func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
+func TestModifyAppConfigWebhookPolicyIDsRemoved(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
 		License: &fleet.LicenseInfo{Tier: fleet.TierFree},
@@ -201,39 +201,22 @@ func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
-	enabled := []uint{2, 1}
-	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
-		require.Nil(t, teamID)
-		return enabled, nil
-	}
-	var setCalls [][]uint
-	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
-		require.Nil(t, teamID)
-		setCalls = append(setCalls, policyIDs)
-		return nil
-	}
 
-	// Requests that leave the list as it is don't write the policies, so they can't undo a concurrent change.
-	for _, body := range []string{
-		`{"org_info": {"org_name": "Changed"}}`,
-		`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`,
-		`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
-	} {
-		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
-		require.NoError(t, err, body)
+	for _, opts := range []fleet.ApplySpecOptions{{}, {DryRun: true}} {
+		for _, body := range []string{
+			`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
+			`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`,
+		} {
+			_, err := svc.ModifyAppConfig(ctx, []byte(body), opts)
+			var removed *endpointer.RemovedKeyError
+			require.ErrorAs(t, err, &removed, body)
+			require.ErrorContains(t, err, `The "policy_ids" parameter is not available anymore`)
+		}
 	}
-	require.Empty(t, setCalls)
+	require.False(t, ds.SaveAppConfigFuncInvoked)
 
-	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [3]}}}`), fleet.ApplySpecOptions{})
+	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
-	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	require.Equal(t, [][]uint{{3}, {}}, setCalls)
-
-	// Dry runs don't write the policies.
-	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [4]}}}`), fleet.ApplySpecOptions{DryRun: true})
-	require.NoError(t, err)
-	require.Len(t, setCalls, 2)
 }
 
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the

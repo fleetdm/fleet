@@ -169,7 +169,6 @@
     "failing_policies_webhook": {
       "enable_failing_policies_webhook": true,
       "destination_url": "https://some-failing-policies-webhook-url.com",
-      "policy_ids": [],
       "host_batch_size": 2
     },
     "vulnerabilities_webhook": {

@@ -2658,7 +2658,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		Team *fleet.DefaultTeam `json:"fleet"`
 	}
 
-	// policy_ids only keeps "No Team" policies, so create real ones to list.
+	// The webhook automation is set on each "No Team" policy, so create real ones to turn it on.
 	pols := make([]uint, 0, 5)
 	for i := range 5 {
 		p, err := s.ds.NewTeamPolicy(t.Context(), 0, nil, fleet.PolicyPayload{Name: fmt.Sprintf("no team webhook config %d", i), Query: "SELECT 1"})
@@ -2669,6 +2669,29 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		_, err := s.ds.DeleteTeamPolicies(context.Background(), 0, pols)
 		require.NoError(t, err)
 	})
+	setWebhookAutomation := func(ids []uint, on bool) {
+		automation := optjson.Any[fleet.PolicyAutomation]{Set: true}
+		if on {
+			automation = optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationWebhookOrTicket}
+		}
+		for _, id := range ids {
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", id), fleet.ModifyPolicyRequest{
+				ModifyPolicyPayload: fleet.ModifyPolicyPayload{AutomationType: automation},
+			}, http.StatusOK, &fleet.ModifyPolicyResponse{})
+		}
+	}
+	webhookPolicyIDs := func() []uint {
+		var listResp fleet.ListPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp,
+			"fleet_id", "0", "automation_type", string(fleet.PolicyAutomationWebhookOrTicket))
+		ids := make([]uint, 0, len(listResp.Policies))
+		for _, p := range listResp.Policies {
+			require.NotNil(t, p.AutomationType)
+			require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *p.AutomationType)
+			ids = append(ids, p.ID)
+		}
+		return ids
+	}
 
 	// First clear any existing webhook configuration for "No Team"
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
@@ -2688,15 +2711,15 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/no-team-webhook",
-			PolicyIDs:      pols[:3],
 			HostBatchSize:  100,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
+	setWebhookAutomation(pols[:3], true)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
 	require.Equal(t, fleet.DisplayNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, pols[:3], defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.ElementsMatch(t, pols[:3], webhookPolicyIDs())
 	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Get the config again to verify it persisted
@@ -2708,7 +2731,6 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, fleet.DisplayNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, pols[:3], defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Update the webhook settings
@@ -2716,33 +2738,21 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         false,
 			DestinationURL: "https://example.com/updated",
-			PolicyIDs:      pols[3:],
 			HostBatchSize:  200,
 		},
 	}}, http.StatusOK, &defaultTeamResp)
+	setWebhookAutomation(pols[:3], false)
+	setWebhookAutomation(pols[3:], true)
 	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "https://example.com/updated", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, pols[3:], defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.ElementsMatch(t, pols[3:], webhookPolicyIDs())
 	require.Equal(t, 200, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
-	// IDs that aren't "No Team" policies are dropped, and the change is what a later read returns.
-	globalPol, err := s.ds.NewGlobalPolicy(t.Context(), nil, fleet.PolicyPayload{Name: "no team webhook config global", Query: "SELECT 1"})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{globalPol.ID})
-		require.NoError(t, err)
-	})
-	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
-		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
-			PolicyIDs: []uint{pols[0], globalPol.ID, 999999},
-		},
-	}}, http.StatusOK, &defaultTeamResp)
-	require.Equal(t, []uint{pols[0]}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
-	require.Equal(t, []uint{pols[0]}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	gp, err := s.ds.Policy(t.Context(), globalPol.ID)
-	require.NoError(t, err)
-	require.False(t, gp.WebhooksAndTicketsEnabled)
+	// policy_ids no longer sets the automation of the listed policies.
+	res := s.DoRaw("PATCH", "/api/latest/fleet/fleets/0", []byte(fmt.Sprintf(
+		`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [%d]}}}`, pols[0])), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `The "policy_ids" parameter is not available anymore`)
+	require.ElementsMatch(t, pols[3:], webhookPolicyIDs())
 
 	// Clear the webhook settings
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
@@ -2782,7 +2792,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.True(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook.Enable)
 
 	// Enabling with an invalid destination URL fails validation
-	res := s.Do("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+	res = s.Do("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable: true,
 		},
@@ -3021,7 +3031,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecCreateFailingPoliciesWebhoo
 						"enable_failing_policies_webhook": true,
 						"destination_url":                 "https://example.com/failing",
 						"host_batch_size":                 10,
-						"policy_ids":                      []uint{1},
 					},
 				},
 			},
@@ -3038,8 +3047,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecCreateFailingPoliciesWebhoo
 	require.Equal(t, "https://example.com/failing", webhook.DestinationURL)
 	require.Equal(t, 10, webhook.HostBatchSize)
 	// The new fleet has no policies, so no policy gets the automation.
-	require.Empty(t, webhook.PolicyIDs)
-	policyIDs, err := s.ds.WebhooksAndTicketsPolicyIDs(t.Context(), &team.ID)
-	require.NoError(t, err)
-	require.Empty(t, policyIDs)
+	var listResp fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp,
+		"fleet_id", fmt.Sprint(team.ID), "automation_type", string(fleet.PolicyAutomationWebhookOrTicket))
+	require.Empty(t, listResp.Policies)
+
+	// policy_ids is rejected in specs too.
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"webhook_settings": map[string]any{
+					"failing_policies_webhook": map[string]any{
+						"enable_failing_policies_webhook": true,
+						"destination_url":                 "https://example.com/failing",
+						"policy_ids":                      []uint{1},
+					},
+				},
+			},
+		},
+	}
+	res := s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `The "policy_ids" parameter is not available anymore`)
 }

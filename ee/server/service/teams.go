@@ -184,9 +184,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
-	if err := svc.loadTeamWebhookPolicyIDs(ctx, teamID, &team.Config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-		return nil, err
-	}
 	var oldName string
 	if payload.Name != nil {
 		*payload.Name = strings.TrimSpace(*payload.Name)
@@ -224,11 +221,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, err
 		}
 		applyTeamWebhookSettings(&team.Config.WebhookSettings, payload.WebhookSettings)
-		if payload.WebhookSettings.FailingPoliciesWebhook != nil {
-			if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, &teamID, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
-			}
-		}
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -628,16 +620,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.Features.EnableSoftwareInventory = payload.Features.EnableSoftwareInventory.Value
 	}
 
-	webhookPolicyIDs := takeWebhookPolicyIDs(&team.Config.WebhookSettings.FailingPoliciesWebhook)
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
-	}
-	team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs
-	if payload.WebhookSettings != nil && payload.WebhookSettings.FailingPoliciesWebhook != nil {
-		if err := svc.saveTeamWebhookPolicyIDs(ctx, teamID, &team.Config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-			return nil, err
-		}
 	}
 
 	// oldName is only set when the payload carried a name.
@@ -1102,19 +1087,6 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	if err != nil {
 		return nil, err
 	}
-	// TODO(#58577): remove with policy_ids, see loadTeamWebhookPolicyIDs.
-	teamIDs := make([]uint, 0, len(teams))
-	for _, t := range teams {
-		teamIDs = append(teamIDs, t.ID)
-	}
-	webhookPolicyIDs, err := svc.ds.WebhooksAndTicketsPolicyIDsByTeam(ctx, teamIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load webhook and ticket policy IDs")
-	}
-	for _, t := range teams {
-		t.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs[t.ID]
-	}
-
 	if err = obfuscateSecrets(vc.User, teams); err != nil {
 		return nil, err
 	}
@@ -1281,10 +1253,6 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		if err != nil {
 			return nil, err
 		}
-		if err := svc.loadTeamWebhookPolicyIDs(ctx, 0, &config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-			return nil, err
-		}
-
 		// Convert TeamConfig to Team for API compatibility
 		// Team ID 0 represents "No Team"
 		team := &fleet.Team{
@@ -1333,12 +1301,6 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 	if err != nil {
 		return nil, err
 	}
-	if !alreadyAuthd {
-		if err := svc.loadTeamWebhookPolicyIDs(ctx, teamID, &team.Config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-			return nil, err
-		}
-	}
-
 	if err = obfuscateSecrets(user, []*fleet.Team{team}); err != nil {
 		return nil, err
 	}
@@ -1944,8 +1906,6 @@ func (svc *Service) createTeamFromSpec(
 	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
 		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
 		failingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
-		// A new fleet has no policies for the list to name. TODO(#58577): remove with policy_ids.
-		failingPoliciesWebhook.PolicyIDs = nil
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
@@ -2469,9 +2429,6 @@ func (svc *Service) editTeamFromSpec(
 	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
 		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
 		team.Config.WebhookSettings.FailingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
-		if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, &team.ID, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
-		}
 	}
 
 	if spec.WebhookSettings.HostActivitiesWebhook != nil {
@@ -2520,15 +2477,8 @@ func (svc *Service) editTeamFromSpec(
 		return nil
 	}
 
-	webhookPolicyIDs := takeWebhookPolicyIDs(&team.Config.WebhookSettings.FailingPoliciesWebhook)
 	if _, err := svc.ds.SaveTeam(ctx, team); err != nil {
 		return err
-	}
-	team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs
-	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
-		if err := svc.saveTeamWebhookPolicyIDs(ctx, team.ID, &team.Config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-			return err
-		}
 	}
 
 	if !opts.DryRun {
@@ -3030,41 +2980,6 @@ func (svc *Service) validateEndUserAuthenticationAndSetupAssistant(ctx context.C
 	return nil
 }
 
-// loadTeamWebhookPolicyIDs fills failing_policies_webhook.policy_ids from the fleet's policies ("Unassigned" for 0) that
-// have the webhook or ticket automation on.
-//
-// TODO(#58577): remove with policy_ids. Until the UI and GitOps set the automation on the policy, they read and write it
-// through policy_ids, so the list is built from the per-policy flag on reads and sets the flags on writes.
-func (svc *Service) loadTeamWebhookPolicyIDs(ctx context.Context, teamID uint, wh *fleet.FailingPoliciesWebhookSettings) error {
-	ids, err := svc.ds.WebhooksAndTicketsPolicyIDs(ctx, &teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "load webhook and ticket policy IDs")
-	}
-	wh.PolicyIDs = ids
-	return nil
-}
-
-// takeWebhookPolicyIDs returns the list and clears it, since the list lives on the policies and isn't stored in the
-// settings.
-//
-// TODO(#58577): remove with policy_ids, see loadTeamWebhookPolicyIDs.
-func takeWebhookPolicyIDs(wh *fleet.FailingPoliciesWebhookSettings) []uint {
-	ids := wh.PolicyIDs
-	wh.PolicyIDs = nil
-	return ids
-}
-
-// saveTeamWebhookPolicyIDs sets the webhook or ticket automation of the fleet's policies to match policy_ids, then
-// reloads the list so IDs that aren't the fleet's policies are dropped from it.
-//
-// TODO(#58577): remove with policy_ids, see loadTeamWebhookPolicyIDs.
-func (svc *Service) saveTeamWebhookPolicyIDs(ctx context.Context, teamID uint, wh *fleet.FailingPoliciesWebhookSettings) error {
-	if err := svc.ds.SetWebhooksAndTicketsPolicies(ctx, &teamID, wh.PolicyIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "set webhook and ticket policies from policy_ids")
-	}
-	return svc.loadTeamWebhookPolicyIDs(ctxdb.RequirePrimary(ctx, true), teamID, wh)
-}
-
 // applyTeamWebhookSettings replaces only the webhooks present in the payload:
 // each UI page PATCHes just the webhook it manages and must not clear the
 // others. Disabling is explicit, by sending the webhook with enable: false.
@@ -3117,21 +3032,12 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
-	if err := svc.loadTeamWebhookPolicyIDs(ctx, 0, &config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-		return nil, err
-	}
-
 	// Apply and validate webhook settings if provided
 	if payload.WebhookSettings != nil {
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
 			return nil, err
 		}
 		applyTeamWebhookSettings(&config.WebhookSettings, payload.WebhookSettings)
-		if payload.WebhookSettings.FailingPoliciesWebhook != nil {
-			if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, new(uint(0)), config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
-			}
-		}
 	}
 
 	// Apply integrations if provided
@@ -3183,15 +3089,8 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	}
 
 	// Save the configuration
-	webhookPolicyIDs := takeWebhookPolicyIDs(&config.WebhookSettings.FailingPoliciesWebhook)
 	if err := svc.ds.SaveDefaultTeamConfig(ctx, config); err != nil {
 		return nil, err
-	}
-	config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = webhookPolicyIDs
-	if payload.WebhookSettings != nil && payload.WebhookSettings.FailingPoliciesWebhook != nil {
-		if err := svc.saveTeamWebhookPolicyIDs(ctx, 0, &config.WebhookSettings.FailingPoliciesWebhook); err != nil {
-			return nil, err
-		}
 	}
 
 	// Return as a Team for API compatibility

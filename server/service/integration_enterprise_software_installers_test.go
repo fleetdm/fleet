@@ -3699,10 +3699,9 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
 
 	// Check no policies were created.
-	ts := fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	ts := fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &ts, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true")
 	require.Empty(t, ts.Policies)
-	require.Empty(t, ts.InheritedPolicies)
 
 	// Delete and try again with automatic policy turned on.
 	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
@@ -3736,10 +3735,10 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
 	// Check a policy was created on team1.
-	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	ts = fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &ts, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true")
 	require.Len(t, ts.Policies, 1)
-	require.Empty(t, ts.InheritedPolicies)
+	require.NotNil(t, ts.Policies[0].TeamID)
 	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload dummy_installer.pkg to team2 with automatic policy.
@@ -3752,10 +3751,10 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
 
 	// Check a policy was created on team2.
-	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), nil, http.StatusOK, &ts)
+	ts = fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &ts, "fleet_id", fmt.Sprint(team2.ID), "merge_inherited", "true")
 	require.Len(t, ts.Policies, 1)
-	require.Empty(t, ts.InheritedPolicies)
+	require.NotNil(t, ts.Policies[0].TeamID)
 	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload ruby.deb to team1 with automatic policy.
@@ -3782,10 +3781,12 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	s.uploadSoftwareInstaller(t, fleetOsqueryPayload, http.StatusOK, "")
 
 	// Check policies were created on team1.
-	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	ts = fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &ts, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true")
 	require.Len(t, ts.Policies, 4)
-	require.Empty(t, ts.InheritedPolicies)
+	for _, p := range ts.Policies {
+		require.NotNil(t, p.TeamID)
+	}
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
 	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
 	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
@@ -4253,12 +4254,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitlesOmitSoftwarePackage()
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", packageTitleID), nil, http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(fleetID))
 		require.Len(t, titleResp.SoftwareTitle.Packages, 1)
 		expectedInstallerID := titleResp.SoftwareTitle.Packages[0].InstallerID
-		var policyResp fleet.TeamPolicyResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleetID), &fleet.TeamPolicyRequest{
+		var policyResp fleet.CreatePolicyResponse
+		s.DoJSON("POST", "/api/latest/fleet/policies", &fleet.CreatePolicyRequest{
+			TeamID:          &fleetID,
 			Name:            fmt.Sprintf("%s policy %d", t.Name(), fleetID),
 			Query:           "SELECT 1;",
 			Platform:        "darwin",
 			SoftwareTitleID: &packageTitleID,
+			AutomationType:  new(fleet.PolicyAutomationSoftware),
 		}, http.StatusOK, &policyResp)
 		require.NotNil(t, policyResp.Policy)
 		policy, err := s.ds.Policy(ctx, policyResp.Policy.ID)

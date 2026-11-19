@@ -124,24 +124,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, "", nil
 			}
 		}
-		// Config reads and writes keep failing_policies_webhook.policy_ids in sync with the per-policy webhook and
-		// ticket flag. Default to no such policies.
-		if mockDS.WebhooksAndTicketsPolicyIDsFunc == nil {
-			mockDS.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) { return nil, nil }
-		}
-		if mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc == nil {
-			mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
-				return nil, nil
-			}
-		}
-		if mockDS.SetWebhooksAndTicketsPoliciesFunc == nil {
-			mockDS.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
-		}
-		if mockDS.PoliciesWithOtherAutomationsFunc == nil {
-			mockDS.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
-				return nil, nil
-			}
-		}
 		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
 			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
 				return nil, nil

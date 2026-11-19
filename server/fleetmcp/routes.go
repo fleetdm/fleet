@@ -49,13 +49,11 @@ var ToolRoutes = map[string][]Route{
 	"get_osquery_schema": {},
 	"get_policies": {
 		{"GET", "/api/v1/fleet/fleets"},
-		{"GET", "/api/v1/fleet/fleets/:id/policies"},
-		{"GET", "/api/v1/fleet/global/policies"},
+		{"GET", "/api/v1/fleet/policies"},
 	},
 	"get_policy_compliance": {
 		{"GET", "/api/v1/fleet/fleets"},
-		{"GET", "/api/v1/fleet/fleets/:fleet_id/policies/:policy_id"},
-		{"GET", "/api/v1/fleet/global/policies/:id"},
+		{"GET", "/api/v1/fleet/policies/:id"},
 	},
 	"get_policy_hosts": {
 		{"GET", "/api/v1/fleet/fleets"},

@@ -806,10 +806,6 @@ func (t *TeamConfig) Copy() *TeamConfig {
 		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
 		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
 	}
-	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
-		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
-		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	}
 
 	// Deep copy integrations
 	clone.Integrations = t.Integrations.Copy()

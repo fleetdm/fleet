@@ -322,8 +322,6 @@ Read-only tools:
 - [Get software title](https://fleetdm.com/docs/rest-api/rest-api#get-software)
 - [List policies](https://fleetdm.com/docs/rest-api/rest-api#list-policies)
 - [Get policy](https://fleetdm.com/docs/rest-api/rest-api#get-policy)
-- [List fleet-level policies](https://fleetdm.com/docs/rest-api/rest-api#list-fleet-level-policies)
-- [Get fleet-level policy](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-level-policy)
 - [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports)
 - [List labels](https://fleetdm.com/docs/rest-api/rest-api#list-labels)
 - [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts)
@@ -387,7 +385,7 @@ A few non-obvious behaviors discovered while building this:
   - **CVE → hosts** is a 3-step compose in `GetHostsForCVE`: `GET /software/titles?vulnerable=true&query=CVE-X` → per-title `GET /software/titles/:id` to harvest vulnerable version IDs → `GET /hosts?software_version_id=N` per ID → intersect with fleet / status / query / label-id client-side.
   - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2025-12345 yields 50 hosts via `?cve=`, but the correct answer is 1).
   - Future Fleet versions may fix these — revisit `GetEndpointsWithFilters` and `GetHostsForCVE` if/when that happens.
-- **Fleet-scoped policy compliance** uses `/fleets/:fleet_id/policies/:policy_id`, not the global path. `get_policy_compliance` routes to whichever based on whether `fleet` is set.
+- **Policies in every scope use the same endpoints.** `get_policies` lists "All fleets" policies with `GET /policies` and each fleet's own with `GET /policies?fleet_id=N`. `get_policy_compliance` reads `GET /policies/:id`; when `fleet` is set, it errors if the policy's `fleet_id` isn't that fleet, so it never reports another scope's counts.
 - **`/api/v1/fleet/host_summary` is the right endpoint for aggregate platform counts** — `GET /hosts` defaults to a 100-host page, so any client-side aggregation over `GetEndpoints(0)` is silently wrong on Fleets larger than 100 hosts. `get_aggregate_platforms` uses `host_summary` directly so totals match the Fleet UI at any inventory size.
 - **`fetchHostsFromPath` paginates internally** with a hard cap (`fetchHostsHardCap = 10000`). Without this, a single call could buffer the full host inventory in memory (~2KB per Endpoint × 50k hosts ≈ 100MB) and OOM the MCP. When the cap fires a warning is logged so operators see truncation rather than silently getting a partial host set.
 - **Per-fleet fan-out (`get_queries`, `get_policies`) is bounded-concurrent.** 8 in-flight goroutines, order-stable merge by fleet index. On enterprise Fleet instances with 50+ fleets the sequential path was the dominant latency source; the bounded concurrency amortizes round-trip count without flooding Fleet with thousands of simultaneous requests.

@@ -15,7 +15,7 @@ func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platfo
 		Resolution:  resolution,
 		Platform:    platform,
 	}
-	var responseBody fleet.GlobalPolicyResponse
+	var responseBody fleet.CreatePolicyResponse
 	return c.authenticatedRequest(req, "POST", "/api/latest/fleet/policies", &responseBody)
 }
 
