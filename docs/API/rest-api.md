@@ -17920,7 +17920,7 @@ _Available in Fleet Premium_
 
 Transforms the name or identifier of a user, label, fleet, or host into its ID. For example, the Fleet UI uses this endpoint when sending live reports to a set of hosts.
 
-For a `host`, Fleet matches `hardware_serial`, then `uuid`, then `hostname`, then `osquery_host_id`, then `node_key`. If more than one host matches the same field, Fleet returns the newest host.
+For a `host`, Fleet matches `hardware_serial`, then `uuid`, then `hostname`. If more than one host matches the same field, Fleet returns the newest host.
 
 `POST /api/v1/fleet/translate`
 
