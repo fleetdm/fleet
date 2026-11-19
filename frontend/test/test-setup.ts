@@ -1,7 +1,5 @@
 import "@testing-library/jest-dom";
 
-import mockServer from "./mock-server";
-
 // Needed for testing react-tooltip-5
 window.CSS.supports = jest.fn();
 
@@ -29,11 +27,6 @@ global.ResizeObserver = class {
   unobserve = noop;
   disconnect = noop;
 };
-
-// Mock server setup
-beforeAll(() => mockServer.listen());
-afterEach(() => mockServer.resetHandlers());
-afterAll(() => mockServer.close());
 
 // Known noisy warnings that don't indicate real bugs in Fleet code. Filtering
 // them keeps a genuine console.error/warn visible when a test actually fails,

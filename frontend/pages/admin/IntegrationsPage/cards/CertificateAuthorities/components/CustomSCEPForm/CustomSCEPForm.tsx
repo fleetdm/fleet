@@ -23,7 +23,7 @@ interface ICustomSCEPFormProps {
   formData: ICustomSCEPFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
+  editingCertAuthorityId?: number;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
@@ -35,15 +35,16 @@ const CustomSCEPForm = ({
   formData,
   submitBtnText,
   isSubmitting,
-  isEditing = false,
+  editingCertAuthorityId,
   isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
   const validations = useMemo(
-    () => generateFormValidations(certAuthorities ?? [], isEditing),
-    [certAuthorities, isEditing]
+    () =>
+      generateFormValidations(certAuthorities ?? [], editingCertAuthorityId),
+    [certAuthorities, editingCertAuthorityId]
   );
   const [
     formValidation,

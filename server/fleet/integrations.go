@@ -492,6 +492,8 @@ type Integrations struct {
 	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
 	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
 	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
+	// GoogleConditionalAccess is nil when the integration isn't configured; a nil value in a PATCH keeps the existing settings.
+	GoogleConditionalAccess *GoogleConditionalAccessIntegration `json:"google_conditional_access,omitempty"`
 	// CertificatesIdPIntrospectionURLs allowlists the OAuth 2.0 token introspection endpoints permitted
 	// to vouch for certificate requests. Closed by default: while empty, no IdP credentials are
 	// accepted. Once populated, credentials are mandatory and the endpoint must be listed. URLs are
@@ -719,6 +721,19 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		if intg.Domain == "" {
 			invalid.Append("integrations.google_calendar.domain", "domain is required")
 		}
+	}
+}
+
+// ValidateGoogleConditionalAccessIntegration validates the app config's Google
+// conditional access settings, reporting errors under their app config field names.
+func ValidateGoogleConditionalAccessIntegration(intg *GoogleConditionalAccessIntegration, invalid *InvalidArgumentError) {
+	if intg == nil {
+		return
+	}
+	var fieldErrs InvalidArgumentError
+	intg.Validate(&fieldErrs)
+	for _, e := range fieldErrs.Errors {
+		invalid.Append("integrations.google_conditional_access."+e.name, e.reason)
 	}
 }
 

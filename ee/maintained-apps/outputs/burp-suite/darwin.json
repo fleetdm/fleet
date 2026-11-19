@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.11.1",
+      "version": "2026.11.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.6592-1155-2163-3973.70';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.6592-1155-2163-3973.70' AND version_compare(bundle_short_version, '2026.11.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.6592-1155-2163-3973.70' AND version_compare(bundle_short_version, '2026.11.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.install4j.6592-1155-2163-3973.70' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://portswigger-cdn.net/burp/releases/download?product=desktop&version=2026.11.1&type=MacOsArm64",
+      "installer_url": "https://portswigger-cdn.net/burp/releases/download?product=desktop&version=2026.11.2&type=MacOsArm64",
       "install_script_ref": "f10cf228",
       "uninstall_script_ref": "a2d3ff0e",
-      "sha256": "08f062262fe7a9d6038bd6367a8dd81fe8612f4622a5a9f52e19f5858c620fbd",
+      "sha256": "bace56b5c977eec20c413bf0c535c4b6b2162bdd508d90077ff9d23d48cc183f",
       "default_categories": [
         "Developer tools"
       ]

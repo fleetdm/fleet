@@ -30,7 +30,7 @@ interface IDigicertFormProps {
   formData: IDigicertFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
+  editingCertAuthorityId?: number;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
@@ -42,15 +42,16 @@ const DigicertForm = ({
   formData,
   submitBtnText,
   isSubmitting,
-  isEditing = false,
+  editingCertAuthorityId,
   isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
   const validations = useMemo(
-    () => generateFormValidations(certAuthorities ?? [], isEditing),
-    [certAuthorities, isEditing]
+    () =>
+      generateFormValidations(certAuthorities ?? [], editingCertAuthorityId),
+    [certAuthorities, editingCertAuthorityId]
   );
 
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(

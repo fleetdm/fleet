@@ -121,7 +121,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// send the removed scripts_disabled setting as true and as false, both config updates should fail
-	removedSettingMsg := `The "scripts_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	removedSettingMsg := `The "scripts_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	res = s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings": {"scripts_disabled": true}}`), http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), removedSettingMsg)
 	res = s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings": {"scripts_disabled": false}}`), http.StatusUnprocessableEntity)

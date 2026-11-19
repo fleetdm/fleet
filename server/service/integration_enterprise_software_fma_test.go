@@ -574,6 +574,32 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.InstallSoftware.Name, policies[0].InstallSoftware.Name)
 	require.Equal(t, tpResp.Policy.InstallSoftware.SoftwareTitleID, policies[0].InstallSoftware.SoftwareTitleID)
 
+	for _, tc := range []struct {
+		name      string
+		teamID    uint
+		wantFleet string
+	}{
+		{name: "fleet", teamID: team.ID, wantFleet: fmt.Sprintf(`"fleet_id":%d, "fleet_name":%q`, team.ID, team.Name)},
+		{name: "no fleet", teamID: fleet.PolicyNoTeamID, wantFleet: `"fleet_id":0`},
+	} {
+		addMAResp = addFleetMaintainedAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{
+			AppID:            8,
+			TeamID:           &tc.teamID,
+			AutomaticInstall: true,
+		}, http.StatusOK, &addMAResp)
+		require.NoError(t, addMAResp.Err, tc.name)
+
+		titleResp = getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addMAResp.SoftwareTitleID), getSoftwareTitleRequest{},
+			http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(tc.teamID))
+		require.NotEmpty(t, titleResp.SoftwareTitle.Packages, tc.name)
+		require.Len(t, titleResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1, tc.name)
+		autoPolicy := titleResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0]
+		s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
+			fmt.Sprintf(`{%s, "policy_id":%d, "policy_name":%q}`, tc.wantFleet, autoPolicy.ID, autoPolicy.Name), 0)
+	}
+
 	// ===========================================================================================
 	// Adding label-scoped FMA
 	// ===========================================================================================
@@ -2652,31 +2678,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	})
 
 	t.Run("global_patch_policy", func(t *testing.T) {
-		// attempt to add a global patch policy
+		// Patch policies need a fleet; without fleet_id the policy would be an "All fleets" policy.
 		params := map[string]any{
 			"name":                    "global-policy",
 			"query":                   "UNAFFECTED;",
 			"description":             "patch policies only work for teams",
 			"type":                    "patch",
-			"patch_software_title_id": "1", // should not matter
+			"patch_software_title_id": 1,
 		}
-		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusOK)
-
-		resBody, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		res.Body.Close()
-
-		policyResp := fleet.GlobalPolicyResponse{}
-		err = json.Unmarshal(resBody, &policyResp)
-		require.NoError(t, err)
-		policyID := policyResp.Policy.ID
-
-		getPolicyResp := fleet.GetPolicyByIDResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
-		require.NotNil(t, getPolicyResp.Policy)
-		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)
-		require.Empty(t, getPolicyResp.Policy.PatchSoftware)
-		require.Empty(t, getPolicyResp.Policy.PatchSoftwareTitleID)
+		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policy cannot be a patch policy`)
+		var listResp fleet.ListPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp, "query", "global-policy")
+		require.Empty(t, listResp.Policies)
 
 		// Should not be able to apply global patch policy
 		spec := &fleet.PolicySpec{
