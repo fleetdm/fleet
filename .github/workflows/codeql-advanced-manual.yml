@@ -14,7 +14,7 @@ permissions: {}
 
 jobs:
   check-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     outputs:
@@ -27,7 +27,7 @@ jobs:
         fetch-depth: 1
 
     # Determine which languages were actually changed so we can run only the relevant CodeQL analysis.
-    # Even if there were no languages changed, still run a quick check on `actions` to satisfy OpenSSF Scorecard that CodeQL analaysis is performed on every PR.
+    # Even if there were no languages changed, still run a quick check on `actions` to satisfy OpenSSF Scorecard that CodeQL analysis is performed on every PR.
     - name: Check changed files
       id: changes
       shell: bash
