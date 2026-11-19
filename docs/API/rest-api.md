@@ -13261,8 +13261,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 ((Admin)) ((Maintainer)) ((GitOps))
 
-> `DELETE /api/v1/fleet/reports/id/:id` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
-
 Deletes the report specified by ID.
 
 `DELETE /api/v1/fleet/reports/:id`
@@ -13323,8 +13321,6 @@ Deletes the reports specified by ID. Returns the count of reports successfully d
 ### Run live report
 
 ((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
-
-> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
 Runs a live report against the specified hosts and responds with the results.
 
@@ -13401,7 +13397,7 @@ After you initiate the report, [get results via WebSocket](#retrieve-live-report
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 #### Parameters
 
@@ -13415,7 +13411,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 ##### Request body
 
@@ -13454,7 +13450,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 ##### Request body
 
@@ -13503,7 +13499,7 @@ After the report has been initiated, [get results via WebSocket](#retrieve-live-
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 #### Parameters
 
@@ -13517,7 +13513,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13556,7 +13552,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13595,7 +13591,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with invalid label
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
