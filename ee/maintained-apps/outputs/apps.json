@@ -5924,6 +5924,13 @@
       "description": "Mullvad VPN is a VPN client."
     },
     {
+      "name": "Mullvad VPN",
+      "slug": "mullvad-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mullvad VPN",
+      "description": "Mullvad VPN is a VPN client."
+    },
+    {
       "name": "Multitouch",
       "slug": "multitouch/darwin",
       "platform": "darwin",
