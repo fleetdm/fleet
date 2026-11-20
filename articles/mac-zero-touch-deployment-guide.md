@@ -1,137 +1,155 @@
-# Mac zero-touch deployment: How to automate device provisioning with ADE
+# Mac zero-touch deployment: how to automate device provisioning with ADE
 
-Shipping Mac devices to remote employees typically means either extensive IT hands-on configuration or sending users inadequately secured machines. Manual provisioning doesn't scale and misconfigured devices create security gaps that persist for months. This guide covers what zero-touch deployment is, how the technical architecture works, and practical setup considerations for Mac fleets.
+*Macs have shipped straight to employees, ready to work, for years, and Apple doesn't charge for it. Here's how Mac zero touch works, and how Fleet now brings the same zero-license-cost setup to Windows and Linux.*
+
+## Key takeaways
+
+- **New Macs set themselves up.** With Automated Device Enrollment (ADE), a Mac ships from Apple or a reseller to the employee, finds its MDM on first boot, and applies your settings without IT ever touching it.
+- **Mac zero touch costs nothing extra.** Apple Business is free. Once your organization is verified and your MDM is connected, every eligible Mac you buy can enroll automatically.
+- **Setup goes faster when the prerequisites are in place.** Organization verification, the MDM server connection, network access during Setup Assistant, and identity provider sign-in cause most failed rollouts.
+- **Apple keeps adding to ADE.** Platform SSO during enrollment, declarative device management, and new Apple Business APIs mean less work after the first boot.
+- **Windows and Linux get zero touch too, without Autopilot.** Dell, Lenovo, HP, and other PC makers can install Fleet's agent before the computer ships, so you don't need Autopilot, Entra ID, or Intune. For qualifying customers, Fleet pays the PC maker's fee.
+- **One tool and one Git repository for every computer.** Fleet manages Macs, Windows PCs, and Linux machines from the same YAML files, reviewed and deployed like the rest of your infrastructure.
+
+<a purpose="cta-button" href="https://fleetdm.com/contact">Get a demo</a>
+
+When you ship a computer to a remote employee, you usually have two choices: spend IT time setting it up by hand, or send it out without the security settings it needs. Setting up computers by hand doesn't scale, and a misconfigured computer can stay that way for months.
+
+Mac admins solved this years ago with zero touch. This guide covers how it works, what you need before your first rollout, and how the same approach now works for the Windows and Linux computers in your fleet.
 
 ## What is zero-touch deployment for Mac?
 
-Zero-touch deployment lets organizations ship Macs directly from vendors to end users without IT intervention. When a user opens their box and powers on their new Mac it walks them though a setup assistant, automatically queries Apple's servers, receives its MDM assignment, enrolls itself, and applies the organization's security policies and configuration profiles. 
+Zero-touch deployment lets organizations ship Macs directly from Apple or a reseller to end users. When the end user opens the box and turns on their new Mac, it contacts Apple's servers, learns which MDM it belongs to, enrolls, and applies your organization's settings and configuration profiles as the user walks through Setup Assistant.
 
-The workflow is enabled by Apple's Automated Device Enrollment (formerly DEP), which links a device's serial number to an MDM server through Apple Business (AB). When powered on, devices query Apple's activation servers to determine their assigned MDM service and automatically enroll. For macOS 14 and later, if devices don't enroll during first setup, they display a full-screen setup experience that enforces enrollment, preventing users from bypassing organizational control.
+Apple's Automated Device Enrollment (formerly DEP) makes this possible by linking each Mac's serial number to your MDM server in Apple Business. On macOS 14 and later, a Mac that skips enrollment during first setup shows a full-screen prompt that requires it, so end users can't bypass your organization's management.
 
-This automation eliminates the traditional imaging workflow where IT teams receive shipments, unbox devices, connect them to imaging stations, install base configurations, and then ship them to users. Instead, devices go directly from the vendor to employees, arriving ready for automated configuration and immediate use.
+This replaces the old imaging routine, where IT received shipments, unboxed each computer, connected it to an imaging station, installed a base configuration, and shipped it again. Now computers go straight to employees and are ready to use when they arrive.
 
-## Why organizations need zero-touch deployment
+## Why organizations use zero-touch deployment
 
-Remote work has fundamentally changed device provisioning expectations. Managing distributed workforces means teams can't rely on physical device access for configuration, yet security requirements have only increased. Zero-touch deployment addresses several operational and security challenges that traditional provisioning workflows can't handle efficiently.
+Remote work changed how computers get set up. IT teams can't count on having the computer in hand, and security requirements keep growing. Zero touch helps in a few ways:
 
-Organizations adopting zero-touch deployment typically see improvements across several areas:
+* **Faster setup:** Computers ship directly to end users instead of through an IT office, so people can start work the day the box arrives.
+* **Consistent security settings:** Every computer gets the same configuration profiles from first boot, without the variation that comes with setting them up by hand.
+* **Less IT work:** A 500-computer rollout that once took weeks of hands-on work happens on its own.
+* **A better experience for remote employees:** End users don't need technical knowledge to get started, and you can skip most Setup Assistant screens.
+* **Clearer compliance records:** Your MDM records when each computer enrolled and which settings it received, so you don't have to reconstruct a manual process for an audit.
 
-* **Faster device provisioning:** Devices ship directly from vendors to users, eliminating the delay of routing through IT facilities. Users can typically start working immediately after unboxing rather than waiting days or weeks for IT-configured devices.  
-* **Consistent security baselines:** Devices receive identical configuration profiles automatically, removing the variability that manual provisioning introduces. Configuration drift becomes less likely when devices enroll with known-good settings from first boot.  
-* **Reduced IT workload:** IT teams don't touch devices physically, freeing time for higher-value projects. A 500-device deployment that might have required weeks of hands-on work happens automatically.  
-* **Improved remote user experience:** Users receive devices that typically work immediately without requiring technical setup knowledge. The enrollment process can skip most Setup Assistant panes, getting users to productivity faster.  
-* **Better compliance audit trails:** MDM systems automatically log enrollment timestamps, applied policies, and configuration changes. Compliance teams can generate reports showing exactly when and how devices were provisioned without reconstructing manual processes.
-
-These provisioning, security, and efficiency improvements compound when managing geographically distributed teams. Organizations with offices across multiple countries can provision devices in each location using the same automated workflow, maintaining consistent security posture regardless of where devices ship.
+These benefits grow with distributed teams. Offices in different countries can use the same automated setup, so every computer starts with the same security settings wherever it ships.
 
 ## How zero-touch deployment works
 
-Mac zero-touch deployment operates through a three-tier architecture: Apple Business as the enrollment authority, the MDM server as the policy distributor, and the Mac itself as an active participant in provisioning.
+Mac zero touch has three parts: Apple Business decides where each Mac enrolls, your MDM server sends its settings, and the Mac sets itself up.
 
 ### Device registration and assignment
 
-Devices must be purchased from Apple or participating Apple Authorized Resellers to be automatically registered in Apple Business. The vendor registers devices to your organization's Apple Business account during purchase, linking each serial number to that organization.
+Macs bought from Apple or a participating Apple Authorized Reseller are added to your organization's Apple Business account automatically when you buy them. You can also add Macs bought elsewhere with Apple Configurator, though that takes a manual step for each one.
 
-After devices appear in Apple Business, you assign them to the MDM server through the ABM web portal. This assignment links serial numbers with the MDM instance through a "virtual MDM server" configuration, establishing the trust relationship for automatic enrollment.
+Once a Mac appears in Apple Business, you assign it to your MDM server in the Apple Business web portal. You can also set a default MDM server so new purchases are assigned automatically.
 
 ## Prerequisites and setup considerations
 
-Successfully implementing zero-touch deployment depends on having the right infrastructure components. Missing prerequisites are a common source of enrollment failures, so verification before deployment saves significant troubleshooting time.
+Missing prerequisites cause most enrollment failures, so check these before your first rollout.
 
 ### Required infrastructure
 
-You need an Apple Business account with organizational verification. Your organization must complete Apple's verification process before devices can enroll through ADE. This process requires a valid D-U-N-S number (an organization's business tax identification) and verification of organizational details by Apple representatives. Verification is separate from ABM account creation and typically takes 24-48 hours to complete. Missing this step is a common cause of ADE enrollment failures, as devices won't appear in your ABM account until verification is approved.
+You need a verified Apple Business account. Apple asks for your organization's D-U-N-S number (a unique business identifier from Dun & Bradstreet) and confirms your details before Macs can enroll through ADE. Verification is separate from creating the account and can take a few days, and Macs won't appear in Apple Business until it's done.
 
-Your MDM server must be added to Apple Business as a virtual MDM server, establishing the trust relationship for device assignments. Your MDM tool must support Automated Device Enrollment with mandatory, non-removable enrollment profiles and the Auto Advance key for Setup Assistant customization.
+You also need to connect your MDM server in Apple Business so it can receive Mac assignments. Your MDM needs to support Automated Device Enrollment, enrollment profiles that end users can't remove, and Setup Assistant customization.
 
-Network connectivity requires internet access to contact Apple's activation servers and MDM endpoints during first boot. Fully automated deployment without any user interaction requires Ethernet connectivity during Auto Advance. Wi-Fi-only deployments typically require users to select the network during Setup Assistant, though Wi-Fi profiles can be pre-configured in enrollment settings.
+During first boot, the Mac needs internet access to reach Apple's activation servers and your MDM. For setup with no end user interaction at all, use Ethernet with Auto Advance. With Wi-Fi, the end user usually picks the network during Setup Assistant.
 
 ### Identity provider integration
 
-Most enterprise deployments integrate LDAP or SAML authentication during enrollment. Platform SSO can now be activated during automated device enrollment, a capability announced at WWDC 2025\. Platform SSO allows employees to access managed apps and company services through their identity provider without additional sign-ins after initial enrollment.
+Most organizations ask end users to sign in with their identity provider (IdP) during enrollment. Your MDM gets the user's details from the IdP and links them to the Mac, so you can apply settings based on role or department. Test sign-in before a fleet-wide rollout, so enrollment doesn't succeed while employees still can't reach company apps.
 
-The MDM server requests authentication through the IdP, receives user attributes, and associates them with the enrolling device. This connection allows user-specific policies based on job role or department. Testing authentication workflows before fleet-wide deployment prevents failures where enrollment succeeds but users lack access to corporate resources.
+## Apple management technologies that build on ADE
 
-## Supporting Apple management technologies
-
-Beyond the core ADE workflow, several Apple technologies work together to create automated provisioning that handles thousands of devices. Understanding how these pieces connect helps teams design enrollment workflows that take full advantage of Apple's management capabilities.
+Several other Apple technologies build on ADE and reduce the work after first boot.
 
 ### Declarative device management
 
-Apple's Declarative Device Management represents a strategic shift from server-managed to device-managed enforcement. Rather than MDM servers constantly polling devices to verify compliance status, DDM servers push declarations to devices, which autonomously enforce policy and proactively report status changes. This reduces constant polling and server burden by distributing enforcement logic to devices. 
+With declarative device management (DDM), the MDM sends the Mac a description of how it should be set up, and the Mac enforces it and reports back when something changes. That means less back-and-forth with the server and faster, more reliable results. macOS 26 extended DDM to software, so App Store apps, custom apps, and .pkg files can be installed and kept in place the same way.
 
-Apple announced that macOS 26 will expand DDM capabilities to include package deployment for Mac devices. When released, DDM will support device-driven software distribution for App Store apps, custom apps, and .pkg files, enabling devices enrolled through ADE to use DDM-managed state for end-to-end automated provisioning. This device-driven architecture proves particularly valuable for managing large fleets, as it distributes configuration management responsibility to devices rather than centralizing it on MDM servers.
+### Platform SSO
 
-### Platform SSO integration
+Starting with macOS 26, Platform SSO can be set up during Automated Device Enrollment. End users sign in with their IdP once, during setup, and can then open managed apps and company services without signing in again. This removes a common annoyance where enrollment finishes but every app still asks for a password.
 
-Platform SSO allows identity-first provisioning where authentication happens during enrollment rather than after. Platform SSO can now be activated during automated device enrollment, allowing employees to immediately access managed apps and company services without additional sign-ins. This addresses a common friction point where users complete device enrollment but then face repeated authentication prompts when accessing corporate resources.
+### Apple Business API
 
-### Apple Business API capabilities
+The Apple Business API lets you check which MDM server each Mac is assigned to, list the Macs assigned to a server, and assign or unassign Macs without using the web portal. That makes it possible to manage Mac assignments as code, alongside the rest of your configuration.
 
-Apple Business has received significant API enhancements that allow programmatic device management. New endpoints let administrators retrieve device management service information, list all devices assigned to a specific MDM server, and programmatically assign or unassign devices from management services. 
+## Zero touch for Windows and Linux
 
-These new APIs support infrastructure-as-code patterns where device assignments and MDM configurations are version-controlled and deployed through automated pipelines, aligning with emerging GitOps-based management approaches for enterprise Mac fleet management.
+Mac zero touch has never needed an extra license. Until recently, Windows and Linux didn't have anything comparable.
 
-## Unified device management across platforms
+### Windows without Autopilot
 
-For teams managing mixed fleets, Mac zero-touch deployment compares to similar capabilities on Windows and Linux in distinct ways. Each platform has different enrollment architectures and different maturity levels for automated provisioning.
+The usual Windows zero-touch path is Windows Autopilot. Autopilot requires Microsoft Entra ID, so even companies that use Okta or Google for everything else keep paying Microsoft for identity just to set up laptops. For a 1,000-person company, Entra ID P1 alone costs about $84,000 a year.
 
-### Platform-specific enrollment protocols
+Fleet takes another route. When you order PCs, the PC maker installs Fleet's agent (fleetd) before the computer ships, using Dell Ready Image, Lenovo Ready to Provision, or the equivalent service from HP, Acer, and others. The PC enrolls in Fleet the first time it's online. You don't need Autopilot, Entra ID, Intune, or USB sticks. End users sign in with your IdP, whether that's Okta, Google Workspace, Entra ID, or another IdP Fleet supports.
 
-Windows Autopilot provides Microsoft's zero-touch approach through integration with cloud identity services and Windows MDM services. Windows Autopilot is a collection of technologies used to set up and pre-configure new devices, utilizing the OEM-optimized version of Windows client while simplifying the device lifecycle from initial deployment through end of life. 
+That's **zero touch, $0**. For new Fleet Premium customers replacing Intune on at least 500 PCs, Fleet pays the PC maker's one-time setup fee on new PCs for the term of the subscription. To order, you forward an email from Fleet to Dell, Lenovo, or your PC maker. See the [full terms](https://fleetdm.com/articles/leaving-e3-entirely) for details, since this is a limited-time offer.
 
-Autopilot depends on specific features available in Windows client, cloud identity services, MDM services, Windows Activation services, and automatic device joining/registration to cloud identity during provisioning. Windows Autopilot supports registering existing or self-built devices that weren't purchased through participating OEM channels, by manually collecting and uploading their hardware hashes.
+You can [preinstall Fleet's agent with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package) today. A [Fleet factory image](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot), coming in Fleet 5.2, goes further: end users sign in with your IdP and get their software before they reach the Windows desktop, much like a Mac in Setup Assistant. If you already use Entra ID and Autopilot, Fleet supports those too.
 
-| Platform | Zero-Touch Approach | Key Requirements | Enrollment Method |
+### Linux
+
+Linux has no vendor-provided enrollment service like ADE or Autopilot. Teams have relied on tools like cloud-init, Ansible, and PXE boot, which work but take ongoing effort to build and maintain for each distribution. With Fleet, the same factory approach works for Linux: the PC maker installs fleetd before the computer ships, and zero touch, $0 covers Linux PCs too. Learn more about [automated provisioning for Linux desktops](https://fleetdm.com/articles/automated-provisioning-for-Linux-desktop-in-the-enterprise).
+
+| Platform | Zero-touch approach | What you need | Extra license cost |
 | ----- | ----- | ----- | ----- |
-| macOS | Automated Device Enrollment (ADE) | Apple Business, participating vendors | Cloud-based automatic enrollment via Setup Assistant |
-| Windows | Windows Autopilot | Cloud identity services, Windows MDM, participating OEMs | Cloud-based device registration and provisioning |
-| Linux | Custom automation | Configuration management tools, IT infrastructure | No standardized vendor-provided protocol |
+| macOS | Automated Device Enrollment (ADE) | Apple Business, Macs bought from Apple or a participating reseller | None |
+| Windows | Fleet agent installed by the PC maker | A participating PC maker (Dell, Lenovo, HP, and others) | None, and Fleet pays the PC maker's fee for qualifying customers |
+| Windows (alternative) | Windows Autopilot | Microsoft Entra ID, a Windows MDM | Entra ID P1 or a bundle that includes it |
+| Linux | Fleet agent installed by the PC maker | A participating PC maker | None, and Fleet pays the PC maker's fee for qualifying customers |
 
-While Linux supports automated provisioning through tools like cloud-init, Ansible, and PXE boot, it lacks a vendor-provided MDM enrollment protocol comparable to ADE or Autopilot. These deployments rely on configuration management infrastructure rather than MDM-based enrollment, and implementations remain distribution-specific since macOS and Windows are the only platforms with vendor-supported zero-touch enrollment using standardized protocols. Building Linux zero-touch provisioning requires substantial ongoing investment in custom automation.
+### One set of settings after enrollment
 
-### Post-enrollment management convergence
-
-Though each operating system platform requires separate enrollment infrastructure (Apple Business for macOS, Windows Autopilot for Windows, and custom automation for Linux) modern MDM solutions can provide unified management after enrollment completes. Administrators can configure management once and deploy across platforms, with MDM translating intent into platform-specific implementations.
-
-With single-platform device management solutions, IT teams must architect separate enrollment strategies per platform while seeking unified visibility and control post-enrollment. A practical approach involves accepting platform-specific enrollment workflows while standardizing on security baselines and compliance monitoring that work across operating systems.
+Each platform still starts differently, but after enrollment Fleet manages them the same way. You can set security baselines, check compliance, and install software for Macs, Windows PCs, and Linux machines in one place, instead of running a separate tool and workflow for each.
 
 ## GitOps-based Mac fleet management
 
-Infrastructure-as-code patterns are being adopted for device management. Using GitOps workflows in production environments means storing device configuration as declarative code in a version-controlled repository management solution like GitHub or GitLab.
+More IT teams now manage computers the way infrastructure teams manage servers: as code. With GitOps, your configuration lives as files in a Git repository on GitHub or GitLab.
 
-This approach provides several advantages for IT teams. Configuration changes go through code review before deployment, creating an audit trail of who changed what and why. Teams can stage test configuration updates before applying them to production fleets and easily roll back undesirable changes. If your infrastructure team is already familiar with GitOps patterns for server and application management, they can apply the same methodologies to device management.
+Every change goes through a code review, so you have a record of who changed what and why. You can test changes on a few computers before rolling them out, and roll back with a revert. If your infrastructure team already works this way, they can use the same habits for computers.
 
-With Fleet GitOps, organizations define configuration through YAML files that specify bootstrap packages, Setup Assistant customization, IdP authentication, and security policies, software, configuration profiles an scripts. These files live in GitHub repositories alongside other infrastructure code, receiving the same review and deployment workflows as your other infrastructure.
+With Fleet GitOps, YAML files define bootstrap packages, Setup Assistant customization, IdP sign-in, policies, software, configuration profiles, and scripts for every platform. Those files live alongside your other infrastructure code and go through the same review and deployment process.
 
-## Open-source Mac fleet management
+## Zero touch for every computer
 
-Implementing zero-touch deployment gives your team consistent device provisioning while reducing manual workload. The right tool makes the difference between automation that works and automation that creates new problems. This is where Fleet comes in.
+Zero touch used to be a Mac advantage. Now new Windows and Linux computers can arrive ready to work too, without Autopilot, Entra ID, or an extra license, and Fleet sets up all of them from one place.
 
-Fleet integrates with Apple Business for automated device enrollment and provides the multi-platform visibility you need when managing mixed Mac, Windows, and Linux fleets. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet simplifies Mac fleet management.
+## See it live
+
+- [Get a demo](https://fleetdm.com/contact) to see Fleet set up a new Mac, Windows PC, or Linux computer.
+- Read [Leaving E3 entirely](https://fleetdm.com/articles/leaving-e3-entirely) to see what zero touch, $0 means for a 1,000-person company's software bill.
 
 ## Frequently asked questions
 
 ### Can we implement zero-touch deployment without Apple Business?
 
-Automated Device Enrollment requires devices registered in Apple Business or Apple School Manager, which is only possible when purchased from Apple or participating Apple Authorized Resellers. Alternative methods like user-initiated enrollment or Apple Configurator require manual steps and don't provide the same capabilities. Devices acquired through unauthorized channels can't use Automated Device Enrollment.
+No. Automated Device Enrollment requires Macs registered in Apple Business or Apple School Manager. Macs bought from Apple or a participating reseller are added automatically, and you can add others with Apple Configurator. Other options, like having end users enroll themselves, take manual steps and don't give you the same control.
 
-### What happens if a device fails to enroll during first boot?
+### Does zero touch for Windows and Linux need a Microsoft license?
 
-Common failure causes include network connectivity issues, MDM server configuration errors, or device assignment problems. Troubleshooting involves checking MDM synchronization status, verifying device assignment in Apple Business, and ensuring access to Apple's activation servers and MDM endpoints.
+No. The PC maker installs Fleet's agent before the computer ships, so you don't need Autopilot, Entra ID, or Intune. For qualifying customers, Fleet pays the PC maker's setup fee.
+
+### What happens if a Mac fails to enroll during first boot?
+
+Network problems, MDM server settings, and missing assignments in Apple Business cause most failures. Check that the Mac is assigned to the right MDM server in Apple Business, that your MDM has synced recently, and that the Mac can reach Apple's activation servers and your MDM.
 
 ### How does zero-touch deployment affect device security and compliance?
 
-Zero-touch deployment strengthens security by ensuring devices receive consistent baseline configurations from first boot. Enrollment profiles can be configured as non-removable, and the automated workflow reduces configuration variability that manual provisioning introduces, making compliance audits simpler through complete enrollment and configuration logs.
+Every computer gets the same security settings from first boot, and enrollment profiles can be set so end users can't remove them. Your MDM's enrollment and configuration records make compliance audits simpler.
 
 ### Does zero-touch deployment work for device refresh cycles?
 
-Yes. Replacement devices enroll automatically through the same workflow as new devices. [Try Fleet](https://fleetdm.com/device-management) to see how declarative configuration automates enrollment workflows for both new devices and refresh scenarios.
+Yes. Replacement computers enroll through the same process as new ones. [Try Fleet](https://fleetdm.com/device-management) to see how it handles new computers and refreshes.
 
-<meta name="articleTitle" value="Mac Zero-Touch Deployment: Complete Enterprise Guide 2026">
+<meta name="articleTitle" value="Mac zero-touch deployment: how to automate device provisioning with ADE">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-26">
-<meta name="description" value="Complete guide to Mac zero-touch deployment using Apple Business and MDM. Learn setup and best practices for remote Mac fleet management.">
-
+<meta name="description" value="How Mac zero-touch deployment works with Apple Business and ADE, and how Fleet brings zero touch, $0 to Windows and Linux without Autopilot.">
