@@ -35,6 +35,8 @@ knowledge_base:
     filePatterns:
       - files: "docs/Contributing/reference/patterns-backend.md"
         applyTo: "server/**/*.go, ee/**/*.go"
+      - files: "frontend/docs/patterns.md"
+        applyTo: "frontend/**/*.ts, frontend/**/*.tsx, frontend/**/*.scss"
 issue_enrichment:
   auto_enrich:
     enabled: false
