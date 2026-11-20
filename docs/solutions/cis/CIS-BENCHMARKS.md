@@ -8,8 +8,6 @@ from CIS PDF documents end-to-end.
 
 ```
 docs/solutions/cis/
-  macos-13/
-  macos-14/
   macos-15/
   macos-26/
   win-10/

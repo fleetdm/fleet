@@ -56,9 +56,9 @@ func TestGroupFromBytesWithStdLib(t *testing.T) {
 	require.NotEmpty(t, g.Policies)
 }
 
-func TestGroupFromBytesWithMacOS13CISQueries(t *testing.T) {
+func TestGroupFromBytesWithMacOS15CISQueries(t *testing.T) {
 	cisQueries := loadSpec(t,
-		"docs", "solutions", "cis", "macos-13", "policies", "cis-policy-queries.yml",
+		"docs", "solutions", "cis", "macos-15", "policies", "cis-policy-queries.yml",
 	)
 	var policies []*Policy
 	require.NoError(t, YamlUnmarshal(cisQueries, &policies))

@@ -4,8 +4,6 @@ CIS Benchmarks represent the consensus-based effort of cybersecurity experts to 
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
 Fleet has implemented native support for CIS Benchmarks for the following platforms:
-- macOS 13.0 Ventura
-- macOS 14.0 Sonoma
 - macOS 15.0 Sequoia
 - macOS 26.0 Tahoe
 - Windows 10 Enterprise
@@ -92,8 +90,6 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 Certain benchmarks cannot be automated by a policy in Fleet. For a list of specific benchmarks which are not covered, please visit the README for each benchmark:
 
-- [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-13/README.md)
-- [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-14/README.md)
 - [macOS 15.0 Sequoia](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-15/README.md)
 - [macOS 26.0 Tahoe](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-26/README.md)
 - [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/win-10/README.md)

@@ -6,7 +6,7 @@ Automates CIS benchmark policy testing against macOS VMs using tart,
 fleetctl, and Fleet's team/MDM infrastructure.
 
 Usage:
-    python3 cis-test-runner.py --macos-version 14 --all \
+    python3 cis-test-runner.py --macos-version 15 --all \
         --fleet-url https://fleet.example.com --fleet-token TOKEN
 
 Dependencies: pyyaml (pip3 install pyyaml)
@@ -38,14 +38,6 @@ TMP_DIR = Path(__file__).resolve().parent.parent.parent / "tmp"
 # ---------------------------------------------------------------------------
 
 VERSION_MAP = {
-    "13": {
-        "image": "ghcr.io/cirruslabs/macos-ventura-base:latest",
-        "dir": "macos-13",
-    },
-    "14": {
-        "image": "ghcr.io/cirruslabs/macos-sonoma-base:latest",
-        "dir": "macos-14",
-    },
     "15": {
         "image": "ghcr.io/cirruslabs/macos-sequoia-base:latest",
         "dir": "macos-15",
@@ -66,17 +58,12 @@ VM_PASS = "admin"
 #
 # IMPORTANT: CIS section numbers are NOT stable across benchmark
 # versions or between OS versions. A recommendation that is 2.3.3.4
-# in macOS 14 v3.0.0 may be renumbered in the next release. Keyed by
+# in macOS 15 v2.0.0 may be renumbered in the next release. Keyed by
 # (os_version, cis_id).
 #
 # When adding a new entry, verify the mapping against the benchmark
 # document for that specific OS version.
 SSH_BREAKING_CIS_IDS: dict[str, set[str]] = {
-    # macOS 14 Sonoma v3.0.0:
-    #   2.3.3.4 - Ensure Remote Login Is Disabled (disables sshd)
-    #   2.3.3.5 - Ensure Remote Management Is Disabled (also disables sshd)
-    "13": set(),
-    "14": {"2.3.3.4", "2.3.3.5"},
     # macOS 15 Sequoia v2.0.0:
     #   2.3.3.4 - Ensure Remote Login Is Disabled (disables sshd)
     "15": {"2.3.3.4"},
@@ -91,16 +78,6 @@ SSH_BREAKING_CIS_IDS: dict[str, set[str]] = {
 # pre-test push and tested individually with a restore step.
 # Keyed by OS version (CIS section numbers aren't stable across releases).
 PASSWORD_POLICY_CIS_IDS: dict[str, set[str]] = {
-    # macOS 14 Sonoma v3.0.0:
-    #   5.2.1 - Password Account Lockout Threshold
-    #   5.2.2 - Password Minimum Length (requires 15+ chars)
-    #   5.2.3, 5.2.4 - Password must contain alphabetic + numeric
-    #   5.2.5 - Password must contain special character
-    #   5.2.6 - Password must contain uppercase+lowercase
-    #   5.2.7 - Password Age
-    #   5.2.8 - Password History
-    "13": set(),
-    "14": {"5.2.1", "5.2.2", "5.2.3", "5.2.4", "5.2.5", "5.2.6", "5.2.7", "5.2.8"},
     "15": set(),
     "26": set(),
 }
@@ -117,36 +94,6 @@ PASSWORD_POLICY_CIS_IDS: dict[str, set[str]] = {
 # should be accompanied by a comment describing why.
 # Keyed by OS version.
 NON_AUTOMATABLE_CIS_IDS: dict[str, dict[str, str]] = {
-    "13": {},
-    "14": {
-        # 1.1: installing macOS updates inside a tart VM is unreliable
-        # and slow, and the `softwareupdate -i -a` pass script can't
-        # guarantee `software_update_required='0'` on an ephemeral VM.
-        "1.1": "Requires real hardware with a connected Apple ID to install updates",
-        # 2.1.1.1: only an enable profile exists; no disable variant
-        # to flip the state, so ORG_DECISION testing is incomplete.
-        "2.1.1.1": "Missing 2.1.1.1-disable.mobileconfig for ORG_DECISION testing",
-        # 2.1.1.2: ORG_DECISION both directions fail because the
-        # managed_policies user-scope values persist after profile
-        # removal, corrupting subsequent push/verify cycles.
-        "2.1.1.2": "User-scope managed_policies persist after profile removal",
-        # 2.5.1 main + 3 field pairs: the Siri profiles (enable/disable)
-        # are SHARED across four tests (main Siri plus three field
-        # pairs), and the user-scope `allowAssistant` doesn't cleanly
-        # flip between pushes, causing unpredictable cross-test state.
-        "2.5.1": "Shared Siri profile causes cross-test state pollution",
-        # 2.6.1.1: Location Services can't be enabled via MDM alone —
-        # macOS requires explicit user privacy consent that a VM
-        # cannot provide.
-        "2.6.1.1": "VM cannot satisfy user-privacy gate for Location Services",
-        # 2.6.3: the existing 2.6.3.mobileconfig sets
-        # allowApplePersonalizedAdvertising (wrong key — that's 2.6.4)
-        # instead of SubmitDiagInfo.AutoSubmit.
-        "2.6.3": "Existing profile sets wrong keys; needs a corrected mobileconfig",
-        # 2.8.1: Universal Control profiles do not reliably toggle
-        # the managed_policies values in a way the query can observe.
-        "2.8.1": "Universal Control profile toggling unreliable",
-    },
     "15": {},
     "26": {},
 }
@@ -1543,13 +1490,13 @@ Prerequisites:
 
 Examples:
   # Test a single benchmark
-  python3 %(prog)s --macos-version 14 --cis-ids 2.3.3.4
+  python3 %(prog)s --macos-version 15 --cis-ids 2.3.3.4
 
   # Test all benchmarks, skip those without scripts or profiles
-  python3 %(prog)s --macos-version 14 --all --skip-manual
+  python3 %(prog)s --macos-version 15 --all --skip-manual
 
   # Test by name, clean up everything after
-  python3 %(prog)s --macos-version 14 --match "Remote Login" --cleanup
+  python3 %(prog)s --macos-version 15 --match "Remote Login" --cleanup
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1723,8 +1670,6 @@ Examples:
         help=(
             "Override the tart base image. By default, the image is "
             "chosen based on --macos-version: "
-            "13=ghcr.io/cirruslabs/macos-ventura-base:latest, "
-            "14=ghcr.io/cirruslabs/macos-sonoma-base:latest, "
             "15=ghcr.io/cirruslabs/macos-sequoia-base:latest, "
             "26=ghcr.io/cirruslabs/macos-tahoe-base:latest."
         ),
