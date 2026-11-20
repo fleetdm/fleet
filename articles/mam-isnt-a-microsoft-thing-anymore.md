@@ -73,7 +73,7 @@ It's not laziness. People don't know what IT can see on their personal phone, so
 
 The result is high friction, low adoption, and a culture where even executives are reticent to give up their privacy and risk [their kids’ pictures getting randomly wiped by Intune](https://www.bankinfosecurity.com/microsoft-intune-mdm-gains-notoriety-after-stryker-hack-a-31084).
 
-## BYOD enrollment is rapidly increasing because of AI
+## BYOD enrollment is increasing because of AI
 
 But this is changing, and AI is speeding it up. For example, one publicly traded fintech company held out against BYOD for years, but recently started a program because it wants tools like Claude to work on employees' devices and reach company data, with conditional access and an enrolled device deciding how much each one gets.  This is an increasingly common story among other mid-sized and large Fleet customers, and as of late 2026, the trend is accelerating.
 
