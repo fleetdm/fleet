@@ -165,7 +165,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -257,6 +257,31 @@ describe("MDMStatusModal - component", () => {
     });
   });
 
+  it("does not render profile assignment section for a non-AB host (not automatic or pending)", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      id: 3,
+      dep_device: null,
+      dep_device_error: null,
+      host_dep_assignment: null,
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
+  });
+
   it("shows spinner while DEP assignment is loading", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
@@ -267,7 +292,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -291,7 +316,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -321,7 +346,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -350,7 +375,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -381,7 +406,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -416,7 +441,7 @@ describe("MDMStatusModal - component", () => {
     const { user } = render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={router}
         isPremiumTier
         platform={"darwin"}
@@ -488,7 +513,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
