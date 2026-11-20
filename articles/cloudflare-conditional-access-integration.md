@@ -110,12 +110,12 @@ To give access back after fixing a host, ask the end user to select **Refetch** 
 
 - **Test and save fails in Step 4**: Check that the service token from Step 3 is in the Access application's **Service Auth** policy, and that `POLICY_AUD` and `TEAM_DOMAIN` match your Access application and team domain.
 - **Every host gets a score of `0`**: Run `npx wrangler tail` and wait for the next poll. "failed to query Fleet" means the Worker can't reach Fleet, or the API token from Step 1 is wrong. If there's no error, check that the Cloudflare One Client reports a serial number for the device in **Zero Trust > Team & Resources > Devices**.
-- **One host gets a score of `0` while it's passing in Fleet**: Check that its serial number in Fleet matches the serial number in Cloudflare. If two hosts in Fleet share a serial number, both must pass.
+- **One host gets a score of `0` while it's passing in Fleet**: Check that its serial number in Fleet matches the serial number in Cloudflare. If two hosts in Fleet share a serial number, both must pass. Cloudflare's block page shows a **Device serial number**, but that value is the Cloudflare device ID, not the hardware serial number. Find the hardware serial number in **Zero Trust > Team & Resources > Devices**.
 - **Worker fails with "Too many subrequests"**: The Worker makes one request to Fleet for every 1,000 hosts, plus one for every policy ID in `POLICY_IDS`. Workers on the free plan are limited to 50 subrequests per request. Use a paid Workers plan for large deployments.
 
 <meta name="articleTitle" value="Conditional access: Cloudflare">
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="">
+<meta name="publishedOn" value="2026-11-20">
 <meta name="description" value="Use Cloudflare One for conditional access, blocking hosts that fail Fleet policies from apps and networks protected by Cloudflare.">
