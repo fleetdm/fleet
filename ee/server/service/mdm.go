@@ -1323,29 +1323,9 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		return u.String(), byodSessionID, "", 0
 
 	case ssoRequestData.Initiator == fleet.SSOInitiatorFleetDesktop:
-		// Re-check the feature is still on: an admin may have disabled it between
-		// initiation and this callback, and a session minted now would outlive
-		// that change by its whole TTL.
-		appConfig, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get app config for device sso callback"))
-			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
-		}
-		if !appConfig.FleetDesktop.SSOEnabled {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, errors.New("fleet desktop sso is disabled"), "device sso callback"))
-			return deviceSSOErrorURL(originalURL, "sso_disabled"), "", "", 0
-		}
-
-		host, err := svc.ds.HostByUUID(ctx, ssoRequestData.HostUUID)
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get host for device sso callback"))
-			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
-		}
-
-		deviceSSOSessionID, deviceSSOSessionTTL, err := svc.createDeviceSSOSession(ctx, host, enrollmentRef)
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "create device sso session"))
-			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		deviceSSOSessionID, deviceSSOSessionTTL, failureReason := svc.deviceSSOSessionFromCallback(ctx, ssoRequestData.HostUUID, enrollmentRef)
+		if failureReason != "" {
+			return deviceSSOErrorURL(originalURL, failureReason), "", "", 0
 		}
 		return originalURL, "", deviceSSOSessionID, int(deviceSSOSessionTTL.Seconds())
 

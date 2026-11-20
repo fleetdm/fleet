@@ -1,0 +1,1 @@
+* Added support for signing in with a security key (YubiKey) or passkey when Fleet Desktop SSO is enabled. The IdP sign-in now runs in the system's web authentication session instead of the in-app browser, and reuses the browser's existing IdP session. Requires a Fleet server that supports it; with older servers, sign-in still happens in the in-app browser.

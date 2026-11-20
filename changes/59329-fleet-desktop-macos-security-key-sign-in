@@ -1,0 +1,1 @@
+- Added support for signing in with a security key (YubiKey) or passkey when single sign-on is enabled for Fleet Desktop on macOS. The Fleet Desktop macOS app now runs the IdP sign-in in the system's web authentication session. Requires the matching Fleet Desktop macOS app version.

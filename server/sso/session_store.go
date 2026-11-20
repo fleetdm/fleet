@@ -68,6 +68,11 @@ type SSORequestData struct {
 	// the deviceinfo Fleet parsed and verified at initiation.
 	DeviceSerial string `json:"device_serial,omitempty"`
 	DeviceUDID   string `json:"device_udid,omitempty"`
+	// NativeCallback marks a Fleet Desktop flow whose IdP sign-in runs in the
+	// system browser on behalf of a native app. Its callback is found through
+	// RelayState instead of the handshake cookie, and answers with a one-time
+	// code instead of a session cookie.
+	NativeCallback bool `json:"native_callback,omitempty"`
 }
 
 // Session stores state for the lifetime of a single sign on session.

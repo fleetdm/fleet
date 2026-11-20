@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -100,6 +101,9 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 type initiateDeviceSSORequest struct {
 	Token string `url:"token"`
+	// A query parameter, not a body field: a body field would make the body
+	// mandatory, and pages loaded before this parameter existed send none.
+	NativeCallback bool `query:"native_callback,optional"`
 }
 
 func (r *initiateDeviceSSORequest) deviceAuthToken() string { return r.Token }
@@ -123,7 +127,7 @@ func (r initiateDeviceSSOResponse) SetCookies(_ context.Context, w http.Response
 
 func initiateDeviceSSOEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateDeviceSSORequest)
-	initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+req.Token)
+	initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+req.Token, req.NativeCallback)
 	if err != nil {
 		return initiateDeviceSSOResponse{Err: err}, nil
 	}
@@ -134,9 +138,59 @@ func initiateDeviceSSOEndpoint(ctx context.Context, request any, svc fleet.Servi
 	}, nil
 }
 
-func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string, nativeCallback bool) (*fleet.DeviceSSOInitiation, error) {
 	svc.authz.SkipAuthorization(ctx)
 	return nil, fleet.ErrMissingLicense
+}
+
+func (svc *Service) DeviceSSONativeCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+	// skipauth: No authorization check needed due to implementation
+	// returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return apple_mdm.FleetDesktopSSOCallbackURL + "?error=error"
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// POST /device/{token}/sso/exchange
+/////////////////////////////////////////////////////////////////////////////////
+
+type exchangeDeviceSSOCodeRequest struct {
+	Token string `url:"token"`
+	Code  string `json:"code"`
+}
+
+func (r *exchangeDeviceSSOCodeRequest) deviceAuthToken() string { return r.Token }
+
+type exchangeDeviceSSOCodeResponse struct {
+	Err error `json:"error,omitempty"`
+	// Cookie fields
+	sessionID       string
+	sessionDuration time.Duration
+}
+
+func (r exchangeDeviceSSOCodeResponse) Error() error { return r.Err }
+
+func (r exchangeDeviceSSOCodeResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if r.sessionID == "" {
+		return
+	}
+	setDeviceSSOSessionCookie(w, r.sessionID, int(r.sessionDuration.Seconds()))
+}
+
+func exchangeDeviceSSOCodeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*exchangeDeviceSSOCodeRequest)
+	sessionID, sessionDuration, err := svc.ExchangeDeviceSSOCode(ctx, req.Code)
+	if err != nil {
+		return exchangeDeviceSSOCodeResponse{Err: err}, nil
+	}
+	return exchangeDeviceSSOCodeResponse{sessionID: sessionID, sessionDuration: sessionDuration}, nil
+}
+
+func (svc *Service) ExchangeDeviceSSOCode(ctx context.Context, code string) (string, time.Duration, error) {
+	// skipauth: No authorization check needed due to implementation
+	// returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return "", 0, fleet.ErrMissingLicense
 }
 
 func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {

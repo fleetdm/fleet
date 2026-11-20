@@ -39,6 +39,7 @@ SOURCES=(
     "$SRC_DIR/FleetService.swift"
     "$SRC_DIR/BrowserWindow.swift"
     "$SRC_DIR/EnrollmentSheet.swift"
+    "$SRC_DIR/SystemSignIn.swift"
     "$SRC_DIR/ToastWindow.swift"
     "$SRC_DIR/NotifyCommand.swift"
     "$SRC_DIR/FleetDesktopApp.swift"

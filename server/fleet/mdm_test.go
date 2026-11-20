@@ -1,7 +1,9 @@
 package fleet_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -674,6 +676,46 @@ func TestFilterOutUserScopedProfiles(t *testing.T) {
 	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
 
 	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
+}
+
+func TestSSONativeRelayState(t *testing.T) {
+	// "+" and "/" are the characters an IdP is most likely to mangle, so the
+	// session ID must not reach RelayState in standard base64.
+	sessionID := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0xfb, 0xff, 0xfe}, 8))
+	require.Contains(t, sessionID, "+")
+	require.Contains(t, sessionID, "/")
+
+	relayState, err := fleet.NewSSONativeRelayState(sessionID)
+	require.NoError(t, err)
+	require.NotContains(t, string(relayState), "+")
+	require.NotContains(t, string(relayState), "/")
+	require.LessOrEqual(t, len(relayState), 80)
+
+	got, ok := fleet.ParseSSONativeRelayState(string(relayState))
+	require.True(t, ok)
+	require.Equal(t, sessionID, got)
+
+	// Not one of the initiators the cookie-bound flows recognize.
+	require.Empty(t, fleet.ParseSSORelayState(string(relayState)))
+
+	_, err = fleet.NewSSONativeRelayState("not base64!")
+	require.Error(t, err)
+
+	for _, other := range []string{
+		"",
+		fleet.SSOInitiatorFleetDesktop,
+		fleet.SSOInitiatorAppleMDMSSO,
+		"https://evil.example.com",
+		string(relayState) + strings.Repeat("a", 80),
+	} {
+		_, ok := fleet.ParseSSONativeRelayState(other)
+		require.False(t, ok, other)
+	}
+
+	// Still a native callback, so the app gets an answer, but with no session.
+	got, ok = fleet.ParseSSONativeRelayState("fleet_desktop_native:not base64!")
+	require.True(t, ok)
+	require.Empty(t, got)
 }
 
 func TestParseSSORelayState(t *testing.T) {

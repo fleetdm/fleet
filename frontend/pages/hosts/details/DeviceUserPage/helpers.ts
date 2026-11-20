@@ -137,6 +137,39 @@ export const clearDeviceSSOAttempt = (deviceAuthToken: string): boolean => {
   }
 };
 
+interface IFleetDesktopSSOResult {
+  /** One-time code to trade for the session; absent when sign-in failed. */
+  code?: string;
+  error?: string;
+}
+
+type IFleetDesktopSSOMessage =
+  | { action: "waitForWindow" }
+  | { action: "signIn"; url: string };
+
+interface IFleetDesktopSSOBridge {
+  postMessage: (
+    message: IFleetDesktopSSOMessage
+  ) => Promise<IFleetDesktopSSOResult>;
+}
+
+/** The Fleet Desktop macOS app shows this page in a web view, where an IdP's
+ * security key and passkey prompts can't work. When present, this hands the
+ * IdP sign-in to the app: `signIn` runs it in the system's web authentication
+ * session and resolves with what Fleet's callback sent back.
+ *
+ * The app loads this page in the background at launch. `waitForWindow`
+ * resolves once the end user has the app's window open, so the sign-in isn't
+ * started (and left to expire) before anyone is there to complete it. */
+export const getFleetDesktopSSOBridge = ():
+  | IFleetDesktopSSOBridge
+  | undefined =>
+  (window as {
+    webkit?: {
+      messageHandlers?: { fleetDesktopSSO?: IFleetDesktopSSOBridge };
+    };
+  }).webkit?.messageHandlers?.fleetDesktopSSO;
+
 export const isMismatchedSSOUserError = (error: AxiosError | null): boolean =>
   error?.status === 400 &&
   getErrorReason(error) === "mismatched SSO user for this device";
@@ -159,4 +192,9 @@ export const toEndUserIssues = (issues: IHostIssues): IHostIssues => {
  * leave again. A wrapper because jsdom can't stub `window.location`. */
 export const replaceLocation = (url: string) => {
   window.location.replace(url);
+};
+
+/** A wrapper for the same reason as `replaceLocation`. */
+export const reloadPage = () => {
+  window.location.reload();
 };

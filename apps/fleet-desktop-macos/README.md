@@ -61,6 +61,21 @@ The device token in `/opt/orbit/identifier` rotates every hour. Fleet Desktop ha
 - When end-user authentication is required, the IdP sign-in runs inside the sheet
 - After the enrollment profile downloads, the sheet stays open so the remaining steps (installing the profile in System Settings) stay visible
 
+### Single sign-on
+
+When `fleet_desktop.sso_enabled` is on, the device page requires an IdP sign-in. WebKit only allows WebAuthn in an embedded web view for domains the app is associated with, so an IdP's security key or passkey prompt can't work inside the app's WKWebView. The app runs the sign-in in the system's web authentication session instead:
+
+1. The device page finds the app's bridge (`window.webkit.messageHandlers.fleetDesktopSSO`) and waits for the app's window to be open. The page loads in the background at launch, and a sign-in window shouldn't appear before the end user opens the app.
+2. The page asks Fleet for the IdP URL and hands it to the app, which opens it in an `ASWebAuthenticationSession`.
+3. After the IdP sign-in, Fleet redirects to `fleet://sso-callback?code=…`. The session completes on that URL and the app returns the code to the page.
+4. The page exchanges the code for the session cookie, which lands in the WebView, and reloads.
+
+Closing the sign-in window, or the app's window, cancels the sign-in and the page offers **Sign in again**.
+
+Fleet servers that don't support this flow never call the bridge. They navigate the WebView to the IdP instead, which still works for IdP sign-in methods that don't need WebAuthn (passwords, push, Okta FastPass).
+
+MDM enrollment's end-user authentication (in the enrollment sheet) still runs in a WebView.
+
 ### File Downloads
 
 When Fleet serves downloadable content (e.g., MDM enrollment profiles):
@@ -73,6 +88,7 @@ When Fleet serves downloadable content (e.g., MDM enrollment profiles):
 - App Transport Security (ATS) is enforced for the in-app WebView — the embedded portal requires HTTPS
 - External links are restricted to `https`, `http`, and `mailto` schemes
 - The transparency link's redirect is resolved by the app and only an absolute destination is opened in the default browser, so the device token never reaches the browser
+- When Fleet Desktop SSO is enabled, the IdP sign-in runs in the system's web authentication session (`ASWebAuthenticationSession`), not the WebView, so security keys (YubiKey) and passkeys work and the browser's existing IdP session is reused. Only the Fleet page itself can start it. See [Single sign-on](#single-sign-on)
 - During an SSO flow, navigations to a known authenticator app scheme (`com-okta-authenticator`, used by Okta Verify for FastPass) are handed to that app; any other custom scheme ends the flow
 - Device tokens are percent-encoded and not exposed in error messages
 - Downloaded files are only auto-opened if they are `.mobileconfig` profiles
@@ -131,6 +147,7 @@ apps/fleet-desktop-macos/
 │   ├── FleetService.swift           # Config reading, token management, refresh timer
 │   ├── BrowserWindow.swift          # WKWebView window, loading overlay, downloads
 │   ├── EnrollmentSheet.swift        # Sheet that shows Fleet's MDM enrollment page
+│   ├── SystemSignIn.swift           # IdP sign-in in the system web authentication session
 │   ├── Info.plist                   # App bundle metadata
 │   ├── FleetDesktop.entitlements     # Host-app entitlements (managed associated domains)
 │   ├── AppIcon.icns                 # App icon

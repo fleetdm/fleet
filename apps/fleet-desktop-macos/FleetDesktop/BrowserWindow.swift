@@ -50,6 +50,18 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// How long an SSO flow may run before external navigation is cut off.
     private static let ssoFlowTimeout: TimeInterval = 10 * 60
 
+    /// Name of the script message handler the device page uses to hand its IdP
+    /// sign-in to the app. Fleet servers that don't know about it navigate the
+    /// WebView to the IdP instead, which the SSO flow handling above covers.
+    private static let ssoBridgeName = "fleetDesktopSSO"
+
+    private let systemSignIn = SystemSignIn()
+
+    /// Replies owed to pages waiting for the window before they start a
+    /// sign-in. Every one must be called: WebKit raises if a reply handler is
+    /// released unanswered.
+    private var windowWaiters: [(Any?, String?) -> Void] = []
+
     /// The window title used throughout the app.
     static let windowTitle = "Fleet Desktop"
 
@@ -97,6 +109,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         // Configure WKWebView — non-persistent data store so no cookies/cache persist
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
+        config.userContentController.addScriptMessageHandler(self, contentWorld: .page, name: Self.ssoBridgeName)
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = self
         wv.uiDelegate = self
@@ -168,6 +181,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         self.window = win
+        resolveWindowWaiters()
 
         // Clear any web element focus so nothing appears selected on open
         webView?.evaluateJavaScript("document.activeElement?.blur()", completionHandler: nil)
@@ -405,6 +419,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
         loadingOverlay = nil
         pendingPostLoadJS = nil
         resetSSOFlow()
+        systemSignIn.cancel()
         enrollmentSheet?.close()
         onWindowClose?()
     }
@@ -617,6 +632,74 @@ extension BrowserWindow: WKUIDelegate {
             }
         }
         return nil
+    }
+}
+
+// MARK: - WKScriptMessageHandlerWithReply
+
+extension BrowserWindow: WKScriptMessageHandlerWithReply {
+    /// The device page's side of the system sign-in. It sends two messages:
+    ///
+    /// - `{action: "waitForWindow"}` resolves once the window is on screen. The
+    ///   page loads in the background at launch, and a sign-in window must not
+    ///   appear before the end user opens the app.
+    /// - `{action: "signIn", url}` runs the IdP sign-in at `url` and resolves
+    ///   with the query parameters of Fleet's `fleet://sso-callback` redirect.
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage,
+        replyHandler: @escaping (Any?, String?) -> Void
+    ) {
+        // The WebView also shows IdP pages (the embedded flow) and can be left
+        // on an external page; only Fleet's own page may drive a sign-in.
+        let origin = message.frameInfo.securityOrigin
+        guard message.name == Self.ssoBridgeName,
+              message.frameInfo.isMainFrame,
+              origin.protocol == "https", origin.host.lowercased() == fleetHost,
+              let body = message.body as? [String: Any],
+              let action = body["action"] as? String else {
+            replyHandler(nil, "not allowed")
+            return
+        }
+
+        switch action {
+        case "waitForWindow":
+            if window != nil {
+                replyHandler([String: String](), nil)
+            } else {
+                windowWaiters.append(replyHandler)
+            }
+
+        case "signIn":
+            guard let window = window,
+                  let url = (body["url"] as? String).flatMap(URL.init(string:)),
+                  url.scheme?.lowercased() == "https" else {
+                replyHandler(nil, "invalid sign-in request")
+                return
+            }
+            systemSignIn.start(url: url, anchor: window) { [weak self] result in
+                switch result {
+                case .success(let params):
+                    replyHandler(params, nil)
+                case .failure(let error):
+                    replyHandler(nil, error.localizedDescription)
+                }
+                // The sign-in ran in another app's window.
+                if let window = self?.window {
+                    window.makeKeyAndOrderFront(nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+
+        default:
+            replyHandler(nil, "unknown action")
+        }
+    }
+
+    private func resolveWindowWaiters() {
+        let waiters = windowWaiters
+        windowWaiters = []
+        waiters.forEach { $0([String: String](), nil) }
     }
 }
 

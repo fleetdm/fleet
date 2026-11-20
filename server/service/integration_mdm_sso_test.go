@@ -702,6 +702,72 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 	})
 	assert.Zero(t, idpAssociationCount)
 
+	// Native callback: the Fleet Desktop app runs the IdP sign-in in the system
+	// browser, which holds none of this flow's cookies. The callback hands a
+	// one-time code back to the app instead of setting the session cookie.
+	nativeRes := s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+deviceToken+"/sso", nil, http.StatusOK, "native_callback", "true")
+	require.Empty(t, nativeRes.Cookies(), "a native callback flow has no use for the handshake cookie")
+	var nativeInitiation initiateDeviceSSOResponse
+	require.NoError(t, json.NewDecoder(nativeRes.Body).Decode(&nativeInitiation))
+	nativeIdPURL, err := url.Parse(nativeInitiation.URL)
+	require.NoError(t, err)
+	nativeRelayState := nativeIdPURL.Query().Get("RelayState")
+	_, isNative := fleet.ParseSSONativeRelayState(nativeRelayState)
+	require.True(t, isNative)
+
+	callbackCode := func(res *http.Response) string {
+		t.Helper()
+		require.Empty(t, res.Cookies(), "the system browser must not be handed any of the flow's cookies")
+		loc, err := url.Parse(res.Header.Get("Location"))
+		require.NoError(t, err)
+		require.Equal(t, "fleet", loc.Scheme)
+		require.Equal(t, "sso-callback", loc.Host)
+		require.Empty(t, loc.Query().Get("error"))
+		return loc.Query().Get("code")
+	}
+	code := callbackCode(s.CompleteDeviceSSOWithRelayState(s.newSSOTestClient(), nativeInitiation.URL,
+		"sso_user", "user123#", nativeRelayState))
+	require.NotEmpty(t, code)
+	exchangeBody, err := json.Marshal(map[string]string{"code": code})
+	require.NoError(t, err)
+
+	// the code only works with the device token of the host that started the flow
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+otherDeviceToken+"/sso/exchange", exchangeBody, http.StatusBadRequest)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+deviceToken+"/sso/exchange", []byte(`{"code":"nope"}`), http.StatusBadRequest)
+
+	exchangeRes := s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+deviceToken+"/sso/exchange", exchangeBody, http.StatusOK)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+deviceToken+"/sso/exchange", exchangeBody, http.StatusBadRequest)
+	var nativeSessionCookie *http.Cookie
+	for _, c := range exchangeRes.Cookies() {
+		if c.Name == cookieNameDeviceSSOSession {
+			nativeSessionCookie = c
+		}
+	}
+	require.NotNil(t, nativeSessionCookie, "expected the exchange to set the device SSO session cookie")
+	require.True(t, nativeSessionCookie.HttpOnly)
+	require.NotEqual(t, gotSessionCookie.Value, nativeSessionCookie.Value)
+	require.Equal(t, fleetHost.ID, deviceSSOSession(nativeSessionCookie.Value).HostID)
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK,
+		map[string]string{"Cookie": cookieNameDeviceSSOSession + "=" + nativeSessionCookie.Value})
+
+	// RelayState must not stand in for the handshake cookie of a flow that
+	// wasn't started for a native callback: the cookie is what ties that
+	// callback to the browser that started it.
+	cookieBoundClient := s.newSSOTestClient()
+	cookieBoundIdPURL := s.InitiateDeviceSSO(cookieBoundClient, deviceToken)
+	var handshakeSessionID string
+	for _, c := range cookieBoundClient.Jar.Cookies(serverURL) {
+		if c.Name == cookieNameSSOSession {
+			handshakeSessionID = c.Value
+		}
+	}
+	forgedNativeRelayState, err := fleet.NewSSONativeRelayState(handshakeSessionID)
+	require.NoError(t, err)
+	forgedNativeRes := s.CompleteDeviceSSOWithRelayState(s.newSSOTestClient(), cookieBoundIdPURL,
+		"sso_user", "user123#", string(forgedNativeRelayState))
+	require.Equal(t, "fleet://sso-callback?error=error", forgedNativeRes.Header.Get("Location"))
+	require.Empty(t, forgedNativeRes.Cookies())
+
 	// A failed callback sends the end user back to the device page with a
 	// reason, not to the admin SSO callback route, and mints nothing.
 	requireNoSessionMinted := func(res *http.Response, deviceToken, wantReason, msg string) {
@@ -729,6 +795,12 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 	_, thirdToken := newHostWithToken("-c")
 	disabledClient := s.newSSOTestClient()
 	disabledIdPURL := s.InitiateDeviceSSO(disabledClient, thirdToken)
+	var disabledNativeInitiation initiateDeviceSSOResponse
+	require.NoError(t, json.NewDecoder(s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+thirdToken+"/sso", nil,
+		http.StatusOK, "native_callback", "true").Body).Decode(&disabledNativeInitiation))
+	disabledNativeURL, err := url.Parse(disabledNativeInitiation.URL)
+	require.NoError(t, err)
+	disabledNativeRelayState := disabledNativeURL.Query().Get("RelayState")
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"fleet_desktop": { "sso_enabled": false }
 	}`), http.StatusOK, &appConfigResponse{})
@@ -736,6 +808,11 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 		s.CompleteDeviceSSO(disabledClient, disabledIdPURL, "sso_user", "user123#"),
 		thirdToken, "sso_disabled", "feature disabled mid-flow",
 	)
+	// the native callback reports the same failure to the app instead
+	disabledNativeRes := s.CompleteDeviceSSOWithRelayState(s.newSSOTestClient(), disabledNativeInitiation.URL,
+		"sso_user", "user123#", disabledNativeRelayState)
+	require.Equal(t, "fleet://sso-callback?error=sso_disabled", disabledNativeRes.Header.Get("Location"))
+	require.Empty(t, disabledNativeRes.Cookies())
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"fleet_desktop": { "sso_enabled": true }

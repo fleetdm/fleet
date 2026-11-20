@@ -3708,6 +3708,9 @@ type callbackMDMSSORequest struct {
 	sessionID    string
 	relayState   fleet.SSORelayState
 	samlResponse []byte
+	// nativeCallback is set when RelayState, not the handshake cookie, names
+	// the SSO session: a Fleet Desktop flow that returns to the native app.
+	nativeCallback bool
 }
 
 // TODO: these errors will result in JSON being returned, but we should
@@ -3719,10 +3722,17 @@ func (callbackMDMSSORequest) DecodeRequest(ctx context.Context, r *http.Request)
 	if err != nil {
 		return nil, err
 	}
+	// The form was parsed by decodeCallbackRequest. A browser that happens to
+	// hold a handshake cookie for another flow must not have it used here.
+	nativeSessionID, nativeCallback := fleet.ParseSSONativeRelayState(r.FormValue("RelayState"))
+	if nativeCallback {
+		sessionID = nativeSessionID
+	}
 	return &callbackMDMSSORequest{
-		sessionID:    sessionID,
-		relayState:   relayState,
-		samlResponse: samlResponse,
+		sessionID:      sessionID,
+		relayState:     relayState,
+		samlResponse:   samlResponse,
+		nativeCallback: nativeCallback,
 	}, nil
 }
 
@@ -3731,6 +3741,9 @@ type callbackMDMSSOResponse struct {
 	byodEnrollCookieValue    string
 	deviceSSOSessionID       string
 	deviceSSOSessionDuration int
+	// nativeCallback leaves the browser's cookies alone: it is the system
+	// browser, and none of this flow's cookies live there.
+	nativeCallback bool
 }
 
 func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -3739,6 +3752,9 @@ func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.Respons
 }
 
 func (r callbackMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if r.nativeCallback {
+		return
+	}
 	deleteSSOCookie(w)
 	if r.byodEnrollCookieValue != "" {
 		setBYODCookie(w, r.byodEnrollCookieValue, int(shared_mdm.BYODIdPSessionTTL.Seconds()))
@@ -3755,6 +3771,12 @@ func (r callbackMDMSSOResponse) Error() error { return nil }
 
 func callbackMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMSSORequest)
+	if callbackRequest.nativeCallback {
+		return callbackMDMSSOResponse{
+			redirectURL:    svc.DeviceSSONativeCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse),
+			nativeCallback: true,
+		}, nil
+	}
 	redirectURL, byodCookieValue, deviceSSOSessionID, deviceSSOSessionDuration := svc.MDMSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
 
 	// Relay state is carried by the browser through the IdP and back, is used
