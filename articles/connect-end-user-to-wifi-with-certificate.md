@@ -278,7 +278,7 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 5. In **Client certificate**, upload the `.p12` file from step 1, and enter its password in **Client certificate password**.
 6. If your EJBCA server needs it, paste the CA certificates (PEM) from step 1 in **Trust CA bundle**. The order doesn't matter. If you leave it empty, Fleet trusts public CAs.
 7. In **CA name**, **Certificate profile name**, and **End entity profile name**, enter the names you noted in step 1.
-8. In **Certificate common name (CN)**, enter the CN for the certificates. You can use [Fleet variables](https://fleetdm.com/guides/fleet-variables), like `$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+8. In **Certificate common name (CN)**, enter the CN for the certificates. You can use [built-in variables](https://fleetdm.com/guides/fleet-variables), like `$FLEET_VAR_HOST_HARDWARE_SERIAL`.
 9. Optionally, in **End entity username**, enter the username of the end entity that EJBCA creates for each host. If you leave it empty, Fleet uses the CN.
 10. Optionally, in **User principal name (UPN)**, enter the UPN to add to the certificate's Subject Alternative Name (SAN).
 11. Select **Add CA**. Fleet checks that EJBCA accepts the client certificate and knows the CA. Your EJBCA certificate authority (CA) should appear in your list of CAs in Fleet, with the date that the client certificate expires.
