@@ -5195,7 +5195,7 @@ Each call that returns a `sign_in_url` creates a new single-use token, valid for
 }
 ```
 
-`sign_in_url` is omitted when the host is registered, isn't a company-owned iOS or iPadOS host, Google isn't connected, or the host used up its sign-in attempts.
+`sign_in_url` is omitted when the host is registered or isn't a company-owned iOS or iPadOS host, when Google isn't connected, or when the host has used up its sign-in attempts.
 
 ### Register device with Google conditional access
 
