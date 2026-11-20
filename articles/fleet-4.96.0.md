@@ -1,10 +1,4 @@
-# Fleet 4.96.0 | Google conditional access for iOS, iPadOS, and Android, screen lock during Android setup, and more...
-
-<!--
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/TODO" allowfullscreen></iframe>
-</div>
--->
+# Fleet 4.96.0 | Google conditional access for mobile and enforce screen lock during Android setup
 
 Fleet 4.96.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.96.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
