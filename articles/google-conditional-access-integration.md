@@ -175,7 +175,7 @@ Ask end users to follow these steps, in this order:
 1. Sign in to Gmail on the device with their work account.
 2. Open **Self-service** from the home screen.
 
-**Self-service** says "Redirecting to Google sign-in..." and opens Google. The first time, Google asks the end user to choose their work account and allow access. Then the page shows one of these results:
+**Self-service** starts the Google sign-in by itself. There's no button to tap. While it loads, the page shows a spinner with "Redirecting to Google sign-in...", then opens Google. The first time, Google asks the end user to choose their work account and allow access. Then the page shows one of these results:
 
 | Result | When |
 |---|---|
