@@ -90,7 +90,7 @@ And in the meantime, let’s all remember: when it comes to Microsoft… don't b
 
 Keep squinting until you see the truth.
 
-**Thanks** to [Deelan Sabido](https://www.linkedin.com/in/deelansabido/) and [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) for reading drafts of this.
+**Thanks** to [Deelan Sabido](https://www.linkedin.com/in/deelansabido/), [Allen Houchins](https://www.linkedin.com/in/allenhouchins/), [Kitzy](https://www.linkedin.com/in/kitzy), and [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) for reading drafts of this.
 
 <meta name="category" value="articles">
 <meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM still thinks it is)">
