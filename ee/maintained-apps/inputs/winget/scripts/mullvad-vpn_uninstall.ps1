@@ -57,10 +57,10 @@ if ($existingArgs -notmatch '(?i)(^|\s)/S(\s|$)') {
 # "_?=" must be the last argument and its path must not be quoted.
 $installDir = (Split-Path -Parent $exePath).TrimEnd('\')
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("fleet-mullvad-" + [guid]::NewGuid().ToString())
+$tempExe = Join-Path $tempDir "uninstall-mullvad-vpn.exe"
 
 try {
   New-Item -ItemType Directory -Path $tempDir -ErrorAction Stop | Out-Null
-  $tempExe = Join-Path $tempDir "uninstall-mullvad-vpn.exe"
   Copy-Item -LiteralPath $exePath -Destination $tempExe -ErrorAction Stop
 
   $uninstallArgs = "$existingArgs _?=$installDir"
@@ -94,5 +94,15 @@ try {
   Write-Host "Error running uninstaller: $_"
   Exit 1
 } finally {
+  # A failed uninstall can delete the uninstaller but stay registered. Put it
+  # back so the uninstall can be retried.
+  if ((Find-UninstallEntry) -and (Test-Path -LiteralPath $tempExe -PathType Leaf) -and
+      -not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+    New-Item -ItemType Directory -Path $installDir -Force -ErrorAction SilentlyContinue | Out-Null
+    Copy-Item -LiteralPath $tempExe -Destination $exePath -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $exePath -PathType Leaf) {
+      Write-Host "Restored the uninstaller to $exePath."
+    }
+  }
   Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
