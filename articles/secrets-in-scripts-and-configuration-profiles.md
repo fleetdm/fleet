@@ -50,7 +50,7 @@ During a GitOps run, Fleet scans scripts and profiles for variables, pulls their
 
 Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
 
-When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles that use it. To see which built-in variables trigger a resend, see the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
+When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) configuration profiles that use it. Automatic resend for Windows profiles is [coming soon](https://github.com/fleetdm/fleet/issues/44852). To see which built-in variables trigger a resend, see the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
