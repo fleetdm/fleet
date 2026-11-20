@@ -101,7 +101,7 @@ To change the customer ID or the admin email later, or to replace the key, selec
 
 > **Warning:** Fleet gives fleetdm.com your Fleet server URL when it connects, and iPhone and iPad sign-ins are sent back to that URL. If you change your Fleet server URL, delete the integration and connect again with the same settings. Hosts that are already registered stay managed, and Android hosts aren't affected.
 
-You can also connect with [GitOps](#gitops) or the [API](https://fleetdm.com/docs/rest-api/rest-api#connect-google).
+You can also connect with [GitOps](https://fleetdm.com/docs/configuration/yaml-files#google-conditional-access) or the [API](https://fleetdm.com/docs/rest-api/rest-api#connect-google).
 
 ## Step 5: Set up iPhones and iPads
 
@@ -218,10 +218,6 @@ Removing the ID resets the host:
 - A company-owned Android host that's still enrolled is registered again within minutes. To keep it unmarked, unenroll it.
 
 If you delete a device in the Google Admin console, Fleet notices within an hour and registers the host again when the device is back in Google.
-
-## GitOps
-
-To manage the integration with GitOps, see [`google_conditional_access`](https://fleetdm.com/docs/configuration/yaml-files#google-conditional-access) in the YAML reference.
 
 ## Disable
 
