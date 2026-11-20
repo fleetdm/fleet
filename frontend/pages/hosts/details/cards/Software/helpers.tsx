@@ -21,7 +21,6 @@ import {
   ISoftwareFilters,
 } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { getNextLocationPath } from "utilities/helpers";
-import { QueryParams } from "utilities/url";
 
 import {
   getLastInstall,
@@ -84,15 +83,6 @@ export const isDefaultTypeSelection = (
   !filters.vulnerable &&
   !filters.aiTool &&
   isEqual(filters.types, [MACOS_APP_SOFTWARE_TYPE]);
-
-// available_for_install string > boolean conversion in parseHostSoftwareQueryParams
-export const getHostSoftwareFilterFromQueryParams = (
-  queryParams: QueryParams
-) => {
-  const { available_for_install } = queryParams;
-
-  return available_for_install ? "installableSoftware" : "allSoftware";
-};
 
 // VERSION COMPARISON UTILITIES FOR SOFTWARE VERSIONS
 

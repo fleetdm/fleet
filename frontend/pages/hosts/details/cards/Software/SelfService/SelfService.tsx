@@ -68,9 +68,6 @@ const DEFAULT_SELF_SERVICE_CONFIG = {
   },
 };
 
-export const SELF_SERVICE_SUBHEADER =
-  "Install organization-approved apps provided by your IT department.";
-
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
   deviceToken: string;

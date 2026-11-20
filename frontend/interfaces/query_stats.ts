@@ -1,27 +1,4 @@
-import PropTypes, { number } from "prop-types";
-
-import ILegacySchedulableQueryStats, {
-  ISchedulableQueryStats,
-} from "./schedulable_query";
-
-export default PropTypes.shape({
-  scheduled_report_name: PropTypes.string,
-  scheduled_report_id: PropTypes.number,
-  report_name: PropTypes.string,
-  description: PropTypes.string,
-  pack_name: PropTypes.string,
-  pack_id: PropTypes.number,
-  average_memory: number,
-  denylisted: PropTypes.bool,
-  executions: PropTypes.number,
-  interval: PropTypes.number,
-  last_executed: PropTypes.string,
-  output_size: PropTypes.number,
-  system_time: PropTypes.number,
-  user_time: PropTypes.number,
-  wall_time: PropTypes.number,
-  stats: ILegacySchedulableQueryStats,
-});
+import { ISchedulableQueryStats } from "./schedulable_query";
 
 export interface IQueryStats {
   scheduled_report_name: string;

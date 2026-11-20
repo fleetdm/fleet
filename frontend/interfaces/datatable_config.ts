@@ -4,15 +4,6 @@
 
 import { CellProps, Column, HeaderProps } from "react-table";
 
-export type IDataColumn = Column & {
-  title?: string;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-  filterValue?: any;
-  preFilteredRows?: any;
-  setFilter?: any;
-};
-
 /**
  * Interface for a column configuration in a table. This is a wrapper around the `Column` type from
  * `react-table`.
@@ -34,11 +25,6 @@ export type IStringCellProps<T extends object> = CellProps<T, string>;
  * `CellProps` type from `react-table`.
  */
 export type INumberCellProps<T extends object> = CellProps<T, number>;
-
-/**
- *
- */
-export type IBoolCellProps<T extends object> = CellProps<T, boolean>;
 
 /**
  * Interface for a cell with a value that is an array of objects. This is a

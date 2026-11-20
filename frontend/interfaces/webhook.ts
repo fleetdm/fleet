@@ -1,11 +1,3 @@
-import PropTypes from "prop-types";
-
-export default PropTypes.shape({
-  destination_url: PropTypes.string,
-  enable_failing_policies_webhook: PropTypes.bool,
-  host_batch_size: PropTypes.number,
-});
-
 export interface IWebhookHostStatus {
   enable_host_status_webhook?: boolean;
   destination_url?: string;

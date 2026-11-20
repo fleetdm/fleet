@@ -23,11 +23,7 @@ import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
-import {
-  IHostSoftware,
-  IVPPHostSoftware,
-  ISoftware,
-} from "interfaces/software";
+import { IHostSoftware, IVPPHostSoftware } from "interfaces/software";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import hostAPI, {
@@ -46,10 +42,6 @@ import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 
 const baseClass = "host-software-library-card";
-
-export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
-  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
-}
 
 interface IHostSoftwareLibraryProps {
   /** This is the host id or the device token */

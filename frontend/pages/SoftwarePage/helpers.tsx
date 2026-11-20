@@ -75,12 +75,6 @@ export const generateSecretErrMsg = (err: unknown) => {
 /** Corresponds to automatic_install_policies  */
 export type InstallType = "manual" | "automatic";
 
-export const getInstallType = (
-  softwarePackage: ISoftwarePackage
-): InstallType => {
-  return softwarePackage.automatic_install_policies ? "automatic" : "manual";
-};
-
 // Used in EditSoftwareModal and PackageForm
 export const getTargetType = (
   softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
@@ -272,16 +266,6 @@ export const getSelfServiceTooltip = (
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
-    </>
-  );
-};
-
-export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
-  return (
-    <>
-      When a new version is available, targeted hosts will begin updating
-      between {internationalTimeOnlyFormat(startTime)} and{" "}
-      {internationalTimeOnlyFormat(endTime)} (host local time).
     </>
   );
 };

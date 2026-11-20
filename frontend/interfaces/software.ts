@@ -1,19 +1,8 @@
 import { uniq } from "lodash";
-import PropTypes from "prop-types";
 
 import { ILabelSoftwareTitle } from "./label";
 import { IVppTokenSummary } from "./mdm";
 import { HOST_APPLE_PLATFORMS, isLinuxLike, Platform } from "./platform";
-import vulnerabilityInterface from "./vulnerability";
-
-export default PropTypes.shape({
-  type: PropTypes.string,
-  name: PropTypes.string,
-  version: PropTypes.string,
-  source: PropTypes.string,
-  id: PropTypes.number,
-  vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
-});
 
 // TODO: old software interface. replaced with ISoftwareVersion
 // check to see if we still need this.
@@ -931,8 +920,6 @@ export const NO_VULNERABILITIES_TOOLTIP_BY_SOURCE: Partial<
   ai_skills:
     "AI skills are markdown files, so they don't have vulnerabilities.",
 };
-
-export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
 /** For go_binaries the toolchain version is part of the row's identity, so it's shown
  * alongside the version. rpm_packages also populates `release` and must not be.

@@ -1,10 +1,7 @@
-import PropTypes from "prop-types";
-
-import hostQueryResult from "./campaign";
 import { ILicense, IDeviceGlobalConfig } from "./config";
 import { IHostCustomVital } from "./custom_host_vitals";
-import hostUserInterface, { IHostUser } from "./host_users";
-import labelInterface, { ILabel } from "./label";
+import { IHostUser } from "./host_users";
+import { ILabel } from "./label";
 import {
   IHostMdmProfile,
   MdmEnrollmentStatus,
@@ -13,79 +10,9 @@ import {
   HostNameSettingStatus,
 } from "./mdm";
 import { HostPlatform } from "./platform";
-import hostPolicyInterface, { IHostPolicy } from "./policy";
-import queryStatsInterface, { IQueryStats } from "./query_stats";
-import softwareInterface, { ISoftware } from "./software";
-
-export default PropTypes.shape({
-  created_at: PropTypes.string,
-  updated_at: PropTypes.string,
-  id: PropTypes.number,
-  detail_updated_at: PropTypes.string,
-  last_restarted_at: PropTypes.string,
-  label_updated_at: PropTypes.string,
-  policy_updated_at: PropTypes.string,
-  last_enrolled_at: PropTypes.string,
-  seen_time: PropTypes.string,
-  refetch_requested: PropTypes.bool,
-  hostname: PropTypes.string,
-  uuid: PropTypes.string,
-  platform: PropTypes.string,
-  osquery_version: PropTypes.string,
-  orbit_version: PropTypes.string,
-  fleet_desktop_version: PropTypes.string,
-  os_name: PropTypes.string,
-  os_version: PropTypes.string,
-  build: PropTypes.string,
-  platform_like: PropTypes.string,
-  code_name: PropTypes.string,
-  uptime: PropTypes.number,
-  memory: PropTypes.number,
-  cpu_type: PropTypes.string,
-  cpu_subtype: PropTypes.string,
-  cpu_brand: PropTypes.string,
-  cpu_physical_cores: PropTypes.number,
-  cpu_logical_cores: PropTypes.number,
-  hardware_vendor: PropTypes.string,
-  hardware_model: PropTypes.string,
-  hardware_version: PropTypes.string,
-  hardware_serial: PropTypes.string,
-  computer_name: PropTypes.string,
-  primary_ip: PropTypes.string,
-  primary_mac: PropTypes.string,
-  distributed_interval: PropTypes.number,
-  config_tls_refresh: PropTypes.number,
-  logger_tls_period: PropTypes.number,
-  fleet_id: PropTypes.number,
-  pack_stats: PropTypes.arrayOf(
-    PropTypes.shape({
-      pack_id: PropTypes.number,
-      pack_name: PropTypes.string,
-      report_stats: PropTypes.arrayOf(queryStatsInterface),
-    })
-  ),
-  fleet_name: PropTypes.string,
-  additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  percent_disk_space_available: PropTypes.number,
-  gigs_disk_space_available: PropTypes.number,
-  // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
-  gigs_total_disk_space: PropTypes.number,
-  // `gigs_all_disk_space` includes disk space from all partitions
-  gigs_all_disk_space: PropTypes.number,
-  labels: PropTypes.arrayOf(labelInterface),
-  software: PropTypes.arrayOf(softwareInterface),
-  status: PropTypes.string,
-  display_name: PropTypes.string,
-  users: PropTypes.arrayOf(hostUserInterface),
-  policies: PropTypes.arrayOf(hostPolicyInterface),
-  query_results: PropTypes.arrayOf(hostQueryResult),
-  batteries: PropTypes.arrayOf(
-    PropTypes.shape({
-      cycle_count: PropTypes.number,
-      health: PropTypes.string,
-    })
-  ),
-});
+import { IHostPolicy } from "./policy";
+import { IQueryStats } from "./query_stats";
+import { ISoftware } from "./software";
 
 export type HostStatus = "online" | "offline" | "new" | "missing";
 /** Values accepted by the hosts list `status` filter. "pending" and "enrolled"

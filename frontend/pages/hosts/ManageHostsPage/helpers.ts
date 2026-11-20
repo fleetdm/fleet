@@ -16,10 +16,6 @@ export const isAcceptableStatus = (
   );
 };
 
-export const isValidPolicyResponse = (filter: string): boolean => {
-  return filter === "pass" || filter === "fail";
-};
-
 // Performs a grossly oversimplied validation that subject string includes substrings
 // that would be expected in a textual encoding of a certificate chain per the PEM spec
 // (see https://datatracker.ietf.org/doc/html/rfc7468#section-2)

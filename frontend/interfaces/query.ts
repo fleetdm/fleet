@@ -1,4 +1,3 @@
-import { IFormField } from "./form_field";
 import { ISchedulableQueryStats } from "./schedulable_query";
 
 export interface IQuery {
@@ -14,11 +13,4 @@ export interface IQuery {
   author_email: string;
   observer_can_run: boolean;
   stats?: ISchedulableQueryStats;
-}
-
-export interface IEditQueryFormFields {
-  description: IFormField;
-  name: IFormField;
-  query: IFormField;
-  observer_can_run: IFormField;
 }
