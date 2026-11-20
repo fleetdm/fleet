@@ -363,9 +363,9 @@ Spread `getTextFieldProps("fieldName")` onto text inputs (`InputField`, `InputFi
 
 #### When errors appear
 
-A field is **dirty** once the user has typed into it or the browser has autofilled it. Programmatic focus (autofocus, Tab, `ref.focus()`) does not. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
+A field is **dirty** once the user has typed into it or the browser has autofilled it. Programmatic focus (autofocus, Tab, `ref.focus()`) does not make it dirty. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
 
-- Never show a field's error before the field is dirty. This includes the autofocused first field in a new-item modal: Tab or click-off blurs it empty without any user input, and that blur must not surface "Enter a name". `useFormValidation` handles this. In forms not on the hook yet, track a local `nameDirty` flag set on first `onChange` and gate the required-error on it.
+- Never show a field's error before the field is dirty. This includes the autofocused first field in a new-item modal: Tab or click-off blurs an empty field without any user input, and that blur must not surface "Enter a name". `useFormValidation` handles this. In forms not on the hook yet, track a local `nameDirty` flag set on first `onChange` and gate the required-error on it.
 - On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Never add errors to other fields (but see [When errors clear](#when-errors-clear) for removing them).
 - On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
@@ -760,7 +760,7 @@ useQuery(
 
 ##### `keepPreviousData` and loading gates
 
-`useQuery({ keepPreviousData: true })` returns the previous key's data during a key change with `isLoading: false`, so the previous entity's data paints over the new entity's page until the fetch resolves. Feed `isLoading || isPreviousData` to child loading props to re-cover the transition. Only when the previous and next keys belong to different entities (route change, fleet switch) — paginating the same list is fine.
+`useQuery({ keepPreviousData: true })` returns the previous key's data during a key change with `isLoading: false`, so the previous entity's data paints over the new entity's page until the fetch resolves. Feed `isLoading || isPreviousData` to child loading props to re-cover the transition. Only guard this way when the previous and next keys belong to different entities (route change, fleet switch). Paginating the same list is fine: showing the prior page briefly is the desired UX.
 
 ### Handling API errors
 
@@ -791,13 +791,16 @@ export const getErrorMessage = (e: unknown) => {
 }
 ```
 
-### Server validation errors and `base`
+#### Server validation errors and `base`
 
 [`formatErrorResponse`](../utilities/format_error_response) flattens server errors into `Record<string, string>`. Field-named keys (`email`, `name`) wire to matching inputs' `error` prop; `base` is for cross-field or global errors (no inline surface).
 
-- Preserve field-named keys — folding `email` into `base` kills the inline surface.
-- Strip `base` and `http_status` before setting `formErrors`, or they fire spurious toasts on fields the user is editing.
-- Precedence inside the formatter: first named wins; unnamed doesn't overwrite named; repeated `base` collapses.
+- Preserve field-named keys: folding `email` into `base` removes the inline surface.
+- Strip `base` and `http_status` before setting `formErrors`. Neither has an inline surface, and callers that iterate `formErrors` will render them as orphan errors; toast the `base` message separately.
+- Precedence inside the formatter:
+  - First named error wins.
+  - An unnamed error does not overwrite a named one.
+  - Repeated `base` entries collapse to the first.
 
 ## Page routing
 
