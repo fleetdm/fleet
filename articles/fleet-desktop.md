@@ -68,6 +68,8 @@ This change is imperceptible to users, as clicking on the "My device" tray item 
 
 Fleet can be configured to require an end user to authenticate via SSO to view the "My Device" page. 
 
+End users can sign in with a hardware security key, like a YubiKey, or a passkey, if your identity provider (IdP) allows it. In the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin), sign-in opens in a macOS system window.
+
 To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
 On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
 
