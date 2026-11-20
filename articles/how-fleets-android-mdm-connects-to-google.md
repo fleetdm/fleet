@@ -119,6 +119,8 @@ fleetdm.com:
 
 Android hosts don't use fleetdm.com for this. Your Fleet server finds each company-owned Android host's device in Google by itself, with no sign-in.
 
+The [Chrome bookmark](https://fleetdm.com/guides/google-conditional-access-integration#register-hosts-with-a-chrome-bookmark) doesn't use fleetdm.com to register hosts either. It does need Google connected in Fleet, and connecting registers your Fleet server with fleetdm.com. If your Fleet server can't reach fleetdm.com, you can't connect, and the bookmark can't register hosts.
+
 fleetdm.com doesn't mark devices as managed. Your Fleet server does that with a service account you create in your own Google Cloud project, with domain-wide delegation limited to the `cloud-identity.devices` scope. You own the credential. The Fleet server unmarks a device when its host is deleted or unenrolled, or when you remove the host's Google device ID. No Google service account credentials pass through fleetdm.com.
 
 Compared to Android MDM:
