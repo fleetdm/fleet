@@ -72,9 +72,9 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 5. To remove the app, expand the app's version and click the trash can (delete) icon. If the app has more than one version, delete each version.
 
-## Configure automatic updates for an app (iOS / iPadOS only)
+## Configure automatic updates for an app
 
-> Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
+### Apple (VPP)
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
@@ -83,6 +83,31 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 3. Expand the version and click the pencil (edit) icon.
 
 4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour.
+
+### Google Play (Android)
+
+> Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
+
+Company-owned Android hosts come with Google apps, like Chrome, already installed at the version that shipped with the device. Google Play updates them later, sometimes hours or days after setup. To update them during setup, add them to setup experience software:
+
+1. Add each app to the fleet as a [Google Play app](#google-play-android), using its application ID from the table below.
+2. Go to **Controls > Setup experience > 4. Install software**, select the **Android** tab, and add the apps.
+
+| App | Application ID |
+|---|---|
+| Google Chrome | `com.android.chrome` |
+| Android System WebView | `com.google.android.webview` |
+| Google | `com.google.android.googlequicksearchbox` |
+| Gmail | `com.google.android.gm` |
+| Google Calendar | `com.google.android.calendar` |
+| Google Drive | `com.google.android.apps.docs` |
+| Google Meet | `com.google.android.apps.tachyon` |
+| Google Maps | `com.google.android.apps.maps` |
+| Google Photos | `com.google.android.apps.photos` |
+| YouTube | `com.google.android.youtube` |
+| YouTube Music | `com.google.android.apps.youtube.music` |
+| Google Messages | `com.google.android.apps.messaging` |
+| Gemini | `com.google.android.apps.bard` |
 
 ## Managed configuration
 
