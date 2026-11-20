@@ -46,9 +46,7 @@
             <% for (let integration of integrationsToShow) { %>
               <a href="<%= integration.url %>" purpose="integration-card">
                 <div purpose="integration-logo">
-                  <% if (integration.logo) { %>
-                    <img alt="<%= integration.name %>" src="/images/<%= integration.logo %>">
-                  <% } %>
+                  <img alt="<%= integration.name %>" src="/images/<%= integration.logo %>">
                 </div>
                 <p purpose="integration-summary"><%= integration.summary %></p>
               </a>

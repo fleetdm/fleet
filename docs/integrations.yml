@@ -1,6 +1,27 @@
 # Integrations shown at fleetdm.com/integrations and /integrate/*.
-# Descriptions are reused verbatim from existing fleetdm.com copy; "source" says where each came from.
-# Only add integrations whose Fleet support is confirmed. Unconfirmed ones are tracked in the URL plan sheet.
+# Only add integrations whose Fleet support is confirmed.
+# Each integration entry creates its card, its details page at `url`, and its sitemap entry. There's no separate page to add.
+#
+# categories:
+#   name: required
+#   slug: required. The category page is /integrate/{slug}.
+#
+# integrations:
+#   name: required
+#   url: required. /integrate/{category}/{integration}, lowercase letters, numbers, and dashes.
+#   category: required. A category slug from the list above.
+#   description: required. Shown on the integration's page.
+#   summary: required. One line, shown on the card in the directory.
+#   logo: required. A file in website/assets/images/, 28px tall at 2x, with a transparent background. Name it logo-{name}-{width}x28@2x.png.
+#   vendorUrl: optional. Link to the vendor's site.
+#   docs: optional. A list of links, each with a label and url.
+#   alsoListedIn: optional. Extra category slugs to list the integration under.
+#
+# buildingBlocks: Fleet's own extension points, shown at /integrate/build-anything.
+#   name, description, and url: required
+#   logo: optional
+#
+# Redirects to integration pages live in website/config/routes.js.
 categories:
   - name: "Identity and access"
     slug: "identity-provider"

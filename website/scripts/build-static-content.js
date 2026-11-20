@@ -1607,12 +1607,12 @@ module.exports = {
           urlsSeen.push(category.url);
         }
         for(let integration of parsedYaml.integrations) {
-          for(let requiredKey of ['name', 'url', 'category', 'description', 'summary']) {
+          for(let requiredKey of ['name', 'url', 'category', 'description', 'summary', 'logo']) {
             if(!integration[requiredKey]) {
               throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this integration and try running this script again.`);
             }
           }
-          for(let expectedStringAttribute of ['name', 'url', 'category', 'description', 'summary']) {
+          for(let expectedStringAttribute of ['name', 'url', 'category', 'description', 'summary', 'logo']) {
             if(!_.isString(integration[expectedStringAttribute])) {
               throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof integration[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
             }
@@ -1630,11 +1630,9 @@ module.exports = {
             throw new Error(`Could not build integrations configuration from YAML. The URL "${integration.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
           }
           urlsSeen.push(integration.url);
-          if(integration.logo) {
-            let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', integration.logo));
-            if(!logoExists) {
-              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a logo (${integration.logo}) that doesn't exist in the website/assets/images/ folder. To resolve, add the image or change the logo value.`);
-            }
+          let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', integration.logo));
+          if(!logoExists) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a logo (${integration.logo}) that doesn't exist in the website/assets/images/ folder. To resolve, add the image or change the logo value.`);
           }
           integration.docs = integration.docs || [];
           for(let doc of integration.docs) {

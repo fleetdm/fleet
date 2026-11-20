@@ -12,11 +12,7 @@
       <div purpose="integration-details">
         <div purpose="logo-and-name">
           <div purpose="integration-logo">
-            <% if (thisIntegration.logo) { %>
-              <img alt="<%= thisIntegration.name %> logo" src="/images/<%= thisIntegration.logo %>">
-            <% } else { %>
-              <span purpose="logo-placeholder"><%= thisIntegration.name.charAt(0) %></span>
-            <% } %>
+            <img alt="<%= thisIntegration.name %> logo" src="/images/<%= thisIntegration.logo %>">
           </div>
           <div>
             <h1 purpose="integration-name"><%= thisIntegration.name %></h1>
