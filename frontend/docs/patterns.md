@@ -760,24 +760,7 @@ useQuery(
 
 ##### `keepPreviousData` and loading gates
 
-`useQuery({ keepPreviousData: true })` returns the previous key's data during a key change, so between route transitions `isLoading` is `false` even though the data on screen belongs to the previous entity. A child that gates its empty/loading overlay only on `isLoading` renders the previous entity's data over the new entity's page until the fetch resolves.
-
-The signal to combine with is `isPreviousData`. Feed `isLoading || isPreviousData` to the child's loading prop so the overlay re-covers the transition.
-
-```tsx
-const { data, isLoading, isPreviousData } = useQuery(
-  ["hostActivities", hostId],
-  () => hostAPI.getActivities(hostId),
-  { keepPreviousData: true }
-);
-
-<ActivityCard
-  activities={data?.activities}
-  isLoading={isLoading || isPreviousData}
-/>
-```
-
-Not every `keepPreviousData` call site needs this — only when the previous data belongs to a different entity (route change, fleet switch, selected-item change). A paginated list of the same entity doesn't: the previous page is still the right content while the next page loads.
+`useQuery({ keepPreviousData: true })` returns the previous key's data during a key change with `isLoading: false`, so the previous entity's data paints over the new entity's page until the fetch resolves. Feed `isLoading || isPreviousData` to child loading props to re-cover the transition. Only when the previous and next keys belong to different entities (route change, fleet switch) — paginating the same list is fine.
 
 ### Handling API errors
 
@@ -810,13 +793,11 @@ export const getErrorMessage = (e: unknown) => {
 
 ### Server validation errors and `base`
 
-Fleet's server returns validation errors as `{ name, reason }` tuples. [`formatErrorResponse`](../utilities/format_error_response) flattens them into a `Record<string, string>` for form inline errors — field-named keys (`email`, `name`) wire to the input's `error` prop; `base` is the catch-all for cross-field or global server errors.
+[`formatErrorResponse`](../utilities/format_error_response) flattens server errors into `Record<string, string>`. Field-named keys (`email`, `name`) wire to matching inputs' `error` prop; `base` is for cross-field or global errors (no inline surface).
 
-When editing the formatter, a validator, or the handler that reads its output:
-
-- **Preserve field-named keys verbatim.** Don't fold `email` into `base`. A field-keyed error only surfaces inline because the form's `formErrors[fieldName]` wires to the input's `error` prop. Once it lands under `base`, the inline surface never fires.
-- **Strip `base` and `http_status` before setting `formErrors` state.** Both are cross-field or global; keeping them in `formErrors` can fire a spurious toast on fields the user is actively editing.
-- **Precedence inside the formatter** when multiple server errors share a name: the first named error wins; an unnamed error (treated as `base`) does not overwrite a named one; repeated `base` entries collapse to the first value.
+- Preserve field-named keys — folding `email` into `base` kills the inline surface.
+- Strip `base` and `http_status` before setting `formErrors`, or they fire spurious toasts on fields the user is editing.
+- Precedence inside the formatter: first named wins; unnamed doesn't overwrite named; repeated `base` collapses.
 
 ## Page routing
 
