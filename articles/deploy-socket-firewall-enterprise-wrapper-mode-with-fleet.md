@@ -467,4 +467,4 @@ try {
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-09-17">
-<meta name="description" value="Install the Socket Firewall Enterprise wrapper on macOS, Windows, and Linux with Fleet, deliver the API key as a custom variable, and verify with policies.">
+<meta name="description" value="Install the Socket Firewall Enterprise wrapper on macOS, Windows, and Linux with Fleet, deliver its API key as a custom variable, and verify it.">
