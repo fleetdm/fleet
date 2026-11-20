@@ -8,6 +8,5 @@
     "Developer tools"
   ],
   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/wezterm-install.sh",
-  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/wezterm-uninstall.sh",
-  "frozen": true
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/wezterm-uninstall.sh"
 }

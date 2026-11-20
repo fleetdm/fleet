@@ -1422,17 +1422,6 @@ const (
 	NullTeamNoTeam NullTeamType = "noteam"
 )
 
-func (n NullTeamType) PrettyName() string {
-	switch n {
-	case NullTeamAllTeams:
-		return ReservedNameAllTeams
-	case NullTeamNoTeam:
-		return ReservedNameNoTeam
-	default:
-		return string(n)
-	}
-}
-
 type AppleDevice int
 
 const (
@@ -1555,11 +1544,6 @@ type MDMConfigProfileStatus struct {
 	Verifying uint `json:"verifying" db:"verifying"`
 	Pending   uint `json:"pending" db:"pending"`
 	Failed    uint `json:"failed" db:"failed"`
-}
-
-// MDMWipeMetadata specifies optional metadata for the remote wipe command
-type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata
 }
 
 type MDMCommandResults interface {

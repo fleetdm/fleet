@@ -419,7 +419,7 @@ INSERT INTO software_installers (
 }
 
 func (ds *Datastore) getTeamName(ctx context.Context, teamID *uint) (string, error) {
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if teamID != nil && *teamID > 0 {
 		tm, err := ds.TeamLite(ctx, *teamID)
 		if err != nil {
@@ -2352,6 +2352,8 @@ SELECT
 	stdn.display_name AS software_display_name,
 	hsi.software_title_id,
 	hsi.software_installer_id,
+	si.global_or_team_id AS installer_global_or_team_id,
+	h.team_id AS host_team_id,
 	si.storage_id AS hash_sha256,
 	COALESCE(hsi.execution_status, '') AS status,
 	hsi.installer_filename AS software_package,
@@ -2395,6 +2397,8 @@ SELECT
 	stdn.display_name AS software_display_name,
 	siua.software_title_id,
 	siua.software_installer_id,
+	si.global_or_team_id AS installer_global_or_team_id,
+	h.team_id AS host_team_id,
 	si.storage_id AS hash_sha256,
 	'pending_install' AS status,
 	ua.payload->>'$.installer_filename' AS software_package,
@@ -3401,7 +3405,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 
 	// use a team id of 0 if no-team
 	var globalOrTeamID uint
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if tmID != nil {
 		globalOrTeamID = *tmID
 		tm, err := ds.TeamLite(ctx, *tmID)

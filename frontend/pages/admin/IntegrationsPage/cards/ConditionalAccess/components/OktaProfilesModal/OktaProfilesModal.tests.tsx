@@ -153,7 +153,7 @@ describe("OktaProfilesModal", () => {
 
     const { user, onExit } = renderModal();
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByText("Close"));
 
     expect(onExit).toHaveBeenCalledTimes(1);
   });

@@ -1297,7 +1297,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 	// Default config should have webhook disabled
 	assert.False(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	assert.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	assert.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 
 	// Test saving a new config
 	newConfig := &fleet.TeamConfig{
@@ -1305,7 +1304,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:         true,
 				DestinationURL: "https://example.com/webhook",
-				PolicyIDs:      []uint{1, 2, 3},
 				HostBatchSize:  100,
 			},
 		},
@@ -1325,7 +1323,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 
 	assert.True(t, savedConfig.WebhookSettings.FailingPoliciesWebhook.Enable)
 	assert.Equal(t, "https://example.com/webhook", savedConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	assert.Equal(t, []uint{1, 2, 3}, savedConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	assert.Equal(t, 100, savedConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Test updating existing config
@@ -1334,7 +1331,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:         false,
 				DestinationURL: "https://updated.com/webhook",
-				PolicyIDs:      []uint{4, 5},
 				HostBatchSize:  50,
 			},
 		},
@@ -1350,7 +1346,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 
 	assert.False(t, finalConfig.WebhookSettings.FailingPoliciesWebhook.Enable)
 	assert.Equal(t, "https://updated.com/webhook", finalConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	assert.Equal(t, []uint{4, 5}, finalConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	assert.Equal(t, 50, finalConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 }
 
@@ -1383,7 +1378,7 @@ func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, "lites-a", liteA.Name)
 	noTeam := byID[0]
 	require.NotNil(t, noTeam)
-	require.Equal(t, fleet.ReservedNameNoTeam, noTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, noTeam.Name)
 	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
 	require.NotNil(t, webhook)
 	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)

@@ -363,73 +363,6 @@ func TestGetPolicyByIDNoTeamPolicyAuth(t *testing.T) {
 	}
 }
 
-func TestRemoveGlobalPoliciesFromWebhookConfig(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-
-	var storedAppConfig fleet.AppConfig
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &storedAppConfig, nil
-	}
-	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
-		storedAppConfig = *info
-		return nil
-	}
-
-	for _, tc := range []struct {
-		name     string
-		currCfg  []uint
-		toDelete []uint
-		expCfg   []uint
-	}{
-		{
-			name:     "delete-one",
-			currCfg:  []uint{1},
-			toDelete: []uint{1},
-			expCfg:   []uint{},
-		},
-		{
-			name:     "delete-all-2",
-			currCfg:  []uint{1, 2, 3},
-			toDelete: []uint{1, 2, 3},
-			expCfg:   []uint{},
-		},
-		{
-			name:     "basic",
-			currCfg:  []uint{1, 2, 3},
-			toDelete: []uint{1, 2},
-			expCfg:   []uint{3},
-		},
-		{
-			name:     "empty-cfg",
-			currCfg:  []uint{},
-			toDelete: []uint{1},
-			expCfg:   []uint{},
-		},
-		{
-			name:     "no-deletion-cfg",
-			currCfg:  []uint{1},
-			toDelete: []uint{2, 3, 4},
-			expCfg:   []uint{1},
-		},
-		{
-			name:     "no-deletion-cfg-2",
-			currCfg:  []uint{1},
-			toDelete: []uint{},
-			expCfg:   []uint{1},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = tc.currCfg
-			err := svc.removeGlobalPoliciesFromWebhookConfig(context.Background(), tc.toDelete)
-			require.NoError(t, err)
-			require.Equal(t, tc.expCfg, storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		})
-	}
-}
-
-// test ApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs
 func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T) {
 	ds := new(mock.Store)
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -438,27 +371,22 @@ func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	req := []*fleet.PolicySpec{
-		{
-			Name:     "query1",
-			Query:    "select 1;",
-			Platform: "windows",
-		},
-		{
-			Name:     "query1",
-			Query:    "select 1;",
-			Platform: "windows",
-		},
-	}
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	err := svc.ApplyPolicySpecs(ctx, req)
+	// Unassigned in a different letter case is the same fleet.
+	for _, fleets := range [][2]string{{"", ""}, {"Unassigned", "unassigned"}} {
+		req := []*fleet.PolicySpec{
+			{Name: "query1", Query: "select 1;", Platform: "windows", Team: fleets[0]},
+			{Name: "query1", Query: "select 2;", Platform: "windows", Team: fleets[1]},
+		}
 
-	badRequestError := &fleet.BadRequestError{}
-	require.ErrorAs(t, err, &badRequestError)
-	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+		err := svc.ApplyPolicySpecs(ctx, req)
+
+		badRequestError := &fleet.BadRequestError{}
+		require.ErrorAs(t, err, &badRequestError)
+		require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+	}
 }
 
 func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
@@ -963,8 +891,8 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 
-		// "No team" is not "All fleets", so it keeps its automations. A policy has one, so no script here.
-		noTeam := spec("No team", nil)
+		// Unassigned is not "All fleets", so it keeps its automations. A policy has one, so no script here.
+		noTeam := spec(fleet.DisplayNameNoTeam, nil)
 		noTeam.SoftwareTitleID = new(uint(1))
 		ds.ApplyPolicySpecsFuncInvoked = false
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))

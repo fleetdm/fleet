@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3",
+      "version": "2026.3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '263.7307.206') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PyCharm %' AND name NOT LIKE 'PyCharm Community Edition%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '263.7307.329') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('pycharm.exe','pycharm64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/python/pycharm-2026.3.exe",
+      "installer_url": "https://download.jetbrains.com/python/pycharm-2026.3.0.1.exe",
       "install_script_ref": "fa12e56b",
       "uninstall_script_ref": "70e7b222",
-      "sha256": "60433d41f010b826f918d6869d3f67bbcffa1bbb9f10c942ba702d88e98fa4e1",
+      "sha256": "f751f2fe4723c9e5086e3ef763874a6d0d8c694059701718d30289057230dce9",
       "default_categories": [
         "Developer tools"
       ]

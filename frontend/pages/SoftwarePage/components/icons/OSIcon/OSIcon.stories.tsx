@@ -14,7 +14,7 @@ const meta: Meta<typeof OSIcon> = {
     },
     size: {
       control: "select",
-      options: ["small", "medium", "large", "xlarge"],
+      options: ["xsmall", "small", "medium", "large", "xlarge"],
     },
     url: { control: "text" },
   },

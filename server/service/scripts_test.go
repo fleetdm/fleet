@@ -1120,77 +1120,40 @@ func TestBatchScriptExecute(t *testing.T) {
 }
 
 func TestWipeHostRequestDecodeBody(t *testing.T) {
-	ctx := context.Background()
-
 	testCases := []struct {
-		name          string
-		body          io.Reader
-		expectedError string
-		expectation   func(t *testing.T, req *fleet.WipeHostRequest)
+		name            string
+		body            io.Reader
+		expectedError   string
+		expectedRemoved bool
 	}{
-		{
-			name: "empty body",
-			body: strings.NewReader(""),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.Nil(t, req.Metadata)
-			},
-		},
-		{
-			name: "doWipe",
-			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.NotNil(t, req.Metadata.Windows)
-				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
-			},
-		},
-		{
-			name: "doWipeProtected",
-			body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.NotNil(t, req.Metadata.Windows)
-				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
-			},
-		},
-		{
-			name:          "invalid wipe type",
-			body:          strings.NewReader(`{"windows": {"wipe_type": "doWipeProtectedII"}}`),
-			expectedError: "failed to unmarshal request body",
-		},
-		{
-			name: "empty payload",
-			body: strings.NewReader(`{}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.Nil(t, req.Metadata.Windows)
-			},
-		},
-		{
-			name: "windows field is null",
-			body: strings.NewReader(`{"windows": null}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.Nil(t, req.Metadata.Windows)
-			},
-		},
-		{
-			name:          "empty wipe type",
-			body:          strings.NewReader(`{"windows": {"wipe_type": null}}`),
-			expectedError: "failed to unmarshal request body",
-		},
+		{name: "empty body", body: strings.NewReader("")},
+		{name: "empty payload", body: strings.NewReader(`{}`)},
+		{name: "unrelated field is ignored", body: strings.NewReader(`{"foo": "bar"}`)},
+		{name: "invalid JSON", body: strings.NewReader(`{"windows":`), expectedError: "failed to unmarshal request body"},
+		{name: "doWipe", body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`), expectedRemoved: true},
+		{name: "doWipeProtected", body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`), expectedRemoved: true},
+		{name: "windows field is null", body: strings.NewReader(`{"windows": null}`), expectedRemoved: true},
+		{name: "windows field in title case", body: strings.NewReader(`{"Windows": {"wipe_type": "doWipe"}}`), expectedRemoved: true},
+		{name: "windows field in upper case", body: strings.NewReader(`{"WINDOWS": null}`), expectedRemoved: true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sut := fleet.WipeHostRequest{}
-			err := sut.DecodeBody(ctx, tc.body, nil, nil)
+			err := sut.DecodeBody(t.Context(), tc.body, nil, nil)
 
-			if tc.expectedError != "" {
+			switch {
+			case tc.expectedRemoved:
+				var invalid *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &invalid)
+				require.Equal(t, []map[string]string{{
+					"name":   "windows",
+					"reason": `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
+				}}, invalid.Invalid())
+			case tc.expectedError != "":
 				require.ErrorContains(t, err, tc.expectedError)
-			} else {
+			default:
 				require.NoError(t, err)
-				tc.expectation(t, &sut)
 			}
 		})
 	}

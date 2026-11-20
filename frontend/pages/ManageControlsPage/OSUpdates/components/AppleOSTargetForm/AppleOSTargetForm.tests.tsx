@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
@@ -815,5 +816,78 @@ describe("AppleOSTargetForm", () => {
 
     expect((minVersionInput as HTMLInputElement).value).toBe("15.1");
     expect(refetchTeamConfig).not.toHaveBeenCalled();
+  });
+
+  describe("profile builder link", () => {
+    const renderForm = (
+      isPremiumTier: boolean,
+      defaultMinOsVersion: string,
+      currentTeamId = 2
+    ) => {
+      const renderPremium = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier, config: createMockConfig() } },
+      });
+      return renderPremium(
+        <AppleOSTargetForm
+          currentTeamId={currentTeamId}
+          applePlatform="ios"
+          defaultMinOsVersion={defaultMinOsVersion}
+          defaultDeadline="2024-12-31"
+          defaultDeadlineDays=""
+          refetchAppConfig={jest.fn()}
+          refetchTeamConfig={jest.fn()}
+        />
+      );
+    };
+
+    it("links to the profile builder with Apple and the current fleet on Premium", () => {
+      renderForm(true, "");
+
+      expect(
+        screen.getByRole("link", { name: "profile builder" })
+      ).toHaveAttribute(
+        "href",
+        expect.stringContaining(
+          "/controls/os-settings/configuration-profiles/new?fleet_id=2&platform=apple"
+        )
+      );
+    });
+
+    it("keeps the No fleet ID in the link", () => {
+      renderForm(true, "", 0);
+
+      expect(
+        screen.getByRole("link", { name: "profile builder" })
+      ).toHaveAttribute("href", expect.stringContaining("fleet_id=0"));
+    });
+
+    it("says to use the profile builder instead when no updates are enforced", () => {
+      renderForm(true, "");
+
+      expect(
+        screen.getByText(/Looking to customize the enforcement time/)
+      ).toHaveTextContent(
+        "Looking to customize the enforcement time or deployment rings? Use the profile builder instead."
+      );
+    });
+
+    it("says to select 'No updates enforced' when a version is enforced", () => {
+      renderForm(true, "11.0");
+
+      expect(
+        screen.getByText(/Looking to customize the enforcement time/)
+      ).toHaveTextContent(
+        "Looking to customize the enforcement time or deployment rings? Select No updates enforced, and instead use the profile builder."
+      );
+    });
+
+    it("does not show the profile builder link on Free", () => {
+      renderForm(false, "");
+
+      expect(
+        screen.queryByRole("link", { name: "profile builder" })
+      ).toBeNull();
+    });
   });
 });

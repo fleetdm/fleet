@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.173.1",
+      "version": "1.174.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser' AND version_compare(bundle_short_version, '1.173.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser' AND version_compare(bundle_short_version, '1.174.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%/', a.bundle_identifier, '.code_sign_clone/%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = 'company.thebrowser.Browser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.arc.net/release/Arc-1.173.1-90936.zip",
+      "installer_url": "https://releases.arc.net/release/Arc-1.174.0-91305.zip",
       "install_script_ref": "2745e78b",
       "uninstall_script_ref": "b611677c",
-      "sha256": "18e583df548b7bf3fa051660503357f62ae4ca5a1e8103b8306b509757b56a6c",
+      "sha256": "50b6609831f0ea346a84e7bf62e8ab113d1a0abd28e6bbacfcc09c2e34286406",
       "default_categories": [
         "Browsers"
       ]

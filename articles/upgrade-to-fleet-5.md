@@ -744,12 +744,13 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| Fleets can have names that differ only by punctuation, whitespace, symbols, or emoji, or names with no letters or numbers | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and GitOps require names that include at least one letter or number and are unique when Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji |
+| Fleets can have names that differ from another fleet's name or a reserved name only by punctuation, whitespace, symbols, or emoji, or names with no letters or numbers | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and GitOps require names that include at least one letter or number. Names can't match another fleet's name or a reserved name ("Unassigned", "All fleets", "No team", or "All teams") when Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji |
 
 When you upgrade, Fleet renames existing fleets that break these rules:
 
 - If two or more fleets' names match (for example, `Workstations` and `workstations!`), the oldest fleet keeps its name. Fleet adds a number to the others, like `workstations! 2`.
 - If a fleet's name has no letters or numbers (for example, `🚀`), Fleet adds a number, like `🚀 1`.
+- If a fleet's name matches a reserved name (for example, `Un-assigned` or `all-teams`), Fleet adds a number, like `Un-assigned 2`.
 
 Fleet only changes the name. Hosts, settings, and everything else in the fleet stay the same. Apple Business and Volume Purchasing Program (VPP) settings show the fleet's new name.
 
@@ -757,12 +758,12 @@ Fleet only changes the name. Hosts, settings, and everything else in the fleet s
 
 Change these before you upgrade, so Fleet doesn't rename your fleets.
 
-1. Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) and find names that match when you ignore letter case, accents, whitespace, punctuation, symbols, and emoji, plus names with no letters or numbers.
+1. Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) and find names that match when you ignore letter case, accents, whitespace, punctuation, symbols, and emoji. Also find names that match a reserved name the same way, and names with no letters or numbers.
 2. Rename those fleets. If you use GitOps, change `name` in each fleet's YAML file and run GitOps. Also update any other YAML that refers to the fleet by name.
 
 If you upgrade first, update your YAML to use the new names: `name` in each renamed fleet's file, and any other YAML that refers to those fleets by name, like Apple Business, VPP, and Windows automatic enrollment settings in `default.yml`. Otherwise, your GitOps runs fail.
 
-Fleet doesn't rename a fleet called "Unassigned" (in any letter case), which older Fleet versions allowed. In Fleet 5, "Unassigned" means hosts that aren't in a fleet, so rename that fleet before you upgrade. Until you do, Fleet 5 rejects "Unassigned" in Apple Business and VPP settings, and policies and certificates that name "Unassigned" apply to hosts that aren't in a fleet instead of that fleet.
+Fleet also renames a fleet called "Unassigned" (in any letter case), which older Fleet versions allowed. In Fleet 5, "Unassigned" means hosts that aren't in a fleet, so policies and certificates that name "Unassigned" apply to those hosts instead of that fleet. Rename that fleet before you upgrade, and update anything that refers to it by name.
 
 GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -815,6 +816,24 @@ Change these before you upgrade.
    - To find each user's `id`, call [List users](https://fleetdm.com/docs/rest-api/rest-api#list-users).
 
 GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
+
+
+### Public version endpoint removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /version` shows the Fleet server version to anyone, without logging in | Removed. Use [Get version](https://fleetdm.com/docs/rest-api/rest-api#get-version) (`GET /api/v1/fleet/version`), which needs an API token. |
+
+
+#### What to do
+
+Change these before you upgrade.
+
+1. If a script, monitoring tool, or load balancer calls `/version`, switch it to `GET /api/v1/fleet/version` with the token of an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+   - For health checks, use `/healthz`. It doesn't return the version.
+
+GitHub issue: [#59246](https://github.com/fleetdm/fleet/issues/59246)
+
 
 ### Puppet module removed
 
@@ -1220,6 +1239,23 @@ Pass `--host` on every call.
 
 GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
+### Commands look up hosts like the REST API
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get host`, `fleetctl mdm run-command --hosts`, `fleetctl mdm lock`, `fleetctl mdm unlock`, `fleetctl mdm clear-passcode`, `fleetctl mdm wipe`, and `fleetctl run-script` find a host by its hostname, UUID, serial number, osquery host ID, or node key. If more than one host matches, they use the oldest. | These commands also accept a host ID. They find a host like [`GET /hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host): a host ID first, then a serial number, UUID, and hostname. If more than one host matches, they use the newest. They don't match an osquery host ID or node key. |
+| `fleetctl query --hosts` matches a hostname, UUID, serial number, osquery host ID, or node key | `fleetctl query --hosts` matches a hostname, UUID, or serial number |
+
+#### What to do
+
+1. If you pass an all-digit hostname or serial number, check that it isn't also a host ID.
+   - An all-digit identifier is used as a host ID if a host has that ID, even if another host has that hostname or serial number.
+   - Pass the host's UUID instead, or its host ID.
+2. If you pass an osquery host ID or node key, pass the host's hostname, UUID, or serial number instead.
+   - Hostnames, UUIDs, and serial numbers already work in Fleet 4.
+
+GitHub issue: [#58203](https://github.com/fleetdm/fleet/issues/58203)
+
 ### mdm-apple-bm is now mdm-ab
 
 | Fleet 4 | Fleet 5 |
@@ -1306,11 +1342,14 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4 and review the file.
    - 2017 packs stop running on hosts after the upgrade.
+   - The command's output says Fleet 5 converts 2017 packs to reports automatically. It doesn't: Fleet 5 deletes them.
+   - Only packs that target fleets keep their schedule in the file. For packs that target labels (including "All Hosts") or individual hosts, the file sets `interval: 0` and `automations_enabled: false`, so those reports don't run. Set `interval` and `automations_enabled: true`. For packs that target labels other than "All Hosts", list those labels under `labels_include_any`. Reports can't target individual hosts, so use a label instead.
+   - If a pack's query doesn't set `snapshot` or `removed`, the file leaves `logging` empty and the report logs snapshot results. Set `logging: differential` to keep the pack's log format.
 2. Add the reports to Fleet with [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#reports) or [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report) (API).
    - With GitOps, copy each report's settings from under `spec:` into `reports` in `default.yml` or the fleet's YAML file.
    - With the API, call [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) once for each report.
 
-GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issues: [#53470](https://github.com/fleetdm/fleet/issues/53470), [#59237](https://github.com/fleetdm/fleet/issues/59237)
 
 ### fleetctl delete removed
 
@@ -1425,7 +1464,8 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 #### What to do
 
-1. Remove these options from your server configuration.
+1. Remove these options from your server configuration before you upgrade.
+   - Fleet 5 doesn't start if any of them is still set as a config file key, environment variable, or command-line flag, even if the value is `false`.
    - Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
 
 GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
@@ -1539,7 +1579,7 @@ GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
 |:--|:--|
 | Windows Task Manager shows "Orbit osquery runtime and autoupdater" | `Fleet`. This changes when fleetd updates, whatever the Fleet server version. |
 | Windows **Settings > Apps > Installed apps** shows "Fleet osquery" | `Fleet`. This changes when fleetd connects to a Fleet 5 server. |
-| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `Fleet`. This changes when fleetd talks to a Fleet 5 server. |
+| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `fleet`. This changes when fleetd talks to a Fleet 5 server. |
 
 #### What to do
 

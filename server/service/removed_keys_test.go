@@ -24,7 +24,10 @@ func TestRemovedKeyMessage(t *testing.T) {
 // A removed key's error message comes from pkg/removednames, so every removedkey tag on a request type needs an entry
 // there.
 func TestRemovedKeyTagsRegistered(t *testing.T) {
-	for _, typ := range []any{fleet.AppConfig{}, fleet.TeamPayload{}, fleet.TeamSpec{}, fleet.MDMAppleSetupPayload{}} {
+	for _, typ := range []any{
+		fleet.AppConfig{}, fleet.TeamPayload{}, fleet.TeamSpec{}, fleet.MDMAppleSetupPayload{},
+		fleet.CreatePolicyRequest{}, fleet.ModifyPolicyRequest{},
+	} {
 		rules := endpointer.ExtractRemovedKeyRules(typ)
 		require.NotEmpty(t, rules, "%T", typ)
 		for _, rule := range rules {
@@ -32,6 +35,14 @@ func TestRemovedKeyTagsRegistered(t *testing.T) {
 			assert.True(t, ok, "%T: %q has no entry in pkg/removednames", typ, rule.Key)
 		}
 	}
+}
+
+// An entry with a Context, like Wipe host's windows key, is rejected by its endpoint only: agent options keep their Windows
+// overrides.
+func TestRemovedKeyWithContextNotRejectedElsewhere(t *testing.T) {
+	require.NotContains(t, requestNames(removednames.KindJSONKey), removednames.WipeHostWindowsParam.Old)
+	appConfig := []byte(`{"agent_options":{"overrides":{"platforms":{"windows":{"options":{"distributed_interval":10}}}}}}`)
+	require.NoError(t, endpointer.CheckRemovedKeys(appConfig, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})))
 }
 
 func TestRemovedAppleSettingsKeysAreScoped(t *testing.T) {

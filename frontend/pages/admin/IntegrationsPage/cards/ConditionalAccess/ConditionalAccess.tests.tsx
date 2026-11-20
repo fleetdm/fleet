@@ -605,7 +605,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         screen.getByRole("tab", { name: "macOS", selected: true })
       ).toBeInTheDocument();
 
-      await user.click(screen.getByRole("button", { name: "Close" }));
+      await user.click(screen.getByText("Close"));
 
       expect(
         screen.queryByText("Okta conditional access profiles")

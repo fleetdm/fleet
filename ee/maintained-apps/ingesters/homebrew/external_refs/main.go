@@ -92,6 +92,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"plex-media-server/darwin":          {PlexMediaServerVersionShortener},
 	"sigmaos/darwin":                    {SigmaOSVersionShortener},
 	"redcine-x-pro/darwin":              {REDCINEXProVersionShortener},
+	"postgres-app/darwin":               {PostgresAppBundleIDs},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

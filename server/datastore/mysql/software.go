@@ -642,7 +642,12 @@ func updateHostSoftwareInstalledPathExecutables(
 	return nil
 }
 
-func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) (
+// minLastOpenedAtDiff is how much later a reported last opened time must be than the stored one
+// to be saved, so small differences in reported times (for example, between copies of an app
+// installed in two locations) don't cause a database write on every check-in.
+const minLastOpenedAtDiff = 5 * time.Second
+
+func nothingChanged(current, incoming []fleet.Software) (
 	map[string]fleet.Software, map[string]fleet.Software, bool,
 ) {
 	// Process incoming software to ensure there are no duplicates, since the same software can be installed at multiple paths.
@@ -784,7 +789,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		}
 	}
 
-	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware, ds.minLastOpenedAtDiff)
+	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware)
 	if noChanges {
 		// TODO: This is to backfill existing data ... we should be able to remove this call after a couple of releases?
 		// Benchmark showed no meaningful impact to performance
@@ -838,7 +843,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 
-			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.minLastOpenedAtDiff, ds.logger); err != nil {
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, ds.logger); err != nil {
 				return err
 			}
 
@@ -2094,7 +2099,6 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-	minLastOpenedAtDiff time.Duration,
 	logger *slog.Logger,
 ) error {
 	var keysToUpdate []string
@@ -4240,11 +4244,6 @@ type hostSoftware struct {
 
 	VulnerabilitiesList       *string `db:"vulnerabilities_list"`
 	SoftwareIDList            *string `db:"software_id_list"`
-	SoftwareSourceList        *string `db:"software_source_list"`
-	SoftwareExtensionForList  *string `db:"software_extension_for_list"`
-	VersionList               *string `db:"version_list"`
-	SoftwareReleaseList       *string `db:"software_release_list"`
-	BundleIdentifierList      *string `db:"bundle_identifier_list"`
 	VPPAppSelfServiceList     *string `db:"vpp_app_self_service_list"`
 	VPPAppAdamIDList          *string `db:"vpp_app_adam_id_list"`
 	VPPAppVersionList         *string `db:"vpp_app_version_list"`
@@ -4255,7 +4254,6 @@ type hostSoftware struct {
 	InHouseAppPlatformList    *string `db:"in_house_app_platform_list"`
 	InHouseAppVersionList     *string `db:"in_house_app_version_list"`
 	InHouseAppSelfServiceList *string `db:"in_house_app_self_service_list"`
-	SoftwareUpgradeCodeList   *string `db:"software_upgrade_code_list"`
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
@@ -5208,39 +5206,6 @@ func hostInHouseInstalls(ds *Datastore, ctx context.Context, hostID uint, global
 	return installs, nil
 }
 
-func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostInstalledSoftware hostSoftware) {
-	seperator := ","
-	if softwareTitleRecord.SoftwareIDList == nil {
-		softwareTitleRecord.SoftwareIDList = ptr.String("")
-		softwareTitleRecord.SoftwareSourceList = ptr.String("")
-		softwareTitleRecord.SoftwareExtensionForList = ptr.String("")
-		softwareTitleRecord.VersionList = ptr.String("")
-		softwareTitleRecord.SoftwareReleaseList = new("")
-		softwareTitleRecord.BundleIdentifierList = ptr.String("")
-		seperator = ""
-	}
-	softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
-	found := false
-	for _, id := range softwareIDList {
-		if id == softwareIDStr {
-			found = true
-			break
-		}
-	}
-	if !found {
-		*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
-		if hostInstalledSoftware.SoftwareSource != nil {
-			*softwareTitleRecord.SoftwareSourceList += seperator + *hostInstalledSoftware.SoftwareSource
-		}
-		if hostInstalledSoftware.SoftwareExtensionFor != nil {
-			*softwareTitleRecord.SoftwareExtensionForList += seperator + *hostInstalledSoftware.SoftwareExtensionFor
-		}
-		*softwareTitleRecord.VersionList += seperator + ptr.ValOrZero(hostInstalledSoftware.Version)
-		*softwareTitleRecord.SoftwareReleaseList += seperator + ptr.ValOrZero(hostInstalledSoftware.SoftwareRelease)
-		*softwareTitleRecord.BundleIdentifierList += seperator + ptr.ValOrZero(hostInstalledSoftware.BundleIdentifier)
-	}
-}
-
 func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint) ([]*hostSoftware, error) {
 	vppInstalledStmt := `
 		SELECT
@@ -5591,77 +5556,71 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	inventoriedVPPApp := a.hostVPPInstalledTitles[softwareTitleRecord.ID]
 	inventoriedInHouseApp := a.hostInHouseInstalledTitles[softwareTitleRecord.ID]
 
-	// Fill the version lists the software join would have returned. App Store and in-house rows
-	// never carry them.
+	// Installed versions are filled from the host's inventory in bySoftwareID; the statement only
+	// says which software IDs matched. Host-reported values are never joined into strings, which
+	// MySQL truncates at group_concat_max_len and which break on commas inside a value.
+	var softwareIDs []uint
+	seen := make(map[uint]struct{})
+	addSoftwareID := func(id uint) {
+		if _, ok := seen[id]; !ok {
+			seen[id] = struct{}{}
+			softwareIDs = append(softwareIDs, id)
+		}
+	}
+	if softwareTitleRecord.SoftwareIDList != nil {
+		for idStr := range strings.SplitSeq(*softwareTitleRecord.SoftwareIDList, ",") {
+			id, err := strconv.ParseUint(idStr, 10, 32)
+			if err != nil {
+				continue
+			}
+			// A truncated list can end in a partial ID that names another title's software.
+			if s, ok := a.bySoftwareID[uint(id)]; ok && s.ID == softwareTitleRecord.ID {
+				addSoftwareID(uint(id))
+			}
+		}
+	}
+	// App Store and in-house rows never carry the host's versions.
 	if softwareTitleRecord.VPPAppAdamIDList == nil && softwareTitleRecord.InHouseAppIDList == nil {
 		for _, softwareID := range a.inventoryIDsByTitleID[softwareTitleRecord.ID] {
-			if s, ok := a.bySoftwareID[softwareID]; ok {
-				pushVersion(strconv.FormatUint(uint64(softwareID), 10), softwareTitleRecord, *s)
+			addSoftwareID(softwareID)
+		}
+	}
+	// Software installed through a package, App Store app or in-house app is listed even when the
+	// statement's filters left it out.
+	for _, installed := range []*hostSoftware{softwareTitle, inventoriedVPPApp, inventoriedInHouseApp} {
+		if installed != nil && installed.SoftwareID != nil {
+			if _, ok := a.hostInstalledSoftwareSet[*installed.SoftwareID]; ok {
+				addSoftwareID(*installed.SoftwareID)
 			}
 		}
 	}
 
-	if softwareTitle != nil && softwareTitle.SoftwareID != nil {
-		// if we have a software id, that means that this record has been installed on the host,
-		// we should double check the hostInstalledSoftwareSet,
-		// but we want to make sure that software id is present on the InstalledVersions list to be processed
-		if s, ok := a.hostInstalledSoftwareSet[*softwareTitle.SoftwareID]; ok {
-			softwareIDStr := strconv.FormatUint(uint64(*softwareTitle.SoftwareID), 10)
-			pushVersion(softwareIDStr, softwareTitleRecord, *s)
+	for _, softwareID := range softwareIDs {
+		software, ok := a.bySoftwareID[softwareID]
+		if !ok {
+			continue
 		}
-	}
-	if inventoriedVPPApp != nil && inventoriedVPPApp.SoftwareID != nil {
-		// Vpp app installed on the host, we need to push this into the installed versions list as well
-		if s, ok := a.hostInstalledSoftwareSet[*inventoriedVPPApp.SoftwareID]; ok {
-			softwareIDStr := strconv.FormatUint(uint64(*inventoriedVPPApp.SoftwareID), 10)
-			pushVersion(softwareIDStr, softwareTitleRecord, *s)
+		version := &fleet.HostSoftwareInstalledVersion{
+			Version:          ptr.ValOrZero(software.Version),
+			BundleIdentifier: ptr.ValOrZero(software.BundleIdentifier),
+			Source:           ptr.ValOrZero(software.SoftwareSource),
+			Release:          ptr.ValOrZero(software.SoftwareRelease),
+			LastOpenedAt:     software.LastOpenedAt,
+			SoftwareID:       softwareID,
+			SoftwareTitleID:  softwareTitleRecord.ID,
+			InstalledPaths:   a.installedPathBySoftwareId[softwareID],
 		}
-	}
-	if inventoriedInHouseApp != nil && inventoriedInHouseApp.SoftwareID != nil {
-		// in-house app installed on the host, we need to push this into the installed versions list as well
-		if s, ok := a.hostInstalledSoftwareSet[*inventoriedInHouseApp.SoftwareID]; ok {
-			softwareIDStr := strconv.FormatUint(uint64(*inventoriedInHouseApp.SoftwareID), 10)
-			pushVersion(softwareIDStr, softwareTitleRecord, *s)
+
+		// Only sources that report signature information are listed; every other
+		// source has installed path rows with empty hashes.
+		if version.Source == "apps" || version.Source == "homebrew_packages" {
+			version.SignatureInformation = a.pathSignatureInformation[softwareID]
 		}
-	}
 
-	if softwareTitleRecord.SoftwareIDList != nil {
-		softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
-		softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
-		softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
-		softwareReleaseList := strings.Split(*softwareTitleRecord.SoftwareReleaseList, ",")
-		softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
-
-		for index, softwareIdStr := range softwareIDList {
-			version := &fleet.HostSoftwareInstalledVersion{}
-
-			if softwareId, err := strconv.ParseUint(softwareIdStr, 10, 32); err == nil {
-
-				softwareId := uint(softwareId)
-				if software, ok := a.bySoftwareID[softwareId]; ok {
-					version.Version = softwareVersionList[index]
-					version.BundleIdentifier = softwareBundleIdentifierList[index]
-					version.Source = softwareSourceList[index]
-					version.Release = softwareReleaseList[index]
-					version.LastOpenedAt = software.LastOpenedAt
-					version.SoftwareID = softwareId
-					version.SoftwareTitleID = softwareTitleRecord.ID
-
-					version.InstalledPaths = a.installedPathBySoftwareId[softwareId]
-
-					// Only sources that report signature information are listed; every other
-					// source has installed path rows with empty hashes.
-					if version.Source == "apps" || version.Source == "homebrew_packages" {
-						version.SignatureInformation = a.pathSignatureInformation[softwareId]
-					}
-
-					if storedIndex, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
-						a.deduplicatedList[storedIndex].InstalledVersions = append(a.deduplicatedList[storedIndex].InstalledVersions, version)
-					} else {
-						softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
-					}
-				}
-			}
+		if storedIndex, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+			a.deduplicatedList[storedIndex].InstalledVersions = append(a.deduplicatedList[storedIndex].InstalledVersions, version)
+		} else {
+			softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
 		}
 	}
 
@@ -7585,13 +7544,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		var replacements []any
 		if len(softwareTitleIDs) > 0 {
 			softwareVersionColumns := `
-					GROUP_CONCAT(software.id) AS software_id_list,
-					GROUP_CONCAT(software.source) AS software_source_list,
-					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
-					GROUP_CONCAT(software.upgrade_code) AS software_upgrade_code_list,
-					GROUP_CONCAT(software.version) AS version_list,
-					GROUP_CONCAT(software.release) AS software_release_list,
-					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,`
+					GROUP_CONCAT(software.id) AS software_id_list,`
 			softwareGroupBy := `
 				GROUP BY
 					software_titles.id,
@@ -7608,13 +7561,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			`
 			if !filtersOnSoftware {
 				softwareVersionColumns = `
-					NULL AS software_id_list,
-					NULL AS software_source_list,
-					NULL AS software_extension_for_list,
-					NULL AS software_upgrade_code_list,
-					NULL AS version_list,
-					NULL AS software_release_list,
-					NULL AS bundle_identifier_list,`
+					NULL AS software_id_list,`
 				softwareGroupBy = ""
 			}
 			replacements = append(replacements,
@@ -7663,12 +7610,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL as package_platform,
 					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
-					NULL AS software_source_list,
-					NULL AS software_extension_for_list,
-					NULL AS software_upgrade_code_list,
-					NULL AS version_list,
-					NULL AS software_release_list,
-					NULL AS bundle_identifier_list,
 					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
 					GROUP_CONCAT(vpp_apps.latest_version) AS vpp_app_version_list,
 					GROUP_CONCAT(vpp_apps.platform) as vpp_app_platform_list,
@@ -7708,12 +7649,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL as package_platform,
 					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
-					NULL AS software_source_list,
-					NULL AS software_extension_for_list,
-					NULL AS software_upgrade_code_list,
-					NULL AS version_list,
-					NULL AS software_release_list,
-					NULL AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,
 					NULL as vpp_app_platform_list,

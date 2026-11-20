@@ -5506,12 +5506,20 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	const (
-		teamHostID   = 1
-		globalHostID = 2
+		teamHostID          = 1
+		globalHostID        = 2
+		teamWindowsHostID   = 3
+		globalWindowsHostID = 4
 	)
 
 	teamHost := &fleet.Host{TeamID: new(uint(1)), Platform: "darwin"}
 	globalHost := &fleet.Host{Platform: "darwin"}
+	hostsByID := map[uint]*fleet.Host{
+		teamHostID:          teamHost,
+		globalHostID:        globalHost,
+		teamWindowsHostID:   {TeamID: new(uint(1)), Platform: "windows"},
+		globalWindowsHostID: {Platform: "windows"},
+	}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		if identifier == fmt.Sprint(teamHostID) {
@@ -5552,10 +5560,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 	// Some functions use Host, others HostLite. For our purposes either is fine
 	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-		if hostID == teamHostID {
-			return teamHost, nil
-		}
-		return globalHost, nil
+		return hostsByID[hostID], nil
 	}
 	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
@@ -5569,6 +5574,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
+	}
+	ds.WipeHostViaWindowsMDMFunc = func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
+		return nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
@@ -5683,9 +5691,14 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
 
-			err = svc.WipeHost(ctx, globalHostID, nil)
+			err = svc.WipeHost(ctx, globalHostID)
 			test.RequireErrKind(t, tt.wantGlobalErr, err)
-			err = svc.WipeHost(ctx, teamHostID, nil)
+			err = svc.WipeHost(ctx, teamHostID)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
+
+			err = svc.ResetHost(ctx, globalWindowsHostID)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
+			err = svc.ResetHost(ctx, teamWindowsHostID)
 			test.RequireErrKind(t, tt.wantTeamErr, err)
 		})
 	}
@@ -5765,7 +5778,7 @@ func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
 	})
 
 	t.Run("WipeHost", func(t *testing.T) {
-		err := svc.WipeHost(ctx, teamHostID, nil)
+		err := svc.WipeHost(ctx, teamHostID)
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err), "expected a not-found error, got %v", err)
 	})
@@ -5827,7 +5840,7 @@ func TestWipeHostFreeTierAndroid(t *testing.T) {
 				return nil
 			}
 
-			err := svc.WipeHost(ctx, hostID, nil)
+			err := svc.WipeHost(ctx, hostID)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 				require.Zero(t, wipedHostID, "a rejected wipe must not reach AMAPI")

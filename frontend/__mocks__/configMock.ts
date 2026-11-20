@@ -163,7 +163,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     failing_policies_webhook: {
       enable_failing_policies_webhook: true,
       destination_url: "https://server.com",
-      policy_ids: [1, 2, 3],
       host_batch_size: 1000,
     },
     vulnerabilities_webhook: {

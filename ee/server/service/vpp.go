@@ -1339,7 +1339,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
 
-	teamName := fleet.TeamNameNoTeam
+	teamName := fleet.DisplayNameNoTeam
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
@@ -1643,10 +1643,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	if appID.AddAutoInstallPolicy && app.AddedAutomaticInstallPolicy != nil {
-		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   app.AddedAutomaticInstallPolicy.ID,
-			Name: app.AddedAutomaticInstallPolicy.Name,
-		}
+		policyAct := createdAutomaticInstallPolicyActivity(app.AddedAutomaticInstallPolicy, &teamName)
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			svc.logger.WarnContext(ctx, "failed to create activity for create automatic install policy for app store app", "err", err)
@@ -2046,7 +2043,24 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	// Build the activity's labels and configuration from the pre-update read and the request, not from
+	// the re-read above (which can hit a lagging replica): a partial edit keeps the stored values.
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
+	if validatedLabels != nil {
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	}
+	actConfiguration := payload.Configuration
+	if actConfiguration == nil && len(meta.Configuration) > 0 {
+		actConfiguration = meta.Configuration
+		switch meta.Platform {
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			wrapped, err := json.Marshal(string(meta.Configuration))
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for activity")
+			}
+			actConfiguration = wrapped
+		}
+	}
 
 	act := fleet.ActivityEditedAppStoreApp{
 		VPPToken:            actVPPToken,
@@ -2062,7 +2076,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: updatedAppMeta.DisplayName,
-		Configuration:       payload.Configuration,
+		Configuration:       actConfiguration,
 	}
 
 	act.VersionName = updatedAppMeta.VersionName

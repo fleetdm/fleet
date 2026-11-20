@@ -2489,12 +2489,8 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.Len(t, resp.Reports, 2)
 	})
 
-	t.Run("alt path /hosts/:id/queries works", func(t *testing.T) {
-		altURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID)
-		var resp listHostReportsResponse
-		s.DoJSON("GET", altURL, nil, http.StatusOK, &resp, "order_key", "name")
-		require.NoError(t, resp.Err)
-		assert.Equal(t, 2, resp.Count)
+	t.Run("removed path /hosts/:id/queries is gone", func(t *testing.T) {
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID), nil, http.StatusGone)
 	})
 
 	t.Run("default sort is last_fetched descending (newest first)", func(t *testing.T) {

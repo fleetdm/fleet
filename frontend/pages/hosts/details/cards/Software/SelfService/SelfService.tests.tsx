@@ -13,6 +13,7 @@ import {
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
+import { emptyDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
@@ -58,6 +59,11 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
   mdmEnrollmentStatus: "Off",
 };
+
+// The card loads the device's self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptyDeviceSelfServiceCategoriesHandler);
+});
 
 describe("SelfService", () => {
   it("should render the self service items correctly", async () => {

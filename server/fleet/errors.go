@@ -705,22 +705,6 @@ func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConfl
 
 func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
 
-// EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
-// certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
-type EJBCANameInUseError struct {
-	Name string
-}
-
-func (e EJBCANameInUseError) Error() string {
-	return fmt.Sprintf("%q name is already used by another certificate authority, and the name of an EJBCA certificate authority can't be shared. "+
-		"Please choose a different name and try again.", e.Name)
-}
-
-// StatusCode implements the kithttp.StatusCoder interface.
-func (e EJBCANameInUseError) StatusCode() int {
-	return http.StatusConflict
-}
-
 // CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
 // serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
 // Retry-After tells callers such as curl --retry when to try again.
