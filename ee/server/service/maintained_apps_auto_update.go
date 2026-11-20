@@ -101,12 +101,6 @@ func autoUpdateOneFleetMaintainedApp(
 		pin = *pinned
 	}
 
-	// A literal pin never advances and never pre-caches: the version is already
-	// cached and nothing newer is wanted (re-pinning is handled on-demand).
-	if pin != "" && !strings.HasPrefix(pin, "^") {
-		return nil
-	}
-
 	// Download the latest published version when the store is configured and the
 	// pin would actually promote to it. Download failures are isolated: we log and
 	// still try to promote among whatever is already cached.
@@ -210,9 +204,8 @@ func downloadNewVersionIfEligible(
 	// extracted, so the caret-major and cache checks are deferred until after that.
 	isLatest := app.Version == "latest"
 	if !isLatest {
-		// Caret pin: caching a version the pin can never promote to wastes a slot.
-		// Empty pin always takes latest; literal pins were filtered out by the caller.
-		if pin != "" && !versionMatchesMajor(app.Version, strings.TrimPrefix(pin, "^")) {
+		// Caching a version the pin can never promote to wastes a slot.
+		if !versionAllowedByPin(app.Version, pin) {
 			return "", nil
 		}
 		versionExists, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
@@ -319,7 +312,7 @@ func downloadNewVersionIfEligible(
 	}
 
 	// Apply the deferred gates now that the concrete version is known ("latest").
-	if isLatest && pin != "" && !versionMatchesMajor(version, strings.TrimPrefix(pin, "^")) {
+	if isLatest && !versionAllowedByPin(version, pin) {
 		return "", nil
 	}
 	if !versionAlreadyCached {
@@ -463,17 +456,23 @@ func hydrateLatestManifest(ctx context.Context, ds fleet.Datastore, c fleet.FMAA
 // ok=false when no cached version satisfies the major (so the cron skips rather
 // than crossing into another major).
 func selectAutoUpdateTarget(versions []fleet.FleetMaintainedVersion, pin string) (fleet.FleetMaintainedVersion, bool) {
-	if pin == "" {
-		return versions[0], true
-	}
-	// Caret pin: parsePinnedVersion already validated the shape on write.
-	major := strings.TrimPrefix(pin, "^")
 	for _, v := range versions {
-		if versionMatchesMajor(v.Version, major) {
+		if versionAllowedByPin(v.Version, pin) {
 			return v, true
 		}
 	}
 	return fleet.FleetMaintainedVersion{}, false
+}
+
+func versionAllowedByPin(version string, pin string) bool {
+	if pin == "" {
+		return true
+	}
+	major, isCaretPin := strings.CutPrefix(pin, "^")
+	if isCaretPin {
+		return versionMatchesMajor(version, major)
+	}
+	return version == pin
 }
 
 // teamIDForLog renders an optional team ID for structured logs; slog prints a
