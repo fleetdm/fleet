@@ -1210,7 +1210,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// The "GET /api/latest/fleet/queries/run" API requires
+	// The "GET /api/latest/fleet/reports/run" API requires
 	// WriteTimeout to be higher than the live query rest period
 	// (otherwise the response is not sent back to the client).
 	//

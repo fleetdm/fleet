@@ -1733,7 +1733,7 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 		{Name: new("q-any-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
 		{Name: new("q-all-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
 	} {
-		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
+		s.DoJSON("POST", "/api/latest/fleet/reports", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
 
 	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
@@ -1750,7 +1750,7 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	}
 
 	// Same for QuerySpec.
-	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/spec/reports", fleet.ApplyQuerySpecsRequest{
 		Specs: []*fleet.QuerySpec{{
 			Name:             "qspec-premium-gate-" + t.Name(),
 			Query:            "SELECT 1",
