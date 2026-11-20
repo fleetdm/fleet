@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.85.2.0",
+      "version": "7.85.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Datadog Agent' AND publisher = 'Datadog, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Datadog Agent' AND publisher = 'Datadog, Inc.' AND version_compare(version, '7.85.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Datadog Agent' AND publisher = 'Datadog, Inc.' AND version_compare(version, '7.85.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ddtray.exe');"
       },
-      "installer_url": "https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-7.85.2.msi",
+      "installer_url": "https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-7.85.4.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "28767aec",
-      "sha256": "86041117aaf976178fd549eab223a7816546b8b758fdcbefb75ef5b1aaeedf35",
+      "sha256": "70dd2133cea68e1fc9fcbed02e484b3b0fc76eb08c01d49e92101c798a0da6fb",
       "default_categories": [
         "Developer tools"
       ]

@@ -477,9 +477,10 @@ type Service interface {
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	DeleteHostIDP(ctx context.Context, id uint) error
-	// SetHostGoogleDeviceID binds an iOS, iPadOS or Android host to its device ID in Google. A different
+	// SetHostGoogleDeviceID binds a company-owned iOS, iPadOS or Android host to its device ID in Google
+	// and marks the device's users as managed there. It needs Google conditional access connected. A different
 	// value than the stored one, or one bound to another host, is refused with a 409. Only
-	// DeleteHostGoogleDeviceID removes it.
+	// DeleteHostGoogleDeviceID removes it, which also queues the unmark in Google.
 	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
 	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
@@ -771,27 +772,9 @@ type Service interface {
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// GlobalScheduleService
-
-	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, error)
-	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
-	DeleteGlobalScheduledQueries(ctx context.Context, id uint) error
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
 
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// TeamScheduleService
-
-	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, error)
-	ModifyTeamScheduledQueries(
-		ctx context.Context, teamID uint, scheduledQueryID uint, q ScheduledQueryPayload,
-	) (*ScheduledQuery, error)
-	DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
@@ -1048,9 +1031,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
-	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
 	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
@@ -1439,7 +1419,9 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
-	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
+	WipeHost(ctx context.Context, hostID uint) error
+	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one can re-enroll itself.
+	ResetHost(ctx context.Context, hostID uint) error
 
 	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.
 	// Not script based, only MDM based.
@@ -1614,6 +1596,30 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	// ConnectGoogleConditionalAccess verifies the key with Google, registers with
+	// fleetdm.com, and turns the integration on.
+	ConnectGoogleConditionalAccess(ctx context.Context, customerID, adminEmail string, serviceAccountKey json.RawMessage) error
+	// GetGoogleConditionalAccess returns the settings from the app config (nil when not
+	// configured) and the connection status. Both are nil on Fleet Free.
+	GetGoogleConditionalAccess(ctx context.Context) (*GoogleConditionalAccessIntegration, *ConditionalAccessGoogleStatus, error)
+	// UpdateGoogleConditionalAccess edits the configured integration. A nil customerID or
+	// adminEmail and an empty serviceAccountKey keep the stored value.
+	UpdateGoogleConditionalAccess(ctx context.Context, customerID, adminEmail *string, serviceAccountKey json.RawMessage) error
+	// DeleteGoogleConditionalAccess drops the fleetdm.com registration, turns the
+	// integration off and deletes the key. Nothing is unmarked in Google, and the device
+	// rows are kept for a re-add for the same customer.
+	DeleteGoogleConditionalAccess(ctx context.Context) error
+	// GetGoogleConditionalAccessDeviceStatus returns the Google sign-in URL of the
+	// authenticated host, counting an attempt when it hands out a sign-in.
+	GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *Host) (*GoogleConditionalAccessDeviceStatus, error)
+	// GoogleConditionalAccessSignInRequired reports whether the Self-service web clip of
+	// the authenticated host should ask the status route for a sign-in. It only reads,
+	// so it counts no attempt.
+	GoogleConditionalAccessSignInRequired(ctx context.Context, host *Host) (bool, error)
+	// RegisterGoogleConditionalAccessDevice stores and marks the DeviceUsers fleetdm.com
+	// looked up for an iOS or iPadOS host. secret is the bearer token fleetdm.com sent.
+	RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg GoogleConditionalAccessRegistration) (GoogleConditionalAccessRegisterResult, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Okta conditional access

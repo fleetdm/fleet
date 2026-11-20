@@ -2253,7 +2253,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	var googleDeviceID *string
 	if fleet.IsMobilePlatform(host.Platform) {
-		id, err := svc.ds.GetHostGoogleDeviceID(ctx, host.ID)
+		id, err := svc.ds.GetHostGoogleDeviceID(ctx, host.UUID, googleConditionalAccessCustomerID(ac.Integrations.GoogleConditionalAccess))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host google device id")
 		}
@@ -2936,6 +2936,10 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if !fleet.IsMobilePlatform(host.Platform) {
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is only supported on iOS, iPadOS, and Android hosts.")
 	}
+	if host.UUID == "" {
+		// The ID is stored by host UUID, which every host that hasn't enrolled would share.
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID can't be set on a host that hasn't enrolled.")
+	}
 	if googleDeviceID == "" {
 		// Removing the ID lets another device register as this host, so it takes the explicit DELETE.
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is required. To remove it, use the DELETE method.")
@@ -2947,8 +2951,37 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID must be 255 characters or less.")
 	}
 
-	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, hostID, googleDeviceID)
-	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
+	// Fleet marks the device in Google, so the rules are the sign-in's.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	notConnected := fleet.NewInvalidArgumentError("google_device_id",
+		"Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access.")
+	active, err := svc.activeGoogleConditionalAccess(ctx)
+	if err != nil {
+		return err
+	}
+	if active == nil {
+		return notConnected
+	}
+	customerID := active.settings.CustomerID
+	eligible, err := svc.googleConditionalAccessEligible(ctx, host)
+	if err != nil {
+		return err
+	}
+	if !eligible {
+		return fleet.NewInvalidArgumentError("google_device_id",
+			"Google device ID is only supported on company-owned hosts (MDM status: On (automatic)).")
+	}
+
+	// The datastore decides again under a lock; this spares Google a call for a repeat
+	// or a refused value.
+	stored, err := svc.ds.GetHostGoogleDeviceID(ctx, host.UUID, customerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host google device id")
+	}
+	if strings.EqualFold(stored, googleDeviceID) {
+		return nil
+	}
+	refuseDifferent := func(conflict *fleet.HostGoogleDeviceIDConflictError) error {
 		var userID uint
 		if user := authz.UserFromContext(ctx); user != nil {
 			userID = user.ID
@@ -2956,6 +2989,37 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 		svc.logger.WarnContext(ctx, "refused a different Google device ID for host",
 			"host_id", host.ID, "user_id", userID,
 			"stored_google_device_id", conflict.StoredID, "google_device_id", googleDeviceID)
+		return ctxerr.Wrap(ctx, conflict, "set host google device id")
+	}
+	if stored != "" {
+		// Refused here and not by the datastore, which would bind the new ID with no names
+		// if the stored one were deleted before it looked.
+		return refuseDifferent(&fleet.HostGoogleDeviceIDConflictError{StoredID: stored})
+	}
+
+	ci, err := svc.googleCloudIdentity(ctx, active)
+	if err != nil {
+		return err
+	}
+	if ci == nil {
+		return notConnected
+	}
+	if err := svc.checkHostGoogleDevice(ctx, ci, host, googleDeviceID); err != nil {
+		return err
+	}
+	names, err := listGoogleDeviceUserNames(ctx, ci, googleDeviceID)
+	if err != nil {
+		return err
+	}
+	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID, customerID, googleDeviceID, names)
+	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
+		return refuseDifferent(conflict)
+	}
+	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
+		svc.logger.WarnContext(ctx, "refused a google device with a user registered to another host",
+			"host_id", host.ID, "device_user_name", conflict.Name)
+		return fleet.NewInvalidArgumentError("google_device_id", "This Google device is already registered to another host.").
+			WithStatus(http.StatusConflict)
 	}
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set host google device id")
@@ -2963,16 +3027,11 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if !changed {
 		return nil
 	}
-	// The binding is already saved and a retry is a no-op that logs nothing, so the error carries the
-	// change to keep a trail of it.
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
+	return svc.finishGoogleDeviceRegistration(ctx, ci, host, names, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		GoogleDeviceID:  googleDeviceID,
-	}); err != nil {
-		return ctxerr.Wrapf(ctx, err, "create activity for setting host %d google device id %q", host.ID, googleDeviceID)
-	}
-	return nil
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3004,7 +3063,12 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 		return err
 	}
 
-	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), hostID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), host.UUID,
+		googleConditionalAccessCustomerID(appConfig.Integrations.GoogleConditionalAccess))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host google device id")
 	}
@@ -3012,7 +3076,7 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 		return nil
 	}
 	// Deleting only the value read above keeps the activity accurate if a concurrent request changes it.
-	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, hostID, removed)
+	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, host.UUID, removed)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host google device id")
 	}

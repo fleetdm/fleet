@@ -1262,14 +1262,14 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.WipeHostRequest)
-	if err := svc.WipeHost(ctx, req.HostID, req.Metadata); err != nil {
+	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return fleet.WipeHostResponse{Err: err}, nil
 	}
 	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
 	return fleet.WipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeMetadata) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -1343,4 +1343,25 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")
 	}
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset host
+////////////////////////////////////////////////////////////////////////////////
+
+func resetHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ResetHostRequest)
+	if err := svc.ResetHost(ctx, req.HostID); err != nil {
+		return fleet.ResetHostResponse{Err: err}, nil
+	}
+	// A locked, wiped or reset host is rejected, so the host is unlocked here.
+	return fleet.ResetHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionReset}, nil
+}
+
+func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

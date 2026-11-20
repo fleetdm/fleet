@@ -959,7 +959,7 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 
 // GetPolicies retrieves global and all team-specific policies from Fleet.
 func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/global/policies", nil)
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/policies", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policies: %w", err)
 	}
@@ -994,7 +994,7 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 		go func(idx int, team Team) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/fleets/%d/policies", team.ID), nil)
+			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/policies?fleet_id=%d", team.ID), nil)
 			if err != nil {
 				fc.logger.WarnContext(ctx, "fleet policies error", "fleet_id", team.ID, "err", err)
 				return
@@ -1606,7 +1606,7 @@ func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
 
 // GetPolicyCompliance retrieves policy compliance data
 func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID uint) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policyID)
+	endpoint := fmt.Sprintf("/api/v1/fleet/policies/%d", policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policy compliance: %w", err)
@@ -1642,14 +1642,14 @@ func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID uint) (
 	}, nil
 }
 
-// GetTeamPolicyCompliance retrieves policy compliance scoped to a single fleet
-// (team). Wraps GET /api/v1/fleet/fleets/:team_id/policies/:policy_id and
+// GetTeamPolicyCompliance retrieves policy compliance for a policy that belongs
+// to a single fleet (team). Wraps GET /api/v1/fleet/policies/:policy_id and
 // returns the same PolicyCompliance shape as the global variant so callers
 // can treat both uniformly. Use this — not GetPolicyCompliance — when the
-// caller knows the policy belongs to a specific fleet, or when global counts
-// would be misleading because the policy is fleet-scoped.
+// caller knows the policy belongs to a specific fleet; a policy from another
+// scope is an error, so counts for the wrong fleet are never reported.
 func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID uint) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%d/policies/%d", teamID, policyID)
+	endpoint := fmt.Sprintf("/api/v1/fleet/policies/%d", policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get fleet policy compliance: %w", err)
@@ -1664,12 +1664,16 @@ func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, poli
 		Policy struct {
 			ID               uint   `json:"id"`
 			Name             string `json:"name"`
+			FleetID          *uint  `json:"fleet_id"`
 			PassingHostCount int    `json:"passing_host_count"`
 			FailingHostCount int    `json:"failing_host_count"`
 		} `json:"policy"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode fleet policy compliance response: %w", err)
+	}
+	if result.Policy.FleetID == nil || *result.Policy.FleetID != teamID {
+		return nil, fmt.Errorf("policy %d does not belong to fleet %d", policyID, teamID)
 	}
 
 	total := result.Policy.PassingHostCount + result.Policy.FailingHostCount

@@ -1280,7 +1280,7 @@ func TestGitOpsVPPUnassignedKeepsNoTeamAssignment(t *testing.T) {
 		Location:    "Earth",
 		RenewDate:   renewDate,
 		Token:       string(token),
-		Teams:       []fleet.TeamTuple{{ID: 0, Name: fleet.TeamNameNoTeam}, {ID: team.ID, Name: teamName}},
+		Teams:       []fleet.TeamTuple{{ID: 0, Name: fleet.DisplayNameNoTeam}, {ID: team.ID, Name: teamName}},
 		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
@@ -1731,33 +1731,6 @@ software:
 			},
 		},
 		{
-			name: "no team is supported",
-			cfgs: []string{
-				global(`
-                                  volume_purchasing_program:
-                                    - location: Fleet Device Management Inc.
-                                      fleets:
-                                        - "💻 Workstations"
-                                        - "📱🏢 Company-owned iPhones"
-                                        - "No team"`),
-				workstations,
-				iosTeam,
-			},
-			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, vppTeams)
-				assert.Contains(t, out, "[!] gitops dry run succeeded")
-			},
-			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
-				assert.Equal(t, map[string][]string{
-					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "No team"},
-					"Acme Inc.":                    nil,
-				}, vppTeams)
-				assert.Contains(t, out, "[!] gitops succeeded")
-			},
-		},
-		{
 			name: "Unassigned is supported",
 			cfgs: []string{
 				global(`
@@ -1778,14 +1751,14 @@ software:
 			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
 				require.NoError(t, err)
 				assert.Equal(t, map[string][]string{
-					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", fleet.TeamNameNoTeam},
+					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "Unassigned"},
 					"Acme Inc.":                    nil,
 				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
 		{
-			name: "all teams is supported",
+			name: "all teams is rejected",
 			cfgs: []string{
 				global(`
                         volume_purchasing_program:
@@ -1796,17 +1769,10 @@ software:
 				iosTeam,
 			},
 			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, vppTeams)
-				assert.Contains(t, out, "[!] gitops dry run succeeded")
+				assert.ErrorContains(t, err, `"All teams" was removed in Fleet 5. Use "All fleets" instead.`)
 			},
 			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
-				assert.Equal(t, map[string][]string{
-					"Fleet Device Management Inc.": {"All fleets"},
-					"Acme Inc.":                    nil,
-				}, vppTeams)
-				assert.Contains(t, out, "[!] gitops succeeded")
+				assert.ErrorContains(t, err, `"All teams" was removed in Fleet 5. Use "All fleets" instead.`)
 			},
 		},
 		{
@@ -1907,7 +1873,7 @@ software:
 				return &fleet.VPPTokenDB{ID: id}, nil
 			}
 			vppTeams := func() map[string][]string {
-				teamNames := map[uint]string{0: fleet.TeamNameNoTeam}
+				teamNames := map[uint]string{0: fleet.DisplayNameNoTeam}
 				for _, tm := range savedTeams {
 					teamNames[(*tm).ID] = (*tm).Name
 				}

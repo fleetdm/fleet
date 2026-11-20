@@ -267,8 +267,8 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		result, err := tx.ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
 		if err != nil {
-			if strings.Contains(err.Error(), "idx_ca_type_name") {
-				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("CertificateAuthority", *ca.Name))
 			}
 			return ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 		}
@@ -276,7 +276,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
 		}
-		return ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name)
+		return ensureCANamesNotSharedDB(ctx, tx, *ca.Name)
 	})
 	if err != nil {
 		return nil, err
@@ -285,35 +285,30 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-// ensureEJBCANamesNotSharedDB fails if one of the names is used by an EJBCA certificate authority and by another certificate authority.
-func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
-	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check
-	stmt, args, err := sqlx.In(`SELECT name, type FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
+// ensureCANamesNotSharedDB fails if one of the names is used by more than one certificate authority.
+func ensureCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
+	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check. GROUP BY compares the names without regard to case, like
+	// the column does.
+	stmt, args, err := sqlx.In(`SELECT name FROM certificate_authorities WHERE name IN (?) GROUP BY name HAVING COUNT(*) > 1 FOR UPDATE`, names)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare check of EJBCA certificate authority names")
+		return ctxerr.Wrap(ctx, err, "prepare check of certificate authority names")
 	}
-	var rows []struct {
-		Name string `db:"name"`
-		Type string `db:"type"`
+	var shared []string
+	if err := sqlx.SelectContext(ctx, tx, &shared, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "check certificate authority names")
 	}
-	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
+	if len(shared) == 0 {
+		return nil
 	}
-	// The names are compared without regard to case, like the DB column is.
-	ejbca, other := map[string]string{}, map[string]struct{}{}
-	for _, row := range rows {
-		if row.Type == string(fleet.CATypeEJBCA) {
-			ejbca[strings.ToLower(row.Name)] = row.Name
-		} else {
-			other[strings.ToLower(row.Name)] = struct{}{}
+	// The error names the CA as it was written, not as the other CA stores it.
+	name := shared[0]
+	for _, written := range names {
+		if strings.EqualFold(written, name) {
+			name = written
+			break
 		}
 	}
-	for lowerName, name := range ejbca {
-		if _, shared := other[lowerName]; shared {
-			return fleet.EJBCANameInUseError{Name: name}
-		}
-	}
-	return nil
+	return ctxerr.Wrap(ctx, alreadyExists("CertificateAuthority", name))
 }
 
 const argsCountInsertCertificateAuthority = 26
@@ -492,16 +487,8 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 		return nil
 	}
 
-	stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (%s)`
-	args := make([]interface{}, 0, len(certificateAuthorities)*2)
-	var placeholders strings.Builder
-	for _, ca := range certificateAuthorities {
-		args = append(args, ca.Name, ca.Type)
-		placeholders.WriteString("(?, ?),")
-	}
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
-
-	_, err := tx.ExecContext(ctx, stmt, args...)
+	placeholders, args := caNameTypeTuples(certificateAuthorities)
+	_, err := tx.ExecContext(ctx, `DELETE FROM certificate_authorities WHERE (name, type) IN (`+placeholders+`)`, args...)
 	if err != nil {
 		if isMySQLForeignKey(err) {
 			return &fleet.ConflictError{
@@ -514,13 +501,67 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	return nil
 }
 
+// caNameTypeTuples returns the placeholders and args that match the CAs by (name, type).
+func caNameTypeTuples(cas []*fleet.CertificateAuthority) (string, []any) {
+	args := make([]any, 0, len(cas)*2)
+	for _, ca := range cas {
+		args = append(args, ca.Name, ca.Type)
+	}
+	return strings.TrimSuffix(strings.Repeat("(?, ?),", len(cas)), ","), args
+}
+
+// deleteCertificateTemplatesUsingCAsDB deletes the certificate templates that use the CAs, and has the hosts remove the certificates they
+// got from them, like deleting a template does. It returns the IDs of the fleets the templates belonged to.
+func deleteCertificateTemplatesUsingCAsDB(ctx context.Context, tx sqlx.ExtContext, cas []*fleet.CertificateAuthority) ([]uint, error) {
+	if len(cas) == 0 {
+		return nil, nil
+	}
+	placeholders, args := caNameTypeTuples(cas)
+	stmt := `
+		SELECT certificate_templates.id, certificate_templates.team_id
+		FROM certificate_templates
+		INNER JOIN certificate_authorities ON certificate_templates.certificate_authority_id = certificate_authorities.id
+		WHERE (certificate_authorities.name, certificate_authorities.type) IN (` + placeholders + `)`
+	var templates []struct {
+		ID     uint `db:"id"`
+		TeamID uint `db:"team_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &templates, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select certificate templates using deleted certificate authorities")
+	}
+	if len(templates) == 0 {
+		return nil, nil
+	}
+	templateIDs := make([]uint, 0, len(templates))
+	fleetIDs := make([]uint, 0, len(templates))
+	for _, template := range templates {
+		templateIDs = append(templateIDs, template.ID)
+		if !slices.Contains(fleetIDs, template.TeamID) {
+			fleetIDs = append(fleetIDs, template.TeamID)
+		}
+	}
+
+	if err := setHostCertificateTemplatesToPendingRemoveDB(ctx, tx, templateIDs); err != nil {
+		return nil, err
+	}
+	stmt, deleteArgs, err := sqlx.In(`DELETE FROM certificate_templates WHERE id IN (?)`, templateIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare delete certificate templates using deleted certificate authorities")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, deleteArgs...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delete certificate templates using deleted certificate authorities")
+	}
+	return fleetIDs, nil
+}
+
 func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations,
-) error {
+) ([]uint, error) {
 	upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
 	upserts = append(upserts, ops.Add...)
 	upserts = append(upserts, ops.Update...)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var templateFleetIDs []uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		resendCANames := make(map[fleet.CAType][]string, len(profileCATypes))
 		for _, t := range profileCATypes {
 			var updates []*fleet.CertificateAuthority
@@ -547,16 +588,22 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
 			return err
 		}
+		if ops.DeleteCertificateTemplates {
+			var err error
+			if templateFleetIDs, err = deleteCertificateTemplatesUsingCAsDB(ctx, tx, ops.Delete); err != nil {
+				return err
+			}
+		}
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
 		}
-		// Checked after the deletes, so a CA that is replaced by one of another type with the same name, as a rename is in GitOps, is fine.
+		// Checked after the deletes, so a CA that is replaced by one of another type with the same name, as in a GitOps type change, is fine.
 		if len(upserts) > 0 {
 			names := make([]string, 0, len(upserts))
 			for _, ca := range upserts {
 				names = append(names, *ca.Name)
 			}
-			if err := ensureEJBCANamesNotSharedDB(ctx, tx, names...); err != nil {
+			if err := ensureCANamesNotSharedDB(ctx, tx, names...); err != nil {
 				return err
 			}
 		}
@@ -569,6 +616,10 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return templateFleetIDs, nil
 }
 
 // profileCATypes are the CA types that issue a certificate for each host when a profile that uses their data variable is delivered.
@@ -713,15 +764,15 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 		}
 
 		if _, err := tx.ExecContext(ctx, stmt, updateArgs...); err != nil {
-			if strings.Contains(err.Error(), "idx_ca_type_name") {
-				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("CertificateAuthority", *cmp.Or(ca.Name, oldCA.Name)))
 			}
 			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
 		}
-		if ca.Name != nil {
-			if err := ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name); err != nil {
-				return err
-			}
+		// Checked even when the name isn't changing, so that a CA still sharing its name from before names had to be unique can't be
+		// edited until one of the two is renamed.
+		if err := ensureCANamesNotSharedDB(ctx, tx, *cmp.Or(ca.Name, oldCA.Name)); err != nil {
+			return err
 		}
 
 		if resendCAName == nil {

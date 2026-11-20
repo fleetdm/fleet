@@ -869,7 +869,7 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(cmd.AppConfig.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(cmd.AppConfig.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -1061,10 +1061,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
 
-		// Google Workspace IdP is a premium-only integration, so omit it from the
-		// generated free-tier GitOps so the example stays valid on reapply.
+		// Google Workspace IdP and Google conditional access are premium-only integrations,
+		// so omit them from the generated free-tier GitOps so the example stays valid on reapply.
 		if !cmd.AppConfig.License.IsPremium() {
 			delete(result, "google_workspace")
+			delete(result, "google_conditional_access")
 		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
@@ -1120,6 +1121,16 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					})
 				}
 			}
+		}
+	}
+	// The key is never exportable, so even insecure mode only gets a placeholder.
+	if gca, ok := result["google_conditional_access"].(map[string]any); ok {
+		if _, ok := gca["api_key_json"]; ok {
+			gca["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google service account key JSON here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.google_conditional_access.api_key_json",
+			})
 		}
 	}
 
@@ -1518,7 +1529,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	// For "No Team" (team ID 0), only include webhook settings
 	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
 	// See https://github.com/fleetdm/fleet/issues/20287
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(team.Config.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(team.Config.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -2121,12 +2132,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	return result, nil
 }
 
-// webhookSettingsWithoutPolicyIDs serializes the given webhook settings struct
-// to a map and removes the failing_policies_webhook.policy_ids key (since
-// those are now represented as webhooks_and_tickets_enabled on individual
-// policies).
-// TODO(#58577): remove with policy_ids.
-func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error) {
+// webhookSettingsMap serializes the given webhook settings struct to a map.
+func webhookSettingsMap(webhookSettings any) (map[string]any, error) {
 	b, err := json.Marshal(webhookSettings)
 	if err != nil {
 		return nil, fmt.Errorf("marshal webhook settings: %w", err)
@@ -2134,9 +2141,6 @@ func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error
 	var m map[string]any
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, fmt.Errorf("unmarshal webhook settings: %w", err)
-	}
-	if fpw, ok := m["failing_policies_webhook"].(map[string]any); ok {
-		delete(fpw, "policy_ids")
 	}
 	return m, nil
 }

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
+import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMock";
 import { renderWithSetup } from "test/test-utils";
 
 import HydrantForm, { IHydrantFormData } from "./HydrantForm";
@@ -48,6 +49,39 @@ describe("HydrantForm", () => {
     // name input is invalidated, submit should be disabled
     await user.clear(screen.getByLabelText("Name"));
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+
+  const ownCA = createMockCertificateAuthorityPartial({
+    id: 1,
+    name: "TEST_NAME",
+    type: "hydrant",
+  });
+  const otherTypeCA = createMockCertificateAuthorityPartial({
+    id: 2,
+    name: "test_name",
+    type: "digicert",
+  });
+  it.each([
+    ["keeping its own name", [ownCA], true],
+    ["sharing its name with another CA", [ownCA, otherTypeCA], false],
+  ])("checks the name when editing a CA %s", (_, certAuthorities, enabled) => {
+    render(
+      <HydrantForm
+        certAuthorities={certAuthorities}
+        editingCertAuthorityId={1}
+        formData={createTestFormData()}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Submit" })).toHaveProperty(
+      "disabled",
+      !enabled
+    );
   });
 
   it("disables submit when isSubmitting is set to true", () => {

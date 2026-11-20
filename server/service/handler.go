@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/contexts/redact"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -170,8 +171,8 @@ func MakeHandler(
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
+			func(ctx context.Context, _ *http.Request) context.Context { return redact.NewContext(ctx) },
 			auth.SetRequestsContexts(svc),
-			endpointer.LogDeprecatedPathAlias, // log deprecation warning for deprecated URL path aliases
 			setCarveStoreInRequestContext(carveStore),
 		),
 		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
@@ -333,11 +334,8 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
-	registry := endpointer.NewHandlerRegistry()
-
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
-	ue.HandlerRegistry = registry
 
 	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
@@ -390,11 +388,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.DELETE("/api/_version_/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
 	ue.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
-	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, fleet.GlobalPolicyRequest{})
-	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, fleet.ListGlobalPoliciesRequest{})
-	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
-	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
-	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
 	// Policies in any scope; fleet_id picks "All fleets" (none), "Unassigned" (0), or a fleet.
 	ue.POST("/api/_version_/fleet/policies", createPolicyEndpoint, fleet.CreatePolicyRequest{})
 	ue.GET("/api/_version_/fleet/policies", listPoliciesEndpoint, fleet.ListPoliciesRequest{})
@@ -406,12 +399,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
-	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies", teamPolicyEndpoint, fleet.TeamPolicyRequest{})
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/policies", listTeamPoliciesEndpoint, fleet.ListTeamPoliciesRequest{})
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/policies/count", countTeamPoliciesEndpoint, fleet.CountTeamPoliciesRequest{})
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, fleet.GetTeamPolicyByIDRequest{})
-	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies/delete", deleteTeamPoliciesEndpoint, fleet.DeleteTeamPoliciesRequest{})
-	ue.PATCH("/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, fleet.ModifyTeamPolicyRequest{})
 	ue.WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, fleet.ApplyPolicySpecsRequest{})
 
 	ue.POST("/api/_version_/fleet/certificates", createCertificateTemplateEndpoint, createCertificateTemplateRequest{})
@@ -522,7 +509,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/hosts/{id:[0-9]+}/queries").GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports", listHostReportsEndpoint, listHostReportsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports", listHostReportsEndpoint, listHostReportsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, fleet.RemoveLabelsFromHostRequest{})
@@ -560,22 +547,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
 	ue.POST("/api/_version_/fleet/reports/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	ue.POST("/api/_version_/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
-	ue.POST("/api/_version_/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-
-	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
-	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
-	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
-	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
-	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
-	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
-	ue.EndingAtVersion("v1").DELETE("/api/_version_/fleet/global/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
-	ue.StartingAtVersion("2022-04").DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
-
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
-	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	ue.PATCH("/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	ue.DELETE("/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
 	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, fleet.ListCarvesRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, fleet.GetCarveRequest{})
@@ -610,6 +581,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, fleet.LockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, fleet.UnlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, fleet.WipeHostRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/reset", resetHostEndpoint, fleet.ResetHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/clear_passcode", clearPasscodeEndpoint, clearPasscodeRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password", getHostManagedAccountPasswordEndpoint, getHostManagedAccountPasswordRequest{})
@@ -645,6 +617,10 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateEndpoint, conditionalAccessMicrosoftCreateRequest{})
 	ue.POST("/api/_version_/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmEndpoint, conditionalAccessMicrosoftConfirmRequest{})
 	ue.DELETE("/api/_version_/fleet/conditional-access/microsoft", conditionalAccessMicrosoftDeleteEndpoint, conditionalAccessMicrosoftDeleteRequest{})
+	ue.POST("/api/_version_/fleet/conditional_access/google", connectGoogleConditionalAccessEndpoint, connectGoogleConditionalAccessRequest{})
+	ue.GET("/api/_version_/fleet/conditional_access/google", getGoogleConditionalAccessEndpoint, nil)
+	ue.PATCH("/api/_version_/fleet/conditional_access/google", updateGoogleConditionalAccessEndpoint, updateGoogleConditionalAccessRequest{})
+	ue.DELETE("/api/_version_/fleet/conditional_access/google", deleteGoogleConditionalAccessEndpoint, nil)
 
 	// Okta Conditional Access
 	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
@@ -668,8 +644,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/automatic/default", getDefaultMDMAppleSetupAssistantProfileEndpoint, nil)
 	mdmAppleMW.POST("/api/_version_/fleet/enrollment_profiles/automatic/rotate_token", rotateMDMAppleAutomaticEnrollmentTokenEndpoint, rotateMDMAppleAutomaticEnrollmentTokenRequest{})
 	mdmAppleMW.DELETE("/api/_version_/fleet/enrollment_profiles/automatic", deleteMDMAppleSetupAssistantEndpoint, deleteMDMAppleSetupAssistantRequest{})
-
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 
 	// Deprecated: GET /enrollment_profiles/manual is deprecated and will be removed in a future major release.
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/manual", getManualEnrollmentProfileEndpoint, getManualEnrollmentProfileRequest{})
@@ -827,6 +801,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/disk_encryption_pin", submitDiskEncryptionPINEndpoint, submitDiskEncryptionPINRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/conditional_access/google", getDeviceGoogleConditionalAccessEndpoint, getDeviceGoogleConditionalAccessRequest{})
 
 	// Endpoints exempt from the Fleet Desktop SSO gate.
 	deNoSSO := newDeviceSSOExemptEndpointer(svc, logger, opts, r, apiVersions...)
@@ -1132,6 +1107,11 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 
 	ne.HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, fleet.OrbitPingRequest{})
 
+	// Called by fleetdm.com with this server's secret after an end user signs in to Google.
+	ne.WithCustomMiddleware(limiter.Limit("google_conditional_access_register",
+		throttled.RateQuota{MaxRate: throttled.PerMin(600), MaxBurst: 100})).
+		POST("/api/_version_/fleet/google_conditional_access/register", registerGoogleConditionalAccessDeviceEndpoint, registerGoogleConditionalAccessDeviceRequest{})
+
 	// This is a callback endpoint for calendar integration -- it is called to notify an event change in a user calendar
 	ne.POST("/api/_version_/fleet/calendar/webhook/{event_uuid}", calendarWebhookEndpoint, calendarWebhookRequest{})
 
@@ -1142,9 +1122,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ne.WithCustomMiddleware(mdmSsoLimiter).
 		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMSSOEndpoint, callbackMDMSSORequest{})
-
-	// Register all deprecated URL path aliases from the declarative table.
-	endpointer.RegisterDeprecatedPathAliases(r, apiVersions, registry, deprecatedPathAliases)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.

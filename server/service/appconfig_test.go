@@ -24,6 +24,7 @@ import (
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -186,8 +187,7 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
-// TODO(#58577): remove with policy_ids.
-func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
+func TestModifyAppConfigWebhookPolicyIDsRemoved(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
 		License: &fleet.LicenseInfo{Tier: fleet.TierFree},
@@ -201,39 +201,22 @@ func TestModifyAppConfigWebhookPolicyIDs(t *testing.T) {
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
-	enabled := []uint{2, 1}
-	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
-		require.Nil(t, teamID)
-		return enabled, nil
-	}
-	var setCalls [][]uint
-	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
-		require.Nil(t, teamID)
-		setCalls = append(setCalls, policyIDs)
-		return nil
-	}
 
-	// Requests that leave the list as it is don't write the policies, so they can't undo a concurrent change.
-	for _, body := range []string{
-		`{"org_info": {"org_name": "Changed"}}`,
-		`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`,
-		`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
-	} {
-		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
-		require.NoError(t, err, body)
+	for _, opts := range []fleet.ApplySpecOptions{{}, {DryRun: true}} {
+		for _, body := range []string{
+			`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [1, 2]}}}`,
+			`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`,
+		} {
+			_, err := svc.ModifyAppConfig(ctx, []byte(body), opts)
+			var removed *endpointer.RemovedKeyError
+			require.ErrorAs(t, err, &removed, body)
+			require.ErrorContains(t, err, `The "policy_ids" parameter is not available anymore`)
+		}
 	}
-	require.Empty(t, setCalls)
+	require.False(t, ds.SaveAppConfigFuncInvoked)
 
-	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [3]}}}`), fleet.ApplySpecOptions{})
+	_, err := svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"destination_url": "https://example.com"}}}`), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
-	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": []}}}`), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	require.Equal(t, [][]uint{{3}, {}}, setCalls)
-
-	// Dry runs don't write the policies.
-	_, err = svc.ModifyAppConfig(ctx, []byte(`{"webhook_settings": {"failing_policies_webhook": {"policy_ids": [4]}}}`), fleet.ApplySpecOptions{DryRun: true})
-	require.NoError(t, err)
-	require.Len(t, setCalls, 2)
 }
 
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
@@ -4611,7 +4594,7 @@ func TestStagedUploadAvailable(t *testing.T) {
 	}
 }
 
-func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
+func TestValidateAssignmentsFleetNames(t *testing.T) {
 	newSvc := func(teams ...*fleet.TeamSummary) *Service {
 		ds := new(mock.Store)
 		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
@@ -4620,9 +4603,21 @@ func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
 		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
 			return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}}, nil
 		}
+		ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1, OrganizationName: "HQ"}}, nil
+		}
 		return &Service{ds: ds}
 	}
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	// AB takes fleet names like VPP, so it is checked with the same fleets.
+	validateABM := func(svc *Service, macOSFleet string) ([]*fleet.ABMToken, *fleet.InvalidArgumentError) {
+		var mdm fleet.MDM
+		mdm.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "HQ", MacOSTeam: macOSFleet}})
+		invalid := &fleet.InvalidArgumentError{}
+		tokens, _, err := svc.validateABMAssignments(t.Context(), &mdm, &fleet.MDM{}, invalid, lic)
+		require.NoError(t, err)
+		return tokens, invalid
+	}
 
 	t.Run("a fleet name in decomposed form resolves to that fleet", func(t *testing.T) {
 		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Caf\u00e9 Macs"})
@@ -4648,17 +4643,25 @@ func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, got)
 		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: "Unassigned", "unassigned"`)
+		_, invalid = validateABM(svc, "unassigned")
+		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign an Apple Business token to Unassigned: "Unassigned", "unassigned"`)
 	})
 
-	t.Run("No team and other fleets still work while a fleet is named Unassigned", func(t *testing.T) {
+	t.Run("AB takes Unassigned in any letter case as fleet 0", func(t *testing.T) {
+		tokens, invalid := validateABM(newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}), "UNASSIGNED")
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Nil(t, tokens[0].MacOSDefaultTeamID)
+	})
+
+	t.Run("other fleets still work while a fleet is named Unassigned", func(t *testing.T) {
 		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}, &fleet.TeamSummary{ID: 7, Name: "unassigned"})
 		invalid := &fleet.InvalidArgumentError{}
 		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
-			{Location: "HQ", Teams: []string{fleet.TeamNameNoTeam, "Workstations"}},
+			{Location: "HQ", Teams: []string{"Workstations"}},
 		}, invalid, lic)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors(), invalid.Error())
-		require.Equal(t, map[uint][]uint{1: {0, 1}}, got)
+		require.Equal(t, map[uint][]uint{1: {1}}, got)
 	})
 }
 
@@ -4676,8 +4679,8 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 	t.Run("a fleet under two tokens passes", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
-			{Location: "HQ", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
-			{Location: "EU", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+			{Location: "HQ", Teams: []string{"Workstations", fleet.DisplayNameNoTeam}},
+			{Location: "EU", Teams: []string{"Workstations", fleet.DisplayNameNoTeam}},
 		}, invalid, lic)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
@@ -4703,6 +4706,38 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		}, invalid, lic)
 		require.NoError(t, err)
 		require.True(t, invalid.HasErrors())
+	})
+
+	t.Run("a token listed twice is rejected", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+			{Location: "EU", Teams: []string{fleet.DisplayNameNoTeam}},
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		require.ErrorContains(t, invalid, `VPP token "HQ" is listed more than once`)
+	})
+
+	t.Run("every repeated token is reported once", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+			{Location: "EU", Teams: []string{"Workstations"}},
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam}},
+			{Location: "EU", Teams: []string{fleet.DisplayNameNoTeam}},
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		reason := func(loc string) map[string]string {
+			return map[string]string{
+				"name":   "mdm.volume_purchasing_program",
+				"reason": fmt.Sprintf("Couldn't apply. VPP token %q is listed more than once. List each token once, with all of its fleets.", loc),
+			}
+		}
+		require.Equal(t, []map[string]string{reason("HQ"), reason("EU")}, invalid.Invalid())
 	})
 }
 

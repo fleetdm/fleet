@@ -790,7 +790,7 @@ func (c *Client) ApplyGroup(
 			if err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying scripts for unassigned hosts: %w", err)
 			}
-			teamsScripts["No team"] = noTeamScripts
+			teamsScripts[fleet.DisplayNameNoTeam] = noTeamScripts
 
 			if opts.DryRun {
 				logfn(dryRunAppliedFormat, numberWithPluralization(len(scriptPayloads), "script", "scripts"))
@@ -2736,6 +2736,11 @@ func (c *Client) DoGitOps(
 		} else if gwList, ok := gw.([]any); ok && allGoogleWorkspaceEntriesEmpty(gwList) {
 			integrations.(map[string]any)["google_workspace"] = []any{}
 		}
+		// Google conditional access is turned off when it is not set: sending the key as null
+		// tells the server so, where a missing key keeps it for older fleetctl versions.
+		if _, ok := integrations.(map[string]any)["google_conditional_access"]; !ok {
+			integrations.(map[string]any)["google_conditional_access"] = json.RawMessage("null")
+		}
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}
@@ -3391,7 +3396,7 @@ func (c *Client) DoGitOps(
 				teamSoftwareInstallers = noTeamSoftwareInstallers
 				teamVPPApps = noTeamVPPApps
 			}
-			teamScripts = teamsScripts["No team"]
+			teamScripts = teamsScripts[fleet.DisplayNameNoTeam]
 		}
 	}
 
