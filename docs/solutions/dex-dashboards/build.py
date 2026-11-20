@@ -991,7 +991,8 @@ def build_patch(snap, hist):
     recent = (today - dt.timedelta(days=45)).isoformat()
     titles, index = [], {}
     for key, hv in sorted(by_title.items()):
-        if len(hv) < 2:
+        # OS titles are kept at any size so the page's OS versions panel counts every computer.
+        if len(hv) < 2 and not key.startswith("os:"):
             continue
         t = {"key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app",
              "p": platform_of(hosts[str(hv[0][0])]), "i": hv, "source": None}

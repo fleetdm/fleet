@@ -25,6 +25,12 @@
 .notice b { color: var(--ink); }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .stack .panel-note { margin: 0; }
+.os-group + .os-group { margin-top: 20px; }
+.os-group h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.os-group h4 span { display: inline-block; margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--ink-3); white-space: nowrap; }
+.os-group .lbl { font-family: var(--font-mono); font-size: 12px; }
+.os-more summary { margin-top: 8px; cursor: pointer; font-size: 12px; color: var(--ink-3); }
+.os-more .bars { margin-top: 8px; }
 </style>
 
 <div class="wrap">
@@ -45,6 +51,15 @@
       <div class="trend-tools" id="trend-tools"></div>
     </div>
     <div class="grid" id="trend"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="osv-h" id="osv-sec">
+    <div class="sec-head">
+      <h2 id="osv-h">OS versions</h2>
+      <span class="hint">Computers on each version, by release</span>
+    </div>
+    <div class="grid" id="os-versions"></div>
+    <div id="os-legend"></div>
   </section>
 
   <section class="sec" aria-labelledby="cov-h">
@@ -300,6 +315,8 @@ function render() {
     ...queueTrend,
   ]);
 
+  renderOsVersions();
+
   // Coverage curve
   document.getElementById("cov-hint").textContent = timing.n ? `Share of ${fmt.plural(timing.n, "timed update")} installed by each day after release` : "";
   if (timing.n >= 5) {
@@ -513,6 +530,56 @@ function render() {
     .filter(([k]) => used.has(k)).map(([, label]) => label);
   const list = sources.length > 1 ? `${sources.slice(0, -1).join(", ")}, and ${sources[sources.length - 1]}` : sources[0];
   document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software).${list ? ` Newest versions from ${list}.` : ""}${DATA.betas.length ? ` macOS beta builds: ${DATA.betas.join(", ")}.` : ""}`;
+}
+
+// One panel per platform: computers on each OS version, grouped by release (macOS major,
+// Windows release, Linux distribution release), each against the latest update for its release.
+// Uses every OS title, not just those on min_installs computers, so each platform adds up.
+const OS_SHOWN = 8;
+function renderOsVersions() {
+  const ok = (hid) => DATA.hosts[hid] && inFleet(DATA.hosts[hid].f) && inPlatform(DATA.hosts[hid].p);
+  const cols = {};
+  let unsupported = false;
+  for (const t of DATA.titles.filter((t) => t.type === "os" && inPlatform(t.p))) {
+    const byLine = {};
+    for (const [hid, v] of t.i) if (ok(hid)) {
+      const line = t.p === "linux" ? t.key : lineOf(t, v);
+      ((byLine[line] ||= {})[v] = (byLine[line][v] || 0) + 1);
+    }
+    for (const [line, counts] of Object.entries(byLine)) {
+      const vers = Object.keys(counts).sort((a, b) => vcmp(b, a));
+      // Without a vendor source (Linux, or Apple or Microsoft unreachable), the newest the fleet runs.
+      const latest = t.p === "linux" ? t.newest : t.lines ? t.lines[line] : vers[0];
+      if (!latest) unsupported = true;
+      const name = t.p === "macos" ? `macOS ${line}` : t.p === "linux" ? t.name
+        : t.line_names && t.line_names[line] ? `${t.name} ${t.line_names[line]}` : `${t.name} build ${line}`;
+      (cols[t.p] ||= []).push({ name, title: t.name, line, latest, vers, counts, n: vers.reduce((s, v) => s + counts[v], 0) });
+    }
+  }
+  const short = (p, v) => (p === "windows" ? v.split(".").slice(2).join(".") : v);
+  const tone = (g, v) => (!g.latest ? "bad" : vcmp(v, g.latest) >= 0 ? "good" : "warn");
+  const panels = PLATFORMS.filter(([p]) => cols[p]).map(([p, label]) => {
+    const groups = cols[p];
+    const total = groups.reduce((s, g) => s + g.n, 0);
+    const word = p === "macos" ? (n) => fmt.plural(n, "Mac") : (n) => fmt.plural(n, "computer");
+    if (p === "linux") groups.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+    else groups.sort((a, b) => b.title.localeCompare(a.title, undefined, { numeric: true }) || vcmp(b.line, a.line));
+    // One scale per platform, so a small release reads as small next to a big one.
+    const max = Math.max(...groups.flatMap((g) => Object.values(g.counts)));
+    return h("div", { class: "panel" }, h("h3", {}, `${label} · ${word(total)}`), groups.map((g) => {
+      const rows = (vs) => barRows(vs.map((v) => ({ label: short(p, v), valueText: fmt.n(g.counts[v]), segs: [{ value: g.counts[v], color: `var(--${tone(g, v)})`,
+        tip: `${word(g.counts[v])} on ${short(p, v)}${!g.latest ? ", a release no longer updated" : tone(g, v) === "good" ? ", the latest update" : `, missing ${short(p, g.latest)}`}` }] })), max);
+      const rest = g.vers.slice(OS_SHOWN);
+      return h("div", { class: "os-group" },
+        h("h4", {}, g.name, h("span", {}, `${word(g.n)} · ${fmt.pct(pct(g.n, total))}`), h("span", {}, g.latest ? `latest ${short(p, g.latest)}` : "no longer updated")),
+        rows(g.vers.slice(0, OS_SHOWN)),
+        rest.length ? h("details", { class: "os-more" }, h("summary", {}, `${fmt.plural(rest.length, "older version")} · ${word(rest.reduce((s, v) => s + g.counts[v], 0))}`), rows(rest)) : null);
+    }));
+  });
+  document.getElementById("osv-sec").hidden = !panels.length;
+  mount("os-versions", panels);
+  mount("os-legend", panels.length ? legend([["Latest update for its release", "var(--good)"], ["Missing an update", "var(--warn)"],
+    ...(unsupported ? [["Release no longer updated", "var(--bad)"]] : [])]) : null);
 }
 
 document.getElementById("app-search").addEventListener("input", (e) => { query = e.target.value; render(); });
