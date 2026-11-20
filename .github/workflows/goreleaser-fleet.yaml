@@ -395,8 +395,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
-      attestations: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -438,6 +436,7 @@ jobs:
 
   # This job uploads a .intoto.jsonl attestation so that the OpenSSF Scorecard sees that there are attestations.
   # It should be possible to remove this and still get credit from Scorecard once https://github.com/ossf/scorecard/issues/4080 is resolved.
+  # We don't bother uploading every attestation since the rest are already available from GitHub.
   upload-attestations:
     needs: [goreleaser, build-fleetctl-pkg, build-fleetctl-msi, upload-fleetctl-msi]
     if: always()
