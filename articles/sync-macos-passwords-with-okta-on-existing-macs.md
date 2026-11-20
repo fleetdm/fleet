@@ -19,7 +19,7 @@ If you need SSO for apps and websites, use Okta's integration. If you only need 
 - Macs running macOS 26 or later.
 - Fleet Desktop 1.5.1 or later, available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps). Earlier versions can't register an account that already exists.
 - Single-user Macs. Fleet's extension supports one user per Mac.
-- Okta admin access to create an app integration and assign an authentication policy.
+- Okta admin access to create an app integration, assign an authentication policy, and edit the `default` authorization server's access policies. No paid Okta SKU is needed, so you can test in a free Okta Integrator org before you touch production.
 - A fleet or a [label](https://fleetdm.com/guides/managing-labels-in-fleet) that holds only your test Macs.
 
 The Macs don't need to have enrolled through ADE.
@@ -34,6 +34,12 @@ The app's authentication policy must allow **Password** as a single factor, or R
 2. Add a rule that allows password-only sign-in for the users assigned to this app.
 3. Assign the new policy to the password sync app on its **Sign On** tab.
 
+The `default` authorization server also needs an access policy that allows the ROPG grant for this app. This is a separate policy from the authentication policy above:
+
+1. Go to **Security > API > Authorization Servers**, open **default**, and select the **Access Policies** tab.
+2. Add a policy and assign it to the password sync app.
+3. Add a rule to that policy with **Resource Owner Password** checked under grant types.
+
 You can skip step 2 of that guide (short name and full name mapping). `TokenToUserMapping` sets the account name and full name when macOS creates a new account. On these Macs the account already exists.
 
 ## Step 2: Connect Fleet to Okta
@@ -45,7 +51,7 @@ Follow [step 3 of the account provisioning guide](https://fleetdm.com/guides/dep
 ## Step 3: Install Fleet Desktop on your test Macs
 
 1. In Fleet, go to **Software** for the fleet that holds your test Macs, select **Add software**, open the **Fleet-maintained** tab, and add **Fleet Desktop**.
-2. Install it on your test Macs. You can install it from each host's details page, offer it in self-service, or install it automatically with a policy.
+2. Install it on your test Macs. In Fleet, go to **Hosts**, select a host, open **Software > Library**, and select **Install** next to Fleet Desktop. You can also offer it in self-service or install it automatically with a policy.
 
 With GitOps, add it to the fleet's YAML file. Scope it with a label if your test Macs share a fleet with other hosts:
 
@@ -63,7 +69,7 @@ software:
 
 1. Start from the [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/fleet-sso-extension-example.mobileconfig) and replace every `fleet.example.com` with your Fleet server's domain. [Step 5 of the account provisioning guide](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet#step-5-create-and-upload-the-configuration-profile) explains each key.
 2. If you skipped the custom claim in Okta, remove the `TokenToUserMapping` dictionary. Leave `EnableRegistrationDuringSetup` and `UseSharedDeviceKeys` set to `true`. Fleet rejects the profile if `UseSharedDeviceKeys` isn't `true`.
-3. Upload the profile under **Controls > OS settings > Custom settings** for the fleet that holds your test Macs. Scope it with a label if that fleet also has other Macs.
+3. Upload the profile under **Controls > OS settings > Configuration profiles** for the fleet that holds your test Macs. Scope it with a label if that fleet also has other Macs.
 
 With GitOps:
 
@@ -96,7 +102,7 @@ After registration, password sync works the same way it does on new Macs. When t
 On a test Mac:
 
 1. Open **System Settings > Users & Groups** and select the user. The Platform SSO section should show **Registered**.
-2. In Terminal, run `app-sso platform -s`. The user configuration's `state` should be `POUserStateNormal`. `POUserStateNeedsRegistration` means registration hasn't finished.
+2. In Terminal, run `app-sso platform -s`. Under **User Configuration**, `state` should be `POUserStateNormal (0)` and `registrationCompleted` should be `true`. A `state` of `POUserStateNeedsRegistration` means registration hasn't finished.
 3. Change the user's password in Okta, then lock and unlock the Mac with the new password. macOS should show a notification that the password was synced.
 4. Confirm that the user's keychain still unlocks and that FileVault unlock at startup accepts the new password.
 
