@@ -40,29 +40,27 @@ Every Microsoft advantage fell apart. Even "Microsoft has clearer error messages
 
 On paper, BYOD is everywhere. About 82% of organizations run a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
 
-We looked at companies with 500 or more employees that issue every employee a computer. There, BYOD means phones. And most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so treat that as rough. The gap is hard to miss anyway.
+We looked at companies with 500 or more employees that issue every employee a computer. There, BYOD means phones. Most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so treat that as rough. The gap is still hard to miss.
 
 It's rarely laziness. People worry about privacy. They don't know what IT can see on their personal phone, so they assume the worst and keep it out. MAM is how you protect work data on the phones that don't enroll.
 
-## Two hallways
+## A new hire's first day, with and without MDM
 
-Picture a new hire with a personal iPhone on their first day.
+Picture a new hire with a personal iPhone. Without MDM, they add their work account to the iPhone Mail app, and it fails without saying why. Someone tells them to download Gmail. They sign in, get sent to Okta Verify for a device check, and come back. Later, a line they copy from an email into a personal note pastes as a message saying it can only be shared within the company's apps. Every guardrail is something they bump into.
 
-**Hallway one: no MDM.** They add their work account to the iPhone Mail app. It doesn't work, and sometimes it doesn't say why. Someone tells them to download Gmail. They sign in, get sent to Okta Verify for a device check, and come back. Later they copy a line from an email into a personal note, and the paste turns into a message saying the content can only be shared within the company's apps. Every guardrail is something they bump into.
+With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. In Fleet, that's Apple's [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). Gmail or Outlook arrives already signed in, because IT installed it with its [configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) filled in. Work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes and the personal side stays.
 
-**Hallway two: MDM.** They open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. In Fleet, that's Apple's [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). Gmail or Outlook shows up already pointed at their account, because IT installed it with its [configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) filled in. Work apps and data live in their own space on the phone. IT can't see personal apps, photos, or messages. When they leave the company, the work side goes and the personal side stays.
+The guardrails are the same. They show up as setup instead of surprises.
 
-The second hallway is better for the employee and for IT. The guardrails are still there. They just show up as setup instead of surprises.
-
-More teams are walking down it, BYOD included. AI apps like Claude can now act for you on your computer and reach a lot of your organization's data, so knowing which devices are enrolled matters more than it did a year ago.
+More teams are choosing enrollment, BYOD included. AI apps like Claude can act for you on your computer and reach a lot of your organization's data, so knowing which devices are enrolled matters more than it did a year ago.
 
 ## Enrollment can go up
 
-Those numbers aren't fixed. People hold back because enrolling a personal phone feels like a leap of faith. Make enrollment as easy as hallway two. Show people exactly what IT can and can't see on their phone, and what they're giving up. Then more of them say yes.
+Those numbers aren't fixed. People hold back because enrolling a personal phone feels like a leap of faith. Make enrollment easy. Show people what IT can and can't see on their phone, and what they're giving up. More of them will say yes.
 
 For everyone else, conditional access is the best way to require it: no enrollment, no work apps.
 
-That's why we're so focused on the BYOD experience at Fleet. The easier enrollment is, the more people do it. IT gets fewer tickets, and new hires get to work faster. And when employees know what's visible, BYOD can be good for the culture, too. One publicly traded fintech company resisted BYOD for years. It recently rolled it out for exactly these reasons.
+That's why Fleet is focused on the BYOD experience. The easier enrollment is, the more people do it. IT gets fewer tickets, and new hires get to work faster. When employees know what's visible, BYOD can even be good for the culture. One publicly traded fintech company resisted BYOD for years. It recently rolled it out for exactly these reasons.
 
 ## If you run Google Workspace and Okta
 
