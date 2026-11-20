@@ -8374,6 +8374,13 @@
       "description": "Splashtop Business is remote access software."
     },
     {
+      "name": "Splashtop Business",
+      "slug": "splashtop-business/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Business",
+      "description": "Splashtop Business is remote access software."
+    },
+    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
