@@ -9,6 +9,7 @@
 - **Asking how it works beats asking who does it best.** Every claimed Microsoft advantage fell apart once the assistant had to explain the mechanism behind it.
 - **LLMs repeat old market history as current fact.** Years of vendor marketing and analyst reports trained them to treat Microsoft as the default answer.
 - **Google Workspace and Okta shops aren't missing anything.** You can protect mail on personal phones without Microsoft licenses and without enrolling the phones in MDM.
+- **Even a careful-sounding fact-check can be out of date.** The assistant that helped publish this article tried to water it down using Google announcements from years ago, then reversed itself after reading the current docs.
 
 <a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet manages devices</a>
 
@@ -45,6 +46,14 @@ LLMs learn from years of vendor marketing, partner blogs, and market reports, an
 You aren't missing anything. Google handles the app gating and in-app DLP. Okta handles sign-in and device checks through Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones either.
 
 And next time an AI tells you one vendor is uniquely good at something, ask it to explain the mechanism.
+
+## Epilogue: it happened again
+
+When I sat down to publish this article, I asked an AI assistant to open the pull request. It "fact-checked" my draft first and quietly softened it. It cut Chat and Meet from the list of Google apps with data protection controls. It swapped "AirDrop, saving to Files, and printing" for vaguer wording. It added a line saying Google's controls need an Enterprise edition, and it flagged my point about blocking the iPhone Mail app as unverified.
+
+Its sources were Google announcements from 2020 and 2021. When I pushed back, it checked Google's current admin docs. Those list Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet, with separate switches for copy-paste, AirDrop, the share sheet, saving to Files, and printing. Google's iOS settings page also explains how to keep the iPhone Mail app out. The assistant admitted it was wrong and put my original claims back.
+
+Same lesson, one more time: the assistant sounded careful, but it was working from an old picture of the market. Make it show you the current source.
 
 ## See it live
 
