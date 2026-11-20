@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 
@@ -164,6 +165,15 @@ func removedPaths() []endpointer.RemovedPath {
 		paths = append(paths, removedPathFor(template, entry))
 	}
 	return paths
+}
+
+// RemovedRootPathHandler answers with the 410 of a removed path that the root mux serves, outside the API router.
+func RemovedRootPathHandler(path string, logger *slog.Logger) http.Handler {
+	entry, ok := removedPathEntry(path)
+	if !ok {
+		panic(fmt.Sprintf("removed path %s has no entry in pkg/removednames", path))
+	}
+	return endpointer.RemovedPathHandler(removedPathFor(path, entry), logger)
 }
 
 var pathVarConstraint = regexp.MustCompile(`\{(\w+):[^}]+\}`)

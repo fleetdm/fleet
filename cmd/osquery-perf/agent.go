@@ -4595,28 +4595,7 @@ func scheduledQueryResults(packName, queryName string, numResults int) []byte {
 }`)
 }
 
-func (a *agent) connCheck() error {
-	request, err := http.NewRequest("GET", a.serverAddress+"/version", nil)
-	if err != nil {
-		panic(err)
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return errors.New(http.StatusText(response.StatusCode))
-	}
-	return nil
-}
-
 func (a *agent) submitLogs(results []resultLog) error {
-	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	if err := a.connCheck(); err != nil {
-		return fmt.Errorf("/version check failed: %w", err)
-	}
-
 	var resultLogs []byte
 	for i, result := range results {
 		if i > 0 {

@@ -45,7 +45,7 @@ var removedPathMethods = []string{
 func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, paths []RemovedPath) {
 	allVersions := append(append([]string{}, versions...), "latest")
 	for _, removed := range paths {
-		handler := removedPathHandler(removed, logger)
+		handler := RemovedPathHandler(removed, logger)
 		methods := slices.Clone(removedPathMethods)
 		if len(removed.Methods) > 0 {
 			methods = slices.Clone(removed.Methods)
@@ -77,7 +77,8 @@ func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, pat
 	}
 }
 
-func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
+// RemovedPathHandler answers with the 410 of a removed path. Use it directly for a path that a router doesn't serve.
+func RemovedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if removed.Overlap.RouteTemplate != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
 			for live, allow := range removed.Overlap.WrongMethodRoutes {
