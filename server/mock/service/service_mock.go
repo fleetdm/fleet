@@ -47,6 +47,8 @@ type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary,
 
 type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
 
+type HostIDByIDOrIdentifierFunc func(ctx context.Context, identifier string) (uint, error)
+
 type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
 
 type GetHostActivitiesWebhookSettingsFunc func(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error)
@@ -250,8 +252,6 @@ type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 type SetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) error
 
 type DeleteHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint) error
-
-type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
@@ -1039,6 +1039,9 @@ type Service struct {
 	GetHostLiteFunc        GetHostLiteFunc
 	GetHostLiteFuncInvoked bool
 
+	HostIDByIDOrIdentifierFunc        HostIDByIDOrIdentifierFunc
+	HostIDByIDOrIdentifierFuncInvoked bool
+
 	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
 	GetActivitiesWebhookSettingsFuncInvoked bool
 
@@ -1344,9 +1347,6 @@ type Service struct {
 
 	DeleteHostGoogleDeviceIDFunc        DeleteHostGoogleDeviceIDFunc
 	DeleteHostGoogleDeviceIDFuncInvoked bool
-
-	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
-	HostLiteByIdentifierFuncInvoked bool
 
 	HostLiteByIDFunc        HostLiteByIDFunc
 	HostLiteByIDFuncInvoked bool
@@ -2561,6 +2561,13 @@ func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, e
 	return s.GetHostLiteFunc(ctx, id)
 }
 
+func (s *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByIDOrIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByIDOrIdentifierFunc(ctx, identifier)
+}
+
 func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
 	s.mu.Lock()
 	s.GetActivitiesWebhookSettingsFuncInvoked = true
@@ -3273,13 +3280,6 @@ func (s *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) err
 	s.DeleteHostGoogleDeviceIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostGoogleDeviceIDFunc(ctx, hostID)
-}
-
-func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-	s.mu.Lock()
-	s.HostLiteByIdentifierFuncInvoked = true
-	s.mu.Unlock()
-	return s.HostLiteByIdentifierFunc(ctx, identifier)
 }
 
 func (s *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, error) {

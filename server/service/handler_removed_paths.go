@@ -60,6 +60,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/software/count",
 	"/api/_version_/fleet/software/{id:[0-9]+}",
 	"/api/_version_/fleet/hosts/identifier/{identifier}",
+	"/api/_version_/fleet/hosts/identifier/{identifier}/query",
 	"/api/_version_/fleet/queries/{id}",
 	"/api/_version_/fleet/queries",
 	"/api/_version_/fleet/queries/{id}/report",

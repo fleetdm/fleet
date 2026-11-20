@@ -347,10 +347,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceScriptStatusFuncInvoked = false
-				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, uuid string) (*fleet.Host, error) {
 					require.Equal(t, hostUUID, uuid)
 					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
-				}
+				})
 
 				result := fleet.SetupExperienceScriptResult{
 					HostUUID:    hostUUID,
@@ -403,10 +403,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
-				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, uuid string) (*fleet.Host, error) {
 					require.Equal(t, hostUUID, uuid)
 					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
-				}
+				})
 
 				result := fleet.SetupExperienceSoftwareInstallResult{
 					HostUUID:        hostUUID,
@@ -470,10 +470,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
-				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, uuid string) (*fleet.Host, error) {
 					require.Equal(t, hostUUID, uuid)
 					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
-				}
+				})
 
 				result := fleet.SetupExperienceVPPInstallResult{
 					HostUUID:      hostUUID,
@@ -506,14 +506,14 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
 			return true, nil
 		}
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     hostUUID,
 				Platform: "darwin",
 				TeamID:   &teamID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			require.Equal(t, teamID, tid)
 			return &fleet.TeamLite{
@@ -611,14 +611,14 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		}
 		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
 
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     hostUUID,
 				Platform: "darwin",
 				TeamID:   &teamID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{
 				ID: teamID,
@@ -728,12 +728,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		// (see fleet.HostUUIDForSetupExperience). Set it so the cancel
 		// helper can locate setup-experience rows.
 		osqueryHostID := "windows-osquery-id"
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID: 2, UUID: hostUUID, Platform: "windows",
 				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			require.Equal(t, teamID, tid)
 			return &fleet.TeamLite{
@@ -913,12 +913,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 					return true, nil
 				}
-				ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 					return &fleet.Host{
 						ID: 7, UUID: hostUUID, Platform: "windows", ComputerName: computerName,
 						TeamID: &teamID, OsqueryHostID: &osqueryHostID,
 					}, nil
-				}
+				})
 				ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 					return &fleet.TeamLite{
 						ID: teamID,
@@ -1018,12 +1018,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		// it does NOT reach that path because of the require_all=false
 		// early-return.
 		osqueryHostID := "windows-osquery-id-noreq"
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID: 3, UUID: hostUUID, Platform: "windows",
 				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{
 				ID: teamID,
@@ -1064,4 +1064,20 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
 			"require_all=false should early-return before listing setup-experience results")
 	})
+}
+
+// mockHostBySetupExperienceUUID has HostIDBySetupExperienceUUID and Host return the host that get gives for a setup experience UUID.
+func mockHostBySetupExperienceUUID(ds *mock.DataStore, get func(ctx context.Context, uuid string) (*fleet.Host, error)) {
+	hosts := make(map[uint]*fleet.Host)
+	ds.HostIDBySetupExperienceUUIDFunc = func(ctx context.Context, uuid string) (uint, error) {
+		host, err := get(ctx, uuid)
+		if err != nil {
+			return 0, err
+		}
+		hosts[host.ID] = host
+		return host.ID, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return hosts[id], nil
+	}
 }
