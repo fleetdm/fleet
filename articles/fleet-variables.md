@@ -6,13 +6,34 @@ Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host v
 
 You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
 
-To store a different value per host, create [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (prefixed with `$FLEET_HOST_VITAL_`) and reference them in scripts and configuration profiles. 
+To store a different value per host, create [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (prefixed with `$FLEET_HOST_VITAL_`).
+
+Each variable type works in different places. See [Where variables work](#where-variables-work).
 
 For macOS configuration profiles, you can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) in [Automated Certificate Management Environment (ACME)](https://developer.apple.com/documentation/devicemanagement/acmecertificate), [Simple Certificate Enrolment Protocol (SCEP)](https://developer.apple.com/documentation/devicemanagement/scep), or [VPN](https://developer.apple.com/documentation/devicemanagement/vpn) payloads.
 
-When the variable's value changes, Fleet automatically resends configuration profiles. For managed app configurations, changes apply on next app install or update. For scripts, variables are resolved at execution time.
+When the variable's value changes, Fleet automatically resends configuration profiles. For App Store apps' managed configurations, Fleet resends the configuration when an IdP variable's value changes. Other changes apply on next app install or update. For scripts, variables are resolved at execution time.
 
-Built-in variables:
+## Where variables work
+
+| Where | Built-in variables (`$FLEET_VAR_`) | Custom variables (`$FLEET_SECRET_`) | Custom host vitals (`$FLEET_HOST_VITAL_`) |
+|---|---|---|---|
+| [Scripts](https://fleetdm.com/guides/scripts) (macOS, Windows, and Linux), including software install, post-install, and uninstall scripts, and setup experience scripts | ✓ (only `$FLEET_VAR_HOST_*` and `$FLEET_VAR_NDES_SCEP_CHALLENGE`) | ✓ | ✓ |
+| Apple (macOS, iOS, and iPadOS) configuration profiles (`.mobileconfig`) | ✓ | ✓ (not in `PayloadDisplayName`) | ✓ (not in certificate authority payloads) |
+| Apple declarations (DDM) (`.json`) | ✓ (only `$FLEET_VAR_HOST_*`) | ✓ | ✓ |
+| Windows configuration profiles (`.xml`) | ✓ | ✓ | ✓ |
+| Android configuration profiles (`.json`) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✓ |
+| iOS and iPadOS [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✗ |
+| Android [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✓ |
+| [Host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) (macOS, iOS, and iPadOS) | ✓ (only `$FLEET_VAR_HOST_*`) | ✓ | ✓ |
+| DigiCert and EJBCA certificate authority fields | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✗ |
+| Software pre-install query | ✗ | ✗ | ✗ |
+
+`$FLEET_VAR_HOST_*` are the host and IdP variables: `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`, and the `$FLEET_VAR_HOST_END_USER_IDP_*` variables. To see which platforms each built-in variable supports, see [Built-in variables](#built-in-variables) below.
+
+Fleet shows an error when you save a script, profile, or configuration that uses a variable where it isn't supported, with two exceptions. Fleet doesn't block custom host vitals in iOS and iPadOS managed app configurations, or custom variables in Android configuration profiles and managed app configurations. In these places, Fleet sends the variable to the host as written, without its value.
+
+## Built-in variables
 
 | Name | Scripts | Configuration profiles | Managed app configuration | Description |
 |---|---|---|---|---|
@@ -27,7 +48,7 @@ Built-in variables:
 | `$FLEET_VAR_HOST_PLATFORM` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows, Android | iOS, iPadOS, and Android | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`, and `"android"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the custom SCEP certificate authority configured in **Settings > Integrations > Certificate authorities**. |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
-| `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`          | None | None | macOS, iOS, iPadOS, Windows | Fleet-managed ID that's required to automatically renew certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. In some use cases, like Okta, which drops the OU, it can go in the Common Name (CN) instead. |
+| `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`          | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed ID that's required to automatically renew certificates. The ID must be specified in the Organizational Unit (OU) field in the configuration profile. In some use cases, like Okta, which drops the OU, it can go in the Common Name (CN) instead. |
 | `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the DigiCert certificate authority configured in **Settings > Integrations > Certificate authorities**. |
 | `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the DigiCert certificate authority configured in **Settings > Integrations > Certificate authorities**. |
 | `$FLEET_VAR_EJBCA_PASSWORD_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified EJBCA certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the EJBCA certificate authority configured in **Settings > Integrations > Certificate authorities**. |
@@ -37,6 +58,7 @@ Built-in variables:
 | `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed Smallstep SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_CHALLENGE` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN` | None | macOS | None | Fleet-managed, per-host registration token for [Platform SSO with Fleet's SSO extension](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet). It's only allowed in the `RegistrationToken` key of a Fleet SSO extension payload. |
 | `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` | None | Windows | None | Fleet's conditional access SCEP endpoint URL, used in the certificate profile for [Okta conditional access](https://fleetdm.com/guides/okta-conditional-access-integration). It must be in the `ServerURL` field, and the profile must also include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` and a global enroll secret in the `Challenge` field (we recommend a [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)). |
 
 

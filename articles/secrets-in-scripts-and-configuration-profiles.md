@@ -4,7 +4,9 @@
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
+In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), software install, post-install, and uninstall scripts (including [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)), setup experience scripts, Apple and Windows [configuration profiles](https://fleetdm.com/guides/custom-os-settings), Apple declarations (DDM), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
+
+Custom variables aren't supported in Android configuration profiles or in managed app configurations. See [Where variables work](https://fleetdm.com/guides/fleet-variables#where-variables-work).
 
 Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
@@ -48,7 +50,7 @@ During a GitOps run, Fleet scans scripts and profiles for variables, pulls their
 
 Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
 
-Some variables trigger an Apple (macOS, iOS, iPadOS) profile resend when their value changes. Automatic re-send for Windows profiles is [coming soon](https://github.com/fleetdm/fleet/issues/44852). See which variables support this in the [Fleet variable](https://fleetdm.com/guides/fleet-variables) guide.
+When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles and the Apple declarations (DDM) that use it. To see which built-in variables trigger a resend, see the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
@@ -107,9 +109,7 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 - **Apple MDM profiles**: Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using secrets here could expose sensitive information. Place secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
 - **Host name templates**: A custom variable used in a [host name template](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) isn't hidden — its value becomes the host's name in Fleet and on the device. Only use custom variables for values that are safe to display (for example, a site or location code).
 - **Windows SCEP subject names**: In a Windows SCEP profile's `SubjectName`, Fleet quotes a `$FLEET_VAR_*` value so Windows reads it as one attribute. Fleet inserts a `$FLEET_SECRET_*` value as written. If that value contains `,`, `+`, `;`, or `"`, the device rejects the certificate request. Use a value without those characters.
-- After changing a variable used by a Windows profile, that profile is currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [story #27351](https://github.com/fleetdm/fleet/issues/27351)
 - Fleet expands secret variables to plaintext before delivering scripts and profiles to the host, so anyone with root access can retrieve the value. This holds even if the script never echoes it. On macOS, package installer scripts are logged in full, secrets included, to the world-readable `/var/log/install.log`. Only use secret variables for values you're OK having exposed on the host.
-- There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
 <meta name="articleTitle" value="Custom variables in scripts and configuration profiles">
