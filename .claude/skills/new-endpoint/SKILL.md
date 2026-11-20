@@ -18,7 +18,6 @@ Create a new API endpoint for: $ARGUMENTS
 - URL path (e.g., `/api/_version_/fleet/resource`)
 - Request body fields (if any)
 - Response body fields
-- Which API version (use `StartingAtVersion("2022-04")` for new endpoints)
 - Does it need a datastore method?
 
 ### 2. Read Reference Patterns
@@ -70,7 +69,7 @@ In `server/fleet/datastore.go`, add the method to the `Datastore` interface.
 
 ### 8. Register in handler.go
 ```go
-ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/resource", myResourceEndpoint, myResourceRequest{})
+ue.GET("/api/_version_/fleet/resource", myResourceEndpoint, myResourceRequest{})
 ```
 
 ### 9. Create Test Stubs

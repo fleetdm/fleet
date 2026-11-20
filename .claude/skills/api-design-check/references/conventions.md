@@ -6,7 +6,7 @@ These patterns were mined from `docs/API/rest-api.md` on 2026-10-06 (552 documen
 
 ## URL
 
-- **Majority**: every route is `/api/v1/fleet/<resource>[/...]`. The docs always show `v1`. In code, new routes use `ue.StartingAtVersion("2022-04")` (see `.claude/rules/fleet-api.md`).
+- **Majority**: every route is `/api/v1/fleet/<resource>[/...]`. The docs always show `v1`. In code, routes are registered with `/api/_version_/fleet/...`, which serves every version in `apiVersions` plus `latest`.
 - **Majority**: resources are plural snake_case nouns (`configuration_profiles`, `certificate_authorities`, `custom_host_vitals`). Exceptions are singletons (`config`, `logo`, `me`, `version`, `setup_experience`, `host_summary`).
 - **Inconsistent outlier**: the only hyphenated path is `conditional-access/microsoft`, while its siblings use `conditional_access/...`. Don't copy it.
 - **Exception**: SCIM paths (`/scim/Users`, `/scim/Groups`) and their camelCase JSON follow the SCIM RFC. Don't use them as a precedent.

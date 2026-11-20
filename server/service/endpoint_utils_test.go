@@ -342,50 +342,20 @@ func TestEndpointer(t *testing.T) {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return stringErrorer("nop"), nil
 	}
-	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return stringErrorer("override"), nil
-	}
 
 	// Regular path, no plan to deprecate
 	e.GET("/api/_version_/fleet/path1", nopHandler, struct{}{})
-
-	// New path, we want it only available starting from the specified version
-	e.StartingAtVersion("2021-11").GET("/api/_version_/fleet/newpath", nopHandler, struct{}{})
-
-	// Path that was in v1, but was changed in 2021-11
-	e.EndingAtVersion("v1").GET("/api/_version_/fleet/overriddenpath", nopHandler, struct{}{})
-	e.StartingAtVersion("2021-11").GET("/api/_version_/fleet/overriddenpath", overrideHandler, struct{}{})
-
-	// Path that got deprecated
-	e.EndingAtVersion("v1").GET("/api/_version_/fleet/deprecated", nopHandler, struct{}{})
-	// Path that got deprecated but in the latest version
-	e.EndingAtVersion("2021-11").GET("/api/_version_/fleet/deprecated-soon", nopHandler, struct{}{})
 
 	// Aliasing works with versioning too
 	e.WithAltPaths("/api/_version_/fleet/something/{fff}").GET("/api/_version_/fleet/somethings/{fff}", nopHandler, struct{}{})
 
 	mustMatch := []struct {
-		method     string
-		path       string
-		overridden bool
+		method string
+		path   string
 	}{
 		{method: "GET", path: "/api/v1/fleet/path1"},
 		{method: "GET", path: "/api/2021-11/fleet/path1"},
 		{method: "GET", path: "/api/latest/fleet/path1"},
-
-		{method: "GET", path: "/api/2021-11/fleet/newpath"},
-		{method: "GET", path: "/api/latest/fleet/newpath"},
-
-		{method: "GET", path: "/api/v1/fleet/deprecated"},
-
-		{method: "GET", path: "/api/v1/fleet/deprecated-soon"},
-		{method: "GET", path: "/api/2021-11/fleet/deprecated-soon"},
-		{method: "GET", path: "/api/latest/fleet/deprecated-soon"},
-
-		{method: "GET", path: "/api/v1/fleet/overriddenpath"},
-		{method: "GET", path: "/api/2021-11/fleet/overriddenpath", overridden: true},
-		{method: "GET", path: "/api/latest/fleet/overriddenpath", overridden: true},
 
 		{method: "GET", path: "/api/v1/fleet/something/aaa"},
 		{method: "GET", path: "/api/2021-11/fleet/something/aaa"},
@@ -403,14 +373,9 @@ func TestEndpointer(t *testing.T) {
 		{method: "POST", path: "/api/v1/fleet/path1"},
 		{method: "GET", path: "/api/v1/fleet/qwejoqiwejqiowehioqwe"},
 		{method: "GET", path: "/api/v1/qwejoqiwejqiowehioqwe"},
-
-		{method: "GET", path: "/api/v1/fleet/newpath"},
-
-		{method: "GET", path: "/api/2021-11/fleet/deprecated"},
-		{method: "GET", path: "/api/latest/fleet/deprecated"},
 	}
 
-	doesItMatch := func(method, path string, override bool) bool {
+	doesItMatch := func(method, path string) bool {
 		req := httptest.NewRequest(method, path, nil)
 		req.Header.Set("Authorization", "Bearer asd")
 		rec := httptest.NewRecorder()
@@ -418,20 +383,16 @@ func TestEndpointer(t *testing.T) {
 		if rec.Code == http.StatusNotFound || rec.Code == http.StatusMethodNotAllowed {
 			return false
 		}
-		want := "\"nop\"\n"
-		if override {
-			want = "\"override\"\n"
-		}
-		require.Equal(t, want, rec.Body.String())
+		require.Equal(t, "\"nop\"\n", rec.Body.String())
 		return true
 	}
 
 	for _, route := range mustMatch {
-		require.True(t, doesItMatch(route.method, route.path, route.overridden), route)
+		require.True(t, doesItMatch(route.method, route.path), route)
 	}
 
 	for _, route := range mustNotMatch {
-		require.False(t, doesItMatch(route.method, route.path, false), route)
+		require.False(t, doesItMatch(route.method, route.path), route)
 	}
 }
 

@@ -993,10 +993,8 @@ type CommonEndpointer[H any] struct {
 	// kithttp decode-body step.
 	HTTPPreAuthMiddleware func(http.Handler) http.Handler
 
-	startingAtVersion string
-	endingAtVersion   string
-	alternativePaths  []string
-	usePathPrefix     bool
+	alternativePaths []string
+	usePathPrefix    bool
 
 	// The limit of the request body size in bytes, if set to -1 there is no limit.
 	requestBodySizeLimit int64
@@ -1102,18 +1100,6 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 	})
 }
 
-func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {
-	ae := *e
-	ae.startingAtVersion = version
-	return &ae
-}
-
-func (e *CommonEndpointer[H]) EndingAtVersion(version string) *CommonEndpointer[H] {
-	ae := *e
-	ae.endingAtVersion = version
-	return &ae
-}
-
 func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H] {
 	ae := *e
 	ae.alternativePaths = paths
@@ -1194,61 +1180,23 @@ var pathReplacer = strings.NewReplacer(
 	"}", "_",
 )
 
-func getNameFromPathAndVerb(verb, path, startAt string) string {
-	prefix := strings.ToLower(verb) + "_"
-	if startAt != "" {
-		prefix += pathReplacer.Replace(startAt) + "_"
-	}
-	return prefix + pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
+func getNameFromPathAndVerb(verb, path string) string {
+	return strings.ToLower(verb) + "_" + pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
 func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
-	versions := e.Versions
-	if e.startingAtVersion != "" {
-		startIndex := -1
-		for i, version := range versions {
-			if version == e.startingAtVersion {
-				startIndex = i
-				break
-			}
-		}
-		if startIndex == -1 {
-			panic("StartAtVersion is not part of the valid versions")
-		}
-		versions = versions[startIndex:]
-	}
-	if e.endingAtVersion != "" {
-		endIndex := -1
-		for i, version := range versions {
-			if version == e.endingAtVersion {
-				endIndex = i
-				break
-			}
-		}
-		if endIndex == -1 {
-			panic("EndAtVersion is not part of the valid versions")
-		}
-		versions = versions[:endIndex+1]
-	}
-
-	// if a version doesn't have a deprecation version, or the ending version is the latest one, then it's part of the
-	// latest
-	if e.endingAtVersion == "" || e.endingAtVersion == e.Versions[len(e.Versions)-1] {
-		versions = append(versions, "latest")
-	}
-
 	route := Route{
-		Name:     getNameFromPathAndVerb(verb, path, e.startingAtVersion),
+		Name:     getNameFromPathAndVerb(verb, path),
 		Methods:  []string{verb},
 		Path:     path,
-		Versions: slices.Clone(versions), // versions can share e.Versions' backing array
+		Versions: append(slices.Clone(e.Versions), "latest"),
 		Prefix:   e.usePathPrefix,
 	}
 	handler := pathHandler(route.Template())
 	e.Router.Handle(route, handler)
 	for _, alias := range e.alternativePaths {
 		aliasRoute := route
-		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
+		aliasRoute.Name = getNameFromPathAndVerb(verb, alias)
 		aliasRoute.Path = alias
 		e.Router.Handle(aliasRoute, pathHandler(aliasRoute.Template()))
 	}
