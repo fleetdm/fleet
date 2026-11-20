@@ -303,7 +303,6 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 			return nil, fleet.ErrMissingLicense
 		}
 		return svc.NewTeamPolicy(ctx, *req.TeamID, fleet.NewTeamPolicyPayload{
-			QueryID:                      req.QueryID,
 			Name:                         req.Name,
 			Query:                        req.Query,
 			Description:                  req.Description,
@@ -345,7 +344,6 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 		return nil, ctxerr.Wrap(ctx, err, "check All fleets policy")
 	}
 	return svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:                  req.QueryID,
 		Query:                    req.Query,
 		Name:                     req.Name,
 		Description:              req.Description,

@@ -8,6 +8,8 @@ import {
 } from "__mocks__/softwareMock";
 import { InstallerType } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import { emptySelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import EditIconModal from "./EditIconModal";
@@ -33,6 +35,11 @@ const MOCK_PROPS = {
     countsUpdatedAt: "2025-09-03T12:00:00Z",
   },
 };
+
+// The modal loads the self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptySelfServiceCategoriesHandler);
+});
 
 describe("EditIconModal", () => {
   it("disables fields and gates Save behind the GitOps tooltip when GitOps mode is on", () => {

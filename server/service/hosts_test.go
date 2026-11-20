@@ -560,7 +560,7 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) {
 		return "", nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
@@ -770,7 +770,7 @@ func mockHostDetailsDatastore(ds *mock.Store) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) {
 		return "", nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
@@ -1487,7 +1487,7 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) { return "", nil }
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) { return "", nil }
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -1625,7 +1625,7 @@ func TestHostDetailsOSUpdates(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) { return "", nil }
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) { return "", nil }
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
@@ -4280,9 +4280,11 @@ func TestOSVersionsErrorHandling(t *testing.T) {
 	require.Contains(t, fmt.Sprint(err), "Invalid platform")
 	require.False(t, ds.OSVersionsFuncInvoked, "datastore should not be queried when the platform is invalid")
 
-	// A documented platform is still accepted.
-	_, _, _, err = svc.OSVersions(admin, nil, new("ios"), nil, nil, fleet.ListOptions{}, false, nil)
-	require.NoError(t, err)
+	// A documented platform is still accepted, and so is a Linux distribution's platform.
+	for _, platform := range []string{"ios", "linux", "cachyos", "archarm"} {
+		_, _, _, err = svc.OSVersions(admin, nil, new(platform), nil, nil, fleet.ListOptions{}, false, nil)
+		require.NoError(t, err, platform)
+	}
 
 	// A negative max_vulnerabilities returns a readable message with no ">"
 	// character (JSON encoding would otherwise escape it to ">").
@@ -4462,7 +4464,7 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 	wantDescending := []uint{4, 8, 9, 3, 2, 1, 6, 5, 7}
 	wantAscending := []uint{1, 2, 3, 4, 8, 9, 5, 6, 7}
 
-	opts := fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts := fleet.ListOptions{OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, vers.OSVersions, len(wantDescending))
@@ -4472,7 +4474,7 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 
 	// ascending version sort: reverse order, but the tied trio keeps the
 	// same relative (OSVersionID-ascending) order as in the descending case.
-	opts = fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderAscending}
+	opts = fleet.ListOptions{OrderKey: "os_version", OrderDirection: fleet.OrderAscending}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, vers.OSVersions, len(wantAscending))
@@ -4483,17 +4485,17 @@ func TestOSVersionsOrderByVersion(t *testing.T) {
 	// pagination + descending version sort stays deterministic across
 	// pages, including page 1, which straddles the windows/darwin platform
 	// group boundary (windows IDs 2, 1 followed by darwin IDs 6, 5).
-	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	page0, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, page0.OSVersions, 4)
 
-	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	page1, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, page1.OSVersions, 4)
 
-	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "os_version", OrderDirection: fleet.OrderDescending}
 	page2, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
 	require.NoError(t, err)
 	require.Len(t, page2.OSVersions, 1)

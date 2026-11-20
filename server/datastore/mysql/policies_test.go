@@ -158,7 +158,9 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 
@@ -177,7 +179,9 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	_, err = ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		Name:        q2.Name,
+		Query:       q2.Query,
+		Description: q2.Description,
 	})
 	require.NoError(t, err)
 
@@ -584,7 +588,9 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	p, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 
@@ -603,7 +609,9 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	p2, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		Name:        q2.Name,
+		Query:       q2.Query,
+		Description: q2.Description,
 	})
 	require.NoError(t, err)
 
@@ -802,13 +810,17 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	require.Len(t, prevPolicies, 0)
 
 	_, err = ds.NewTeamPolicy(ctx, 99999999, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.Error(t, err)
 
 	p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID:    &q.ID,
-		Resolution: "some resolution",
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
+		Resolution:  "some resolution",
 	})
 	require.NoError(t, err)
 
@@ -832,7 +844,9 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	require.Len(t, globalPolicies, 1)
 
 	p2, err := ds.NewTeamPolicy(ctx, team2.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		Name:        q2.Name,
+		Query:       q2.Query,
+		Description: q2.Description,
 	})
 	require.NoError(t, err)
 
@@ -1658,8 +1672,10 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	gp, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID:    &q.ID,
-		Resolution: "some gp resolution",
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
+		Resolution:  "some gp resolution",
 	})
 	require.NoError(t, err)
 
@@ -1672,7 +1688,9 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID:                  &q2.ID,
+		Name:                     q2.Name,
+		Query:                    q2.Query,
+		Description:              q2.Description,
 		Resolution:               "some other gp resolution",
 		ConditionalAccessEnabled: true,
 	})
@@ -1860,7 +1878,9 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	team1Policy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID: &tq.ID,
+		Name:        tq.Name,
+		Query:       tq.Query,
+		Description: tq.Description,
 	})
 	require.NoError(t, err)
 
@@ -1873,7 +1893,9 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	globalPolicy, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		QueryID: &gq.ID,
+		Name:        gq.Name,
+		Query:       gq.Query,
+		Description: gq.Description,
 	})
 	require.NoError(t, err)
 
@@ -2017,7 +2039,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 4;",
 			Description: "query4 desc",
 			Resolution:  "some other good resolution 2",
-			Team:        "No team",
+			Team:        fleet.DisplayNameNoTeam,
 			Platform:    "",
 			Type:        fleet.PolicyTypeDynamic,
 		},
@@ -2119,7 +2141,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 4;",
 			Description: "query4 desc",
 			Resolution:  "some other good resolution 2",
-			Team:        "No team",
+			Team:        fleet.DisplayNameNoTeam,
 			Platform:    "",
 			Type:        fleet.PolicyTypeDynamic,
 		},
@@ -5812,7 +5834,7 @@ func testApplyPolicySpecsWithScript(t *testing.T, ds *Datastore) {
 	// A script on the same team, and a "No team" script on a "No team" policy, are accepted.
 	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
 		spec("team script", team1.Name, &team1Script.ID),
-		spec("no team script", "No team", &noTeamScript.ID),
+		spec("no team script", fleet.DisplayNameNoTeam, &noTeamScript.ID),
 	})
 	require.NoError(t, err)
 
@@ -6315,7 +6337,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Query:           "SELECT 3;",
 			Description:     "Description 3",
 			Resolution:      "Resolution 3",
-			Team:            "No team",
+			Team:            fleet.DisplayNameNoTeam,
 			Platform:        "linux",
 			SoftwareTitleID: installer3.TitleID,
 			Type:            fleet.PolicyTypeDynamic,
@@ -6345,7 +6367,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Query:           "SELECT 3;",
 			Description:     "Description 3",
 			Resolution:      "Resolution 3",
-			Team:            "No team",
+			Team:            fleet.DisplayNameNoTeam,
 			Platform:        "linux",
 			SoftwareTitleID: &va1NoTeam.TitleID,
 			Type:            fleet.PolicyTypeDynamic,
@@ -6467,7 +6489,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Query:           "SELECT 3;",
 			Description:     "Description 3",
 			Resolution:      "Resolution 3",
-			Team:            "No team",
+			Team:            fleet.DisplayNameNoTeam,
 			Platform:        "darwin",
 			SoftwareTitleID: installer2.TitleID,
 			Type:            fleet.PolicyTypeDynamic,
@@ -6483,7 +6505,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Query:           "SELECT 3;",
 			Description:     "Description 3",
 			Resolution:      "Resolution 3",
-			Team:            "No team",
+			Team:            fleet.DisplayNameNoTeam,
 			Platform:        "darwin",
 			SoftwareTitleID: &va2.TitleID,
 			Type:            fleet.PolicyTypeDynamic,
@@ -6515,7 +6537,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Query:           "SELECT 3;",
 			Description:     "Description 3",
 			Resolution:      "Resolution 3",
-			Team:            "No team",
+			Team:            fleet.DisplayNameNoTeam,
 			Platform:        "darwin",
 			SoftwareTitleID: ptr.Uint(999_999),
 			Type:            fleet.PolicyTypeDynamic,

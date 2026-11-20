@@ -2,17 +2,13 @@ package mysql
 
 import (
 	"log/slog"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/ngrok/sqlmw"
 )
 
-const (
-	defaultMaxAttempts         int = 15
-	defaultMinLastOpenedAtDiff     = time.Hour
-)
+const defaultMaxAttempts int = 15
 
 // DBOption is used to pass optional arguments to a database connection
 type DBOption func(o *common_mysql.DBOptions) error
@@ -70,7 +66,6 @@ func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 // that must be used in the datastore layer can be captured here.
 func WithFleetConfig(conf *config.FleetConfig) DBOption {
 	return func(o *common_mysql.DBOptions) error {
-		o.MinLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
 		o.PrivateKey = conf.Server.PrivateKey
 		return nil
 	}

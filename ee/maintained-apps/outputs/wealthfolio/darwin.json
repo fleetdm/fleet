@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.13.0",
+      "version": "3.13.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teymz.wealthfolio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teymz.wealthfolio' AND version_compare(bundle_short_version, '3.13.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.teymz.wealthfolio' AND version_compare(bundle_short_version, '3.13.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.teymz.wealthfolio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/afadil/wealthfolio/releases/download/v3.13.0/Wealthfolio_3.13.0_aarch64.dmg",
+      "installer_url": "https://github.com/afadil/wealthfolio/releases/download/v3.13.1/Wealthfolio_3.13.1_aarch64.dmg",
       "install_script_ref": "1e9fbd67",
       "uninstall_script_ref": "a3136ff1",
-      "sha256": "408ac859023eebee53791b68d7e32de62e94bb797edac48f1cf4f390ea8b6748",
+      "sha256": "a39d5e508676c83115ce8d208409b0c60276384db976bfa60dfd2dc9ada3c8ab",
       "default_categories": [
         "Productivity"
       ]

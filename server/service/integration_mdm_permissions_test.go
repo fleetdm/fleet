@@ -181,7 +181,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 
 	// GitOps users can't run MDM commands, even on hosts of their fleets.
 	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
-		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 	type mdmCommandEndpoint struct {
 		method string
 		path   string
@@ -359,9 +359,6 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.awaitTriggerProfileSchedule(t)
 	checkNextPayloads(t, globalMacOSMDMClient, false)
 	team1Host.OrbitNodeKey = new(setOrbitEnrollment(t, team1Host, s.ds))
-	ggsr := getGlobalScheduleResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
-	require.NoError(t, ggsr.Err)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		Email:      new("foo42@example.com"),
@@ -722,9 +719,6 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{q1.ID}}, http.StatusForbidden, &fleet.DeleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to read the global schedule, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
 	// Attempt to create a global policy, should fail.
 	gplr := fleet.GlobalPolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
@@ -1063,38 +1057,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to delete query, should fail.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to read the global schedule, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
-	// Attempt to read the team's schedule, should allow.
-	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusOK,
-		&getTeamScheduleResponse{},
-	)
-
-	// Attempt to read other team's schedule, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
-
-	// Attempt to add a query to the team's schedule, should fail.
+	// Attempt to create a fleet report, should fail.
 	cqrt1 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		Name:   new("foo8"),
 		Query:  new("SELECT * from managed_policies;"),
 		TeamID: &t1.ID,
 	}, http.StatusForbidden, &cqrt1)
-	ttsqr := teamScheduleQueryResponse{}
-	// Attempt to add a schedule with the deprecated APIs (by referencing a global query), should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t1.ID), teamScheduleQueryRequest{
-		QueryID:  new(q1.ID),
-		Interval: new(uint(60)),
-	}, http.StatusForbidden, &ttsqr)
-
-	// Attempt to remove a query from the team's schedule, should fail. q1 is a
-	// global query, so it is not in t1's schedule at all: the fleet_id in the
-	// path no longer matches the report, and the response is the same
-	// not-found a nonexistent report would get rather than a forbidden that
-	// would confirm the report exists outside this fleet.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", t1.ID, q1.ID), deleteTeamScheduleRequest{}, http.StatusNotFound, &deleteTeamScheduleResponse{})
 
 	// Attempt to add/remove a manual label from a team host, should allow.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
