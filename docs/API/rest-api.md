@@ -13998,14 +13998,6 @@ o
 
 ---
 
-## Schedule
-
-The [schedule API endpoints](https://github.com/fleetdm/fleet/blob/f6631e27f56b6704c555adfb7a3bb8c6d1a74d98/docs/REST%20API/rest-api.md#schedule) are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-
-Please use the [reports](#reports) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
-
----
-
 ## Scripts
 
 - [Run script](#run-script)
