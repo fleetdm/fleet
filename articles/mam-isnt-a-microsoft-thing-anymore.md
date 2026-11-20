@@ -30,7 +30,7 @@ It's also worth asking how much this matters to you in practice. In my conversat
 
 So if you run Google Workspace and Okta, you aren't missing anything. Google decides which apps get in and keeps the data inside them. Okta handles sign-in and device checks with Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones.
 
-Or you can enroll the phone and skip the whole question. Once a phone is enrolled, iOS itself can keep work data in work apps. One profile can stop files and copied text from moving between work apps and personal apps, for every app IT installs, Outlook included. Those are Apple's standard device management settings, so it doesn't matter which controls Microsoft lets other tools reach. You can still use your office suite's settings, but you aren't locked into them.
+Or you can enroll the phone and skip the whole question. Enrolling gives you complete control, because iOS itself can keep work data in work apps. One profile can stop files and copied text from moving between work apps and personal apps, for every app IT installs, Outlook included. Those are Apple's standard device management settings, so it doesn't matter which controls Microsoft lets other tools reach. You can still use your office suite's settings, but you aren't locked into them.
 
 So why not enroll every phone? Because most people don't.
 
