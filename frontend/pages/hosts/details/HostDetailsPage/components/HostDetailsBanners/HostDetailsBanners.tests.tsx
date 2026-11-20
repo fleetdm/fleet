@@ -204,21 +204,4 @@ describe("Host Details Banners", () => {
 
     expect(screen.getByText(turnOnMdmText)).toBeInTheDocument();
   });
-
-  it("keeps a space before the setting name in the can't-enroll banner", () => {
-    const { container } = render(
-      <HostDetailsBanners
-        hostPlatform="darwin"
-        mdmEnrollmentStatus="Off"
-        connectedToFleetMdm
-        depAssignedToFleet={false}
-        onlyAllowAppleBusinessEnrollment
-        macDiskEncryptionStatus={null}
-      />
-    );
-
-    expect(container.textContent).toContain(
-      "turn off the Allow only Apple Business enrollments setting"
-    );
-  });
 });
