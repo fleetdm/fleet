@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"uuid"
@@ -319,20 +320,23 @@ func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
 		return nil
 	}
 
-	query, args, err := sqlx.In(
-		"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?) AND updated_at <= ?",
-		decryptable, hostIDs, threshold,
-	)
-	if err != nil {
-		return err
+	for chunk := range slices.Chunk(hostIDs, 10_000) {
+		query, args, err := sqlx.In(
+			"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?) AND updated_at <= ?",
+			decryptable, chunk, threshold,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("building query for SetHostsDiskEncryptionKeyStatus, at chunk %d (total=%d)", chunk[len(chunk)-1], len(hostIDs)))
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("executing query for SetHostsDiskEncryptionKeyStatus, at chunk %d (total=%d)", chunk[len(chunk)-1], len(hostIDs)))
+		}
+		if !decryptable {
+			// macOS hosts with an undecryptable key are asked to rotate it.
+			ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, chunk...)
+		}
 	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return err
-	}
-	if !decryptable {
-		// macOS hosts with an undecryptable key are asked to rotate it.
-		ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, hostIDs...)
-	}
+
 	return nil
 }
 

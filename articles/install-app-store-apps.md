@@ -44,7 +44,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 #### Install Android web app (web clip)
 
-> Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.
+> Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the Google Play Store.
 
 To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
 
@@ -146,6 +146,15 @@ On Android 14 and above, third-party credential providers are blocked in the wor
   "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
 }
 ```
+
+### Variables
+
+You can use [built-in variables](https://fleetdm.com/guides/fleet-variables) (`$FLEET_VAR_HOST_*`) in managed configurations. On Android, you can also use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`). Fleet fills them in for each host when it sends the app. [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) aren't supported in managed configurations.
+
+If Fleet can't fill in a variable for a host, what happens depends on the platform. For example, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` can't be filled in when the host's IdP user has no department.
+
+- **iOS and iPadOS:** Fleet doesn't send the install and marks it as failed. The reason appears in **Host details > Activity** and in the install details.
+- **Android:** Fleet doesn't send the app or its updated configuration to that host. If the app was already available on the host, it stays available with its previous configuration. Showing an error for this in Fleet is [coming soon](https://github.com/fleetdm/fleet/issues/52825).
 
 ## Multiple app instances
 

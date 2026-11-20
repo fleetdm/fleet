@@ -18,7 +18,7 @@ type fakeABMChecker struct {
 	countQueries []string
 }
 
-func (f *fakeABMChecker) ListABMTokens() ([]*fleet.ABMToken, error) { return f.tokens, f.tokensErr }
+func (f *fakeABMChecker) ListABTokens() ([]*fleet.ABMToken, error) { return f.tokens, f.tokensErr }
 func (f *fakeABMChecker) CountHosts(query string) (int, error) {
 	f.countQueries = append(f.countQueries, query)
 	if f.countErr != nil {
@@ -66,7 +66,7 @@ func TestWarnSetupAssistantsWithoutABMTokens(t *testing.T) {
 			checker: &fakeABMChecker{
 				tokens: []*fleet.ABMToken{abmToken("Workstations", "", "", "")},
 				hostCounts: map[string]int{
-					fmt.Sprintf("team_id=7&mdm_enrollment_status=%s", fleet.MDMEnrollStatusPending): 2,
+					fmt.Sprintf("fleet_id=7&mdm_enrollment_status=%s", fleet.MDMEnrollStatusPending): 2,
 				},
 			},
 			fleets:       map[string]uint{"Lab": 7},
@@ -75,10 +75,10 @@ func TestWarnSetupAssistantsWithoutABMTokens(t *testing.T) {
 		{
 			name: "no team covered by token without defaults",
 			checker: &fakeABMChecker{
-				// ListABMTokens reports "No team" for unset platform defaults.
-				tokens: []*fleet.ABMToken{abmToken("Workstations", "No team", "No team", "No team")},
+				// ListABMTokens reports Unassigned for unset platform defaults.
+				tokens: []*fleet.ABMToken{abmToken("Workstations", fleet.DisplayNameNoTeam, fleet.DisplayNameNoTeam, fleet.DisplayNameNoTeam)},
 			},
-			fleets:       map[string]uint{fleet.TeamNameNoTeam: 0},
+			fleets:       map[string]uint{fleet.DisplayNameNoTeam: 0},
 			wantWarnedOn: nil,
 		},
 		{
@@ -86,8 +86,8 @@ func TestWarnSetupAssistantsWithoutABMTokens(t *testing.T) {
 			checker: &fakeABMChecker{
 				tokens: []*fleet.ABMToken{abmToken("Workstations", "Workstations", "Workstations", "Workstations")},
 			},
-			fleets:       map[string]uint{fleet.TeamNameNoTeam: 0},
-			wantWarnedOn: []string{fleet.TeamNameNoTeam},
+			fleets:       map[string]uint{fleet.DisplayNameNoTeam: 0},
+			wantWarnedOn: []string{fleet.DisplayNameNoTeam},
 		},
 		{
 			name:         "token listing error stays silent about coverage",

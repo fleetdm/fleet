@@ -3,6 +3,7 @@
   "slug": "microsoft-remote-help/windows",
   "package_identifier": "Microsoft.RemoteHelp",
   "unique_identifier": "Remote Help",
+  "open_process_names": ["remotehelp.exe"],
   "program_publisher": "Microsoft Corporation",
   "installer_arch": "x86",
   "installer_type": "exe",

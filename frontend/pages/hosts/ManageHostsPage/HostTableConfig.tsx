@@ -34,6 +34,7 @@ import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
+  getHostOSDisplayName,
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
@@ -220,17 +221,18 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "os_version",
     // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
     Cell: (cellProps: IHostTableStringCellProps) => {
-      const os_version = cellProps.cell.value;
+      const { os_name, os_version } = cellProps.row.original;
+      const osDisplayName = getHostOSDisplayName(os_name, os_version);
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
-        os_version
+        osDisplayName
       ) ? (
         // wrap a tooltip around the "rolling" suffix
         <>
-          {os_version.slice(0, -8)}&nbsp;
+          {osDisplayName.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
-        os_version
+        osDisplayName
       );
       return <TooltipTruncatedTextCell value={versionForRender} />;
     },
@@ -736,7 +738,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent="Only supported on macOS, Windows, and Linux, where Fleet's agent can measure system uptime."
+          tipContent="Only supported on macOS, Windows, Linux, and ChromeOS where Fleet's agent can measure system uptime."
           tooltipClass="host-table-header-tooltip"
           fixedPositionStrategy
         >
@@ -755,7 +757,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (isMobilePlatform(platform) || platform === "chrome") {
+      if (isMobilePlatform(platform)) {
         return NotSupported;
       }
       return (

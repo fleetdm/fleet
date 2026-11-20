@@ -199,7 +199,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 		"email":                       t.Name() + "_svc@example.com",
 		"password":                    test.GoodPassword,
 		"global_role":                 "",
-		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":                      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 		"api_only":                    true,
 		"admin_forced_password_reset": false,
 	}, http.StatusUnprocessableEntity, &createResp)
@@ -218,7 +218,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	var selfModResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
 		"global_role": "",
-		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 	}, http.StatusUnprocessableEntity, &selfModResp)
 
 	plantedEmail := t.Name() + "_planted@example.com"
@@ -238,7 +238,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	s.token = s.getTestToken(planted.Email, test.GoodPassword)
 
 	var labelsResp fleet.ListLabelsResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "fleet_id", fmt.Sprint(otherTeam.ID))
 	labelsResp = fleet.ListLabelsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
 	for _, lbl := range labelsResp.Labels {
@@ -281,7 +281,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	})
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
-		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+		"fleets": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
 	}, http.StatusForbidden, &modResp)
 	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
 	require.NoError(t, err)
@@ -445,9 +445,9 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
 	// This user has the following configuration (the last two are ignored by Fleet):
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'admin',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_1' => 'admin',
 	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_2' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_2' => 'null',
 	body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user5, err := s.ds.UserByEmail(context.Background(), "sso_user_5_team_admin@example.com")
@@ -463,7 +463,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// see `tools/saml/users.php` for details.
 	// This user has the following configuration (all ignored by Fleet thus added as global observer):
 	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_1' => 'null',
 	body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user6, err := s.ds.UserByEmail(context.Background(), "sso_user_6_global_observer@example.com")
@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"`
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"`
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}
@@ -1101,6 +1101,49 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	const byID = "/api/v1/fleet/reports/:id"
+
+	createAPIOnlyMaintainer := func(name string, paths ...string) string {
+		s.token = s.getTestAdminToken()
+		eps := make([]map[string]any, 0, len(paths))
+		for _, p := range paths {
+			eps = append(eps, map[string]any{"method": "DELETE", "path": p})
+		}
+		var resp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+			"name":          name,
+			"global_role":   fleet.RoleMaintainer,
+			"api_endpoints": eps,
+		}, http.StatusOK, &resp)
+		require.NotEmpty(t, resp.Token)
+		return resp.Token
+	}
+	var reportCount int
+	createReport := func() *fleet.Query {
+		prev := s.token
+		s.token = s.getTestAdminToken()
+		defer func() { s.token = prev }()
+		reportCount++
+		name := fmt.Sprintf("api-only delete report grants %d", reportCount)
+		var resp fleet.CreateQueryResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
+		return resp.Report
+	}
+	byIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", r.ID) }
+
+	s.token = createAPIOnlyMaintainer("api-only-delete-report-by-id", byID)
+	r := createReport()
+	// The removed path answers 410 before the grant is checked.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID), nil, http.StatusGone)
+	s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
+}
+
 // TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
 // catalog includes every route invoked by fleetctl gitops and
 // fleetctl generate-gitops. The test runs as an api-only admin user so any
@@ -1155,7 +1198,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints(
 	assertNot403("GET", "/api/latest/fleet/spec/enroll_secret", nil)
 	assertNot403("GET", "/api/latest/fleet/spec/certificate_authorities", nil)
 	assertNot403("POST", "/api/latest/fleet/spec/certificate_authorities", emptySpecs)
-	assertNot403("GET", "/api/latest/fleet/abm_tokens/count", nil)
+	assertNot403("GET", "/api/latest/fleet/ab_tokens/count", nil)
 	assertNot403("POST", "/api/latest/fleet/spec/policies", emptySpecs)
 	assertNot403("POST", "/api/latest/fleet/spec/reports", emptySpecs)
 	assertNot403("POST", "/api/latest/fleet/spec/fleets", emptySpecs)
@@ -1178,7 +1221,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 		{"method": "GET", "path": "/api/v1/fleet/me"},
 		{"method": "GET", "path": "/api/v1/fleet/config"},
 		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
-		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
+		{"method": "GET", "path": "/api/v1/fleet/ab_tokens/count"},
 		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
 	}
 
@@ -1197,7 +1240,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK)
 	// Apply a real policy spec; an empty specs list short-circuits before authz
 	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
 	// middleware behavior we want to verify.

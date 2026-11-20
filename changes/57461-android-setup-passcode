@@ -1,0 +1,2 @@
+- Android hosts now set a passcode during setup, before the end user reaches the home screen, when the fleet has an Android configuration profile with `passwordPolicies` or `passwordRequirements` and no labels. Zero-touch enrollment configurations created before this release get the passcode after setup until their DPC extras are copied again from Fleet.
+- Android configuration profiles with `passwordPolicies` or `passwordRequirements` can no longer include Fleet variables, secrets, or custom host vitals.

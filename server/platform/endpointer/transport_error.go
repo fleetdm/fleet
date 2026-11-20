@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/redact"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
@@ -102,7 +103,8 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 
 	// The body is always JSON; without this Go sniffs it as text/plain.
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	enc := json.NewEncoder(w)
+	// Every encode below, including the domain encoder's, goes through enc.
+	enc := json.NewEncoder(redact.JSONWriter(ctx, w))
 	enc.SetIndent("", "  ")
 
 	err = ctxerr.Cause(err)

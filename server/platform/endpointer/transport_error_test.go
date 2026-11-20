@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/redact"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
@@ -319,6 +320,32 @@ func TestEncodeErrorSetsJSONContentType(t *testing.T) {
 			EncodeError(t.Context(), err, recorder, nil)
 
 			require.Equal(t, "application/json; charset=utf-8", recorder.Header().Get("Content-Type"))
+		})
+	}
+}
+
+func TestEncodeErrorRedactsExpandedSecrets(t *testing.T) {
+	t.Parallel()
+
+	ctx := redact.NewContext(t.Context())
+	redact.Record(ctx, "S3CR3T-SENTINEL")
+
+	for name, domainEncoder := range map[string]DomainErrorEncoder{
+		"generic": nil,
+		"domain": func(_ context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *JsonError) bool {
+			jsonErr.Message = err.Error()
+			w.WriteHeader(http.StatusTeapot)
+			enc.Encode(jsonErr) //nolint:errcheck
+			return true
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			err := &platform_http.BadRequestError{Message: "failed to parse config profile: invalid PayloadType: S3CR3T-SENTINEL"}
+			EncodeError(ctx, err, recorder, domainEncoder)
+
+			require.NotContains(t, recorder.Body.String(), "S3CR3T-SENTINEL")
+			require.Contains(t, recorder.Body.String(), "invalid PayloadType: "+redact.Placeholder)
 		})
 	}
 }

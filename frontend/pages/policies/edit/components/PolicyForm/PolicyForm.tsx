@@ -2,7 +2,7 @@
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 
 import { Ace } from "ace-builds";
-import { size } from "lodash";
+import { omit, size } from "lodash";
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -57,7 +57,7 @@ import {
   PatchOptionSelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import PATHS from "router/paths";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -80,10 +80,7 @@ interface IPolicyFormProps {
   isStoredPolicyLoading: boolean;
   isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
-  onCreatePolicy: (
-    formData: IPolicyFormData,
-    saveAutomations?: (newPolicy: IPolicy) => Promise<void>
-  ) => void;
+  onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   // Returns a Promise so the form can sequence the automations save AFTER the
@@ -134,6 +131,8 @@ const PolicyForm = ({
   resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
     false
   );
@@ -228,24 +227,25 @@ const PolicyForm = ({
     isFreeTier,
   } = useContext(AppContext);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
   const aiFeaturesDisabled =
     config?.server_settings.ai_features_disabled || false;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const debounceSQL = useDebouncedCallback((sql: string) => {
-    const { errors: newErrors } = validateQuerySQL(sql);
-
-    setErrors({
-      ...newErrors,
-    });
-  }, 500);
-
   const platformCompatibility = usePlatformCompatibility();
-  const {
-    getCompatiblePlatforms,
-    setCompatiblePlatforms,
-  } = platformCompatibility;
+  const { setCompatiblePlatforms } = platformCompatibility;
+
+  const validateSqlOnBlur = (sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  };
+
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // an error without flashing mid-token. Blur / submit still fire immediately.
+  const debounceValidateSql = useDebouncedCallback((sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  }, 3000);
 
   const platformSelectorDisabled =
     isFetchingAutofillDescription ||
@@ -260,15 +260,27 @@ const PolicyForm = ({
     currentTeam?.id
   );
 
-  const {
-    getSelectedPlatforms,
-    setSelectedPlatforms,
-    isAnyPlatformSelected,
-  } = platformSelector;
+  const { getSelectedPlatforms, isAnyPlatformSelected } = platformSelector;
 
   policyIdForEdit = policyIdForEdit || 0;
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+
+  const labelsRequired = selectedTargetType === "Custom" && !hasCustomLabels;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
+
+  useEffect(() => {
+    if (isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [isAnyPlatformSelected]);
+
+  useEffect(() => {
+    if (!labelsRequired) {
+      setShowLabelsError(false);
+    }
+  }, [labelsRequired]);
 
   const isNewTemplatePolicy =
     !policyIdForEdit &&
@@ -298,7 +310,7 @@ const PolicyForm = ({
   );
 
   const automationsConfig =
-    (isGlobalPolicy ? config : automationsTeamData?.team) ?? undefined;
+    (isGlobalPolicy ? config : automationsTeamData?.fleet) ?? undefined;
 
   let automationsFleetName = "";
   if (isGlobalPolicy) {
@@ -307,16 +319,18 @@ const PolicyForm = ({
     automationsFleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
   } else {
     automationsFleetName =
-      automationsTeamData?.team?.name ?? currentTeam?.name ?? "";
+      automationsTeamData?.fleet?.name ?? currentTeam?.name ?? "";
   }
 
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const storedConditionalAccess =
+    storedPolicy?.automation_type === "conditional_access";
   const [conditionalAccessOn, setConditionalAccessOn] = useState(
-    storedPolicy?.conditional_access_enabled ?? false
+    storedConditionalAccess
   );
   useEffect(() => {
-    setConditionalAccessOn(storedPolicy?.conditional_access_enabled ?? false);
-  }, [storedPolicy?.conditional_access_enabled]);
+    setConditionalAccessOn(storedConditionalAccess);
+  }, [storedConditionalAccess]);
   useEffect(() => {
     if (conditionalAccessOn) {
       setLastEditedQueryHidden(false);
@@ -328,9 +342,6 @@ const PolicyForm = ({
     isLoading: isSavingAutomations,
   } = useUpdatePolicyAutomations({
     policy: storedPolicy,
-    teamIdForApi: automationsTeamId,
-    isGlobalPolicy,
-    automationsConfig,
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
@@ -384,8 +395,10 @@ const PolicyForm = ({
     }
   }, []);
 
+  // Compute compatibility once a policy loads. On-change updates happen
+  // in onChangePolicySql; syntax validation runs on blur / submit, not on
+  // every keystroke, so incomplete SQL doesn't flash "Syntax error".
   useEffect(() => {
-    debounceSQL(lastEditedQueryBody);
     if (
       (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
       (isNewTemplatePolicy && !lastEditedQueryBody)
@@ -393,7 +406,8 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyIdForEdit, lastEditedQueryId, isNewTemplatePolicy]);
 
   const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
@@ -416,7 +430,14 @@ const PolicyForm = ({
 
   const onChangePolicySql = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+    setCompatiblePlatforms(sqlString);
     resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (errors.query) {
+      setErrors({ ...errors, query: undefined });
+    }
+    debounceValidateSql(sqlString);
   };
 
   const onAddPatchAutomation = async () => {
@@ -428,9 +449,8 @@ const PolicyForm = ({
     }
     setIsAddingAutomation(true);
     try {
-      await teamPoliciesAPI.update(policyIdForEdit as number, {
-        fleet_id: storedPolicy.fleet_id,
-        software_title_id: storedPolicy.patch_software.software_title_id,
+      await policiesAPI.update(policyIdForEdit as number, {
+        automation_type: "software",
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
       notify.success("Automation added.");
@@ -448,17 +468,22 @@ const PolicyForm = ({
   ) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
-      setErrors({ ...errors, name: "Policy name must be present" });
-      return;
-    }
+    if (isEditMode) {
+      const nameInvalid = !lastEditedQueryName.trim();
+      if (nameInvalid) {
+        setErrors({ ...errors, name: "Enter a policy name" });
+      }
 
-    if (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) {
-      setErrors({
-        ...errors,
-        name: "At least one platform must be selected",
-      });
-      return;
+      if (!isPatchPolicy) {
+        const hasPlatform = isAnyPlatformSelected;
+        setPlatformError(hasPlatform ? null : "Select at least one platform");
+        setShowLabelsError(labelsRequired);
+        if (nameInvalid || !hasPlatform || labelsRequired) {
+          return;
+        }
+      } else if (nameInvalid) {
+        return;
+      }
     }
 
     // Capture + validate automation changes up front so an invalid selection
@@ -467,16 +492,21 @@ const PolicyForm = ({
     if (isEditMode) {
       automations = automationsRef.current?.getAutomationsPayload();
       if (!automations && isPremiumTier && isPatchPolicy) {
+        const patchFlags = getPatchPolicyFlags(patchOption, endUserExperience);
+        // Like the loaded fields: manual patching keeps another automation
+        // (e.g. a script) and its continuous setting.
+        const keepsOtherAutomation =
+          patchOption === "manual" &&
+          storedPolicy?.automation_type !== "software";
         automations = {
           isValid: true,
           isDirty: true,
-          policyUpdate: {
-            software_title_id:
-              patchOption === "manual"
-                ? null
-                : storedPolicy?.patch_software?.software_title_id ?? null,
-            ...getPatchPolicyFlags(patchOption, endUserExperience),
-          },
+          policyUpdate: keepsOtherAutomation
+            ? omit(patchFlags, "continuous_automations_enabled")
+            : {
+                automation_type: patchOption === "manual" ? null : "software",
+                ...patchFlags,
+              },
         };
       }
       if (automations && !automations.isValid) {
@@ -489,20 +519,23 @@ const PolicyForm = ({
     // automations write is always the LAST write to the policy. This matters
     // for patch policies, where the backend re-links install_software to
     // patch_software whenever a patch policy is updated.
+    // The core PATCH lands before the automations PATCH, and the backend
+    // validates hidden against the stored conditional access value, so turning
+    // conditional access off has to travel with the core update or hidden is
+    // rejected.
+    const disablesConditionalAccess =
+      storedPolicy?.automation_type === "conditional_access" &&
+      !!automations?.policyUpdate &&
+      automations.policyUpdate.automation_type !== "conditional_access";
     const persistAutomations = () => {
-      if (automations?.isDirty) {
-        saveAutomations({
-          policyUpdate: automations.policyUpdate,
-          webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
-        });
+      if (
+        automations?.isDirty &&
+        automations.policyUpdate &&
+        !disablesConditionalAccess
+      ) {
+        saveAutomations({ policyUpdate: automations.policyUpdate });
       }
     };
-
-    // The core PATCH lands before the automations PATCH, and the backend
-    // validates hidden against the stored conditional access value, so a
-    // disable has to travel with the core update or hidden is rejected.
-    const disablesConditionalAccess =
-      automations?.policyUpdate?.conditional_access_enabled === false;
 
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
@@ -515,7 +548,7 @@ const PolicyForm = ({
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
         if (disablesConditionalAccess) {
-          payload.conditional_access_enabled = false;
+          Object.assign(payload, automations?.policyUpdate);
         }
       }
       await onUpdate(payload);
@@ -523,31 +556,35 @@ const PolicyForm = ({
       return;
     }
 
-    // Synchronously block empty queries. The button-level `disableSaveFormErrors`
-    // relies on the debounced `errors.query`, so a fast click before the debounce
-    // fires could otherwise submit an empty query. Mirrors the guard in
-    // EditQueryForm's handleSaveQuery (see #38348).
+    // Empty-query check: surface the inline error and return. Save stays
+    // enabled per Fleet's form validation pattern; only this guard prevents
+    // the submit.
     if (!lastEditedQueryBody?.trim()) {
       setErrors({ ...errors, query: EMPTY_QUERY_ERR });
       return;
     }
 
-    let selectedPlatforms = getSelectedPlatforms();
-    if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
-      // If no platforms are selected, default to all compatible platforms
-      selectedPlatforms = getCompatiblePlatforms();
-      setSelectedPlatforms(selectedPlatforms);
-    }
-
+    const selectedPlatforms = getSelectedPlatforms();
     const newPlatformString = selectedPlatforms.join(
       ","
     ) as CommaSeparatedPlatformString;
 
     if (!defaultPolicy) {
-      setLastEditedQueryPlatform(newPlatformString);
+      // Empty string in platformContext is a legacy "no restriction → check
+      // all four" signal in usePlatformSelector. Persist null so clicking Save
+      // with zero platforms doesn't flip to "all platforms" when the modal
+      // opens.
+      setLastEditedQueryPlatform(newPlatformString || null);
     }
 
     if (!isEditMode) {
+      // Seed the save modal with the query's compatible platforms, mirroring
+      // the "new report" flow in EditQueryForm.handleSaveQuery. Without this,
+      // the modal opens with every platform unchecked because new policies
+      // have no platform selector on the page.
+      platformSelector.setSelectedPlatforms(
+        platformCompatibility.getCompatiblePlatforms()
+      );
       setIsSaveNewPolicyModalOpen(true);
     } else {
       const payload: IPolicyFormData = {
@@ -562,7 +599,7 @@ const PolicyForm = ({
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
         if (disablesConditionalAccess) {
-          payload.conditional_access_enabled = false;
+          Object.assign(payload, automations?.policyUpdate);
         }
       }
       await onUpdate(payload);
@@ -605,6 +642,18 @@ const PolicyForm = ({
           value={lastEditedQueryName}
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
+          onFocus={() => {
+            if (errors.name) {
+              setErrors({ ...errors, name: undefined });
+            }
+          }}
+          onBlur={() => {
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a policy name" });
+            }
+          }}
           disabled={gitOpsModeEnabled}
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
@@ -742,25 +791,21 @@ const PolicyForm = ({
     if (!fleetName) return null;
 
     return isEditMode ? (
-      <p>
+      <p className={`${baseClass}__fleet-name`}>
         Editing policy for <strong>{fleetName}</strong>.
       </p>
     ) : (
-      <p>
+      <p className={`${baseClass}__fleet-name`}>
         Creating a new policy for <strong>{fleetName}</strong>.
       </p>
     );
   };
 
   const renderPolicyForm = () => {
-    // Save disabled for no platforms selected, policy name blank on existing policy,
-    // invalid target selection, or empty query. Syntax errors do not disable Save.
-    const disableSaveFormErrors =
-      isAddingAutomation ||
-      (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
-      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      (selectedTargetType === "Custom" && !hasCustomLabels) ||
-      errors.query === EMPTY_QUERY_ERR;
+    // Save stays enabled for any client-side validation error (name, platforms,
+    // labels, empty or invalid query) — click reveals the inline errors via
+    // promptSavePolicy, matching Fleet's form validation pattern.
+    const disableSaveFormErrors = isAddingAutomation;
 
     // Single source of truth: patchOptions renders inside this block (patchSlot)
     // when shown, and standalone otherwise — the two must stay exact complements.
@@ -817,7 +862,9 @@ const PolicyForm = ({
           {isEditMode && renderName()}
           {renderDescription()}
           {renderResolution()}
-          {isEditMode && !isPatchPolicy && platformSelector.render()}
+          {isEditMode &&
+            !isPatchPolicy &&
+            platformSelector.render(platformError)}
           {isEditMode && isPremiumTier && !isPatchPolicy && (
             <TargetLabelSelector
               {...selectorProps}
@@ -825,11 +872,11 @@ const PolicyForm = ({
               emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
               onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
               disableOptions={gitOpsModeEnabled}
+              labelsError={labelsError}
             />
           )}
           {showAutomationsBlock && (
-            <div className="form-field">
-              <div className="form-field__label">Automations</div>
+            <div className={`${baseClass}__automation`}>
               {!(isPremiumTier && isPatchPolicy) && (
                 <PatchAutomationCta
                   storedPolicy={storedPolicy}
@@ -878,7 +925,7 @@ const PolicyForm = ({
                   showArrow
                   tipOffset={12}
                 >
-                  <Icon name="info" size="medium" />
+                  <Icon name="info" />
                 </TooltipWrapper>
               ) : (
                 renderLabelComponent()
@@ -888,6 +935,7 @@ const PolicyForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangePolicySql}
+            onBlur={() => validateSqlOnBlur(lastEditedQueryBody)}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
@@ -898,24 +946,14 @@ const PolicyForm = ({
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
-                <TooltipWrapper
-                  tipContent="Select the platforms this policy will be checked on to save or run the policy."
-                  tooltipClass={`${baseClass}__button-wrap--tooltip`}
-                  position="top"
-                  disableTooltip={!isEditMode || isAnyPlatformSelected}
-                  underline={false}
+                <Button
+                  onClick={promptSavePolicy()}
+                  disabled={disableSaveFormErrors || disableChildren}
+                  className="save-loading"
+                  isLoading={isUpdatingPolicy || isSavingAutomations}
                 >
-                  <span className={`${baseClass}__button-wrap--tooltip`}>
-                    <Button
-                      onClick={promptSavePolicy()}
-                      disabled={disableSaveFormErrors || disableChildren}
-                      className="save-loading"
-                      isLoading={isUpdatingPolicy || isSavingAutomations}
-                    >
-                      Save
-                    </Button>
-                  </span>
-                </TooltipWrapper>
+                  Save
+                </Button>
               )}
             />
             <TooltipWrapper

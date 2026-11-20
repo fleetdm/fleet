@@ -1,0 +1,1 @@
+* Fixed Fleet-maintained app patch policies continuing to use an outdated query after Fleet changed the app's patch query without publishing a new app version. Out-of-date patch policies are now corrected by the hourly Fleet-maintained app auto-update job, and their results are cleared so hosts report again against the corrected query.

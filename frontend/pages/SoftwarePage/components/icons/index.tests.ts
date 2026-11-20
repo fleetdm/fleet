@@ -5,6 +5,7 @@ import GoBinary from "./GoBinary";
 import Package from "./Package";
 import AdobeCreativeCloud from "./png/AdobeCreativeCloud.png";
 import CodexApp from "./png/CodexApp.png";
+import Zoom from "./Zoom";
 
 import { getMatchedSoftwareIcon } from "./index";
 
@@ -85,6 +86,12 @@ describe("getMatchedSoftwareIcon", () => {
           source: "apps",
         })
       ).toBe(AcrobatReader);
+    });
+
+    it("matches the ARM64 Zoom Fleet-maintained app to Zoom", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "Zoom (ARM64)", source: "programs" })
+      ).toBe(Zoom);
     });
 
     it("falls back to the source icon when the name matches nothing", () => {

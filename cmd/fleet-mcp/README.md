@@ -75,7 +75,7 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 | Dimension | How to filter | Notes |
 |---|---|---|
 | **User / IP / hostname** | `query=` substring | One field — Fleet's substring matcher covers all of these plus serial / model. |
-| **Display name** | not searchable via `query` | Use `host_id` directly (from a candidate list or prior call). The `/hosts/identifier/:id` endpoint also matches `computer_name` exactly, which often equals the display name. |
+| **Display name** | not searchable via `query` | Use `host_id` directly (from a candidate list or prior call). `/hosts/:id` also matches `computer_name` exactly, which often equals the display name. |
 | **Fleet** | `fleet=<name>` | Resolved server-side to `fleet_id`. |
 | **Label** | `label=<name>` | Resolved server-side to `label_id`. Single label only — Fleet's API doesn't accept multi-label intersection. |
 | **Policy result** | `policy_id=<id>` + `policy_response=passing\|failing` | `policy_response` requires `policy_id`; otherwise rejected at the MCP layer. |
@@ -83,10 +83,10 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 
 ### Hostname collisions and host_id
 
-Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporting `hostname=mac`). Fleet's `/hosts/identifier/:id` endpoint silently returns one of them, which used to mean policy lookups could quietly target the wrong host. The current tools handle this with a **query-first** resolver:
+Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporting `hostname=mac`). Fleet's `/hosts/:id` endpoint silently returns one of them, which used to mean policy lookups could quietly target the wrong host. The current tools handle this with a **query-first** resolver:
 
 1. If you pass `host_id` (numeric), it goes straight to `/hosts/:host_id` — exact, no collision possible.
-2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/identifier/:id` (catches UUIDs and `computer_name`-only matches).
+2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/:id` (catches UUIDs and `computer_name`-only matches).
 
 If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (where the user-friendly display name does not match any indexed string field) are best fetched with `host_id` from the start.
 
@@ -322,8 +322,6 @@ Read-only tools:
 - [Get software title](https://fleetdm.com/docs/rest-api/rest-api#get-software)
 - [List policies](https://fleetdm.com/docs/rest-api/rest-api#list-policies)
 - [Get policy](https://fleetdm.com/docs/rest-api/rest-api#get-policy)
-- [List fleet-level policies](https://fleetdm.com/docs/rest-api/rest-api#list-fleet-level-policies)
-- [Get fleet-level policy](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-level-policy)
 - [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports)
 - [List labels](https://fleetdm.com/docs/rest-api/rest-api#list-labels)
 - [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts)
@@ -378,7 +376,7 @@ Tunables (env vars) for the schema layer:
 A few non-obvious behaviors discovered while building this:
 
 - **`?query=` substring matching covers hostname, serial, primary IP, hardware model, AND host_users (username/email/IdP groups)** — but **not** display_name. Use `host_id` for display-name-only lookups.
-- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on the identifier endpoint even though `?query=` (which does not index `computer_name`) does not match it.
+- **`/hosts/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on `/hosts/:id` even though `?query=` (which does not index `computer_name`) does not match it.
 - **Hostname collisions are real** in any sizeable fleet. Always prefer `host_id` when you have it. The substring resolver returns up to 50 candidates with `display_name` / `serial` / `primary_ip` for disambiguation.
 - **`policy_response` requires `policy_id`** at the API level. The MCP layer rejects the orphan combination upfront with a clean error rather than letting Fleet return a vague 400.
 - **Fleet's `/hosts` endpoint silently ignores several filter params we tested.** As of Fleet 4.85, passing `cve=CVE-X`, `platform=linux`, or `label_id=N` to `GET /hosts` is accepted without error but returns the unfiltered host list — the MCP cannot rely on these. Workarounds shipped in this repo:
@@ -387,7 +385,7 @@ A few non-obvious behaviors discovered while building this:
   - **CVE → hosts** is a 3-step compose in `GetHostsForCVE`: `GET /software/titles?vulnerable=true&query=CVE-X` → per-title `GET /software/titles/:id` to harvest vulnerable version IDs → `GET /hosts?software_version_id=N` per ID → intersect with fleet / status / query / label-id client-side.
   - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2025-12345 yields 50 hosts via `?cve=`, but the correct answer is 1).
   - Future Fleet versions may fix these — revisit `GetEndpointsWithFilters` and `GetHostsForCVE` if/when that happens.
-- **Fleet-scoped policy compliance** uses `/fleets/:fleet_id/policies/:policy_id`, not the global path. `get_policy_compliance` routes to whichever based on whether `fleet` is set.
+- **Policies in every scope use the same endpoints.** `get_policies` lists "All fleets" policies with `GET /policies` and each fleet's own with `GET /policies?fleet_id=N`. `get_policy_compliance` reads `GET /policies/:id`; when `fleet` is set, it errors if the policy's `fleet_id` isn't that fleet, so it never reports another scope's counts.
 - **`/api/v1/fleet/host_summary` is the right endpoint for aggregate platform counts** — `GET /hosts` defaults to a 100-host page, so any client-side aggregation over `GetEndpoints(0)` is silently wrong on Fleets larger than 100 hosts. `get_aggregate_platforms` uses `host_summary` directly so totals match the Fleet UI at any inventory size.
 - **`fetchHostsFromPath` paginates internally** with a hard cap (`fetchHostsHardCap = 10000`). Without this, a single call could buffer the full host inventory in memory (~2KB per Endpoint × 50k hosts ≈ 100MB) and OOM the MCP. When the cap fires a warning is logged so operators see truncation rather than silently getting a partial host set.
 - **Per-fleet fan-out (`get_queries`, `get_policies`) is bounded-concurrent.** 8 in-flight goroutines, order-stable merge by fleet index. On enterprise Fleet instances with 50+ fleets the sequential path was the dominant latency source; the bounded concurrency amortizes round-trip count without flooding Fleet with thousands of simultaneous requests.

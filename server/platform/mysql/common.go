@@ -31,14 +31,13 @@ const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONL
 
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
-	MaxAttempts         int
-	Logger              *slog.Logger
-	ReplicaConfig       *MysqlConfig
-	Interceptor         sqlmw.Interceptor
-	TracingConfig       *LoggingConfig
-	MinLastOpenedAtDiff time.Duration
-	SqlMode             string
-	PrivateKey          string
+	MaxAttempts   int
+	Logger        *slog.Logger
+	ReplicaConfig *MysqlConfig
+	Interceptor   sqlmw.Interceptor
+	TracingConfig *LoggingConfig
+	SqlMode       string
+	PrivateKey    string
 	// ConnectorFactory is an optional factory for creating custom database connectors.
 	// When set, it's used instead of the standard connection method.
 	ConnectorFactory ConnectorFactory
@@ -69,11 +68,7 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 	driverName := "mysql"
 
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
-		if opts.TracingConfig.TracingType == "elasticapm" {
-			driverName = "apm/mysql"
-		} else {
-			driverName = otelDriverName
-		}
+		driverName = otelDriverName
 	}
 	if opts.Interceptor != nil {
 		driverName = "mysql-mw"
@@ -121,7 +116,7 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 	}
 
 	// Register database/sql.DBStats metrics when using OpenTelemetry tracing.
-	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled && opts.TracingConfig.TracingType != "elasticapm" {
+	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
 		attrs := []attribute.KeyValue{
 			attribute.String("db.system", "mysql"),
 		}

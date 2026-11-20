@@ -13,12 +13,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
 
-// muxVersionSegment is the gorilla/mux route template version segment that
-// RouteTemplateRequestFunc would extract from a real mux router.
+// muxVersionSegment is the version segment of the route template the router puts
+// in context.
 const muxVersionSegment = "/api/{fleetversion:(?:v1|2022-04|latest)}/"
 
 // testCatalogEndpoints is the minimal set of endpoints used across tests.
@@ -42,8 +41,8 @@ func testIsInCatalog() func(string) bool {
 	}
 }
 
-// muxTemplate returns a gorilla/mux route template for the given path suffix, simulating
-// what RouteTemplateRequestFunc would extract from mux.CurrentRoute(r).GetPathTemplate().
+// muxTemplate returns a route template for the given path suffix, simulating
+// what the router puts in context for the matched route.
 func muxTemplate(pathSuffix string) string {
 	return muxVersionSegment + pathSuffix
 }
@@ -141,6 +140,19 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.True(t, *called)
 	})
 
+	t.Run("api-only user with restrictions, HEAD uses the GET grant", func(t *testing.T) {
+		next, called := newNext()
+		ctx := ctxWithMethod("HEAD", muxTemplate("fleet/hosts"))
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly:      true,
+			APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+		}})
+
+		_, err := newEndpoint(next)(ctx, nil)
+		require.NoError(t, err)
+		require.True(t, *called)
+	})
+
 	t.Run("api-only user with restrictions, endpoint not in catalog", func(t *testing.T) {
 		next, called := newNext()
 		ctx := ctxWithMethod("GET", muxTemplate("fleet/secret_admin_endpoint"))
@@ -159,7 +171,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 	t.Run("api-only user with restrictions, missing route template in context is rejected", func(t *testing.T) {
 		next, called := newNext()
-		// routeTemplateKey deliberately not set (simulates RouteTemplateRequestFunc failure).
+		// routeTemplateKey deliberately not set, as when a request reaches the endpoint without going through the router.
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "GET")
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
@@ -352,7 +364,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 			{
 				name:       "route template missing from context",
 				method:     "POST",
-				routeTpl:   "", // RouteTemplateRequestFunc not wired
+				routeTpl:   "", // not served through the router
 				wantReason: "route template missing from request context",
 			},
 		}
@@ -412,43 +424,4 @@ func TestEndpointRestrictionDeniedEncoding(t *testing.T) {
 
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), EndpointRestrictionDeniedMessage)
-}
-
-func TestRouteTemplateRequestFunc(t *testing.T) {
-	// Register a route and route the request through mux so mux.CurrentRoute
-	// returns a non-nil value, mirroring what happens in production.
-	newServedRequest := func(t *testing.T, routeTpl, reqPath string) (context.Context, bool) {
-		t.Helper()
-		var (
-			got      context.Context
-			wasMatch bool
-		)
-		r := mux.NewRouter()
-		r.HandleFunc(routeTpl, func(_ http.ResponseWriter, req *http.Request) {
-			wasMatch = true
-			got = RouteTemplateRequestFunc(req.Context(), req)
-		}).Methods("GET")
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", reqPath, nil)
-		r.ServeHTTP(rec, req)
-		return got, wasMatch
-	}
-
-	t.Run("stores the matched route template", func(t *testing.T) {
-		ctx, matched := newServedRequest(t, "/api/v1/fleet/hosts/{id:[0-9]+}", "/api/v1/fleet/hosts/42")
-		require.True(t, matched, "expected route to be matched")
-		tpl, ok := eu.RouteTemplateFromContext(ctx)
-		require.True(t, ok, "route template must be stored in context")
-		require.Equal(t, "/api/v1/fleet/hosts/{id:[0-9]+}", tpl)
-	})
-
-	t.Run("no matched route leaves context unchanged", func(t *testing.T) {
-		// Call RouteTemplateRequestFunc directly with a request that never went
-		// through a mux router, so mux.CurrentRoute returns nil.
-		req := httptest.NewRequest("GET", "/whatever", nil)
-		ctx := context.Background()
-		got := RouteTemplateRequestFunc(ctx, req)
-		_, ok := eu.RouteTemplateFromContext(got)
-		require.False(t, ok, "no route template should be stored when no route is matched")
-	})
 }

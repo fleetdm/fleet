@@ -4,6 +4,7 @@
 #   0    = success
 #   3010 = success, reboot required
 #   1641 = success, reboot initiated
+$ErrorActionPreference = 'Stop'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product
 

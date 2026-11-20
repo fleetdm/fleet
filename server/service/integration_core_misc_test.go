@@ -14,8 +14,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -122,14 +124,12 @@ func (s *integrationTestSuite) TestTranslator() {
 	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), tm.ID)) })
-	for _, typ := range []string{fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet} {
-		payload = translatorResponse{}
-		params = translatorRequest{List: []fleet.TranslatePayload{{Type: typ, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
-		s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
-		require.Len(t, payload.List, 1)
-		assert.Equal(t, typ, payload.List[0].Type)
-		assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
-	}
+	payload = translatorResponse{}
+	params = translatorRequest{List: []fleet.TranslatePayload{{Type: fleet.TranslatorTypeFleet, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+	s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
+	require.Len(t, payload.List, 1)
+	assert.Equal(t, fleet.TranslatorTypeFleet, payload.List[0].Type)
+	assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
 
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)
@@ -237,22 +237,17 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
 
-	// get apple BM configuration
-	var appleBMResp getAppleBMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
-	assert.Nil(t, appleBMResp.AppleBM)
-
 	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
 	// enabled, because it wouldn't change anything (and it needs to support the
 	// case where `fleetctl get config`'s output is used as input to `fleetctl
 	// apply`).
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", appleProfilesBatchRequest(nil), http.StatusNoContent)
 
 	// batch-apply a non-empty set of MDM profiles fails
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
-		map[string]any{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
+	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest([][]byte{mobileconfigForTest("N1", "I1")}), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.Contains(t, errMsg, fleet.AppleMDMNotConfiguredMessage)
 
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
@@ -313,7 +308,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
-		"team_id", "1",
+		"fleet_id", "1",
 	)
 
 	// a request with a premium vulnerability filter returns a license error
@@ -327,11 +322,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
 	)
-	countResp := countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
-	)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -342,11 +332,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
-	)
-	countResp = countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
 	)
 
 	resp = listSoftwareTitlesResponse{}
@@ -359,23 +344,19 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &verResp,
 	)
-	countResp = countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &countResp,
-	)
 
 	// lock/unlock/wipe a host. Wipe is Premium-only only for non-Android platforms (Android COBO wipe is available on Fleet Free).
 	wipeHost := s.createHosts(t, "darwin")[0]
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/reset", nil, http.StatusPaymentRequired)
 
-	// try to update the enable_release_device_manually setting, requires premium.
+	// try to update the apple_enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+		"mdm": { "setup_experience": { "apple_enable_release_device_manually": true } }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")
@@ -387,10 +368,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	require.Contains(t, errMsg, "missing or invalid license")
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true }
+		"mdm": { "windows_mdm_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "missing or invalid license")
+	// the Windows MDM page shows the reason only for an error under this name
+	licenseErrName, licenseErrReason := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "mdm.windows_mdm_migration_enabled", licenseErrName)
+	require.Contains(t, licenseErrReason, "missing or invalid license")
 
 	// list API endpoints requires premium license
 	var listAPIEndpointsResp listAPIEndpointsResponse
@@ -562,7 +545,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 				"url":   {"https://example.com"},
 			})
 
-		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+		case route.method == "PATCH" && route.path == "/api/latest/fleet/setup_experience":
 			// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
 			expectedErr = fleet.ErrMissingLicense
 		}
@@ -577,57 +560,35 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
 
+	// The routes that set up Apple MDM work before it's configured, and they store the keys they generate. Run them with no keys, as
+	// on a new server, and put back the assets that other tests left.
+	setupAssets := []fleet.MDMAssetName{
+		fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetABMCert, fleet.MDMAssetABMKey,
+	}
+	savedAssets, err := s.ds.GetAllMDMConfigAssetsByName(t.Context(), setupAssets, nil)
+	if !fleet.IsNotFound(err) && !errors.Is(err, mysql.ErrPartialResult) {
+		require.NoError(t, err)
+	}
+	removeSetupAssets := func(ctx context.Context) {
+		for _, name := range setupAssets {
+			require.NoError(t, s.ds.HardDeleteMDMConfigAsset(ctx, name))
+		}
+	}
+	removeSetupAssets(t.Context())
+	t.Cleanup(func() {
+		removeSetupAssets(context.Background())
+		if len(savedAssets) > 0 {
+			require.NoError(t, s.ds.InsertMDMConfigAssets(context.Background(), slices.Collect(maps.Values(savedAssets)), nil))
+		}
+	})
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"csr": "Y3Ny"}`))
 	}))
 	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	t.Cleanup(fleetdmSrv.Close)
 
-	// Always accessible
-	var reqCSRResp requestMDMAppleCSRResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
-}
-
-// this test can be deleted once the "v1" version is removed.
-func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
-	t := s.T()
-
-	// create a query that can be scheduled
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "TestQuery2",
-		Query:          "select * from osquery;",
-		ObserverCanRun: true,
-		Saved:          true,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	// try to schedule that query on the endpoint that is deprecated
-	// in that version
-	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
-	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
-	res.Body.Close()
-	// use the correct version for that deprecated API
-	createResp := globalScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/global/schedule", gsParams, http.StatusOK, &createResp)
-	require.NotZero(t, createResp.Scheduled.ID)
-
-	// list the scheduled queries with the new endpoint, but the old version
-	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
-	res.Body.Close()
-
-	// list again, this time with the correct version
-	gs := fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Len(t, gs.GlobalSchedule, 1)
-
-	// delete using the old endpoint but on the wrong new version
-	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
-	res.Body.Close()
-	// properly delete with old endpoint and old version
-	var delResp deleteGlobalScheduleResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusOK, &delResp)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/request_csr", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestDebugDB() {
@@ -654,4 +615,31 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 	var d conditionalAccessMicrosoftDeleteResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
 		http.StatusPaymentRequired, &d)
+
+	var g googleConditionalAccessResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID:        "C02cajzvg",
+		AdminEmail:        "admin@example.com",
+		ServiceAccountKey: json.RawMessage(`{"client_email":"sa@example.com","private_key":"k"}`),
+	}, http.StatusPaymentRequired, &g)
+	s.DoJSON("PATCH", "/api/latest/fleet/conditional_access/google", json.RawMessage(`{"admin_email": "admin@example.com"}`),
+		http.StatusPaymentRequired, &g)
+	var gd deleteGoogleConditionalAccessResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusPaymentRequired, &gd)
+
+	t := s.T()
+	host := createOrbitEnrolledHost(t, "ios", "google", s.ds)
+	cleanupCtx := context.WithoutCancel(t.Context())
+	t.Cleanup(func() { _ = s.ds.DeleteHost(cleanupCtx, host.ID) })
+	// The device flows are off: nothing is enabled and no sign-in starts.
+	var st fleet.GoogleConditionalAccessDeviceStatus
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&st))
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
+
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}}
+	}`), http.StatusUnprocessableEntity)
+	name, _ := extractServerErrorNameReason(res.Body)
+	s.Require().Equal("integrations.google_conditional_access", name)
 }

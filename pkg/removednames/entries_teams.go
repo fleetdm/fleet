@@ -3,7 +3,7 @@ package removednames
 func init() { register(teamEntries...) }
 
 // teamEntries are the names removed by renaming teams to fleets. They mirror what the code accepted as deprecated aliases before Fleet 5
-// (the renameto struct tags, deprecatedPathAliases, the fleetctl flag aliases, and pkg/spec GitOps key mappings);
+// (the renameto struct tags, the deprecated URL path aliases, the fleetctl flag aliases, and pkg/spec GitOps key mappings);
 // TestEntriesCoverDeprecatedSources fails if any of those sources has a team-related name that is missing here.
 var teamEntries = []Entry{
 	// JSON keys in request and response bodies.
@@ -53,17 +53,17 @@ var teamEntries = []Entry{
 	pathEntry("/ab_tokens/{id}/teams", "/ab_tokens/{id}/fleets"),
 	pathEntry("/abm_tokens/{id}/teams", "/ab_tokens/{id}/fleets"),
 	pathEntry("/spec/teams", "/spec/fleets"),
-	pathEntry("/team/{fleet_id}/policies", "/fleets/{fleet_id}/policies"),
-	pathEntry("/team/{fleet_id}/policies/count", "/fleets/{fleet_id}/policies/count"),
-	pathEntry("/team/{fleet_id}/policies/delete", "/fleets/{fleet_id}/policies/delete"),
-	pathEntry("/team/{fleet_id}/policies/{policy_id}", "/fleets/{fleet_id}/policies/{policy_id}"),
+	pathEntry("/team/{fleet_id}/policies", "/policies"),
+	pathEntry("/team/{fleet_id}/policies/count", "/policies/count"),
+	pathEntry("/team/{fleet_id}/policies/delete", "/policies/delete"),
+	pathEntry("/team/{fleet_id}/policies/{policy_id}", "/policies/{policy_id}"),
 	pathEntry("/team/{fleet_id}/schedule", "/fleets/{fleet_id}/schedule"),
 	pathEntry("/team/{fleet_id}/schedule/{report_id}", "/fleets/{fleet_id}/schedule/{report_id}"),
 	pathEntry("/teams", "/fleets"),
-	pathEntry("/teams/{fleet_id}/policies", "/fleets/{fleet_id}/policies"),
-	pathEntry("/teams/{fleet_id}/policies/count", "/fleets/{fleet_id}/policies/count"),
-	pathEntry("/teams/{fleet_id}/policies/delete", "/fleets/{fleet_id}/policies/delete"),
-	pathEntry("/teams/{fleet_id}/policies/{policy_id}", "/fleets/{fleet_id}/policies/{policy_id}"),
+	pathEntry("/teams/{fleet_id}/policies", "/policies"),
+	pathEntry("/teams/{fleet_id}/policies/count", "/policies/count"),
+	pathEntry("/teams/{fleet_id}/policies/delete", "/policies/delete"),
+	pathEntry("/teams/{fleet_id}/policies/{policy_id}", "/policies/{policy_id}"),
 	pathEntry("/teams/{fleet_id}/schedule", "/fleets/{fleet_id}/schedule"),
 	pathEntry("/teams/{fleet_id}/schedule/{report_id}", "/fleets/{fleet_id}/schedule/{report_id}"),
 	pathEntry("/teams/{fleet_id}/secrets", "/fleets/{fleet_id}/secrets"),
@@ -116,6 +116,9 @@ var teamEntries = []Entry{
 	// The GitOps file for hosts that belong to no fleet, and the fleet name in it. The name is compared without regard to case.
 	{Kind: KindFileName, Scope: ScopeRequest, Old: "no-team.yml", New: "unassigned.yml"},
 	{Kind: KindYAMLValue, Scope: ScopeRequest, Old: "name: No team", New: "name: Unassigned"},
+
+	// SAML attributes.
+	{Kind: KindSAMLAttribute, Scope: ScopeRequest, Old: "FLEET_JIT_USER_ROLE_TEAM_<ID>", New: "FLEET_JIT_USER_ROLE_FLEET_<ID>"},
 
 	// Spec kinds accepted by fleetctl apply.
 	{Kind: KindSpecKind, Scope: ScopeRequest, Old: "team", New: "fleet"},
