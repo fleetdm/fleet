@@ -16,9 +16,9 @@ That was the second time that day. Earlier, I'd spent an afternoon researching B
 
 That used to be true. It isn't anymore.
 
-> **What is MAM?** Mobile app management is just a way to keep work data inside work apps: it blocks copy-paste, saving, and sharing out of apps like Outlook or Gmail. Like any data loss prevention, it never fully works, because anyone can take a picture of the screen with another phone, or write down what they saw with a pencil. You can do roughly the same thing by enrolling the phone in your MDM.
-
-Under the hood, it comes down to two controls. First, you decide which apps can sign in. Whoever issues the mail token gets to say which apps receive one. Microsoft uses Conditional Access to let Outlook in, and Google's Admin console does the same for Gmail. Either way, the built-in iPhone Mail app is out. Second, those apps keep work data in. They can block copy-paste into personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google has the same switches in Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS.
+> **What is MAM?** It can be hard to see through the marketing obfuscation, but here’s my attempt to explain in simple terms: “Mobile app management” (MAM) is just a way to keep work data inside work apps: it blocks copy-paste, saving, and sharing out of apps like Outlook or Gmail. Like any data loss prevention, it never fully works, because anyone can take a picture of the screen with another phone, or write down what they saw with a pencil. You can do roughly the same thing by enrolling the phone in your MDM.
+> 
+> Under the hood, it comes down to two controls. First, you decide which apps can sign in. Whoever issues the mail token gets to say which apps receive one. Microsoft uses Conditional Access to let Outlook in, and Google's Admin console does the same for Gmail. Either way, the built-in iPhone Mail app is out. Second, those apps keep work data in. They can block copy-paste into personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google has the same switches in Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS.
 
 The assistant sounded very sure of itself, so I stopped asking who does MAM best and started asking how it works:
 
