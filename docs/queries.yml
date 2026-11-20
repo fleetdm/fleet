@@ -3119,7 +3119,7 @@ spec:
     
     Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
   query: |
-        /* ----------------------------------------------------------
+    /* ----------------------------------------------------------
       1️⃣  Get MCP client configurations from your endpoints.
           (including the two new VS Code extensions: RooCode & Augment)
       ---------------------------------------------------------- */
@@ -3170,13 +3170,20 @@ spec:
 
     /* ----------------------------------------------------------
       3️⃣  Read only the files that actually exist and concat them
+          (file_lines errors on missing paths, so filter via file first)
       ---------------------------------------------------------- */
+    existing AS (
+      SELECT f.path
+      FROM full_paths fp
+      JOIN file f ON f.path = fp.full_path
+    ),
+
     config_files AS (
-      SELECT f.path,
-            group_concat(f.line, '') AS contents
-      FROM file_lines f
-      JOIN full_paths fp ON f.path = fp.full_path   
-      GROUP BY f.path
+      SELECT fl.path,
+            group_concat(fl.line, '') AS contents
+      FROM existing e
+      JOIN file_lines fl ON fl.path = e.path
+      GROUP BY fl.path
     )
 
     /* ----------------------------------------------------------
