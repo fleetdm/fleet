@@ -1319,7 +1319,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
-	if err := fleet.ValidateWipeLockWipeStatus(lockWipe); err != nil {
+	if err := lockWipe.ValidateWipeRequest(); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
