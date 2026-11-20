@@ -1,0 +1,1 @@
+- Fixed the default uninstall script for MSI packages with an upgrade code, and the Fleet-maintained apps that use it, reporting success when Windows Installer couldn't list the installed products. The script now exits with an error instead.
