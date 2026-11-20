@@ -6,7 +6,7 @@ The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-
 
 The workflow runs on a schedule in three jobs:
 
-- **Build** reads the Fleet API with a read-only token, reads yesterday's histories from a `dex-data` branch, and builds the pages. This job can read the repository but can't change it.
+- **Build** reads the Fleet API with a read-only token, reads yesterday's histories from a `dex-data` branch, and builds the pages. Devices assigned to Fleet in Apple Business that haven't enrolled yet are left out, since Fleet has only their serial number and model. This job can read the repository but can't change it.
 - **Save histories** commits the updated histories to `dex-data`. This job never sees the Fleet token.
 - **Deploy** publishes the pages to GitHub Pages.
 

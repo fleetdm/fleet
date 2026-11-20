@@ -4,7 +4,7 @@ Scripts that build eight dashboards from the Fleet API for macOS, Windows, and L
 
 | File | What it does |
 |:--|:--|
-| `collect.py` | Reads hosts, software, and 15 DEX reports from the Fleet API, several requests at a time. It only sends `GET` requests, and keeps only the software rows a page reads. |
+| `collect.py` | Reads hosts, software, and 15 DEX reports from the Fleet API, several requests at a time. It only sends `GET` requests, and keeps only the software rows a page reads. Leaves out devices assigned to Fleet in Apple Business that haven't enrolled yet. |
 | `vendor.py` | Reads the latest releases from outside Fleet: macOS from SOFA (`sofafeed.macadmins.io`), Windows builds from Microsoft's Security Update Guide (`api.msrc.microsoft.com`), and fleetd, osquery, and Fleet Desktop from Fleet's update server (`updates.fleetdm.com`). It only sends `GET` requests. When a source can't be reached, the pages that use it fall back to the newest version the fleet runs and say so. |
 | `build.py` | Builds each dashboard page and updates its history, or builds the overview from the dashboards' histories. Splits a page's data, or a history, into part files when it's too big for one artifact file. |
 | `run.py` | Collects, reads the latest releases, then builds all eight pages and the overview in one process, and prints the publish call for each page. The routine calls this. |

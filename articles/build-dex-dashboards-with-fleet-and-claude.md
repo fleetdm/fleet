@@ -4,7 +4,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
-- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft, and which Macs have a macOS update waiting to install. Rollouts in progress can show only the apps you have patch policies for.
+- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft, how many Macs run the latest update for their macOS version, and which Macs have a macOS update waiting to install. Rollouts in progress can show only the apps you have patch policies for.
 - AI governance: which AI tools people use, how much coding agents are used and with which models, how they're set up, and which settings put data at risk.
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
@@ -18,7 +18,7 @@ A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads th
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
-- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 15 DEX reports, then build the eight pages and the overview.
+- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 15 DEX reports, then build the eight pages and the overview. Devices assigned to Fleet in Apple Business that haven't enrolled yet are left out, since Fleet has only their serial number and model.
 - Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer. Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year, and the overview reads the same daily counts, so its numbers match each dashboard's. All of this gets more useful over the first few weeks.
 
 ## Tradeoffs

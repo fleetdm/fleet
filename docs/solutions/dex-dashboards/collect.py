@@ -200,6 +200,13 @@ def ai_tools(fleet, fleets):
     return {"report": report, "clipped": clipped and not per_host, "per_host": len(per_host), "hosts": hosts}
 
 
+def awaiting_enrollment(h):
+    """A device assigned to Fleet in Apple Business that hasn't enrolled yet: Fleet lists
+    it with only a serial and model. A Mac that enrolled through Apple Business and
+    later turned MDM off is also "Pending", but fleetd still reports for it."""
+    return h.get("mdm_status") == "Pending" and not h.get("osquery_version")
+
+
 def detail(fleet, h):
     """Get host adds custom host vitals (e.g. warranty dates), battery health,
     each policy's result, and the country from GeoIP, when the Fleet server has
@@ -325,6 +332,8 @@ def collect(fleet, keep=None, workers=None, per_page=20, checkpoint=None, deadli
                 hosts, software = f.result()
                 if len(hosts) < per_page:
                     last = n if last is None else min(last, n)
+                hosts = [h for h in hosts if not awaiting_enrollment(h)]
+                software = {k: v for k, v in software.items() if k in {str(h["id"]) for h in hosts}}
                 computers = [h for h in hosts if h["platform"] and h["platform"] not in NOT_COMPUTERS]
                 pending_details[n] = (hosts, software, {str(h["id"]): detail_pool.submit(detail, fleet, h) for h in computers})
             for n, (hosts, software, futs) in list(pending_details.items()):
