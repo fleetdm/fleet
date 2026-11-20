@@ -86,11 +86,9 @@ When enrollment is easy, more people enroll, IT gets fewer tickets, and new hire
 ## Yes M’AM?
 Whether or not you run a BYOD program for employee phones today, and whether or not you lock down email and office apps, you are free.  You don’t need Intune, E3, Microsoft, or any other particular vendor to provide enterprise-grade security, provisioning, or even data-loss prevention, whether you have 100,000 employees or 100, and whether or not you are in a regulated industry.  Plenty of other organizations do this today with or without Microsoft, with or without Intune, and with or without MAM, and it’s easy to set up.  (If you need any help, [drop us a line](https://fleetdm.com/support).)
 
-And in the meantime, let’s all remember: when it comes to Microsoft… don't be afraid to check your AI’s work. (And my work in this article, for that matter.)
+And in the meantime, remember to Keep squinting until you see the truth.  When it comes to Microsoft… don't be afraid to check your AI’s work.
 
-Keep squinting until you see the truth.
-
-**Thanks** to [Deelan Sabido](https://www.linkedin.com/in/deelansabido/), [Allen Houchins](https://www.linkedin.com/in/allenhouchins/), [Kitzy](https://www.linkedin.com/in/kitzy), and [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) for reading drafts of this.
+And my work, for that matter.  **Thanks** to [Deelan Sabido](https://www.linkedin.com/in/deelansabido/), [Allen Houchins](https://www.linkedin.com/in/allenhouchins/), [Kitzy](https://www.linkedin.com/in/kitzy), and [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) for reading drafts of this essay.
 
 <meta name="category" value="articles">
 <meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM still thinks it is)">
