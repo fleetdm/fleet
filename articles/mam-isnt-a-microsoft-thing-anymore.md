@@ -10,7 +10,7 @@
 
 ## The MAM, the myth, the legend
 
-When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and quietly rewrote it before opening the pull request. It cut Chat and Meet from my list of Google apps, watered down the rest, and flagged my claims as unverified. I made it go read Google's current docs. It found I was right and put everything back. Then it insisted it hadn't tried to stop me.
+When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut "Chat and Meet" from my list of Google apps, watered down the rest, and flagged my claims as unverified. I made it go read Google's current docs. It found I was right and put everything back. Then it insisted it hadn't tried to stop me.
 
 That was the second time that day. Earlier, I'd spent an afternoon researching BYOD with an AI assistant, and every answer ended up in the same place. If you want to protect work data on personal phones without enrolling them in MDM, buy Microsoft: Intune app protection, Entra Conditional Access, Outlook. Everyone else is playing catch-up.
 
