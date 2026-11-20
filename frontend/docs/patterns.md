@@ -363,9 +363,9 @@ Spread `getTextFieldProps("fieldName")` onto text inputs (`InputField`, `InputFi
 
 #### When errors appear
 
-A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
+A field is **dirty** once the user has typed into it or the browser has autofilled it. Programmatic focus (autofocus, Tab, `ref.focus()`) does not. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
 
-- Never show a field's error before the field is dirty.
+- Never show a field's error before the field is dirty. This includes the autofocused first field in a new-item modal: Tab or click-off blurs it empty without any user input, and that blur must not surface "Enter a name". `useFormValidation` handles this. In forms not on the hook yet, track a local `nameDirty` flag set on first `onChange` and gate the required-error on it.
 - On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Never add errors to other fields (but see [When errors clear](#when-errors-clear) for removing them).
 - On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
@@ -758,6 +758,27 @@ useQuery(
 );
 ```
 
+##### `keepPreviousData` and loading gates
+
+`useQuery({ keepPreviousData: true })` returns the previous key's data during a key change, so between route transitions `isLoading` is `false` even though the data on screen belongs to the previous entity. A child that gates its empty/loading overlay only on `isLoading` renders the previous entity's data over the new entity's page until the fetch resolves.
+
+The signal to combine with is `isPreviousData`. Feed `isLoading || isPreviousData` to the child's loading prop so the overlay re-covers the transition.
+
+```tsx
+const { data, isLoading, isPreviousData } = useQuery(
+  ["hostActivities", hostId],
+  () => hostAPI.getActivities(hostId),
+  { keepPreviousData: true }
+);
+
+<ActivityCard
+  activities={data?.activities}
+  isLoading={isLoading || isPreviousData}
+/>
+```
+
+Not every `keepPreviousData` call site needs this — only when the previous data belongs to a different entity (route change, fleet switch, selected-item change). A paginated list of the same entity doesn't: the previous page is still the right content while the next page loads.
+
 ### Handling API errors
 
 We pull the logic for handling error message into a `getErrorMessage` handler that lives in a sibling
@@ -786,6 +807,16 @@ export const getErrorMessage = (e: unknown) => {
   return "some error message"
 }
 ```
+
+### Server validation errors and `base`
+
+Fleet's server returns validation errors as `{ name, reason }` tuples. [`formatErrorResponse`](../utilities/format_error_response) flattens them into a `Record<string, string>` for form inline errors — field-named keys (`email`, `name`) wire to the input's `error` prop; `base` is the catch-all for cross-field or global server errors.
+
+When editing the formatter, a validator, or the handler that reads its output:
+
+- **Preserve field-named keys verbatim.** Don't fold `email` into `base`. A field-keyed error only surfaces inline because the form's `formErrors[fieldName]` wires to the input's `error` prop. Once it lands under `base`, the inline surface never fires.
+- **Strip `base` and `http_status` before setting `formErrors` state.** Both are cross-field or global; keeping them in `formErrors` can fire a spurious toast on fields the user is actively editing.
+- **Precedence inside the formatter** when multiple server errors share a name: the first named error wins; an unnamed error (treated as `base`) does not overwrite a named one; repeated `base` entries collapse to the first value.
 
 ## Page routing
 
