@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "24.22.1",
+      "version": "24.22.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '24.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '24.%' AND version_compare(version, '24.22.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '24.%' AND version_compare(version, '24.22.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\\nodejs\\node.exe');"
       },
-      "installer_url": "https://nodejs.org/dist/v24.22.1/node-v24.22.1-x64.msi",
+      "installer_url": "https://nodejs.org/dist/v24.22.3/node-v24.22.3-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "df2aaa27",
-      "sha256": "3bda4baf1ee709b33cf920dd633106ddb23951e322bff9c03ec9f64ab8981b01",
+      "sha256": "4a1ab5bdec5434bae58efae6c3e5077a011f6f1e76d2b47b7b10af043f7db545",
       "default_categories": [
         "Developer tools"
       ]
