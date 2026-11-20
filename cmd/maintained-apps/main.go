@@ -157,15 +157,15 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
-	var found bool
-	for _, a := range outputAppsFile.Apps {
-		if a.Slug == outApp.Slug {
-			found = true
-			break
+	idx := slices.IndexFunc(outputAppsFile.Apps, func(a maintained_apps.FMAListFileApp) bool { return a.Slug == outApp.Slug })
+	if idx >= 0 {
+		existing := &outputAppsFile.Apps[idx]
+		if existing.Name == outApp.Name && existing.UniqueIdentifier == outApp.UniqueIdentifier {
+			return nil
 		}
-	}
-
-	if !found {
+		existing.Name = outApp.Name
+		existing.UniqueIdentifier = outApp.UniqueIdentifier
+	} else {
 		platform := outApp.Platform()
 		if platform == "" {
 			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
@@ -180,19 +180,19 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
+	}
 
-		var buf bytes.Buffer
-		encoder := json.NewEncoder(&buf)
-		encoder.SetEscapeHTML(false)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(outputAppsFile); err != nil {
-			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
-		}
-		updatedFile := buf.Bytes()
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(outputAppsFile); err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
+	}
+	updatedFile := buf.Bytes()
 
-		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
-			return ctxerr.Wrap(ctx, err, "writing updated output apps file")
-		}
+	if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing updated output apps file")
 	}
 
 	return nil

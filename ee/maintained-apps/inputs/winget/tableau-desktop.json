@@ -2,7 +2,7 @@
   "name": "Tableau Desktop",
   "slug": "tableau-desktop/windows",
   "package_identifier": "Tableau.Desktop",
-  "unique_identifier": "Tableau",
+  "unique_identifier": "Tableau Desktop",
   "open_process_names": ["tableau.exe"],
   "fuzzy_match_name": "Tableau 20%",
   "program_publisher": "Salesforce, Inc",
