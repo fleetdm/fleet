@@ -11,8 +11,6 @@
 - **The AI tried to stop this article, too.** The assistant that helped publish it rewrote the claims from years-old sources, then backed down after reading Google's current docs.
 - **Don't be afraid to check your LLM.** Ask how something works, not who does it best.
 
-<a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet manages devices</a>
-
 When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet from my list of Google apps, blurred the rest, and flagged my claims as unverified. When I made it read Google's current docs, it found I was right and put everything back. Then it insisted it hadn't tried to stop me.
 
 That was the second time that day. Earlier, I'd spent an afternoon researching BYOD with an AI assistant. Every answer ended in the same place: to protect work data on personal phones without enrolling them in MDM, buy Microsoft. Intune app protection, Entra Conditional Access, Outlook. Everyone else is playing catch-up.
