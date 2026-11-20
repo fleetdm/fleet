@@ -16,9 +16,9 @@
     node-fetch "^2.6.7"
 
 "@hono/node-server@^1.19.9 || ^2.0.5":
-  version "2.1.5"
-  resolved "https://registry.yarnpkg.com/@hono/node-server/-/node-server-2.1.5.tgz#273db93e8bfb44ef361e55f3d00048013668aa09"
-  integrity sha512-MgP/I06GdvsilDspMk/qmRzpk8LOUStP6jFAbSRi40W09DhoyUn+Mj7eyKICPqeYKybOjVFLVIAQzvu1bfIa7Q==
+  version "2.1.11"
+  resolved "https://registry.yarnpkg.com/@hono/node-server/-/node-server-2.1.11.tgz#cfc6266cd3389925acaf5a6ec5d8ed4b66990d53"
+  integrity sha512-KzKz9vl4vvr1vgLHamj+g5uonbrj5NwAdO3yzOS6cd2HjALVeOgTgeZOyAzNxejbkfOOPIcvuf/Tg8l1pEFLog==
 
 "@modelcontextprotocol/sdk@1.32.0":
   version "1.32.0"
@@ -617,9 +617,9 @@ finalhandler@^2.1.0:
     statuses "^2.0.1"
 
 follow-redirects@^1.16.0:
-  version "1.16.1"
-  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.16.1.tgz#6e0efa40a727fb369b98dab15883ec34787d675e"
-  integrity sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==
+  version "1.16.3"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.16.3.tgz#62b60932427f616327014a5e401e8fc5e9027e9b"
+  integrity sha512-toOSoqN6d51Wjf1aOFJYcoVv1aND9rj/CwjLU0Vz40oDuSpWDayCeKe4JpL5NL0WdFvoOOCI3BRo69HahjbR1A==
 
 form-data-encoder@1.7.2:
   version "1.7.2"
@@ -716,9 +716,9 @@ hasown@^2.0.4:
     function-bind "^1.1.2"
 
 hono@^4.11.4:
-  version "4.13.13"
-  resolved "https://registry.yarnpkg.com/hono/-/hono-4.13.13.tgz#8dd5459ce4aa44b3e297f0b350f86b0f6d4a79f0"
-  integrity sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==
+  version "4.13.19"
+  resolved "https://registry.yarnpkg.com/hono/-/hono-4.13.19.tgz#262deddee9ca079195f23ee0c6419eca8027ea2d"
+  integrity sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA==
 
 http-errors@^2.0.0, http-errors@^2.0.1, http-errors@~2.0.1:
   version "2.0.1"
