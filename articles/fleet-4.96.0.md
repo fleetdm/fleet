@@ -9,7 +9,7 @@ Fleet 4.96.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Google conditional access for iOS, iPadOS, and Android
 
-IT admins who use Google Workspace can now block sign-in from company-owned iOS, iPadOS, and Android hosts that Fleet doesn't manage. Fleet marks the hosts it manages as managed in Google, so only those hosts can access company data. This no longer requires deploying the Chrome bookmark.
+IT admins who use Google Workspace can now block sign-in from company-owned iOS, iPadOS, and Android hosts that Fleet doesn't manage. Fleet marks the hosts it manages as managed in Google, so only those hosts can access company data.
 
 Connect Fleet to Google Workspace with your customer ID, an admin email, and a service account key. iOS and iPadOS hosts register when the end user signs in with Google from the self-service web clip. Android hosts need nothing on the device. Fleet registers them automatically from the device ID it already stores. This feature is available in Fleet Premium, and only global admins can turn it on or off.
 
