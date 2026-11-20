@@ -1080,7 +1080,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```yaml
   app:
-    invite_token_validity_period: 1d
+    invite_token_validity_period: 24h
   ```
 
 ### app_enable_report_stats
