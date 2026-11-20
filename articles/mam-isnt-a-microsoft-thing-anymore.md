@@ -26,7 +26,7 @@ The assistant sounded very sure of itself, so I stopped asking who does MAM best
 >
 > "Isn't the same true for Gmail? Gmail becomes the only app that passes the sign-in check."
 
-One by one, the Microsoft advantages fell apart. Even "Microsoft has clearer error messages" didn't hold up. A message saying the app isn't approved by IT helps a user about as much as Google's "Access blocked." The assistant gave in once it read Google's admin docs.
+One by one, the Microsoft advantages fell apart. The assistant gave in once it read Google's admin docs.
 
 You may have heard that app protection without enrollment only works with Intune. That's false, and it has nothing to do with managing devices. Outlook and the Office apps have some lightweight data controls built in, and Microsoft calls them MAM. Google has the same controls in Gmail and its other work apps, and so does any other office suite. You set them in your office suite's settings, like Google Workspace or Microsoft 365, and Google lets you push some of them through your device management tool, too. There's no secret deal with Apple behind any of it.
 
