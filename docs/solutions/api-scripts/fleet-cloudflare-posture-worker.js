@@ -2,10 +2,20 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const PER_PAGE = 1000;
 
+// Reused across requests so jose can cache Cloudflare's signing keys.
+let jwks;
+let jwksTeamDomain;
+
 export default {
   async fetch(request, env) {
     if (request.method !== "POST") {
       return json({ success: false, error: "method not allowed" }, 405);
+    }
+
+    // jose skips the audience check when POLICY_AUD is unset, which would accept
+    // tokens issued for any Access application in the team.
+    if (!env.TEAM_DOMAIN?.trim() || !env.POLICY_AUD?.trim()) {
+      return json({ success: false, error: "TEAM_DOMAIN and POLICY_AUD must be set" }, 500);
     }
 
     // Reject anything that didn't come through Cloudflare Access.
@@ -14,7 +24,10 @@ export default {
       return json({ success: false, error: "missing Access token" }, 403);
     }
     try {
-      const jwks = createRemoteJWKSet(new URL(`https://${env.TEAM_DOMAIN}/cdn-cgi/access/certs`));
+      if (jwksTeamDomain !== env.TEAM_DOMAIN) {
+        jwks = createRemoteJWKSet(new URL(`https://${env.TEAM_DOMAIN}/cdn-cgi/access/certs`));
+        jwksTeamDomain = env.TEAM_DOMAIN;
+      }
       await jwtVerify(token, jwks, {
         issuer: `https://${env.TEAM_DOMAIN}`,
         audience: env.POLICY_AUD,
@@ -88,8 +101,12 @@ async function loadFleetHosts(env) {
 
 async function listHosts(env, filters = {}) {
   const hosts = [];
-  for (let page = 0; ; page++) {
-    const params = new URLSearchParams({ ...filters, per_page: String(PER_PAGE), page: String(page) });
+  // Page by host ID. Without order_key, Fleet doesn't sort hosts, so offset
+  // pages can repeat or skip hosts.
+  let lastId;
+  for (;;) {
+    const params = new URLSearchParams({ ...filters, order_key: "id", per_page: String(PER_PAGE) });
+    if (lastId !== undefined) params.set("after", String(lastId));
     const res = await fetch(`${env.FLEET_URL}/api/v1/fleet/hosts?${params}`, {
       headers: {
         Authorization: `Bearer ${env.FLEET_API_TOKEN}`,
@@ -102,6 +119,7 @@ async function listHosts(env, filters = {}) {
     const body = await res.json();
     hosts.push(...body.hosts);
     if (body.hosts.length < PER_PAGE) return hosts;
+    lastId = body.hosts[body.hosts.length - 1].id;
   }
 }
 

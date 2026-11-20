@@ -35,10 +35,10 @@ Select **Specific API endpoints** and add only the endpoint the Worker calls: [L
 
 ```sh
 npm init -y
-npm install jose
+npm install jose@6
 ```
 
-3. Create a `wrangler.jsonc` file. Set `FLEET_URL` to your Fleet server URL and `TEAM_DOMAIN` to your Zero Trust team domain. You'll set `POLICY_AUD` in Step 3.
+3. Create a `wrangler.jsonc` file. Set `FLEET_URL` to your Fleet server URL and `TEAM_DOMAIN` to your Zero Trust team domain. You'll set `POLICY_AUD` in Step 3. Until then, the Worker rejects every request.
 
 ```json
 {
