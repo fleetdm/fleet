@@ -19,8 +19,7 @@ When the variable's value changes, Fleet automatically resends configuration pro
 | Where | Built-in variables (`$FLEET_VAR_`) | Custom variables (`$FLEET_SECRET_`) | Custom host vitals (`$FLEET_HOST_VITAL_`) |
 |---|---|---|---|
 | [Scripts](https://fleetdm.com/guides/scripts) (macOS, Windows, and Linux), including software install, post-install, and uninstall scripts, and setup experience scripts | ✓ (only `$FLEET_VAR_HOST_*` and `$FLEET_VAR_NDES_SCEP_CHALLENGE`) | ✓ | ✓ |
-| Apple (macOS, iOS, and iPadOS) configuration profiles (`.mobileconfig`) | ✓ | ✓ (not in `PayloadDisplayName`) | ✓ (not in certificate authority payloads) |
-| Apple declarations (DDM) (`.json`) | ✓ (only `$FLEET_VAR_HOST_*`) | ✓ | ✓ |
+| Apple (macOS, iOS, and iPadOS) configuration profiles | ✓ (only `$FLEET_VAR_HOST_*` in declarations (`.json`)) | ✓ (not in `PayloadDisplayName`) | ✓ (not in certificate authority payloads) |
 | Windows configuration profiles (`.xml`) | ✓ | ✓ | ✓ |
 | Android configuration profiles (`.json`) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✓ |
 | iOS and iPadOS [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✗ |

@@ -4,7 +4,7 @@
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), software install, post-install, and uninstall scripts (including [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)), setup experience scripts, Apple and Windows [configuration profiles](https://fleetdm.com/guides/custom-os-settings), Apple declarations (DDM), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
+In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), software install, post-install, and uninstall scripts (including [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)), setup experience scripts, Apple and Windows [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
 
 Custom variables aren't supported in Android configuration profiles or in managed app configurations. See [Where variables work](https://fleetdm.com/guides/fleet-variables#where-variables-work).
 
@@ -50,7 +50,7 @@ During a GitOps run, Fleet scans scripts and profiles for variables, pulls their
 
 Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
 
-When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles and the Apple declarations (DDM) that use it. To see which built-in variables trigger a resend, see the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
+When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles that use it. To see which built-in variables trigger a resend, see the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
