@@ -124,6 +124,39 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 				return nil, "", nil
 			}
 		}
+		// Config reads and writes keep failing_policies_webhook.policy_ids in sync with the per-policy webhook and
+		// ticket flag. Default to no such policies.
+		if mockDS.WebhooksAndTicketsPolicyIDsFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) { return nil, nil }
+		}
+		if mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc == nil {
+			mockDS.WebhooksAndTicketsPolicyIDsByTeamFunc = func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.SetWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error { return nil }
+		}
+		if mockDS.PoliciesWithOtherAutomationsFunc == nil {
+			mockDS.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPatchPolicySlugFunc == nil {
+			mockDS.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.WebhooksAndTicketsByPolicyNameFunc == nil {
+			mockDS.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.FilterWebhooksAndTicketsPoliciesFunc == nil {
+			mockDS.FilterWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error) {
+				return nil, nil
+			}
+		}
 		// Default to none configured so tests that don't care don't panic on a nil mock.
 		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
 			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
@@ -282,6 +315,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
+	var googleConditionalAccess *GoogleConditionalAccessClient
+	if len(opts) > 0 {
+		googleConditionalAccess = opts[0].ConditionalAccessGoogleClient
+	}
+
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
 		androidService = opts[0].AndroidModule
 	}
@@ -331,6 +369,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,
@@ -752,7 +791,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	apiHandler, err := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
-	// that gorilla/mux can't introspect, so surface their routes to the validator
+	// that the API router's route table doesn't list, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
 	extraInitFeatureRoutes = append(extraInitFeatureRoutes, scim.RegisterValidationRoutes)
 	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {
@@ -982,15 +1021,10 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		deviceAuthenticated bool
 		premiumOnly         bool
 	}{
-		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
-		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
 		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
 		{"DELETE", "/api/latest/fleet/setup_experience/eula/token", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/metadata", false, true},

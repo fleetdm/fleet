@@ -10,8 +10,8 @@ import HostQueries from ".";
 describe("HostQueries card", () => {
   it("renders the queries table and add query button for supported platform with queries", () => {
     const schedule = [
-      createMockQueryStats({ query_name: "Query 1", scheduled_query_id: 1 }),
-      createMockQueryStats({ query_name: "Query 2", scheduled_query_id: 2 }),
+      createMockQueryStats({ report_name: "Query 1", scheduled_report_id: 1 }),
+      createMockQueryStats({ report_name: "Query 2", scheduled_report_id: 2 }),
     ];
 
     render(

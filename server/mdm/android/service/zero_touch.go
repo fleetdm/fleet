@@ -53,7 +53,7 @@ func (svc *Service) resolveTeamFromEnrollmentData(ctx context.Context, enrollmen
 					return nil, "", ctxerr.Wrap(ctx, err, "checking if team exists")
 				}
 				if !exists {
-					svc.logger.WarnContext(ctx, "enrollment token team does not exist, assigning to unassigned",
+					svc.logger.WarnContext(ctx, "enrollment token fleet does not exist, assigning to unassigned",
 						"fleet_id", *data.TeamID)
 					return nil, "", nil
 				}

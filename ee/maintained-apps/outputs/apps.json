@@ -2812,7 +2812,7 @@
       "name": "Druva inSync",
       "slug": "druva-insync/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.druva.inSyncClient",
+      "unique_identifier": "com.druva.inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
@@ -2826,7 +2826,7 @@
       "name": "Druva inSync (GovCloud)",
       "slug": "druva-insync@govcloud/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.druva.inSyncClient",
+      "unique_identifier": "com.druva.inSync",
       "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
@@ -4307,13 +4307,6 @@
       "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
     },
     {
-      "name": "i1Profiler",
-      "slug": "i1profiler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.x-rite.i1Profiler",
-      "description": "i1Profiler is an automation and creative controls for photographers and designers."
-    },
-    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",
@@ -4900,6 +4893,13 @@
       "platform": "darwin",
       "unique_identifier": "com.objective-see.KnockKnock",
       "description": "KnockKnock is a tool to show what is persistently installed on the computer."
+    },
+    {
+      "name": "KopiaUI",
+      "slug": "kopiaui/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.kopia.ui",
+      "description": "KopiaUI is a backup and restore tool."
     },
     {
       "name": "Krisp",
@@ -5931,6 +5931,13 @@
       "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
     },
     {
+      "name": "Munki",
+      "slug": "munki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+      "description": "Munki is a software installation manager."
+    },
+    {
       "name": "MURAL",
       "slug": "mural/darwin",
       "platform": "darwin",
@@ -5962,7 +5969,7 @@
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "unique_identifier": "com.oracle.mysqlworkbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
@@ -6097,6 +6104,13 @@
       "platform": "windows",
       "unique_identifier": "Node.js",
       "description": "Node.js 22 is the 22.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
+      "name": "Node.js 24",
+      "slug": "nodejs-24/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 24 is the 24.x long-term support release line of the Node.js JavaScript runtime."
     },
     {
       "name": "Node.js",
@@ -7161,6 +7175,13 @@
       "platform": "darwin",
       "unique_identifier": "me.proton.pass.electron",
       "description": "Proton Pass is a desktop client for Proton Pass."
+    },
+    {
+      "name": "Proton Pass",
+      "slug": "proton-pass/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Pass",
+      "description": "Proton Pass is an open-source, end-to-end encrypted password manager."
     },
     {
       "name": "ProtonVPN",

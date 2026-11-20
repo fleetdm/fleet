@@ -883,7 +883,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	if p.GlobalRole != nil {
 		if !callerIsGlobalAdmin {
 			return nil, authz.ForbiddenWithInternal(
-				"cannot edit global role as a team member",
+				"cannot edit global role as a fleet member",
 				currentUser, user, fleet.ActionWriteRole,
 			)
 		}
@@ -904,13 +904,13 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 		if user.HasAnyGlobalRole() && !callerIsGlobalAdmin {
 			return nil, authz.ForbiddenWithInternal(
-				"cannot move a global user to teams as a team member",
+				"cannot move a global user to fleets as a fleet member",
 				currentUser, user, fleet.ActionWriteRole,
 			)
 		}
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
-				"cannot modify teams in that way",
+				"cannot modify fleets in that way",
 				currentUser, user, fleet.ActionWriteRole,
 			)
 		}

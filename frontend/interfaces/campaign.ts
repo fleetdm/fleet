@@ -67,7 +67,7 @@ export interface ICampaign {
   serverHostCounts: IServerHostCounts; // Differs from `uiHostCounts` in that the fields of this object are tracked and reported by the server via "status"-type websocket messages
 
   id: number;
-  query_id: number;
+  report_id: number;
   updated_at: string;
   user_id: number;
 }

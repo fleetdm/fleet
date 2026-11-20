@@ -26,120 +26,103 @@ interface IAutomationDisplayRow {
   isSoftware?: boolean;
   iconUrl?: string | null;
   link?: string;
-  sortOrder: number;
-  sortName: string;
 }
 
 interface IPolicyAutomationsListProps {
   storedPolicy: IPolicy;
-  currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
 }
 
+/** The row for the policy's automation, or no rows when it has none. */
 export const mapAutomationRows = (
   storedPolicy: IPolicy,
-  currentAutomatedPolicies: number[],
   otherAutomationType?: OtherAutomationType
 ): IAutomationDisplayRow[] => {
-  const rows: IAutomationDisplayRow[] = [];
+  const {
+    install_software: software,
+    run_script: script,
+    resend_configuration_profile: profile,
+  } = storedPolicy;
 
-  if (storedPolicy.install_software) {
-    const displayedName = getDisplayedSoftwareName(
-      storedPolicy.install_software.name,
-      storedPolicy.install_software.display_name
-    );
-    rows.push({
-      name: displayedName,
-      iconName: storedPolicy.install_software.name,
-      type: "Software",
-      isSoftware: true,
-      iconUrl: storedPolicy.install_software.icon_url,
-      link: getPathWithQueryParams(
-        PATHS.SOFTWARE_TITLE_DETAILS(
-          storedPolicy.install_software.software_title_id.toString()
-        ),
-        { fleet_id: storedPolicy.fleet_id }
-      ),
-      sortOrder: 0,
-      sortName: displayedName.toLowerCase(),
-    });
+  switch (storedPolicy.automation_type) {
+    case "software": {
+      if (!software) return [];
+      const displayedName = getDisplayedSoftwareName(
+        software.name,
+        software.display_name
+      );
+      return [
+        {
+          name: displayedName,
+          iconName: software.name,
+          type: "Software",
+          isSoftware: true,
+          iconUrl: software.icon_url,
+          link: getPathWithQueryParams(
+            PATHS.SOFTWARE_TITLE_DETAILS(software.software_title_id.toString()),
+            { fleet_id: storedPolicy.fleet_id }
+          ),
+        },
+      ];
+    }
+    case "script":
+      return script
+        ? [
+            {
+              name: script.name,
+              type: "Script",
+              graphicName: script.name.endsWith(".sh") ? "file-sh" : "file-ps1",
+            },
+          ]
+        : [];
+    case "configuration_profile":
+      return profile
+        ? [
+            {
+              name: profile.name,
+              type: "Profile",
+              graphicName: "file-configuration-profile",
+            },
+          ]
+        : [];
+    case "calendar":
+      return [
+        {
+          name: "Maintenance window",
+          type: "Calendar",
+          graphicName: "calendar",
+        },
+      ];
+    case "conditional_access":
+      return [
+        {
+          name: "Block single sign-on",
+          type: "Conditional access",
+          graphicName: "lock",
+        },
+      ];
+    case "webhook_or_ticket":
+      return [
+        {
+          name: otherAutomationType
+            ? OTHER_AUTOMATION_NAMES[otherAutomationType]
+            : "Webhook or ticket",
+          type: "Other",
+          graphicName: "settings",
+        },
+      ];
+    default:
+      return [];
   }
-
-  if (storedPolicy.run_script) {
-    rows.push({
-      name: storedPolicy.run_script.name,
-      type: "Script",
-      graphicName: storedPolicy.run_script.name.endsWith(".sh")
-        ? "file-sh"
-        : "file-ps1",
-      sortOrder: 1,
-      sortName: storedPolicy.run_script.name.toLowerCase(),
-    });
-  }
-
-  if (storedPolicy.resend_configuration_profile) {
-    rows.push({
-      name: storedPolicy.resend_configuration_profile.name,
-      type: "Profile",
-      graphicName: "file-configuration-profile",
-      sortOrder: 2,
-      sortName: storedPolicy.resend_configuration_profile.name.toLowerCase(),
-    });
-  }
-
-  if (storedPolicy.calendar_events_enabled) {
-    rows.push({
-      name: "Maintenance window",
-      type: "Calendar",
-      graphicName: "calendar",
-      sortOrder: 3,
-      sortName: "",
-    });
-  }
-
-  if (storedPolicy.conditional_access_enabled) {
-    rows.push({
-      name: "Block single sign-on",
-      type: "Conditional access",
-      graphicName: "lock",
-      sortOrder: 4,
-      sortName: "",
-    });
-  }
-
-  if (currentAutomatedPolicies.includes(storedPolicy.id)) {
-    const otherName = otherAutomationType
-      ? OTHER_AUTOMATION_NAMES[otherAutomationType]
-      : "Webhook or ticket";
-    rows.push({
-      name: otherName,
-      type: "Other",
-      graphicName: "settings",
-      sortOrder: 5,
-      sortName: "",
-    });
-  }
-
-  rows.sort((a, b) => {
-    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-    return a.sortName.localeCompare(b.sortName);
-  });
-
-  return rows;
 };
 
 /** Read-only list of the automations currently configured on a policy: one row
  *  per active automation, or an empty state when there are none. */
 const PolicyAutomationsList = ({
   storedPolicy,
-  currentAutomatedPolicies,
   otherAutomationType,
 }: IPolicyAutomationsListProps): JSX.Element => {
-  const automationRows = mapAutomationRows(
-    storedPolicy,
-    currentAutomatedPolicies,
-    otherAutomationType
-  );
+  const automationRows = mapAutomationRows(storedPolicy, otherAutomationType);
 
   if (automationRows.length === 0) {
     return <div className={`${baseClass}__empty-state`}>No automations</div>;

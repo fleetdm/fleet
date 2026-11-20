@@ -940,16 +940,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						GracePeriodDays: optjson.SetInt(3),
 					},
 					MacOSSetup: fleet.MacOSSetup{
-						BootstrapPackage:    optjson.SetString("bootstrap"),
-						MacOSSetupAssistant: optjson.SetString("assistant"),
-						ManualAgentInstall:  optjson.SetBool(true),
-					},
-					WindowsSettings: fleet.WindowsSettings{
-						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+						ManualAgentInstall: optjson.SetBool(true),
 					},
 					AndroidSettings: fleet.AndroidSettings{
-						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-						Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+						Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 					},
 				},
 			},
@@ -993,10 +987,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				GracePeriodDays: optjson.SetInt(3),
 			},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:                 optjson.SetString("bootstrap"),
-				MacOSSetupAssistant:              optjson.SetString("assistant"),
 				EnableReleaseDeviceManually:      optjson.SetBool(false),
-				Script:                           optjson.String{Set: true},
 				Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 				ManualAgentInstall:               optjson.SetBool(true),
 				LockEndUserInfo:                  optjson.SetBool(false),
@@ -1005,13 +996,11 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				EnableManagedLocalAccountWindows: optjson.SetBool(false),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:       optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 				EnableDiskEncryption: optjson.SetBool(false),
 				RequireBitLockerPIN:  optjson.SetBool(false),
 			},
 			AndroidSettings: fleet.AndroidSettings{
-				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 		}, mdm)
 	})
@@ -1123,6 +1112,66 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 	require.Empty(t, conflict.Description)
 	require.Nil(t, conflict.Users)
 	require.Nil(t, conflict.Secrets)
+
+	// Name key matches, which the collation doesn't see.
+	existing := make(map[string]uint)
+	for _, name := range []string{"Workstations", "Laptops 💻", "開発チーム", "Team 𝐀", "straße", "はは", "राम", "กิน", "мой"} {
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		existing[name] = tm.ID
+	}
+	for _, tc := range []struct {
+		name     string
+		conflict string
+	}{
+		{"Work-stations", "Workstations"},
+		{"Work stations", "Workstations"},
+		{"workstations!", "Workstations"},
+		{"WORK_STATIONS", "Workstations"},
+		{"Workstations 💻", "Workstations"},
+		{"Wörkstations", "Workstations"},
+		{"Ｗｏｒｋｓｔａｔｉｏｎｓ", "Workstations"},
+		{"Laptops", "Laptops 💻"},
+		{"Laptops 🚀", "Laptops 💻"},
+		{"開発・チーム", "開発チーム"},
+		{"開発チーム。", "開発チーム"},
+		{"strasse", "straße"},
+		{"Strasse!", "straße"},
+		{"Team A", "Team 𝐀"},
+		// Collation matches the name key doesn't see.
+		{"Team 𝐁", "Team 𝐀"},
+		{"ハハ", "はは"},
+		{"パパ", "はは"},
+		{"राम!", "राम"},
+		{"กิน 🚀", "กิน"},
+		{"МОЙ.", "мой"},
+		// Outside Latin script a combining mark can make a different word.
+		{"रम", ""},
+		{"रम!", ""},
+		{"กัน", ""},
+		{"мои", ""},
+		{"Workstations 2", ""},
+		{"Workstation", ""},
+		{"Laptop", ""},
+		{"開発", ""},
+		{"Team B!", ""},
+		{"Servers", ""},
+	} {
+		conflict, err := ds.TeamConflictsWithName(ctx, tc.name, 0)
+		require.NoError(t, err, tc.name)
+		if tc.conflict == "" {
+			require.Nil(t, conflict, tc.name)
+			continue
+		}
+		require.NotNil(t, conflict, tc.name)
+		require.Equal(t, tc.conflict, conflict.Name, tc.name)
+		require.Equal(t, existing[tc.conflict], conflict.ID, tc.name)
+
+		// A fleet can be renamed to a variant of its own name.
+		conflict, err = ds.TeamConflictsWithName(ctx, tc.name, existing[tc.conflict])
+		require.NoError(t, err, tc.name)
+		require.Nil(t, conflict, tc.name)
+	}
 }
 
 func testTeamsNameEmoji(t *testing.T, ds *Datastore) {
@@ -1334,7 +1383,7 @@ func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, "lites-a", liteA.Name)
 	noTeam := byID[0]
 	require.NotNil(t, noTeam)
-	require.Equal(t, fleet.ReservedNameNoTeam, noTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, noTeam.Name)
 	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
 	require.NotNil(t, webhook)
 	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)

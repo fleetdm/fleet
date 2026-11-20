@@ -14,6 +14,7 @@ module.exports.policies = {
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
   'microsoft-proxy/*': true,
+  'google-proxy/*': true,
   // Bypass the `is-logged-in` policy for:
 
   'entrance/*': true,

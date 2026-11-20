@@ -75,7 +75,7 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 		err = autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests)
 		if err != nil {
 			logger.ErrorContext(ctx, "auto-updating fleet-maintained app",
-				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
+				"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
 	}
 
@@ -115,7 +115,7 @@ func autoUpdateOneFleetMaintainedApp(
 		version, err := downloadNewVersionIfEligible(ctx, ds, store, logger, c, pin, client, manifests)
 		if err != nil {
 			logger.ErrorContext(ctx, "downloading new fleet-maintained app version",
-				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
+				"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
 		publishedVersion = version
 	}
@@ -171,7 +171,7 @@ func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *
 	}
 
 	logger.InfoContext(ctx, "advanced fleet-maintained app to newer cached version",
-		"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug,
+		"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug,
 		"from", c.Version, "to", target.Version, "pin", pin)
 	return nil
 }
@@ -432,7 +432,7 @@ func downloadNewVersionIfEligible(
 	}
 
 	logger.InfoContext(ctx, "cached new fleet-maintained app version",
-		"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug,
+		"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug,
 		"from", c.Version, "to", version, "pin", pin)
 	return version, nil
 }
@@ -461,7 +461,7 @@ func hydrateLatestManifest(ctx context.Context, ds fleet.Datastore, c fleet.FMAA
 // advance to. versions must be ordered most recently downloaded first. An empty
 // pin means Latest (newest). A caret pin returns the newest version within its major, or
 // ok=false when no cached version satisfies the major (so the cron skips rather
-// than crossing into another major, unlike the on-demand PATCH path).
+// than crossing into another major).
 func selectAutoUpdateTarget(versions []fleet.FleetMaintainedVersion, pin string) (fleet.FleetMaintainedVersion, bool) {
 	if pin == "" {
 		return versions[0], true

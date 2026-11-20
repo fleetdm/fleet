@@ -31,8 +31,11 @@ func TestHostAPIOS(t *testing.T) {
 		{"Microsoft Windows 11 Pro 24H2", "10.0.26100.1742", "Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
 		{"Arch Linux", "rolling", "Arch Linux rolling", "Arch Linux", "rolling"},
 		{"Arch Linux", "rolling", "Arch Linux ARM rolling", "Arch Linux ARM", "rolling"},
-		{"Arch Linux", "rolling", "CachyOS Linux rolling", "CachyOS Linux", "rolling"},
-		{"Arch Linux", "rolling", "Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		{"CachyOS Linux", "rolling", "CachyOS Linux rolling", "CachyOS Linux", "rolling"},
+		{"Omarchy", "4.0.0", "Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		// Recorded as Arch Linux by an earlier Fleet and not reported since.
+		{"Arch Linux", "rolling", "CachyOS Linux rolling", "Arch Linux", "rolling"},
+		{"Arch Linux", "rolling", "Omarchy 4.0.0", "Arch Linux", "rolling"},
 		{"", "", "Android", "", ""},
 	}
 	for _, tc := range testCases {
@@ -50,21 +53,14 @@ func TestInventoryOSNames(t *testing.T) {
 }
 
 func TestInventoryOSName(t *testing.T) {
-	testCases := []struct {
-		reported     string
-		wantName     string
-		forceRolling bool
-	}{
-		{"Arch Linux", "Arch Linux", false},
-		{"Arch Linux ARM", "Arch Linux", false},
-		{"CachyOS Linux", "Arch Linux", false},
-		{"Omarchy", "Arch Linux", true},
-		{"Manjaro Linux", "Manjaro Linux", false},
-		{"Ubuntu", "Ubuntu", false},
-	}
-	for _, tc := range testCases {
-		name, forceRolling := InventoryOSName(tc.reported)
-		require.Equal(t, tc.wantName, name, tc.reported)
-		require.Equal(t, tc.forceRolling, forceRolling, tc.reported)
+	for reported, want := range map[string]string{
+		"Arch Linux":     "Arch Linux",
+		"Arch Linux ARM": "Arch Linux",
+		"CachyOS Linux":  "CachyOS Linux",
+		"Omarchy":        "Omarchy",
+		"Manjaro Linux":  "Manjaro Linux",
+		"Ubuntu":         "Ubuntu",
+	} {
+		require.Equal(t, want, InventoryOSName(reported), reported)
 	}
 }

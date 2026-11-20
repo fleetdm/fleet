@@ -736,7 +736,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 			"labels": labelNames,
 		}
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t, identifier+".json", declarationForTest(identifier), s.token, fields,
