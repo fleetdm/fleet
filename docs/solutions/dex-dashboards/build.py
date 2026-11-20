@@ -542,14 +542,16 @@ def keep_software_row(source, name, path, bundle_id):
     if source == "apps":
         return (path.startswith("/Applications/") and not bundle_id.startswith("com.apple.")) or name in AI_INVENTORY_APPS
     if source == "programs":
-        return bool(path) or name in AI_INVENTORY_APPS
+        return True
     if source in ("deb_packages", "rpm_packages"):
         return name in LINUX_DESKTOP_APPS
     return False
 
 
-def tracked_apps(snap, hid, plat):
-    """User-facing apps on one host: {key: (name, version, vendor, last_opened, bundle_id)}."""
+def tracked_apps(snap, hid, plat, need_path=True):
+    """User-facing apps on one host: {key: (name, version, vendor, last_opened, bundle_id)}.
+    need_path=False also counts Windows programs with no install folder, such as ones
+    installed from an MSI (Chrome, Zoom), which have a version but no usage data."""
     out = {}
     for name, ver, source, bid, last, path, vendor in software_rows(snap, hid):
         name = html.unescape(name)
@@ -562,7 +564,7 @@ def tracked_apps(snap, hid, plat):
         elif plat == "windows":
             # Fleet matches Windows prefetch data to a program by its install
             # folder, so a program without one never gets a last-opened time.
-            if source != "programs" or not path or WINDOWS_BUILTIN_RE.search(name):
+            if source != "programs" or (need_path and not path) or WINDOWS_BUILTIN_RE.search(name):
                 continue
             if re.search(r"microsoft", vendor or "", re.I) and not MICROSOFT_SEATS_RE.search(name):
                 continue
@@ -666,10 +668,14 @@ def patch_titles(snap, hid, h):
     plat = platform_of(h)
     if not plat:
         return out
-    for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat).items():
+    for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat, need_path=False).items():
         if app_kind(name, bid) == "support":
             continue
         if plat == "linux" and key.removeprefix("linux:") not in LINUX_VENDOR_PACKAGES:
+            continue
+        # A name with its version in it ("OktaVerify-x64-7.2.3.0", an MSI's own entry)
+        # names one release, so it can't be compared across versions.
+        if plat == "windows" and (not ver or ("." in ver and re.search(r"(?<![\w.])" + re.escape(ver) + r"(?![\w.])", name))):
             continue
         out[("app:" + key) if plat == "macos" else key] = (name, ver)
     osv = h.get("os_version") or ""
