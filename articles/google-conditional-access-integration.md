@@ -141,7 +141,7 @@ If Google doesn't list the device yet, Fleet tries again every 5 minutes for the
 ## Step 7: Turn on blocking
 
 1. In the Google Admin console, head to **Security > Access and data control > Context-Aware Access**. If it's off, select **Turn on**.
-2. Select **Access levels > Create access level**. Name it `Fleet managed device`, choose **Advanced**, and add this condition. Replace both `CUSTOMER_ID` with your customer ID without the leading `C`. For customer ID `C01234abc`, the key is `01234abc-fleet`.
+2. Select **Access levels > Create access level**. Name it `Fleet managed device`, choose **Advanced**, and add this condition. Replace both instances of `CUSTOMER_ID` with your customer ID without the leading `C`. For customer ID `C01234abc`, the key is `01234abc-fleet`.
 
 ```
 "CUSTOMER_ID-fleet" in device.vendors && device.vendors["CUSTOMER_ID-fleet"].is_managed_device == true
