@@ -83,7 +83,7 @@ In Fleet, use the following configuration payload for Okta Verify:
 }
 ```
 
-Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 ## Considerations when deploying to iOS
 
@@ -93,7 +93,7 @@ Other keys are available for the Android payload. See Okta's [managed app config
 ## Further reading
 
 - [Custom variables (secrets)](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
-- [Fleet variables](https://fleetdm.com/guides/fleet-variables)
+- [Variables](https://fleetdm.com/guides/fleet-variables)
 - [Install App Store apps](https://fleetdm.com/guides/install-app-store-apps)
 
 <meta name="articleTitle" value="Configure Okta management attestation for mobile devices with Fleet">
