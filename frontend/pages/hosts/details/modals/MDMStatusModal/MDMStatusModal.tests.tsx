@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { AxiosError } from "axios";
 import React from "react";
 
@@ -22,6 +22,13 @@ jest.mock("components/ToastNotification", () => ({
 }));
 
 const mockRouter = createMockRouter();
+
+/** Lets the DEP assignment query settle, so asserting a hidden section checks
+ * the response's effect rather than the initial loading state. */
+const waitForDepAssignmentToSettle = async () => {
+  await waitFor(() => expect(hostAPI.getDepAssignment).toHaveBeenCalled());
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+};
 
 const mockDepAssignmentResponse = {
   id: 32,
@@ -117,12 +124,11 @@ describe("MDMStatusModal - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not render profile assignment section when not premium or not macOS", () => {
+  it("does not render profile assignment section on Fleet Free", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
 
-    // not premium
     render(
       <MDMStatusModal
         hostId={3}
@@ -137,23 +143,8 @@ describe("MDMStatusModal - component", () => {
         onExit={jest.fn()}
       />
     );
-    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
 
-    // not macOS
-    render(
-      <MDMStatusModal
-        hostId={3}
-        enrollmentStatus="On (manual)"
-        router={mockRouter}
-        isPremiumTier
-        platform="windows"
-        user={createMockUser()}
-        lastMDMCheckIn=""
-        onSuccessfulCheckIn={jest.fn()}
-        fleetId={null}
-        onExit={jest.fn()}
-      />
-    );
+    await waitForDepAssignmentToSettle();
     expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
   });
 
@@ -177,11 +168,12 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(await screen.findByText("Profile assignment")).toBeInTheDocument();
+    // "Profile assignment" also renders during loading, so wait on a loaded row.
+    expect(await screen.findByText("Profile assigned")).toBeInTheDocument();
+    expect(screen.getByText("Profile assignment")).toBeInTheDocument();
     expect(
       screen.getByText(/Details about automatic enrollment profile from Apple/i)
     ).toBeInTheDocument();
-    expect(screen.getByText("Profile assigned")).toBeInTheDocument();
     expect(screen.getByText("Profile pushed")).toBeInTheDocument();
     expect(screen.getByText("Profile status")).toBeInTheDocument();
     // profile_status "assigned" renders "Assigned"
@@ -208,9 +200,8 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(
-      await screen.queryByText("Profile assignment")
-    ).not.toBeInTheDocument();
+    await waitForDepAssignmentToSettle();
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         /Details about automatic enrollment profile from Apple/i
@@ -233,7 +224,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -257,7 +248,7 @@ describe("MDMStatusModal - component", () => {
     });
   });
 
-  it("does not render profile assignment section for a non-AB host (not automatic or pending)", async () => {
+  it("does not render profile assignment section for a manual host when host_dep_assignment is null", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
       id: 3,
       dep_device: null,
@@ -279,6 +270,62 @@ describe("MDMStatusModal - component", () => {
         onExit={jest.fn()}
       />
     );
+
+    await waitForDepAssignmentToSettle();
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
+  });
+
+  it("renders profile assignment section for a manual host when the API returns a host_dep_assignment", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    expect(await screen.findByText("Profile assigned")).toBeInTheDocument();
+    expect(screen.getByText("Profile assignment")).toBeInTheDocument();
+    expect(screen.getByText("Assigned")).toBeInTheDocument();
+  });
+
+  it("does not show the profile assignment spinner for a manual host while DEP assignment is loading", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        // never resolve
+      })
+    );
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    // Wait past the spinner's 250ms anti-flash delay so its absence is meaningful.
+    await expect(
+      screen.findByTestId("spinner", {}, { timeout: 500 })
+    ).rejects.toThrow();
     expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
   });
 
