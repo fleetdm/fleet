@@ -161,7 +161,13 @@ Ask for the reasoning when the answer matters. "Check whether a DDM equivalent e
 
 Three contour behaviors are worth knowing, because each one turns a wrong input into a passing result:
 
-- **`--set` does not set payload fields.** It substitutes placeholder variables declared by a recipe. Passing `--set minLength=12` is accepted, silently dropped, and the profile still reports that schema validation passed. Field values belong in a recipe's `[profile.fields]` table. The scaffold lists optional fields as comments directly under `[[profile]]`, and keys left in that position are ignored the same way.
+- **`--set` does not set payload fields.** It substitutes variables declared by a recipe, which look like this:
+
+  ```text
+  {{placeholder}}
+  ```
+
+  Passing `--set minLength=12` is accepted, silently dropped, and the profile still reports that schema validation passed. Field values belong in a recipe's `[profile.fields]` table. The scaffold lists optional fields as comments directly under `[[profile]]`, and keys left in that position are ignored the same way.
 - **Validation without `--strict` accepts unknown keys.** An invented key is written into the profile and validation exits `0`. See step 5.
 - **DDM identifiers collide.** Contour derives an `Identifier` from the last component of the declaration type, so `passcode.settings` and `softwareupdate.settings` both produce `com.acme.settings`. Two declarations sharing one is a silent overwrite.
 
