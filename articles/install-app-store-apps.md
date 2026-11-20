@@ -2,7 +2,9 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts, including custom apps.
+In Fleet, you can install Apple App Store apps on your macOS, iOS, iPadOS, and tvOS hosts, including custom apps.
+
+> Self-service isn't available for tvOS apps. Apple TVs have no browser and no **My device** page.
 
 You can also manage which Google Play Store apps are available for self-service in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
@@ -68,7 +70,7 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 5. To remove the app, expand the app's version and click the trash can (delete) icon. If the app has more than one version, delete each version.
 
-## Configure automatic updates for an app (iOS / iPadOS only)
+## Configure automatic updates for an app (iOS / iPadOS / tvOS only)
 
 > Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
 
@@ -84,11 +86,13 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 ### Apple (VPP)
 
-Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+Currently, configuration for Apple hosts is supported on iOS, iPadOS, and tvOS. Managed configuration is often referred to as App Config.
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
 New or updated configuration isn't applied until the end user fully quits and reopens the app.
+
+If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt.
 
 This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
 
@@ -205,10 +209,6 @@ If the end user declined, installing the app again from **Host details** usually
 
 Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
 
-#### iOS and iPadOS managed configuration
-
-If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
-
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
@@ -224,4 +224,4 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-01-08">
-<meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">
+<meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, tvOS, and Android hosts.">

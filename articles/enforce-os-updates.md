@@ -2,9 +2,9 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce OS updates on your macOS, Windows, iOS, iPadOS, Android, and Linux hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
+In Fleet, you can enforce OS updates on your macOS, Windows, iOS, iPadOS, tvOS, Android, and Linux hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
+For Apple (macOS, iOS, iPadOS, and tvOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
 For Android hosts, you can enforce OS updates using a configuration profile. See [Android](#android) below for which management types support this.
 
@@ -28,7 +28,9 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://f
 
 1. Head to the **Controls** > **OS updates** tab.
 
-2. To enforce OS updates for enrolled Apple hosts, select the **macOS**, **iOS**, or **iPadOS** tab and choose an enforcement policy:
+2. To enforce OS updates for enrolled Apple hosts, select the **macOS**, **iOS**, **iPadOS**, or **tvOS** tab and choose an enforcement policy:
+
+   > Enforcing OS updates on Apple TVs requires tvOS 18.4 or later.
 
    - **Custom version** — Set a specific **Minimum version** (e.g., `15.4.1`) and an absolute **Deadline** (date). Hosts below this version will be prompted to update by the deadline.
    - **Latest version (based on host hardware)** — Fleet automatically enforces the latest macOS version available for each host's hardware. Set **Days after release** to control how long hosts have to update after Apple publishes a new version.
@@ -41,6 +43,7 @@ Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modif
 + `macos_updates`
 + `ios_updates`
 + `ipados_updates`
++ `tvos_updates`
 + `windows_updates`
 
 ## GitOps
@@ -49,10 +52,11 @@ OS version enforcement options are declared within the [controls](https://fleetd
 + [macos_updates](https://fleetdm.com/docs/configuration/yaml-files#macos-updates)
 + [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
 + [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
++ [tvos_updates](https://fleetdm.com/docs/configuration/yaml-files#tvos-updates)
 + [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
 
 ### Apple (macOS, iOS, and iPadOS) examples
-_Examples also work with ios_updates and ipados_updates._
+_Examples also work with ios_updates, ipados_updates, and tvos_updates._
 
 Custom version with an absolute deadline:
 ```yaml
@@ -261,4 +265,4 @@ Fleet enforces OS updates for [quality and feature updates](https://github.com/f
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-08-10">
 <meta name="articleTitle" value="Enforce OS updates">
-<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, iPadOS, Android, and Linux hosts.">
+<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, iPadOS, tvOS, Android, and Linux hosts.">

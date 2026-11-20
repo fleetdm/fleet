@@ -18,7 +18,7 @@ Fleet's best practice fleets:
 - `☁️ IT servers`: Production servers used to host internal tools like certificate authorities (CAs).
 - `📱🔐 Personal mobile devices`: iPhones, iPads, and Android devices owned by employees that can access company data.
 - `📱🏢 Employee-issued mobile devices`: iPhones, iPads, and Android devices issued to employees that can access company data.
-- `🖥️ Dedicated devices`: iPads or iPhones for dedicated or shared use. If some of your devices have different use cases, break this fleet into separate fleets (ex. `🖥️ Kiosk devices` and `🎥 Zoom room devices`).
+- `🖥️ Dedicated devices`: iPads, iPhones, or Apple TVs for dedicated or shared use. If some of your devices have different use cases, break this fleet into separate fleets (ex. `🖥️ Kiosk devices` and `🎥 Zoom room devices`).
 
 ## Add hosts to a fleet
 

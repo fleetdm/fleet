@@ -1830,6 +1830,10 @@ None.
       "minimum_version": "17.0.1",
       "deadline": "2024-08-01"
     },
+    "tvos_updates": {
+      "minimum_version": "26.1",
+      "deadline": "2026-12-31"
+    },
     "windows_updates": {
       "deadline_days": 5,
       "grace_period_days": 1
@@ -2233,6 +2237,10 @@ Modifies the Fleet's configuration with the supplied information.
     "ipados_updates": {
       "minimum_version": "17.0.1",
       "deadline": "2024-08-01"
+    },
+    "tvos_updates": {
+      "minimum_version": "26.1",
+      "deadline": "2026-12-31"
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -2907,13 +2915,14 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
-| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later, and Apple TV 4K (2nd generation) or later running tvOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
-| name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
+| name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, iPadOS, and tvOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates              | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates           | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| tvos_updates             | object  | See [`mdm.tvos_updates`](#mdm-tvos-updates). |
 | windows_updates          | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration          | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
@@ -2924,9 +2933,9 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 | windows_automatic_enrollment         | object  | See [`mdm.windows_automatic_enrollment`](#mdm-windows-enrollment). |
 
-> Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
+> Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS, tvOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
-> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
+> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones, iPads, and Apple TVs will not be able to enroll.
 
 > Note: If `only_allow_apple_business_enrollment` is enabled, the [Get manual enrollment profile](#get-manual-enrollment-profile) and [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) endpoints return an error.
 
@@ -2970,6 +2979,20 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | The minimum required iPadOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"15.4.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
+| deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
+| deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
+
+<br/>
+
+##### mdm.tvos_updates
+
+_Available in Fleet Premium._
+
+`mdm.tvos_updates` is an object with the following structure. Enforcement requires tvOS 18.4 or later.
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | The minimum required tvOS version. Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. Accepts a version number (e.g., `"26.1"`) or `"latest"`. Pair with `deadline` for version numbers or `deadline_days` for `"latest"`. |
 | deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
 | deadline_days                     | integer | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`. Cannot be used with a version number. |
 
@@ -3977,7 +4000,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
 
-For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
+For iOS, iPadOS, tvOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
 
 `GET /api/v1/fleet/host_summary`
 
@@ -4066,6 +4089,12 @@ For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` 
       "label_type": "builtin"
     },
     {
+      "id": 17,
+      "name": "tvOS",
+      "description": "All tvOS hosts",
+      "label_type": "builtin"
+    },
+    {
       "id": 15,
       "name": "Fedora Linux",
       "description": "All Fedora hosts",
@@ -4093,6 +4122,10 @@ For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` 
     },
     {
       "platform": "ipados",
+      "hosts_count": 1234
+    },
+    {
+      "platform": "tvos",
       "hosts_count": 1234
     },
     {
@@ -4990,7 +5023,7 @@ A profile with `"status": null` is a self-service profile the host can install b
 }
 ```
 
-`mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
+`mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, iPadOS, or tvOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
 `mdm.os_settings.disk_encryption.action_required` names what the **end user** can do about a disk encryption problem, and is only present when there is something they can do. On Windows it is `create_pin` when BitLocker policy requires a startup PIN the end user hasn't set, and `restart` when Fleet is waiting for a pending restart before turning protection back on. On macOS it is `log_out` or `rotate_key`. It's absent when `status` is `action_required` for a reason the end user can't fix, such as a TPM that isn't ready or a policy that forbids the key protector Fleet needs.
 
@@ -6211,7 +6244,7 @@ _Available in Fleet Premium_
 
 ### Turn off host's MDM
 
-Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
+Turns off MDM for the specified macOS, iOS, iPadOS, tvOS, or Android host.
 
 > On BYOD Android (work profile), Fleet sends a wipe command via the Android Management API. Unlike the [delete device command](https://developers.google.com/android/management/deprovision-device) in the Android Management API, the wipe command does not expire after 30 days. That way, Fleet makes sure that the work profile is wiped even if the host is offline for more than 30 days.
 
@@ -7302,7 +7335,7 @@ Rotates the Recovery Lock password for a host.
 
 ### Get host's certificates
 
-Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+Available for macOS, iOS, iPadOS, tvOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 Retrieves the certificates installed on a host.
 
@@ -7413,7 +7446,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is locked once it comes online. Apple TVs (tvOS) don't support lock, so requests for a tvOS host return a 422 error.
 
 To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
@@ -7450,7 +7483,7 @@ For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documen
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host. Apple TVs (tvOS) don't support lock, so requests for a tvOS host return a 422 error.
 
 For iOS and iPadOS, this disables Lost Mode.
 
@@ -7482,13 +7515,13 @@ For iOS and iPadOS, this disables Lost Mode.
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, tvOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
 Wiping a company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium. (This feature was [previously "Unenroll"](https://github.com/fleetdm/fleet/issues/41683).)
 
-Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
+Wiping a macOS, iOS, iPadOS, tvOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
 
-To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
+To wipe a macOS, iOS, iPadOS, tvOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
@@ -7525,7 +7558,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ### Send APNs ping to host
 
-Sends an APNs push notification to the specified macOS, iOS, or iPadOS host. This prompts the device to check in with the Fleet server and pick up any pending MDM commands or configuration profiles.
+Sends an APNs push notification to the specified macOS, iOS, iPadOS, or tvOS host. This prompts the device to check in with the Fleet server and pick up any pending MDM commands or configuration profiles.
 
 The host must have MDM turned on and be enrolled via Apple MDM. If the host is offline, the push notification will be delivered when the device comes back online.
 
@@ -7912,7 +7945,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 _Available in Fleet Premium._
 
-Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its unlock token during MDM check-in.
+Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its unlock token during MDM check-in. Not supported for tvOS hosts.
 
 `POST /api/v1/fleet/hosts/:id/clear_passcode`
 
@@ -9475,7 +9508,7 @@ The summary can optionally be filtered by fleet ID.
 
 _Available in Fleet Premium_
 
-Sets a naming convention for all macOS, iOS, and iPadOS hosts in a fleet (or "Unassigned"). Fleet resolves the template per host, renames the host on the device via an Apple MDM command, and updates the host's name in Fleet.
+Sets a naming convention for all macOS, iOS, iPadOS, and tvOS hosts in a fleet (or "Unassigned"). Fleet resolves the template per host, renames the host on the device via an Apple MDM command, and updates the host's name in Fleet.
 
 Sending an empty `name_template` clears the template. Clearing the template stops enforcement but doesn't rename any host.
 
@@ -10232,7 +10265,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
+| platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, `"tvos"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
 | fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -10307,7 +10340,7 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | body | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, or `"android"`. Defaults to `"macos"`. |
+| platform | string  | body | Platform to install software for. Either `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, `"tvos"`, or `"android"`. Defaults to `"macos"`. |
 | fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to set the software for. If not specified, it will set the software for "Unassigned" hosts. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
@@ -10482,7 +10515,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 ### Run MDM command
 
-This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, Windows, or Android hosts the next time they come online.
+This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, tvOS, Windows, or Android hosts the next time they come online.
 
 The MDM command payloads must be base64-encoded.
 
@@ -10783,6 +10816,10 @@ None.
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
         "fleet_id": 3
+      },
+      "tvos_fleet": {
+        "name": "📺 Conference room Apple TVs",
+        "fleet_id": 5
       }
     }
   ],
@@ -14930,7 +14967,7 @@ Get a list of all software.
 | source | string | query | Filters to only include software from the specified sources. For example, `"apps"` for macOS apps or `"programs"` for Windows apps. To filter by multiple sources, separate them with commas (e.g. `?source=apps,programs`). See `source` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
 | extension_for | string | query | **Requires `source`**. Filters browser and IDE extensions to the specified browsers or IDEs. To filter by multiple, separate them with commas. Each value only narrows the source it belongs to. For example, `?source=apps,chrome_extensions,vscode_extensions&extension_for=brave,cursor` returns macOS apps, Brave extensions, and Cursor extensions. If no value belongs to a source, all extensions from that source are included. See `extension_for` values in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference). |
 | ai_tool | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include AI tools (e.g. AI apps, npm packages, MCP servers). Default is `false`. |
-| platform | string | query | Filters software titles available for install by platforms. `fleet_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
+| platform | string | query | Filters software titles available for install by platforms. `fleet_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`, `"tvos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 | hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `fleet_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
 | package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `fleet_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
 
@@ -15205,7 +15242,7 @@ Returns a list of all operating systems.
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | fleet_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
-| platform            | string   | query | Filters the hosts to the specified platform. One of: `"darwin"` (macOS), `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`,` or `"android"`. |
+| platform            | string   | query | Filters the hosts to the specified platform. One of: `"darwin"` (macOS), `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`, `"tvos"`, or `"android"`. |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 | max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
@@ -16067,18 +16104,18 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | ---- | ---- | -- | ----------- |
 | app_store_id   | string | body | **Required.** The ID of the Apple App Store app or Google Play app. |
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
-| platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
+| platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, `tvos`, or `android`). Default is `darwin`. |
 | name | string | body | Admin-provided version name, unique per title per fleet. Defaults to `Default version` when omitted. Required if the title already has a version with the default name. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Not supported for tvOS apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Only supported for `darwin`. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
-| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
-| auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
-| auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| configuration | object | form | The app's managed configuration. For iOS, iPadOS, and tvOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, tvOS, and Android. |
+| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS/tvOS App Store (VPP) apps. |
+| auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS/tvOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS/tvOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -16136,15 +16173,15 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | ---- | ---- | -- | ----------- |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | display_name    | string  | body | Optional override for the default `name`. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Not supported for tvOS apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
-| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
-| auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
-| auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS/tvOS App Store (VPP) apps. |
+| auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS/tvOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS/tvOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | body | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | body | The app's managed configuration. For iOS, iPadOS, and tvOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, tvOS, and Android. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -16438,7 +16475,7 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+Install software (package or app store app) on a macOS, iOS, iPadOS, tvOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
 
 Package installs time out after 1 hour.
 
