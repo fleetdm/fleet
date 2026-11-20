@@ -115,7 +115,7 @@ Wait for the wipe to finish before deleting the host. Deleting a host removes Fl
 
 If you're gifting a company-owned Apple host, or you want to prevent a host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business (AB) and then delete the host in Fleet. Deleting in Fleet doesn't change the assignment in AB, so a host still assigned to Fleet comes back as a **Pending** host.
 
-For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). Microsoft recommends doWipeProtected for lost or stolen devices because it keeps trying until the wipe finishes, even if someone turns the host off and on. To repurpose a Windows host for another end user, [reset it](#reset-a-host) instead.
+For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). Microsoft recommends doWipeProtected for lost or stolen devices because it keeps trying until the wipe finishes, even if someone turns the host off and on. On some hosts, the wipe stops at a firmware prompt to clear the TPM, and someone at the host has to accept it before the wipe continues. To repurpose a Windows host for another end user, [reset it](#reset-a-host) instead.
 
 If the wipe command fails (MDM protocol returns 500 in [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands)), you can run a [fallback wipe script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/wipe-windows-device.ps1) via Fleet. This script validates and repairs WinRE (the most common cause of wipe failure), suspends BitLocker, and triggers the wipe locally via the WMI-to-CSP bridge, bypassing the MDM command queue.
 
@@ -157,9 +157,16 @@ If you set up the host with a [provisioning package that installs Fleet's agent]
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the Windows host you want to reset.
 2. Click the host to open the **Host details** page.
 3. Click the **Actions** dropdown, then click **Reset**.
-4. Confirm that you want to reset the host in the dialog. The host is marked with a "Reset pending" badge.
+4. Confirm that you want to reset the host in the dialog. The host is marked with a "Reset pending" badge. Once the reset command is acknowledged by the host, the badge will update to "Reset". The badge clears when the host turns on MDM again or Fleet's agent enrolls again.
 
-> **Note:** Unlike wipe, reset can be interrupted. If someone turns off the host while it resets, Windows can roll back the reset, and the host keeps its files.
+> **Note:** Unlike wipe, reset can be interrupted. If someone turns off the host while it resets, Windows can roll back the reset, and the host keeps its files. When the host checks in again, Fleet shows "Reset failed on this host." in the host's activity.
+
+You can wipe a host while it's being reset:
+
+- If the host shows "Reset pending", the wipe replaces the reset, and Fleet sends only the wipe.
+- If the host shows "Reset", it already received the reset, so the wipe waits. Fleet sends the wipe only if the reset fails or Windows rolls it back. If the reset completes, the wipe is dropped, since the reset already erased the host.
+
+After a reset, Fleet clears the host's previous end user, including an IdP username set by an admin. If end user authentication is turned on, the next end user signs in when the host comes back.
 
 Deleting the host before the reset runs may hide the "Reset pending" badge, but Fleet still resets the host when it checks in over MDM.
 
