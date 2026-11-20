@@ -1198,17 +1198,9 @@ type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) 
 
 type FilterWebhooksAndTicketsPoliciesFunc func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error)
 
-type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]uint, error)
-
-type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
-
-type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error)
-
 type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
 
 type WebhooksAndTicketsByPatchPolicySlugFunc func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
-
-type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1817,6 +1809,12 @@ type CleanupExpiredLiveQueriesFunc func(ctx context.Context, expiryWindowDays in
 type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
+
+type MDMWindowsFailInterruptedResetFunc func(ctx context.Context, enrollmentID uint, hostID uint) (bool, error)
+
+type MDMWindowsRemoteWipeInProgressFunc func(ctx context.Context, enrollmentID uint, hostID uint) (bool, error)
+
+type ClearEndUserAfterWindowsResetFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error)
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
@@ -4414,23 +4412,11 @@ type DataStore struct {
 	FilterWebhooksAndTicketsPoliciesFunc        FilterWebhooksAndTicketsPoliciesFunc
 	FilterWebhooksAndTicketsPoliciesFuncInvoked bool
 
-	WebhooksAndTicketsPolicyIDsFunc        WebhooksAndTicketsPolicyIDsFunc
-	WebhooksAndTicketsPolicyIDsFuncInvoked bool
-
-	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
-	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
-
-	PoliciesWithOtherAutomationsFunc        PoliciesWithOtherAutomationsFunc
-	PoliciesWithOtherAutomationsFuncInvoked bool
-
 	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
 	WebhooksAndTicketsByPolicyNameFuncInvoked bool
 
 	WebhooksAndTicketsByPatchPolicySlugFunc        WebhooksAndTicketsByPatchPolicySlugFunc
 	WebhooksAndTicketsByPatchPolicySlugFuncInvoked bool
-
-	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
-	SetWebhooksAndTicketsPoliciesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -5343,6 +5329,15 @@ type DataStore struct {
 
 	WipeHostViaWindowsMDMFunc        WipeHostViaWindowsMDMFunc
 	WipeHostViaWindowsMDMFuncInvoked bool
+
+	MDMWindowsFailInterruptedResetFunc        MDMWindowsFailInterruptedResetFunc
+	MDMWindowsFailInterruptedResetFuncInvoked bool
+
+	MDMWindowsRemoteWipeInProgressFunc        MDMWindowsRemoteWipeInProgressFunc
+	MDMWindowsRemoteWipeInProgressFuncInvoked bool
+
+	ClearEndUserAfterWindowsResetFunc        ClearEndUserAfterWindowsResetFunc
+	ClearEndUserAfterWindowsResetFuncInvoked bool
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
@@ -10707,27 +10702,6 @@ func (s *DataStore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policy
 	return s.FilterWebhooksAndTicketsPoliciesFunc(ctx, policyIDs)
 }
 
-func (s *DataStore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
-	s.mu.Lock()
-	s.WebhooksAndTicketsPolicyIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.WebhooksAndTicketsPolicyIDsFunc(ctx, teamID)
-}
-
-func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
-	s.mu.Lock()
-	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
-	s.mu.Unlock()
-	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
-}
-
-func (s *DataStore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
-	s.mu.Lock()
-	s.PoliciesWithOtherAutomationsFuncInvoked = true
-	s.mu.Unlock()
-	return s.PoliciesWithOtherAutomationsFunc(ctx, teamID, policyIDs)
-}
-
 func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
 	s.mu.Lock()
 	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
@@ -10740,13 +10714,6 @@ func (s *DataStore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, tea
 	s.WebhooksAndTicketsByPatchPolicySlugFuncInvoked = true
 	s.mu.Unlock()
 	return s.WebhooksAndTicketsByPatchPolicySlugFunc(ctx, teamID, slugs)
-}
-
-func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
-	s.mu.Lock()
-	s.SetWebhooksAndTicketsPoliciesFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetWebhooksAndTicketsPoliciesFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -12875,6 +12842,27 @@ func (s *DataStore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host,
 	s.WipeHostViaWindowsMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.WipeHostViaWindowsMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsFailInterruptedResetFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsFailInterruptedResetFunc(ctx, enrollmentID, hostID)
+}
+
+func (s *DataStore) MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsRemoteWipeInProgressFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsRemoteWipeInProgressFunc(ctx, enrollmentID, hostID)
+}
+
+func (s *DataStore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+	s.mu.Lock()
+	s.ClearEndUserAfterWindowsResetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearEndUserAfterWindowsResetFunc(ctx, opts...)
 }
 
 func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error {

@@ -168,22 +168,6 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 	return out
 }
 
-// filterVersionPrefix keeps the version dirs in the release line named by prefix, matching
-// whole dot-separated segments so "24" keeps "24.22.1" but not "240.1". An empty prefix
-// keeps everything.
-func filterVersionPrefix(dirs []*github.RepositoryContent, prefix string) []*github.RepositoryContent {
-	if prefix == "" {
-		return dirs
-	}
-	var out []*github.RepositoryContent
-	for _, d := range dirs {
-		if name := d.GetName(); name == prefix || strings.HasPrefix(name, prefix+".") {
-			out = append(out, d)
-		}
-	}
-	return out
-}
-
 // wingetManifests reads the newest installer and en-US locale manifests for the app's winget package.
 func (i *wingetIngester) wingetManifests(ctx context.Context, input inputApp) (installerManifest, localeManifest, error) {
 	// this is the path within the winget GitHub repo where the manifests are located
@@ -203,11 +187,10 @@ func (i *wingetIngester) wingetManifests(ctx context.Context, input inputApp) (i
 		return installerManifest{}, localeManifest{}, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
-	versionDirs := filterVersionPrefix(wingetVersionManifestDirs(repoContents), input.VersionPrefix)
+	versionDirs := wingetVersionManifestDirs(repoContents)
 	if len(versionDirs) == 0 {
 		return installerManifest{}, localeManifest{}, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
-			"path":           dirPath,
-			"version_prefix": input.VersionPrefix,
+			"path": dirPath,
 		})
 	}
 
@@ -755,9 +738,6 @@ type inputApp struct {
 	// The version is the installer's ProductVersion, and a new release is picked up when
 	// the redirect target changes. Set it instead of PackageIdentifier.
 	LatestInstallerURL string `json:"latest_installer_url"`
-	// VersionPrefix limits the package to one release line (e.g. "24" for Node.js 24) when
-	// winget has no per-line package and publishes several lines under one identifier.
-	VersionPrefix string `json:"version_prefix"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`
 	InstallScriptPath   string     `json:"install_script_path"`

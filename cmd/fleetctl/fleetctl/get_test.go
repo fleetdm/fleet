@@ -2325,7 +2325,6 @@ func TestEnrichedAppConfig(t *testing.T) {
           "failing_policies_webhook": {
             "enable_failing_policies_webhook": false,
             "destination_url": "",
-            "policy_ids": null,
             "host_batch_size": 0
           },
           "vulnerabilities_webhook": {

@@ -17042,13 +17042,13 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | vpp_token_id | integer | body | **Required if the fleet has more than one VPP token**. The ID of the VPP token to add the Apple App Store app from. The VPP token must be assigned to the fleet. Fleet uses this VPP token for all requests to Apple related to the app in this fleet, like assigning licenses. Not needed if the fleet has only one VPP token. Not supported for Android apps. |
 | name | string | body | Admin-provided version name, unique per title per fleet. Defaults to `Default version` when omitted. Required if the title already has a version with the default name. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Google Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Only supported for `darwin`. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | form | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
@@ -17130,11 +17130,11 @@ A software title can have more than one version of the same App Store app on a f
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
+| fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Google Play Store app from the specified fleet.  |
 | version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Google Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
@@ -17142,7 +17142,7 @@ A software title can have more than one version of the same App Store app on a f
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 All settings are set per version, so updating one version doesn't change any other version of the same app.
 
@@ -19441,6 +19441,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
 - [Create API-only user](#create-api-only-user)
+- [Update API-only user](#update-api-only-user)
 - [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
@@ -20416,6 +20417,73 @@ If `api_endpoints` is specified, these do not grant additional permissions other
     "api_endpoints": [1,5,7,32]
   },
   "token": "{API key}"
+}
+```
+
+### Update API-only user
+
+((Admin))
+
+Updates an API-only user's name, role, fleets, or API endpoint access.
+
+`PATCH /api/v1/fleet/users/api_only/:id`
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| id      | integer | path | **Required**. The API-only user's ID. |
+| name    | string  | body | The display name for the API-only user. |
+| global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets      | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| api_endpoints | array   | body | _Available in Fleet Premium_. The API endpoints this user has access to. Should contain an array of objects in which each object includes the endpoint's `method` and `path`. For available endpoints, see [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). Set to `null` to give the user access to all API endpoints. An empty array isn't allowed. |
+
+Only the fields you specify are updated. If `api_endpoints` is specified, these do not grant additional permissions otherwise forbidden by the user's `role`.
+
+You can't update your own API-only user.
+
+#### Example
+
+`PATCH /api/v1/fleet/users/api_only/5`
+
+##### Request body
+
+```json
+{
+  "api_endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe+randomlygeneratedstring@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "api_only": true,
+    "global_role": "observer",
+    "fleets": [],
+    "api_endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/fleet/hosts/identifier/:identifier"
+      }
+    ]
+  }
 }
 ```
 

@@ -18,7 +18,7 @@ import (
 )
 
 func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
-	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR filename = ?)`
+	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND bundle_identifier = ?`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -42,7 +42,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	var installerID uint
 	var count uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Filename)
+		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID)
 		if err := row.Scan(&count); err != nil {
 			return err
 		}
@@ -52,7 +52,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
 			}
-			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			return alreadyExists("In-house app", payload.Title).WithTeamName(teamName)
 		}
 
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
@@ -132,7 +132,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err)
 			}
-			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			err = alreadyExists("In-house app", payload.Title).WithTeamName(teamName)
 			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
@@ -310,13 +310,6 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		}
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			if IsDuplicate(err) {
-				teamName, err := ds.getTeamName(ctx, payload.TeamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err)
-				}
-				return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
-			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
 
@@ -1099,8 +1092,7 @@ FROM
 WHERE
 	-- this is guaranteed to select a single in-house installer, due to unique index
 	global_or_team_id = ?	AND
-	filename = ? AND
-	platform = ?
+	title_id = ?
 `
 
 	const deleteInHouseLabelsNotInList = `
@@ -1450,7 +1442,7 @@ WHERE
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, installer.Filename, installer.Platform); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 

@@ -761,6 +761,11 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
+  resetHost: (id: number) => {
+    const { HOST_RESET } = endpoints;
+    return sendRequest("POST", HOST_RESET(id));
+  },
+
   clearPasscode: (id: number) => {
     const { HOST_CLEAR_PASSCODE } = endpoints;
     return sendRequest("POST", HOST_CLEAR_PASSCODE(id));

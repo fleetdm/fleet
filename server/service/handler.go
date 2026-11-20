@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/contexts/redact"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -170,8 +171,8 @@ func MakeHandler(
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
+			func(ctx context.Context, _ *http.Request) context.Context { return redact.NewContext(ctx) },
 			auth.SetRequestsContexts(svc),
-			endpointer.LogDeprecatedPathAlias, // log deprecation warning for deprecated URL path aliases
 			setCarveStoreInRequestContext(carveStore),
 		),
 		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
@@ -333,11 +334,8 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
-	registry := endpointer.NewHandlerRegistry()
-
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
-	ue.HandlerRegistry = registry
 
 	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
@@ -352,7 +350,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.DELETE("/api/_version_/fleet/logo", deleteOrgLogoEndpoint, deleteOrgLogoRequest{})
 	ue.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
 	ue.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)
-	ue.GET("/api/_version_/fleet/version", versionEndpoint, nil)
+	ue.WithHTTPPreAuth(fleetctl4PreAuth(logger)).GET("/api/_version_/fleet/version", versionEndpoint, nil)
 
 	ue.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
 	ue.WithRequestBodySizeLimit(5*units.MiB).POST("/api/_version_/fleet/spec/fleets", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
@@ -390,11 +388,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.DELETE("/api/_version_/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
 	ue.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
-	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, fleet.GlobalPolicyRequest{})
-	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, fleet.ListGlobalPoliciesRequest{})
-	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
-	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
-	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
 	// Policies in any scope; fleet_id picks "All fleets" (none), "Unassigned" (0), or a fleet.
 	ue.POST("/api/_version_/fleet/policies", createPolicyEndpoint, fleet.CreatePolicyRequest{})
 	ue.GET("/api/_version_/fleet/policies", listPoliciesEndpoint, fleet.ListPoliciesRequest{})
@@ -406,12 +399,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
-	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies", teamPolicyEndpoint, fleet.TeamPolicyRequest{})
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/policies", listTeamPoliciesEndpoint, fleet.ListTeamPoliciesRequest{})
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/policies/count", countTeamPoliciesEndpoint, fleet.CountTeamPoliciesRequest{})
-	ue.GET("/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, fleet.GetTeamPolicyByIDRequest{})
-	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies/delete", deleteTeamPoliciesEndpoint, fleet.DeleteTeamPoliciesRequest{})
-	ue.PATCH("/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, fleet.ModifyTeamPolicyRequest{})
 	ue.WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, fleet.ApplyPolicySpecsRequest{})
 
 	ue.POST("/api/_version_/fleet/certificates", createCertificateTemplateEndpoint, createCertificateTemplateRequest{})
@@ -522,7 +509,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/hosts/{id:[0-9]+}/queries").GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports", listHostReportsEndpoint, listHostReportsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports", listHostReportsEndpoint, listHostReportsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, fleet.RemoveLabelsFromHostRequest{})
@@ -560,8 +547,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
 	ue.POST("/api/_version_/fleet/reports/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	ue.POST("/api/_version_/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
-	ue.POST("/api/_version_/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 
 	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, fleet.ListCarvesRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, fleet.GetCarveRequest{})
@@ -596,6 +581,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, fleet.LockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, fleet.UnlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, fleet.WipeHostRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/reset", resetHostEndpoint, fleet.ResetHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/clear_passcode", clearPasscodeEndpoint, clearPasscodeRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password", getHostManagedAccountPasswordEndpoint, getHostManagedAccountPasswordRequest{})
@@ -1136,9 +1122,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ne.WithCustomMiddleware(mdmSsoLimiter).
 		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMSSOEndpoint, callbackMDMSSORequest{})
-
-	// Register all deprecated URL path aliases from the declarative table.
-	endpointer.RegisterDeprecatedPathAliases(r, apiVersions, registry, deprecatedPathAliases)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
@@ -1648,4 +1631,37 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+const fleetctl4NotSupportedMessage = "Fleet 5.x isn't compatible with fleetctl 4.x. Upgrade fleetctl."
+
+// fleetctl4PreAuth refuses the version check that fleetctl 4 makes before anything else, so that it stops with an upgrade error. It
+// runs before auth so that an expired token gets this error too.
+func fleetctl4PreAuth(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !isFleetctl4Request(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			logger.WarnContext(r.Context(), "refused fleetctl 4 request", "uri", r.URL.Path, "user_agent", r.UserAgent(),
+				"ip_addr", r.RemoteAddr, "x_for_ip_addr", r.Header.Get("X-Forwarded-For"))
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusUpgradeRequired)
+			// No errors list: fleetctl 4 prints the message followed by the first error's reason, which would repeat it.
+			_ = json.NewEncoder(w).Encode(endpointer.JsonError{Message: fleetctl4NotSupportedMessage})
+		})
+	}
+}
+
+// isFleetctl4Request reports whether r looks like it comes from fleetctl 4, which doesn't send its version. It sends Go's default
+// User-Agent and JSON Content-Type and Accept headers even on a GET, which other Go clients rarely do. fleetctl 5 sends its version,
+// and admins can set its User-Agent to Go's default with custom headers (to get past a WAF, for example).
+func isFleetctl4Request(r *http.Request) bool {
+	if r.Header.Get(fleet.HeaderClientVersion) != "" {
+		return false
+	}
+	return strings.HasPrefix(r.UserAgent(), "Go-http-client/") &&
+		r.Header.Get("Content-Type") == "application/json" &&
+		r.Header.Get("Accept") == "application/json"
 }

@@ -695,7 +695,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
 
 - `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .py, or .ps1).
-- `app_store_apps` is a list of Apple App Store or Android Play Store apps.
+- `app_store_apps` is a list of Apple App Store or Google Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 - `patch_deadline_settings` sets when Fleet patches apps that have `patch_deadline` enabled. See [patch_deadline_settings](#patch-deadline-settings).
 
@@ -938,7 +938,7 @@ software:
 
 App Store apps support `path:` (single file) and `paths:` (glob pattern) references, so you can define an app once in a separate file and reference it from multiple fleets. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
-- `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
+- `app_store_id` is the ID of the Apple App Store or Google Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 
@@ -950,7 +950,7 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
   - Each version defines its own `self_service`, `categories`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration`. See [self_service, labels, categories, setup_experience, and display_name](#self-service-labels-categories-setup-experience-and-display-name) for the shared fields.
   - Up to 10 versions are supported per app.
   - If a host is in scope for more than one version, Fleet installs the one that was added first. Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
-- `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
+- `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<dict></dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
   + Android: all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`.
   - Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
@@ -983,7 +983,7 @@ software:
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
-With the default server configuration, GitOps supports over 200 Android Play Store apps per fleet. If `FLEET_LIVE_QUERY_REST_PERIOD` is set to `30s` or less, GitOps can time out with fewer apps.
+With the default server configuration, GitOps supports over 200 Google Play Store apps per fleet. If `FLEET_LIVE_QUERY_REST_PERIOD` is set to `30s` or less, GitOps can time out with fewer apps.
 
 #### Example
 

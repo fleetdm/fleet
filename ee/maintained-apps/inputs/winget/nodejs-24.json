@@ -1,8 +1,7 @@
 {
   "name": "Node.js 24",
   "slug": "nodejs-24/windows",
-  "package_identifier": "OpenJS.NodeJS.LTS",
-  "version_prefix": "24",
+  "package_identifier": "OpenJS.NodeJS.24",
   "unique_identifier": "Node.js",
   "exists_query": "SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '24.%';",
   "installer_arch": "x64",

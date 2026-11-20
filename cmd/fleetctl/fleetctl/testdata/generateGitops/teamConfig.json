@@ -41,11 +41,6 @@
         "failing_policies_webhook": {
             "enable_failing_policies_webhook": false,
             "destination_url": "https://some-team-failing_policies-webhook.com",
-            "policy_ids": [
-                1,
-                2,
-                3
-            ],
             "host_batch_size": 4
         },
         "host_activities_webhook": {

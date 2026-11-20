@@ -487,15 +487,17 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NotEmpty(t, addMAResp.SoftwareTitleID)
 
 	// Add the automatic install policy
-	tpParams := fleet.TeamPolicyRequest{
+	tpParams := fleet.CreatePolicyRequest{
+		TeamID:          new(uint(0)),
 		Name:            "[Install software]",
 		Query:           "select * from osquery;",
 		Description:     "Some description",
 		Platform:        "darwin",
 		SoftwareTitleID: &addMAResp.SoftwareTitleID,
+		AutomationType:  new(fleet.PolicyAutomationSoftware),
 	}
-	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &tpResp)
+	tpResp := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
@@ -554,11 +556,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
 	// Policy should appear in the list of policies
-	var listPolResp fleet.ListTeamPoliciesResponse
+	var listPolResp fleet.ListPoliciesResponse
 	s.DoJSON(
-		"GET", "/api/latest/fleet/fleets/0/policies",
-		fleet.ListTeamPoliciesRequest{},
+		"GET", "/api/latest/fleet/policies",
+		nil,
 		http.StatusOK, &listPolResp,
+		"fleet_id", "0",
 		"page", "0",
 	)
 
@@ -1035,13 +1038,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.True(t, activeSelfService(team.ID, titleID))
 
 	// A patch policy generated from the active v1.0 installer; the cron must keep its query on the active version.
-	var patchPolicy fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
-		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	var patchPolicy fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: &team.ID,
+		Type:   new("patch"), SoftwareTitleID: &titleID,
 	}, http.StatusOK, &patchPolicy)
 	patchPolicyQuery := func() string {
-		var resp fleet.GetTeamPolicyByIDResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		var resp fleet.GetPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
 		return resp.Policy.Query
 	}
 	require.Equal(t, warpQueryV1, patchPolicyQuery())
@@ -2551,23 +2555,25 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 	t.Run("no_team_patch_policy", func(t *testing.T) {
 		// add a regular "No team" policy
-		tpParams := fleet.TeamPolicyRequest{
-			Name:  "noTeamPolicy1",
-			Query: "SELECT 1;",
+		tpParams := fleet.CreatePolicyRequest{
+			TeamID: new(uint(0)),
+			Name:   "noTeamPolicy1",
+			Query:  "SELECT 1;",
 		}
-		r := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &r)
+		r := fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", tpParams, http.StatusOK, &r)
 		require.NotNil(t, r.Policy.TeamID)
 
 		// try to add a patch policy with a query, should fail
 		params := map[string]any{
-			"name":                    "test-2",
-			"query":                   "SELECT 1 FROM;",
-			"description":             "um",
-			"type":                    "patch",
-			"patch_software_title_id": 4484,
+			"fleet_id":          0,
+			"name":              "test-2",
+			"query":             "SELECT 1 FROM;",
+			"description":       "um",
+			"type":              "patch",
+			"software_title_id": 4484,
 		}
-		res := s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
+		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `If the "type" is "patch", the "query" field is not supported.`)
 		res.Body.Close()
@@ -2583,13 +2589,14 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		// try to add a patch policy that matches to an installer, but not an FMA
 		params = map[string]any{
-			"name":                    "test-3",
-			"query":                   "",
-			"description":             "um",
-			"type":                    "patch",
-			"patch_software_title_id": titleID,
+			"fleet_id":          0,
+			"name":              "test-3",
+			"query":             "",
+			"description":       "um",
+			"type":              "patch",
+			"software_title_id": titleID,
 		}
-		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusBadRequest)
+		res = s.Do("POST", "/api/latest/fleet/policies", params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Software installer for Fleet maintained app with title ID %d does not exist for fleet ID 0", titleID))
 		res.Body.Close()
@@ -2608,13 +2615,14 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		})
 
 		// add the same patch policy, but this time it belongs to an FMA
-		policyResp := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
-			Name:                 "",
-			Query:                "",
-			Description:          "",
-			Type:                 new("patch"),
-			PatchSoftwareTitleID: &titleID,
+		policyResp := fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:          new(uint(0)),
+			Name:            "",
+			Query:           "",
+			Description:     "",
+			Type:            new("patch"),
+			SoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
 		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
@@ -2626,13 +2634,14 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		// attempt to add the same policy again
 		params = map[string]any{
-			"name":                    "test-5",
-			"query":                   "",
-			"description":             "um",
-			"type":                    "patch",
-			"patch_software_title_id": titleID,
+			"fleet_id":          0,
+			"name":              "test-5",
+			"query":             "",
+			"description":       "um",
+			"type":              "patch",
+			"software_title_id": titleID,
 		}
-		res = s.Do("POST", "/api/latest/fleet/fleets/0/policies", params, http.StatusConflict)
+		res = s.Do("POST", "/api/latest/fleet/policies", params, http.StatusConflict)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Couldn't add. Specified "patch_software_title_id" already has a policy with "type" set to "patch".`)
 		res.Body.Close()
@@ -2641,7 +2650,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		params = map[string]any{
 			"query": "blablabla",
 		}
-		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `"query" can't be updated`)
 		res.Body.Close()
@@ -2650,7 +2659,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		params = map[string]any{
 			"platform": "windows,linux",
 		}
-		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusBadRequest)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), params, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `"platform" can't be updated`)
 		res.Body.Close()
@@ -2660,19 +2669,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			"name":        "test-6-new-name",
 			"description": "new description",
 		}
-		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), params, http.StatusOK)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), params, http.StatusOK)
 		res.Body.Close()
 
 		// list policies
-		var listPolResp fleet.ListTeamPoliciesResponse
-		s.DoJSON("GET", "/api/latest/fleet/fleets/0/policies", fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		var listPolResp fleet.ListPoliciesResponse
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", "0", "page", "0")
 		require.Len(t, listPolResp.Policies, 2)
 		require.NotNil(t, listPolResp.Policies[1].PatchSoftware)
 		require.Equal(t, titleID, listPolResp.Policies[1].PatchSoftware.SoftwareTitleID)
 
 		// get policy by id
-		getPolicyResp := fleet.GetTeamPolicyByIDResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
+		getPolicyResp := fleet.GetPolicyByIDResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
 		require.NotNil(t, getPolicyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, getPolicyResp.Policy.PatchSoftware.SoftwareTitleID)
 	})
@@ -2680,11 +2689,10 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	t.Run("global_patch_policy", func(t *testing.T) {
 		// Patch policies need a fleet; without fleet_id the policy would be an "All fleets" policy.
 		params := map[string]any{
-			"name":                    "global-policy",
-			"query":                   "UNAFFECTED;",
-			"description":             "patch policies only work for teams",
-			"type":                    "patch",
-			"patch_software_title_id": 1,
+			"name":        "global-policy",
+			"query":       "UNAFFECTED;",
+			"description": "patch policies only work for teams",
+			"type":        "patch",
 		}
 		res := s.Do("POST", "/api/latest/fleet/policies", params, http.StatusBadRequest)
 		require.Contains(t, extractServerErrorText(res.Body), `"All fleets" policy cannot be a patch policy`)
@@ -2729,10 +2737,11 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		updateInstallerFMAID(fmaID, teamID, titleID)
 
 		// add a patch policy
-		policyResp := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), fleet.TeamPolicyRequest{
-			Type:                 new("patch"),
-			PatchSoftwareTitleID: &titleID,
+		policyResp := fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:          &teamID,
+			Type:            new("patch"),
+			SoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 
 		// attempt to delete installer
@@ -2742,10 +2751,9 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res.Body.Close()
 
 		// remove patch policy and delete installer
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", teamID), fleet.DeleteTeamPoliciesRequest{
-			TeamID: teamID,
-			IDs:    []uint{policyResp.Policy.ID},
-		}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
+		s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
+			IDs: []uint{policyResp.Policy.ID},
+		}, http.StatusOK, &fleet.DeletePoliciesResponse{})
 
 		// can delete installer successfully
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", strconv.Itoa(int(teamID))) //nolint:gosec // dismiss G115
@@ -2819,8 +2827,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		title := getActiveTitleForTeam(team.ID, "zoom")
 
-		listPolResp := fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp := fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 
@@ -2842,8 +2850,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		// This is only set if the automation is enable
@@ -2867,8 +2875,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		require.Nil(t, listPolResp.Policies[0].InstallSoftware)
@@ -2896,8 +2904,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		)
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.2", title.ID)
 
@@ -2923,8 +2931,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		)
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 
@@ -2954,8 +2962,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		)
 		title = getActiveTitleForTeam(team.ID, "zoom")
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team.ID), "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.3", title.ID)
 		checkPolicyInstaller(listPolResp.Policies[0].ID, "1.3")
@@ -3015,8 +3023,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			http.StatusOK, &applyResp,
 		)
 
-		listPolResp := fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp := fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team2.ID), "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 
 		// Pin FMA versions to 1.2, queries should update
@@ -3036,8 +3044,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			http.StatusOK, &applyResp,
 		)
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team2.ID), "page", "0")
 		checkPolicies(listPolResp.Policies, "1.2")
 
 		// Rollback FMA versions to 1.0, queries should use older versions
@@ -3057,8 +3065,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			http.StatusOK, &applyResp,
 		)
 
-		listPolResp = fleet.ListTeamPoliciesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		listPolResp = fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(team2.ID), "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 	})
 
@@ -3089,14 +3097,15 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		updateInstallerFMAID(fma.ID, teamID, titleID)
 
 		policyPath := func(policyID uint) string {
-			return fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", teamID, policyID)
+			return fmt.Sprintf("/api/latest/fleet/policies/%d", policyID)
 		}
 
 		// Creating with the flag forces continuous automations on without the request saying so.
-		policyResp := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), fleet.TeamPolicyRequest{
+		policyResp := fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:                       &teamID,
 			Type:                         new("patch"),
-			PatchSoftwareTitleID:         &titleID,
+			SoftwareTitleID:              &titleID,
 			NotifyBeforePatching:         true,
 			ContinuousAutomationsEnabled: true,
 		}, http.StatusOK, &policyResp)
@@ -3106,7 +3115,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.True(t, policyResp.Policy.ContinuousAutomationsEnabled)
 
 		// The flag survives a round trip through the wire, not just the create response.
-		getPolicyResp := fleet.GetTeamPolicyByIDResponse{}
+		getPolicyResp := fleet.GetPolicyByIDResponse{}
 		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
 		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
 
@@ -3135,14 +3144,14 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false, "notify_before_patching": false}, http.StatusOK).Body.Close()
 		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusOK).Body.Close()
 
-		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		getPolicyResp = fleet.GetPolicyByIDResponse{}
 		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
 		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
 		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
 
 		// Switching to patch_deadline displaces notify_before_patching and reads back on the policy and the title.
 		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": false, "patch_deadline": true}, http.StatusOK).Body.Close()
-		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		getPolicyResp = fleet.GetPolicyByIDResponse{}
 		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
 		require.True(t, getPolicyResp.Policy.PatchDeadline)
 		require.False(t, getPolicyResp.Policy.NotifyBeforePatching)
@@ -3163,7 +3172,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res.Body.Close()
 
 		// The flag is only for patch policies.
-		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), map[string]any{
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":                       teamID,
 			"name":                           "dynamic-notify",
 			"query":                          "SELECT 1;",
 			"notify_before_patching":         true,
@@ -3530,8 +3540,8 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		return *id
 	}
 	patchPolicyQuery := func(policyID uint) string {
-		var resp fleet.GetTeamPolicyByIDResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
+		var resp fleet.GetPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &resp)
 		return resp.Policy.Query
 	}
 
@@ -3548,13 +3558,16 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	// Dependencies on the title: an install-automation policy (carries software_installer_id, re-pointed to the
 	// active installer on a flip) and a patch policy (title-scoped via patch_software_title_id, never re-pointed).
-	var installPol fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
-		Name: "install zoom", Query: "SELECT 1 FROM osquery_info;", SoftwareTitleID: &titleID,
+	var installPol fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: &team.ID,
+		Name:   "install zoom", Query: "SELECT 1 FROM osquery_info;", SoftwareTitleID: &titleID,
+		AutomationType: new(fleet.PolicyAutomationSoftware),
 	}, http.StatusOK, &installPol)
-	var patchPol fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
-		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	var patchPol fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: &team.ID,
+		Type:   new("patch"), SoftwareTitleID: &titleID,
 	}, http.StatusOK, &patchPol)
 
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
@@ -3608,12 +3621,22 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
-	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
-	patchVersion("^9")
-	requireLastPinActivity(new("^9"))
+	// Pin the older 1.0, then pin a caret with no cached installer in that major, the PATCH should be rejected
+	// and the pin and active version left on 1.0.
+	patchVersion("1.0")
+	requireLastPinActivity(new("1.0"))
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"fleet_id": {fmt.Sprint(team.ID)},
+		"version":  {"^9"},
+	})
+	resp := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusNotFound, headers)
+	errMessage := extractServerErrorText(resp.Body)
+	resp.Body.Close()
+	require.Contains(t, errMessage, "specified major version is not available")
+	requireLastPinActivity(new("1.0"))
 	p = getPkg()
-	require.Equal(t, "2.0", p.Version)
-	require.Equal(t, new("^9"), p.PinnedVersion)
+	require.Equal(t, "1.0", p.Version)
+	require.Equal(t, new("1.0"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 
 	// Empty clears the pin row, back to Latest.
@@ -3737,7 +3760,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	// --- Validation ---
 
 	// "version" can't be changed in the same PATCH as another field.
-	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 		"fleet_id":       {fmt.Sprint(team.ID)},
 		"version":        {"2.0"},
 		"install_script": {"echo changed"},
@@ -3774,9 +3797,9 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, 1, pinRowCount())
 
 	// The policies attached above block a delete, so remove them first.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team.ID),
-		fleet.DeleteTeamPoliciesRequest{IDs: []uint{installPol.Policy.ID, patchPol.Policy.ID}},
-		http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete",
+		fleet.DeletePoliciesRequest{IDs: []uint{installPol.Policy.ID, patchPol.Policy.ID}},
+		http.StatusOK, &fleet.DeletePoliciesResponse{})
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 	require.Equal(t, 0, pinRowCount(), "deleting an FMA must delete its pin row")

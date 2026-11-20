@@ -724,14 +724,16 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	if maybeTmID != nil || maybeTmName != nil {
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return nil, nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil (Unassigned), which is fine: a dry run returns before
+			// anything fleet-specific is read or written.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return nil, err
 			}
-			return nil, err
+		} else {
+			teamID = &team.ID
+			teamName = &team.Name
 		}
-		teamID = &team.ID
-		teamName = &team.Name
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -755,8 +757,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 
 		// unlike the embedded secrets validation below, this is a static check,
 		// so it runs before the post-loop dryRun return to surface errors on
-		// gitops dry runs (like the rest of this loop, it is skipped when a dry
-		// run targets a team that doesn't exist yet)
+		// gitops dry runs
 		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
 			// re-key validation errors on the indexed field, matching the rest
 			// of this loop, so callers can tell which script failed
@@ -1262,14 +1263,14 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.WipeHostRequest)
-	if err := svc.WipeHost(ctx, req.HostID, req.Metadata); err != nil {
+	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return fleet.WipeHostResponse{Err: err}, nil
 	}
 	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
 	return fleet.WipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeMetadata) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -1343,4 +1344,25 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")
 	}
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset host
+////////////////////////////////////////////////////////////////////////////////
+
+func resetHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ResetHostRequest)
+	if err := svc.ResetHost(ctx, req.HostID); err != nil {
+		return fleet.ResetHostResponse{Err: err}, nil
+	}
+	// A locked, wiped or reset host is rejected, so the host is unlocked here.
+	return fleet.ResetHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionReset}, nil
+}
+
+func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

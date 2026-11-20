@@ -126,7 +126,7 @@ func fakeID(prefix, seed string) string {
 
 // fakeDeviceID is the resource ID of the i-th fake record of an iOS host.
 func fakeDeviceID(hostUUID string, i int) string {
-	return fakeID("dev", "IOS:"+hostUUID+"/"+strconv.Itoa(i))
+	return fakeID("dev", "IOS:"+hostUUID+"/"+strconv.Itoa(i)) + "%3D"
 }
 
 // fakeUserID is the same with and without the Google surface, so a host keeps its names
