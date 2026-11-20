@@ -1528,6 +1528,7 @@ This activity contains the following fields:
 - [edited_macos_min_version](#edited-macos-min-version)
 - [edited_ios_min_version](#edited-ios-min-version)
 - [edited_ipados_min_version](#edited-ipados-min-version)
+- [edited_tvos_min_version](#edited-tvos-min-version)
 - [edited_windows_updates](#edited-windows-updates)
 - [enabled_macos_update_new_hosts](#enabled-macos-update-new-hosts)
 - [disabled_macos_update_new_hosts](#disabled-macos-update-new-hosts)
@@ -1623,6 +1624,29 @@ This activity contains the following fields:
   "fleet_name": "iPads",
   "minimum_version": "17.5.1",
   "deadline": "2023-06-01"
+}
+```
+
+### edited_tvos_min_version
+
+Generated when the minimum required tvOS version or deadline is modified.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the minimum tvOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the minimum tvOS version applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "minimum_version": The minimum tvOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 5,
+  "team_name": "Apple TVs",
+  "fleet_id": 5,
+  "fleet_name": "Apple TVs",
+  "minimum_version": "26.1",
+  "deadline": "2026-12-31"
 }
 ```
 
@@ -3675,15 +3699,15 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `tvos`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "version_name": Name of the admin-created App Store app version. Defaults to "Default version" when the admin didn't set one.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
-- "auto_update_enabled": Whether automatic updates are enabled for this version (iOS and iPadOS only; omitted when unset).
+- "configuration": The app's managed configuration, if set. For iOS, iPadOS, and tvOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "auto_update_enabled": Whether automatic updates are enabled for this version (iOS, iPadOS, and tvOS only; omitted when unset).
 - "auto_update_window_start": Start of the auto-update maintenance window in `HH:MM` host local time (omitted when unset).
 - "auto_update_window_end": End of the auto-update maintenance window in `HH:MM` host local time (omitted when unset).
 
@@ -3722,13 +3746,13 @@ Generated when an App Store app is deleted from Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `tvos`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "version_name": Name of the admin-created App Store app version that was deleted. Defaults to "Default version" when the admin didn't set one.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS, iPadOS, and tvOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
@@ -3772,7 +3796,7 @@ This activity contains the following fields:
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
-- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
+- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "tvos", "android").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
@@ -3805,18 +3829,18 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `tvos`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
-- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
-- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
-- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS/tvOS App Store (VPP) apps.
+- "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS/tvOS App Store (VPP) apps, formatted as HH:MM.
+- "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS/tvOS App Store (VPP) apps, formatted as HH:MM.
 - "version_name": Name of the admin-created App Store app version that was edited. Defaults to "Default version" when the admin didn't set one.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS, iPadOS, and tvOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 
 #### Example

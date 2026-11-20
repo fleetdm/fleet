@@ -2,7 +2,9 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts, including custom apps.
+In Fleet, you can install Apple App Store apps on your macOS, iOS, iPadOS, and tvOS hosts, including custom apps.
+
+> Self-service isn't available for tvOS apps. Apple TVs have no browser and no **My device** page.
 
 You can also manage which Google Play Store apps are available for self-service in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
@@ -68,7 +70,7 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 5. To remove the app, expand the app's version and click the trash can (delete) icon. If the app has more than one version, delete each version.
 
-## Configure automatic updates for an app (iOS / iPadOS only)
+## Configure automatic updates for an app (iOS / iPadOS / tvOS only)
 
 > Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
 
@@ -84,7 +86,7 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 ### Apple (VPP)
 
-Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+Currently, configuration for Apple hosts is supported on iOS, iPadOS, and tvOS. Managed configuration is often referred to as App Config.
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
@@ -224,4 +226,4 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-01-08">
-<meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">
+<meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, tvOS, and Android hosts.">
