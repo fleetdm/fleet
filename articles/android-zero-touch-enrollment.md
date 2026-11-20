@@ -64,7 +64,7 @@ When it's on:
 - Hosts that are already enrolled stay enrolled.
 - The enrollment page doesn't show a QR code for company-owned devices or a link to add a work profile on personal devices.
 
-If someone wipes a company-owned device that isn't registered in the zero-touch portal, they can't re-enroll it with a QR code. To enroll it, register the device in the zero-touch portal or turn the setting off.
+If someone wipes a company-owned device that isn't registered in the zero-touch portal, they can't re-enroll it with a QR code. To enroll it, [register the device in the zero-touch portal](#step-4-register-test-devices) or turn the setting off.
 
 ## Troubleshoot
 
