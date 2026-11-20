@@ -136,7 +136,7 @@ There's nothing to deploy on Android. Fleet registers each company-owned Android
 
 The end user's Google Workspace account has to be on the device. Fleet registers the host within minutes of that account's first check-in with Google.
 
-If Google doesn't list the device yet, Fleet tries again every 5 minutes for the first 3 tries, and then once an hour.
+If Google doesn't list the device yet, Fleet tries again every 5 minutes for the first 3 attempts, and then once an hour.
 
 ## Step 7: Turn on blocking
 
