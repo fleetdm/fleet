@@ -2678,22 +2678,62 @@ func TestDistributedReadSkipsUnsavedResend(t *testing.T) {
 	require.True(t, detail)
 	require.True(t, policy)
 
-	// The results were never saved (e.g. the write failed), so the next check-in doesn't resend them.
+	// The results were never saved (e.g. the write failed), so the next check-in doesn't resend them or look up the
+	// host's policies.
 	mockClock.AddTime(10 * time.Second)
+	ds.PolicyQueriesForHostFuncInvoked = false
 	detail, policy = sent()
 	require.False(t, detail)
 	require.False(t, policy)
+	require.False(t, ds.PolicyQueriesForHostFuncInvoked)
+
+	// If Redis fails, they're sent as before.
+	get := kv.GetFunc
+	kv.GetFunc = func(ctx context.Context, key string) (*string, error) {
+		return nil, errors.New("redis down")
+	}
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
+	kv.GetFunc = get
+
+	// A refetch isn't held back.
 	host.RefetchRequested = true
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
+	host.RefetchRequested = false
+
+	// Once a write saves the timestamps, they're sent again when next due, and held back again after that.
+	host.DetailUpdatedAt = mockClock.Now()
+	host.PolicyUpdatedAt = mockClock.Now()
+	mockClock.AddTime(2 * time.Hour)
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
 	detail, policy = sent()
 	require.False(t, detail)
 	require.False(t, policy)
 
-	// Once a write saves the timestamps, a refetch goes out right away.
-	host.DetailUpdatedAt = mockClock.Now()
-	host.PolicyUpdatedAt = mockClock.Now()
-	detail, policy = sent()
-	require.True(t, detail)
+	// Setup experience can send no policies without saving the timestamp, so that doesn't hold them back afterwards.
+	host.PolicyUpdatedAt = time.Time{}
+	inSetup := true
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		if !inSetup {
+			return nil, nil
+		}
+		return []*fleet.SetupExperienceStatusResult{{SoftwareInstallerID: new(uint(1)), Status: fleet.SetupExperienceStatusPending}}, nil
+	}
+	ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
+		return nil, nil
+	}
+	_, policy = sent()
+	require.False(t, policy)
+	inSetup = false
+	_, policy = sent()
 	require.True(t, policy)
+
+	require.Len(t, ttls, 5)
 	for _, ttl := range ttls {
 		require.Equal(t, unsavedResendTTL, ttl)
 	}

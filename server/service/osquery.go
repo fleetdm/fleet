@@ -1334,8 +1334,8 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
 	var criticalQueriesOnly bool
-	due := svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) || host.RefetchRequested
-	if !due || svc.skipUnsavedResend(ctx, "detail", host.ID, host.DetailUpdatedAt) {
+	if !host.RefetchRequested && (!svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) ||
+		svc.skipUnsavedResend(ctx, "detail", host.ID, host.DetailUpdatedAt)) {
 		// would not return anything, check if critical queries should be returned
 		if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()) {
 			// return only those critical queries
@@ -1444,6 +1444,7 @@ const unsavedResendTTL = 5 * time.Minute
 
 // skipUnsavedResend reports whether queries of the given kind were sent to the host within unsavedResendTTL and the
 // host's timestamp for them hasn't moved since, i.e. their results weren't saved. Otherwise it records this send.
+// Refetches don't use it: any write clears refetch_requested, so holding one back could drop it.
 func (svc *Service) skipUnsavedResend(ctx context.Context, kind string, hostID uint, updatedAt time.Time) bool {
 	if svc.keyValueStore == nil {
 		return false
@@ -1563,7 +1564,8 @@ func (svc *Service) hostDueForLiveQuery(ctx context.Context, hostID uint) string
 // labelQueriesForHost and policyQueriesForHost: any single gate being due
 // means the host's next distributed/read carries work. It returns the first
 // due gate's reason ("" when none); the reason is informational only, so ties
-// are not enumerated.
+// are not enumerated. It doesn't check skipUnsavedResend, so a host held back
+// there is still notified and reads nothing.
 func (svc *Service) hostDueForDistributedRead(host *fleet.Host) string {
 	switch {
 	case host.RefetchRequested:
@@ -1681,9 +1683,6 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
 	}
-	if svc.skipUnsavedResend(ctx, "policy", host.ID, host.PolicyUpdatedAt) {
-		return nil, false, nil
-	}
 	// This must come after the check above to avoid unnecessary queries to the database. Most
 	// requests from live connected hosts will not reach this point
 	hostRunningSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
@@ -1715,6 +1714,10 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		// detects that and falls back to installing the item, so we don't flag the host as "no policies" (which would bump the
 		// policy timestamp).
 		return policyQueries, false, nil
+	}
+	// Setup experience can send no policies without saving the timestamp, so it isn't backed off.
+	if !host.RefetchRequested && svc.skipUnsavedResend(ctx, "policy", host.ID, host.PolicyUpdatedAt) {
+		return nil, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
