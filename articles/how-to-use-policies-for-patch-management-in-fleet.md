@@ -91,9 +91,9 @@ Save and give it an intuitive name, we recommend something like:
 
 _macOS - Update Google Chrome to Latest_
 
-With the policy set, we can tie in the automation. Back on the main policy page, select **Manage automations > Install software**.
+With the policy set, we can tie in the automation. When you save the policy, select **Install software** from the **Automation** dropdown. (For an existing policy, click its **Automation** cell in the **Policies** table.)
 
-The module will show the policies available for that fleet. Check the box to turn on automation, and from the dropdown, select the software that will be installed on the failure. The dropdown will show all available software in that fleet - plus its supported OS and version.
+From the **Software** dropdown, select the software that will be installed on failure, then click **Save**. The dropdown shows all available software in that fleet, plus its supported OS and version.
 
 And that’s it! Policies are evaluated across all online hosts every hour, or when a device is refetched manually. Any machine that fails this policy will install the Chrome version that was set in the policy.
 

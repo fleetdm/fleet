@@ -16,14 +16,9 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 > The bundle ID for a macOS app can be found in the `bundle_identifier` field when [viewing the associated software title via the API](https://fleetdm.com/docs/rest-api/rest-api#get-software).
 
-3. In the **Policies** tab, select the **Manage automations** button on the top-right, then select **Install software** from the context menu that pops up.
+3. When you save the policy, select **Install software** from the **Automation** dropdown. For an existing policy, click the policy's **Automation** cell in the **Policies** table to open the **Manage automations** modal, or go to the **Edit policy** page.
 
-![Manage policies](../website/assets/images/articles/automatic-software-install-policies-manage-692x199@2x.png)
-
-4. Select the checkbox next to your newly created policy's name. To the right of it select from the
-   drop-down list the software you would like to be installed upon failure of this policy.
-
-![Install software modal](../website/assets/images/articles/automatic-software-install-install-software-398x259@2x.png)
+4. From the **Software** dropdown, select the software you want to install when a host fails this policy, and click **Save**.
 
 > If a software title has more than one [custom package](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title), you can select which package to install. Fleet selects the package that was added first by default. Fleet installs the package on hosts within that package's label scope.
 
@@ -31,7 +26,7 @@ Once the software is installed, Fleet will automatically refetch the host's vita
 
 Policy automation software installs are automatically attempted up to 3 total times per policy run. Each time the policy runs and fails, Fleet triggers the software install again, up to a total of 3 attempts. If the host passes the policy, the retry count resets. Across policy runs, Fleet attempts the install up to 10 times per host, then waits 24 hours before retrying.
 
-If the software install still fails after all attempts, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
+If the software install still fails after all attempts, you can trigger the install on all targeted hosts again. To do this, go to the policy's details page and, under **Automation runs**, select **Reset policy**. Fleet resets the policy's results so the automation runs again on hosts that fail it. Learn more in the [Automations guide](https://fleetdm.com/guides/automations#policy-automations).
 
 If software has a custom target (labels), it will only be installed on hosts within that scope. Similarly, if a policy has a custom target, it will only run on hosts within that scope. When the scopes differ, each behaves independently. For example, if the policy has a broader scope than the software: the policy runs on all hosts in its scope and reports pass/fail for each, but the automatic installation only triggers on hosts that fall within the software's (narrower) scope.
 
@@ -45,7 +40,7 @@ If software has a custom target (labels), it will only be installed on hosts wit
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*
 
-App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, go to the app's policy details page and, under **Automation runs**, select **Reset policy**.
 
 Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
 
