@@ -31,6 +31,7 @@ interface IStatusMessages {
   account_disabled: string;
   account_invalid: string;
   org_disabled: string;
+  session_expired: string;
   error: string;
 }
 
@@ -39,6 +40,8 @@ const statusMessages: IStatusMessages = {
     "Single sign-on is not enabled on your account. Please contact your Fleet administrator.",
   account_invalid: "You do not have a Fleet account.",
   org_disabled: "Single sign-on is not enabled for your organization.",
+  session_expired:
+    "Your session may have timed out. Please try again. Contact your Fleet administrator if the error persists.",
   error:
     "There was an error with single sign-on. Please contact your Fleet administrator.",
 };
