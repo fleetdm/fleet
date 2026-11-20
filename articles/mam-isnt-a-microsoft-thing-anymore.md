@@ -14,7 +14,9 @@ That was the second time that day. Earlier, I'd spent an afternoon researching B
 
 That used to be true. It isn't anymore.
 
-Here's what mobile app management (MAM) comes down to once you strip off the branding. First, you decide which apps can sign in. Whoever issues the mail token gets to say which apps receive one. Microsoft uses Conditional Access to let Outlook in, and Google's Admin console does the same for Gmail. Either way, the built-in iPhone Mail app is out. Second, those apps keep work data in. They can block copy-paste into personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google has the same switches in Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS.
+> **What is MAM?** Mobile app management is just a way to keep work data inside work apps: it blocks copy-paste, saving, and sharing out of apps like Outlook or Gmail. Like any data loss prevention, it never fully works, because anyone can take a picture of the screen with another phone, or write down what they saw with a pencil.
+
+Under the hood, it comes down to two controls. First, you decide which apps can sign in. Whoever issues the mail token gets to say which apps receive one. Microsoft uses Conditional Access to let Outlook in, and Google's Admin console does the same for Gmail. Either way, the built-in iPhone Mail app is out. Second, those apps keep work data in. They can block copy-paste into personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google has the same switches in Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS.
 
 Microsoft got there first, and Intune app protection works well. But there's no secret deal with Apple behind it. Each vendor controls its own sign-in and its own apps.
 
@@ -35,6 +37,10 @@ Skipping enrollment also makes for a rougher first day. A new hire without MDM a
 With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. (Apple calls this [Account-driven User Enrollment](https://support.apple.com/guide/deployment/dep23db2037d/web).) Gmail or Outlook shows up already signed in, because IT set it up ahead of time. Work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes away and the personal side stays.
 
 ![Enrolling a personal iPhone with a work account keeps work and personal data separate](../website/assets/images/articles/apple-account-driven-user-enrollment-800x400@2x.png)
+
+Android is just as quick. The employee opens Fleet's enrollment page, taps **Enroll**, and Android sets up a work profile that keeps work apps separate from personal ones.
+
+![Fleet's enrollment page for a personal Android phone](../website/assets/images/articles/android-byod-enroll-page-206x200@2x.png)
 
 Those enrollment numbers aren't fixed. Enrolling a personal phone feels like a leap of faith. Make enrollment easy. Tell people plainly what IT can and can't see, and what they're giving up. More of them will say yes. For the rest, conditional access is the best way to require it: no enrollment, no work apps.
 
