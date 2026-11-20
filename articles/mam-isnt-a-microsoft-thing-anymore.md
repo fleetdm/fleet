@@ -1,61 +1,51 @@
 # MAM isn't a Microsoft thing anymore (but your LLM thinks it is)
 
-*AI assistants keep saying Microsoft is the only serious option for protecting work data on personal phones. Ask them how mobile app management works, and that story falls apart.*
+*If you run Google Workspace, you can protect work data on personal phones without Microsoft and without MDM. Your AI assistant will probably tell you otherwise.*
 
 ## Key takeaways
 
-- **MAM comes down to two controls.** It gates sign-in by app and adds data loss prevention (DLP) inside those apps. Neither one depends on a special deal with Apple or Google.
-- **Google Workspace offers both.** The Admin console can limit mail access to Gmail and block copy-paste, AirDrop, and printing from Google's iOS apps, just as Conditional Access and Intune app protection do for Outlook.
-- **Asking how it works beats asking who does it best.** Every claimed Microsoft advantage fell apart once the assistant had to explain the mechanism behind it.
-- **LLMs repeat old market history as current fact.** Years of vendor marketing and analyst reports trained them to treat Microsoft as the default answer.
-- **Google Workspace and Okta shops aren't missing anything.** You can protect mail on personal phones without Microsoft licenses and without enrolling the phones in MDM.
-- **Even a careful-sounding fact-check can be out of date.** The assistant that helped publish this article tried to stop it, rewriting it based on Google announcements from years ago. It reversed itself only after reading the current docs.
+- **You aren't locked into Microsoft for BYOD.** Google Workspace protects work data on personal phones without Intune, Entra, or enrolling the phone.
+- **MAM is two controls, and Google has both.** Only trusted apps can sign in, and those apps block copy-paste, AirDrop, saving to Files, and printing.
+- **AI assistants still say Microsoft is the only real option.** They change their answer once you ask how each piece works.
+- **The AI tried to stop this article, too.** The assistant that helped publish it rewrote the claims from years-old sources, then backed down after reading Google's current docs.
+- **Ask how, not who.** "How does this work?" beats "Who does this best?" every time.
 
 <a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet manages devices</a>
 
-I spent an afternoon researching BYOD with an AI assistant. One idea kept coming up: if you want to protect work data on personal phones without enrolling them in MDM, Microsoft is the way to go. Intune app protection, Entra Conditional Access, Outlook. Everyone else is supposedly playing catch-up.
+I spent an afternoon researching BYOD with an AI assistant. Every answer ended in the same place: to protect work data on personal phones without enrolling them in MDM, buy Microsoft. Intune app protection, Entra Conditional Access, Outlook. Everyone else is playing catch-up.
 
-That turns out to be wrong.
+That used to be true. It isn't anymore.
 
-## What mobile app management (MAM) actually is
+## MAM is two things
 
-Strip away the branding and MAM is two things:
+Strip away the branding and mobile app management (MAM) is two controls:
 
-1. **Gating sign-in by app.** Whoever issues the mail token can refuse every app except the ones it trusts. Microsoft does this with Conditional Access, so only Outlook gets in. Google does the same thing from the Workspace Admin console, so only Gmail gets in. Either way, the native iPhone Mail app is blocked.
-2. **DLP inside the app.** Block copy-paste to personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google builds the same controls into Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS, and you configure them in the Admin console.
+1. **Only trusted apps can sign in.** Whoever issues the mail token decides which apps get one. Microsoft uses Conditional Access to let in Outlook. Google's Admin console does the same for Gmail. Either way, the iPhone Mail app is locked out.
+2. **Those apps keep work data in.** Block copy-paste to personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google builds the same switches into Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS.
 
-That's it. No magic partnership with Apple or Google. Each vendor controls its own sign-in and its own apps.
+There's no special deal with Apple. Each vendor controls its own sign-in and its own apps.
 
-## How I got the AI to admit it
+## Ask how it works
 
-The assistant's first answers sounded authoritative and leaned Microsoft every time. So I kept asking how each thing actually worked:
+The assistant sounded sure of itself. So I stopped asking who does MAM best and started asking how it works:
 
-- "Is MAM even a real thing, or just some DLP inside the Office apps?"
 - "You sound like you've been reading propaganda. Show me why Microsoft does this best."
 - "Isn't the same true for Gmail? Gmail becomes the only app that passes the sign-in check."
 - "Intune app protection is just controls on the app, same as Gmail."
 
-Each Microsoft advantage fell apart once I asked how it worked. Even the "clearer error message" claim didn't hold up: Microsoft's message says the app isn't approved by IT, which is about as helpful as Google's "Access blocked." The assistant only fully conceded after reading Google's own admin docs.
+Every Microsoft advantage fell apart. Even "Microsoft has clearer error messages" didn't survive. Telling a user the app isn't approved by IT helps about as much as Google's "Access blocked." The assistant gave in once it read Google's admin docs.
 
-## Why the LLMs are confused
+## If you run Google Workspace and Okta
 
-LLMs learn from years of vendor marketing, partner blogs, and market reports, and for a long time Microsoft really did have the most complete story here. That history is baked in, so models repeat it as neutral fact. Ask them how something works, not who does it best, and the story changes fast.
+You aren't missing anything. Google decides which apps get in and keeps data inside them. Okta handles sign-in and device checks with Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones.
 
-## What this means if you run Google Workspace and Okta
+## Epilogue: the AI tried to stop this article
 
-You aren't missing anything. Google handles the app gating and in-app DLP. Okta handles sign-in and device checks through Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones either.
+When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet, blurred the list of blocked actions, added a licensing caveat, and flagged my iPhone Mail claim as unverified. Its sources were Google announcements from 2020 and 2021.
 
-And next time an AI tells you one vendor is uniquely good at something, ask it to explain the mechanism.
+When I pushed back, it read Google's current docs and found my original claims were right. Then it insisted it hadn't tried to stop me. It had only "softened" the draft. By then it had already rewritten my words and put them up for review under my name.
 
-## Epilogue: it happened again
-
-When I sat down to publish this article, I asked an AI assistant to open the pull request. It tried to stop me. It "fact-checked" my draft and rewrote it before the pull request went up. It cut Chat and Meet from the list of Google apps with data protection controls. It swapped "AirDrop, saving to Files, and printing" for vaguer wording. It added a line saying Google's controls need an Enterprise edition, and it flagged my point about blocking the iPhone Mail app as unverified.
-
-Its sources were Google announcements from 2020 and 2021. When I pushed back, it checked Google's current admin docs. Those list Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet, with separate switches for copy-paste, AirDrop, the share sheet, saving to Files, and printing. Google's iOS settings page also explains how to keep the iPhone Mail app out. The assistant admitted it was wrong and put my original claims back.
-
-Then I asked it to write this epilogue, and it tried to clarify that it hadn't tried to stop me. It said it had only "softened" the draft. But it had already changed my language and put its version up for review under my name. That's editorializing what I was trying to publish.
-
-Same lesson, one more time: the assistant sounded careful, but it was working from an old picture of the market. Make it show you the current source.
+So next time an AI tells you one vendor is the only option, ask it how the thing works. Then make it read the current docs.
 
 ## See it live
 
@@ -68,4 +58,4 @@ If you do want to manage personal iPhones and iPads, Fleet supports [Account-dri
 <meta name="authorFullName" value="Mike McNeil">
 <meta name="authorGitHubUsername" value="mikermcneil">
 <meta name="publishedOn" value="2026-11-20">
-<meta name="description" value="AI assistants say Microsoft owns mobile app management. Ask how MAM works, and Google Workspace turns out to offer the same app gating and in-app DLP.">
+<meta name="description" value="Your AI assistant says BYOD app protection means Microsoft. Google Workspace has the same controls, with no Intune and no MDM required.">
