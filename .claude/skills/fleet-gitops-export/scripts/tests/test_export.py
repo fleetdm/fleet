@@ -1,6 +1,7 @@
 """Offline tests for the export scripts. Run: python3 -m unittest discover -s scripts/tests"""
 
 import argparse
+import io
 import json
 import re
 import shutil
@@ -8,11 +9,14 @@ import stat
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
+import fleet_defaults  # noqa: E402
 import gitops_export  # noqa: E402
 from checks import PLACEHOLDER, Checker, load_yaml, read_env_file, yaml_backend  # noqa: E402
 from collect import Collector  # noqa: E402
@@ -28,12 +32,19 @@ TEMPLATES = REPO / "cmd/fleetctl/fleetctl/templates/new"
 DEPRECATIONS = REPO / "pkg/spec/gitops_deprecations.go"
 POINTER = REPO / ".agents/skills/fleet-gitops-export/SKILL.md"
 FLEET_SCRIPTS = REPO / "pkg/file"
-DEFAULT_SCRIPTS = HERE.parent / "fleet_default_scripts"
+DEFAULT_SCRIPTS = FLEET_SCRIPTS / "scripts"
+if not DEFAULT_SCRIPTS.exists():
+    # The tests run offline, so outside the Fleet repository stand-ins with the same placeholders take the defaults' place.
+    fleet_defaults.use({name: f'# {name}\nremove "$UPGRADE_CODE"\n' if "upgrade_code" in name else f"# {name}\npackage=$PACKAGE_ID\n"
+                        for name in fleet_defaults.NAMES})
 
 
 def default_script(name: str, package_id: str = "") -> str:
     """Fleet's default script as Fleet stores it, with the package ID filled in."""
-    text = (DEFAULT_SCRIPTS / name).read_text(encoding="utf-8")
+    if DEFAULT_SCRIPTS.exists():
+        text = (DEFAULT_SCRIPTS / name).read_text(encoding="utf-8")
+    else:
+        text = fleet_defaults._templates.get(name, f"# {name}\n")
     return text.replace("$PACKAGE_ID", f"'{package_id}'") if package_id else text
 
 
@@ -590,13 +601,57 @@ class FleetDefaultsTest(unittest.TestCase):
         self.assertFalse(is_default_script("install_script", "exe", "Start-Process setup.exe"))
         self.assertFalse(is_default_script("post_install_script", "deb", default_script("install_deb.sh")))
 
-    @unittest.skipUnless(FLEET_SCRIPTS.exists(), "not inside the Fleet repository")
-    def test_copies_match_fleet(self):
+    @unittest.skipUnless(DEFAULT_SCRIPTS.exists(), "not inside the Fleet repository")
+    def test_knows_every_script_fleet_embeds(self):
         management = (FLEET_SCRIPTS / "management.go").read_text()
         embedded = set(re.findall(r"//go:embed scripts/((?:install|uninstall)_\w+\.(?:sh|ps1))", management))
-        self.assertEqual(embedded, {p.name for p in DEFAULT_SCRIPTS.iterdir()})
-        for name in embedded:
-            self.assertEqual((DEFAULT_SCRIPTS / name).read_bytes(), (FLEET_SCRIPTS / "scripts" / name).read_bytes(), name)
+        self.assertEqual(embedded, set(fleet_defaults.NAMES) | {"install_pkg_fleetd.sh"})
+        self.assertEqual(fleet_defaults.read_defaults()[1], str(DEFAULT_SCRIPTS))
+
+
+class DefaultScriptSourceTest(unittest.TestCase):
+    """Where the default scripts come from when the skill isn't inside the Fleet repository."""
+
+    def setUp(self):
+        self.work = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.work, ignore_errors=True)
+        before = fleet_defaults._templates
+        self.addCleanup(lambda: (fleet_defaults._patterns.clear(), setattr(fleet_defaults, "_templates", before)))
+        patch = mock.patch.object(fleet_defaults, "_checkout", return_value=None)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def serve(self, body=b"echo $PACKAGE_ID\n", error=None):
+        def urlopen(url, timeout=None):
+            self.assertTrue(url.startswith("https://raw.githubusercontent.com/fleetdm/fleet/main/pkg/file/scripts/"), url)
+            if error:
+                raise error
+            return io.BytesIO(body + url.rsplit("/", 1)[1].encode())
+        patch = mock.patch.object(fleet_defaults.urllib.request, "urlopen", urlopen)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_downloads_from_the_fleet_repository(self):
+        self.serve()
+        scripts, source = fleet_defaults.read_defaults()
+        self.assertEqual(source, fleet_defaults.SOURCE_URL)
+        self.assertEqual(scripts, {name: f"echo $PACKAGE_ID\n{name}" for name in fleet_defaults.NAMES})
+
+    def test_validate_reuses_what_export_read(self):
+        self.serve()
+        self.assertIsNone(gitops_export.load_default_scripts(self.work, refresh=True))
+        self.assertTrue(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
+        self.serve(error=OSError("offline"))
+        self.assertIsNone(gitops_export.load_default_scripts(self.work, refresh=False))
+        self.assertTrue(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
+
+    def test_unreachable_source_means_no_defaults(self):
+        self.serve(error=urllib.error.URLError("no route"))
+        self.assertIn("no route", gitops_export.load_default_scripts(self.work, refresh=True))
+        self.assertFalse(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
+        self.assertEqual(json.loads((self.work / "default_scripts.json").read_text())["scripts"], {})
+        self.assertIsNone(gitops_export.load_default_scripts(self.work, refresh=False))
+        self.assertFalse(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
 
 
 class HelpersTest(unittest.TestCase):
