@@ -4856,8 +4856,8 @@ func (ds *Datastore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...
 		return false, nil
 	}
 
-	// Every orbit enrollment runs this, so check on the replica first. The host acknowledged the reset minutes before it
-	// comes back, so the replica has it.
+	// Every orbit enrollment runs this, so look for an acknowledged reset first and open the transaction only for
+	// those hosts.
 	if matched, err := windowsResetHostForOrbitEnrollment(ctx, ds.reader(ctx), enrollConfig); err != nil || matched == nil {
 		return false, err
 	}
