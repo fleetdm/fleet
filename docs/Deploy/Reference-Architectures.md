@@ -60,7 +60,7 @@ We recommend free space of at least:
 
 The default maximum package size is 10 GiB ([`server_max_installer_size`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-max-installer-size)). For most deployments, 20 GiB of temporary storage is enough.
 
-- **AWS (Fargate):** `/tmp` is on disk by default (20 GiB per task). No change needed.
+- **AWS (Fargate):** `/tmp` is on disk by default (20 GiB per task). No change needed for most deployments.
 - **GCP (Cloud Run):** `/tmp` is in memory by default. As a best practice, turn on a disk-backed `/tmp` with `tmp_volume_config` in [Fleet's GCP Terraform](https://github.com/fleetdm/fleet-terraform/tree/main/gcp#disk-backed-tmp-opt-in). Check your ephemeral disk quota first.
 - **Kubernetes:** Fleet's Helm chart mounts an `emptyDir` volume at `/tmp`. It uses the node's disk. Make sure nodes have enough free disk space.
 
