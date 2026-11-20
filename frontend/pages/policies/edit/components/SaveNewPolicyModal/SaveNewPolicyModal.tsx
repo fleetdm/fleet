@@ -8,7 +8,6 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -32,18 +31,12 @@ import PolicyAutomationsFields, {
 import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants";
 import { usePolicyLabelTargets } from "pages/policies/hooks";
 import PATHS from "router/paths";
-import configAPI from "services/entities/config";
-import teamPoliciesAPI from "services/entities/team_policies";
-import teamsAPI from "services/entities/teams";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
   queryValue: string;
-  onCreatePolicy: (
-    formData: IPolicyFormData,
-    saveAutomations?: (newPolicy: IPolicy) => Promise<void>
-  ) => void;
+  onCreatePolicy: (formData: IPolicyFormData) => void;
   setIsSaveNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
@@ -100,8 +93,7 @@ const SaveNewPolicyModal = ({
   fleetName,
   router,
 }: ISaveNewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
-  const queryClient = useQueryClient();
+  const { isPremiumTier } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -128,7 +120,6 @@ const SaveNewPolicyModal = ({
     getLabelsPayload,
   } = usePolicyLabelTargets();
 
-  const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
   const [conditionalAccessOn, setConditionalAccessOn] = useState(false);
 
@@ -143,8 +134,6 @@ const SaveNewPolicyModal = ({
       ({
         id: -1,
         fleet_id: policyTeamId ?? null,
-        calendar_events_enabled: false,
-        conditional_access_enabled: false,
         continuous_automations_enabled: false,
       } as IPolicy),
     [policyTeamId]
@@ -152,6 +141,10 @@ const SaveNewPolicyModal = ({
 
   const [platformError, setPlatformError] = useState<string | null>(null);
   const [showLabelsError, setShowLabelsError] = useState(false);
+  // Name is autofocused when the modal opens; skip blur validation until the
+  // user has typed in it so clicking away from an untouched field doesn't
+  // surface "Enter a policy name".
+  const [nameDirty, setNameDirty] = useState(false);
 
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
@@ -210,9 +203,7 @@ const SaveNewPolicyModal = ({
       return;
     }
 
-    const automations = showAutomations
-      ? automationsRef.current?.getAutomationsPayload()
-      : undefined;
+    const automations = automationsRef.current?.getAutomationsPayload();
     if (automations && !automations.isValid) {
       return;
     }
@@ -230,62 +221,11 @@ const SaveNewPolicyModal = ({
       payload.hidden = lastEditedQueryHidden;
     }
 
-    // The create endpoint deliberately ignores automation fields (see the
-    // pick in team_policies.ts:create) — they have to be PATCHed after the
-    // policy exists. Build a saveAutomations closure to run after create.
-    const saveAutomations = automations?.isDirty
-      ? async (newPolicy: IPolicy) => {
-          const requests: Promise<unknown>[] = [];
+    if (automations?.isDirty) {
+      Object.assign(payload, automations.policyUpdate);
+    }
 
-          if (automations.policyUpdate && !isGlobalPolicy) {
-            requests.push(
-              teamPoliciesAPI.update(newPolicy.id, {
-                fleet_id: policyTeamId,
-                ...automations.policyUpdate,
-              })
-            );
-          }
-
-          if (automations.webhookOrTicketUpdate?.enabled) {
-            const existingWebhook =
-              automationsConfig?.webhook_settings?.failing_policies_webhook ??
-              {};
-            const currentIds = existingWebhook.policy_ids ?? [];
-            const nextIds = Array.from(new Set([...currentIds, newPolicy.id]));
-            const webhookPayload = {
-              webhook_settings: {
-                failing_policies_webhook: {
-                  ...existingWebhook,
-                  policy_ids: nextIds,
-                },
-              },
-            };
-            if (isGlobalPolicy) {
-              requests.push(
-                configAPI.update(webhookPayload).then((updatedConfig) => {
-                  queryClient.setQueryData(["config"], updatedConfig);
-                  setConfig(updatedConfig);
-                })
-              );
-            } else if (policyTeamId !== undefined) {
-              requests.push(
-                teamsAPI
-                  .update(webhookPayload, policyTeamId)
-                  .then((updatedTeam) => {
-                    queryClient.setQueryData(
-                      ["teams", policyTeamId],
-                      updatedTeam
-                    );
-                  })
-              );
-            }
-          }
-
-          await Promise.all(requests);
-        }
-      : undefined;
-
-    onCreatePolicy(payload, saveAutomations);
+    onCreatePolicy(payload);
   };
 
   const renderAutofillButton = useCallback(
@@ -366,7 +306,24 @@ const SaveNewPolicyModal = ({
       >
         <InputField
           name="name"
-          onChange={(value: string) => setLastEditedQueryName(value)}
+          onChange={(value: string) => {
+            setLastEditedQueryName(value);
+            if (!nameDirty) setNameDirty(true);
+          }}
+          onBlur={() => {
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (nameDirty && !trimmed) {
+              setErrors({ ...errors, name: "Enter a policy name" });
+            }
+          }}
+          onFocus={() => {
+            if (errors.name) {
+              const next = { ...errors };
+              delete next.name;
+              setErrors(next);
+            }
+          }}
           value={lastEditedQueryName}
           error={errors.name}
           inputClassName={`${baseClass}__policy-save-modal-name`}
@@ -406,33 +363,17 @@ const SaveNewPolicyModal = ({
             labelsError={labelsError}
           />
         )}
-        {showAutomations ? (
-          <div className="form-field">
-            <div className="form-field__label">Automations</div>
-            <PolicyAutomationsFields
-              ref={automationsRef}
-              policy={newPolicyStub}
-              isGlobalPolicy={isGlobalPolicy}
-              teamIdForApi={policyTeamId}
-              automationsConfig={automationsConfig}
-              globalConfig={globalConfig}
-              fleetName={fleetName}
-              selectedPlatforms={platformSelector.getSelectedPlatforms()}
-              onConditionalAccessChange={setConditionalAccessOn}
-            />
-          </div>
-        ) : (
-          <div className={`${baseClass}__add-automations`}>
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setShowAutomations(true)}
-              icon="plus"
-            >
-              Add automations
-            </Button>
-          </div>
-        )}
+        <PolicyAutomationsFields
+          ref={automationsRef}
+          policy={newPolicyStub}
+          isGlobalPolicy={isGlobalPolicy}
+          teamIdForApi={policyTeamId}
+          automationsConfig={automationsConfig}
+          globalConfig={globalConfig}
+          fleetName={fleetName}
+          selectedPlatforms={platformSelector.getSelectedPlatforms()}
+          onConditionalAccessChange={setConditionalAccessOn}
+        />
         {isPremiumTier && (
           <div className="critical-checkbox-wrapper">
             <Checkbox

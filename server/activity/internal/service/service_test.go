@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,14 +36,15 @@ func (m *mockAuthorizer) Authorize(ctx context.Context, subject platform_authz.A
 }
 
 type mockDatastore struct {
-	activities                []*api.Activity
-	hostPastActivities        []*api.Activity
-	meta                      *api.PaginationMetadata
-	hostPastActivitiesMeta    *api.PaginationMetadata
-	err                       error
-	hostPastActivitiesErr     error
-	lastOpt                   types.ListOptions
-	lastHostPastActivitiesOpt types.ListOptions
+	activities                   []*api.Activity
+	hostPastActivities           []*api.Activity
+	meta                         *api.PaginationMetadata
+	hostPastActivitiesMeta       *api.PaginationMetadata
+	err                          error
+	hostPastActivitiesErr        error
+	lastOpt                      types.ListOptions
+	lastHostPastActivitiesOpt    types.ListOptions
+	lastHostPastActivitiesHostID uint
 }
 
 func (m *mockDatastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
@@ -52,6 +54,7 @@ func (m *mockDatastore) ListActivities(ctx context.Context, opt types.ListOption
 
 func (m *mockDatastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	m.lastHostPastActivitiesOpt = opt
+	m.lastHostPastActivitiesHostID = hostID
 	return m.hostPastActivities, m.hostPastActivitiesMeta, m.hostPastActivitiesErr
 }
 
@@ -97,10 +100,39 @@ func (m *mockUserProvider) FindUserIDs(ctx context.Context, query string) ([]uin
 type mockHostProvider struct {
 	host *activity.Host
 	err  error
+	// byID, when set, are the hosts GetHostLite finds, and lookupID is the host ID that HostIDByIDOrIdentifier returns.
+	byID     map[uint]*activity.Host
+	lookupID uint
+	lookups  []string
 }
 
+type hostNotFoundError struct{}
+
+func (hostNotFoundError) Error() string    { return "host not found" }
+func (hostNotFoundError) IsNotFound() bool { return true }
+
 func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	if m.byID != nil {
+		if host, ok := m.byID[hostID]; ok {
+			return host, nil
+		}
+		return nil, hostNotFoundError{}
+	}
 	return m.host, m.err
+}
+
+func (m *mockHostProvider) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	m.lookups = append(m.lookups, identifier)
+	if m.byID != nil {
+		if m.lookupID == 0 {
+			return 0, hostNotFoundError{}
+		}
+		return m.lookupID, nil
+	}
+	if m.err != nil || m.host == nil {
+		return 0, m.err
+	}
+	return m.host.ID, nil
 }
 
 // mockDataProviders combines all provider interfaces for testing.
@@ -755,4 +787,38 @@ type immediateFailJSONLogger struct{}
 
 func (j *immediateFailJSONLogger) Write(ctx context.Context, logs []json.RawMessage) error {
 	return errStreamFailed
+}
+
+func TestListHostPastActivitiesResolvesHost(t *testing.T) {
+	t.Parallel()
+	hosts := map[uint]*activity.Host{7: {ID: 7}, 42: {ID: 42}}
+	testCases := []struct {
+		name        string
+		identifier  string
+		lookupID    uint
+		wantHostID  uint
+		wantLookups []string
+		wantErr     bool
+	}{
+		{name: "a host ID isn't looked up", identifier: "7", wantHostID: 7},
+		{name: "an identifier is looked up", identifier: "serial", lookupID: 42, wantHostID: 42, wantLookups: []string{"serial"}},
+		{name: "a number that isn't a host ID names another host", identifier: "99", lookupID: 42, wantHostID: 42, wantLookups: []string{"99"}},
+		{name: "no host has the number", identifier: "99", wantLookups: []string{"99"}, wantErr: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ts := setupTest(func(ts *testSetup) {
+				ts.providers.mockHostProvider = &mockHostProvider{byID: hosts, lookupID: tc.lookupID}
+			})
+			_, _, err := ts.svc.ListHostPastActivities(t.Context(), tc.identifier, api.ListOptions{})
+			require.Equal(t, tc.wantLookups, ts.providers.mockHostProvider.lookups)
+			if tc.wantErr {
+				require.True(t, platform_errors.IsNotFound(err), "got %v", err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantHostID, ts.ds.lastHostPastActivitiesHostID)
+		})
+	}
 }

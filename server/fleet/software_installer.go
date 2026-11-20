@@ -268,7 +268,7 @@ type BatchSetSoftwareInstallersResult struct {
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
@@ -517,6 +517,10 @@ type HostSoftwareInstallerResult struct {
 	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
+	// InstallerGlobalOrTeamID is the fleet the installer belongs to, 0 for no fleet, or nil if the installer was deleted.
+	InstallerGlobalOrTeamID *uint `json:"-" db:"installer_global_or_team_id"`
+	// HostTeamID is the host's fleet when the result was read, or nil for no fleet or a deleted host.
+	HostTeamID *uint `json:"-" db:"host_team_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HashSHA256 is the SHA256 hash of the software installer package. It is
@@ -955,8 +959,10 @@ type HostSoftwareWithInstaller struct {
 	// field: the service clears it on Free so it's omitted from responses.
 	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 
-	// SoftwarePackage provides software installer package information, it is
+	// Package provides software installer package information, it is
 	// only present if a software installer is available for the software title.
+	Package *SoftwarePackageOrApp `json:"package"`
+	// SoftwarePackage is kept for backwards compatibility and is set to the same value as Package.
 	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
@@ -1059,6 +1065,9 @@ type SoftwarePackageListItem struct {
 	SelfService              *bool                    `json:"self_service,omitempty"`
 	PackageURL               *string                  `json:"package_url"`
 	UploadedAt               time.Time                `json:"uploaded_at"`
+	FleetMaintainedAppID     *uint                    `json:"fleet_maintained_app_id"`
+	FleetMaintainedVersions  []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	InstallDuringSetup       *bool                    `json:"install_during_setup,omitempty"`
 }
 
 type SoftwarePackageSpec struct {

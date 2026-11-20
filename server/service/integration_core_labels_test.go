@@ -431,10 +431,10 @@ func (s *integrationTestSuite) TestLabels() {
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
 			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
-			"team_id", "fleet_id", "policy_updated_at", "public_ip",
+			"fleet_id", "policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name", "fleet_name",
+			"last_restarted_at", "timezone", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
@@ -975,11 +975,11 @@ func (s *integrationTestSuite) TestLabels() {
 			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
-			"last_enrolled_at", "refetch_critical_queries_until", "team_id", "fleet_id",
+			"last_enrolled_at", "refetch_critical_queries_until", "fleet_id",
 			"policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name", "fleet_name",
+			"last_restarted_at", "timezone", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count", "issues",
 			"device_mapping",
@@ -1025,13 +1025,13 @@ func (s *integrationTestSuite) TestLabels() {
 		})
 
 		// Cursor pagination (`after`) injects the order_key into the WHERE
-		// clause; SELECT-list aliases like team_name would error there. Verify
-		// that paging through team_name with a cursor returns the expected
+		// clause; SELECT-list aliases like fleet_name would error there. Verify
+		// that paging through fleet_name with a cursor returns the expected
 		// hosts and does not error.
-		t.Run("team_name with after cursor", func(t *testing.T) {
+		t.Run("fleet_name with after cursor", func(t *testing.T) {
 			var resp listHostsResponse
 			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
-				"order_key", "team_name", "order_direction", "asc",
+				"order_key", "fleet_name", "order_direction", "asc",
 				"after", teamA.Name, "per_page", "10")
 			require.Len(t, resp.Hosts, 2)
 			assert.Equal(t, sortHosts[1].ID, resp.Hosts[0].ID)
@@ -1115,11 +1115,13 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	)
 	require.NoError(t, err)
 
-	gpParams := fleet.GlobalPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some global resolution",
+	gpParams := fleet.CreatePolicyRequest{
+		Name:        qr.Name,
+		Query:       qr.Query,
+		Description: qr.Description,
+		Resolution:  "some global resolution",
 	}
-	gpResp := fleet.GlobalPolicyResponse{}
+	gpResp := fleet.CreatePolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
@@ -1695,21 +1697,21 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
 	lbl := lblResp.Label
 
-	// All policy label scope fields on GlobalPolicyRequest are tagged
+	// All policy label scope fields on CreatePolicyRequest are tagged
 	// `premium:"true"`, so the endpoint decoder rejects with 400 before reaching
 	// the service handler.
-	for _, req := range []fleet.GlobalPolicyRequest{
+	for _, req := range []fleet.CreatePolicyRequest{
 		{Name: "premium-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
 		{Name: "premium-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
 		{Name: "premium-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
 		{Name: "premium-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
 	} {
-		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.CreatePolicyResponse{})
 	}
 
 	// A policy without any label scope can still be created on free-tier.
-	var freeOK fleet.GlobalPolicyResponse
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+	var freeOK fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 		Name:  "free-no-labels-" + t.Name(),
 		Query: "SELECT 1",
 	}, http.StatusOK, &freeOK)
@@ -1722,16 +1724,16 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 		{LabelsExcludeAll: []string{lbl.Name}},
 		{LabelsExcludeAny: []string{lbl.Name}},
 	} {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyPolicyRequest{
 			ModifyPolicyPayload: payload,
-		}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+		}, http.StatusBadRequest, &fleet.ModifyPolicyResponse{})
 	}
 
 	for _, payload := range []fleet.QueryPayload{
 		{Name: new("q-any-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
 		{Name: new("q-all-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
 	} {
-		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
+		s.DoJSON("POST", "/api/latest/fleet/reports", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
 
 	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
@@ -1748,7 +1750,7 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	}
 
 	// Same for QuerySpec.
-	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/spec/reports", fleet.ApplyQuerySpecsRequest{
 		Specs: []*fleet.QuerySpec{{
 			Name:             "qspec-premium-gate-" + t.Name(),
 			Query:            "SELECT 1",

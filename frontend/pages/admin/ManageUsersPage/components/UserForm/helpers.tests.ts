@@ -125,7 +125,14 @@ describe("validateUserForm", () => {
     it.each([
       ["short1!", "Enter a password with at least 12 characters"],
       [`${"a1!".repeat(16)}x`, "Enter a password with 48 characters or fewer"],
-      ["abcdefghijkl", "Enter a password with at least 1 number and 1 symbol"],
+      [
+        "abcdefghijkl",
+        "Enter a password with at least 1 letter, 1 number, and 1 symbol",
+      ],
+      [
+        "12345678901!",
+        "Enter a password with at least 1 letter, 1 number, and 1 symbol",
+      ],
     ])("rejects %s", (password, expected) => {
       expect(
         validateUserForm({ ...VALID, password }, NEW_USER_CONTEXT).password

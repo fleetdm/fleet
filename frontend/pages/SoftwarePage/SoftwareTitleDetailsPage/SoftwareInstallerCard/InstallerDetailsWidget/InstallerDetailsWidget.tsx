@@ -84,6 +84,8 @@ interface IInstallerDetailsWidgetProps {
    * where the row represents a configuration (not an app), so the icon
    * reads as a configuration profile instead of the store badge. */
   graphicOverride?: import("components/graphics").GraphicNames;
+  /** Render this node as the icon, taking precedence over `graphicOverride`. */
+  iconOverride?: React.ReactNode;
   /** Suppress the version-chip tooltip (e.g. "Updated every hour." for App
    * Store, Play Store link for Android). Used on App Store app version rows
    * where the parent screen already surfaces that tooltip in the app
@@ -114,11 +116,13 @@ const InstallerDetailsWidget = ({
   hideInstallerType = false,
   disableTooltips = false,
   graphicOverride,
+  iconOverride,
   hideVersion = false,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
   const renderIcon = () => {
+    if (iconOverride) return iconOverride;
     if (graphicOverride) return <Graphic name={graphicOverride} />;
     if (installerType === "app-store") {
       if (androidPlayStoreId) {

@@ -24,9 +24,8 @@ const DEFAULT_VULNERABILITY_DETAILS: IVulnerabilityResponse = {
   os_versions: [
     {
       os_version_id: 1,
-      name: "bad version",
-      name_only: "bad version",
-      version: "1",
+      os_name: "bad version",
+      os_version: "1",
       platform: "windows",
       hosts_count: 5,
       resolved_in_version: "2",

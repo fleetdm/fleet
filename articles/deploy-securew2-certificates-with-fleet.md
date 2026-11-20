@@ -374,7 +374,7 @@ Fleet can't get a certificate from SecureW2. Edit the CA in **Settings > Integra
 
 - [Deploy certificates to connect end users to third-party tools](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate)
 - [Enterprise Wi-Fi authentication methods](https://fleetdm.com/guides/enterprise-wifi-authentication-methods)
-- [Fleet variables](https://fleetdm.com/guides/fleet-variables)
+- [Variables](https://fleetdm.com/guides/fleet-variables)
 
 <meta name="articleTitle" value="Deploy SecureW2 certificates with Fleet">
 <meta name="authorFullName" value="Allen Houchins">

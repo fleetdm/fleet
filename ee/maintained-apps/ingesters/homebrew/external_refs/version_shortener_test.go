@@ -178,31 +178,6 @@ func TestRaspberryPiImagerVersionTransformer(t *testing.T) {
 	}
 }
 
-func TestMySQLWorkbenchVersionTransformer(t *testing.T) {
-	tcs := []struct {
-		name     string
-		version  string
-		expected string
-		wantErr  bool
-	}{
-		{name: "empty version", version: "", wantErr: true},
-		{name: "normal version", version: "8.0.46", expected: "8.0.46.CE"},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "mysql-workbench"}
-			result, err := MySQLWorkbenchVersionTransformer(app)
-			if tc.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result.Version)
-		})
-	}
-}
-
 func TestLensVersionTransformer(t *testing.T) {
 	tcs := []struct {
 		name     string
@@ -245,6 +220,33 @@ func TestShottrVersionTransformer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "shottr"}
 			result, err := ShottrVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestUTMVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "rebuild suffix", version: "5.0.9-2", expected: "5.0.9"},
+		{name: "no suffix", version: "5.0.9", expected: "5.0.9"},
+		{name: "non-numeric suffix kept", version: "5.1.0-beta", expected: "5.1.0-beta"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "utm/darwin"}
+			result, err := UTMVersionTransformer(app)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

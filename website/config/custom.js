@@ -99,8 +99,8 @@ module.exports.custom = {
   // Other integrations:
   // anthropicSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
-  // salesforceIntegrationUsername: undefined,
-  // salesforceIntegrationPasskey: undefined,
+  // salesforceIntegrationClientId: undefined,
+  // salesforceIntegrationClientSecret: undefined,
 
   // For cleaning up LinkedIn URLs before creating CRM records.
   RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
@@ -143,6 +143,12 @@ module.exports.custom = {
 
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': 'allenhouchins',
+
+    // 🤖 fleet-gitops and fleet-maintained-apps agent skills
+    '.claude/skills/fleet-gitops': 'allenhouchins',
+    '.claude/skills/fleet-maintained-apps': 'allenhouchins',
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins', //« The one fleet-gitops skill copy (.claude/skills/fleet-gitops points here)
+    'cmd/fleetctl/fleetctl/templates/new/.claude/skills/fleet-gitops': 'allenhouchins',
 
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
@@ -216,7 +222,17 @@ module.exports.custom = {
     'ee/maintained-apps/inputs': 'allenhouchins',
   },
 
-  // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
+  /***************************************************************************
+  *                                                                          *
+  * Same as above, but for fleetdm/confidential.  (Paths without a DRI here  *
+  * fall back to the CODEOWNERS file in fleetdm/confidential.)               *
+  *                                                                          *
+  ***************************************************************************/
+  confidentialGithubRepoDRIByPath: {// fleetdm/confidential
+    '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+    '.github/workflows/market-research-check.yml': 'lukeheath',// « rebuilds and checks the market research explorer, DMs the build on Slack
+    '.github/workflows/market-research-revenue.yml': 'lukeheath',// « weekly Fleet revenue pull from Salesforce for the market research
+  },
 
 
   //  ███╗   ███╗ █████╗ ██╗███╗   ██╗████████╗ █████╗ ██╗███╗   ██╗███████╗██████╗ ███████╗
@@ -362,6 +378,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/technical-evaluation.md': ['allenhouchins', 'sampfluger88'],
     '.github/ISSUE_TEMPLATE/solutions-consulting-task.md': ['allenhouchins'],
     '.github/ISSUE_TEMPLATE/new-nfr-request.yml': ['allenhouchins'],
+    '.github/ISSUE_TEMPLATE/fasttrack.md': ['zayhanlon', 'ireedy', 'sampfluger88', 'ddribeiro', 'mikermcneil'],
 
     // GTM
     'go-to-market': ['sampfluger88'],
@@ -541,6 +558,10 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
 
+  // Google conditional access proxy
+  // googleConditionalAccessOauthClientId: '…',
+  // googleConditionalAccessOauthClientSecret: '…',
+  // googleConditionalAccessPartnerId: '…',
 
   // Android proxy
   // androidEnterpriseProjectId: '…',

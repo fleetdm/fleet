@@ -50,7 +50,7 @@ Okta Verify uses managed app configuration to pass the secret key that marks the
 </dict>
 ```
 
-> **Note:** Fleet recommends storing the secret key as a `$FLEET_SECRET_*` variable instead of pasting it in plain text. See [secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
+> **Note:** Fleet recommends storing the secret key as a `$FLEET_SECRET_*` variable instead of pasting it in plain text. See [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
 Other keys for configuring Okta Verify are available depending on your enrollment type. See Okta's [managed app configurations for iOS](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-ios.htm). If the app configuration changes, Fleet will automatically redeploy the application.
 
@@ -83,7 +83,7 @@ In Fleet, use the following configuration payload for Okta Verify:
 }
 ```
 
-Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 ## Considerations when deploying to iOS
 
@@ -92,8 +92,8 @@ Other keys are available for the Android payload. See Okta's [managed app config
 
 ## Further reading
 
-- [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
-- [Fleet variables](https://fleetdm.com/guides/fleet-variables)
+- [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
+- [Variables](https://fleetdm.com/guides/fleet-variables)
 - [Install App Store apps](https://fleetdm.com/guides/install-app-store-apps)
 
 <meta name="articleTitle" value="Configure Okta management attestation for mobile devices with Fleet">

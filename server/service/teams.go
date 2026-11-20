@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -492,4 +494,15 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+// removedFleetName returns the error reason when name is "No team", or "All teams" for a caller that accepts "All fleets".
+func removedFleetName(name string, acceptsAllFleets bool) (string, bool) {
+	switch {
+	case strings.EqualFold(name, fleet.ReservedNameNoTeam):
+		return removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameNoTeam), fmt.Sprintf("%q", fleet.DisplayNameNoTeam)), true
+	case acceptsAllFleets && strings.EqualFold(name, fleet.ReservedNameAllTeams):
+		return removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameAllTeams), fmt.Sprintf("%q", fleet.DisplayNameAllTeams)), true
+	}
+	return "", false
 }

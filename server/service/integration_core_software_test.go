@@ -191,6 +191,15 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// an unsupported order_key returns 422
 	s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusUnprocessableEntity, "order_key", "vendor_old")
 
+	// Only List operating systems renamed its version sort key, so other lists still sort by version.
+	versionsResp = listSoftwareVersionsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "order_key", "version", "order_direction", "desc")
+	var versions []string
+	for _, sw := range versionsResp.Software {
+		versions = append(versions, sw.Version)
+	}
+	require.Equal(t, []string{"v1.48.0", "0.0.3", "0.0.1"}, versions)
+
 	// default sort, not only vulnerable
 	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp)
@@ -845,7 +854,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	_ = s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound)
 
 	// Team 1 Filter
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", "1")
 	s.Require().Empty(resp.Vulnerabilities)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -856,7 +865,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, resp.Vulnerabilities, 2)
 	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
@@ -880,13 +889,13 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, uint(1), resp.Vulnerabilities[2].HostsCount)
 
 	// Team 0 Filter
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", "0")
 	require.Len(t, resp.Vulnerabilities, 1)
 	require.Equal(t, uint(1), resp.Count)
 	require.Equal(t, "CVE-2021-1246", resp.Vulnerabilities[0].CVE.CVE)
 	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
 
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", "0")
 	require.Len(t, resp.Vulnerabilities, 1)
 
 	var gResp getVulnerabilityResponse
@@ -894,17 +903,17 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusBadRequest, &gResp)
 
 	// Valid CVE but not in team scope
-	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNoContent, "team_id",
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNoContent, "fleet_id",
 		fmt.Sprintf("%d", team.ID))
 
 	// Valid CVE in "no team" scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "fleet_id", "0")
 
 	// Valid CVE not in "no team" scope
-	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNoContent, "team_id", "0")
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNoContent, "fleet_id", "0")
 
 	// Invalid TeamID
-	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusForbidden, "team_id", "100")
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusForbidden, "fleet_id", "100")
 
 	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &gResp)
@@ -918,12 +927,23 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Empty(t, gResp.Vulnerability.EPSSProbability)
 	require.Empty(t, gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
 	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
 	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
 	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
 	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+
+	// The operating systems carry os_name and os_version, and none of the keys they replaced.
+	var rawResp struct {
+		OSVersions []map[string]any `json:"os_versions"`
+	}
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &rawResp)
+	require.Len(t, rawResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2", rawResp.OSVersions[0]["os_name"])
+	require.Equal(t, "10.0.19042.1234", rawResp.OSVersions[0]["os_version"])
+	for _, removed := range []string{"name", "name_only", "version"} {
+		require.NotContains(t, rawResp.OSVersions[0], removed)
+	}
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
 	require.NoError(t, gResp.Err)

@@ -1,7 +1,7 @@
 .conditional-access {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 
   &__page-description {
     margin-bottom: $pad-large;
@@ -11,6 +11,18 @@
     display: flex;
     flex-direction: column;
     gap: $pad-large;
+  }
+
+  &__card-header {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__platforms {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
   }
 
   &__card-actions {
@@ -40,8 +52,8 @@
   }
 
   &__end-user-experience {
-      .section-header {
-          padding-bottom: 14px;
-      }
+    .section-header {
+      padding-bottom: 14px;
+    }
   }
 }

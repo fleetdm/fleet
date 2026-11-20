@@ -45,7 +45,7 @@ This feature is [coming in Fleet 4.95](https://github.com/fleetdm/fleet/issues/4
 
 IT admins can now replace the default terms page that end users see during [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), with or without [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot), with their own end user agreement. Upload a Markdown file in **Settings > Integrations > MDM > End user license agreement**, or set [`windows_eula`](https://fleetdm.com/docs/configuration/yaml-files#windows-eula) in GitOps. Adding or deleting an agreement creates an activity. You can also manage it with the [EULA API endpoints](https://fleetdm.com/docs/rest-api/rest-api#create-eula).
 
-Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-agreement-eula).
+Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-license-agreement-eula).
 
 GitHub issue: [#50146](https://github.com/fleetdm/fleet/issues/50146)
 

@@ -8,8 +8,8 @@ import {
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import { createCustomRenderer } from "test/test-utils";
 
 import DeployModal from "./DeployModal";
@@ -40,7 +40,7 @@ const renderModal = ({
       softwareTitle={createMockSoftwareTitle({
         id: 10,
         name: "Firefox",
-        software_package: softwarePackage,
+        packages: [softwarePackage],
       })}
       teamId={1}
       onExit={onExit}
@@ -54,9 +54,9 @@ describe("DeployModal", () => {
     jest.spyOn(softwareAPI, "getFleetMaintainedApp").mockResolvedValue({
       fleet_maintained_app: createMockFleetMaintainedAppDetails(),
     });
-    jest.spyOn(teamPoliciesAPI, "create").mockResolvedValue({} as never);
-    jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
-    jest.spyOn(teamPoliciesAPI, "destroy").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "create").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "update").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "destroy").mockResolvedValue({} as never);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -103,11 +103,11 @@ describe("DeployModal", () => {
     // without touching the dropdown gets patch_deadline: true and continuous
     // automations locked on.
     await waitFor(() =>
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+      expect(policiesAPI.create).toHaveBeenCalledWith({
         fleet_id: 1,
         type: "patch",
-        patch_software_title_id: 10,
         software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: true,
@@ -137,11 +137,11 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+      expect(policiesAPI.create).toHaveBeenCalledWith({
         fleet_id: 1,
         type: "patch",
-        patch_software_title_id: 10,
         software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: true,
         patch_deadline: false,
@@ -182,9 +182,8 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        fleet_id: 1,
-        software_title_id: 10,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: true,
         patch_deadline: false,
@@ -254,7 +253,7 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+      expect(policiesAPI.create).toHaveBeenCalledWith({
         fleet_id: 1,
         name: "[Install software] Firefox",
         description:
@@ -288,7 +287,7 @@ describe("DeployModal", () => {
         "Couldn't create the Force install policy. Try again."
       )
     );
-    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(policiesAPI.create).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -314,7 +313,7 @@ describe("DeployModal", () => {
         response: manifestError,
       })
     );
-    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(policiesAPI.create).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -339,9 +338,8 @@ describe("DeployModal", () => {
     // per the Figma dev note, so a user who flips Manual → Force patch and
     // hits Save gets patch_deadline: true + continuous automations locked on.
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        fleet_id: 1,
-        software_title_id: 10,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: true,
@@ -372,13 +370,63 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        fleet_id: 1,
-        software_title_id: null,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: null,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,
         continuous_automations_enabled: false,
+      })
+    );
+  });
+
+  it("keeps another automation on a manual patch policy saved unchanged", async () => {
+    const onSuccess = jest.fn();
+    const { user } = renderModal({
+      onSuccess,
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        // A script automation with continuous on: not a software install.
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    expect(policiesAPI.update).not.toHaveBeenCalled();
+  });
+
+  it("clears stale patch flags on a manual patch policy without touching its automation", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: true,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(
+      screen.getByRole("radio", { name: "End user initiated (manual)" })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: false,
       })
     );
   });
@@ -407,9 +455,8 @@ describe("DeployModal", () => {
     // automations when saved untouched. Preselect-on-click doesn't fire
     // because the user never re-clicks the radio.
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        fleet_id: 1,
-        software_title_id: 10,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,
@@ -439,8 +486,8 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(teamPoliciesAPI.destroy).toHaveBeenNthCalledWith(1, 1, [11]);
-      expect(teamPoliciesAPI.destroy).toHaveBeenNthCalledWith(2, 1, [22]);
+      expect(policiesAPI.destroy).toHaveBeenNthCalledWith(1, [11]);
+      expect(policiesAPI.destroy).toHaveBeenNthCalledWith(2, [22]);
     });
   });
 
@@ -448,7 +495,7 @@ describe("DeployModal", () => {
     const onExit = jest.fn();
     const onSuccess = jest.fn();
     const errorSpy = jest.spyOn(notify, "error");
-    (teamPoliciesAPI.create as jest.Mock)
+    (policiesAPI.create as jest.Mock)
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("Patch failed"));
     const { user } = renderModal({ onExit, onSuccess });
@@ -461,7 +508,7 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(teamPoliciesAPI.create).toHaveBeenCalledTimes(2);
+      expect(policiesAPI.create).toHaveBeenCalledTimes(2);
       expect(onSuccess).toHaveBeenCalledTimes(1);
       expect(onExit).toHaveBeenCalledTimes(1);
     });

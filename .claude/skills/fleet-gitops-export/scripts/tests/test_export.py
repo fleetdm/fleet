@@ -1,6 +1,7 @@
 """Offline tests for the export scripts. Run: python3 -m unittest discover -s scripts/tests"""
 
 import argparse
+import io
 import json
 import re
 import shutil
@@ -8,11 +9,14 @@ import stat
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
+import fleet_defaults  # noqa: E402
 import gitops_export  # noqa: E402
 from checks import PLACEHOLDER, Checker, load_yaml, read_env_file, yaml_backend  # noqa: E402
 from collect import Collector  # noqa: E402
@@ -28,12 +32,19 @@ TEMPLATES = REPO / "cmd/fleetctl/fleetctl/templates/new"
 DEPRECATIONS = REPO / "pkg/spec/gitops_deprecations.go"
 POINTER = REPO / ".agents/skills/fleet-gitops-export/SKILL.md"
 FLEET_SCRIPTS = REPO / "pkg/file"
-DEFAULT_SCRIPTS = HERE.parent / "fleet_default_scripts"
+DEFAULT_SCRIPTS = FLEET_SCRIPTS / "scripts"
+if not DEFAULT_SCRIPTS.exists():
+    # The tests run offline, so outside the Fleet repository stand-ins with the same placeholders take the defaults' place.
+    fleet_defaults.use({name: f'# {name}\nremove "$UPGRADE_CODE"\n' if "upgrade_code" in name else f"# {name}\npackage=$PACKAGE_ID\n"
+                        for name in fleet_defaults.NAMES})
 
 
 def default_script(name: str, package_id: str = "") -> str:
     """Fleet's default script as Fleet stores it, with the package ID filled in."""
-    text = (DEFAULT_SCRIPTS / name).read_text(encoding="utf-8")
+    if DEFAULT_SCRIPTS.exists():
+        text = (DEFAULT_SCRIPTS / name).read_text(encoding="utf-8")
+    else:
+        text = fleet_defaults._templates.get(name, f"# {name}\n")
     return text.replace("$PACKAGE_ID", f"'{package_id}'") if package_id else text
 
 
@@ -115,7 +126,7 @@ class EnvEscapeTest(unittest.TestCase):
 class ReadOnlyTest(unittest.TestCase):
     def test_refuses_unlisted_paths(self):
         fc = Fleetctl("/nonexistent/fleetctl")
-        for path in ("/api/latest/fleet/hosts", "/api/latest/fleet/scripts/run", "/api/v1/fleet/config"):
+        for path in ("/api/latest/fleet/hosts", "/api/latest/fleet/scripts/run", "/api/v1/fleet/config", "/api/latest/fleet/fleets/1/policies"):
             with self.assertRaises(FleetctlError):
                 fc.get(path)
 
@@ -327,6 +338,33 @@ class CommandTest(unittest.TestCase):
                 raise FleetctlError("not found", status=404)
 
         self.assertEqual(Collector(api=API())._paged_if_present("/api/latest/fleet/custom_host_vitals", "custom_host_vitals"), [])
+
+    def test_collector_lists_policies_by_fleet_id(self):
+        calls = []
+
+        class API:
+            def json(self, path, params=None):
+                calls.append((path, params))
+                if path.endswith("/policies"):
+                    return {"policies": [{"id": 1, "fleet_id": (params or {}).get("fleet_id")}]}
+                return {}
+
+            def paged(self, path, key, params=None):
+                return []
+
+            def maybe_json(self, path, params=None, missing=(404,)):
+                return None
+
+            def pmap(self, fn, items):
+                return [fn(i) for i in items]
+
+        c = Collector(api=API())
+        flags = {"premium": False, "any_mdm": False, "apple_mdm": False}
+        for tid in (None, 0):
+            calls.clear()
+            out = c._scope({"id": tid}, flags)
+            self.assertIn(("/api/latest/fleet/policies", {} if tid is None else {"fleet_id": tid}), calls)
+            self.assertEqual([p["id"] for p in out["policies"]], [1])
 
     def test_setup_step(self):
         # Error text as fleetctl 4.94 prints it.
@@ -563,13 +601,57 @@ class FleetDefaultsTest(unittest.TestCase):
         self.assertFalse(is_default_script("install_script", "exe", "Start-Process setup.exe"))
         self.assertFalse(is_default_script("post_install_script", "deb", default_script("install_deb.sh")))
 
-    @unittest.skipUnless(FLEET_SCRIPTS.exists(), "not inside the Fleet repository")
-    def test_copies_match_fleet(self):
+    @unittest.skipUnless(DEFAULT_SCRIPTS.exists(), "not inside the Fleet repository")
+    def test_knows_every_script_fleet_embeds(self):
         management = (FLEET_SCRIPTS / "management.go").read_text()
         embedded = set(re.findall(r"//go:embed scripts/((?:install|uninstall)_\w+\.(?:sh|ps1))", management))
-        self.assertEqual(embedded, {p.name for p in DEFAULT_SCRIPTS.iterdir()})
-        for name in embedded:
-            self.assertEqual((DEFAULT_SCRIPTS / name).read_bytes(), (FLEET_SCRIPTS / "scripts" / name).read_bytes(), name)
+        self.assertEqual(embedded, set(fleet_defaults.NAMES) | {"install_pkg_fleetd.sh"})
+        self.assertEqual(fleet_defaults.read_defaults()[1], str(DEFAULT_SCRIPTS))
+
+
+class DefaultScriptSourceTest(unittest.TestCase):
+    """Where the default scripts come from when the skill isn't inside the Fleet repository."""
+
+    def setUp(self):
+        self.work = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.work, ignore_errors=True)
+        before = fleet_defaults._templates
+        self.addCleanup(lambda: (fleet_defaults._patterns.clear(), setattr(fleet_defaults, "_templates", before)))
+        patch = mock.patch.object(fleet_defaults, "_checkout", return_value=None)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def serve(self, body=b"echo $PACKAGE_ID\n", error=None):
+        def urlopen(url, timeout=None):
+            self.assertTrue(url.startswith("https://raw.githubusercontent.com/fleetdm/fleet/main/pkg/file/scripts/"), url)
+            if error:
+                raise error
+            return io.BytesIO(body + url.rsplit("/", 1)[1].encode())
+        patch = mock.patch.object(fleet_defaults.urllib.request, "urlopen", urlopen)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_downloads_from_the_fleet_repository(self):
+        self.serve()
+        scripts, source = fleet_defaults.read_defaults()
+        self.assertEqual(source, fleet_defaults.SOURCE_URL)
+        self.assertEqual(scripts, {name: f"echo $PACKAGE_ID\n{name}" for name in fleet_defaults.NAMES})
+
+    def test_validate_reuses_what_export_read(self):
+        self.serve()
+        self.assertIsNone(gitops_export.load_default_scripts(self.work, refresh=True))
+        self.assertTrue(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
+        self.serve(error=OSError("offline"))
+        self.assertIsNone(gitops_export.load_default_scripts(self.work, refresh=False))
+        self.assertTrue(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
+
+    def test_unreachable_source_means_no_defaults(self):
+        self.serve(error=urllib.error.URLError("no route"))
+        self.assertIn("no route", gitops_export.load_default_scripts(self.work, refresh=True))
+        self.assertFalse(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
+        self.assertEqual(json.loads((self.work / "default_scripts.json").read_text())["scripts"], {})
+        self.assertIsNone(gitops_export.load_default_scripts(self.work, refresh=False))
+        self.assertFalse(is_default_script("install_script", "deb", "echo 'zoom'\ninstall_deb.sh"))
 
 
 class HelpersTest(unittest.TestCase):
@@ -717,7 +799,8 @@ def snapshot():
              "android_certificates": [], "software": {"titles": [], "setup": [], "setup_macos": []}, "setup": {}},
             {"key": "1", "id": 1, "name": "💻 Workstations", "team": team("💻 Workstations"), "enroll_secret_count": 1,
              "labels": [{"name": "Canary", "query": "SELECT 1", "label_membership_type": "dynamic", "fleet_id": 1}],
-             "policies": [{"id": 3, "name": "Collect logs", "query": "SELECT 1;", "platform": "darwin", "run_script": {"id": 2, "name": "logs.sh"}}],
+             "policies": [{"id": 3, "name": "Collect logs", "query": "SELECT 1;", "platform": "darwin", "automation_type": "script",
+                           "run_script": {"id": 2, "name": "logs.sh"}}],
              "reports": [],
              "scripts": [{"id": 2, "name": "logs.sh", "content": b"#!/bin/sh\ndefaults read /Library/x\n"},
                          {"id": 3, "name": "hi.ps1", "content": b"Write-Host hi\n"}],
@@ -737,7 +820,7 @@ def snapshot():
                           "setup": [], "setup_macos": []}},
             {"key": "2", "id": 2, "name": "Servers", "team": team("Servers"), "enroll_secret_count": 1, "labels": [],
              "policies": [{"id": 4, "name": "curl installed", "query": "SELECT 1;", "platform": "linux"},
-                          {"id": 5, "name": "Zoom installed", "query": "SELECT 1;", "platform": "linux",
+                          {"id": 5, "name": "Zoom installed", "query": "SELECT 1;", "platform": "linux", "automation_type": "software",
                            "install_software": {"software_title_id": 21, "name": "Zoom"}}],
              "reports": [],
              "scripts": [{"id": 4, "name": "update.sh", "content": b"#!/bin/sh\napt-get update\n"}],
@@ -788,7 +871,7 @@ def rich_snapshot():
                    "enrollment_profile": {"name": "ade.json", "enrollment_profile": {"profile_name": "ADE", "skip_setup_items": ["Location"]}}}
     un["android_certificates"] = [{"name": "wifi", "certificate_authority_name": "WIFI", "subject_name": "CN=x"}]
     ws = next(s for s in snap["scopes"] if s["key"] == "1")
-    ws["team"]["webhook_settings"] = {"failing_policies_webhook": {"enable_failing_policies_webhook": False, "destination_url": "", "policy_ids": [], "host_batch_size": 0}}
+    ws["team"]["webhook_settings"] = {"failing_policies_webhook": {"enable_failing_policies_webhook": False, "destination_url": "", "host_batch_size": 0}}
     ws["team"]["integrations"] = {"google_calendar": {"enable_calendar_events": True, "webhook_url": "https://cal.test"}}
     ws["team"]["features"] = {"enable_host_users": False, "enable_software_inventory": True}
     ws["software"]["titles"].append({"id": 12, "name": "Slack", "icon": PNG, "app_store_app": {"app_store_id": "803453959", "platform": "ios",
@@ -866,6 +949,30 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("path: ./platforms/macos/scripts/hello.sh", d)
         self.assertIn("windows_enabled_and_configured: true", d)
         self.assertNotRegex(self.read("fleets/unassigned.yml"), r"(?m)^controls:")
+
+    def test_policy_automation_keys_come_from_automation_type(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["policies"] += [
+            {"id": 10, "name": "Calendar check", "query": "SELECT 1;", "platform": "darwin", "automation_type": "calendar"},
+            {"id": 11, "name": "Access check", "query": "SELECT 1;", "platform": "darwin", "automation_type": "conditional_access"},
+            {"id": 12, "name": "Ticket check", "query": "SELECT 1;", "platform": "darwin", "automation_type": "webhook_or_ticket"},
+            {"id": 13, "name": "Resend check", "query": "SELECT 1;", "platform": "darwin", "automation_type": "configuration_profile",
+             "resend_configuration_profile": {"profile_uuid": "a", "name": "Firewall on"}},
+        ]
+        plan = self.replan(snap)
+        expect = {"calendar-check": "calendar_events_enabled", "access-check": "conditional_access_enabled",
+                  "ticket-check": "webhooks_and_tickets_enabled"}
+        flags = ("calendar_events_enabled", "conditional_access_enabled", "webhooks_and_tickets_enabled")
+        for name, on in expect.items():
+            policy = self.read(f"platforms/macos/policies/{name}.yml")
+            for flag in flags:
+                self.assertIn(f"{flag}: {'true' if flag == on else 'false'}", policy, f"{name} {flag}")
+        resend = self.read("platforms/macos/policies/resend-check.yml")
+        self.assertIn("resend_configuration_profile: Firewall on", resend)
+        for flag in flags:
+            self.assertIn(f"{flag}: false", resend)
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
 
     def test_run_script_reference(self):
         self.assertIn("path: ../scripts/logs.sh", self.read("platforms/macos/policies/collect-logs.yml"))
@@ -968,7 +1075,7 @@ class EndToEndTest(unittest.TestCase):
     def test_unassigned_policy_scripts_put_controls_in_unassigned_file(self):
         snap = snapshot()
         un = next(s for s in snap["scopes"] if s["key"] == "unassigned")
-        un["policies"][0]["run_script"] = {"id": 1, "name": "hello.sh"}
+        un["policies"][0].update(automation_type="script", run_script={"id": 1, "name": "hello.sh"})
         plan = self.replan(snap)
         self.assertEqual(plan["controls_file"], "fleets/unassigned.yml")
         unassigned = self.read("fleets/unassigned.yml")
@@ -1033,7 +1140,7 @@ class EndToEndTest(unittest.TestCase):
         first = dict(base, installer_id=31, name="acme-arm.pkg", version="2.0", url="https://x.test/latest/acme-arm.pkg", hash_sha256="d" * 64)
         second = dict(base, installer_id=32, name="acme-intel.pkg", version="2.0", url="https://x.test/latest/acme-intel.pkg", hash_sha256="e" * 64)
         srv["software"]["titles"].append({"id": 30, "name": "Acme", "software_package": first, "packages": [first, second]})
-        srv["policies"].append({"id": 9, "name": "Acme installed", "query": "SELECT 1;", "platform": "darwin",
+        srv["policies"].append({"id": 9, "name": "Acme installed", "query": "SELECT 1;", "platform": "darwin", "automation_type": "software",
                                 "install_software": {"software_title_id": 30, "software_package_id": 32, "name": "Acme"}})
         plan = self.replan(snap)
         policy = self.read("platforms/macos/policies/acme-installed.yml")

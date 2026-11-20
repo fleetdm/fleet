@@ -130,6 +130,68 @@ func (s *integrationTestSuite) TestAppConfigDetailQueryOverridesRemoved() {
 	require.False(t, stillStored)
 }
 
+func (s *integrationTestSuite) TestRemovedReportServerSettingsKeys() {
+	t := s.T()
+
+	original := s.getConfig().ServerSettings
+	t.Cleanup(func() {
+		s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil,
+			`{"server_settings": {"live_reporting_disabled": %t, "discard_reports_data": %t, "report_cap": %d}}`,
+			original.LiveQueryDisabled, original.QueryReportsDisabled, original.QueryReportCap), http.StatusOK)
+	})
+
+	s.DoRaw("PATCH", "/api/latest/fleet/config",
+		[]byte(`{"server_settings": {"live_reporting_disabled": true, "discard_reports_data": true, "report_cap": 1234}}`), http.StatusOK)
+
+	removedMsg := func(key string) string {
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+	}
+	for _, tc := range []struct{ name, path, body, want string }{
+		{"live_query_disabled", "/api/latest/fleet/config", `{"server_settings": {"live_query_disabled": false}}`, removedMsg("live_query_disabled")},
+		{"query_reports_disabled", "/api/latest/fleet/config", `{"server_settings": {"query_reports_disabled": false}}`, removedMsg("query_reports_disabled")},
+		{"query_report_cap", "/api/latest/fleet/config", `{"server_settings": {"query_report_cap": 5}}`, removedMsg("query_report_cap")},
+		{"dry run", "/api/latest/fleet/config?dry_run=true", `{"server_settings": {"query_report_cap": 5}}`, removedMsg("query_report_cap")},
+		{"force", "/api/latest/fleet/config?force=true", `{"server_settings": {"query_report_cap": 5}}`, removedMsg("query_report_cap")},
+		{
+			"old and new together", "/api/latest/fleet/config",
+			`{"server_settings": {"report_cap": 5, "query_report_cap": 5}}`, removedMsg("query_report_cap"),
+		},
+		{
+			"differently cased", "/api/latest/fleet/config",
+			`{"SERVER_SETTINGS": {"Live_Query_Disabled": false}}`, removedMsg("Live_Query_Disabled"),
+		},
+		{
+			"with another setting", "/api/latest/fleet/config",
+			`{"org_info": {"org_name": "set by a rejected request"}, "server_settings": {"query_reports_disabled": false}}`,
+			removedMsg("query_reports_disabled"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := s.DoRaw("PATCH", tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), tc.want)
+		})
+	}
+
+	// the rejected requests changed nothing
+	got := s.getConfig()
+	require.True(t, got.ServerSettings.LiveQueryDisabled)
+	require.True(t, got.ServerSettings.QueryReportsDisabled)
+	require.Equal(t, 1234, got.ServerSettings.QueryReportCap)
+	require.NotEqual(t, "set by a rejected request", got.OrgInfo.OrgName)
+
+	// the old names don't come back in responses
+	var raw struct {
+		ServerSettings map[string]any `json:"server_settings"`
+	}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &raw)
+	require.Equal(t, true, raw.ServerSettings["live_reporting_disabled"])
+	require.Equal(t, true, raw.ServerSettings["discard_reports_data"])
+	require.EqualValues(t, 1234, raw.ServerSettings["report_cap"])
+	require.NotContains(t, raw.ServerSettings, "live_query_disabled")
+	require.NotContains(t, raw.ServerSettings, "query_reports_disabled")
+	require.NotContains(t, raw.ServerSettings, "query_report_cap")
+}
+
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	config := s.getConfig()
 	s.Run("Update interval", func() {
@@ -1750,6 +1812,19 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)
 
+	// fleetctl 4's version check gets 426 even with a valid token, and fleetctl 5's still gets the version.
+	versionHeaders := func(userAgent string) map[string]string {
+		return map[string]string{
+			"Authorization": "Bearer " + s.token, "User-Agent": userAgent, "Content-Type": "application/json", "Accept": "application/json",
+		}
+	}
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/version", nil, http.StatusUpgradeRequired, versionHeaders("Go-http-client/1.1")).Body.Close()
+	verRes := s.DoRawWithHeaders("GET", "/api/latest/fleet/version", nil, http.StatusOK, versionHeaders("fleetctl/unknown"))
+	verResp = versionResponse{}
+	require.NoError(t, json.NewDecoder(verRes.Body).Decode(&verResp))
+	verRes.Body.Close()
+	assert.NotEmpty(t, verResp.Branch)
+
 	// get enroll secrets, none yet
 	var specResp getEnrollSecretSpecResponse
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -1816,17 +1891,17 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Empty(t, specResp.Spec.Secrets)
 
-	// try to update the apple bm terms flag via PATCH /config
+	// try to update the apple business terms flag via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "apple_bm_terms_expired": false }
+		"mdm": { "apple_business_terms_expired": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
 	// try to update the mdm configured flags via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enabled_and_configured": false, "apple_bm_enabled_and_configured": false }
+	  "mdm": { "enabled_and_configured": false, "apple_business_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 	assert.True(t, acResp.MDM.AppleBMEnabledAndConfigured)
@@ -1840,15 +1915,10 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// legacy config
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": true } }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
-
-	// try to set the apple bm default team, which is premium only
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "apple_bm_default_team": "xyz" }
-  }`), http.StatusUnprocessableEntity, &acResp)
 
 	// try to set Okta conditional access settings, which is premium only
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1890,13 +1960,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
-
-	// set the macos custom settings fields, fails due to MDM not configured
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
-	  }`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)
@@ -2060,7 +2123,7 @@ func (s *integrationTestSuite) TestRemovedOrgLogoConfigKeys() {
 	})
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	for _, tc := range []struct{ name, key string }{
 		{"dark", "org_logo_url"},
