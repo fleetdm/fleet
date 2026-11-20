@@ -331,8 +331,13 @@ When building a React-controlled form:
 - Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and, critically:
   - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom handler's logic.
   - runs `validate` against the full form, sets errors on every invalid field, and returns without submitting when any errors are present.
+  - returns the async chain (does not fire-and-forget). Without a returned promise, in-flight state (submit disabled, fields disabled, spinner) does not propagate, and the user can double-click submit to fire the API twice.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`).
 - Disable the submit button only while a submission is in flight, or when the whole form is disabled by GitOps mode. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
+
+#### Save flows with confirmation modals
+
+When a save handler opens a confirmation modal before writing (destructive edit, Save-as-new, scope-change prompt), run full validation BEFORE opening the modal. If the modal's Submit calls back into the main handler and that handler returns on validation failure, the resulting inline errors render on the form behind the modal where the user can't see them. Gate the modal on `validate(formData) === {}`, not on button click.
 
 ### Data validation
 
@@ -366,7 +371,7 @@ Spread `getTextFieldProps("fieldName")` onto text inputs (`InputField`, `InputFi
 A field is **dirty** once the user has typed into it or the browser has autofilled it. Programmatic focus (autofocus, Tab, `ref.focus()`) does not make it dirty. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
 
 - Never show a field's error before the field is dirty. This includes the autofocused first field in a new-item modal: Tab or click-off blurs an empty field without any user input, and that blur must not surface "Enter a name". `useFormValidation` handles this. In forms not on the hook yet, track a local `nameDirty` flag set on first `onChange` and gate the required-error on it.
-- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Never add errors to other fields (but see [When errors clear](#when-errors-clear) for removing them).
+- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Update that one field's key in `formErrors`; do not replace the whole map, and do not add errors to other fields (but see [When errors clear](#when-errors-clear) for removing them).
 - On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
@@ -796,7 +801,7 @@ export const getErrorMessage = (e: unknown) => {
 [`formatErrorResponse`](../utilities/format_error_response) flattens server errors into `Record<string, string>`. Field-named keys (`email`, `name`) wire to matching inputs' `error` prop; `base` is for cross-field or global errors (no inline surface).
 
 - Preserve field-named keys: folding `email` into `base` removes the inline surface.
-- Strip `base` and `http_status` before setting `formErrors`. Neither has an inline surface, and callers that iterate `formErrors` will render them as orphan errors; toast the `base` message separately.
+- Strip `base` and `http_status` before setting `formErrors`. Hooks that toast every truthy entry (notably `useFormValidation`) will fire a raw `base` and a status-code toast on top of any intended error. Toast the `base` message separately as needed.
 - Precedence inside the formatter:
   - First named error wins.
   - An unnamed error does not overwrite a named one.
