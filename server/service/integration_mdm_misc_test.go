@@ -1094,29 +1094,29 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 	t.Run("1. policy labels assignment checks", func(t *testing.T) {
 		// 1.A.1 Attempt to create global policy that references l1t1 (should fail).
-		var gpResp fleet.GlobalPolicyResponse
-		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		var gpResp fleet.CreatePolicyResponse
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 			Name:             "All teams policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
 		}, http.StatusBadRequest, &gpResp)
-		gpResp = fleet.GlobalPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		gpResp = fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 			Name:             "All teams policy",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
 		}, http.StatusBadRequest, &gpResp)
 
 		// 1.A.2 Attempt to create a global policy with global labels (should succeed).
-		gpResp = fleet.GlobalPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		gpResp = fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 			Name:             "All teams policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &gpResp)
 		globalPolicyID := gpResp.Policy.ID
-		gpResp = fleet.GlobalPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		gpResp = fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 			Name:             "All teams policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name},
@@ -1152,99 +1152,107 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
 
 		// 1.B.1 Attempt to create a team policy that references l2t2 (should fail).
-		tpResp := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		tpResp := fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(t1.ID),
 			Name:             "t1 policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(t1.ID),
 			Name:             "t1 policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
 
 		// 1.B.2 Attempt to create a team policy with a global label and same team label (should succeed).
-		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		tpResp = fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(t1.ID),
 			Name:             "t1 policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l1t1.Name},
 		}, http.StatusOK, &tpResp)
 		teamPolicyID := tpResp.Policy.ID
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(t1.ID),
 			Name:             "t1 policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
 		}, http.StatusOK, &tpResp)
 
 		// 1.B.3 Attempt to edit a team policy to reference l2t2 (should fail; label is outside team).
-		mtplr := fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr := fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a team label on the same team (should succeed).
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &mtplr)
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 
 		// 1.C.1 Attempt to create a "No team" policy that references l1t1 (should fail).
-		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
+		tpResp = fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(uint(0)),
 			Name:             "no team policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(uint(0)),
 			Name:             "no team policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
 
 		// 1.B.2 Attempt to create a "No team" policy with a global label (should succeed).
-		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
+		tpResp = fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(uint(0)),
 			Name:             "no team policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &tpResp)
 		noTeamPolicyID := tpResp.Policy.ID
-		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+			TeamID:           new(uint(0)),
 			Name:             "no team policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &tpResp)
 
 		// 1.B.3 Attempt to edit a "No team" policy with a team policy that references l2t2 (should fail).
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a global label (should succeed).
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
-		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		mtplr = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", noTeamPolicyID), fleet.ModifyPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
@@ -1258,7 +1266,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{l1t1.Name},
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusBadRequest, &createQueryResp)
 
 		// 2.A.2 Attempt to create global query with global label (should succeed).
 		createQueryResp = fleet.CreateQueryResponse{}
@@ -1267,18 +1275,18 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusOK, &createQueryResp)
 		globalQueryID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit global query with team label (should fail).
 		modifyQueryResp := fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", globalQueryID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusBadRequest, &modifyQueryResp)
 
 		// 2.A.4 Attempt to edit global query with global label (should succeed).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", globalQueryID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &modifyQueryResp)
 
@@ -1291,7 +1299,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 			TeamID: &t1.ID,
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusBadRequest, &createQueryResp)
 
 		// 2.B.2 Attempt to create a team query with a label of the same team (should succeed).
 		createQueryResp = fleet.CreateQueryResponse{}
@@ -1302,18 +1310,18 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 			TeamID: &t1.ID,
 		}
-		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+		s.DoJSON("POST", "/api/latest/fleet/reports", reqQuery, http.StatusOK, &createQueryResp)
 		team1LabelID := createQueryResp.Report.ID
 
 		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", team1LabelID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{l2t2.Name, globalLabel.Name},
 		}, http.StatusBadRequest, &modifyQueryResp)
 
 		// 2.A.4 Attempt to edit team query with a label of the same team (should succeed).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), fleet.ModifyQueryRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", team1LabelID), fleet.ModifyQueryRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &modifyQueryResp)
 	})

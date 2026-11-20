@@ -350,6 +350,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/reset", nil, http.StatusPaymentRequired)
 
 	// try to update the apple_enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
@@ -588,28 +589,6 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	s.Do("GET", "/api/latest/fleet/mdm/apple/request_csr", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK)
-}
-
-// this test can be deleted once the "v1" version is removed.
-func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
-	t := s.T()
-
-	// global/policies ends at v1, so it is not found on 2022-04
-	res := s.DoRaw("POST", "/api/2022-04/fleet/global/policies", jsonMustMarshal(t, fleet.GlobalPolicyRequest{Name: t.Name(), Query: "SELECT 1"}), http.StatusNotFound)
-	res.Body.Close()
-	var createResp fleet.GlobalPolicyResponse
-	s.DoJSON("POST", "/api/v1/fleet/global/policies", fleet.GlobalPolicyRequest{Name: t.Name(), Query: "SELECT 1"}, http.StatusOK, &createResp)
-	require.NotNil(t, createResp.Policy)
-	t.Cleanup(func() {
-		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{createResp.Policy.ID})
-		require.NoError(t, err)
-	})
-
-	res = s.DoRaw("GET", "/api/2022-04/fleet/global/policies", nil, http.StatusNotFound)
-	res.Body.Close()
-	var listResp fleet.ListGlobalPoliciesResponse
-	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &listResp)
-	require.NotEmpty(t, listResp.Policies)
 }
 
 func (s *integrationTestSuite) TestDebugDB() {

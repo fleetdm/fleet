@@ -40,7 +40,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 		Query: new("select * from time;"),
 	}
 	var createQueryResp fleet.CreateQueryResponse
-	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	s.DoJSON("POST", "/api/latest/fleet/reports", &params, http.StatusOK, &createQueryResp)
 	defer s.cleanupQuery(createQueryResp.Report.ID)
 
 	// create team query
@@ -50,19 +50,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 		TeamID: new(team1.ID),
 	}
 	createQueryResp = fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
+	s.DoJSON("POST", "/api/latest/fleet/reports", &params, http.StatusOK, &createQueryResp)
 	defer s.cleanupQuery(createQueryResp.Report.ID)
 
 	// list team queries
 	var listQueriesResp fleet.ListQueriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/reports", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, 1, listQueriesResp.Count)
 	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
-	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/reports", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
@@ -72,7 +72,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 
 func (s *integrationEnterpriseTestSuite) cleanupQuery(queryID uint) {
 	var delResp fleet.DeleteQueryByIDResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", queryID), nil, http.StatusOK, &delResp)
 }
 
 // TestQueryLabelsIncludeAll mirrors TestPolicyLabelsIncludeAll for queries (reports),
@@ -92,7 +92,7 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	// Create a query with include_all.
 	autoOn := true
 	var createResp fleet.CreateQueryResponse
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.QueryPayload{
 		Name:               new("q-include-all-" + t.Name()),
 		Query:              new("SELECT 1"),
 		Logging:            new(fleet.LoggingSnapshot),
@@ -106,7 +106,7 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 
 	// Mutex rejection on create. Assert on the specific validation error so a
 	// generic 400 (e.g., name required) cannot silently satisfy the test.
-	rejCreateResp := s.Do("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+	rejCreateResp := s.Do("POST", "/api/latest/fleet/reports", fleet.QueryPayload{
 		Name:             new("q-rej-" + t.Name()),
 		Query:            new("SELECT 1"),
 		Logging:          new(fleet.LoggingSnapshot),
@@ -141,21 +141,21 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	// PATCH: switch from include_all to include_any (clears include_all).
 	includeAny := []string{lblA.Name}
 	var modifyResp fleet.ModifyQueryResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Report.ID), fleet.QueryPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Report.ID), fleet.QueryPayload{
 		LabelsIncludeAny: includeAny,
 	}, http.StatusOK, &modifyResp)
 	require.Empty(t, modifyResp.Report.LabelsIncludeAll)
 	require.Len(t, modifyResp.Report.LabelsIncludeAny, 1)
 
 	// PATCH mutex rejection. Assert on the specific validation error.
-	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Report.ID), fleet.QueryPayload{
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Report.ID), fleet.QueryPayload{
 		LabelsIncludeAny: []string{lblA.Name},
 		LabelsIncludeAll: []string{lblB.Name},
 	}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrQueryConflictingLabels.Error())
 
 	// Switch back to include_all so the end-to-end test below uses it.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Report.ID), fleet.QueryPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Report.ID), fleet.QueryPayload{
 		LabelsIncludeAll: []string{lblA.Name, lblB.Name},
 	}, http.StatusOK, &modifyResp)
 	require.Len(t, modifyResp.Report.LabelsIncludeAll, 2)

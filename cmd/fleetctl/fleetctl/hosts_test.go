@@ -29,9 +29,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -92,9 +92,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -183,9 +183,9 @@ func TestHostsTransferByStatus(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -244,9 +244,9 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {

@@ -1565,17 +1565,25 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
-// Helper function to get No Team webhook settings from the database. policy_ids isn't stored in the settings; it's
-// built from the policies that have the webhook or ticket automation on.
+// Helper function to get No Team webhook settings from the database.
 func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
 	cfg, err := ds.DefaultTeamConfig(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	settings := cfg.WebhookSettings.FailingPoliciesWebhook
-	require.Empty(t, settings.PolicyIDs)
-	settings.PolicyIDs, err = ds.WebhooksAndTicketsPolicyIDs(ctx, new(uint(0)))
+	return cfg.WebhookSettings.FailingPoliciesWebhook
+}
+
+// noTeamWebhookPolicyIDs returns the No Team policies that have the webhook or ticket automation on.
+func noTeamWebhookPolicyIDs(ctx context.Context, t *testing.T, ds *mysql.Datastore) []uint {
+	policies, _, err := ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
-	return settings
+	var ids []uint
+	for _, p := range policies {
+		if p.WebhooksAndTicketsEnabled {
+			ids = append(ids, p.ID)
+		}
+	}
+	return ids
 }
 
 // Helper function to verify No Team webhook settings match expected values
@@ -1586,7 +1594,6 @@ func verifyNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Da
 	if expected.Enable {
 		require.Equal(t, expected.DestinationURL, actual.DestinationURL)
 		require.Equal(t, expected.HostBatchSize, actual.HostBatchSize)
-		require.ElementsMatch(t, expected.PolicyIDs, actual.PolicyIDs)
 	}
 }
 
@@ -1686,8 +1693,8 @@ settings:
 		Enable:         true,
 		DestinationURL: "https://example.com/no-team-webhook",
 		HostBatchSize:  50,
-		PolicyIDs:      []uint{noTeamPolicies[0].ID},
 	})
+	require.Equal(t, []uint{noTeamPolicies[0].ID}, noTeamWebhookPolicyIDs(ctx, t, s.DS))
 
 	// Test updating webhook settings
 	const noTeamTemplateUpdatedWebhook = `
@@ -1732,9 +1739,7 @@ settings:
 		HostBatchSize:  100,
 	})
 	// The policy leaves webhooks_and_tickets_enabled out, so its automation is off.
-	webhookPolicyIDs, err := s.DS.WebhooksAndTicketsPolicyIDs(ctx, new(uint(0)))
-	require.NoError(t, err)
-	require.Empty(t, webhookPolicyIDs)
+	require.Empty(t, noTeamWebhookPolicyIDs(ctx, t, s.DS))
 
 	// Test removing webhook settings entirely
 	const noTeamTemplateNoWebhook = `
@@ -7475,7 +7480,7 @@ settings:
 		ac.WebhookSettings.ActivitiesWebhook = fleet.ActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/act"}
 		ac.WebhookSettings.HostStatusWebhook = fleet.HostStatusWebhookSettings{Enable: true, DestinationURL: "https://example.com/hs", HostPercentage: 12, DaysCount: 3}
 		ac.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
-			Enable: true, DestinationURL: "https://example.com/fp", HostBatchSize: 9, PolicyIDs: ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs,
+			Enable: true, DestinationURL: "https://example.com/fp", HostBatchSize: 9,
 		}
 		ac.WebhookSettings.VulnerabilitiesWebhook = fleet.VulnerabilitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/vuln", HostBatchSize: 8}
 		ac.GitOpsConfig.GitopsModeEnabled = true

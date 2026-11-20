@@ -1,0 +1,1 @@
+- **Breaking change:** fleetctl 4 now stops with "Fleet 5.x isn't compatible with fleetctl 4.x. Upgrade fleetctl." when it connects to Fleet, instead of warning about the version mismatch and continuing. fleetctl now sends a `fleetctl/<version>` User-Agent and an `X-Fleet-Client-Version` header.

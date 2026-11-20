@@ -2146,8 +2146,6 @@ spec:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
       destination_url: ""
-      policy_ids:
-        - 1
       host_batch_size: 1000
     interval: 1h
 `,

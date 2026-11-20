@@ -162,6 +162,10 @@ export type HostMdmDeviceStatusUIState =
   | "locking"
   | "wiped"
   | "wiping"
+  | "reset"
+  | "resetting"
+  /** device_status "reset" with a wipe queued behind it. The wipe goes out only if the reset fails. */
+  | "reset_wipe_pending"
   | "clearing_passcode"
   | "locating"
   | "unenrolling";
@@ -178,6 +182,8 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
+  /** device_status "reset". The pending action has the same name and is mapped in getHostDeviceStatusUIState. */
+  reset: "reset",
   clear_passcode: "clearing_passcode",
   /** When device_status is "locked" and pending_action is "location", show "locating",
    * device_status is "unlocked" and pending_action is "location" is still "locking"
@@ -191,6 +197,7 @@ const deviceUpdatingStates = [
   "unlocking",
   "locking",
   "wiping",
+  "resetting",
   "clearing_passcode",
   "unenrolling",
 ] as const;
@@ -218,8 +225,22 @@ export const getHostDeviceStatusUIState = (
     return "locking";
   }
 
+  if (pendingAction === "reset") {
+    return "resetting";
+  }
+
+  if (deviceStatus === "reset" && pendingAction === "wipe") {
+    return "reset_wipe_pending";
+  }
+
   return API_TO_UI_DEVICE_STATUS_MAP[pendingAction];
 };
+
+/** The UI state right after a wipe request succeeds. A wipe of a reset host waits behind the reset. */
+export const getWipeRequestedUIState = (
+  current: HostMdmDeviceStatusUIState
+): HostMdmDeviceStatusUIState =>
+  current === "reset" ? "reset_wipe_pending" : "wiping";
 
 /**
  * Checks if our device status UI state is in an updating state.

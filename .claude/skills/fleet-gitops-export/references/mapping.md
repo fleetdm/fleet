@@ -30,7 +30,7 @@ Every API call below is a GET made through `fleetctl api` (the paths are the `/a
 | Android profiles | profiles endpoints | `platforms/android/configuration-profiles/<name>.json` |
 | Android certificate templates | `GET /certificates?fleet_id=` | inline `controls.android_settings.certificates` |
 | Scripts | `GET /scripts?fleet_id=`, `GET /scripts/{id}?alt=media` | `platforms/<macos\|linux\|windows>/scripts/<exact name>`; a script with an enroll secret in it isn't exported (see [secrets.md](secrets.md)) |
-| Policies (including patch policies and automations) | `GET /policies`, `GET /fleets/{id}/policies` | `platforms/<os or all>/policies/<name>.yml` |
+| Policies (including patch policies and automations) | `GET /policies[?fleet_id=]` | `platforms/<os or all>/policies/<name>.yml`; the automation key (`install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, `webhooks_and_tickets_enabled`) comes from the policy's `automation_type` |
 | Reports | `GET /reports[?fleet_id=]` | `platforms/<os or all>/reports/<name>.yml` |
 | Global labels | `GET /spec/labels?fleet_id=0` | `labels/<name>.yml` (the template's `paths: ./labels/*.yml`) |
 | Fleet labels | `GET /spec/labels?fleet_id={id}` | `labels/<fleet>/<name>.yml` + `labels: - paths: ../labels/<fleet>/*.yml` in the fleet file (`<fleet>` is the fleet file's name, which is unique even when fleet names slug alike) |

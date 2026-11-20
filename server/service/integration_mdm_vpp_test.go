@@ -1152,8 +1152,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, macOSTitleID, listSw.SoftwareTitles[0].ID)
 
 	// delete the automatic install policy (so we can delete the app next)
-	var deletePolicyResp fleet.DeleteTeamPoliciesResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team.ID), &fleet.DeleteGlobalPoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
+	var deletePolicyResp fleet.DeletePoliciesResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", &fleet.DeletePoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
 
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
@@ -1986,8 +1986,8 @@ func (s *integrationMDMTestSuite) TestVPPAutomaticInstallPolicyActivityNoFleet()
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{TeamID: new(fleet.PolicyNoTeamID), AppStoreID: "1", AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
-	var policies fleet.ListTeamPoliciesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleet.PolicyNoTeamID), nil, http.StatusOK, &policies)
+	var policies fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policies, "fleet_id", fmt.Sprint(fleet.PolicyNoTeamID))
 	require.Len(t, policies.Policies, 1)
 	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
 		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":%q}`, policies.Policies[0].ID, policies.Policies[0].Name), 0)

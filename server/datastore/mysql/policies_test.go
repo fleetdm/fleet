@@ -136,6 +136,7 @@ func TestPolicies(t *testing.T) {
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"UpdateHostPolicyCountsDoesNotWaitOnMembershipLocks", testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
+		{"GetHostIssuesLastUpdated", testGetHostIssuesLastUpdated},
 		{"ResetPolicy", testResetPolicy},
 		{"ResetPolicyForHost", testResetPolicyForHost},
 	}
@@ -10488,9 +10489,9 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 
 	// TODO: test ticket integration policies?
 
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, new(uint(0)), []uint{teamWebhookPolicy.ID}))
+	setWebhooksAndTickets(t, ds, teamWebhookPolicy.ID)
 	// The "other" filter only matches the fleet's own policies, not inherited ones.
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, nil, []uint{gpol.ID}))
+	setWebhooksAndTickets(t, ds, gpol.ID)
 
 	// All policies are listed
 	merged, err := ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -11611,6 +11612,18 @@ func testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks(t *testing.T, ds *Da
 	assert.Equal(t, uint(1), got.FailingHostCount)
 }
 
+// setWebhooksAndTickets turns the webhook or ticket automation on for the policies.
+func setWebhooksAndTickets(t *testing.T, ds *Datastore, policyIDs ...uint) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		stmt, args, err := sqlx.In(`UPDATE policies SET webhooks_and_tickets_enabled = 1 WHERE id IN (?)`, policyIDs)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(t.Context(), stmt, args...)
+		return err
+	})
+}
+
 func testWebhooksAndTicketsPolicies(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -11633,36 +11646,15 @@ func testWebhooksAndTicketsPolicies(t *testing.T, ds *Datastore) {
 		return p.ID
 	}
 	global1, global2 := newPolicy("global1", nil), newPolicy("global2", nil)
-	team1a, team1b := newPolicy("team1a", &team1.ID), newPolicy("team1b", &team1.ID)
+	team1b := newPolicy("team1b", &team1.ID)
 	team2a := newPolicy("team2a", &team2.ID)
 	noTeam := newPolicy("no team", new(uint(0)))
 	const deletedID = 999999
 
-	enabled := func(teamID *uint) []uint {
-		ids, err := ds.WebhooksAndTicketsPolicyIDs(ctx, teamID)
-		require.NoError(t, err)
-		return ids
-	}
-
-	// IDs from other scopes and deleted IDs are ignored.
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, nil, []uint{global1, team1a, deletedID}))
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, &team1.ID, []uint{team1a, team1b, global2, team2a}))
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, new(uint(0)), []uint{noTeam, global2}))
-	require.Equal(t, []uint{global1}, enabled(nil))
-	require.Equal(t, []uint{team1a, team1b}, enabled(&team1.ID))
-	require.Empty(t, enabled(&team2.ID))
-	require.Equal(t, []uint{noTeam}, enabled(new(uint(0))))
-
-	p, err := ds.Policy(ctx, team1a)
+	setWebhooksAndTickets(t, ds, global1, team1b, noTeam)
+	p, err := ds.Policy(ctx, team1b)
 	require.NoError(t, err)
 	require.True(t, p.WebhooksAndTicketsEnabled)
-
-	byTeam, err := ds.WebhooksAndTicketsPolicyIDsByTeam(ctx, []uint{team1.ID, team2.ID, 0})
-	require.NoError(t, err)
-	require.Equal(t, map[uint][]uint{team1.ID: {team1a, team1b}, 0: {noTeam}}, byTeam)
-	byTeam, err = ds.WebhooksAndTicketsPolicyIDsByTeam(ctx, nil)
-	require.NoError(t, err)
-	require.Empty(t, byTeam)
 
 	filtered, err := ds.FilterWebhooksAndTicketsPolicies(ctx, []uint{global1, global2, team1b, team2a, noTeam, deletedID})
 	require.NoError(t, err)
@@ -11672,28 +11664,6 @@ func testWebhooksAndTicketsPolicies(t *testing.T, ds *Datastore) {
 	filtered, err = ds.FilterWebhooksAndTicketsPolicies(ctx, nil)
 	require.NoError(t, err)
 	require.Empty(t, filtered)
-
-	// Only policies whose flag changes are written, so unchanged ones keep their updated_at.
-	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE policies SET updated_at = ? WHERE id IN (?, ?)`, old, team1a, team1b)
-		return err
-	})
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, &team1.ID, []uint{team1b}))
-	require.Equal(t, []uint{team1b}, enabled(&team1.ID))
-	var updatedAt []time.Time
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &updatedAt, `SELECT updated_at FROM policies WHERE id IN (?, ?) ORDER BY id`, team1a, team1b)
-	})
-	require.Len(t, updatedAt, 2)
-	require.NotEqual(t, old, updatedAt[0].UTC())
-	require.Equal(t, old, updatedAt[1].UTC())
-
-	// An empty list turns the scope off without touching other scopes.
-	require.NoError(t, ds.SetWebhooksAndTicketsPolicies(ctx, &team1.ID, nil))
-	require.Empty(t, enabled(&team1.ID))
-	require.Equal(t, []uint{global1}, enabled(nil))
-	require.Equal(t, []uint{noTeam}, enabled(new(uint(0))))
 }
 
 func testWebhooksAndTicketsWrites(t *testing.T, ds *Datastore) {
@@ -11711,25 +11681,13 @@ func testWebhooksAndTicketsWrites(t *testing.T, ds *Datastore) {
 	teamPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "t", Query: "SELECT 1", WebhooksAndTicketsEnabled: true})
 	require.NoError(t, err)
 	require.True(t, teamPolicy.WebhooksAndTicketsEnabled)
-	scriptPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "s", Query: "SELECT 1", ScriptID: &script.ID})
+	_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "s", Query: "SELECT 1", ScriptID: &script.ID})
 	require.NoError(t, err)
 	teamPolicy.WebhooksAndTicketsEnabled = false
 	require.NoError(t, ds.SavePolicy(ctx, teamPolicy, false, false))
 	got, err := ds.Policy(ctx, teamPolicy.ID)
 	require.NoError(t, err)
 	require.False(t, got.WebhooksAndTicketsEnabled)
-
-	// Only the scope's policies with the flag off and another automation are returned.
-	others, err := ds.PoliciesWithOtherAutomations(ctx, &team.ID, []uint{teamPolicy.ID, scriptPolicy.ID, global.ID, 999999})
-	require.NoError(t, err)
-	require.Len(t, others, 1)
-	require.Equal(t, scriptPolicy.ID, others[0].ID)
-	others, err = ds.PoliciesWithOtherAutomations(ctx, nil, []uint{scriptPolicy.ID, global.ID})
-	require.NoError(t, err)
-	require.Empty(t, others)
-	others, err = ds.PoliciesWithOtherAutomations(ctx, nil, nil)
-	require.NoError(t, err)
-	require.Empty(t, others)
 
 	byName, err := ds.WebhooksAndTicketsByPolicyName(ctx, &team.ID, []string{"t", "s", "g", "missing"})
 	require.NoError(t, err)
@@ -11885,4 +11843,21 @@ func testListAndCountPoliciesInScope(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, inherited, 1)
 	require.Equal(t, "global webhook", inherited[0].Name)
+}
+
+func testGetHostIssuesLastUpdated(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	// Not found keeps GetHost from adding a host_issues row for a number tried as a host ID before its lookup as a serial.
+	_, err := ds.GetHostIssuesLastUpdated(ctx, 123456)
+	require.True(t, fleet.IsNotFound(err), err)
+
+	host := test.NewHost(t, ds, "host", "1", "hostkey", "hostuuid", time.Now())
+	lastUpdated, err := ds.GetHostIssuesLastUpdated(ctx, host.ID)
+	require.NoError(t, err)
+	require.Zero(t, lastUpdated)
+
+	require.NoError(t, ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID))
+	lastUpdated, err = ds.GetHostIssuesLastUpdated(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotZero(t, lastUpdated)
 }

@@ -13,23 +13,21 @@ const setup = () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  client.setQueryData(["config"], { webhook_settings: {} });
-  client.setQueryData(["teams", 1], { fleet: { id: 1 } });
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  return { client, wrapper };
+  return { wrapper };
 };
 
 describe("useUpdatePolicyAutomations", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it("saves the automation and marks the cached settings stale", async () => {
+  it("saves the automation in one update to the policy", async () => {
     const updateSpy = jest
       .spyOn(policiesAPI, "update")
       .mockResolvedValue({} as never);
     const onSuccess = jest.fn();
-    const { client, wrapper } = setup();
+    const { wrapper } = setup();
     const { result } = renderHook(
       () => useUpdatePolicyAutomations({ policy, onSuccess }),
       { wrapper }
@@ -45,14 +43,12 @@ describe("useUpdatePolicyAutomations", () => {
     expect(updateSpy).toHaveBeenCalledWith(7, {
       automation_type: "webhook_or_ticket",
     });
-    expect(client.getQueryState(["config"])?.isInvalidated).toBe(true);
-    expect(client.getQueryState(["teams", 1])?.isInvalidated).toBe(true);
   });
 
-  it("leaves the cached settings alone when the save fails", async () => {
+  it("reports a failed save", async () => {
     jest.spyOn(policiesAPI, "update").mockRejectedValue(new Error("nope"));
     const onError = jest.fn();
-    const { client, wrapper } = setup();
+    const { wrapper } = setup();
     const { result } = renderHook(
       () => useUpdatePolicyAutomations({ policy, onError }),
       { wrapper }
@@ -63,6 +59,5 @@ describe("useUpdatePolicyAutomations", () => {
     });
 
     await waitFor(() => expect(onError).toHaveBeenCalled());
-    expect(client.getQueryState(["config"])?.isInvalidated).toBe(false);
   });
 });

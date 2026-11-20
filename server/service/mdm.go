@@ -1870,25 +1870,14 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	decoded.SelfService, decoded.Hidden = ptr.ValOrZero(selfService), ptr.ValOrZero(hidden)
 
 	// add labels
-	var existsInclAll, existsInclAny, existsDepr bool
-	var deprecatedLabels []string
+	var existsInclAll, existsInclAny bool
 	decoded.LabelsIncludeAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
 	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
 	decoded.LabelsExcludeAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
-	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
-	// validate that at most one include mode is provided; labels_exclude_any may be combined with any include mode
-	var includeCount int
-	for _, b := range []bool{existsInclAll, existsInclAny, existsDepr} {
-		if b {
-			includeCount++
-		}
-	}
-	if includeCount > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`}
-	}
-	if existsDepr {
-		decoded.LabelsIncludeAll = deprecatedLabels
+	// labels_exclude_any may be combined with either include mode
+	if existsInclAll && existsInclAny {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all" or "labels_include_any" can be included.`}
 	}
 
 	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...) //nolint:gocritic
@@ -3396,7 +3385,7 @@ func getAppleProfiles(
 
 			if err := fleet.ValidateMDMProfileName(prof.Name); err != nil {
 				reason := err.Error()
-				name := fmt.Sprintf("apple_settings.configuration_profiles[%d]", i)
+				name := "apple_settings.configuration_profiles"
 				if iae, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok && iae.HasErrors() {
 					reason = iae.Invalid()[0]["reason"] // nolint:nilaway // iae.HasErrors check length, so [0] is not a nil potential
 					name = fmt.Sprintf("%s.%s", name, iae.Invalid()[0]["name"])

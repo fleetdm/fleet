@@ -80,9 +80,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
 
 	// A fleet's resources resolve the shared name to that fleet's label.
-	var tpResp fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.TeamPolicyRequest{
-		Name: t.Name() + "_policy", Query: "select 1", LabelsIncludeAny: []string{shared, globalName},
+	var tpResp fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: &team2.ID, Name: t.Name() + "_policy", Query: "select 1", LabelsIncludeAny: []string{shared, globalName},
 	}, http.StatusOK, &tpResp)
 	require.Len(t, tpResp.Policy.LabelsIncludeAny, 2)
 	gotIDs := []uint{tpResp.Policy.LabelsIncludeAny[0].LabelID, tpResp.Policy.LabelsIncludeAny[1].LabelID}
@@ -147,7 +147,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNamesLiveReport() {
 			ranOn = args.Get(2).([]uint)
 		})
 		var resp createDistributedQueryCampaignResponse
-		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierRequest{
+		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierRequest{
 			QuerySQL: "SELECT 1",
 			Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: []string{shared}},
 		}, http.StatusOK, &resp)

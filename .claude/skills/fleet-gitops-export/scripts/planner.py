@@ -372,7 +372,7 @@ class Planner:
 
         g = scopes["global"]
         self._labels(g, default)
-        self._policies(g, default, cfg.get("webhook_settings") or {})
+        self._policies(g, default)
         self._reports(g, default)
 
         if premium:
@@ -382,12 +382,12 @@ class Planner:
             wh = drop_aliases("", team.get("webhook_settings") or {})
             unassigned_wh = {}
             for k in ("failing_policies_webhook", "host_activities_webhook"):
-                if wh.get(k) and any(v for kk, v in wh[k].items() if kk != "policy_ids"):
+                if wh.get(k) and any(wh[k].values()):
                     unassigned_wh[k] = self._webhook(k, wh[k], "Unassigned", "fleets/unassigned.yml")
             if unassigned_wh:
                 unassigned["sections"]["settings"] = {"webhook_settings": unassigned_wh}
             self._software(un, unassigned)
-            self._policies(un, unassigned, team.get("webhook_settings") or {})
+            self._policies(un, unassigned)
 
             for key, sc in scopes.items():
                 if key in ("global", "unassigned"):
@@ -526,13 +526,13 @@ class Planner:
         fleet["sections"]["controls"] = self._fleet_controls(team.get("mdm") or {}, sc, fleet)
         self._labels(sc, fleet)
         self._software(sc, fleet)
-        self._policies(sc, fleet, team.get("webhook_settings") or {})
+        self._policies(sc, fleet)
         self._reports(sc, fleet)
 
     # ------------------------------------------------------------ org settings
 
     def _webhook(self, kind, wh: dict, scope: str, where: str, config_pointer=None):
-        wh = {k: v for k, v in wh.items() if k != "policy_ids"}
+        wh = dict(wh)
         if wh.get("destination_url"):
             prefix = "FLEET" if scope == "Global" else f"FLEET_{_envslug(scope)}"
             source = {"type": "config", "pointer": ["webhook_settings", kind, "destination_url"]} if scope == "Global" else \
@@ -1011,10 +1011,9 @@ class Planner:
     def _software_index(self, fleet_key):
         return getattr(self, "_sw_index", {}).get(fleet_key, {})
 
-    def _policies(self, sc, fleet, webhook_settings):
+    def _policies(self, sc, fleet):
         scope = self._scope_name(fleet)
         premium = self.flags["premium"]
-        failing = set((webhook_settings.get("failing_policies_webhook") or {}).get("policy_ids") or [])
         sw = self._software_index(fleet["key"])
         for p in sc.get("policies") or []:
             if self._plain_secret_gap(p, scope, p["name"]):
@@ -1030,9 +1029,9 @@ class Planner:
             if premium:
                 spec["critical"] = bool(p.get("critical"))
                 spec["hidden"] = bool(p.get("hidden"))
-            for k in ("calendar_events_enabled", "conditional_access_enabled", "continuous_automations_enabled"):
-                spec[k] = bool(p.get(k))
-            spec["webhooks_and_tickets_enabled"] = p["id"] in failing
+            automation = p.get("automation_type")
+            spec.update(_policy_automation_flags(p))
+            spec["continuous_automations_enabled"] = bool(p.get("continuous_automations_enabled"))
             if ptype != "dynamic":
                 spec["type"] = ptype
             if ptype == "patch":
@@ -1044,30 +1043,36 @@ class Planner:
                 spec["fleet_maintained_app_slug"] = ref["slug"]
                 spec["patch_when_closed"] = bool(p.get("patch_when_closed"))
                 spec["notify_before_patching"] = bool(p.get("notify_before_patching"))
-                if p.get("install_software"):
+                if automation == "software":
                     spec["install_software"] = True
-            elif p.get("install_software"):
-                ref = sw.get(p["install_software"].get("software_title_id"))
+            elif automation == "software":
+                inst = p.get("install_software") or {}
+                ref = sw.get(inst.get("software_title_id"))
                 if ref and ref["kind"] == "fma":
                     spec["install_software"] = {"fleet_maintained_app_slug": ref["slug"]}
                 elif ref and ref["kind"] == "package" and ref.get("by_package"):
                     # fleetctl can't point package_path at a multi-package file; the hash picks the package.
-                    spec["install_software"] = {"hash_sha256": ref["by_package"].get(_policy_package_id(p["install_software"])) or ref["hash"]}
+                    spec["install_software"] = {"hash_sha256": ref["by_package"].get(_policy_package_id(inst)) or ref["hash"]}
                 elif ref and ref["kind"] == "package":
                     spec["install_software"] = {"package_path": {"$file": ref["file"]}} if ref.get("file") else {"hash_sha256": ref["hash"]}
                 elif ref and ref["kind"] == "app_store_app":
                     spec["install_software"] = {"app_store_id": ref["app_store_id"]}
                 else:
-                    self.note("gap", scope, p["name"], f"install_software points at {p['install_software'].get('name')!r}, which isn't exported for this fleet; automation dropped")
-            if p.get("run_script"):
-                sfid = getattr(self, "_script_ids", {}).get((self._controls_key(fleet), p["run_script"].get("id")))
+                    self.note("gap", scope, p["name"], f"install_software points at {inst.get('name')!r}, which isn't exported for this fleet; automation dropped")
+            if automation == "script":
+                rs = p.get("run_script") or {}
+                sfid = getattr(self, "_script_ids", {}).get((self._controls_key(fleet), rs.get("id")))
                 if sfid:
                     spec["run_script"] = {"path": {"$file": sfid}}
                 else:
-                    self.note("gap", scope, p["name"], f"run_script points at {p['run_script'].get('name')!r}, which isn't exported for this fleet; automation dropped")
-            if p.get("resend_configuration_profile"):
-                rp = p["resend_configuration_profile"]
-                spec["resend_configuration_profile"] = rp.get("name") if isinstance(rp, dict) else rp
+                    self.note("gap", scope, p["name"], f"run_script points at {rs.get('name')!r}, which isn't exported for this fleet; automation dropped")
+            if automation == "configuration_profile":
+                rp = p.get("resend_configuration_profile")
+                name = rp.get("name") if isinstance(rp, dict) else rp
+                if name:
+                    spec["resend_configuration_profile"] = name
+                else:
+                    self.note("gap", scope, p["name"], "resend_configuration_profile points at a profile Fleet didn't name; automation dropped")
             if premium:
                 spec.update(scope_labels(p))
             platform = _policy_folder(p.get("platform", ""))
@@ -1469,8 +1474,6 @@ class Planner:
             controls = self.controls_file if key == "unassigned" else target
             sw = self._software_index(key)
             team = sc.get("team") or {}
-            failing = set(((team or cfg).get("webhook_settings") or {})
-                          .get("failing_policies_webhook", {}).get("policy_ids") or [])
             titles = {t.get("id"): t for t in (sc.get("software") or {}).get("titles", [])}
             for section, fields in _api_settings(key, sc, self.snap, premium):
                 add(target, "settings", section, fields)
@@ -1479,8 +1482,8 @@ class Planner:
                                                      premium, key in ("global", "unassigned"), sc.get("setup") if premium else None):
                     add(controls, "settings", section, fields)
             for p in sc.get("policies") or []:
-                f = {k: p.get(k) for k in ("platform", "description", "resolution", "calendar_events_enabled",
-                                           "conditional_access_enabled", "continuous_automations_enabled")}
+                f = {k: p.get(k) for k in ("platform", "description", "resolution", "continuous_automations_enabled")}
+                f.update(_policy_automation_flags(p))
                 f["type"] = p.get("type") or "dynamic"
                 if f["type"] == "patch":
                     f["fleet_maintained_app_slug"] = (sw.get((p.get("patch_software") or {}).get("software_title_id")) or {}).get("slug")
@@ -1492,7 +1495,6 @@ class Planner:
                 if premium:
                     f.update({"critical": p.get("critical"), "hidden": p.get("hidden")})
                     f.update(every_label(scope_labels(p), POLICY_LABELS + ("labels_exclude_all",)))
-                f["webhooks_and_tickets_enabled"] = p["id"] in failing
                 f["run_script"] = (p.get("run_script") or {}).get("name")
                 inst = p.get("install_software")
                 if f["type"] == "patch":
@@ -1560,9 +1562,9 @@ def _sha_text(s: str) -> str:
 def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
     """(section, {field: value}) for the inline settings Fleet reports for a scope, keyed by their GitOps path.
 
-    Values the repo holds as $VARIABLEs (webhook URLs, tokens, metadata) and policy_ids (set through
-    each policy) are left out; the check drops variables from the repo's side the same way. Certificate
-    authority secrets are {VARIABLE: where} instead, so one holding another value's variable fails. Logos are files.
+    Values the repo holds as $VARIABLEs (webhook URLs, tokens, metadata) are left out; the check drops
+    variables from the repo's side the same way. Certificate authority secrets are {VARIABLE: where}
+    instead, so one holding another value's variable fails. Logos are files.
     """
     def webhooks(wh: dict, prefix: str, kinds=None):
         scalars = {k: v for k, v in (wh or {}).items() if not isinstance(v, dict)}
@@ -1570,7 +1572,7 @@ def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
             yield prefix, scalars
         for k, v in (wh or {}).items():
             if isinstance(v, dict) and (kinds is None or k in kinds):
-                yield f"{prefix}.{k}", {f: x for f, x in v.items() if f not in ("destination_url", "policy_ids")}
+                yield f"{prefix}.{k}", {f: x for f, x in v.items() if f != "destination_url"}
 
     def file_sha(item):
         return None if not item else "(left out)" if _secret_held(item) else hashlib.sha256(item["content"]).hexdigest()
@@ -1922,6 +1924,14 @@ def _secret_held(item: dict) -> bool:
 def _package_url(p: dict):
     """A package's URL as the repo holds it: its variable when the URL carries credentials."""
     return "$" + p["url_var"] if p.get("url_var") else p.get("url")
+
+
+def _policy_automation_flags(p: dict) -> dict:
+    """The policy YAML's on/off automation keys, from the automation_type Fleet reports."""
+    automation = p.get("automation_type")
+    return {"calendar_events_enabled": automation == "calendar",
+            "conditional_access_enabled": automation == "conditional_access",
+            "webhooks_and_tickets_enabled": automation == "webhook_or_ticket"}
 
 
 def _policy_package_id(inst: dict):
