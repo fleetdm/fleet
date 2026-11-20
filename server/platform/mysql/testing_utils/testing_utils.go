@@ -2,6 +2,7 @@ package testing_utils
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
@@ -64,17 +65,48 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTabl
 
 		if len(tables) == 0 {
 			skipSeeded = true
-			sql := `
-      SELECT
-        table_name
-      FROM
-        information_schema.tables
-      WHERE
-        table_schema = database() AND
-        table_type = 'BASE TABLE'
-    `
-			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
+			var err error
+			_, err = tx.ExecContext(ctx, `SET SESSION information_schema_stats_expiry=0`)
+			if err != nil {
 				return err
+			}
+
+			var allTables []struct {
+				Name          string        `db:"table_name"`
+				AutoIncrement sql.NullInt64 `db:"auto_increment"`
+				UpdateTime    sql.NullTime  `db:"update_time"`
+			}
+			err = sqlx.SelectContext(ctx, tx, &allTables, `
+      SELECT table_name AS table_name, auto_increment AS auto_increment, update_time AS update_time
+      FROM information_schema.tables
+      WHERE table_schema = database() AND table_type = 'BASE TABLE'`)
+			if err != nil {
+				return err
+			}
+
+			var rowChecks []string
+			for _, table := range allTables {
+				// Skip tables that schema.sql inserts rows into
+				if nonEmptyTables[table.Name] {
+					continue
+				}
+				// Truncate tables with a used ID counter so IDs start at 1 again, even if they have no rows.
+				// Also truncate tables written since their last truncate to reset their update time.
+				if table.AutoIncrement.Int64 > 1 || table.UpdateTime.Valid {
+					tables = append(tables, table.Name)
+					continue
+				}
+				// Select the table name as text, so the result lists the names of tables that have rows
+				rowChecks = append(rowChecks, fmt.Sprintf("(SELECT '%s' FROM %s LIMIT 1)", table.Name, table.Name))
+			}
+
+			if len(rowChecks) > 0 {
+				var tablesWithRows []string
+				err = sqlx.SelectContext(ctx, tx, &tablesWithRows, strings.Join(rowChecks, "\nUNION ALL\n"))
+				if err != nil {
+					return err
+				}
+				tables = append(tables, tablesWithRows...)
 			}
 		}
 
