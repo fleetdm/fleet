@@ -28,6 +28,8 @@ The assistant sounded very sure of itself, so I stopped asking who does MAM best
 
 One by one, the Microsoft advantages fell apart. The assistant gave in once it read Google's admin docs.
 
+## Nothing but the truth
+
 You may have heard that app protection without enrollment only works with Intune. That's false, and it has nothing to do with managing devices. Outlook and the Office apps have some lightweight data controls built in, and Microsoft calls them MAM. Google has the same controls in Gmail and its other work apps, and so does any other office suite. There's no secret deal with Apple behind any of it.
 
 Google lets you turn these controls on in the Google Workspace Admin console, alongside the rest of your Gmail and Drive settings, and you can push some of them through your device management tool, too. The only difference with Microsoft is that it makes you set them up in Intune, not in your email settings or the settings for your work apps. My guess is that Google simply doesn't have the leverage Microsoft has to force people onto its own tools, so it leans on open standards instead. Thankfully, you can get around Microsoft's version by enrolling the phone in your MDM, like Fleet.
