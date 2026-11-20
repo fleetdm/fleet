@@ -1359,56 +1359,20 @@ module.exports.routes = {
   'GET /deals': '/partners#deals',
   'GET /partner': '/partners',
 
-  // fleetdm.com URL plan (Nov 2026): temporary redirects to the closest existing page, until dedicated pages exist.
+  // fleetdm.com URL plan (Nov 2026): temporary (302) redirects to the closest existing page, until dedicated pages exist.
+  // Permanent (301) redirects are only used for pure aliases of another planned URL, so a future page only changes one line.
   'GET /unified-endpoint-management': '/device-management',
-  'GET /uem': '/device-management',
+  'GET /uem': (req, res) => { return res.redirect(301, '/unified-endpoint-management' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
   'GET /mobile-device-management': '/device-management',
   'GET /ai-governance': '/endpoint-governance',
+  'GET /byod': '/articles/build-byod-security-program',
   'GET /lp/on-premises': (req, res) => { return res.redirect(301, '/lp/on-premise' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
   'GET /vs/microsoft-intune': '/compare/jamf-vs-intune-vs-fleet',
   'GET /vs/jamf': '/compare/jamf-vs-fleet',
   'GET /vs/workspace-one': '/compare/workspace-one-vs-fleet',
   'GET /vs/microsoft-e3-e5-e7': '/articles/intune-isnt-free-what-the-microsoft-365-bundle-really-costs',
-  'GET /vs/ivanti': '/lp/patch-faster',
-  'GET /vs/sccm': '/lp/patch-faster',
-  'GET /vs/patch-my-pc': '/lp/patch-faster',
-  'GET /vs/tanium': '/lp/patch-faster',
-  'GET /vs/automox': '/lp/patch-faster',
-  'GET /vs/pdq': '/lp/patch-faster',
   'GET /hardware/nvidia': '/guides/manage-dgx-spark-with-fleet',
-  'GET /hardware/apple': '/apple',
-  'GET /hardware/apple/macbook-pro': '/apple',
-  'GET /hardware/apple/macbook-air': '/apple',
-  'GET /hardware/apple/imac': '/apple',
-  'GET /hardware/apple/mac-studio': '/apple',
-  'GET /hardware/apple/mac-mini': '/apple',
   'GET /hardware/apple/macbook-neo': '/articles/enroll-macbook-neo-at-scale-with-fleet-zero-touch',
-  'GET /hardware/apple/ipad-pro': '/articles/ipad-mdm-a-complete-guide',
-  'GET /deutschland': '/europe',
-  'GET /germany': '/europe',
-  'GET /uk': '/europe',
-  'GET /britain': '/uk',// « Aliases point at /uk so only one line changes when /uk gets its own page.
-  'GET /united-kingdom': '/uk',
-  'GET /nederland': '/europe',
-  'GET /netherlands': '/europe',
-  'GET /sverige': '/europe',
-  'GET /sweden': '/europe',
-  'GET /danmark': '/europe',
-  'GET /denmark': '/europe',
-  'GET /norge': '/europe',
-  'GET /norway': '/europe',
-  'GET /suomi': '/europe',
-  'GET /finland': '/europe',
-  'GET /france': '/europe',
-  'GET /andorra': '/europe',
-  'GET /spain': '/europe',
-  'GET /%C3%A9ire': '/europe',// « /éire
-  'GET /ireland': '/europe',
-  'GET /%D0%B1%D0%BE%D1%81%D0%BD%D0%B0': '/europe',// « /босна
-  'GET /bosnia': '/europe',
-  'GET /bosna': '/europe',
-  'GET /rom%C3%A2nia': '/europe',// « /românia
-  'GET /romania': '/europe',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
