@@ -99,16 +99,6 @@
       color: inherit;
     }
   }
-  // macOS draws the window controls, so every tool places them the same way:
-  // 14px in from the window's outer edge, inside its 1px border.
-  [purpose='ai-demo-window-controls'] {
-    position: absolute;
-    z-index: 1;
-    left: 13em;
-    top: 13em;
-    width: 47em;
-    height: 11em;
-  }
   [purpose='claude-code-animation'] {
     color: #191919;
     p {
@@ -158,13 +148,12 @@
       display: none;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='claude-code-title-bar'] {
     display: flex;
     align-items: center;
     gap: 6em;
     height: 25em;
-    padding-left: 68em;
+    padding-left: 11em;
     img {
       width: 14em;
       height: 14em;
@@ -324,10 +313,6 @@
     > img {
       width: 16em;
       height: 16em;
-    }
-    // Without the sidebar, leave room for the window controls.
-    @media (max-width: 991px) {
-      padding-left: 74em;
     }
     @media (max-width: 767px) {
       padding-right: 14em;
@@ -598,14 +583,13 @@
       display: none;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='cursor-window-controls'] {
     display: flex;
     align-items: center;
     gap: 11em;
     height: 14em;
     margin-bottom: 13em;
-    padding: 0 5em 0 63em;
+    padding: 0 5em 0 7em;
   }
   // Overrides the sidebar's 13em icon size.
   [purpose='cursor-sidebar'] [purpose='cursor-window-controls'] img {
@@ -698,10 +682,6 @@
     gap: 11em;
     height: 36em;
     padding: 0 13em 0 9em;
-    // Without the sidebar, leave room for the window controls.
-    @media (max-width: 991px) {
-      padding-left: 74em;
-    }
     img {
       width: 14em;
       height: 14em;
@@ -1040,14 +1020,13 @@
       display: none;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='copilot-title-bar'] {
     display: flex;
     align-items: center;
     gap: 11em;
     height: 14em;
     margin-bottom: 13em;
-    padding: 0 7em 0 65em;
+    padding: 0 7em 0 7em;
   }
   [purpose='copilot-back'] {
     margin-left: auto;
@@ -1134,10 +1113,6 @@
     gap: 5em;
     height: 38em;
     padding: 0 18em;
-    // Without the sidebar, leave room for the window controls.
-    @media (max-width: 991px) {
-      padding-left: 74em;
-    }
     @media (max-width: 767px) {
       padding-right: 14em;
     }
@@ -1446,8 +1421,7 @@
     align-items: center;
     gap: 14em;
     width: 216em;
-    // Starts after the window controls, which every tool pins at 14, 14.
-    padding-left: 74em;
+    padding-left: 13em;
     img {
       width: 14em;
       height: 14em;
@@ -1966,7 +1940,6 @@
       width: 362em;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='slack-title-bar'] {
     flex-shrink: 0;
     display: flex;
@@ -1980,7 +1953,7 @@
       height: 20em;
     }
     @media (max-width: 767px) {
-      padding-left: 74em;
+      padding-left: 13em;
     }
   }
   [purpose='slack-search'] {
@@ -2053,9 +2026,10 @@
       margin-left: 6em;
     }
   }
+  // With the rail, the same 216px side panel as the other tools.
   [purpose='slack-sidebar'] {
     flex-shrink: 0;
-    width: 183em;
+    width: 156em;
     display: flex;
     flex-direction: column;
     padding-top: 7em;
@@ -2323,79 +2297,264 @@
     font-family: 'Segoe UI', system-ui, sans-serif;
     color: #242424;
     p {
-      font-size: 15em;
-      line-height: 1.3;
+      font-size: 12em;
+      line-height: 1.5;
       color: #242424;
     }
     strong {
       font-weight: 700;
     }
   }
-  // The Teams window art has a wider aspect ratio than the other tools, so it's
-  // scaled to the frame's width and centered. 1em inside it is one pixel of the
-  // Teams Figma frames (desktop 1044×520, tablet 844×576, mobile 492×576).
   [purpose='teams-window'] {
     position: absolute;
     left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1044em;
-    height: 520em;
-    font-size: (940em / 1044);
-    border-radius: 6.962em;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 3.481em 9.283em rgba(0, 0, 0, 0.08);
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #e8e9ea;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
     @media (max-width: 991px) {
-      width: 844em;
-      height: 576em;
-      font-size: (752em / 844);
+      width: 752em;
     }
     @media (max-width: 767px) {
-      width: 492em;
-      font-size: (362em / 492);
+      width: 362em;
     }
   }
-  [purpose='teams-chrome'] {
-    display: block;
-    width: 100%;
-    height: 100%;
+  [purpose='teams-title-bar'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12em;
+    height: 41em;
+    padding: 0 6em 0 14em;
+    border-bottom: 1em solid rgba(0, 0, 0, 0.05);
+  }
+  [purpose='teams-logo'] {
+    width: 28em;
+    height: 28em;
+  }
+  [purpose='teams-title-nav'] {
+    flex: 0 1 461em;
+    min-width: 0;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 3.4em;
+    > img {
+      width: 20.6em;
+      height: 20.6em;
+    }
+  }
+  [purpose='teams-search'] {
+    flex: 1;
+    min-width: 0;
+    height: 27.5em;
+    display: flex;
+    align-items: center;
+    gap: 3.4em;
+    margin-left: 10.3em;
+    padding: 0 10.3em;
+    overflow: hidden;
+    border-radius: 3.4em;
+    background-color: @accent-white;
     img {
-      width: 100%;
-      height: 100%;
+      width: 17.2em;
+      height: 17.2em;
+    }
+    span {
+      font-size: 12em;
+      line-height: (17 / 12);
+      color: #616161;
+      white-space: nowrap;
     }
   }
-  // The message area below the chat header.
-  [purpose='teams-conversation'] {
-    position: absolute;
-    left: 278.5em;
-    top: 93.37em;
-    width: 760em;
-    height: 420.43em;
-    border-radius: 0 0 8em 8em;
-    overflow: hidden;
-    @media (max-width: 991px) {
-      left: 220.5em;
-      top: 93.57em;
-      width: 617em;
-      height: 477.43em;
-    }
+  [purpose='teams-body'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  // The app bar and chat list add up to the same 216px side panel as the other tools.
+  [purpose='teams-app-bar'] {
+    flex-shrink: 0;
+    width: 57em;
+    display: flex;
+    flex-direction: column;
+    padding-top: 3.4em;
     @media (max-width: 767px) {
-      left: 0;
-      width: 492em;
-      height: 482.43em;
-      border-radius: 0;
+      display: none;
     }
+  }
+  [purpose='teams-app-bar-item'] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48.1em;
+    img {
+      width: 20.6em;
+      height: 20.6em;
+    }
+    &.selected::before {
+      content: '';
+      position: absolute;
+      left: 0.7em;
+      top: 3.4em;
+      width: 1.7em;
+      height: 41.3em;
+      border-radius: 1em;
+      background-color: #5b5fc7;
+    }
+  }
+  [purpose='teams-sidebar'] {
+    flex-shrink: 0;
+    width: 159em;
+    display: flex;
+    flex-direction: column;
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+  [purpose='teams-sidebar-header'] {
+    display: flex;
+    align-items: center;
+    gap: 3.4em;
+    height: 51em;
+    margin-bottom: 11em;
+    padding: 0 11.5em 0 17.2em;
+  }
+  [purpose='teams-sidebar-title'] {
+    margin-right: auto;
+    font-size: 15em;
+    font-weight: 700;
+    line-height: (20 / 15);
+  }
+  [purpose='teams-icon-button'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26.3em;
+    height: 27.5em;
+    img {
+      width: 17.2em;
+      height: 17.2em;
+    }
+    & + [purpose='teams-icon-button'] img {
+      width: 14.8em;
+      height: 14.8em;
+    }
+  }
+  [purpose='teams-sidebar-label'] {
+    display: block;
+    height: (24em / 10);
+    padding-left: (17.2em / 10);
+    font-size: 10em;
+    line-height: 2.4;
+    color: #616161;
+  }
+  [purpose='teams-sidebar-item'] {
+    display: flex;
+    align-items: center;
+    gap: 10.3em;
+    height: 45.2em;
+    margin: 0 7.1em 0 5.2em;
+    padding-left: 12em;
+    border-radius: 3.4em;
+    img {
+      width: 28em;
+      height: 28em;
+    }
+    &.selected {
+      background-color: #f9f9f9;
+    }
+  }
+  [purpose='teams-placeholder-avatar'] {
+    flex-shrink: 0;
+    width: 28em;
+    height: 28em;
+    border-radius: 50%;
+    background-color: #d0d0d0;
+  }
+  [purpose='teams-placeholder-bar'] {
+    width: 85.5em;
+    height: 10.3em;
+    border-radius: 3.4em;
+    background-color: #d0d0d0;
+  }
+  [purpose='teams-chat-name'] {
+    font-size: 12em;
+    font-weight: 700;
+    line-height: (14 / 12);
+  }
+  [purpose='teams-main'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0 5em 4em 0;
+    overflow: hidden;
+    border-radius: 8em;
+    background-color: @accent-white;
+    @media (max-width: 767px) {
+      margin-left: 5em;
+    }
+  }
+  [purpose='teams-header'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 52em;
+    padding-left: 16em;
+    border-bottom: 1em solid #f0f0f0;
+    img {
+      width: 28em;
+      height: 28em;
+    }
+  }
+  [purpose='teams-chat-title'] {
+    margin-left: (11em / 15.5);
+    font-size: 15.5em;
+    font-weight: 700;
+    line-height: (20.6 / 15.5);
+  }
+  [purpose='teams-tab'] {
+    position: relative;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    margin-left: (14em / 12);
+    font-size: 12em;
+    font-weight: 600;
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: (1em / 12);
+      height: (1.7em / 12);
+      border-radius: (1em / 12);
+      background-color: #5b5fc7;
+    }
+  }
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='teams-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
   [purpose='teams-thread'] {
     display: flex;
     flex-direction: column;
-    gap: 13.752em;
-    padding: 15.7em 23.7em 0 22.7em;
-    @media (max-width: 991px) {
-      padding: 12em 10.5em 0 9.5em;
-    }
+    gap: 13.75em;
+    padding: 16em 23.2em 0;
     @media (max-width: 767px) {
-      padding: 12em 10em 0 10em;
+      padding: 12em 10em 0;
     }
     &.fading-out {
       opacity: 0;
@@ -2407,7 +2566,7 @@
   }
   [purpose='teams-first-message'], [purpose='teams-second-message'] {
     align-self: flex-end;
-    padding: 10.314em 13.752em;
+    padding: 10.3em 13.75em;
     border-radius: 8em;
     background-color: #e8ebfa;
     p {
@@ -2415,28 +2574,25 @@
     }
   }
   [purpose='teams-first-message'] {
-    @media (max-width: 991px) {
-      max-width: 346em;
+    @media (max-width: 767px) {
+      max-width: 290em;
       p {
         white-space: normal;
       }
-    }
-    @media (max-width: 767px) {
-      max-width: 339em;
     }
   }
   [purpose='teams-reply'], [purpose='teams-typing'] {
     display: flex;
     align-items: flex-start;
-    gap: 6.876em;
+    gap: 6.9em;
   }
   [purpose='teams-typing'] {
-    padding-top: 10.314em;
+    padding-top: 10.3em;
   }
   [purpose='teams-avatar'] {
     width: 28em;
     height: 28em;
-    margin-top: 10.314em;
+    margin-top: 10.3em;
   }
   [purpose='teams-typing'] [purpose='teams-avatar'] {
     margin-top: 0;
@@ -2446,7 +2602,7 @@
     align-items: center;
     gap: 3.5em;
     height: 28em;
-    padding: 0 13.752em;
+    padding: 0 13.75em;
     border-radius: 8em;
     background-color: #f5f5f5;
     span {
@@ -2457,49 +2613,27 @@
       background-color: #616161;
     }
   }
-  // Bubbles hug their text and wrap only at the widths set in Figma.
   [purpose='teams-reply-body'] {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3.438em;
-  }
-  [purpose='teams-first-reply'] [purpose='teams-reply-body'] > [purpose='teams-reply-bubble'] {
-    max-width: 434.5em;
-    @media (max-width: 991px) {
-      max-width: 349.5em;
-    }
-  }
-  [purpose='teams-second-reply'] [purpose='teams-reply-bubble'] {
-    @media (max-width: 767px) {
-      width: 381.1em;
-    }
-  }
-  [purpose='teams-sender'] {
-    font-size: 12em;
-    line-height: 13.752 / 12;
-    color: #616161;
-    @media (max-width: 991px) {
-      font-size: 10.314em;
-      line-height: 13.752 / 10.314;
-    }
-    @media (max-width: 767px) {
-      font-size: 12em;
-      line-height: 13.752 / 12;
-    }
+    gap: 3.4em;
   }
   [purpose='teams-reply-bubble'] {
-    padding: 10.314em 20.628em 10.314em 13.752em;
+    max-width: 515.7em;
+    padding: 10.3em 20.6em 10.3em 13.75em;
     border-radius: 8em;
     background-color: #f5f5f5;
+  }
+  [purpose='teams-sender'] {
+    font-size: 10.3em;
+    line-height: (13.75 / 10.3);
+    color: #616161;
   }
   // Underlined to suggest it links to the PR. It isn't interactive.
   [purpose='teams-link'] {
     text-decoration: underline;
-    // Mobile wraps the whole phrase onto its own line, as in Figma.
-    @media (max-width: 767px) {
-      display: inline-block;
-    }
   }
 
   // The component reveals one message at a time and moves the thread up to
