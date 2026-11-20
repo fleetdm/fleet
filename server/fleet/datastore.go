@@ -3359,9 +3359,23 @@ type Datastore interface {
 	// states in host_mdm_actions.
 	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
-	// WipeHostViaWindowsMDM sends a Windows MDM command to wipe a host and
-	// updates the states in host_mdm_actions.
+	// WipeHostViaWindowsMDM sends a Windows MDM command to wipe or reset a host and
+	// updates the states in host_mdm_actions. A wipe replaces a reset the host
+	// hasn't picked up, and waits behind one it acknowledged.
 	WipeHostViaWindowsMDM(ctx context.Context, host *Host, cmd *MDMWindowsCommand) error
+
+	// MDMWindowsFailInterruptedReset runs when an MDM session starts. If the enrollment acknowledged the host's reset
+	// more than WindowsResetRestartWindow ago, the reset was rolled back: it clears the reset status (handing it to a
+	// wipe queued behind the reset, if any) and returns true.
+	MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID, hostID uint) (bool, error)
+
+	// MDMWindowsRemoteWipeInProgress reports whether the enrollment's device acknowledged a RemoteWipe it may still be acting
+	// on: within WindowsResetRestartWindow, or a reset that MDMWindowsFailInterruptedReset hasn't cleared yet.
+	MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID, hostID uint) (bool, error)
+
+	// ClearEndUserAfterWindowsReset removes the end user mappings that a Windows host had before it acknowledged a reset, if
+	// EnrollOrbit would accept an enrollment with these options over that host. It returns whether it did.
+	ClearEndUserAfterWindowsReset(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (bool, error)
 
 	// UpdateHostLockWipeStatusFromAppleMDMResult updates the host_mdm_actions
 	// table to reflect the result of the corresponding lock/wipe MDM command for

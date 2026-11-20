@@ -799,7 +799,9 @@ type LockHostFunc func(ctx context.Context, hostID uint, viewPIN bool) (unlockPI
 
 type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, err error)
 
-type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
+type WipeHostFunc func(ctx context.Context, hostID uint) error
+
+type ResetHostFunc func(ctx context.Context, hostID uint) error
 
 type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
 
@@ -2167,6 +2169,9 @@ type Service struct {
 
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
+
+	ResetHostFunc        ResetHostFunc
+	ResetHostFuncInvoked bool
 
 	ClearPasscodeFunc        ClearPasscodeFunc
 	ClearPasscodeFuncInvoked bool
@@ -5188,11 +5193,18 @@ func (s *Service) UnlockHost(ctx context.Context, hostID uint) (unlockPIN string
 	return s.UnlockHostFunc(ctx, hostID)
 }
 
-func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
+func (s *Service) WipeHost(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.WipeHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.WipeHostFunc(ctx, hostID, metadata)
+	return s.WipeHostFunc(ctx, hostID)
+}
+
+func (s *Service) ResetHost(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ResetHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetHostFunc(ctx, hostID)
 }
 
 func (s *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
