@@ -32,11 +32,12 @@ defaults:
   run:
     shell: pwsh
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test-go-windows:
+    permissions:
+      contents: read
     runs-on: windows-latest
     timeout-minutes: 30
 

@@ -26,11 +26,12 @@ env:
   AWS_REGION: us-east-2
   AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   discover:
+    permissions:
+      contents: read
     # Only the nightly/manual runs scan extra branches; push/PR keep their
     # single-ref behavior and skip this job.
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
