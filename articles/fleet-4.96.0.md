@@ -9,21 +9,23 @@ Fleet 4.96.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Google conditional access for iOS, iPadOS, and Android
 
-IT admins who use Google Workspace can now block sign-in from company-owned iOS, iPadOS, and Android hosts that Fleet doesn't manage. Fleet marks the hosts it manages as managed in Google, so only those hosts can access company data.
+IT admins who use Google Workspace can now block sign-in from iPhones, iPads, and Android devices that aren't company-owned and enrolled to Fleet. Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google. Google's [Context-Aware Access](https://knowledge.workspace.google.com/admin/security/about-context-aware-access) then blocks devices that aren't.
 
-Connect Fleet to Google Workspace with your customer ID, an admin email, and a service account key. iOS and iPadOS hosts register when the end user signs in with Google from the self-service web clip. Android hosts need nothing on the device. Fleet registers them automatically from the device ID it already stores. This feature is available in Fleet Premium, and only global admins can turn it on or off.
+Connect Google in **Settings > Integrations > Conditional access** with your Google customer ID, a Google Workspace admin's email, and a service account key. You can also use the [REST API](https://fleetdm.com/docs/rest-api/rest-api#connect-google) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files#google-conditional-access). On iPhones and iPads, the end user signs in to Google once from the self-service web clip. Android hosts don't need a sign-in.
 
-Learn more in the [Google conditional access guide](https://fleetdm.com/guides/google-conditional-access-integration). Reference docs for the API and GitOps settings: TODO.
+If you use the [Chrome bookmark](https://fleetdm.com/guides/google-conditional-access-integration#register-hosts-with-a-chrome-bookmark) from Fleet 4.95, connect Google in Fleet after you upgrade. The bookmark now needs it.
+
+Learn how in the [Google conditional access guide](https://fleetdm.com/guides/google-conditional-access-integration).
 
 GitHub issue: [#56195](https://github.com/fleetdm/fleet/issues/56195)
 
 ### Require a screen lock during Android setup
 
-IT admins can now make sure company-owned Android hosts have a passcode before the end user reaches the home screen. Add an Android configuration profile with a password policy to a fleet, and the end user is prompted to set a compliant passcode during setup.
+IT admins can now make sure company-owned Android hosts have a passcode before the end user reaches the home screen. Add an Android configuration profile with `passwordPolicies` or `passwordRequirements` to a fleet, and the end user sets a passcode during setup. Profiles scoped with labels are applied after setup, because a host doesn't have labels until it enrolls. Passcode profiles can't include Fleet variables, custom variables, or custom host vitals.
 
-The prompt appears during setup only for profiles that apply to every host in the fleet, so profiles scoped with labels are applied after setup. Profiles with Fleet variables aren't supported for this purpose and are rejected with an error. Each fleet's zero-touch enrollment token now points to that fleet's own default Android policy. After you upgrade, copy the new DPC extras from the zero-touch settings page into the Android zero-touch portal. Old tokens keep working, but they don't prompt during setup.
+If you use Android zero-touch enrollment, copy the new DPC extras from Fleet into the zero-touch portal so hosts ask for the passcode during setup. See [Changes that may require action](#changes-that-may-require-action).
 
-Learn more in the [Android zero-touch enrollment guide](https://fleetdm.com/guides/android-zero-touch-enrollment) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup).
+Learn more in the [configuration profiles guide](https://fleetdm.com/guides/custom-os-settings#target-hosts-with-labels).
 
 GitHub issue: [#57461](https://github.com/fleetdm/fleet/issues/57461)
 
