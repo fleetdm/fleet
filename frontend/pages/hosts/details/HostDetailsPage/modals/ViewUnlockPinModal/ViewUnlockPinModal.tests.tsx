@@ -23,7 +23,9 @@ describe("ViewUnlockPinModal", () => {
   });
 
   it("shows a spinner and a Close button while loading", async () => {
-    (hostAPI.unlockHost as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    (hostAPI.unlockHost as jest.Mock).mockReturnValue(
+      new Promise(() => undefined)
+    );
     render(<ViewUnlockPinModal id={7} onClose={jest.fn()} />);
 
     // Spinner waits 250ms before rendering to avoid a flash.
