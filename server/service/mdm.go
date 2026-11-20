@@ -3396,7 +3396,7 @@ func getAppleProfiles(
 
 			if err := fleet.ValidateMDMProfileName(prof.Name); err != nil {
 				reason := err.Error()
-				name := fmt.Sprintf("apple_settings.configuration_profiles[%d]", i)
+				name := "apple_settings.configuration_profiles"
 				if iae, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok && iae.HasErrors() {
 					reason = iae.Invalid()[0]["reason"] // nolint:nilaway // iae.HasErrors check length, so [0] is not a nil potential
 					name = fmt.Sprintf("%s.%s", name, iae.Invalid()[0]["name"])
