@@ -260,6 +260,6 @@ The runner couldn't reach `sofafeed.macadmins.io` or `api.msrc.microsoft.com`. G
 <meta name="articleTitle" value="Build DEX dashboards with GitHub Actions">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
-<meta name="publishedOn" value="2026-11-19">
+<meta name="publishedOn" value="2026-11-20">
 <meta name="category" value="guides">
 <meta name="description" value="Build Fleet's DEX dashboards in a GitHub Actions workflow, keep their history in your repository, and serve them privately with GitHub Pages.">
