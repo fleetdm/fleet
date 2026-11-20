@@ -2631,7 +2631,8 @@ func rejectUUIDOfAnotherMDMHost(ctx context.Context, tx sqlx.QueryerContext, uui
 }
 
 // rejectOrbitEnrollmentOverHostDB returns an EnrollmentRejectedError when orbit may not enroll over the matched host.
-// androidSecret is whether the enrollment presented an Android one-time secret.
+// androidSecret is whether the enrollment presented an Android one-time secret, which skips the Android device ID check.
+// One-time secrets of any platform are checked by the callers.
 func rejectOrbitEnrollmentOverHostDB(ctx context.Context, tx sqlx.ExtContext, enrollConfig *fleet.DatastoreEnrollOrbitConfig,
 	matched *enrolledHostInfo, androidSecret bool,
 ) error {
@@ -4855,28 +4856,17 @@ func (ds *Datastore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...
 		return false, nil
 	}
 
+	// Every orbit enrollment runs this, so check on the replica first. The host acknowledged the reset minutes before it
+	// comes back, so the replica has it.
+	if matched, err := windowsResetHostForOrbitEnrollment(ctx, ds.reader(ctx), enrollConfig); err != nil || matched == nil {
+		return false, err
+	}
+
 	var cleared bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		cleared = false
-		// A Windows host back from a reset doesn't come with an Android one-time secret, and EnrollOrbit matches those differently.
-		if enrollConfig.OneTimeEnrollSecretID != nil {
-			androidSecret, err := isAndroidOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID)
-			if err != nil || androidSecret {
-				return err
-			}
-		}
-		matched, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, enrollConfig.IsMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, hostInfo.HardwareSerial, hostInfo.AutopilotDeviceID, hostInfo.Platform)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil
-		case err != nil:
-			return ctxerr.Wrap(ctx, err, "match host for end user clear")
-		}
-		if matched.Platform != "windows" {
-			return nil
-		}
-		if _, reset, err := windowsResetAckDB(ctx, tx, matched.ID); err != nil || !reset {
+		matched, err := windowsResetHostForOrbitEnrollment(ctx, tx, enrollConfig)
+		if err != nil || matched == nil {
 			return err
 		}
 
@@ -4899,6 +4889,35 @@ func (ds *Datastore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...
 		return err
 	})
 	return cleared, err
+}
+
+// windowsResetHostForOrbitEnrollment returns the Windows host the orbit enrollment lands on if that host acknowledged a reset,
+// or nil. An Android one-time secret lands on the Android host it's bound to, never a Windows host. Windows and Apple one-time
+// secrets match by identifiers like any enrollment; the caller checks them.
+func windowsResetHostForOrbitEnrollment(ctx context.Context, q sqlx.QueryerContext, enrollConfig *fleet.DatastoreEnrollOrbitConfig,
+) (*enrolledHostInfo, error) {
+	if enrollConfig.OneTimeEnrollSecretID != nil {
+		androidSecret, err := isAndroidOneTimeEnrollSecret(ctx, q, *enrollConfig.OneTimeEnrollSecretID)
+		if err != nil || androidSecret {
+			return nil, err
+		}
+	}
+	hostInfo := enrollConfig.HostInfo
+	matched, err := matchHostDuringEnrollment(ctx, q, orbitEnroll, enrollConfig.IsMDMEnabled, hostInfo.OsqueryIdentifier,
+		hostInfo.HardwareUUID, hostInfo.HardwareSerial, hostInfo.AutopilotDeviceID, hostInfo.Platform)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "match host for end user clear")
+	}
+	if matched.Platform != "windows" {
+		return nil, nil
+	}
+	if _, reset, err := windowsResetAckDB(ctx, q, matched.ID); err != nil || !reset {
+		return nil, err
+	}
+	return matched, nil
 }
 
 type windowsResetAck struct {
