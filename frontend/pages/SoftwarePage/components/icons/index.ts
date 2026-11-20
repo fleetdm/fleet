@@ -28,6 +28,7 @@ import iPadOS from "./iPadOS";
 import LinuxOS from "./LinuxOS";
 import MacOS from "./MacOS";
 import { TMatchedIcon } from "./MatchedIcon";
+import MakeMeAdmin from "./png/MakeMeAdmin.png";
 import OnePassword from "./OnePassword";
 import Package from "./Package";
 import ZeroOneZeroEditor from "./png/010Editor.png";
@@ -1804,6 +1805,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maestral: Maestral,
   magicquit: Magicquit,
   mailspring: Mailspring,
+  "make me admin": MakeMeAdmin,
   "malwarebytes for mac": Malwarebytes,
   "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,

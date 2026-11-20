@@ -5329,6 +5329,13 @@
       "description": "Mailspring is a fork of Nylas Mail."
     },
     {
+      "name": "Make Me Admin",
+      "slug": "make-me-admin/windows",
+      "platform": "windows",
+      "unique_identifier": "Make Me Admin",
+      "description": "Make Me Admin is a tool that lets standard users temporarily elevate their account to administrator."
+    },
+    {
       "name": "Malwarebytes for Mac",
       "slug": "malwarebytes/darwin",
       "platform": "darwin",
