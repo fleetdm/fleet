@@ -9,6 +9,7 @@
       <div purpose="directory-and-sidebar">
         <div purpose="table-of-contents">
           <a purpose="category-link" href="/integrations" class="<%= selectedCategory ? '' : 'active' %>">All integrations</a>
+          <div purpose="table-of-contents-divider"></div>
           <% for (let category of allCategories) { %>
             <a purpose="category-link" href="<%= category.url %>" class="<%= selectedCategory && selectedCategory.slug === category.slug ? 'active' : '' %>"><%= category.name %></a>
           <% } %>
@@ -61,6 +62,7 @@
     <p purpose="mobile-table-of-contents-header"><strong>Integrations</strong></p>
     <div purpose="table-of-contents">
       <a purpose="category-link" href="/integrations" class="<%= selectedCategory ? '' : 'active' %>">All integrations</a>
+      <div purpose="table-of-contents-divider"></div>
       <% for (let category of allCategories) { %>
         <a purpose="category-link" href="<%= category.url %>" class="<%= selectedCategory && selectedCategory.slug === category.slug ? 'active' : '' %>"><%= category.name %></a>
       <% } %>

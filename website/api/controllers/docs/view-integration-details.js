@@ -29,10 +29,6 @@ module.exports = {
       viewTemplatePath: 'pages/docs/integration-details'
     },
 
-    redirect: {
-      responseType: 'redirect',
-      description: 'The requested URL is an alias for another integration page.'
-    },
 
     badConfig: {
       responseType: 'badConfig'
@@ -54,19 +50,6 @@ module.exports = {
     let requestedPath = '/integrate/' + categorySlug + '/' + integrationSlug;
     let thisIntegration = _.find(sails.config.builtStaticContent.integrations, { url: requestedPath });
     if (!thisIntegration) {
-      let aliasTarget = _.find(sails.config.builtStaticContent.integrations, (integration)=>{
-        return integration.redirectsFrom.includes(requestedPath);
-      });
-      if (aliasTarget) {
-        throw {redirect: aliasTarget.url};
-      }
-      // Some planned URLs (e.g. /integrate/idp/custom) are for Fleet's own building blocks, which share one page.
-      let buildingBlock = _.find(sails.config.builtStaticContent.integrationBuildingBlocks || [], (block)=>{
-        return block.redirectsFrom.includes(requestedPath);
-      });
-      if (buildingBlock) {
-        throw {redirect: '/integrate/build-anything'};
-      }
       throw 'notFound';
     }
 

@@ -1584,29 +1584,37 @@ module.exports = {
         }
         let yamlLines = yaml.split('\n');
         let categorySlugsSeen = [];
-        // Every URL that resolves to an integrations page (canonical URLs and redirects), so no two entries collide.
+        // Every category and integration URL, so no two entries collide.
         let urlsSeen = [];
         for(let category of parsedYaml.categories) {
           if(!category.name || !category.slug) {
             throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) is missing a "name" or "slug" value. To resolve, add the missing value and try running this script again.`);
+          }
+          if(!_.isString(category.name)){
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) has an invalid "name" value (expected a string, but instead got: ${typeof category.name }). To resolve, change the name value to a string and try running this script again.`);
+          }
+          if(!_.isString(category.slug)){
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) has an invalid "slug" value (expected a string, but instead got: ${typeof category.slug }). To resolve, change the slug value to a string and try running this script again.`);
           }
           if(categorySlugsSeen.includes(category.slug)) {
             throw new Error(`Could not build integrations configuration from YAML. More than one category has the slug "${category.slug}". To resolve, give each category a unique slug.`);
           }
           categorySlugsSeen.push(category.slug);
           category.url = '/integrate/'+category.slug;
-          category.redirectsFrom = category.redirectsFrom || [];
-          for(let url of [category.url].concat(category.redirectsFrom)) {
-            if(urlsSeen.includes(url)) {
-              throw new Error(`Could not build integrations configuration from YAML. The URL "${url}" is used more than once. To resolve, make sure each category and integration URL (including redirectsFrom values) is unique.`);
-            }
-            urlsSeen.push(url);
+          if(urlsSeen.includes(category.url)) {
+            throw new Error(`Could not build integrations configuration from YAML. The URL "${category.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
           }
+          urlsSeen.push(category.url);
         }
         for(let integration of parsedYaml.integrations) {
           for(let requiredKey of ['name', 'url', 'category', 'description', 'summary']) {
             if(!integration[requiredKey]) {
               throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this integration and try running this script again.`);
+            }
+          }
+          for(let expectedStringAttribute of ['name', 'url', 'category', 'description', 'summary']) {
+            if(!_.isString(integration[expectedStringAttribute])) {
+              throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof integration[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
             }
           }
           if(!integration.url.match(/^\/integrate\/[a-z0-9-]+\/[a-z0-9-]+$/)) {
@@ -1618,13 +1626,10 @@ module.exports = {
               throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" uses a category (${categorySlug}) that is not in the categories list. To resolve, change it to one of: ${categorySlugsSeen.join(', ')}`);
             }
           }
-          integration.redirectsFrom = integration.redirectsFrom || [];
-          for(let url of [integration.url].concat(integration.redirectsFrom)) {
-            if(urlsSeen.includes(url)) {
-              throw new Error(`Could not build integrations configuration from YAML. The URL "${url}" is used more than once. To resolve, make sure each category and integration URL (including redirectsFrom values) is unique.`);
-            }
-            urlsSeen.push(url);
+          if(urlsSeen.includes(integration.url)) {
+            throw new Error(`Could not build integrations configuration from YAML. The URL "${integration.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
           }
+          urlsSeen.push(integration.url);
           if(integration.logo) {
             let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', integration.logo));
             if(!logoExists) {
@@ -1656,13 +1661,6 @@ module.exports = {
             if(!buildingBlock[requiredKey]) {
               throw new Error(`Could not build integrations configuration from YAML. A building block (${buildingBlock.name || util.inspect(buildingBlock)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this building block and try running this script again.`);
             }
-          }
-          buildingBlock.redirectsFrom = buildingBlock.redirectsFrom || [];
-          for(let url of buildingBlock.redirectsFrom) {
-            if(urlsSeen.includes(url)) {
-              throw new Error(`Could not build integrations configuration from YAML. The URL "${url}" is used more than once. To resolve, make sure each category, integration, and building block URL (including redirectsFrom values) is unique.`);
-            }
-            urlsSeen.push(url);
           }
           if(buildingBlock.logo) {
             let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', buildingBlock.logo));

@@ -22,10 +22,6 @@ module.exports = {
       viewTemplatePath: 'pages/docs/integrations-directory'
     },
 
-    redirect: {
-      responseType: 'redirect',
-      description: 'The requested URL is an alias for a category or integration page.'
-    },
 
     badConfig: {
       responseType: 'badConfig'
@@ -53,16 +49,8 @@ module.exports = {
     if (isBuildAnythingPage) {
       selectedCategory = { name: 'Build anything', slug: 'build-anything', url: '/integrate/build-anything' };
     } else if (categorySlug) {
-      let requestedPath = '/integrate/' + categorySlug;
       selectedCategory = _.find(allCategories, { slug: categorySlug });
       if (!selectedCategory) {
-        // A single-segment URL can also be an alias for a category or an integration (e.g. /integrate/idp, /integrate/sentinel-one).
-        let aliasTarget = _.find(allCategories.concat(allIntegrations), (categoryOrIntegration)=>{
-          return categoryOrIntegration.redirectsFrom.includes(requestedPath);
-        });
-        if (aliasTarget) {
-          throw {redirect: aliasTarget.url};
-        }
         throw 'notFound';
       }
     }
