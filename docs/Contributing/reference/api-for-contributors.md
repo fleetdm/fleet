@@ -2957,7 +2957,7 @@ Lists the software installed on the current device.
       "name": "Google Chrome.app",
       "display_name": "Chrome",
       "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
-      "software_package": {
+      "package": {
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
@@ -2978,23 +2978,13 @@ Lists the software installed on the current device.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
-      ],
-       "software_package": {
-        "name": "google-chrome-124-0-6367-207.pkg",
-        "version": "121.0",
-        "self_service": true,
-        "icon_url": null,
-        "last_install": null
-      },
-      "app_store_app": null
+      ]
     },
     {
       "id": 143,
       "name": "Firefox.app",
       "display_name": "Firefox",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
-      "software_package": null,
-      "app_store_app": null,
       "source": "apps",
       "status": null,
       "installed_versions": [
@@ -3005,7 +2995,7 @@ Lists the software installed on the current device.
           "installed_paths": ["/Applications/Slack.app"]
         }
       ],
-      "software_package": null,
+      "package": null,
       "app_store_app": {
         "app_store_id": "618783545",
         "categories": ["Communication"],
@@ -3017,7 +3007,7 @@ Lists the software installed on the current device.
     {
       "id": 144,
       "name": "Prettier",
-      "software_package": null,
+      "package": null,
       "app_store_app": null,
       "source": "vscode_extensions",
       "extesnion_for": "cursor",

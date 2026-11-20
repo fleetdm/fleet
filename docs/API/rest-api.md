@@ -13269,8 +13269,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 ((Admin)) ((Maintainer)) ((GitOps))
 
-> `DELETE /api/v1/fleet/reports/id/:id` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
-
 Deletes the report specified by ID.
 
 `DELETE /api/v1/fleet/reports/:id`
@@ -13331,8 +13329,6 @@ Deletes the reports specified by ID. Returns the count of reports successfully d
 ### Run live report
 
 ((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
-
-> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility, at both `GET /api/v1/fleet/queries/run` and `GET /api/v1/fleet/reports/run`.
 
 Runs a live report against the specified hosts and responds with the results.
 
@@ -13408,8 +13404,6 @@ After you initiate the report, [get results via WebSocket](#retrieve-live-report
 > **Warning:** If you're building an automation that runs many live reports, rate-limit your requests. Every request starts a new active report, whether you pass `query` or `report_id`. While your client retrieves results, the active report holds a Redis connection. When your client closes the connection, Fleet stops the active report right away, but its Redis connection can stay open for up to an hour. If your client keeps the connection open, both stay open too. If you never connect to retrieve results, Fleet stops the active report the first time a targeted host responds after a minute. Creating many active reports, especially without closing them, adds load that can slow down or interrupt Fleet.
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
-
-> `POST /api/v1/fleet/queries/run` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 `POST /api/v1/fleet/reports/run`
 
@@ -13512,8 +13506,6 @@ After the report has been initiated, [get results via WebSocket](#retrieve-live-
 > **Warning:** If you're building an automation that runs many live reports, rate-limit your requests. Every request starts a new active report, whether you pass `query` or `report_id`. While your client retrieves results, the active report holds a Redis connection. When your client closes the connection, Fleet stops the active report right away, but its Redis connection can stay open for up to an hour. If your client keeps the connection open, both stay open too. If you never connect to retrieve results, Fleet stops the active report the first time a targeted host responds after a minute. Creating many active reports, especially without closing them, adds load that can slow down or interrupt live queries for everyone.
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
-
-> `POST /api/v1/fleet/queries/run_by_identifiers` is deprecated as of Fleet 5.0. `POST /api/v1/fleet/reports/run_by_names` and `POST /api/v1/fleet/queries/run_by_names` are also deprecated. They work the same way and are maintained for backwards compatibility. Please use the below API endpoint instead.
 
 `POST /api/v1/fleet/reports/run_by_identifiers`
 
@@ -14969,7 +14961,7 @@ Returns a list of all operating systems.
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | fleet_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
-| platform            | string   | query | Filters the hosts to the specified platform. One of: `"darwin"` (macOS), `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`,` or `"android"`. |
+| platform            | string   | query | Filters the hosts to the specified platform. One of: `"darwin"` (macOS), `"windows"`, `"linux"` (all Linux distributions), `"chrome"`, `"ios"`, `"ipados"`, `"android"`, or a Linux distribution's platform, such as `"ubuntu"`, `"rhel"`, or `"omarchy"` (see the full list under `HOST_LINUX_PLATFORMS` in [`frontend/interfaces/platform.ts`](https://github.com/fleetdm/fleet/blob/main/frontend/interfaces/platform.ts)). |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 | max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
