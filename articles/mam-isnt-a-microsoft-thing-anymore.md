@@ -47,8 +47,6 @@ That's why Fleet is focused on the BYOD experience. The easier enrollment is, th
 
 Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
-Want to see BYOD enrollment in Fleet? [Get a demo](https://fleetdm.com/contact).
-
 <meta name="category" value="articles">
 <meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM thinks it is)">
 <meta name="authorFullName" value="Mike McNeil">
