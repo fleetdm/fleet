@@ -388,7 +388,7 @@ The "Packs" section of the UI that began in `kolide/fleet` c. 2017 was an early 
 
 Eventually, when working on some related improvements, it became clear that Fleet needed a better way to organize hosts, controls, reports, and configuration that wasn't tied exclusively to data collection in Splunk.  It was time to learn from the original design and come up with a smarter way to group hosts.
 
-The first step was to add a simpler way to schedule queries, and tuck away the legacy feature called "Packs". Today, reports are the portable way to import and export queries. To move an older osquery pack to reports, [convert it to report YAML with AI](https://fleetdm.com/guides/convert-osquery-packs-to-fleet-reports).
+The first step was to add a simpler way to schedule queries, and tuck away the legacy feature called "Packs". Today, reports are the portable way to import and export queries. To move an osquery pack to reports, you can easily [convert it to the new reports YAML format](https://fleetdm.com/guides/convert-osquery-packs-to-fleet-reports), which is very similar.
 
 Packs will always be supported in Fleet.
 
