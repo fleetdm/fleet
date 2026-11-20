@@ -411,6 +411,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			versions.Core, out.UniqueIdentifier,
 		)
 	}
+	if input.Token == "parsec" {
+		// ParsecPackageAppVersion falls back to CFBundleVersion when the bundle has
+		// no short version; compare the installed bundle the same way.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(COALESCE(NULLIF(bundle_short_version, ''), bundle_version), '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
 		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
