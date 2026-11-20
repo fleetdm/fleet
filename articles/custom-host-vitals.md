@@ -1,4 +1,4 @@
-# Use custom host vitals in scripts and configuration profiles
+# Custom host vitals
 
 Custom host vitals let you define your own host fields, set a value for each host, and reference those values as variables (prefixed with `$FLEET_HOST_VITAL_`) in [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and more. To see everywhere you can use them, see [Where variables work](https://fleetdm.com/guides/fleet-variables#where-variables-work). You can also use a custom host vital's value to target hosts with a [Host vitals label](https://fleetdm.com/guides/managing-labels-in-fleet).
 
