@@ -468,8 +468,9 @@ func versionAllowedByPin(version string, pin string) bool {
 	if pin == "" {
 		return true
 	}
-	if strings.HasPrefix(pin, "^") {
-		return versionMatchesMajor(version, strings.TrimPrefix(pin, "^"))
+	major, isCaretPin := strings.CutPrefix(pin, "^")
+	if isCaretPin {
+		return versionMatchesMajor(version, major)
 	}
 	return version == pin
 }
