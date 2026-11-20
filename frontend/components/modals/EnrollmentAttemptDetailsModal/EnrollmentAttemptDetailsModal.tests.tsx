@@ -155,7 +155,7 @@ describe("EnrollmentAttemptDetailsModal", () => {
     const onDone = jest.fn();
     const { user } = renderModal({ onDone });
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByText("Close"));
 
     expect(onDone).toHaveBeenCalledTimes(1);
   });

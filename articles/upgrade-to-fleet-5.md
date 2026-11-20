@@ -1220,6 +1220,23 @@ Pass `--host` on every call.
 
 GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
+### Commands look up hosts like the REST API
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get host`, `fleetctl mdm run-command --hosts`, `fleetctl mdm lock`, `fleetctl mdm unlock`, `fleetctl mdm clear-passcode`, `fleetctl mdm wipe`, and `fleetctl run-script` find a host by its hostname, UUID, serial number, osquery host ID, or node key. If more than one host matches, they use the oldest. | These commands also accept a host ID. They find a host like [`GET /hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host): a host ID first, then a serial number, UUID, and hostname. If more than one host matches, they use the newest. They don't match an osquery host ID or node key. |
+| `fleetctl query --hosts` matches a hostname, UUID, serial number, osquery host ID, or node key | `fleetctl query --hosts` matches a hostname, UUID, or serial number |
+
+#### What to do
+
+1. If you pass an all-digit hostname or serial number, check that it isn't also a host ID.
+   - An all-digit identifier is used as a host ID if a host has that ID, even if another host has that hostname or serial number.
+   - Pass the host's UUID instead, or its host ID.
+2. If you pass an osquery host ID or node key, pass the host's hostname, UUID, or serial number instead.
+   - Hostnames, UUIDs, and serial numbers already work in Fleet 4.
+
+GitHub issue: [#58203](https://github.com/fleetdm/fleet/issues/58203)
+
 ### mdm-apple-bm is now mdm-ab
 
 | Fleet 4 | Fleet 5 |
@@ -1306,11 +1323,14 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4 and review the file.
    - 2017 packs stop running on hosts after the upgrade.
+   - The command's output says Fleet 5 converts 2017 packs to reports automatically. It doesn't: Fleet 5 deletes them.
+   - Only packs that target fleets keep their schedule in the file. For packs that target labels (including "All Hosts") or individual hosts, the file sets `interval: 0` and `automations_enabled: false`, so those reports don't run. Set `interval` and `automations_enabled: true`. For packs that target labels other than "All Hosts", list those labels under `labels_include_any`. Reports can't target individual hosts, so use a label instead.
+   - If a pack's query doesn't set `snapshot` or `removed`, the file leaves `logging` empty and the report logs snapshot results. Set `logging: differential` to keep the pack's log format.
 2. Add the reports to Fleet with [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#reports) or [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report) (API).
    - With GitOps, copy each report's settings from under `spec:` into `reports` in `default.yml` or the fleet's YAML file.
    - With the API, call [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) once for each report.
 
-GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issues: [#53470](https://github.com/fleetdm/fleet/issues/53470), [#59237](https://github.com/fleetdm/fleet/issues/59237)
 
 ### fleetctl delete removed
 
@@ -1367,6 +1387,21 @@ GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 
 
+### fleetctl 4 can't connect to Fleet 5
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl` 4 shows a warning when its version doesn't match your Fleet server's, then keeps running. | `fleetctl` 4 stops with an error: `Fleet 5.x isn't compatible with fleetctl 4.x. Upgrade fleetctl.` |
+
+
+#### What to do
+
+1. Upgrade `fleetctl` to 5 wherever you run it, including CI, when you upgrade your Fleet server.
+   - If you use the GitOps GitHub Action or GitLab template that `fleetctl new` creates, you don't need to do anything. It installs the `fleetctl` version that matches your Fleet server. You only need to act if you pinned a `fleetctl` 4 version.
+
+GitHub issue: [#58780](https://github.com/fleetdm/fleet/issues/58780)
+
+
 ## Fleet server configuration
 
 ### Apple Business options renamed
@@ -1410,7 +1445,8 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 #### What to do
 
-1. Remove these options from your server configuration.
+1. Remove these options from your server configuration before you upgrade.
+   - Fleet 5 doesn't start if any of them is still set as a config file key, environment variable, or command-line flag, even if the value is `false`.
    - Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
 
 GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
@@ -1524,7 +1560,7 @@ GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
 |:--|:--|
 | Windows Task Manager shows "Orbit osquery runtime and autoupdater" | `Fleet`. This changes when fleetd updates, whatever the Fleet server version. |
 | Windows **Settings > Apps > Installed apps** shows "Fleet osquery" | `Fleet`. This changes when fleetd connects to a Fleet 5 server. |
-| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `Fleet`. This changes when fleetd talks to a Fleet 5 server. |
+| Linux `ps`, `top`, and System Monitor show the process name `orbit` | `fleet`. This changes when fleetd talks to a Fleet 5 server. |
 
 #### What to do
 

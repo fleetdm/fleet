@@ -86,3 +86,10 @@ The main Fleet infrastructure reads these outputs via remote state:
 ```bash
 terraform destroy
 ```
+
+The destroy drains the SigNoz PVCs and waits for their EBS volumes to go before the EBS CSI driver is removed.
+It stops rather than tearing down the cluster when it cannot confirm those volumes are gone, so a failure here
+means re-running `terraform destroy` once the cause is fixed; the cluster is still up, so nothing is orphaned.
+That step lives in a resource whose destroy-time provisioner only runs if the resource is in the workspace's
+state, so a stack created before it existed needs one `terraform apply` first; destroying such a stack straight
+away tears it down the old way and leaves its volumes behind.

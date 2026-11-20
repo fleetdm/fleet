@@ -1257,30 +1257,6 @@ ON DUPLICATE KEY UPDATE
 	}, nil
 }
 
-func (ds *Datastore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	var enrollmentProfiles []*fleet.MDMAppleEnrollmentProfile
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&enrollmentProfiles,
-		`
-SELECT
-    id,
-    token,
-    type,
-    dep_profile,
-    created_at,
-    updated_at
-FROM
-    mdm_apple_enrollment_profiles
-ORDER BY created_at DESC
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
-	}
-	return enrollmentProfiles, nil
-}
-
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 	var enrollment fleet.MDMAppleEnrollmentProfile
 	if err := sqlx.GetContext(
@@ -1506,29 +1482,6 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
 	return results, nil
-}
-
-func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	var devices []fleet.MDMAppleDevice
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&devices,
-		`
-SELECT
-    d.id,
-    d.serial_number,
-    e.enabled
-FROM
-    nano_devices d
-    JOIN nano_enrollments e ON d.id = e.device_id
-WHERE
-    type = "Device"
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list devices")
-	}
-	return devices, nil
 }
 
 func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
@@ -2523,6 +2476,13 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		if err := deleteHostOneTimeEnrollSecrets(ctx, tx, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting one-time enroll secrets for host")
+		}
+
+		// Only mobile hosts can register with Google conditional access.
+		if fleet.IsMobilePlatform(host.Platform) {
+			if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, []string{uuid}); err != nil {
+				return err
+			}
 		}
 
 		// clear up the MDM-dependent upcoming activities as it won't be able
@@ -7040,7 +7000,7 @@ LEFT OUTER JOIN
 
 	`
 
-	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.DisplayNameNoTeam})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}
@@ -7166,7 +7126,7 @@ LEFT OUTER JOIN
 %s
 	`
 
-	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.DisplayNameNoTeam})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}

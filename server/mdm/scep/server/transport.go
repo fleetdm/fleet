@@ -25,8 +25,9 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handle
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
-	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequest, encodeSCEPResponse, opts...)
-	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequest, encodeSCEPResponse, opts...)
+	encode := newSCEPResponseEncoder(logger)
+	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequest, encode, opts...)
+	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequest, encode, opts...)
 
 	// A method switch rather than a ServeMux: a nested ServeMux overwrites r.Pattern, which otelhttp reads after the handler
 	// returns to set http.route on metrics.
@@ -50,8 +51,9 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.L
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
-	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequestWithIdentifier, encodeSCEPResponse, opts...)
-	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequestWithIdentifier, encodeSCEPResponse, opts...)
+	encode := newSCEPResponseEncoder(logger)
+	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequestWithIdentifier, encode, opts...)
+	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequestWithIdentifier, encode, opts...)
 
 	r := http.NewServeMux()
 	r.Handle("GET "+rootPath+"{identifier}", getHandler)
@@ -235,22 +237,53 @@ func (e *TimeoutError) Error() string {
 // StatusCode implements the kithttp StatusCoder interface
 func (e *TimeoutError) StatusCode() int { return http.StatusRequestTimeout }
 
-// EncodeSCEPResponse writes a SCEP response back to the SCEP client.
-func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(SCEPResponse)
-	if resp.Err != nil {
-		status := http.StatusInternalServerError
-		var esc kithttp.StatusCoder
-		if errors.As(resp.Err, &esc) {
-			status = esc.StatusCode()
-		}
+// badRequestErrorInterface matches Fleet's bad request errors (e.g. fleet.BadRequestError),
+// which signal a 400 through this method rather than a StatusCode method.
+type badRequestErrorInterface interface {
+	error
+	BadRequestError() []map[string]string
+}
 
-		http.Error(w, resp.Err.Error(), status)
+// errWithInternal matches errors that carry a detail kept out of the response body (e.g. fleet.BadRequestError).
+type errWithInternal interface {
+	error
+	Internal() string
+}
+
+// newSCEPResponseEncoder returns an encoder that writes a SCEP response back to the SCEP client. The client
+// only gets the error's public message, so the encoder logs the full error, including any internal detail.
+func newSCEPResponseEncoder(logger *slog.Logger) kithttp.EncodeResponseFunc {
+	return func(ctx context.Context, w http.ResponseWriter, response any) error {
+		resp := response.(SCEPResponse)
+		if resp.Err != nil {
+			status := http.StatusInternalServerError
+			var esc kithttp.StatusCoder
+			var bre badRequestErrorInterface
+			switch {
+			case errors.As(resp.Err, &esc):
+				status = esc.StatusCode()
+			case errors.As(resp.Err, &bre):
+				status = http.StatusBadRequest
+			}
+
+			attrs := []any{"status", status, "err", resp.Err}
+			var ewi errWithInternal
+			if errors.As(resp.Err, &ewi) && ewi.Internal() != "" {
+				attrs = append(attrs, "internal", ewi.Internal())
+			}
+			level := slog.LevelInfo
+			if status >= http.StatusInternalServerError {
+				level = slog.LevelError
+			}
+			logger.Log(ctx, level, "SCEP request failed", attrs...)
+
+			http.Error(w, resp.Err.Error(), status)
+			return nil
+		}
+		w.Header().Set("Content-Type", contentHeader(resp.operation, resp.CACertNum))
+		_, _ = w.Write(resp.Data)
 		return nil
 	}
-	w.Header().Set("Content-Type", contentHeader(resp.operation, resp.CACertNum))
-	_, _ = w.Write(resp.Data)
-	return nil
 }
 
 // ResponseStatusError is a SCEP server's HTTP error response. The status is a field rather than a

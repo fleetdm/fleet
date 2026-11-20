@@ -597,10 +597,114 @@ CREATE TABLE `fleet_variables` (
 INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000'),(18,'FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN',0,'2026-06-19 00:00:00.000000'),(19,'FLEET_VAR_HOST_TARGET_OS_VERSION',0,'2026-07-27 00:00:00.000000'),(20,'FLEET_VAR_HOST_TARGET_OS_DEADLINE',0,'2026-07-27 00:00:00.000000'),(21,'FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID',0,'2026-10-13 00:00:00.000000'),(22,'FLEET_VAR_EJBCA_DATA_',1,'2026-10-15 00:00:00.000000'),(23,'FLEET_VAR_EJBCA_PASSWORD_',1,'2026-10-15 00:00:00.000000'),(24,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL',0,'2026-10-15 00:00:00.000000'),(25,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE',0,'2026-11-13 00:00:00.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `google_conditional_access_device_users` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `state` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`device_user_name`),
+  KEY `idx_google_conditional_access_device_users_host_uuid` (`host_uuid`),
+  KEY `idx_google_conditional_access_device_users_state` (`state`),
+  CONSTRAINT `fk_google_conditional_access_device_users_host_uuid` FOREIGN KEY (`host_uuid`) REFERENCES `google_conditional_access_devices` (`host_uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `google_conditional_access_devices` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `registration_token_hash` binary(32) DEFAULT NULL,
+  `registration_token_expires_at` datetime(6) DEFAULT NULL,
+  `registration_attempts` int unsigned NOT NULL DEFAULT '0',
+  `first_registration_attempt_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`),
+  UNIQUE KEY `idx_google_conditional_access_devices_registration_token_hash` (`registration_token_hash`),
+  UNIQUE KEY `idx_google_conditional_access_devices_google_device_id` (`google_device_id`),
+  KEY `idx_google_conditional_access_devices_customer_id` (`customer_id`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `google_conditional_access_integrations` (
+  `id` int unsigned NOT NULL DEFAULT '1',
+  `proxy_server_secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `state` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_additional` (
   `host_id` int unsigned NOT NULL,
   `additional` json DEFAULT NULL,
   PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_ai_session_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `ai_session_id` bigint unsigned NOT NULL,
+  `tool_call_index` int unsigned NOT NULL,
+  `action` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `target` varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `decision` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `executed_at` datetime(6) DEFAULT NULL,
+  `payload` json NOT NULL,
+  `content_length` int unsigned NOT NULL DEFAULT '0',
+  `truncated` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_ai_session_events_session_call` (`ai_session_id`,`tool_call_index`),
+  CONSTRAINT `fk_host_ai_session_events_ai_session_id` FOREIGN KEY (`ai_session_id`) REFERENCES `host_ai_sessions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_ai_sessions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `agent` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  `agent_session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  `agent_version` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `account_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `model` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `project_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `git_repository` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `git_branch` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `started_at` datetime(6) DEFAULT NULL,
+  `ended_at` datetime(6) DEFAULT NULL,
+  `user_message_count` int unsigned NOT NULL DEFAULT '0',
+  `assistant_message_count` int unsigned NOT NULL DEFAULT '0',
+  `tool_call_count` int unsigned NOT NULL DEFAULT '0',
+  `input_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `output_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `cache_read_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `cache_write_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `actions` set('read','write','execute','search','network','mcp','other') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `transcript_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transcript_size` bigint unsigned NOT NULL DEFAULT '0',
+  `event_count` int unsigned NOT NULL DEFAULT '0',
+  `first_undecided_tool_call_index` int unsigned DEFAULT NULL,
+  `events_ended_at` datetime(6) DEFAULT NULL,
+  `events_empty_reads` tinyint unsigned NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_ai_sessions_host_agent_session` (`host_id`,`agent`,`agent_session_id`),
+  KEY `idx_host_ai_sessions_host_ended_at` (`host_id`,`ended_at`),
+  KEY `idx_host_ai_sessions_ended_at` (`ended_at`),
+  KEY `idx_host_ai_sessions_updated_at_ended_at` (`updated_at`,`ended_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -891,16 +995,6 @@ CREATE TABLE `host_emails` (
   PRIMARY KEY (`id`),
   KEY `idx_host_emails_host_id_email` (`host_id`,`email`),
   KEY `idx_host_emails_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `host_google_device_ids` (
-  `host_id` int unsigned NOT NULL,
-  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`host_id`),
-  UNIQUE KEY `idx_host_google_device_ids_google_device_id` (`google_device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1859,10 +1953,10 @@ CREATE TABLE `in_house_apps` (
   `url` varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `global_or_team_id` (`global_or_team_id`,`filename`,`platform`),
+  UNIQUE KEY `idx_in_house_apps_global_or_team_id_title_id` (`global_or_team_id`,`title_id`),
   KEY `fk_in_house_apps_title` (`title_id`),
   CONSTRAINT `fk_in_house_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

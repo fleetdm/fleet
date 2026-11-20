@@ -1383,7 +1383,7 @@ func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, "lites-a", liteA.Name)
 	noTeam := byID[0]
 	require.NotNil(t, noTeam)
-	require.Equal(t, fleet.ReservedNameNoTeam, noTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, noTeam.Name)
 	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
 	require.NotNil(t, webhook)
 	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)

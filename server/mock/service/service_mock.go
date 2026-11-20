@@ -295,6 +295,12 @@ type UpdateSoftwareNameFunc func(ctx context.Context, titleID uint, name string)
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error)
 
+type ListHostAISessionsFunc func(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error)
+
+type GetHostAISessionFunc func(ctx context.Context, hostID uint, aiSessionID uint) (*fleet.HostAISession, error)
+
+type ListHostAISessionEventsFunc func(ctx context.Context, hostID uint, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error)
+
 type GetHostRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error)
 
 type HostDeviceURLFunc func(ctx context.Context, hostID uint) (string, error)
@@ -427,23 +433,7 @@ type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.Certifi
 
 type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
-type GlobalScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
-
-type GetGlobalScheduledQueriesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
-
-type ModifyGlobalScheduledQueriesFunc func(ctx context.Context, id uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error)
-
-type DeleteGlobalScheduledQueriesFunc func(ctx context.Context, id uint) error
-
 type TranslateFunc func(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error)
-
-type TeamScheduleQueryFunc func(ctx context.Context, teamID uint, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
-
-type GetTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
-
-type ModifyTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, scheduledQueryID uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error)
-
-type DeleteTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, id uint) error
 
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -606,8 +596,6 @@ type SkipAuthFunc func(ctx context.Context)
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
-
-type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type GenerateABMKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
 
@@ -930,6 +918,20 @@ type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.Conditi
 type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
+
+type ConnectGoogleConditionalAccessFunc func(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error
+
+type GetGoogleConditionalAccessFunc func(ctx context.Context) (*fleet.GoogleConditionalAccessIntegration, *fleet.ConditionalAccessGoogleStatus, error)
+
+type UpdateGoogleConditionalAccessFunc func(ctx context.Context, customerID *string, adminEmail *string, serviceAccountKey json.RawMessage) error
+
+type DeleteGoogleConditionalAccessFunc func(ctx context.Context) error
+
+type GetGoogleConditionalAccessDeviceStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.GoogleConditionalAccessDeviceStatus, error)
+
+type GoogleConditionalAccessSignInRequiredFunc func(ctx context.Context, host *fleet.Host) (bool, error)
+
+type RegisterGoogleConditionalAccessDeviceFunc func(ctx context.Context, secret string, reg fleet.GoogleConditionalAccessRegistration) (fleet.GoogleConditionalAccessRegisterResult, error)
 
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
@@ -1407,6 +1409,15 @@ type Service struct {
 	ListHostCertificatesFunc        ListHostCertificatesFunc
 	ListHostCertificatesFuncInvoked bool
 
+	ListHostAISessionsFunc        ListHostAISessionsFunc
+	ListHostAISessionsFuncInvoked bool
+
+	GetHostAISessionFunc        GetHostAISessionFunc
+	GetHostAISessionFuncInvoked bool
+
+	ListHostAISessionEventsFunc        ListHostAISessionEventsFunc
+	ListHostAISessionEventsFuncInvoked bool
+
 	GetHostRecoveryLockPasswordFunc        GetHostRecoveryLockPasswordFunc
 	GetHostRecoveryLockPasswordFuncInvoked bool
 
@@ -1605,32 +1616,8 @@ type Service struct {
 	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
 	ResendHostCertificateTemplateFuncInvoked bool
 
-	GlobalScheduleQueryFunc        GlobalScheduleQueryFunc
-	GlobalScheduleQueryFuncInvoked bool
-
-	GetGlobalScheduledQueriesFunc        GetGlobalScheduledQueriesFunc
-	GetGlobalScheduledQueriesFuncInvoked bool
-
-	ModifyGlobalScheduledQueriesFunc        ModifyGlobalScheduledQueriesFunc
-	ModifyGlobalScheduledQueriesFuncInvoked bool
-
-	DeleteGlobalScheduledQueriesFunc        DeleteGlobalScheduledQueriesFunc
-	DeleteGlobalScheduledQueriesFuncInvoked bool
-
 	TranslateFunc        TranslateFunc
 	TranslateFuncInvoked bool
-
-	TeamScheduleQueryFunc        TeamScheduleQueryFunc
-	TeamScheduleQueryFuncInvoked bool
-
-	GetTeamScheduledQueriesFunc        GetTeamScheduledQueriesFunc
-	GetTeamScheduledQueriesFuncInvoked bool
-
-	ModifyTeamScheduledQueriesFunc        ModifyTeamScheduledQueriesFunc
-	ModifyTeamScheduledQueriesFuncInvoked bool
-
-	DeleteTeamScheduledQueriesFunc        DeleteTeamScheduledQueriesFunc
-	DeleteTeamScheduledQueriesFuncInvoked bool
 
 	NewGlobalPolicyFunc        NewGlobalPolicyFunc
 	NewGlobalPolicyFuncInvoked bool
@@ -1874,9 +1861,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	ListMDMAppleDevicesFunc        ListMDMAppleDevicesFunc
-	ListMDMAppleDevicesFuncInvoked bool
 
 	GenerateABMKeyPairFunc        GenerateABMKeyPairFunc
 	GenerateABMKeyPairFuncInvoked bool
@@ -2360,6 +2344,27 @@ type Service struct {
 
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	ConnectGoogleConditionalAccessFunc        ConnectGoogleConditionalAccessFunc
+	ConnectGoogleConditionalAccessFuncInvoked bool
+
+	GetGoogleConditionalAccessFunc        GetGoogleConditionalAccessFunc
+	GetGoogleConditionalAccessFuncInvoked bool
+
+	UpdateGoogleConditionalAccessFunc        UpdateGoogleConditionalAccessFunc
+	UpdateGoogleConditionalAccessFuncInvoked bool
+
+	DeleteGoogleConditionalAccessFunc        DeleteGoogleConditionalAccessFunc
+	DeleteGoogleConditionalAccessFuncInvoked bool
+
+	GetGoogleConditionalAccessDeviceStatusFunc        GetGoogleConditionalAccessDeviceStatusFunc
+	GetGoogleConditionalAccessDeviceStatusFuncInvoked bool
+
+	GoogleConditionalAccessSignInRequiredFunc        GoogleConditionalAccessSignInRequiredFunc
+	GoogleConditionalAccessSignInRequiredFuncInvoked bool
+
+	RegisterGoogleConditionalAccessDeviceFunc        RegisterGoogleConditionalAccessDeviceFunc
+	RegisterGoogleConditionalAccessDeviceFuncInvoked bool
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
@@ -3419,6 +3424,27 @@ func (s *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fl
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
 }
 
+func (s *Service) ListHostAISessions(ctx context.Context, hostID uint, opts fleet.HostAISessionListOptions) ([]*fleet.HostAISession, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsFunc(ctx, hostID, opts)
+}
+
+func (s *Service) GetHostAISession(ctx context.Context, hostID uint, aiSessionID uint) (*fleet.HostAISession, error) {
+	s.mu.Lock()
+	s.GetHostAISessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostAISessionFunc(ctx, hostID, aiSessionID)
+}
+
+func (s *Service) ListHostAISessionEvents(ctx context.Context, hostID uint, aiSessionID uint, opts fleet.HostAISessionEventListOptions) ([]*fleet.HostAISessionEvent, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionEventsFunc(ctx, hostID, aiSessionID, opts)
+}
+
 func (s *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
 	s.mu.Lock()
 	s.GetHostRecoveryLockPasswordFuncInvoked = true
@@ -3881,67 +3907,11 @@ func (s *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint
 	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
 }
 
-func (s *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.GlobalScheduleQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.GlobalScheduleQueryFunc(ctx, sq)
-}
-
-func (s *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.GetGlobalScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetGlobalScheduledQueriesFunc(ctx, opts)
-}
-
-func (s *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.ModifyGlobalScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyGlobalScheduledQueriesFunc(ctx, id, q)
-}
-
-func (s *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteGlobalScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteGlobalScheduledQueriesFunc(ctx, id)
-}
-
 func (s *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
 	s.mu.Lock()
 	s.TranslateFuncInvoked = true
 	s.mu.Unlock()
 	return s.TranslateFunc(ctx, payloads)
-}
-
-func (s *Service) TeamScheduleQuery(ctx context.Context, teamID uint, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.TeamScheduleQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.TeamScheduleQueryFunc(ctx, teamID, sq)
-}
-
-func (s *Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.GetTeamScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetTeamScheduledQueriesFunc(ctx, teamID, opts)
-}
-
-func (s *Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, q fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.ModifyTeamScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyTeamScheduledQueriesFunc(ctx, teamID, scheduledQueryID, q)
-}
-
-func (s *Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error {
-	s.mu.Lock()
-	s.DeleteTeamScheduledQueriesFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteTeamScheduledQueriesFunc(ctx, teamID, id)
 }
 
 func (s *Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -4509,13 +4479,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	s.mu.Lock()
-	s.ListMDMAppleDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleDevicesFunc(ctx)
 }
 
 func (s *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
@@ -5643,6 +5606,55 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConnectGoogleConditionalAccess(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error {
+	s.mu.Lock()
+	s.ConnectGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConnectGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
+}
+
+func (s *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.GoogleConditionalAccessIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessFunc(ctx)
+}
+
+func (s *Service) UpdateGoogleConditionalAccess(ctx context.Context, customerID *string, adminEmail *string, serviceAccountKey json.RawMessage) error {
+	s.mu.Lock()
+	s.UpdateGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
+}
+
+func (s *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessFunc(ctx)
+}
+
+func (s *Service) GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *fleet.Host) (*fleet.GoogleConditionalAccessDeviceStatus, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessDeviceStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessDeviceStatusFunc(ctx, host)
+}
+
+func (s *Service) GoogleConditionalAccessSignInRequired(ctx context.Context, host *fleet.Host) (bool, error) {
+	s.mu.Lock()
+	s.GoogleConditionalAccessSignInRequiredFuncInvoked = true
+	s.mu.Unlock()
+	return s.GoogleConditionalAccessSignInRequiredFunc(ctx, host)
+}
+
+func (s *Service) RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg fleet.GoogleConditionalAccessRegistration) (fleet.GoogleConditionalAccessRegisterResult, error) {
+	s.mu.Lock()
+	s.RegisterGoogleConditionalAccessDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.RegisterGoogleConditionalAccessDeviceFunc(ctx, secret, reg)
 }
 
 func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {

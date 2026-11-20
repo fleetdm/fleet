@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5.0",
+      "version": "4.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.cmake.cmake';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cmake.cmake' AND version_compare(bundle_short_version, '4.5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cmake.cmake' AND version_compare(bundle_short_version, '4.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.cmake.cmake' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cmake.org/files/v4.5/cmake-4.5.0-macos-universal.dmg",
+      "installer_url": "https://cmake.org/files/v4.5/cmake-4.5.1-macos-universal.dmg",
       "install_script_ref": "b56aa4b5",
       "uninstall_script_ref": "1d1266a8",
-      "sha256": "32b13f7e23c592bdbc01c93c88f5148cfd04e135eb7d6f0f2e63e29c27f109b5",
+      "sha256": "df917aaebeb035966b957ee6edd30dcecf26e65617cad7f381cc846c8f553718",
       "default_categories": [
         "Productivity"
       ]
