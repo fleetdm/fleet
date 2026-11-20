@@ -40,7 +40,7 @@ Those enrollment numbers aren't fixed. Enrolling a personal phone feels like a l
 
 When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture. One publicly traded fintech company held out against BYOD for years and recently rolled it out for exactly these reasons. With AI apps like Claude now acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
 
-> **That's why at Fleet, we're working on BYOD that puts employee privacy first.** Fleet is open source, so anyone can read exactly what it collects. Employees can even ask an AI assistant what IT can see on their device. We call that [scope transparency](https://fleetdm.com/transparency). We're also working on audit transparency: making it clear when data on a device is accessed, with the controls an organization needs.
+That's why at Fleet, we're working on BYOD that puts employee privacy first. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device. We call that scope transparency. We're also working on audit transparency, which makes it clear when data on a device is accessed while keeping the controls an organization needs.
 
 Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
