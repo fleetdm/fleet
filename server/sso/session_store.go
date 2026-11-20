@@ -95,6 +95,8 @@ type Session struct {
 type SessionStore interface {
 	create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error
 	get(sessionID string) (*Session, error)
+	// Get loads a session without consuming it.
+	Get(sessionID string) (*Session, error)
 	expire(sessionID string) error
 	// Fullfill loads a session with the given session ID, deletes it and returns it.
 	Fullfill(sessionID string) (*Session, error)
@@ -160,6 +162,14 @@ func (s *store) get(sessionID string) (*Session, error) {
 		return nil, err
 	}
 	return &sess, nil
+}
+
+func (s *store) Get(sessionID string) (*Session, error) {
+	session, err := s.get(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("sso request invalid: %w", err)
+	}
+	return session, nil
 }
 
 func (s *store) expire(sessionID string) error {

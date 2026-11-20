@@ -132,6 +132,8 @@ func (s *mockStore) get(sessionID string) (*Session, error) {
 	return s.session, nil
 }
 
+func (s *mockStore) Get(sessionID string) (*Session, error) { return s.get(sessionID) }
+
 func (s *mockStore) expire(sessionID string) error {
 	s.session = nil
 	return nil
@@ -168,7 +170,7 @@ func TestCreateAuthorizationRequestRelayState(t *testing.T) {
 
 	create := func(t *testing.T, relayState fleet.SSORelayState, requestData SSORequestData) (sessionID, gotRelayState string) {
 		t.Helper()
-		sessionID, idpURL, err := CreateAuthorizationRequest(context.Background(),
+		sessionID, idpURL, err := CreateAuthorizationRequest(t.Context(),
 			samlProvider,
 			&mockStore{},
 			"/redir",

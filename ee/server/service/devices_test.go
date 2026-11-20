@@ -275,23 +275,35 @@ func TestInitiateDeviceSSONativeCallback(t *testing.T) {
 
 func TestDeviceSSONativeCallbackEarlyFailure(t *testing.T) {
 	testCases := []struct {
-		name          string
-		idpConfigured bool
-		wantRedirect  string
+		name         string
+		samlResponse []byte
+		wantRedirect string
 	}{
-		{name: "expired handshake", idpConfigured: true, wantRedirect: "fleet://sso-callback?error=session_expired"},
-		{name: "any other early failure", idpConfigured: false, wantRedirect: "fleet://sso-callback?error=error"},
+		{name: "expired handshake", samlResponse: []byte("<x/>"), wantRedirect: "fleet://sso-callback?error=session_expired"},
+		{name: "response the endpoint could not decode", samlResponse: nil, wantRedirect: "fleet://sso-callback?error=error"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc, _ := newMDMSSOTestService(t,
-				mdmSSOTestAppConfig("https://fleet.example.com", tc.idpConfigured), config.TestConfig())
+				mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
 			// Every outcome has to go back to the app, or its sign-in window
 			// is left open on a page the end user can't act on.
 			require.Equal(t, tc.wantRedirect,
-				svc.DeviceSSONativeCallback(t.Context(), "does-not-exist", []byte("<x/>")))
+				svc.DeviceSSONativeCallback(t.Context(), "does-not-exist", tc.samlResponse))
 		})
 	}
+}
+
+// atomicClaimStore reports every claim as lost, as the Redis store does for
+// the slower of two concurrent exchanges.
+type atomicClaimStore struct {
+	fleet.KeyValueStore
+	claims []string
+}
+
+func (s *atomicClaimStore) SetIfNotExists(_ context.Context, key string, _ string, _ time.Duration) (bool, error) {
+	s.claims = append(s.claims, key)
+	return false, nil
 }
 
 func TestExchangeDeviceSSOCode(t *testing.T) {
@@ -338,6 +350,22 @@ func TestExchangeDeviceSSOCode(t *testing.T) {
 		sessionID, _, err = svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), host), code)
 		require.NoError(t, err)
 		require.Equal(t, wantSessionID, sessionID)
+	})
+
+	t.Run("an exchange that loses the claim on the code is refused", func(t *testing.T) {
+		svc, _, _, code := setup(t)
+		store := &atomicClaimStore{KeyValueStore: svc.keyValueStore}
+		svc.keyValueStore = store
+
+		sessionID, _, err := svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), host), code)
+		requireInvalid(t, sessionID, err)
+		require.Equal(t, []string{deviceSSOCodeUsedKeyPrefix + code}, store.claims)
+
+		// A wrong host is turned away before it can claim the code.
+		store.claims = nil
+		_, _, err = svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), &fleet.Host{ID: 43}), code)
+		require.Error(t, err)
+		require.Empty(t, store.claims)
 	})
 
 	t.Run("unknown, empty, and oversized codes", func(t *testing.T) {

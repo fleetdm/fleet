@@ -3035,7 +3035,7 @@ The Fleet Desktop macOS app shows the device page in an embedded web view. An Id
 With `native_callback=true`, the flow changes to bridge the two:
 
 1. This endpoint sets no handshake cookie. Instead, it sets `RelayState` to `fleet_desktop_native:` followed by the SSO session ID, which the IdP echoes back with the assertion.
-2. The callback, `POST /api/v1/fleet/mdm/sso/callback`, reads the session ID from `RelayState` instead of the cookie. It only accepts this for a session that was started with `native_callback`. For any other session, the handshake cookie is still the only thing that ties the callback to the browser that started it.
+2. The callback, `POST /api/v1/fleet/mdm/sso/callback`, reads the session ID from `RelayState` instead of the cookie. It only accepts this for a session that was started with `native_callback`. For any other session, the handshake cookie is still the only thing that ties the callback to the browser that started it. Because `RelayState` is visible to anyone who sees the IdP URL, the callback only consumes the SSO session after the assertion verifies, so a response that doesn't verify can't cancel a sign-in in progress.
 3. The callback sets no cookies. It creates the device SSO session and replies `303` to `fleet://sso-callback?code=<code>`. The app's authentication session completes on the `fleet` scheme and passes the code to the device page.
 4. The device page sends the code to [Exchange Fleet Desktop single sign-on code](#exchange-fleet-desktop-single-sign-on-code), which sets the `__Host-FLEET_DESKTOP_SESSION` cookie in the web view.
 

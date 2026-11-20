@@ -432,8 +432,9 @@ const (
 	deviceSSOSessionKeyPrefix = "device_sso_session:"
 	deviceSSOSessionIDLength  = 24
 
-	deviceSSOCodeKeyPrefix = "device_sso_code:"
-	deviceSSOCodeLength    = 24
+	deviceSSOCodeKeyPrefix     = "device_sso_code:"
+	deviceSSOCodeUsedKeyPrefix = "device_sso_code_used:"
+	deviceSSOCodeLength        = 24
 	// deviceSSOCodeTTL only has to cover the app receiving the callback and
 	// the page posting the code back.
 	deviceSSOCodeTTL = 2 * time.Minute
@@ -707,21 +708,35 @@ func (svc *Service) DeviceSSONativeCallback(ctx context.Context, sessionID strin
 
 	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
-	_, idpAccountUUID, _, _, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
-	if err != nil {
-		logging.WithErr(ctx, err)
-		if errors.Is(err, sso.ErrSessionNotFound) {
-			return deviceSSONativeErrorURL("session_expired")
-		}
+	// The endpoint passes no response when it couldn't decode one.
+	if len(samlResponse) == 0 {
 		return deviceSSONativeErrorURL("error")
 	}
 
 	// RelayState is whatever the browser posts, and it stood in for the
 	// handshake cookie here. Only a session started for a native callback may
 	// be completed that way; any other flow relies on the cookie to tie the
-	// callback to the browser that started it.
-	if ssoRequestData.Initiator != fleet.SSOInitiatorFleetDesktop || !ssoRequestData.NativeCallback {
+	// callback to the browser that started it. Checked before anything is
+	// consumed or written, so a forged RelayState can't disturb another flow.
+	session, err := svc.ssoSessionStore.Get(sessionID)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "load sso session for native callback"))
+		if errors.Is(err, sso.ErrSessionNotFound) {
+			return deviceSSONativeErrorURL("session_expired")
+		}
+		return deviceSSONativeErrorURL("error")
+	}
+	if session.RequestData.Initiator != fleet.SSOInitiatorFleetDesktop || !session.RequestData.NativeCallback {
 		logging.WithErr(ctx, ctxerr.New(ctx, "sso session was not started for a native callback"))
+		return deviceSSONativeErrorURL("error")
+	}
+
+	_, idpAccountUUID, _, _, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse, true)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		if errors.Is(err, sso.ErrSessionNotFound) {
+			return deviceSSONativeErrorURL("session_expired")
+		}
 		return deviceSSONativeErrorURL("error")
 	}
 
@@ -740,6 +755,22 @@ func (svc *Service) DeviceSSONativeCallback(ctx context.Context, sessionID strin
 		return deviceSSONativeErrorURL("server_error")
 	}
 	return apple_mdm.FleetDesktopSSOCallbackURL + "?code=" + url.QueryEscape(code)
+}
+
+// claimKey sets key and reports whether this call was the one to set it. The
+// Redis store does that atomically across Fleet servers; a store without an
+// atomic set falls back to get then set.
+func claimKey(ctx context.Context, kv fleet.KeyValueStore, key string, ttl time.Duration) (bool, error) {
+	if atomic, ok := kv.(interface {
+		SetIfNotExists(ctx context.Context, key string, value string, expireTime time.Duration) (bool, error)
+	}); ok {
+		return atomic.SetIfNotExists(ctx, key, "1", ttl)
+	}
+	existing, err := kv.Get(ctx, key)
+	if err != nil || existing != nil {
+		return false, err
+	}
+	return true, kv.Set(ctx, key, "1", ttl)
 }
 
 func (svc *Service) ExchangeDeviceSSOCode(ctx context.Context, code string) (string, time.Duration, error) {
@@ -761,7 +792,7 @@ func (svc *Service) ExchangeDeviceSSOCode(ctx context.Context, code string) (str
 	if err != nil {
 		return "", 0, ctxerr.Wrap(ctx, err, "get device sso code")
 	}
-	if sessionID == nil || *sessionID == "" {
+	if sessionID == nil {
 		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
 	}
 
@@ -778,11 +809,14 @@ func (svc *Service) ExchangeDeviceSSOCode(ctx context.Context, code string) (str
 		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
 	}
 
-	// The store has no delete, so an empty value marks the code as used. Only
-	// the host it was issued to spends it: a wrong host must not be able to
-	// burn another host's sign-in.
-	if err := svc.keyValueStore.Set(ctx, deviceSSOCodeKeyPrefix+code, "", deviceSSOCodeTTL); err != nil {
-		return "", 0, ctxerr.Wrap(ctx, err, "consume device sso code")
+	// Claimed only after the host check: a wrong host must not be able to burn
+	// another host's sign-in.
+	claimed, err := claimKey(ctx, svc.keyValueStore, deviceSSOCodeUsedKeyPrefix+code, deviceSSOCodeTTL)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "claim device sso code")
+	}
+	if !claimed {
+		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
 	}
 
 	return *sessionID, session.ExpiresAt.Sub(svc.clock.Now()), nil

@@ -652,10 +652,9 @@ extension BrowserWindow: WKScriptMessageHandlerWithReply {
     ) {
         // The WebView also shows IdP pages (the embedded flow) and can be left
         // on an external page; only Fleet's own page may drive a sign-in.
-        let origin = message.frameInfo.securityOrigin
         guard message.name == Self.ssoBridgeName,
               message.frameInfo.isMainFrame,
-              origin.protocol == "https", origin.host.lowercased() == fleetHost,
+              isFleetOrigin(message.frameInfo.securityOrigin),
               let body = message.body as? [String: Any],
               let action = body["action"] as? String else {
             replyHandler(nil, "not allowed")
@@ -694,6 +693,15 @@ extension BrowserWindow: WKScriptMessageHandlerWithReply {
         default:
             replyHandler(nil, "unknown action")
         }
+    }
+
+    /// Whether `origin` is the Fleet server's: scheme, host, and port. Another
+    /// service on the same host must not be able to start a sign-in.
+    private func isFleetOrigin(_ origin: WKSecurityOrigin) -> Bool {
+        guard let homeURL = homeURL, origin.protocol == "https" else { return false }
+        // WebKit reports 0 for a scheme's default port.
+        let originPort = origin.port == 0 ? 443 : origin.port
+        return origin.host.lowercased() == fleetHost && originPort == (homeURL.port ?? 443)
     }
 
     private func resolveWindowWaiters() {

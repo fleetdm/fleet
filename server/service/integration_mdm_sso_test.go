@@ -725,6 +725,16 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 		require.Empty(t, loc.Query().Get("error"))
 		return loc.Query().Get("code")
 	}
+	// RelayState is visible to whoever sees the IdP URL. Posting a response
+	// that doesn't verify, or one that can't be decoded, must answer the app
+	// and must not cancel the sign-in that is still in progress.
+	for _, badResponse := range []string{base64.StdEncoding.EncodeToString([]byte("<x/>")), "not base64!"} {
+		badRes := s.doWithClient(s.newSSOTestClient(), "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
+			"SAMLResponse", badResponse, "RelayState", nativeRelayState)
+		require.Equal(t, "fleet://sso-callback?error=error", badRes.Header.Get("Location"))
+		require.Empty(t, badRes.Cookies())
+	}
+
 	code := callbackCode(s.CompleteDeviceSSOWithRelayState(s.newSSOTestClient(), nativeInitiation.URL,
 		"sso_user", "user123#", nativeRelayState))
 	require.NotEmpty(t, code)
@@ -767,6 +777,9 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 		"sso_user", "user123#", string(forgedNativeRelayState))
 	require.Equal(t, "fleet://sso-callback?error=error", forgedNativeRes.Header.Get("Location"))
 	require.Empty(t, forgedNativeRes.Cookies())
+	// ...and the attempt leaves that flow intact for the browser holding the cookie
+	cookieBoundRes := s.CompleteDeviceSSO(cookieBoundClient, cookieBoundIdPURL, "sso_user", "user123#")
+	require.Equal(t, "https://localhost:8080/device/"+deviceToken, cookieBoundRes.Header.Get("Location"))
 
 	// A failed callback sends the end user back to the device page with a
 	// reason, not to the admin SSO callback route, and mints nothing.

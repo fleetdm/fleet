@@ -3711,6 +3711,8 @@ type callbackMDMSSORequest struct {
 	// nativeCallback is set when RelayState, not the handshake cookie, names
 	// the SSO session: a Fleet Desktop flow that returns to the native app.
 	nativeCallback bool
+	// decodeErr is why a native callback has no samlResponse.
+	decodeErr error
 }
 
 // TODO: these errors will result in JSON being returned, but we should
@@ -3719,20 +3721,26 @@ type callbackMDMSSORequest struct {
 // affect many users.
 func (callbackMDMSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	sessionID, samlResponse, relayState, err := decodeCallbackRequest(ctx, r)
+	// decodeCallbackRequest parsed what it could of the form, even on failure.
+	nativeSessionID, nativeCallback := fleet.ParseSSONativeRelayState(r.FormValue("RelayState"))
+	if nativeCallback {
+		// A browser that happens to hold a handshake cookie for another flow
+		// must not have it used here. A decoding failure still has to answer
+		// the app, or its sign-in window is left open on a JSON error.
+		return &callbackMDMSSORequest{
+			sessionID:      nativeSessionID,
+			samlResponse:   samlResponse,
+			nativeCallback: true,
+			decodeErr:      err,
+		}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	// The form was parsed by decodeCallbackRequest. A browser that happens to
-	// hold a handshake cookie for another flow must not have it used here.
-	nativeSessionID, nativeCallback := fleet.ParseSSONativeRelayState(r.FormValue("RelayState"))
-	if nativeCallback {
-		sessionID = nativeSessionID
-	}
 	return &callbackMDMSSORequest{
-		sessionID:      sessionID,
-		relayState:     relayState,
-		samlResponse:   samlResponse,
-		nativeCallback: nativeCallback,
+		sessionID:    sessionID,
+		relayState:   relayState,
+		samlResponse: samlResponse,
 	}, nil
 }
 
@@ -3772,6 +3780,9 @@ func (r callbackMDMSSOResponse) Error() error { return nil }
 func callbackMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMSSORequest)
 	if callbackRequest.nativeCallback {
+		if callbackRequest.decodeErr != nil {
+			logging.WithErr(ctx, callbackRequest.decodeErr)
+		}
 		return callbackMDMSSOResponse{
 			redirectURL:    svc.DeviceSSONativeCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse),
 			nativeCallback: true,
