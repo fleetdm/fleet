@@ -794,20 +794,29 @@ def os_line(key, v):
 
 def os_bar(snap, key):
     """The vendor's newest release for an OS title, as (newest, {release: its latest},
-    {release: its name}, source), or None without a vendor source."""
+    {release: its name}, source, {release: its hotpatch build}), or None without a vendor source."""
     if key == "os:macOS" and (mac := vendor(snap, "macos")):
         majors = mac["majors"]
         top = max(majors.values(), key=lambda r: vkey(r["latest"]))
         # A major Apple no longer updates has no latest to be patched to.
         return (top["latest"], {m: r["latest"] for m, r in majors.items() if r.get("supported", True)},
-                {m: r["name"] for m, r in majors.items()}, "Apple")
+                {m: r["name"] for m, r in majors.items()}, "Apple", {})
     if key.startswith("os:Windows") and (win := vendor(snap, "windows")):
         product = key[3:] + " "
         builds = {t[len(product):]: b for t, b in win["releases"].items() if t.startswith(product)}
+        hot = (win.get("hotpatch") or {}).items()
         if builds:
             return (max(builds.values(), key=vkey), {os_line(key, b): b for b in builds.values()},
-                    {os_line(key, b): r for r, b in builds.items()}, "Microsoft")
+                    {os_line(key, b): r for r, b in builds.items()}, "Microsoft",
+                    {os_line(key, b): b for t, b in hot if t.startswith(product)})
     return None
+
+
+def on_hotpatch(t, v):
+    """Whether v is the month's hotpatch build for its release. An exact match: a build between
+    the hotpatch and the monthly update, such as last month's optional preview, lacks the fixes."""
+    hp = (t.get("hotpatch") or {}).get(os_line(t["key"], v))
+    return bool(hp) and vcmp(v, hp) == 0
 
 
 def update_name(month):
@@ -928,7 +937,7 @@ def build_patch(snap, hist):
         vs.update(mac["releases"])
         vs.update({r["latest"]: r["released"] for r in mac["majors"].values() if r["released"]})
     if win := vendor(snap, "windows"):
-        for release, build in win["releases"].items():
+        for release, build in [*win["releases"].items(), *(win.get("hotpatch") or {}).items()]:
             versions.setdefault("os:" + release.rsplit(" ", 1)[0], {})[build] = win["released"]
 
     current, match_keys = {}, {}
@@ -987,7 +996,9 @@ def build_patch(snap, hist):
         t = {"key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app",
              "p": platform_of(hosts[str(hv[0][0])]), "i": hv, "source": None}
         if bar := os_bar(snap, key):
-            t["newest"], t["lines"], t["line_names"], t["source"] = bar
+            t["newest"], t["lines"], t["line_names"], t["source"], hot = bar
+            if hot:
+                t["hotpatch"] = hot
             if t["source"] == "Microsoft":
                 # Windows OS update deadlines make each month's update mandatory but never move a
                 # computer to a newer release, so each one is measured against its own release.
@@ -1041,12 +1052,13 @@ def build_patch(snap, hist):
         for hid, v, *_ in t["i"]:
             # Patched: on the latest update for the release it runs, even when a newer release exists.
             latest = lines.get(os_line(t["key"], v)) if t["type"] == "os" else None
-            current_v = int(vcmp(v, latest if t.get("per_release") and latest else t["newest"]) >= 0)
+            hot = t["type"] == "os" and on_hotpatch(t, v)
+            current_v = int(hot or vcmp(v, latest if t.get("per_release") and latest else t["newest"]) >= 0)
             if t["type"] == "app":
                 count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current_v)
             else:
                 count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current_v,
-                           os_patched=int(vcmp(v, latest) >= 0) if latest else current_v)
+                           os_patched=int(hot or vcmp(v, latest) >= 0) if latest else current_v)
     for rows in events.values():
         for hid, day_i, _ in rows:
             if day_i == today_i and str(hid) in hosts:
