@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.4",
+      "version": "2.0.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle' AND version_compare(bundle_short_version, '2.0.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle' AND version_compare(bundle_short_version, '2.0.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.knollsoft.Rectangle' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/rxhanson/Rectangle/releases/download/v2.0.4/Rectangle2.0.4.dmg",
+      "installer_url": "https://github.com/rxhanson/Rectangle/releases/download/v2.0.5/Rectangle2.0.5.dmg",
       "install_script_ref": "56232045",
       "uninstall_script_ref": "8ff2fe36",
-      "sha256": "9f820a2e56bd2c27cdda4fb4556de3cbcfcbac052d9eeb2179d49e2dae277abc",
+      "sha256": "4dec773a2f550d64147d88e07d987ce8119bdff045f1c6993a9a5eeb9f68496c",
       "default_categories": [
         "Productivity"
       ]

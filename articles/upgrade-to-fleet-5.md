@@ -795,7 +795,7 @@ GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795]
    - On Android, one profile that uses it stops all of the host's profiles from being applied.
    - In most setups, the new variable has the same value. If your IdP usernames aren't your end users' emails, hosts get the IdP username instead.
    - Editing the DigiCert or EJBCA CA fields reissues certificates to every host that uses the CA.
-   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+   - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
@@ -1229,7 +1229,7 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
    - On Android, one profile that uses it stops all of the host's profiles from being applied.
    - In most setups, the new variable has the same value. If your IdP usernames aren't your end users' emails, hosts get the IdP username instead.
    - Editing the DigiCert or EJBCA keys reissues certificates to every host that uses the CA.
-   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+   - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 

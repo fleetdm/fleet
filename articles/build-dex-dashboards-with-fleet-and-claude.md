@@ -345,7 +345,7 @@ The history files stay where they are, so the dashboards keep their history.
 - [Claude Code routines](https://code.claude.com/docs/en/routines)
 - [Claude Code cloud environments](https://code.claude.com/docs/en/cloud-environments)
 - [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user)
-- [Use custom host vitals in scripts and configuration profiles](https://fleetdm.com/guides/custom-host-vitals)
+- [Custom host vitals](https://fleetdm.com/guides/custom-host-vitals)
 - [Carbon intensity of electricity generation (Our World in Data, from Ember)](https://ourworldindata.org/grapher/carbon-intensity-electricity)
 
 <meta name="articleTitle" value="Build DEX dashboards with Fleet and Claude">
