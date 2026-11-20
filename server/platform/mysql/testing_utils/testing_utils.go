@@ -87,8 +87,7 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTabl
         table_schema = database() AND
         table_type = 'BASE TABLE'
     `
-			err = sqlx.SelectContext(ctx, tx, &allTables, sql)
-			if err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &allTables, sql); err != nil {
 				return err
 			}
 
