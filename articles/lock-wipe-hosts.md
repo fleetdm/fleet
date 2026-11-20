@@ -157,7 +157,7 @@ If you set up the host with a [provisioning package that installs Fleet's agent]
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the Windows host you want to reset.
 2. Click the host to open the **Host details** page.
 3. Click the **Actions** dropdown, then click **Reset**.
-4. Confirm that you want to reset the host in the dialog. The host is marked with a "Reset pending" badge. Once the reset command is acknowledged by the host, the badge will update to "Reset". The badge clears when the host turns on MDM again or Fleet's agent enrolls again.
+4. Confirm that you want to reset the host in the dialog. The host is marked with a "Reset pending" badge. Once the reset command is acknowledged by the host, the badge will update to "Reset". The badge clears when the host re-enrolls or turns on MDM again.
 
 > **Note:** Unlike wipe, reset can be interrupted. If someone turns off the host while it resets, Windows can roll back the reset, and the host keeps its files. When the host checks in again, Fleet shows "Reset failed on this host." in the host's activity.
 
