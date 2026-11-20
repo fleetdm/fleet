@@ -85,3 +85,10 @@ jobs:
 
       # Compile assets
       - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }}" npm run build-for-prod
+
+      # Pages built from Markdown are compiled as Vue templates in the browser, so a stray {{ … }} breaks
+      # the whole page. Compile each one with Vue's own compiler (same version as website/assets/dependencies/vue.js).
+      - name: Check built pages for Vue expressions
+        run: |
+          npm install --prefix "$RUNNER_TEMP/vue-check" --no-save vue-template-compiler@2.5.17
+          NODE_PATH="$RUNNER_TEMP/vue-check/node_modules" node .github/scripts/check-website-vue-templates.js website/views/partials/built-from-markdown
