@@ -126,6 +126,10 @@ type UserLookupService interface {
 type HostLookupService interface {
 	// GetHostLite returns basic host information not requiring table joins.
 	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
+	// HostIDByIDOrIdentifier returns the ID of the host that the :id path parameter of a host endpoint names: a host ID first, then the
+	// hardware_serial, UUID or hostname of the newest matching host. It only checks that the caller can list hosts; the caller must still
+	// authorize the host.
+	HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error)
 }
 
 // LookupService combines UserLookupService and HostLookupService for components
@@ -483,8 +487,7 @@ type Service interface {
 	// DeleteHostGoogleDeviceID removes it, which also queues the unmark in Google.
 	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
 	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
-	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
+	// HostLiteByID returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
 	// ListDevicePolicies lists all policies for the given host in their

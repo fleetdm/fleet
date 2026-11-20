@@ -161,22 +161,6 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 	return out
 }
 
-// filterVersionPrefix keeps the version dirs in the release line named by prefix, matching
-// whole dot-separated segments so "24" keeps "24.22.1" but not "240.1". An empty prefix
-// keeps everything.
-func filterVersionPrefix(dirs []*github.RepositoryContent, prefix string) []*github.RepositoryContent {
-	if prefix == "" {
-		return dirs
-	}
-	var out []*github.RepositoryContent
-	for _, d := range dirs {
-		if name := d.GetName(); name == prefix || strings.HasPrefix(name, prefix+".") {
-			out = append(out, d)
-		}
-	}
-	return out
-}
-
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
 	// this is the path within the winget GitHub repo where the manifests are located
 	dirPath := path.Join(
@@ -195,11 +179,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
-	versionDirs := filterVersionPrefix(wingetVersionManifestDirs(repoContents), input.VersionPrefix)
+	versionDirs := wingetVersionManifestDirs(repoContents)
 	if len(versionDirs) == 0 {
 		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
-			"path":           dirPath,
-			"version_prefix": input.VersionPrefix,
+			"path": dirPath,
 		})
 	}
 
@@ -729,9 +712,6 @@ type inputApp struct {
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
-	// VersionPrefix limits the package to one release line (e.g. "24" for Node.js 24) when
-	// winget has no per-line package and publishes several lines under one identifier.
-	VersionPrefix string `json:"version_prefix"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`
 	InstallScriptPath   string     `json:"install_script_path"`

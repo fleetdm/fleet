@@ -200,12 +200,12 @@ func TestMDMRunCommand(t *testing.T) {
 				NoCacheDatastore: true,
 			})
 
-			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 				h, ok := hostByUUID[identifier]
 				if !ok {
-					return nil, &notFoundError{}
+					return 0, &notFoundError{}
 				}
-				return &fleet.HostLite{ID: h.host.ID, TeamID: h.host.TeamID}, nil
+				return h.host.ID, nil
 			}
 			ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 				h, ok := hostByID[hostID]
@@ -1601,12 +1601,12 @@ func setupTestServer(t *testing.T) *mock.Store {
 
 // sets up common data store mocks that are needed for the tests.
 func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[uint]testhost) {
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		h, ok := hostByUUID[identifier]
 		if !ok {
-			return nil, &notFoundError{}
+			return 0, &notFoundError{}
 		}
-		return &fleet.HostLite{ID: h.host.ID, TeamID: h.host.TeamID}, nil
+		return h.host.ID, nil
 	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
 		return time.Now(), nil

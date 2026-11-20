@@ -771,6 +771,7 @@ import PaintDotNet from "./png/PaintDotNet.png";
 import PaleMoon from "./png/PaleMoon.png";
 import Paletro from "./png/Paletro.png";
 import ParallelsDesktop from "./png/ParallelsDesktop.png";
+import Parsec from "./png/Parsec.png";
 import Pastebot from "./png/Pastebot.png";
 import Pcoipclient from "./png/Pcoipclient.png";
 import Pd from "./png/Pd.png";
@@ -1111,6 +1112,7 @@ import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
+import Windscribe from "./png/Windscribe.png";
 import Windsurf from "./png/Windsurf.png";
 import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
@@ -1147,6 +1149,7 @@ import Zappy from "./png/Zappy.png";
 import Zed from "./png/Zed.png";
 import Zen from "./png/Zen.png";
 import Zeplin from "./png/Zeplin.png";
+import ZerotierOne from "./png/ZerotierOne.png";
 import Zettlr from "./png/Zettlr.png";
 import Zight from "./png/Zight.png";
 import ZoomOutlookPlugin from "./png/ZoomOutlookPlugin.png";
@@ -1369,6 +1372,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "cisco webex recorder and player": CiscoWebexRecorderAndPlayer,
   "citrix workspace": CitrixWorkspace,
+  "citrix workspace ltsr": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
   cleanclip: Cleanclip,
@@ -1965,6 +1969,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
+  parsec: Parsec,
   pastebot: Pastebot,
   pd: Pd,
   "pdf expert": PdfExpert,
@@ -2323,6 +2328,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  windscribe: Windscribe,
   windsurf: Windsurf,
   winlogbeat: Winlogbeat,
   winrar: Winrar,
@@ -2359,6 +2365,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zed: Zed,
   zen: Zen,
   zeplin: Zeplin,
+  "zerotier one": ZerotierOne,
   zettlr: Zettlr,
   zight: Zight,
   "zoom for government": Zoom,

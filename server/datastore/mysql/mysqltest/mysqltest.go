@@ -861,6 +861,10 @@ func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet
 	return t.ds.HostLite(ctx, id)
 }
 
+func (t *testingLookupService) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	return t.ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{MatchID: true})
+}
+
 func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
 	appConfig, err := t.ds.AppConfig(ctx)
 	if err != nil {

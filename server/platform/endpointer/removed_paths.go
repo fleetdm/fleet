@@ -11,7 +11,7 @@ import (
 // RemovedPath is a URL path that no longer exists. A request to it with any usual method (or one of Methods, when set) gets 410 Gone and
 // Message, without authentication, because the path is gone for everyone and the response says nothing about the caller's data.
 type RemovedPath struct {
-	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
+	// Path may contain the _version_ placeholder and mux variables, like the path of a route.
 	Path string
 	// Methods limits the 410 to these methods, for a path that shares its shape with routes that are still served: a 410 on every method
 	// would answer wrong-method requests to those routes, which should get 405. Empty means every method in removedPathMethods.
@@ -45,7 +45,7 @@ var removedPathMethods = []string{
 func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, paths []RemovedPath) {
 	allVersions := append(append([]string{}, versions...), "latest")
 	for _, removed := range paths {
-		handler := removedPathHandler(removed, logger)
+		handler := RemovedPathHandler(removed, logger)
 		methods := slices.Clone(removedPathMethods)
 		if len(removed.Methods) > 0 {
 			methods = slices.Clone(removed.Methods)
@@ -77,7 +77,8 @@ func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, pat
 	}
 }
 
-func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
+// RemovedPathHandler answers with the 410 of a removed path. Use it directly for a path that a router doesn't serve.
+func RemovedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if removed.Overlap.RouteTemplate != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
 			for live, allow := range removed.Overlap.WrongMethodRoutes {

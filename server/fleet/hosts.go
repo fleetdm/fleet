@@ -2299,6 +2299,12 @@ type HostMacOSProfile struct {
 	InstallDate time.Time `json:"install_date" db:"install_date"`
 }
 
+// HostIDByIdentifierOptions sets which columns Datastore.HostIDByIdentifier matches besides hardware_serial, UUID and hostname.
+type HostIDByIdentifierOptions struct {
+	// MatchID tries a numeric identifier as a host ID first.
+	MatchID bool
+}
+
 // HostLite contains a subset of Host fields.
 type HostLite struct {
 	ID                  uint      `db:"id"`

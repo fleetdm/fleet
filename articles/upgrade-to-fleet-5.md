@@ -536,6 +536,20 @@ These lists only included settings applied with YAML, so call the list endpoint 
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
+### labels removed from Create configuration profile
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `labels` in [`POST /configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) | `labels_include_all` |
+
+#### What to do
+
+Fleet 4 already supports `labels_include_all`, so change this before you upgrade.
+
+Fleet 5 ignores `labels`, so a request that still sends it creates a profile that applies to all hosts in the fleet.
+
+Pull request: [#59391](https://github.com/fleetdm/fleet/pull/59391)
+
 ### features.detail_query_overrides removed from the API
 
 | Fleet 4 | Fleet 5 |
@@ -744,12 +758,13 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| Fleets can have names that differ only by punctuation, whitespace, symbols, or emoji, or names with no letters or numbers | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and GitOps require names that include at least one letter or number and are unique when Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji |
+| Fleets can have names that differ from another fleet's name or a reserved name only by punctuation, whitespace, symbols, or emoji, or names with no letters or numbers | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and GitOps require names that include at least one letter or number. Names can't match another fleet's name or a reserved name ("Unassigned", "All fleets", "No team", or "All teams") when Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji |
 
 When you upgrade, Fleet renames existing fleets that break these rules:
 
 - If two or more fleets' names match (for example, `Workstations` and `workstations!`), the oldest fleet keeps its name. Fleet adds a number to the others, like `workstations! 2`.
 - If a fleet's name has no letters or numbers (for example, `🚀`), Fleet adds a number, like `🚀 1`.
+- If a fleet's name matches a reserved name (for example, `Un-assigned` or `all-teams`), Fleet adds a number, like `Un-assigned 2`.
 
 Fleet only changes the name. Hosts, settings, and everything else in the fleet stay the same. Apple Business and Volume Purchasing Program (VPP) settings show the fleet's new name.
 
@@ -757,12 +772,12 @@ Fleet only changes the name. Hosts, settings, and everything else in the fleet s
 
 Change these before you upgrade, so Fleet doesn't rename your fleets.
 
-1. Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) and find names that match when you ignore letter case, accents, whitespace, punctuation, symbols, and emoji, plus names with no letters or numbers.
+1. Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) and find names that match when you ignore letter case, accents, whitespace, punctuation, symbols, and emoji. Also find names that match a reserved name the same way, and names with no letters or numbers.
 2. Rename those fleets. If you use GitOps, change `name` in each fleet's YAML file and run GitOps. Also update any other YAML that refers to the fleet by name.
 
 If you upgrade first, update your YAML to use the new names: `name` in each renamed fleet's file, and any other YAML that refers to those fleets by name, like Apple Business, VPP, and Windows automatic enrollment settings in `default.yml`. Otherwise, your GitOps runs fail.
 
-Fleet doesn't rename a fleet called "Unassigned" (in any letter case), which older Fleet versions allowed. In Fleet 5, "Unassigned" means hosts that aren't in a fleet, so rename that fleet before you upgrade. Until you do, Fleet 5 rejects "Unassigned" in Apple Business and VPP settings, and policies and certificates that name "Unassigned" apply to hosts that aren't in a fleet instead of that fleet.
+Fleet also renames a fleet called "Unassigned" (in any letter case), which older Fleet versions allowed. In Fleet 5, "Unassigned" means hosts that aren't in a fleet, so policies and certificates that name "Unassigned" apply to those hosts instead of that fleet. Rename that fleet before you upgrade, and update anything that refers to it by name.
 
 GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -780,7 +795,7 @@ GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795]
    - On Android, one profile that uses it stops all of the host's profiles from being applied.
    - In most setups, the new variable has the same value. If your IdP usernames aren't your end users' emails, hosts get the IdP username instead.
    - Editing the DigiCert or EJBCA CA fields reissues certificates to every host that uses the CA.
-   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+   - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
@@ -816,6 +831,24 @@ Change these before you upgrade.
 
 GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
 
+
+### Public version endpoint removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `GET /version` shows the Fleet server version to anyone, without logging in | Removed. Use [Get version](https://fleetdm.com/docs/rest-api/rest-api#get-version) (`GET /api/v1/fleet/version`), which needs an API token. |
+
+
+#### What to do
+
+Change these before you upgrade.
+
+1. If a script, monitoring tool, or load balancer calls `/version`, switch it to `GET /api/v1/fleet/version` with the token of an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+   - For health checks, use `/healthz`. It doesn't return the version.
+
+GitHub issue: [#59246](https://github.com/fleetdm/fleet/issues/59246)
+
+
 ### Puppet module removed
 
 | Fleet 4 | Fleet 5 |
@@ -830,6 +863,20 @@ Change these before you upgrade.
    - Fleets the module created stay as regular fleets.
 
 GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
+
+### Apple installer endpoints removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `POST /mdm/apple/installers`, `GET /mdm/apple/installers`, `GET /mdm/apple/installers/:installer_id`, `DELETE /mdm/apple/installers/:installer_id`, and `GET /api/mdm/apple/installer` | Removed. |
+
+#### What to do
+
+Change these before you upgrade.
+
+1. If a script uploads packages with `POST /mdm/apple/installers`, use [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) instead.
+
+GitHub issue: [#56003](https://github.com/fleetdm/fleet/issues/56003)
 
 ### Manual enrollment profile off by default
 
@@ -1182,7 +1229,7 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
    - On Android, one profile that uses it stops all of the host's profiles from being applied.
    - In most setups, the new variable has the same value. If your IdP usernames aren't your end users' emails, hosts get the IdP username instead.
    - Editing the DigiCert or EJBCA keys reissues certificates to every host that uses the CA.
-   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+   - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 

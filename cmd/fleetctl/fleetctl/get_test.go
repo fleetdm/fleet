@@ -539,9 +539,9 @@ func TestGetHosts(t *testing.T) {
 		ComputerName:    "test_host",
 		Hostname:        "test_host",
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.NotEmpty(t, identifier)
-		return &fleet.HostLite{ID: testHost.ID}, nil
+		return testHost.ID, nil
 	}
 	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		return testHost, nil
@@ -3493,12 +3493,12 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		fmt.Println("Called", identifier)
 		if identifier == "foo" || identifier == "h1" {
-			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+			return 1, nil
 		}
-		return nil, errors.New(fleet.HostIdentiferNotFound)
+		return 0, errors.New(fleet.HostIdentiferNotFound)
 	}
 
 	var empty bool

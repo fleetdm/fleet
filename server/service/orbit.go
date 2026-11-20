@@ -2618,6 +2618,15 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 		return false, nil
 	}
 
+	// use the policy query lookup to check if this policy is still in scope
+	inScopePolicies, err := svc.ds.PolicyQueriesForHostFiltered(ctx, host, []uint{*hsi.PolicyID})
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if policy is in scope for host")
+	}
+	if len(inScopePolicies) == 0 {
+		return false, nil
+	}
+
 	// Check if policy is failing for this host
 	policyFailing, err := svc.ds.IsPolicyFailing(ctx, *hsi.PolicyID, host.ID)
 	if err != nil {
@@ -2697,6 +2706,15 @@ func (svc *Service) shouldRetryPolicyAutomationScript(ctx context.Context, host 
 	currentAttempt := *hsr.AttemptNumber
 
 	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
+		return false, nil
+	}
+
+	// use the policy query lookup to check if this policy is still in scope
+	inScopePolicies, err := svc.ds.PolicyQueriesForHostFiltered(ctx, host, []uint{*hsr.PolicyID})
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if policy is in scope for host")
+	}
+	if len(inScopePolicies) == 0 {
 		return false, nil
 	}
 

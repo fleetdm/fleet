@@ -10,6 +10,7 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -2631,7 +2632,8 @@ func rejectUUIDOfAnotherMDMHost(ctx context.Context, tx sqlx.QueryerContext, uui
 }
 
 // rejectOrbitEnrollmentOverHostDB returns an EnrollmentRejectedError when orbit may not enroll over the matched host.
-// androidSecret is whether the enrollment presented an Android one-time secret.
+// androidSecret is whether the enrollment presented an Android one-time secret, which skips the Android device ID check.
+// One-time secrets of any platform are checked by the callers.
 func rejectOrbitEnrollmentOverHostDB(ctx context.Context, tx sqlx.ExtContext, enrollConfig *fleet.DatastoreEnrollOrbitConfig,
 	matched *enrolledHostInfo, androidSecret bool,
 ) error {
@@ -3766,7 +3768,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
-	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "hostname", "uuid", "hardware_serial", "node_key", "osquery_host_id")
+	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "hostname", "uuid", "hardware_serial")
 }
 
 func (ds *Datastore) HostIDsByLabelIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
@@ -3930,17 +3932,13 @@ const hostByIdentifierWhere = `
         (SELECT id, 1 FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id LIMIT 1)
         UNION ALL
         (SELECT id, 2 FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id LIMIT 1)
-        UNION ALL
-        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ? AND osquery_host_id <> '')
-        UNION ALL
-        (SELECT id, 4 FROM hosts WHERE node_key = ? AND node_key <> '')
       ) candidates
       ORDER BY candidates.priority
       LIMIT 1
     )`
 
 func hostByIdentifierArgs(identifier string) []any {
-	return []any{identifier, identifier, identifier, identifier, identifier}
+	return []any{identifier, identifier, identifier}
 }
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -4855,28 +4853,17 @@ func (ds *Datastore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...
 		return false, nil
 	}
 
+	// Every orbit enrollment runs this, so look for an acknowledged reset first and open the transaction only for
+	// those hosts.
+	if matched, err := windowsResetHostForOrbitEnrollment(ctx, ds.reader(ctx), enrollConfig); err != nil || matched == nil {
+		return false, err
+	}
+
 	var cleared bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		cleared = false
-		// A Windows host back from a reset doesn't come with an Android one-time secret, and EnrollOrbit matches those differently.
-		if enrollConfig.OneTimeEnrollSecretID != nil {
-			androidSecret, err := isAndroidOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID)
-			if err != nil || androidSecret {
-				return err
-			}
-		}
-		matched, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, enrollConfig.IsMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, hostInfo.HardwareSerial, hostInfo.AutopilotDeviceID, hostInfo.Platform)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil
-		case err != nil:
-			return ctxerr.Wrap(ctx, err, "match host for end user clear")
-		}
-		if matched.Platform != "windows" {
-			return nil
-		}
-		if _, reset, err := windowsResetAckDB(ctx, tx, matched.ID); err != nil || !reset {
+		matched, err := windowsResetHostForOrbitEnrollment(ctx, tx, enrollConfig)
+		if err != nil || matched == nil {
 			return err
 		}
 
@@ -4899,6 +4886,35 @@ func (ds *Datastore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...
 		return err
 	})
 	return cleared, err
+}
+
+// windowsResetHostForOrbitEnrollment returns the Windows host the orbit enrollment lands on if that host acknowledged a reset,
+// or nil. An Android one-time secret lands on the Android host it's bound to, never a Windows host. Windows and Apple one-time
+// secrets match by identifiers like any enrollment; the caller checks them.
+func windowsResetHostForOrbitEnrollment(ctx context.Context, q sqlx.QueryerContext, enrollConfig *fleet.DatastoreEnrollOrbitConfig,
+) (*enrolledHostInfo, error) {
+	if enrollConfig.OneTimeEnrollSecretID != nil {
+		androidSecret, err := isAndroidOneTimeEnrollSecret(ctx, q, *enrollConfig.OneTimeEnrollSecretID)
+		if err != nil || androidSecret {
+			return nil, err
+		}
+	}
+	hostInfo := enrollConfig.HostInfo
+	matched, err := matchHostDuringEnrollment(ctx, q, orbitEnroll, enrollConfig.IsMDMEnabled, hostInfo.OsqueryIdentifier,
+		hostInfo.HardwareUUID, hostInfo.HardwareSerial, hostInfo.AutopilotDeviceID, hostInfo.Platform)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "match host for end user clear")
+	}
+	if matched.Platform != "windows" {
+		return nil, nil
+	}
+	if _, reset, err := windowsResetAckDB(ctx, q, matched.ID); err != nil || !reset {
+		return nil, err
+	}
+	return matched, nil
 }
 
 type windowsResetAck struct {
@@ -7620,6 +7636,40 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 	return &hh, nil
 }
 
+// Each candidate excludes empty values for the reason given on hostByIdentifierWhere, and the identifier columns aren't unique, so each
+// takes the newest host on its own index.
+const (
+	hostIDCandidateByID       = `(SELECT id, 0 AS priority FROM hosts WHERE id = ?)`
+	hostIDCandidateBySerial   = `(SELECT id, 1 AS priority FROM hosts WHERE hardware_serial = ? AND hardware_serial <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByUUID     = `(SELECT id, 2 AS priority FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id DESC LIMIT 1)`
+	hostIDCandidateByHostname = `(SELECT id, 3 AS priority FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id DESC LIMIT 1)`
+)
+
+func (ds *Datastore) HostIDByIdentifier(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
+	var (
+		candidates []string
+		args       []any
+	)
+	if opts.MatchID {
+		if id, err := strconv.ParseUint(identifier, 10, 0); err == nil {
+			candidates = append(candidates, hostIDCandidateByID)
+			args = append(args, id)
+		}
+	}
+	candidates = append(candidates, hostIDCandidateBySerial, hostIDCandidateByUUID, hostIDCandidateByHostname)
+	args = append(args, identifier, identifier, identifier)
+	stmt := `SELECT candidates.id FROM (` + strings.Join(candidates, " UNION ALL ") + `) candidates ORDER BY candidates.priority LIMIT 1`
+
+	var hostID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, stmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get host id by identifier")
+	}
+	return hostID, nil
+}
+
 func (ds *Datastore) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 	return ds.loadHostLite(ctx, nil, &identifier)
 }
@@ -7693,7 +7743,7 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 			DISTINCT h.hostname
 		FROM hosts h,
 		(%s) ids
-		WHERE ids.identifier IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
+		WHERE ids.identifier IN (h.hostname, h.uuid, h.hardware_serial)
 `
 	if len(identifiers) == 0 {
 		return nil, nil
@@ -7717,21 +7767,16 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 }
 
 func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
-	stmt := `
-		SELECT updated_at FROM host_issues WHERE host_id = ?
-	`
-	var out []time.Time
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &out, stmt, hostId); err != nil {
+	// Selecting from hosts returns not found for a missing host, so its caller doesn't add a host_issues row for it.
+	stmt := `SELECT hi.updated_at FROM hosts h LEFT JOIN host_issues hi ON hi.host_id = h.id WHERE h.id = ?`
+	var updatedAt sql.NullTime
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, stmt, hostId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return time.Time{}, ctxerr.Wrap(ctx, notFound("Host").WithID(hostId))
+		}
 		return time.Time{}, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
 	}
-	if len(out) == 0 {
-		// okay
-		return time.Time{}, nil
-	}
-	if len(out) > 1 {
-		return time.Time{}, ctxerr.New(ctx, "Multiple host_issues rows found for this host_id")
-	}
-	return out[0], nil
+	return updatedAt.Time, nil
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {

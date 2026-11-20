@@ -169,7 +169,7 @@ func (svc *Service) getVPPTokenByID(ctx context.Context, id *uint) (*fleet.VPPTo
 	}
 
 	if time.Now().After(token.RenewDate) {
-		return nil, fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(fmt.Errorf("Couldn't install. VPP token %q is expired. Please renew it and try again.", token.Location), http.StatusUnprocessableEntity)
 	}
 
 	return token, nil
@@ -336,7 +336,7 @@ func vppLocationNotFoundError(location string) error {
 }
 
 func vppTokenExpiredError(tok *fleet.VPPTokenDB) error {
-	return fleet.NewInvalidArgumentError("app_store_apps", fmt.Sprintf("Couldn't apply. %q VPP token is expired. Please renew it.", tok.Location))
+	return fleet.NewInvalidArgumentError("app_store_apps", fmt.Sprintf("Couldn't apply. VPP token %q is expired. Please renew it and try again.", tok.Location))
 }
 
 // vppMissingAsset is an app that its token's assets don't include.
@@ -356,6 +356,21 @@ func vppAssetsMissingError(missing []vppMissingAsset) error {
 	lines := make([]string, 0, len(missing))
 	for _, m := range missing {
 		lines = append(lines, fmt.Sprintf(`Couldn't apply. App %q isn't available in the %q VPP token. Please purchase a license in Apple Business and try again.`, m.adamID, m.location))
+	}
+	return fleet.NewInvalidArgumentError("app_store_apps", strings.Join(lines, "\n"))
+}
+
+// vppAssetsMissingInAnyTokenError is the dry-run new-team equivalent of
+// vppAssetsMissingError: before the fleet exists its token can't be known, so
+// each missing app is blamed on the token set, not a specific location.
+func vppAssetsMissingInAnyTokenError(adamIDs []string) error {
+	if len(adamIDs) == 0 {
+		return nil
+	}
+	sort.Strings(adamIDs)
+	lines := make([]string, 0, len(adamIDs))
+	for _, adamID := range adamIDs {
+		lines = append(lines, fmt.Sprintf(`Couldn't apply. App %q isn't available in any VPP token. Please purchase a license in Apple Business and try again.`, adamID))
 	}
 	return fleet.NewInvalidArgumentError("app_store_apps", strings.Join(lines, "\n"))
 }
@@ -673,7 +688,7 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 		}
 	}
 	if unexpired == 0 {
-		return fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return fleet.NewInvalidArgumentError("app_store_apps", "Couldn't apply. All VPP tokens are expired. Please renew one and try again.")
 	}
 	if readable == 0 {
 		return ctxerr.Wrap(ctx, fetchErr, "unable to retrieve assets")
@@ -685,12 +700,7 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 			missing = append(missing, adamID)
 		}
 	}
-	if len(missing) != 0 {
-		sort.Strings(missing)
-		reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missing, ", "))
-		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
-	}
-	return nil
+	return vppAssetsMissingInAnyTokenError(missing)
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error) {
