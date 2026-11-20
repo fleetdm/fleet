@@ -78,7 +78,6 @@ module.exports = {
     if (inputs.addIdsToHeadings === true) {
       var headingsRenderedOnThisPage = [];
       customRenderer.heading = function (text, level) {
-        text = text.replace(/<code v-pre>/g, '<code>');// « Ignore the `v-pre` on inline code here so heading IDs and underscore line breaks don't change.
         // If the heading has underscores and no spaces (e.g. osquery_async_host_collect_log_stats_interval) we'll add optional linebreaks before each underscore
         var textWithLineBreaks;
         if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
@@ -91,16 +90,15 @@ module.exports = {
           headingID = sails.helpers.strings.ensureUniq(headingID, headingsRenderedOnThisPage);
           headingsRenderedOnThisPage.push(headingID);
         }
-        return ('<h'+level+' class="markdown-heading" id="'+headingID+'">'+(textWithLineBreaks ? textWithLineBreaks : text)+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n').replace(/<code>/g, '<code v-pre>');
+        return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+(textWithLineBreaks ? textWithLineBreaks : text)+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
       };
     } else  {
       customRenderer.heading = function (text, level) {
-        text = text.replace(/<code v-pre>/g, '<code>');
         var textWithLineBreaks;
         if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
           textWithLineBreaks = text.replace(/(\_)/g, '&#8203;_');
         }
-        return ('<h'+level+'>'+(textWithLineBreaks ? textWithLineBreaks : text)+'</h'+level+'>').replace(/<code>/g, '<code v-pre>');
+        return '<h'+level+'>'+(textWithLineBreaks ? textWithLineBreaks : text)+'</h'+level+'>';
       };
     }
 
@@ -117,11 +115,6 @@ module.exports = {
       } else {// When unspecified, default to `text`
         return `<pre><code class="nohighlight" v-pre>${_.escape(code)}</code></pre>`;
       }
-    };
-
-    // Inline code gets `v-pre` too, so Vue doesn't evaluate {{ }} inside it.
-    customRenderer.codespan = function(text) {
-      return `<code v-pre>${text}</code>`;
     };
 
     // Creating a custom blockquote renderer function to render blockquotes as tip blockquotes.
