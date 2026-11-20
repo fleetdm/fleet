@@ -32,27 +32,28 @@ One by one, the Microsoft advantages fell apart. The assistant gave in once it r
 
 You may have heard that app protection without enrollment only works with Intune. That's false, and it has nothing to do with managing devices. Outlook and the Office apps have some lightweight data controls built in, and Microsoft calls them MAM. Google has the same controls in Gmail and its other work apps, and so does any other office suite. There's no secret deal with Apple behind any of it.
 
-Google lets you turn these controls on in the Google Workspace Admin console, alongside the rest of your Gmail and Drive settings, and you can push some of them through your device management tool, too. The only difference with Microsoft is that it makes you set them up in Intune, not in your email settings or the settings for your work apps. My guess is that Google simply doesn't have the leverage Microsoft has to force people onto its own tools, so it leans on open standards instead.
+Google lets you turn these controls on in the Google Workspace Admin console, alongside the rest of your Gmail and Drive settings.   
 
-Thankfully, you can get around Microsoft's version by enrolling the phone in your MDM, like Fleet. Enrolling gives you complete control, because iOS itself can keep work data in work apps. One profile can stop files and copied text from moving between work apps and personal apps, for every app IT installs, Outlook included. Those are Apple's standard device management settings, an open standard any MDM can use. Once you're using them, you aren't tied to the limits of one company's office suite and its device management tool. For Microsoft, that's the point. It put these settings in Intune so you'd need both of its products, which makes the bundle harder to leave.
+The difference with Outlook and Office apps is that Microsoft _makes you set this up in Intune_, not in its Outlook email settings or the settings for your other Office apps.  Why make it harder to find and configure this stuff?  Because by putting these settings in Intune, you need to buy both of Microsoft’s products, which makes the bundle harder to leave.
+
+Thankfully, now there’s another way.  You don’t need Intune, and Microsoft can’t force you to use Intune since they don’t control any major mobile operating system (though not for [lack of trying]()). If you actually need to stop files and copied text from moving out of work apps, you can enroll the phone in your MDM, like Fleet or Jamf.
+
+This works for _every_ app IT installs, Outlook and Gmail included, and it uses  Apple's and Android’s standard device management settings, an open standard any MDM can use. Once you're using them, you aren't tied to the limits of one company's office suite and its device management tool.
 
 It's also worth asking how much this matters to you in practice. In my conversations with companies, most that have the license for MAM don't lean on it much. Some turned it on because it came in their Microsoft bundle, and some never turned it on at all.
 
-So if you run Google Workspace and Okta, you aren't missing anything. Google decides which apps get in and keeps the data inside them. Okta handles sign-in and device checks with Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones.
+Bottom line: If you run Google Workspace/Nextcloud, or Okta/Ping, or Fleet/Jamf, you aren't missing anything. Your office suite decides which apps get in and keeps the data inside them. Your identity provider handles sign-in and device checks with Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and for many companies you may not even need to enroll those phones in an MDM at all.
 
-So why not enroll every phone? Because most people don't.
+That said, there are plenty of other security-driven (not just DLP) reasons to enroll employees’ personal smartphones in an MDM, everything from conditional access, to preventing keyloggers by encouraging patching, to lost mode, and more.
 
-## Most people don't enroll
+But let’s talk about the other factors, not just security.
 
-On paper, BYOD is everywhere. About 82% of organizations have a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
+## Enrolling employee smartphones speeds up time to productivity
+Skipping MDM enrollment makes for a rougher first day. For example, when new hires try to add their work account to the iPhone Mail app, it fails without saying why. They create a ticket or ask their manager, and someone tells them to download Gmail or Outlook. They sign in, get bounced to Okta Verify or Entra for a device check, and come back. 
 
-In practice, it's mostly unmanaged. We looked at companies with 500 or more employees that give everyone a work computer. There, BYOD means phones, and most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so take that with a grain of salt.
+Compare that with modern MDM, on iOS for example, where an employee simply opens **Settings**, taps **Sign In to Work or School Account**, and logs in with their standard SSO credentials. (Apple calls this [Account-driven User Enrollment](https://support.apple.com/guide/deployment/dep23db2037d/web).)  Then, Gmail or Outlook magically shows up already configured and partitioned, because IT set it up ahead of time.
 
-It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I don't blame them. I wouldn't enroll my phone in an MDM that isn't open source either, because I couldn't tell what it reads. My text messages? My browser history? What can it see? At a lot of companies, the answer is 🤷.
-
-Skipping enrollment also makes for a rougher first day. A new hire without MDM adds their work account to the iPhone Mail app, and it fails without saying why. Someone tells them to download Gmail. They sign in, get bounced to Okta Verify for a device check, and come back. Later, they copy a line from an email into a personal note, and it pastes as a message saying it can only be shared within the company's apps.
-
-With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. (Apple calls this [Account-driven User Enrollment](https://support.apple.com/guide/deployment/dep23db2037d/web).) Gmail or Outlook shows up already signed in, because IT set it up ahead of time. Work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes away and the personal side stays.
+This way, work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes away and the personal side stays.
 
 ![Enrolling a personal iPhone with a work account keeps work and personal data separate](../website/assets/images/articles/apple-account-driven-user-enrollment-800x400@2x.png)
 
@@ -60,13 +61,34 @@ Android is just as quick. The employee opens Fleet's enrollment page, taps **Enr
 
 ![Fleet's enrollment page for a personal Android phone](../website/assets/images/articles/android-byod-enroll-page-206x200@2x.png)
 
-Those enrollment numbers aren't fixed. Enrolling a personal phone feels like a leap of faith. Make enrollment easy. Tell people plainly what IT can and can't see, and what they're giving up. More of them will say yes. For the rest, conditional access is the best way to require it: no enrollment, no work apps.
+No-brainer, right?
 
-When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture. AI is speeding this up. One publicly traded fintech company held out against BYOD for years. It recently started a program because it wants tools like Claude to work on employees' devices and reach company data, with conditional access and an enrolled device deciding how much each one gets.
+## Most people don't enroll
 
-(Side note: this is why we're working on BYOD that puts employee privacy first at Fleet. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device. We call that scope transparency. We're also working on audit transparency, which makes it clear when data on a device is accessed while keeping the controls an organization needs.)
+On paper, BYOD is everywhere. About 82% of organizations have a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
 
-Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
+In practice, it's mostly unmanaged. We looked at companies with 500 or more employees that give everyone a work computer. There, BYOD means phones, and most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices. Nobody publishes a clean number, so take that with a grain of salt.
+
+It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I don't blame them. I wouldn't enroll my phone in an MDM that isn't open source either, because I couldn't tell what it reads. My text messages? My browser history? What [can it see](fleetdm.com/transparency)? At a lot of companies, the answer is 🤷.
+
+The result is high friction, low adoption, and a culture where even executives are reticent to give up their privacy and risk [their kids’ pictures getting randomly wiped by Intune](TODO link to Stryker news).
+
+## BYOD enrollment is rapidly increasing because of AI
+
+But this is changing, and AI is speeding it up. For example, one publicly traded fintech company held out against BYOD for years, but recently started a program because it wants tools like Claude to work on employees' devices and reach company data, with conditional access and an enrolled device deciding how much each one gets.  This is an increasingly common story among other mid-sized and large Fleet customers, and as of late 2026, the trend is accelerating.
+
+Enrolling a personal phone shouldn’t require a leap of faith. Employees should understand plainly what IT can and can't see, and what it can and can’t do to their personal data. Otherwise people rightly will assume the worst.
+
+(This is why we work so hard to put scope transparency and employee transparency first at Fleet. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device and find out in seconds, with blistering accuracy. We're also [working on audit transparency](), which makes it clear when data on a device is accessed while keeping the controls an organization needs.  Feedback welcome!)
+
+When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture.
+
+## Yes M’AM?
+Whether or not you run a BYOD program for employee phones today, and whether or not you lock down email and office apps, you are free.  You don’t need Intune, E3, Microsoft, or any other particular vendor to provide enterprise-grade security, provisioning, or even data-loss prevention, whether you have 100,000 employees or 100, and whether or not you are in a regulated industry.  Plenty of other organizations do this today without Microsoft, and it’s easy to set up.  (If you need any help, [drop us a line](/support).)
+
+And in the meantime, let’s all remember: when it comes to Microsoft… don't be afraid to check your AI’s work. (And my work in this article, for that matter.)
+
+Keep squinting until you see the truth.
 
 <meta name="category" value="articles">
 <meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM still thinks it is)">
