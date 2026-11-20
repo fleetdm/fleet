@@ -11,7 +11,7 @@ Fleet 4.96.0 is now available. See the complete [changelog](https://github.com/f
 
 IT admins who use Google Workspace can now block sign-in from iPhones, iPads, and Android devices that aren't company-owned and enrolled to Fleet. Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google. Google's [Context-Aware Access](https://knowledge.workspace.google.com/admin/security/about-context-aware-access) then blocks devices that aren't.
 
-Connect Google in **Settings > Integrations > Conditional access** with your Google customer ID, a Google Workspace admin's email, and a service account key. You can also use the [REST API](https://fleetdm.com/docs/rest-api/rest-api#connect-google) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files#google-conditional-access). On iPhones and iPads, the end user signs in to Google once from the self-service web clip. Android hosts don't need a sign-in.
+Connect Google in **Settings > Integrations > Conditional access** with your Google customer ID, a Google Workspace admin's email, and a service account key. On iPhones and iPads, the end user signs in to Google once from the self-service web clip. Android hosts don't need a sign-in.
 
 If you use the [Chrome bookmark](https://fleetdm.com/guides/google-conditional-access-integration#register-hosts-with-a-chrome-bookmark) from Fleet 4.95, connect Google in Fleet after you upgrade. The bookmark now needs it.
 
