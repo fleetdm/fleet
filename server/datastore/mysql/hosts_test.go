@@ -13084,6 +13084,15 @@ func testHostsEnrollSerialMatch(t *testing.T, ds *Datastore) {
 		}
 		require.NotEqual(t, mac.ID, enrollOsquery(t, uuid.NewString(), serial).ID)
 
+		withoutUUID, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(uuid.NewString()),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		require.NotEqual(t, mac.ID, withoutUUID.ID)
+
 		after, err := ds.Host(ctx, mac.ID)
 		require.NoError(t, err)
 		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey)

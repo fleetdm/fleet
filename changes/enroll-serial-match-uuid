@@ -1,2 +1,2 @@
-- Updated fleetd enrollment so that an Apple host that already has a hardware UUID is matched by hardware serial only when the enrolling UUID is the same. A device that reports the serial with a different UUID enrolls as a new host.
+- Updated fleetd enrollment so that an Apple host that already has a hardware UUID is matched by hardware serial only when the enrolling UUID is the same.
 - Updated `POST /api/fleet/orbit/luks_data` to return a 400 for hosts on platforms that don't support LUKS disk encryption.
