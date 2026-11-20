@@ -17,7 +17,7 @@ module.exports = {
 
   exits: {
     success: { description: 'Details about a Google conditional access registration have been returned to a Fleet instance' },
-    connectionAlreadyExists: { description: 'The provided Google customer ID is already registered.', statusCode: 409 },
+    connectionAlreadyExists: { description: 'The provided Google customer ID is already registered from another Origin.', statusCode: 409 },
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest' },
     invalidOriginHeader: { description: 'The Origin header is not an HTTPS URL.', responseType: 'badRequest' },
   },
@@ -58,15 +58,19 @@ module.exports = {
 
     let existingRegistration = await GoogleConditionalAccessServer.findOne({googleCustomerId});
     if(existingRegistration) {
-      throw 'connectionAlreadyExists';
+      // Only the Fleet server that registered this customer ID can re-create its registration, which replaces the secret.
+      if(existingRegistration.fleetInstanceUrl !== this.req.get('origin')) {
+        throw 'connectionAlreadyExists';
+      }
+      await GoogleConditionalAccessServer.updateOne({id: existingRegistration.id}).set({fleetServerSecret});
+    } else {
+      await GoogleConditionalAccessServer.create({
+        fleetServerSecret: fleetServerSecret,
+        googleCustomerId: googleCustomerId,
+        fleetInstanceUrl: this.req.get('origin'),
+      })
+      .intercept('E_UNIQUE', 'connectionAlreadyExists');
     }
-
-    await GoogleConditionalAccessServer.create({
-      fleetServerSecret: fleetServerSecret,
-      googleCustomerId: googleCustomerId,
-      fleetInstanceUrl: this.req.get('origin'),
-    })
-    .intercept('E_UNIQUE', 'connectionAlreadyExists');
 
     return {
       fleetServerSecret: fleetServerSecret,
