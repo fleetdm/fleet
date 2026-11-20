@@ -380,7 +380,7 @@ That said, for example, if a Fleetie struggled with a gambling issue in their pa
 
 ## Why does Fleet support query packs?
 
-Packs are a legacy feature that Fleet still supports. Today, reports are the way to schedule queries in Fleet and the portable way to import and export them.
+The new, portable way in Fleet to import and export queries, and to schedule them as reports about your devices, is now simply called [reports](https://fleetdm.com/guides/reports).
 
 As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
 
