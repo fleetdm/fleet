@@ -660,7 +660,11 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 
 func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.GetHostScriptDetailsRequest)
-	scripts, meta, err := svc.GetHostScriptDetails(ctx, req.HostID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	scripts, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (scripts []*fleet.HostScriptDetail, err error) {
+		scripts, meta, err = svc.GetHostScriptDetails(ctx, hostID, req.ListOptions)
+		return scripts, err
+	})
 	if err != nil {
 		return fleet.GetHostScriptDetailsResponse{Err: err}, nil
 	}

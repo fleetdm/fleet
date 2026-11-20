@@ -152,7 +152,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			}
 			url := fmt.Sprintf("/api/latest/fleet/hosts/%d/query", host.ID)
 			if endpoint == customQueryOneHostIdentifierEndpoint {
-				url = fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s/query", host.UUID)
+				url = fmt.Sprintf("/api/latest/fleet/hosts/%s/query", host.UUID)
 			}
 			go func() {
 				defer wg.Done()
@@ -717,7 +717,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesInvalidInputs() {
 		&liveQueryOnHostResp,
 	)
 	s.DoJSON(
-		"POST", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s/query", host.UUID), liveQueryOnHostRequest, http.StatusBadRequest,
+		"POST", fmt.Sprintf("/api/latest/fleet/hosts/%s/query", host.UUID), liveQueryOnHostRequest, http.StatusBadRequest,
 		&liveQueryOnHostResp,
 	)
 }
