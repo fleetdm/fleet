@@ -1,0 +1,1 @@
+- Fixed adding Fleet-maintained apps whose vendor only serves the installer when the download is linked from its own site (e.g. jamovi). If a download still returns a web page instead of an installer, Fleet now says so instead of reporting a SHA256 mismatch.
