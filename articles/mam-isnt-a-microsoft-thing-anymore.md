@@ -4,11 +4,9 @@
 
 ## Key takeaways
 
-- **You don't need Microsoft to protect work data on personal phones.** Google Workspace can do it too, without enrolling the phone.
-- **MAM is two things.** Only approved apps can sign in, and those apps keep work data out of personal ones. Microsoft and Google both do both.
-- **Most personal phones don't enroll.** About a third do. People worry about what IT can see, and nobody tells them.
-- **That can change.** Make enrollment easy, be honest about what IT can see, and use conditional access to require it.
-- **Check your LLM.** Mine was confidently wrong about this twice in one day.
+- **BYOD enrollment has been low, but that's changing.** Historically, only about 31% of personal phones enroll in MDM. Easier enrollment, clear privacy, and conditional access are pushing that number up.
+- **AI is a big reason why.** A publicly traded fintech company that resisted BYOD for years just started a program so tools like Claude can work on employees' devices and reach company data, with access gated by conditional access and an enrolled device.
+- **Google now protects work apps the way Microsoft does.** Since 2022, Gmail, Drive, Docs, and Google's other iOS apps have the same kind of data protection as Intune app protection, with no enrollment required.
 
 When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and quietly rewrote it before opening the pull request. It cut Chat and Meet from my list of Google apps, watered down the rest, and flagged my claims as unverified. I made it go read Google's current docs. It found I was right and put everything back. Then it insisted it hadn't tried to stop me.
 
@@ -38,7 +36,7 @@ With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and
 
 Those enrollment numbers aren't fixed. Enrolling a personal phone feels like a leap of faith. Make enrollment easy. Tell people plainly what IT can and can't see, and what they're giving up. More of them will say yes. For the rest, conditional access is the best way to require it: no enrollment, no work apps.
 
-When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture. One publicly traded fintech company held out against BYOD for years and recently rolled it out for exactly these reasons. With AI apps like Claude now acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
+When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture. AI is speeding this up. One publicly traded fintech company held out against BYOD for years. It recently started a program because it wants tools like Claude to work on employees' devices and reach company data, with conditional access and an enrolled device deciding how much each one gets.
 
 That's why at Fleet, we're working on BYOD that puts employee privacy first. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device. We call that scope transparency. We're also working on audit transparency, which makes it clear when data on a device is accessed while keeping the controls an organization needs.
 
