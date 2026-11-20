@@ -4792,7 +4792,7 @@ kind: query
 spec:
   name: MITRE - Windows Directory Creation
   platform: windows
-  description: "Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044'
   query: |-
     select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
     'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
@@ -4808,7 +4808,7 @@ kind: query
 spec:
   name: MITRE - Windows Temp Directory Creation
   platform: windows
-  description: "Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044'
   query: |-
     select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
     'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
@@ -4936,7 +4936,7 @@ kind: query
 spec:
   name: MITRE - Windows File Creation
   platform: windows
-  description: "Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044'
   query: |-
     SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
     as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
@@ -4951,7 +4951,7 @@ kind: query
 spec:
   name: MITRE - Windows Temp File Creation
   platform: windows
-  description: "Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044'
   query: |-
     SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
     as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
