@@ -55,7 +55,8 @@ module.exports = {
       }
     }
 
-    if(!_.find(sails.config.custom.googleConditionalAccessAllowedOrigins, {fleetInstanceUrl: origin, googleCustomerId: googleCustomerId})) {
+    // Return a fleetInstanceNotOnAllowlist response if this server url has not been added to sails.config.custom.googleConditionalAccessAllowedOrigins
+    if(!sails.config.custom.googleConditionalAccessAllowedOrigins.includes(origin)) {
       throw 'fleetInstanceNotOnAllowlist';
     }
 
