@@ -1135,7 +1135,7 @@ In the Fleet UI, the browser cookie is set at login to expire after this duratio
 
 Valid time units are `s`, `m`, `h`.
 
-- Default value: `5d` (5 days)
+- Default value: `120h` (5 days)
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
   ```yaml
