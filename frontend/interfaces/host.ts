@@ -87,10 +87,10 @@ export default PropTypes.shape({
   ),
 });
 
-export type HostStatus = "online" | "offline" | "new" | "missing";
+export type HostStatus = "online" | "offline" | "new" | "missing" | "enrolled";
 /** Values accepted by the hosts list `status` filter. "pending" and "enrolled"
  * are filter-only: no host ever reports them as its status. */
-export type HostStatusFilter = HostStatus | "pending" | "enrolled";
+export type HostStatusFilter = HostStatus | "pending";
 export interface IDeviceUser {
   email: string;
   source: string;
