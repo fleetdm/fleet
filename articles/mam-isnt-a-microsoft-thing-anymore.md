@@ -90,7 +90,7 @@ You don’t need Intune, E3, Microsoft, or any other particular vendor to provid
 
 In the meantime, remember to keep squinting until you see the truth.  And when it comes to Microsoft… don't be afraid to check your AI’s work.
 
-_**Thanks** to [Deelan Sabido](https://www.linkedin.com/in/deelansabido/), [Allen Houchins](https://www.linkedin.com/in/allenhouchins/), [Kitzy](https://www.linkedin.com/in/kitzy), and [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) for reading drafts of this essay._
+_**Thanks** to [Deelan Sabido](https://www.linkedin.com/in/deelansabido/), [Allen Houchins](https://www.linkedin.com/in/allenhouchins/), [Kitzy](https://www.linkedin.com/in/kitzy), [Christopher Noel](https://www.linkedin.com/in/chrstphr), and [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) for reading drafts of this essay._
 
 <meta name="category" value="articles">
 <meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM still thinks it is)">
