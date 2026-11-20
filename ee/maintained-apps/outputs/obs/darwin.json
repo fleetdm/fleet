@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "33.0.1",
+      "version": "33.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.obsproject.obs-studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.obsproject.obs-studio' AND version_compare(bundle_short_version, '33.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.obsproject.obs-studio' AND version_compare(bundle_short_version, '33.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.obsproject.obs-studio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn-fastly.obsproject.com/downloads/obs-studio-33.0.1-macos-apple.dmg",
+      "installer_url": "https://cdn-fastly.obsproject.com/downloads/obs-studio-33.0.2-macos-apple.dmg",
       "install_script_ref": "ed6beb7f",
       "uninstall_script_ref": "347a308e",
-      "sha256": "3d6b2eedeb56416602af635adaba32327fdf11ff9d2806a4ce7d5b608de73238",
+      "sha256": "f9cd96511c5efdd3ffd9a0068e3bbc276c61fc451d1004e3eea5658a9cb70488",
       "default_categories": [
         "Productivity"
       ]
